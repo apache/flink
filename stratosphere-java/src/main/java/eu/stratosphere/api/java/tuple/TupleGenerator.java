@@ -25,7 +25,7 @@ import com.google.common.io.Files;
  * Source code generator for tuple classes and classes which depend on the arity
  * of tuples.
  */
-public class TupleGenerator {
+class TupleGenerator {
 
 	// Parameters for tuple classes	
 	private static final String ROOT_DIRECTORY = "./src/main/java";
@@ -226,11 +226,27 @@ public class TupleGenerator {
 
 	private static void modifyCsvReader(File root) throws IOException {
 		// generate code
-		StringBuilder sb = new StringBuilder();
+		StringBuilder sb = new StringBuilder(1000);
 		for (int numFields = FIRST; numFields <= LAST; numFields++) {
 
 			// method begin
 			sb.append("\n");
+			
+			// java doc
+			sb.append("\t/**\n");
+			sb.append("\t * Specifies the types for the CSV fields. This method parses the CSV data to a ").append(numFields).append("-tuple\n");
+			sb.append("\t * which has fields of the specified types.\n");
+			sb.append("\t * This method is overloaded for each possible length of the tuples to support type safe\n");
+			sb.append("\t * creation of data sets through CSV parsing.\n"); 
+			sb.append("\t *\n");
+			
+			for (int pos = 0; pos < numFields; pos++) {
+				sb.append("\t * @param ").append(GEN_TYPE_PREFIX).append(pos);
+				sb.append(" The type of CSV field ").append(pos).append(" and the type of field ");
+				sb.append(pos).append(" in the returned tuple type.\n");
+			}
+			sb.append("\t * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.\n");
+			sb.append("\t */\n");
 
 			// method signature
 			sb.append("\tpublic <");

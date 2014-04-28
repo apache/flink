@@ -15,6 +15,7 @@
 package eu.stratosphere.api.java.io;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import org.apache.commons.lang3.Validate;
 
@@ -25,9 +26,10 @@ import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.core.fs.Path;
 
-
 /**
- *
+ * A builder class to instantiate a CSV parsing data source. The CSV reader configures the field types,
+ * the delimiters (row and field),  the fields that should be included or skipped, and other flags
+ * such as whether to skip the initial line as the header.
  */
 public class CsvReader {
 
@@ -36,14 +38,13 @@ public class CsvReader {
 	private final ExecutionEnvironment executionContext;
 	
 	
-	private boolean[] includedMask;
+	protected boolean[] includedMask;
 	
-	private String lineDelimiter = CsvInputFormat.DEFAULT_LINE_DELIMITER;
+	protected String lineDelimiter = CsvInputFormat.DEFAULT_LINE_DELIMITER;
 	
-	private char fieldDelimiter = CsvInputFormat.DEFAULT_FIELD_DELIMITER;
+	protected char fieldDelimiter = CsvInputFormat.DEFAULT_FIELD_DELIMITER;
 
-	private boolean skipFirstLineAsHeader = false;
-	
+	protected boolean skipFirstLineAsHeader = false;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -65,6 +66,13 @@ public class CsvReader {
 	
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Configures the delimiter that separates the lines/rows. The linebreak character
+	 * ({@code '\n'}) is used by default.
+	 * 
+	 * @param delimiter The delimiter that separates the rows.
+	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 */
 	public CsvReader lineDelimiter(String delimiter) {
 		if (delimiter == null || delimiter.length() == 0) {
 			throw new IllegalArgumentException("The delimiter must not be null or an empty string");
@@ -74,88 +82,154 @@ public class CsvReader {
 		return this;
 	}
 	
+	/**
+	 * Configures the delimiter that separates the fields within a row. The comma character
+	 * ({@code ','}) is used by default.
+	 * 
+	 * @param delimiter The delimiter that separates the fields in one row.
+	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 */
 	public CsvReader fieldDelimiter(char delimiter) {
 		this.fieldDelimiter = delimiter;
 		return this;
 	}
 	
-	
+	/**
+	 * Configures which fields of the CSV file should be included and which should be skipped. The
+	 * parser will look at the first {@code n} fields, where {@code n} is the length of the boolean
+	 * array. The parser will skip over all fields where the boolean value at the corresponding position
+	 * in the array is {@code false}. The result contains the fields where the corresponding position in
+	 * the boolean array is {@code true}.
+	 * The number of fields in the result is consequently equal to the number of times that {@code true}
+	 * occurs in the fields array.
+	 * 
+	 * @param fields The array of flags that describes which fields are to be included and which not.
+	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 */
 	public CsvReader includeFields(boolean ... fields) {
 		if (fields == null || fields.length == 0) {
 			throw new IllegalArgumentException("The set of included fields must not be null or empty.");
 		}
 		
-		this.includedMask = fields;
+		int lastTruePos = -1;
+		for (int i = 0; i < fields.length; i++) {
+			if (fields[i]) {
+				lastTruePos = i;
+			}
+		}
+		
+		if (lastTruePos == -1) {
+			throw new IllegalArgumentException("The description of fields to parse excluded all fields. At least one fields must be included.");
+		}
+		if (lastTruePos == fields.length - 1) {
+			this.includedMask = fields;
+		} else {
+			this.includedMask = Arrays.copyOfRange(fields, 0, lastTruePos + 1);
+		}
 		return this;
 	}
 
-	public CsvReader includeFields(int ... fields) {
-		if (fields == null || fields.length == 0) {
-			throw new IllegalArgumentException("The set of included fields must not be null or empty.");
-		}
-		
-		return null;
-	}
-	
+	/**
+	 * Configures which fields of the CSV file should be included and which should be skipped. The
+	 * positions in the string (read from position 0 to its length) define whether the field at
+	 * the corresponding position in the CSV schema should be included.
+	 * parser will look at the first {@code n} fields, where {@code n} is the length of the mask string
+	 * The parser will skip over all fields where the character at the corresponding position
+	 * in the string is {@code '0'}, {@code 'F'}, or {@code 'f'} (representing the value
+	 * {@code false}). The result contains the fields where the corresponding position in
+	 * the boolean array is {@code '1'}, {@code 'T'}, or {@code 't'} (representing the value {@code true}).
+	 * 
+	 * @param mask The string mask defining which fields to include and which to skip.
+	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 */
 	public CsvReader includeFields(String mask) {
-		this.includedMask = new boolean[mask.length()];
+		boolean[] includedMask = new boolean[mask.length()];
 		
 		for (int i = 0; i < mask.length(); i++) {
 			char c = mask.charAt(i);
-			if (c == '1' || c == 'T') {
-				this.includedMask[i] = true;
-			} else if (c != '0' && c != 'F') {
+			if (c == '1' || c == 'T' || c == 't') {
+				includedMask[i] = true;
+			} else if (c != '0' && c != 'F' && c != 'f') {
 				throw new IllegalArgumentException("Mask string may contain only '0' and '1'.");
 			}
 		}
 		
-		return this;
+		return includeFields(includedMask);
 	}
 	
+	/**
+	 * Configures which fields of the CSV file should be included and which should be skipped. The
+	 * bits in the value (read from least significant to most significant) define whether the field at
+	 * the corresponding position in the CSV schema should be included.
+	 * parser will look at the first {@code n} fields, where {@code n} is the position of the most significant
+	 * non-zero bit.
+	 * The parser will skip over all fields where the character at the corresponding bit is zero, and
+	 * include the fields where the corresponding bit is one.
+	 * <p>
+	 * Examples:
+	 * <ul>
+	 *   <li>A mask of {@code 0x7} would include the first three fields.</li>
+	 *   <li>A mask of {@code 0x26} (binary {@code 100110} would skip the first fields, include fields
+	 *       two and three, skip fields four and five, and include field six.</li>
+	 * </ul>
+	 * 
+	 * @param mask The bit mask defining which fields to include and which to skip.
+	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 */
 	public CsvReader includeFields(long mask) {
+		if (mask == 0) {
+			throw new IllegalArgumentException("The description of fields to parse excluded all fields. At least one fields must be included.");
+		}
+		
 		ArrayList<Boolean> fields = new ArrayList<Boolean>();
-		
-		int highestNum = 0;
-		for (int i = 0; i < 64; i++) {
-			long bitMask = 0x1l << i;
-			if ((mask & bitMask) != 0) {
-				fields.add(true);
-				highestNum = i;
-			} else {
-				fields.add(false);
-			}
+
+		while (mask != 0) {
+			fields.add((mask & 0x1L) != 0);
+			mask >>>= 1;
 		}
 		
-		this.includedMask = new boolean[highestNum + 1];
-		for (int i = 0; i < highestNum; i++) {
-			this.includedMask[i] = fields.get(i);
+		boolean[] fieldsArray = new boolean[fields.size()];
+		for (int i = 0; i < fieldsArray.length; i++) {
+			fieldsArray[i] = fields.get(i);
 		}
 		
-		return this;
+		return includeFields(fieldsArray);
 	}
 
+	/**
+	 * Sets the CSV reader to ignore the first line. This is useful for files that contain a header line.
+	 * 
+	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 */
 	public CsvReader ignoreFirstLine() {
 		skipFirstLineAsHeader = true;
 		return this;
 	}
 	/**
-	 * Reads the CSV and returns a DataSet containing objects of the given class. 
-	 * @param targetClass The targeted class, needs to be a subclass of Tuple.
-	 * @return The DataSet containing the CSV data.
+	 * Configures the reader to read the CSV data and parse it to the given type. The type must be a subclass of
+	 * {@link Tuple}. The type information for the fields is obtained from the type class. The type
+	 * consequently needs to specify all generic field types of the tuple.
+	 * 
+	 * @param targetType The class of the target type, needs to be a subclass of Tuple.
+	 * @return The DataSet representing the parsed CSV data.
 	 */
-	public <T0 extends Tuple> DataSource<T0> tupleType(Class<T0> targetClass) {
-		@SuppressWarnings("unchecked")
-		TupleTypeInfo<T0> typeInfo = (TupleTypeInfo<T0>) TypeExtractor.createTypeInfo(targetClass);
-		CsvInputFormat<T0> inputFormat = new CsvInputFormat<T0>(path);
+	public <T extends Tuple> DataSource<T> tupleType(Class<T> targetType) {
+		Validate.notNull(targetType, "The target type class must not be null.");
+		if (!Tuple.class.isAssignableFrom(targetType)) {
+			throw new IllegalArgumentException("The target type must be a subclass of " + Tuple.class.getName());
+		}
 		
-		@SuppressWarnings("rawtypes")
-		Class[] classes = new Class[typeInfo.getArity()];
+		@SuppressWarnings("unchecked")
+		TupleTypeInfo<T> typeInfo = (TupleTypeInfo<T>) TypeExtractor.createTypeInfo(targetType);
+		CsvInputFormat<T> inputFormat = new CsvInputFormat<T>(path);
+		
+		Class<?>[] classes = new Class<?>[typeInfo.getArity()];
 		for (int i = 0; i < typeInfo.getArity(); i++) {
 			classes[i] = typeInfo.getTypeAt(i).getTypeClass();
 		}
 		
 		configureInputFormat(inputFormat, classes);
-		return new DataSource<T0>(executionContext, inputFormat, typeInfo);
+		return new DataSource<T>(executionContext, inputFormat, typeInfo);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -179,6 +253,15 @@ public class CsvReader {
 	// BEGIN_OF_TUPLE_DEPENDENT_CODE
 	// GENERATED FROM eu.stratosphere.api.java.tuple.TupleGenerator.
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 1-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0> DataSource<Tuple1<T0>> types(Class<T0> type0) {
 		TupleTypeInfo<Tuple1<T0>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0);
 		CsvInputFormat<Tuple1<T0>> inputFormat = new CsvInputFormat<Tuple1<T0>>(path);
@@ -186,6 +269,16 @@ public class CsvReader {
 		return new DataSource<Tuple1<T0>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 2-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1> DataSource<Tuple2<T0, T1>> types(Class<T0> type0, Class<T1> type1) {
 		TupleTypeInfo<Tuple2<T0, T1>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1);
 		CsvInputFormat<Tuple2<T0, T1>> inputFormat = new CsvInputFormat<Tuple2<T0, T1>>(path);
@@ -193,6 +286,17 @@ public class CsvReader {
 		return new DataSource<Tuple2<T0, T1>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 3-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2> DataSource<Tuple3<T0, T1, T2>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2) {
 		TupleTypeInfo<Tuple3<T0, T1, T2>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2);
 		CsvInputFormat<Tuple3<T0, T1, T2>> inputFormat = new CsvInputFormat<Tuple3<T0, T1, T2>>(path);
@@ -200,6 +304,18 @@ public class CsvReader {
 		return new DataSource<Tuple3<T0, T1, T2>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 4-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3> DataSource<Tuple4<T0, T1, T2, T3>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3) {
 		TupleTypeInfo<Tuple4<T0, T1, T2, T3>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3);
 		CsvInputFormat<Tuple4<T0, T1, T2, T3>> inputFormat = new CsvInputFormat<Tuple4<T0, T1, T2, T3>>(path);
@@ -207,6 +323,19 @@ public class CsvReader {
 		return new DataSource<Tuple4<T0, T1, T2, T3>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 5-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4> DataSource<Tuple5<T0, T1, T2, T3, T4>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4) {
 		TupleTypeInfo<Tuple5<T0, T1, T2, T3, T4>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4);
 		CsvInputFormat<Tuple5<T0, T1, T2, T3, T4>> inputFormat = new CsvInputFormat<Tuple5<T0, T1, T2, T3, T4>>(path);
@@ -214,6 +343,20 @@ public class CsvReader {
 		return new DataSource<Tuple5<T0, T1, T2, T3, T4>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 6-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5> DataSource<Tuple6<T0, T1, T2, T3, T4, T5>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5) {
 		TupleTypeInfo<Tuple6<T0, T1, T2, T3, T4, T5>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5);
 		CsvInputFormat<Tuple6<T0, T1, T2, T3, T4, T5>> inputFormat = new CsvInputFormat<Tuple6<T0, T1, T2, T3, T4, T5>>(path);
@@ -221,6 +364,21 @@ public class CsvReader {
 		return new DataSource<Tuple6<T0, T1, T2, T3, T4, T5>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 7-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6> DataSource<Tuple7<T0, T1, T2, T3, T4, T5, T6>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6) {
 		TupleTypeInfo<Tuple7<T0, T1, T2, T3, T4, T5, T6>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6);
 		CsvInputFormat<Tuple7<T0, T1, T2, T3, T4, T5, T6>> inputFormat = new CsvInputFormat<Tuple7<T0, T1, T2, T3, T4, T5, T6>>(path);
@@ -228,6 +386,22 @@ public class CsvReader {
 		return new DataSource<Tuple7<T0, T1, T2, T3, T4, T5, T6>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 8-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7> DataSource<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7) {
 		TupleTypeInfo<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7);
 		CsvInputFormat<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> inputFormat = new CsvInputFormat<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>(path);
@@ -235,6 +409,23 @@ public class CsvReader {
 		return new DataSource<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 9-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param T8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8> DataSource<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8) {
 		TupleTypeInfo<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8);
 		CsvInputFormat<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> inputFormat = new CsvInputFormat<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>(path);
@@ -242,6 +433,24 @@ public class CsvReader {
 		return new DataSource<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 10-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param T8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param T9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> DataSource<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9) {
 		TupleTypeInfo<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9);
 		CsvInputFormat<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> inputFormat = new CsvInputFormat<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>(path);
@@ -249,6 +458,25 @@ public class CsvReader {
 		return new DataSource<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 11-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param T8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param T9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param T10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> DataSource<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10) {
 		TupleTypeInfo<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10);
 		CsvInputFormat<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> inputFormat = new CsvInputFormat<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>(path);
@@ -256,6 +484,26 @@ public class CsvReader {
 		return new DataSource<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 12-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param T8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param T9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param T10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param T11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11> DataSource<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11) {
 		TupleTypeInfo<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11);
 		CsvInputFormat<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> inputFormat = new CsvInputFormat<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>(path);
@@ -263,6 +511,27 @@ public class CsvReader {
 		return new DataSource<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 13-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param T8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param T9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param T10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param T11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param T12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> DataSource<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12) {
 		TupleTypeInfo<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12);
 		CsvInputFormat<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> inputFormat = new CsvInputFormat<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>(path);
@@ -270,6 +539,28 @@ public class CsvReader {
 		return new DataSource<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 14-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param T8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param T9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param T10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param T11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param T12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param T13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13> DataSource<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13) {
 		TupleTypeInfo<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13);
 		CsvInputFormat<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> inputFormat = new CsvInputFormat<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>(path);
@@ -277,6 +568,29 @@ public class CsvReader {
 		return new DataSource<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 15-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param T8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param T9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param T10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param T11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param T12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param T13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param T14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14> DataSource<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14) {
 		TupleTypeInfo<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14);
 		CsvInputFormat<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> inputFormat = new CsvInputFormat<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>(path);
@@ -284,6 +598,30 @@ public class CsvReader {
 		return new DataSource<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 16-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param T8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param T9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param T10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param T11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param T12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param T13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param T14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param T15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15> DataSource<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15) {
 		TupleTypeInfo<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15);
 		CsvInputFormat<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> inputFormat = new CsvInputFormat<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>(path);
@@ -291,6 +629,31 @@ public class CsvReader {
 		return new DataSource<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 17-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param T8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param T9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param T10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param T11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param T12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param T13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param T14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param T15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param T16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> DataSource<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16) {
 		TupleTypeInfo<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16);
 		CsvInputFormat<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> inputFormat = new CsvInputFormat<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>(path);
@@ -298,6 +661,32 @@ public class CsvReader {
 		return new DataSource<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 18-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param T8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param T9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param T10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param T11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param T12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param T13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param T14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param T15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param T16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @param T17 The type of CSV field 17 and the type of field 17 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17> DataSource<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17) {
 		TupleTypeInfo<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17);
 		CsvInputFormat<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> inputFormat = new CsvInputFormat<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>(path);
@@ -305,6 +694,33 @@ public class CsvReader {
 		return new DataSource<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 19-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param T8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param T9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param T10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param T11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param T12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param T13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param T14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param T15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param T16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @param T17 The type of CSV field 17 and the type of field 17 in the returned tuple type.
+	 * @param T18 The type of CSV field 18 and the type of field 18 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18> DataSource<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18) {
 		TupleTypeInfo<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18);
 		CsvInputFormat<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> inputFormat = new CsvInputFormat<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>(path);
@@ -312,6 +728,34 @@ public class CsvReader {
 		return new DataSource<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 20-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param T8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param T9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param T10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param T11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param T12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param T13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param T14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param T15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param T16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @param T17 The type of CSV field 17 and the type of field 17 in the returned tuple type.
+	 * @param T18 The type of CSV field 18 and the type of field 18 in the returned tuple type.
+	 * @param T19 The type of CSV field 19 and the type of field 19 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19> DataSource<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19) {
 		TupleTypeInfo<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19);
 		CsvInputFormat<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> inputFormat = new CsvInputFormat<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>(path);
@@ -319,6 +763,35 @@ public class CsvReader {
 		return new DataSource<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 21-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param T8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param T9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param T10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param T11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param T12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param T13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param T14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param T15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param T16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @param T17 The type of CSV field 17 and the type of field 17 in the returned tuple type.
+	 * @param T18 The type of CSV field 18 and the type of field 18 in the returned tuple type.
+	 * @param T19 The type of CSV field 19 and the type of field 19 in the returned tuple type.
+	 * @param T20 The type of CSV field 20 and the type of field 20 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20> DataSource<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19, Class<T20> type20) {
 		TupleTypeInfo<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20);
 		CsvInputFormat<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> inputFormat = new CsvInputFormat<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>(path);
@@ -326,6 +799,36 @@ public class CsvReader {
 		return new DataSource<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>(executionContext, inputFormat, types);
 	}
 
+	/**
+	 * Specifies the types for the CSV fields. This method parses the CSV data to a 22-tuple
+	 * which has fields of the specified types.
+	 * This method is overloaded for each possible length of the tuples to support type safe
+	 * creation of data sets through CSV parsing.
+	 *
+	 * @param T0 The type of CSV field 0 and the type of field 0 in the returned tuple type.
+	 * @param T1 The type of CSV field 1 and the type of field 1 in the returned tuple type.
+	 * @param T2 The type of CSV field 2 and the type of field 2 in the returned tuple type.
+	 * @param T3 The type of CSV field 3 and the type of field 3 in the returned tuple type.
+	 * @param T4 The type of CSV field 4 and the type of field 4 in the returned tuple type.
+	 * @param T5 The type of CSV field 5 and the type of field 5 in the returned tuple type.
+	 * @param T6 The type of CSV field 6 and the type of field 6 in the returned tuple type.
+	 * @param T7 The type of CSV field 7 and the type of field 7 in the returned tuple type.
+	 * @param T8 The type of CSV field 8 and the type of field 8 in the returned tuple type.
+	 * @param T9 The type of CSV field 9 and the type of field 9 in the returned tuple type.
+	 * @param T10 The type of CSV field 10 and the type of field 10 in the returned tuple type.
+	 * @param T11 The type of CSV field 11 and the type of field 11 in the returned tuple type.
+	 * @param T12 The type of CSV field 12 and the type of field 12 in the returned tuple type.
+	 * @param T13 The type of CSV field 13 and the type of field 13 in the returned tuple type.
+	 * @param T14 The type of CSV field 14 and the type of field 14 in the returned tuple type.
+	 * @param T15 The type of CSV field 15 and the type of field 15 in the returned tuple type.
+	 * @param T16 The type of CSV field 16 and the type of field 16 in the returned tuple type.
+	 * @param T17 The type of CSV field 17 and the type of field 17 in the returned tuple type.
+	 * @param T18 The type of CSV field 18 and the type of field 18 in the returned tuple type.
+	 * @param T19 The type of CSV field 19 and the type of field 19 in the returned tuple type.
+	 * @param T20 The type of CSV field 20 and the type of field 20 in the returned tuple type.
+	 * @param T21 The type of CSV field 21 and the type of field 21 in the returned tuple type.
+	 * @return The {@link eu.stratosphere.api.java.DataSet} representing the parsed CSV data.
+	 */
 	public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21> DataSource<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19, Class<T20> type20, Class<T21> type21) {
 		TupleTypeInfo<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> types = TupleTypeInfo.getBasicTupleTypeInfo(type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20, type21);
 		CsvInputFormat<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> inputFormat = new CsvInputFormat<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>>(path);

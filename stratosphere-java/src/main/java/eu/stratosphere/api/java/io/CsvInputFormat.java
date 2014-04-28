@@ -81,6 +81,9 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 		setFieldsGeneric(sourceFieldMask, fieldTypes);
 	}
 	
+	public Class<?>[] getFieldTypes() {
+		return super.getGenericFieldTypes();
+	}
 	
 	@Override
 	public void open(FileInputSplit split) throws IOException {
