@@ -38,7 +38,7 @@ import eu.stratosphere.test.util.JavaProgramTestBase;
 @RunWith(Parameterized.class)
 public class CrossITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 8;
+	private static int NUM_PROGRAMS = 9;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -118,9 +118,9 @@ public class CrossITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
 				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> coGroupDs = ds.cross(ds2).with(new Tuple3ReturnLeft());
+				DataSet<Tuple3<Integer, Long, String>> crossDs = ds.cross(ds2).with(new Tuple3ReturnLeft());
 				
-				coGroupDs.writeAsCsv(resultPath);
+				crossDs.writeAsCsv(resultPath);
 				env.execute();
 				
 				// return expected result
@@ -145,9 +145,9 @@ public class CrossITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
 				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> coGroupDs = ds.cross(ds2).with(new Tuple5ReturnRight());
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> crossDs = ds.cross(ds2).with(new Tuple5ReturnRight());
 				
-				coGroupDs.writeAsCsv(resultPath);
+				crossDs.writeAsCsv(resultPath);
 				env.execute();
 				
 				// return expected result
@@ -174,9 +174,9 @@ public class CrossITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
 				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
-				DataSet<Tuple3<Integer, Integer, Integer>> coGroupDs = ds.cross(ds2).with(new Tuple5CrossBC()).withBroadcastSet(intDs, "ints");
+				DataSet<Tuple3<Integer, Integer, Integer>> crossDs = ds.cross(ds2).with(new Tuple5CrossBC()).withBroadcastSet(intDs, "ints");
 				
-				coGroupDs.writeAsCsv(resultPath);
+				crossDs.writeAsCsv(resultPath);
 				env.execute();
 				
 				// return expected result
@@ -254,14 +254,14 @@ public class CrossITCase extends JavaProgramTestBase {
 
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
 				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
-				DataSet<Tuple6<String, Long, String, Integer, Long, Long>> coGroupDs = ds.cross(ds2)
+				DataSet<Tuple6<String, Long, String, Integer, Long, Long>> crossDs = ds.cross(ds2)
 					.projectFirst(2, 1)
 					.projectSecond(3)
 					.projectFirst(0)
 					.projectSecond(4,1)
 					.types(String.class, Long.class, String.class, Integer.class, Long.class, Long.class);
 
-				coGroupDs.writeAsCsv(resultPath);
+				crossDs.writeAsCsv(resultPath);
 				env.execute();
 
 				// return expected result
@@ -286,14 +286,14 @@ public class CrossITCase extends JavaProgramTestBase {
 
 					DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
 					DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
-					DataSet<Tuple6<String, String, Long, Long, Long,Integer>> coGroupDs = ds.cross(ds2)
+					DataSet<Tuple6<String, String, Long, Long, Long,Integer>> crossDs = ds.cross(ds2)
 						.projectSecond(3)
 						.projectFirst(2, 1)
 						.projectSecond(4,1)
 						.projectFirst(0)
 						.types(String.class, String.class, Long.class, Long.class, Long.class, Integer.class);
 
-					coGroupDs.writeAsCsv(resultPath);
+					crossDs.writeAsCsv(resultPath);
 					env.execute();
 
 					// return expected result
@@ -307,9 +307,36 @@ public class CrossITCase extends JavaProgramTestBase {
 						"Hallo Welt,Hello world,2,2,2,3\n" +
 						"Hallo Welt wie,Hello world,2,1,3,3\n";
 
-				}
+			}
+			case 9: {
+				/*
+				 * check correctness of default cross
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
+				DataSet<Tuple2<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>>> crossDs = ds.cross(ds2);
+				
+				crossDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "(1, 1, Hi),(2, 2, 1, Hallo Welt, 2)\n" +
+						"(1, 1, Hi),(1, 1, 0, Hallo, 1)\n" +
+						"(1, 1, Hi),(2, 3, 2, Hallo Welt wie, 1)\n" +
+						"(2, 2, Hello),(2, 2, 1, Hallo Welt, 2)\n" +
+						"(2, 2, Hello),(1, 1, 0, Hallo, 1)\n" +
+						"(2, 2, Hello),(2, 3, 2, Hallo Welt wie, 1)\n" +
+						"(3, 2, Hello world),(2, 2, 1, Hallo Welt, 2)\n" +
+						"(3, 2, Hello world),(1, 1, 0, Hallo, 1)\n" +
+						"(3, 2, Hello world),(2, 3, 2, Hallo Welt wie, 1)\n";
+				
+			}
+
 			// TODO Currently not working because AvroSerializer does not implement copy()
-//			case 7: {
+//			case 10: {
 //				
 //				/*
 //				 * check correctness of cross on two custom type inputs
@@ -336,7 +363,7 @@ public class CrossITCase extends JavaProgramTestBase {
 //						",44,Hallo Welt wieHallo Welt wie\n";
 //			}
 			// TODO Currently not working because AvroSerializer does not implement copy()
-//			case 8: {
+//			case 11: {
 //				
 //				/*
 //				 * check correctness of cross a tuple input and a custom type input
@@ -346,9 +373,9 @@ public class CrossITCase extends JavaProgramTestBase {
 //				
 //				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
 //				DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
-//				DataSet<Tuple3<Integer, Long, String>> coGroupDs = ds.cross(ds2).with(new MixedCross());
+//				DataSet<Tuple3<Integer, Long, String>> crossDs = ds.cross(ds2).with(new MixedCross());
 //				
-//				coGroupDs.writeAsCsv(resultPath);
+//				crossDs.writeAsCsv(resultPath);
 //				env.execute();
 //				
 //				// return expected result

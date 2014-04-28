@@ -90,12 +90,15 @@ public class CrossOperator<I1, I2, OUT>
 	// Builder classes for incremental construction
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class CrossOperatorSets<I1, I2> {
+	public static final class DefaultCross<I1, I2> extends CrossOperator<I1, I2, Tuple2<I1, I2>>  {
 		
 		private final DataSet<I1> input1;
 		private final DataSet<I2> input2;
 		
-		public CrossOperatorSets(DataSet<I1> input1, DataSet<I2> input2) {
+		public DefaultCross(DataSet<I1> input1, DataSet<I2> input2) {
+			super(input1, input2, (CrossFunction<I1, I2, Tuple2<I1, I2>>) new DefaultCrossFunction<I1, I2>(), 
+					new TupleTypeInfo<Tuple2<I1, I2>>(input1.getType(), input2.getType()));
+			
 			if (input1 == null || input2 == null)
 				throw new NullPointerException();
 			
@@ -1203,6 +1206,23 @@ public class CrossOperator<I1, I2, OUT>
 			}
 
 			return fieldTypes;
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  default join functions
+	// --------------------------------------------------------------------------------------------
+	
+	public static final class DefaultCrossFunction<T1, T2> extends CrossFunction<T1, T2, Tuple2<T1, T2>> {
+
+		private static final long serialVersionUID = 1L;
+		private final Tuple2<T1, T2> outTuple = new Tuple2<T1, T2>();
+
+		@Override
+		public Tuple2<T1, T2> cross(T1 first, T2 second) throws Exception {
+			outTuple.f0 = first;
+			outTuple.f1 = second;
+			return outTuple;
 		}
 	}
 }

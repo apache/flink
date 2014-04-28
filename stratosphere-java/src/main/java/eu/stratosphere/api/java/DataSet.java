@@ -34,7 +34,6 @@ import eu.stratosphere.api.java.operators.AggregateOperator;
 import eu.stratosphere.api.java.operators.CoGroupOperator;
 import eu.stratosphere.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
 import eu.stratosphere.api.java.operators.CrossOperator;
-import eu.stratosphere.api.java.operators.CrossOperator.CrossOperatorSets;
 import eu.stratosphere.api.java.operators.CustomUnaryOperation;
 import eu.stratosphere.api.java.operators.DataSink;
 import eu.stratosphere.api.java.operators.FilterOperator;
@@ -439,8 +438,8 @@ public abstract class DataSet<T> {
 	 * @see CrossOperatorSets
 	 * @see DataSet
 	 */
-	public <R> CrossOperator.CrossOperatorSets<T, R> cross(DataSet<R> other) {
-		return new CrossOperator.CrossOperatorSets<T, R>(this, other);
+	public <R> CrossOperator.DefaultCross<T, R> cross(DataSet<R> other) {
+		return new CrossOperator.DefaultCross<T, R>(this, other);
 	}
 	
 	/**
@@ -463,8 +462,8 @@ public abstract class DataSet<T> {
 	 * @see CrossOperatorSets
 	 * @see DataSet
 	 */
-	public <R> CrossOperator.CrossOperatorSets<T, R> crossWithTiny(DataSet<R> other) {
-		return new CrossOperator.CrossOperatorSets<T, R>(this, other);
+	public <R> CrossOperator.DefaultCross<T, R> crossWithTiny(DataSet<R> other) {
+		return new CrossOperator.DefaultCross<T, R>(this, other);
 	}
 	
 	/**
@@ -487,8 +486,8 @@ public abstract class DataSet<T> {
 	 * @see CrossOperatorSets
 	 * @see DataSet
 	 */
-	public <R> CrossOperator.CrossOperatorSets<T, R> crossWithHuge(DataSet<R> other) {
-		return new CrossOperator.CrossOperatorSets<T, R>(this, other);
+	public <R> CrossOperator.DefaultCross<T, R> crossWithHuge(DataSet<R> other) {
+		return new CrossOperator.DefaultCross<T, R>(this, other);
 	}
 
 	// --------------------------------------------------------------------------------------------

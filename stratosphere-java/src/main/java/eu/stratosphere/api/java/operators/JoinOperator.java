@@ -705,10 +705,13 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	public static final class DefaultJoinFunction<T1, T2> extends JoinFunction<T1, T2, Tuple2<T1, T2>> {
 
 		private static final long serialVersionUID = 1L;
+		private final Tuple2<T1, T2> outTuple = new Tuple2<T1, T2>();
 
 		@Override
 		public Tuple2<T1, T2> join(T1 first, T2 second) throws Exception {
-			return new Tuple2<T1, T2>(first, second);
+			outTuple.f0 = first;
+			outTuple.f1 = second;
+			return outTuple;
 		}
 	}
 	
