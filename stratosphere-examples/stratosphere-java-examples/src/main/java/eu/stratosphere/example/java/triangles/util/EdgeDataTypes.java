@@ -84,11 +84,7 @@ public class EdgeDataTypes {
 		public static final int D2 = 3;
 		
 		public EdgeWithDegrees() { }
-		
-		public EdgeWithDegrees(final Integer vertex1, final Integer degree1, final Integer vertex2, final Integer degree2) {
-			super(vertex1, degree1, vertex2, degree2);
-		}
-		
+			
 		public Integer getFirstVertex() { return this.getField(V1); }
 		
 		public Integer getSecondVertex() { return this.getField(V2); }
