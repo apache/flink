@@ -273,7 +273,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// Get the directory for storing temporary files
 		final String[] tmpDirPaths = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator);
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(",|"+File.pathSeparator);
 
 		checkTempDirs(tmpDirPaths);
 		
@@ -369,7 +369,7 @@ public class TaskManager implements TaskOperationProtocol {
 	 * @throws IOException 
 	 */
 	@SuppressWarnings("static-access")
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException {		
 		Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg().withDescription(
 			"Specify configuration directory.").create("configDir");
 		// tempDir option is used by the YARN client.
@@ -972,15 +972,15 @@ public class TaskManager implements TaskOperationProtocol {
 			final File f = new File(dir);
 
 			if (!f.exists()) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " does not exist.");
+				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' does not exist.");
 			}
 
 			if (!f.isDirectory()) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " is not a directory.");
+				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not a directory.");
 			}
 
 			if (!f.canWrite()) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " is not writable.");
+				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not writable.");
 			}
 		}
 	}
