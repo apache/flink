@@ -26,7 +26,7 @@ import eu.stratosphere.core.memory.DataOutputView;
  * 
  * @see eu.stratosphere.types.Key
  */
-public class FloatValue implements Key, ResettableValue<FloatValue>, CopyableValue<FloatValue> {
+public class FloatValue implements Key<FloatValue>, ResettableValue<FloatValue>, CopyableValue<FloatValue> {
 	private static final long serialVersionUID = 1L;
 
 	private float value;
@@ -92,12 +92,8 @@ public class FloatValue implements Key, ResettableValue<FloatValue>, CopyableVal
 	}
 	
 	@Override
-	public int compareTo(final Key o) {
-		if (!(o instanceof FloatValue)) {
-			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to FloatValue!");
-		}
-
-		final double other = ((FloatValue) o).value;
+	public int compareTo(FloatValue o) {
+		final double other = o.value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
 

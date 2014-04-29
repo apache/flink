@@ -26,7 +26,7 @@ package eu.stratosphere.types;
  * @see eu.stratosphere.core.io.IOReadableWritable
  * @see java.lang.Comparable
  */
-public interface Key extends Value, Comparable<Key> {
+public interface Key<T> extends Value, Comparable<T> {
 	
 	/**
 	 * All keys must override the hash-code function to generate proper deterministic hash codes,

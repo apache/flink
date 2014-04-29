@@ -27,7 +27,7 @@ import eu.stratosphere.core.memory.MemorySegment;
  * 
  * @see eu.stratosphere.types.Key
  */
-public class LongValue implements Key, NormalizableKey, ResettableValue<LongValue>, CopyableValue<LongValue> {
+public class LongValue implements NormalizableKey<LongValue>, ResettableValue<LongValue>, CopyableValue<LongValue> {
 	private static final long serialVersionUID = 1L;
 
 	private long value;
@@ -103,25 +103,12 @@ public class LongValue implements Key, NormalizableKey, ResettableValue<LongValu
 
 	// --------------------------------------------------------------------------------------------
 	
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Comparable#compareTo(java.lang.Object)
-	 */
 	@Override
-	public int compareTo(final Key o) {
-		if (!(o instanceof LongValue)) {
-			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to N_Integer!");
-		}
-
-		final long other = ((LongValue) o).value;
-
+	public int compareTo(LongValue o) {
+		final long other = o.value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
 	@Override
 	public int hashCode() {
 		return 43 + (int) (this.value ^ this.value >>> 32);

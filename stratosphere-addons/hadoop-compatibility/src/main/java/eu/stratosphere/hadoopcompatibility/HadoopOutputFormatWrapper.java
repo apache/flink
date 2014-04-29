@@ -110,6 +110,7 @@ public class HadoopOutputFormatWrapper<K,V> implements OutputFormat<Record> {
 		out.writeObject(fileOutputCommitterWrapper);
 	}
 
+	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		hadoopOutputFormatName = in.readUTF();
 		if(jobConf == null) {

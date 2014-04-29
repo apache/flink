@@ -27,7 +27,7 @@ import eu.stratosphere.core.memory.MemorySegment;
  * 
  * @see eu.stratosphere.types.Key
  */
-public class IntValue implements Key, NormalizableKey, ResettableValue<IntValue>, CopyableValue<IntValue> {
+public class IntValue implements NormalizableKey<IntValue>, ResettableValue<IntValue>, CopyableValue<IntValue> {
 	private static final long serialVersionUID = 1L;
 	
 	private int value;
@@ -92,13 +92,8 @@ public class IntValue implements Key, NormalizableKey, ResettableValue<IntValue>
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public int compareTo(final Key o) {
-		if (!(o instanceof IntValue)) {
-			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to IntValue!");
-		}
-
-		final int other = ((IntValue) o).value;
-
+	public int compareTo(IntValue o) {
+		final int other = o.value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
 

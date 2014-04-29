@@ -40,7 +40,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 	/**
 	 * The types of the keys that the operator operates on.
 	 */
-	private final Class<? extends Key>[] keyTypes;
+	private final Class<? extends Key<?>>[] keyTypes;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -52,7 +52,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 	 * @param keyColumn1 The position of the key in the first input's records.
 	 * @param keyColumn2 The position of the key in the second input's records.
 	 */
-	public static Builder builder(JoinFunction udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+	public static Builder builder(JoinFunction udf, Class<? extends Key<?>> keyClass, int keyColumn1, int keyColumn2) {
 		return new Builder(new UserCodeObjectWrapper<JoinFunction>(udf), keyClass, keyColumn1, keyColumn2);
 	}
 	
@@ -64,7 +64,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 	 * @param keyColumn1 The position of the key in the first input's records.
 	 * @param keyColumn2 The position of the key in the second input's records.
 	 */
-	public static Builder builder(Class<? extends JoinFunction> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+	public static Builder builder(Class<? extends JoinFunction> udf, Class<? extends Key<?>> keyClass, int keyColumn1, int keyColumn2) {
 		return new Builder(new UserCodeClassWrapper<JoinFunction>(udf), keyClass, keyColumn1, keyColumn2);
 	}
 	
@@ -88,7 +88,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 	}
 	
 	@Override
-	public Class<? extends Key>[] getKeyClasses() {
+	public Class<? extends Key<?>>[] getKeyClasses() {
 		return this.keyTypes;
 	}
 	
@@ -101,7 +101,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		
 		/* The required parameters */
 		private final UserCodeWrapper<JoinFunction> udf;
-		private final List<Class<? extends Key>> keyClasses;
+		private final List<Class<? extends Key<?>>> keyClasses;
 		private final List<Integer> keyColumns1;
 		private final List<Integer> keyColumns2;
 		
@@ -120,9 +120,9 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
-		protected Builder(UserCodeWrapper<JoinFunction> udf, Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+		protected Builder(UserCodeWrapper<JoinFunction> udf, Class<? extends Key<?>> keyClass, int keyColumn1, int keyColumn2) {
 			this.udf = udf;
-			this.keyClasses = new ArrayList<Class<? extends Key>>();
+			this.keyClasses = new ArrayList<Class<? extends Key<?>>>();
 			this.keyClasses.add(keyClass);
 			this.keyColumns1 = new ArrayList<Integer>();
 			this.keyColumns1.add(keyColumn1);
@@ -141,7 +141,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		 */
 		protected Builder(UserCodeWrapper<JoinFunction> udf) {
 			this.udf = udf;
-			this.keyClasses = new ArrayList<Class<? extends Key>>();
+			this.keyClasses = new ArrayList<Class<? extends Key<?>>>();
 			this.keyColumns1 = new ArrayList<Integer>();
 			this.keyColumns2 = new ArrayList<Integer>();
 			this.inputs1 = new ArrayList<Operator>();
@@ -166,7 +166,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		}
 		
 		@SuppressWarnings("unchecked")
-		private Class<? extends Key>[] getKeyClassesArray() {
+		private Class<? extends Key<?>>[] getKeyClassesArray() {
 			return keyClasses.toArray(new Class[keyClasses.size()]);
 		}
 
@@ -177,7 +177,7 @@ public class JoinOperator extends JoinOperatorBase<JoinFunction> implements Reco
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
-		public Builder keyField(Class<? extends Key> keyClass, int keyColumn1, int keyColumn2) {
+		public Builder keyField(Class<? extends Key<?>> keyClass, int keyColumn1, int keyColumn2) {
 			keyClasses.add(keyClass);
 			keyColumns1.add(keyColumn1);
 			keyColumns2.add(keyColumn2);

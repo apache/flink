@@ -27,7 +27,7 @@ import eu.stratosphere.core.memory.MemorySegment;
  * 
  * @see eu.stratosphere.types.Key
  */
-public class CharValue implements Key, NormalizableKey, ResettableValue<CharValue>, CopyableValue<CharValue> {
+public class CharValue implements NormalizableKey<CharValue>, ResettableValue<CharValue>, CopyableValue<CharValue> {
 	private static final long serialVersionUID = 1L;
 	
 	private char value;
@@ -92,13 +92,8 @@ public class CharValue implements Key, NormalizableKey, ResettableValue<CharValu
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public int compareTo(final Key o) {
-		if (!(o instanceof CharValue)) {
-			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to PactChar!");
-		}
-
-		final int other = ((CharValue) o).value;
-
+	public int compareTo(CharValue o) {
+		final int other = o.value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
 

@@ -122,7 +122,8 @@ public class WordCount implements Program, ProgramDescription {
 		TextInputFormat.addInputPath(source.getJobConf(), new Path(dataInput));
 		
 		// Example with Wrapper Converter
-		HadoopDataSource<LongWritable,Text> sourceHadoopType = new HadoopDataSource<LongWritable, Text>(new TextInputFormat(), new JobConf(), "Input Lines", new WritableWrapperConverter<LongWritable, Text>());
+		HadoopDataSource<LongWritable,Text> sourceHadoopType = new HadoopDataSource<LongWritable, Text>(
+				new TextInputFormat(), new JobConf(), "Input Lines", new WritableWrapperConverter<LongWritable, Text>());
 		TextInputFormat.addInputPath(source.getJobConf(), new Path(dataInput));
 		
 		MapOperator mapper = MapOperator.builder(new TokenizeLine())

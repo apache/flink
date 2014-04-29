@@ -74,7 +74,7 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 	
 
 	@Override
-	public Class<? extends Key>[] getKeyClasses() {
+	public Class<? extends Key<?>>[] getKeyClasses() {
 		return emptyClassArray();
 	}
 

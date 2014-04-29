@@ -45,7 +45,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 	/**
 	 * The types of the keys that the contract operates on.
 	 */
-	private final Class<? extends Key>[] keyTypes;
+	private final Class<? extends Key<?>>[] keyTypes;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -65,7 +65,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 	 * @param keyClass The class of the key data type.
 	 * @param keyColumn The position of the key.
 	 */
-	public static Builder builder(ReduceFunction udf, Class<? extends Key> keyClass, int keyColumn) {
+	public static Builder builder(ReduceFunction udf, Class<? extends Key<?>> keyClass, int keyColumn) {
 		return new Builder(new UserCodeObjectWrapper<ReduceFunction>(udf), keyClass, keyColumn);
 	}
 
@@ -85,7 +85,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 	 * @param keyClass The class of the key data type.
 	 * @param keyColumn The position of the key.
 	 */
-	public static Builder builder(Class<? extends ReduceFunction> udf, Class<? extends Key> keyClass, int keyColumn) {
+	public static Builder builder(Class<? extends ReduceFunction> udf, Class<? extends Key<?>> keyClass, int keyColumn) {
 		return new Builder(new UserCodeClassWrapper<ReduceFunction>(udf), keyClass, keyColumn);
 	}
 	
@@ -110,7 +110,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 	
 
 	@Override
-	public Class<? extends Key>[] getKeyClasses() {
+	public Class<? extends Key<?>>[] getKeyClasses() {
 		return this.keyTypes;
 	}
 	
@@ -171,7 +171,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 		
 		/* The required parameters */
 		private final UserCodeWrapper<ReduceFunction> udf;
-		private final List<Class<? extends Key>> keyClasses;
+		private final List<Class<? extends Key<?>>> keyClasses;
 		private final List<Integer> keyColumns;
 		
 		/* The optional parameters */
@@ -187,7 +187,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 		 */
 		private Builder(UserCodeWrapper<ReduceFunction> udf) {
 			this.udf = udf;
-			this.keyClasses = new ArrayList<Class<? extends Key>>();
+			this.keyClasses = new ArrayList<Class<? extends Key<?>>>();
 			this.keyColumns = new ArrayList<Integer>();
 			this.inputs = new ArrayList<Operator>();
 			this.broadcastInputs = new HashMap<String, Operator>();
@@ -200,9 +200,9 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn The position of the key.
 		 */
-		private Builder(UserCodeWrapper<ReduceFunction> udf, Class<? extends Key> keyClass, int keyColumn) {
+		private Builder(UserCodeWrapper<ReduceFunction> udf, Class<? extends Key<?>> keyClass, int keyColumn) {
 			this.udf = udf;
-			this.keyClasses = new ArrayList<Class<? extends Key>>();
+			this.keyClasses = new ArrayList<Class<? extends Key<?>>>();
 			this.keyClasses.add(keyClass);
 			this.keyColumns = new ArrayList<Integer>();
 			this.keyColumns.add(keyColumn);
@@ -219,7 +219,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 		}
 		
 		@SuppressWarnings("unchecked")
-		private Class<? extends Key>[] getKeyClassesArray() {
+		private Class<? extends Key<?>>[] getKeyClassesArray() {
 			return keyClasses.toArray(new Class[keyClasses.size()]);
 		}
 
@@ -229,7 +229,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn The position of the key.
 		 */
-		public Builder keyField(Class<? extends Key> keyClass, int keyColumn) {
+		public Builder keyField(Class<? extends Key<?>> keyClass, int keyColumn) {
 			keyClasses.add(keyClass);
 			keyColumns.add(keyColumn);
 			return this;

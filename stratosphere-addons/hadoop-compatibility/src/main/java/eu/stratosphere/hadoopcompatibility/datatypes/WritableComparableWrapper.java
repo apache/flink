@@ -17,7 +17,7 @@ import org.apache.hadoop.io.WritableComparable;
 
 import eu.stratosphere.types.Key;
 
-public class WritableComparableWrapper<T extends WritableComparable> extends WritableWrapper<T> implements Key {
+public class WritableComparableWrapper<T extends WritableComparable<T>> extends WritableWrapper<T> implements Key<WritableComparableWrapper<T>> {
 	private static final long serialVersionUID = 1L;
 	
 	public WritableComparableWrapper() {
@@ -29,7 +29,7 @@ public class WritableComparableWrapper<T extends WritableComparable> extends Wri
 	}
 
 	@Override
-	public int compareTo(Key o) {
-		return ((WritableComparable) super.value()).compareTo( ((WritableComparableWrapper<T>) o).value() );
+	public int compareTo(WritableComparableWrapper<T> o) {
+		return super.value().compareTo(o.value());
 	}
 }

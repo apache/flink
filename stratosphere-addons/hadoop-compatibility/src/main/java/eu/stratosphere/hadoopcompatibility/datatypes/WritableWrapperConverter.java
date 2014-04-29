@@ -19,6 +19,7 @@ import org.apache.hadoop.io.WritableComparable;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 
+@SuppressWarnings("rawtypes")
 public class WritableWrapperConverter<K extends WritableComparable, V extends Writable> implements HadoopTypeConverter<K,V> {
 	private static final long serialVersionUID = 1L;
 
@@ -28,8 +29,9 @@ public class WritableWrapperConverter<K extends WritableComparable, V extends Wr
 		stratosphereRecord.setField(1, convertValue(hadoopValue));
 	}
 	
+	@SuppressWarnings("unchecked")
 	private final Value convertKey(K in) {
-		return new WritableComparableWrapper<K>(in);
+		return new WritableComparableWrapper(in);
 	}
 	
 	private final Value convertValue(V in) {

@@ -26,7 +26,7 @@ import eu.stratosphere.core.memory.DataOutputView;
  * 
  * @see eu.stratosphere.types.Key
  */
-public class DoubleValue implements Key, ResettableValue<DoubleValue>, CopyableValue<DoubleValue> {
+public class DoubleValue implements Key<DoubleValue>, ResettableValue<DoubleValue>, CopyableValue<DoubleValue> {
 	private static final long serialVersionUID = 1L;
 
 	private double value;
@@ -67,10 +67,10 @@ public class DoubleValue implements Key, ResettableValue<DoubleValue>, CopyableV
 		this.value = value;
 	}
 
-	@Override
-	public void setValue(DoubleValue value) {
-		this.value = value.value;
-	}
+    @Override
+    public void setValue(DoubleValue value) {
+        this.value = value.value;
+    }
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -92,13 +92,8 @@ public class DoubleValue implements Key, ResettableValue<DoubleValue>, CopyableV
 	}
 	
 	@Override
-	public int compareTo(final Key o) {
-		if (!(o instanceof DoubleValue)) {
-			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to DoubleValue!");
-		}
-
-		final double other = ((DoubleValue) o).value;
-
+	public int compareTo(DoubleValue o) {
+		final double other = o.value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
 

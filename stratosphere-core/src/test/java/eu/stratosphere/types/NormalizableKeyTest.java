@@ -121,7 +121,8 @@ public class NormalizableKeyTest {
 		}
 	}
 	
-	private void assertNormalizableKey(NormalizableKey key1, NormalizableKey key2, int len) {
+	@SuppressWarnings("unchecked")
+	private <T extends Comparable<T>> void assertNormalizableKey(NormalizableKey<T> key1, NormalizableKey<T> key2, int len) {
 		
 		byte[] normalizedKeys = new byte[2*len];
 		MemorySegment wrapper = new MemorySegment(normalizedKeys);
@@ -135,13 +136,13 @@ public class NormalizableKeyTest {
 			int normKey2 = normalizedKeys[len + i] & 0xFF;
 			
 			if ((comp = (normKey1 - normKey2)) != 0) {
-				if (Math.signum(key1.compareTo(key2)) != Math.signum(comp)) {
+				if (Math.signum(((T) key1).compareTo((T) key2)) != Math.signum(comp)) {
 					Assert.fail("Normalized key comparison differs from actual key comparision");
 				}
 				return;
 			}
 		}
-		if (key1.compareTo(key2) != 0 && key1.getMaxNormalizedKeyLen() <= len) {
+		if (((T) key1).compareTo((T) key2) != 0 && key1.getMaxNormalizedKeyLen() <= len) {
 			Assert.fail("Normalized key was not able to distinguish keys, " +
 					"although it should as the length of it sufficies to uniquely identify them");
 		}

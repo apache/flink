@@ -27,7 +27,7 @@ import eu.stratosphere.util.ReflectionUtil;
  * @param <U> Type of the pair's first element.
  * @param <V> Type of the pair's second element.
  */
-public abstract class Pair<U extends Key, V extends Key> implements Key {
+public abstract class Pair<U extends Key<U>, V extends Key<V>> implements Key<Pair<U, V>> {
 	private static final long serialVersionUID = 1L;
 	
 	// class of the first pair element
@@ -135,14 +135,10 @@ public abstract class Pair<U extends Key, V extends Key> implements Key {
 	}
 
 	@Override
-	public int compareTo(final Key o) {
-		if (!(o instanceof Pair<?, ?>)) {
-			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to N_Pair.");
-		}
-
-		int result = this.first.compareTo(((Pair<?, ?>) o).first);
+	public int compareTo(Pair<U, V> o) {
+		int result = this.first.compareTo(o.first);
 		if (result == 0) {
-			result = this.second.compareTo(((Pair<?, ?>) o).second);
+			result = this.second.compareTo(o.second);
 		}
 		return result;
 	}

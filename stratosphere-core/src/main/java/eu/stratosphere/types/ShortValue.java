@@ -27,7 +27,7 @@ import eu.stratosphere.core.memory.MemorySegment;
  * 
  * @see eu.stratosphere.types.Key
  */
-public class ShortValue implements Key, NormalizableKey, ResettableValue<ShortValue>, CopyableValue<ShortValue> {
+public class ShortValue implements NormalizableKey<ShortValue>, ResettableValue<ShortValue>, CopyableValue<ShortValue> {
 	private static final long serialVersionUID = 1L;
 	
 	private short value;
@@ -92,13 +92,8 @@ public class ShortValue implements Key, NormalizableKey, ResettableValue<ShortVa
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public int compareTo(final Key o) {
-		if (!(o instanceof ShortValue)) {
-			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to ShortValue!");
-		}
-
-		final int other = ((ShortValue) o).value;
-
+	public int compareTo(ShortValue o) {
+		final int other = o.value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;
 	}
 

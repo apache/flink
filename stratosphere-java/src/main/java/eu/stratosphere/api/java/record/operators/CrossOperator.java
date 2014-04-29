@@ -74,7 +74,7 @@ public class CrossOperator extends CrossOperatorBase<CrossFunction> implements R
 	
 
 	@Override
-	public Class<? extends Key>[] getKeyClasses() {
+	public Class<? extends Key<?>>[] getKeyClasses() {
 		return emptyClassArray();
 	}
 	

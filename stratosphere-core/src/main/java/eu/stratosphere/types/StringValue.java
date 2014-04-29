@@ -18,11 +18,10 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.nio.CharBuffer;
 
-import org.apache.commons.lang3.Validate;
-
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.core.memory.MemorySegment;
+import org.apache.commons.lang3.Validate;
 
 /**
  * Mutable string data type that implements the Key interface.
@@ -38,8 +37,8 @@ import eu.stratosphere.core.memory.MemorySegment;
  * @see java.lang.String
  * @see java.lang.CharSequence
  */
-public class StringValue implements Key, NormalizableKey, CharSequence, ResettableValue<StringValue>, 
-		CopyableValue<StringValue>, Appendable {
+public class StringValue implements NormalizableKey<StringValue>, CharSequence, ResettableValue<StringValue>, 
+        CopyableValue<StringValue>, Appendable {
 	private static final long serialVersionUID = 1L;
 	
 	private static final char[] EMPTY_STRING = new char[0];
@@ -538,27 +537,21 @@ public class StringValue implements Key, NormalizableKey, CharSequence, Resettab
 	}
 
 	@Override
-	public int compareTo(final Key o) {
-		if (o instanceof StringValue) {
-			StringValue other = (StringValue) o;
+	public int compareTo(StringValue other) {
+		int len1 = this.len;
+		int len2 = other.len;
+		int n = Math.min(len1, len2);
+		char v1[] = value;
+		char v2[] = other.value;
 
-			int len1 = this.len;
-			int len2 = other.len;
-			int n = Math.min(len1, len2);
-			char[] v1 = value;
-			char[] v2 = other.value;
-
-			for (int k = 0; k < n; k++) {
-				char c1 = v1[k];
-				char c2 = v2[k];
-				if (c1 != c2) {
-					return c1 - c2;
-				}
+		for (int k = 0; k < n; k++) {
+			char c1 = v1[k];
+			char c2 = v2[k];
+			if (c1 != c2) {
+				return c1 - c2;
 			}
-			return len1 - len2;
-		} else {
-			throw new ClassCastException("Cannot compare StringValue to " + o.getClass().getName());
 		}
+		return len1 - len2;
 	}
 
 	@Override

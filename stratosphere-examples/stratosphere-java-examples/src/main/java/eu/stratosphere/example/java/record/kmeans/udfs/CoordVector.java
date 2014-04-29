@@ -23,7 +23,7 @@ import eu.stratosphere.types.Key;
  * (= the features) are stored as double values. The distance between two feature vectors is
  * the Euclidian distance between the points.
  */
-public final class CoordVector implements Key {
+public final class CoordVector implements Key<CoordVector> {
 	private static final long serialVersionUID = 1L;
 	
 	// coordinate array
@@ -130,27 +130,20 @@ public final class CoordVector implements Key {
 	 *         returned.
 	 */
 	@Override
-	public int compareTo(Key o) {
-		// check if other key is also of type CoordVector
-		if (!(o instanceof CoordVector)) {
-			return -1;
-		}
-		// cast to CoordVector
-		CoordVector oP = (CoordVector) o;
-
+	public int compareTo(CoordVector o) {
 		// check if both coordinate vectors have identical lengths
-		if (oP.coordinates.length > this.coordinates.length) {
+		if (o.coordinates.length > this.coordinates.length) {
 			return -1;
 		}
-		else if (oP.coordinates.length < this.coordinates.length) {
+		else if (o.coordinates.length < this.coordinates.length) {
 			return 1;
 		}
 
 		// compare all coordinates
 		for (int i = 0; i < this.coordinates.length; i++) {
-			if (oP.coordinates[i] > this.coordinates[i]) {
+			if (o.coordinates[i] > this.coordinates[i]) {
 				return -1;
-			} else if (oP.coordinates[i] < this.coordinates[i]) {
+			} else if (o.coordinates[i] < this.coordinates[i]) {
 				return 1;
 			}
 		}

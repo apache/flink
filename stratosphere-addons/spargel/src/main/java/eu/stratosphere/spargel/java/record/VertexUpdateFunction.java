@@ -28,7 +28,7 @@ import eu.stratosphere.util.Collector;
  * <VertexValue> The vertex value type.
  * <Message> The message type.
  */
-public abstract class VertexUpdateFunction<VertexKey extends Key, VertexValue extends Value, Message extends Value> implements Serializable {
+public abstract class VertexUpdateFunction<VertexKey extends Key<VertexKey>, VertexValue extends Value, Message extends Value> implements Serializable {
 
 	// --------------------------------------------------------------------------------------------
 	//  Public API Methods

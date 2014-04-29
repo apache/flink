@@ -26,7 +26,7 @@ import eu.stratosphere.types.Key;
 import eu.stratosphere.util.ReflectionUtil;
 
 
-public abstract class AvroBaseValue<T> extends AvroValue<T> implements Key {
+public abstract class AvroBaseValue<T> extends AvroValue<T> implements Key<AvroBaseValue<T>> {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -137,8 +137,8 @@ public abstract class AvroBaseValue<T> extends AvroValue<T> implements Key {
 	
 	@SuppressWarnings("unchecked")
 	@Override
-	public int compareTo(Key o) {
-		Object otherDatum = ((AvroBaseValue<?>) o).datum();
+	public int compareTo(AvroBaseValue<T> o) {
+		Object otherDatum = o.datum();
 		Object thisDatum = datum();
 		
 		if (thisDatum == null) {

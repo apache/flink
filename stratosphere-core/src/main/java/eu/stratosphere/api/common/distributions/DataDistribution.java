@@ -40,7 +40,7 @@ public interface DataDistribution extends IOReadableWritable, Serializable {
 	 * 
 	 * @return A record whose values act as bucket boundaries for the specified bucket.
 	 */
-	Key[] getBucketBoundary(int bucketNum, int totalNumBuckets);
+	Key<?>[] getBucketBoundary(int bucketNum, int totalNumBuckets);
 	
 	/**
 	 * The number of fields in the (composite) key. This determines how many fields in the records define

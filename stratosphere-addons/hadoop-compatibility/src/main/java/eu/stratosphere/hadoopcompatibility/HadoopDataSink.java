@@ -65,6 +65,7 @@ public class HadoopDataSink<K,V> extends GenericDataSink implements Validatable 
 
 
 
+	@SuppressWarnings("deprecation")
 	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, List<Operator> input, StratosphereTypeConverter<K,V> conv, Class<K> keyClass, Class<V> valueClass) {
 		super(new HadoopOutputFormatWrapper<K,V>(hadoopFormat, jobConf, conv),input, name);
 		Preconditions.checkNotNull(hadoopFormat);

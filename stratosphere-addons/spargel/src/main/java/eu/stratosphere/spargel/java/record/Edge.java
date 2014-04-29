@@ -17,7 +17,7 @@ import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Value;
 
 
-public final class Edge<VertexKey extends Key, EdgeValue extends Value> {
+public final class Edge<VertexKey extends Key<VertexKey>, EdgeValue extends Value> {
 	
 	private VertexKey target;
 	private EdgeValue edgeValue;

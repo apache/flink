@@ -27,7 +27,7 @@ import eu.stratosphere.core.memory.MemorySegment;
  * 
  * @see eu.stratosphere.types.Key
  */
-public class BooleanValue implements NormalizableKey, ResettableValue<BooleanValue>, CopyableValue<BooleanValue> {
+public class BooleanValue implements NormalizableKey<BooleanValue>, ResettableValue<BooleanValue>, CopyableValue<BooleanValue> {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -94,14 +94,10 @@ public class BooleanValue implements NormalizableKey, ResettableValue<BooleanVal
 	}
 
 	@Override
-	public int compareTo(Key o) {
-		if (o.getClass() == BooleanValue.class) {
-			final int ov = ((BooleanValue) o).value ? 1 : 0;
-			final int tv = this.value ? 1 : 0;
-			return tv - ov;
-		} else {
-			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to N_Integer!");
-		}
+	public int compareTo(BooleanValue o) {
+		final int ov = o.value ? 1 : 0;
+		final int tv = this.value ? 1 : 0;
+		return tv - ov;
 	}
 	
 	@Override

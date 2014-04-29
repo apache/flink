@@ -23,7 +23,7 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 
-public abstract class MessagingFunction<VertexKey extends Key, VertexValue extends Value, Message extends Value, EdgeValue extends Value> implements Serializable {
+public abstract class MessagingFunction<VertexKey extends Key<VertexKey>, VertexValue extends Value, Message extends Value, EdgeValue extends Value> implements Serializable {
 
 	// --------------------------------------------------------------------------------------------
 	//  Public API Methods
@@ -118,7 +118,7 @@ public abstract class MessagingFunction<VertexKey extends Key, VertexValue exten
 	
 	private static final long serialVersionUID = 1L;
 	
-	private static final class EdgesIterator<VertexKey extends Key, EdgeValue extends Value> implements Iterator<Edge<VertexKey, EdgeValue>> {
+	private static final class EdgesIterator<VertexKey extends Key<VertexKey>, EdgeValue extends Value> implements Iterator<Edge<VertexKey, EdgeValue>> {
 
 		private Iterator<Record> input;
 		private VertexKey keyHolder;

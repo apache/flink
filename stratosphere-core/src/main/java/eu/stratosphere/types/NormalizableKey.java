@@ -28,7 +28,7 @@ import eu.stratosphere.core.memory.MemorySegment;
  * key. A normalized key is considered a prefix, if its length is less than the maximal normalized
  * key length.
  */
-public interface NormalizableKey extends Key {
+public interface NormalizableKey<T> extends Key<T> {
 	
 	/**
 	 * Gets the maximal length of normalized keys that the data type would produce to determine

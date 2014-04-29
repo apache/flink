@@ -27,10 +27,10 @@ import eu.stratosphere.types.Key;
  * This class is a wrapper for the key part of the integer number.
  * 
  */
-public final class TeraKey implements Key {
+public final class TeraKey implements Key<TeraKey> {
 	private static final long serialVersionUID = 1L;
 
-	/**
+	/** 
 	 * The size of the key in bytes.
 	 */
 	public static final int KEY_SIZE = 10;
@@ -92,14 +92,7 @@ public final class TeraKey implements Key {
 
 
 	@Override
-	public int compareTo(Key arg0) {
-
-		if (!(arg0 instanceof TeraKey)) {
-			return Integer.MAX_VALUE;
-		}
-
-		final TeraKey tsk = (TeraKey) arg0;
-
+	public int compareTo(TeraKey tsk) {
 		int diff = 0;
 		for (int i = 0; i < KEY_SIZE; ++i) {
 

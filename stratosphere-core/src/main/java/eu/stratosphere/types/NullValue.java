@@ -22,24 +22,22 @@ import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.core.memory.MemorySegment;
 
 /**
- * Null base type for PACT programs that implements the Key interface.
- * This type can be used if no key or value is required and serializes into a zero-length byte stream.
- * So no data is shipped or stored using this type.
+ * Null base type for programs that implements the Key interface.
  * 
  * @see eu.stratosphere.types.Key
  */
-public final class NullValue implements Key, NormalizableKey, CopyableValue<NullValue> {
+public final class NullValue implements NormalizableKey<NullValue>, CopyableValue<NullValue> {
 	private static final long serialVersionUID = 1L;
 	
 	/**
-	 * The PactNull singleton instance.
+	 * The singleton NullValue instance.
 	 */
 	private final static NullValue INSTANCE = new NullValue();
 
 	/**
-	 * Returns PactNull's singleton instance.
+	 * Returns the NullValue singleton instance.
 	 *  
-	 * @return PactNull's singleton instance.
+	 * @return The NullValue singleton instance.
 	 */
 	public static NullValue getInstance() {
 		return INSTANCE;
@@ -48,17 +46,12 @@ public final class NullValue implements Key, NormalizableKey, CopyableValue<Null
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Creates a PactNull object.
+	 * Creates a NullValue object.
 	 */
-	public NullValue() {
-	}
+	public NullValue() {}
 	
 	// --------------------------------------------------------------------------------------------
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
 	@Override
 	public String toString() {
 		return "(null)";
@@ -66,19 +59,11 @@ public final class NullValue implements Key, NormalizableKey, CopyableValue<Null
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
-	 */
 	@Override
 	public void read(DataInput in) throws IOException {
 		in.readBoolean();
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
-	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
 		out.writeBoolean(false);
@@ -86,32 +71,16 @@ public final class NullValue implements Key, NormalizableKey, CopyableValue<Null
 	
 	// --------------------------------------------------------------------------------------------
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Comparable#compareTo(java.lang.Object)
-	 */
 	@Override
-	public int compareTo(Key o) {
-		if (o.getClass() != NullValue.class) {
-			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to PactNull!");
-		}
-
+	public int compareTo(NullValue o) {
 		return 0;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
 	@Override
 	public boolean equals(Object o) {
 		return (o != null && o.getClass() == NullValue.class);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
-	 */
 	@Override
 	public int hashCode() {
 		return 53;
