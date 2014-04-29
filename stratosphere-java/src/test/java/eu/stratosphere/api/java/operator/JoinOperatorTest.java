@@ -194,75 +194,72 @@ public class JoinOperatorTest {
 		}
 	}
 	
-	// TODO: Activate once mixed key types work for join
-//	@Test
-//	public void testJoinKeyMixing2() {
-//		
-//		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-//		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-//		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
-//
-//		// should work
-//		try {
-//			ds1.join(ds2)
-//			   .where(3)
-//			   .equalTo(
-//					   new KeySelector<CustomType, Long>() {
-//							
-//							@Override
-//							public Long getKey(CustomType value) {
-//								return value.myLong;
-//							}
-//						}
-//					   );
-//		} catch(Exception e) {
-//			Assert.fail();
-//		}
-//	}
+	@Test
+	public void testJoinKeyMixing2() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should work
+		try {
+			ds1.join(ds2)
+			   .where(3)
+			   .equalTo(
+					   new KeySelector<CustomType, Long>() {
+							
+							@Override
+							public Long getKey(CustomType value) {
+								return value.myLong;
+							}
+						}
+					   );
+		} catch(Exception e) {
+			Assert.fail();
+		}
+	}
 	
-	// TODO: Activate once mixed key types work for join
-//	@Test(expected = IllegalArgumentException.class)
-//	public void testJoinKeyMixing3() {
-//		
-//		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-//		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-//		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
-//
-//		// should not work, incompatible types
-//		ds1.join(ds2)
-//		   .where(2)
-//		   .equalTo(
-//				   new KeySelector<CustomType, Long>() {
-//						
-//						@Override
-//						public Long getKey(CustomType value) {
-//							return value.myLong;
-//						}
-//					}
-//				   );
-//	}
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyMixing3() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, incompatible types
+		ds1.join(ds2)
+		   .where(2)
+		   .equalTo(
+				   new KeySelector<CustomType, Long>() {
+						
+						@Override
+						public Long getKey(CustomType value) {
+							return value.myLong;
+						}
+					}
+				   );
+	}
 	
-	// TODO: Activate once mixed key types work for join
-//	@Test(expected = IllegalArgumentException.class)
-//	public void testJoinKeyMixing4() {
-//		
-//		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-//		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-//		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
-//
-//		// should not work, more than one key field position
-//		ds1.join(ds2)
-//		   .where(1,3)
-//		   .equalTo(
-//				   new KeySelector<CustomType, Long>() {
-//						
-//						@Override
-//						public Long getKey(CustomType value) {
-//							return value.myLong;
-//						}
-//					}
-//				   );
-//	}
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyMixing4() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, more than one key field position
+		ds1.join(ds2)
+		   .where(1,3)
+		   .equalTo(
+				   new KeySelector<CustomType, Long>() {
+						
+						@Override
+						public Long getKey(CustomType value) {
+							return value.myLong;
+						}
+					}
+				   );
+	}
 	
 	@Test
 	public void testJoinProjection1() {
