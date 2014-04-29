@@ -417,9 +417,12 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 		
 		// park the main thread to keep the JVM alive (all other threads may be daemon threads)
-		try {
-			new Object().wait();
-		} catch (InterruptedException ex) {}
+		Object mon = new Object();
+		synchronized (mon) {
+			try {
+				mon.wait();
+			} catch (InterruptedException ex) {}
+		}
 	}
 
 	/**
