@@ -194,7 +194,7 @@ public class CoGroupOperatorTest {
 		}
 	}
 	
-//	@Test
+    @Test
 	public void testCoGroupKeyMixing2() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
