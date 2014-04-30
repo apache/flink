@@ -21,9 +21,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 
-/**
- *
- */
 public class PackagedProgramTest {
 
 	private static final String TEST_PROG_FILE_PATH = "/test.jar";
@@ -42,7 +39,5 @@ public class PackagedProgramTest {
 			e.printStackTrace();
 			Assert.fail("Test is erroneous: " + e.getMessage());
 		}
-		
 	}
-
 }

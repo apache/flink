@@ -39,6 +39,7 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.java.ExecutionEnvironment;
+import eu.stratosphere.client.program.Client.ProgramAbortException;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
@@ -207,8 +208,12 @@ public class PackagedProgram {
 			env.setAsContext();
 			try {
 				invokeInteractiveModeForExecution();
-			} catch (Throwable t) {
+			} catch (ProgramAbortException e) {
 				// the invocation gets aborted with the preview plan
+			} catch (ProgramInvocationException e) {
+				throw e;
+			} catch (Throwable t) {
+				throw new ProgramInvocationException("Program invokation failed with " + t.getClass().getSimpleName() + ": " + t.getMessage(), t);
 			}
 			previewPlan =  env.previewPlan;
 		}
