@@ -29,7 +29,6 @@ import eu.stratosphere.api.java.tuple.Tuple5;
 import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 
-@SuppressWarnings("serial")
 public class CrossOperatorTest {
 
 	// TUPLE DATA

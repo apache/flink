@@ -435,8 +435,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @param fieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields. 
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
-		 * @return A JoinProjection that needs to be converted into a {@link ProjectOperator} to complete the 
-		 *           ProjectJoin transformation by calling {@link JoinProjection#types()}.
+		 * @return A JoinProjection that needs to be converted into a {@link ProjectJoin} to complete the 
+		 *           Join transformation by calling {@link JoinProjection#types()}.
 		 * 
 		 * @see Tuple
 		 * @see DataSet
@@ -458,8 +458,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @param fieldIndexes If the second input is a Tuple DataSet, the indexes of the selected fields. 
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
-		 * @return A JoinProjection that needs to be converted into a {@link ProjectOperator} to complete the 
-		 *           ProjectJoin transformation by calling {@link JoinProjection#types()}.
+		 * @return A JoinProjection that needs to be converted into a {@link ProjectJoin} to complete the 
+		 *           Join transformation by calling {@link JoinProjection#types()}.
 		 * 
 		 * @see Tuple
 		 * @see DataSet
@@ -720,7 +720,20 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		private final boolean[] isFromFirst;
 		private final R outTuple;
 	
+		/**
+		 * Instantiates and configures a ProjectJoinFunction.
+		 * Creates output tuples by copying fields of joined input tuples (or a full input object) into an output tuple.
+		 * 
+		 * @param fields List of indexes fields that should be copied to the output tuple. 
+		 * 					If the full input object should be copied (for example in case of a non-tuple input) the index should be -1. 
+		 * @param isFromFirst List of flags indicating whether the field should be copied from the first (true) or the second (false) input.
+		 * @param outTupleInstance An instance of an output tuple.
+		 */
 		private ProjectJoinFunction(int[] fields, boolean[] isFromFirst, R outTupleInstance) {
+			
+			if(fields.length != isFromFirst.length) {
+				throw new IllegalArgumentException("Fields and isFromFirst arrays must have same length!"); 
+			}
 			this.fields = fields;
 			this.isFromFirst = isFromFirst;
 			this.outTuple = outTupleInstance;
@@ -782,6 +795,12 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		
 		public JoinProjection(DataSet<I1> ds1, DataSet<I2> ds2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint, int[] firstFieldIndexes, int[] secondFieldIndexes) {
 			
+			this.ds1 = ds1;
+			this.ds2 = ds2;
+			this.keys1 = keys1;
+			this.keys2 = keys2;
+			this.hint = hint;
+			
 			boolean isFirstTuple;
 			boolean isSecondTuple;
 			
@@ -831,14 +850,14 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			
 			if(!isTuple && this.fieldIndexes.length != 0) {
 				// field index provided for non-Tuple input
-				throw new IllegalArgumentException("Input is not a Tuple. Call projectSecond without arguments to include it.");
+				throw new IllegalArgumentException("Input is not a Tuple. Call projectFirst() (or projectSecond()) without arguments to include it.");
 			} else if(this.fieldIndexes.length > 22) {
 				throw new IllegalArgumentException("You may select only up to twenty-two (22) fields.");
 			}
 			
-			isFieldInFirst = new boolean[this.fieldIndexes.length];
-			
 			if(isTuple) {
+				this.isFieldInFirst = new boolean[this.fieldIndexes.length];
+				
 				// check field indexes and adapt to position in tuple
 				int maxFieldIndex = firstInput ? numFieldsDs1 : numFieldsDs2;
 				for(int i=0; i<this.fieldIndexes.length; i++) {
@@ -856,11 +875,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				this.fieldIndexes = new int[]{-1};
 			}
 
-			this.ds1 = ds1;
-			this.ds2 = ds2;
-			this.keys1 = keys1;
-			this.keys2 = keys2;
-			this.hint = hint;
 		}
 		
 		/**
@@ -894,7 +908,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			
 			if(!isFirstTuple && firstFieldIndexes.length != 0) {
 				// field index provided for non-Tuple input
-				throw new IllegalArgumentException("Input is not a Tuple. Call projectSecond without arguments to include it.");
+				throw new IllegalArgumentException("Input is not a Tuple. Call projectFirst() without arguments to include it.");
 			} else if(firstFieldIndexes.length > (22 - this.fieldIndexes.length)) {
 				// to many field indexes provided
 				throw new IllegalArgumentException("You may select only up to twenty-two (22) fields in total.");
@@ -961,7 +975,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			
 			if(!isSecondTuple && secondFieldIndexes.length != 0) {
 				// field index provided for non-Tuple input
-				throw new IllegalArgumentException("Input is not a Tuple. Call projectSecond without arguments to include it.");
+				throw new IllegalArgumentException("Input is not a Tuple. Call projectSecond() without arguments to include it.");
 			} else if(secondFieldIndexes.length > (22 - this.fieldIndexes.length)) {
 				// to many field indexes provided
 				throw new IllegalArgumentException("You may select only up to twenty-two (22) fields in total.");
