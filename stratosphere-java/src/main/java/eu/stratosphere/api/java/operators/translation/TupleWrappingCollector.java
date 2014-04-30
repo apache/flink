@@ -20,30 +20,35 @@ import eu.stratosphere.util.Collector;
 /**
  * Needed to wrap tuples to Tuple2<key, value> pairs for combine method of group reduce with key selector function
  */
-public class TupleWrappingCollector<K, IN> implements Collector<IN>, java.io.Serializable {
+public class TupleWrappingCollector<IN, K> implements Collector<IN>, java.io.Serializable {
 	
 	private static final long serialVersionUID = 1L;
 
-	private K key;
+	private final TupleUnwrappingIterator<IN, K> tui;
+	private final Tuple2<K, IN> outTuple;
 	
-	private Collector<Tuple2<K, IN>> outerCollector;
+	private Collector<Tuple2<K, IN>> wrappedCollector;
 	
-	public TupleWrappingCollector() {
+	
+	public TupleWrappingCollector(TupleUnwrappingIterator<IN, K> tui) {
+		this.tui = tui;
+		this.outTuple = new Tuple2<K, IN>();
 	}
 	
-	public void set(K key, Collector<Tuple2<K, IN>> outerCollector) {
-		this.key = key;
-		this.outerCollector = outerCollector;
+	public void set(Collector<Tuple2<K, IN>> wrappedCollector) {
+			this.wrappedCollector = wrappedCollector;
 	}
-	
+		
 	@Override
 	public void close() {
-		this.outerCollector.close();
+		this.wrappedCollector.close();
 	}
 
 	@Override
 	public void collect(IN record) {
-		this.outerCollector.collect(new Tuple2<K, IN>(this.key, record));
+		this.outTuple.f0 = this.tui.getLastKey();
+		this.outTuple.f1 = record;
+		this.wrappedCollector.collect(outTuple);
 	}
 
 }

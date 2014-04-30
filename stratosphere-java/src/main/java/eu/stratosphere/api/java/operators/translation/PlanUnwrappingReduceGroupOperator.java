@@ -66,14 +66,13 @@ public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOp
 
 		private static final long serialVersionUID = 1L;
 		
-		private PeekingTupleUnwrappingIterator<IN, K> iter;
-		
-		private TupleWrappingCollector<K, IN> combineCollector; 
+		private TupleUnwrappingIterator<IN, K> iter;
+		private TupleWrappingCollector<IN, K> coll; 
 		
 		private TupleUnwrappingGroupReducer(GroupReduceFunction<IN, OUT> wrapped) {
 			super(wrapped);
-			this.iter = new PeekingTupleUnwrappingIterator<IN, K>();
-			this.combineCollector = new TupleWrappingCollector<K, IN>();
+			this.iter = new TupleUnwrappingIterator<IN, K>();
+			this.coll = new TupleWrappingCollector<IN, K>(this.iter);
 		}
 
 
@@ -88,8 +87,8 @@ public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOp
 		public void combine(Iterator<Tuple2<K, IN>> values, Collector<Tuple2<K, IN>> out) throws Exception {
 				
 				iter.set(values);
-				combineCollector.set(iter.getKey(), out);
-				this.wrappedFunction.combine(iter, combineCollector);
+				coll.set(out);
+				this.wrappedFunction.combine(iter, coll);
 		}
 	}
 }

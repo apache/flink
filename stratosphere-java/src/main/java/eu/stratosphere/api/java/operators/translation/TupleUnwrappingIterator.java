@@ -25,13 +25,16 @@ import eu.stratosphere.api.java.tuple.Tuple2;
 public class TupleUnwrappingIterator<T, K> implements Iterator<T>, java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
-
 	
+	private K lastKey; 
 	private Iterator<Tuple2<K, T>> iterator;
-
 	
 	public void set(Iterator<Tuple2<K, T>> iterator) {
 		this.iterator = iterator;
+	}
+	
+	public K getLastKey() {
+		return lastKey;
 	}
 
 	@Override
@@ -41,7 +44,9 @@ public class TupleUnwrappingIterator<T, K> implements Iterator<T>, java.io.Seria
 
 	@Override
 	public T next() {
-		return iterator.next().f1;
+		Tuple2<K, T> t = iterator.next(); 
+		this.lastKey = t.f0;
+		return t.f1;
 	}
 
 	@Override
