@@ -614,12 +614,13 @@ public abstract class DataSet<T> {
 	 * Writes a DataSet as a text file to the specified location.<br/>
 	 * For each element of the DataSet the result of {@link Object#toString()} is written.  
 	 * 
-	 * @param filePath The path pointing to the location the text file is written to. 
+	 * @param filePath The path pointing to the location the text file is written to.
+	 * @return The DataSink that writes the DataSet.
 	 * 
 	 * @see TextOutputFormat
 	 */
-	public void writeAsText(String filePath) {
-		output(new TextOutputFormat<T>(new Path(filePath)));
+	public DataSink<T> writeAsText(String filePath) {
+		return output(new TextOutputFormat<T>(new Path(filePath)));
 	}
 	
 	/**
@@ -630,12 +631,13 @@ public abstract class DataSet<T> {
 	 * Tuples are are separated by the default line delimiter {@link CsvOutputFormat.DEFAULT_LINE_DELIMITER}.
 	 * 
 	 * @param filePath The path pointing to the location the CSV file is written to.
+	 * @return The DataSink that writes the DataSet.
 	 * 
 	 * @see Tuple
 	 * @see CsvOutputFormat
 	 */
-	public void writeAsCsv(String filePath) {
-		writeAsCsv(filePath, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
+	public DataSink<T> writeAsCsv(String filePath) {
+		return writeAsCsv(filePath, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
 	
 	/**
@@ -650,30 +652,34 @@ public abstract class DataSet<T> {
 	 * @see Tuple
 	 * @see CsvOutputFormat
 	 */
-	public void writeAsCsv(String filePath, String rowDelimiter, String fieldDelimiter) {
+	public DataSink<T> writeAsCsv(String filePath, String rowDelimiter, String fieldDelimiter) {
 		Validate.isTrue(this.type.isTupleType(), "The writeAsCsv() method can only be used on data sets of tuples.");
-		internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter);
+		return internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter);
 	}
 
 	@SuppressWarnings("unchecked")
-	private <X extends Tuple> void internalWriteAsCsv(Path filePath, String rowDelimiter, String fieldDelimiter) {
-		output((OutputFormat<T>) new CsvOutputFormat<X>(filePath, rowDelimiter, fieldDelimiter));
+	private <X extends Tuple> DataSink<T> internalWriteAsCsv(Path filePath, String rowDelimiter, String fieldDelimiter) {
+		return output((OutputFormat<T>) new CsvOutputFormat<X>(filePath, rowDelimiter, fieldDelimiter));
 	}
 	
 	/**
 	 * Writes a DataSet to the standard output stream (stdout).<br/>
-	 * For each element of the DataSet the result of {@link Object#toString()} is written. 
+	 * For each element of the DataSet the result of {@link Object#toString()} is written.
+	 * 
+	 *  @return The DataSink that writes the DataSet.
 	 */
-	public void print() {
-		output(new PrintingOutputFormat<T>(false));
+	public DataSink<T> print() {
+		return output(new PrintingOutputFormat<T>(false));
 	}
 	
 	/**
 	 * Writes a DataSet to the standard error stream (stderr).<br/>
 	 * For each element of the DataSet the result of {@link Object#toString()} is written.
+	 * 
+	 * @return The DataSink that writes the DataSet.
 	 */
-	public void printToErr() {
-		output(new PrintingOutputFormat<T>(true));
+	public DataSink<T> printToErr() {
+		return output(new PrintingOutputFormat<T>(true));
 	}
 	
 	/**
@@ -681,15 +687,16 @@ public abstract class DataSet<T> {
 	 * 
 	 * @param outputFormat The FileOutputFormat to write the DataSet.
 	 * @param filePath The path to the location where the DataSet is written.
+	 * @return The DataSink that writes the DataSet.
 	 * 
 	 * @see FileOutputFormat
 	 */
-	public void write(FileOutputFormat<T> outputFormat, String filePath) {
+	public DataSink<T> write(FileOutputFormat<T> outputFormat, String filePath) {
 		Validate.notNull(filePath, "File path must not be null.");
 		Validate.notNull(outputFormat, "Output format must not be null.");
 
 		outputFormat.setOutputFilePath(new Path(filePath));
-		output(outputFormat);
+		return output(outputFormat);
 	}
 	
 	/**
@@ -698,17 +705,18 @@ public abstract class DataSet<T> {
 	 * @param outputFormat The FileOutputFormat to write the DataSet.
 	 * @param filePath The path to the location where the DataSet is written.
 	 * @param writeMode The mode of writing, indicating whether to overwrite existing files.
+	 * @return The DataSink that writes the DataSet.
 	 * 
 	 * @see FileOutputFormat
 	 */
-	public void write(FileOutputFormat<T> outputFormat, String filePath, WriteMode writeMode) {
+	public DataSink<T> write(FileOutputFormat<T> outputFormat, String filePath, WriteMode writeMode) {
 		Validate.notNull(filePath, "File path must not be null.");
 		Validate.notNull(writeMode, "Write mode must not be null.");
 		Validate.notNull(outputFormat, "Output format must not be null.");
 
 		outputFormat.setOutputFilePath(new Path(filePath));
 		outputFormat.setWriteMode(writeMode);
-		output(outputFormat);
+		return output(outputFormat);
 	}
 	
 	/**
