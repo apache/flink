@@ -37,10 +37,9 @@
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-tests</artifactId>
+			<artifactId>stratosphere-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
-			<type>test-jar</type>
 		</dependency>
 	</dependencies>
 

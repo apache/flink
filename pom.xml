@@ -45,6 +45,7 @@
 		<module>stratosphere-examples</module>
 		<module>stratosphere-clients</module>
 		<module>stratosphere-tests</module>
+		<module>stratosphere-test-utils</module>
 		<module>stratosphere-addons</module>
 		<module>stratosphere-dist</module>
 	</modules>

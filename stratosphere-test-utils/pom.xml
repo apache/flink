@@ -5,14 +5,14 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<artifactId>stratosphere-addons</artifactId>
 		<groupId>eu.stratosphere</groupId>
+		<artifactId>stratosphere</artifactId>
 		<version>0.5-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
-	
-	<artifactId>spargel</artifactId>
-	<name>spargel</name>
+
+	<artifactId>stratosphere-test-utils</artifactId>
+	<name>stratosphere-test-utils</name>
 
 	<packaging>jar</packaging>
 
@@ -24,7 +24,12 @@
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-java</artifactId>
+			<artifactId>stratosphere-compiler</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>stratosphere-runtime</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
@@ -34,15 +39,13 @@
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-tests</artifactId>
+			<artifactId>stratosphere-java</artifactId>
 			<version>${project.version}</version>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-test-utils</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.7</version>
 		</dependency>
 	</dependencies>
 </project>
