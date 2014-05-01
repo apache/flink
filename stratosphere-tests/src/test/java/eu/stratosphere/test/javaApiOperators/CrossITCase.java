@@ -38,7 +38,7 @@ import eu.stratosphere.test.util.JavaProgramTestBase;
 @RunWith(Parameterized.class)
 public class CrossITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 9;
+	private static int NUM_PROGRAMS = 11;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -335,61 +335,60 @@ public class CrossITCase extends JavaProgramTestBase {
 				
 			}
 
-			// TODO Currently not working because AvroSerializer does not implement copy()
-//			case 10: {
-//				
-//				/*
-//				 * check correctness of cross on two custom type inputs
-//				 */
-//				
-//				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-//				
-//				DataSet<CustomType> ds = CollectionDataSets.getSmallCustomTypeDataSet(env);
-//				DataSet<CustomType> ds2 = CollectionDataSets.getSmallCustomTypeDataSet(env);
-//				DataSet<CustomType> crossDs = ds.cross(ds2).with(new CustomTypeCross());
-//				
-//				crossDs.writeAsText(resultPath);
-//				env.execute();
-//				
-//				// return expected result
-//				return "1,0,HalloHallo\n" +
-//						"2,1,HalloHallo Welt\n" +
-//						"2,2,HalloHallo Welt wie\n" +
-//						"2,1,Hallo WeltHallo\n" +
-//						"4,2,Hallo WeltHallo Welt\n" +
-//						"4,3,Hallo WeltHallo Welt wie\n" +
-//						"2,2,Hallo Welt wieHallo\n" +
-//						"4,3,Hallo Welt wieHallo Welt\n" +
-//						",44,Hallo Welt wieHallo Welt wie\n";
-//			}
-			// TODO Currently not working because AvroSerializer does not implement copy()
-//			case 11: {
-//				
-//				/*
-//				 * check correctness of cross a tuple input and a custom type input
-//				 */
-//				
-//				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-//				
-//				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-//				DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
-//				DataSet<Tuple3<Integer, Long, String>> crossDs = ds.cross(ds2).with(new MixedCross());
-//				
-//				crossDs.writeAsCsv(resultPath);
-//				env.execute();
-//				
-//				// return expected result
-//				return "2,0,HalloHi\n" +
-//						"3,0,HalloHello\n" +
-//						"3,0,HalloHello world\n" +
-//						"3,0,Hallo WeltHi\n" +
-//						"4,1,Hallo WeltHello\n" +
-//						"4,2,Hallo WeltHello world\n" +
-//						"3,0,Hallo Welt wieHi\n" +
-//						"4,2,Hallo Welt wieHello\n" +
-//						"4,4,Hallo Welt wieHello world\n";
-//				
-//			}
+			case 10: {
+				
+				/*
+				 * check correctness of cross on two custom type inputs
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<CustomType> ds = CollectionDataSets.getSmallCustomTypeDataSet(env);
+				DataSet<CustomType> ds2 = CollectionDataSets.getSmallCustomTypeDataSet(env);
+				DataSet<CustomType> crossDs = ds.cross(ds2).with(new CustomTypeCross());
+				
+				crossDs.writeAsText(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1,0,HiHi\n"
+						+ "2,1,HiHello\n"
+						+ "2,2,HiHello world\n"
+						+ "2,1,HelloHi\n"
+						+ "4,2,HelloHello\n"
+						+ "4,3,HelloHello world\n"
+						+ "2,2,Hello worldHi\n"
+						+ "4,3,Hello worldHello\n"
+						+ "4,4,Hello worldHello world";
+			}
+			
+			case 11: {
+				
+				/*
+				 * check correctness of cross a tuple input and a custom type input
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
+				DataSet<CustomType> ds2 = CollectionDataSets.getSmallCustomTypeDataSet(env);
+				DataSet<Tuple3<Integer, Long, String>> crossDs = ds.cross(ds2).with(new MixedCross());
+				
+				crossDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "2,0,HalloHi\n" +
+						"3,0,HalloHello\n" +
+						"3,0,HalloHello world\n" +
+						"3,0,Hallo WeltHi\n" +
+						"4,1,Hallo WeltHello\n" +
+						"4,2,Hallo WeltHello world\n" +
+						"3,0,Hallo Welt wieHi\n" +
+						"4,2,Hallo Welt wieHello\n" +
+						"4,4,Hallo Welt wieHello world\n";
+				
+			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
 			}

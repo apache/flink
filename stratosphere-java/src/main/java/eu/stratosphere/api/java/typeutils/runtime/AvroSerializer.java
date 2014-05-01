@@ -19,12 +19,20 @@ import java.io.IOException;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 
+import com.esotericsoftware.kryo.Kryo;
+
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.util.InstantiationUtil;
 
 
+/**
+ * General purpose serialization using Apache Avro's Reflect-serializers.
+ * For deep object copies, this class is using Kryo.
+ *
+ * @param <T>
+ */
 public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
@@ -34,6 +42,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	
 	private transient DataOutputEncoder encoder = new DataOutputEncoder();
 	private transient DataInputDecoder decoder = new DataInputDecoder();
+	private transient Kryo kryo = new Kryo();
 
 	private final Class<T> type;
 	
@@ -44,6 +53,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		
 		this.writer = new ReflectDatumWriter<T>(type);
 		this.reader = new ReflectDatumReader<T>(type);
+		kryo.register(type);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -65,7 +75,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public T copy(T from, T reuse) {
-		throw new UnsupportedOperationException();
+		reuse = kryo.copy(from);
+		return reuse;
 	}
 
 	@Override
@@ -114,5 +125,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		this.writer = new ReflectDatumWriter<T>(type);
 		this.encoder = new DataOutputEncoder();
 		this.decoder = new DataInputDecoder();
+		this.kryo = new Kryo();
+		kryo.register(type);
 	}
 }
