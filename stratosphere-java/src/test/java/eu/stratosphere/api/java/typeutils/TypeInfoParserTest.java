@@ -138,23 +138,19 @@ public class TypeInfoParserTest {
 		Assert.assertEquals("Tuple3<Tuple1<String>, Tuple1<Integer>, Tuple2<Long, Long>>", ti.toString());
 	}
 	
-	public static class CustomType {
-		
-	}
-	
 	@Test
 	public void testCustomType() {
-		TypeInformation<?> ti = TypeInformation.parse("eu.stratosphere.api.java.typeutils.runtime.TypeInfoParserTest$CustomType");
+		TypeInformation<?> ti = TypeInformation.parse("java.lang.Class");
 		Assert.assertTrue(ti instanceof GenericTypeInfo);
-		Assert.assertEquals(CustomType.class, ((GenericTypeInfo<?>) ti).getTypeClass());
+		Assert.assertEquals(Class.class, ((GenericTypeInfo<?>) ti).getTypeClass());
 	}
 	
 	@Test
 	public void testObjectArrays() {
-		TypeInformation<?> ti = TypeInformation.parse("eu.stratosphere.api.java.typeutils.runtime.TypeInfoParserTest$CustomType[]");
+		TypeInformation<?> ti = TypeInformation.parse("java.lang.Class[]");
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
-		Assert.assertEquals(CustomType.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentType());
+		Assert.assertEquals(Class.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentType());
 		
 		TypeInformation<?> ti2 = TypeInformation.parse("Tuple2<Integer,Double>[]");
 
@@ -167,8 +163,8 @@ public class TypeInfoParserTest {
 	
 	@Test
 	public void testLargeMixedTuple() {
-		TypeInformation<?> ti = TypeInformation.parse("eu.stratosphere.api.java.tuple.Tuple4<Double,eu.stratosphere.api.java.typeutils.runtime.TypeInfoParserTest$CustomType[],StringValue,Tuple1<int>>[]");
-		Assert.assertEquals("ObjectArrayTypeInfo<Tuple4<Double, ObjectArrayTypeInfo<GenericType<eu.stratosphere.api.java.typeutils.runtime.TypeInfoParserTest.CustomType>>, ValueType<eu.stratosphere.types.StringValue>, Tuple1<Integer>>>", ti.toString());
+		TypeInformation<?> ti = TypeInformation.parse("eu.stratosphere.api.java.tuple.Tuple4<Double,java.lang.Class[],StringValue,Tuple1<int>>[]");
+		Assert.assertEquals("ObjectArrayTypeInfo<Tuple4<Double, ObjectArrayTypeInfo<GenericType<java.lang.Class>>, ValueType<eu.stratosphere.types.StringValue>, Tuple1<Integer>>>", ti.toString());
 	}
 	
 	@Test
