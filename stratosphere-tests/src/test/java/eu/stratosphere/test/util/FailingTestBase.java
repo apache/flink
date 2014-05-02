@@ -141,7 +141,7 @@ public abstract class FailingTestBase extends RecordAPITestBase {
 			try {
 				// submit failing job
 				JobClient client = this.executor.getJobClient(this.failingJob);
-				client.setConsoleStreamForReporting(getNullPrintStream());
+				client.setConsoleStreamForReporting(AbstractTestBase.getNullPrintStream());
 				client.submitJobAndWait();
 				
 				this.error = new Exception("The job did not fail.");
@@ -155,7 +155,7 @@ public abstract class FailingTestBase extends RecordAPITestBase {
 			try {
 				// submit working job
 				JobClient client = this.executor.getJobClient(this.job);
-				client.setConsoleStreamForReporting(getNullPrintStream());
+				client.setConsoleStreamForReporting(AbstractTestBase.getNullPrintStream());
 				client.submitJobAndWait();
 			} catch (Exception e) {
 				this.error = e;
