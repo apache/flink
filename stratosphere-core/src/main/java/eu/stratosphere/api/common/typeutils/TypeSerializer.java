@@ -46,7 +46,9 @@ public abstract class TypeSerializer<T> implements Serializable {
 	
 	
 	/**
-	 * Gets whether the serializer is stateful;
+	 * Gets whether the serializer is stateful. Statefulness means in this context that some of the serializer's
+	 * methods have objects with state and are thus not inherently thread-safe. A stateful serializer might be used by
+	 * multiple threads concurrently. For a stateful one, different instances will be used by different threads.
 	 * 
 	 * @return True, if the serializer is stateful, false if it is stateless;
 	 */

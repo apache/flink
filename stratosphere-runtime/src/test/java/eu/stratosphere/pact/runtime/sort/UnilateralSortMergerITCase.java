@@ -24,13 +24,13 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.typeutils.TypeComparator;
-import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.RandomIntPairGenerator;
 import eu.stratosphere.pact.runtime.test.util.TestData;
@@ -67,7 +67,7 @@ public class UnilateralSortMergerITCase {
 
 	private MemoryManager memoryManager;
 	
-	private TypeSerializer<Record> pactRecordSerializer;
+	private TypeSerializerFactory<Record> pactRecordSerializer;
 	
 	private TypeComparator<Record> pactRecordComparator;
 
@@ -79,7 +79,7 @@ public class UnilateralSortMergerITCase {
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
 		this.ioManager = new IOManager();
 		
-		this.pactRecordSerializer = RecordSerializer.get();
+		this.pactRecordSerializer = RecordSerializerFactory.get();
 		this.pactRecordComparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
 	}
 
@@ -300,14 +300,14 @@ public class UnilateralSortMergerITCase {
 		// comparator
 		final RandomIntPairGenerator generator = new RandomIntPairGenerator(12345678, PAIRS);
 		
-		final TypeSerializer<IntPair> serializer = new IntPairSerializer();
+		final TypeSerializerFactory<IntPair> serializerFactory = new IntPairSerializer.IntPairSerializerFactory();
 		final TypeComparator<IntPair> comparator = new IntPairComparator();
 		
 		// merge iterator
 		LOG.debug("Initializing sortmerger...");
 		
 		Sorter<IntPair> merger = new UnilateralSortMerger<IntPair>(this.memoryManager, this.ioManager, 
-				generator, this.parentTask, serializer, comparator, 64 * 1024 * 1024, 4, 0.7f);
+				generator, this.parentTask, serializerFactory, comparator, 64 * 1024 * 1024, 4, 0.7f);
 
 		// emit data
 		LOG.debug("Emitting data...");

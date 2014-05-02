@@ -24,10 +24,9 @@ import eu.stratosphere.pact.runtime.util.EmptyIterator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 import eu.stratosphere.util.MutableObjectIterator;
 
-/**
- */
-public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1, T2>
-{
+
+public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1, T2> {
+	
 	private static enum MatchStatus {
 		NONE_REMAINED, FIRST_REMAINED, SECOND_REMAINED, FIRST_EMPTY, SECOND_EMPTY
 	}
@@ -80,8 +79,7 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 
 
 	@Override
-	public boolean next() throws IOException
-	{
+	public boolean next() throws IOException {
 		boolean firstEmpty = true;
 		boolean secondEmpty = true;
 		

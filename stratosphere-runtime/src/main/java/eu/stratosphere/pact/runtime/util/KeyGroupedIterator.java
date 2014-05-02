@@ -25,8 +25,8 @@ import eu.stratosphere.util.MutableObjectIterator;
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
  * 
  */
-public final class KeyGroupedIterator<E>
-{
+public final class KeyGroupedIterator<E> {
+	
 	private final MutableObjectIterator<E> iterator;
 
 	private final TypeSerializer<E> serializer;

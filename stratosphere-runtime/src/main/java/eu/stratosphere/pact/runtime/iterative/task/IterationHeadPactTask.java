@@ -222,13 +222,12 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			SolutionSetUpdateBarrier solutionSetUpdateBarrier = null;
 
 			feedbackDataInput = config.getIterationHeadPartialSolutionOrWorksetInputIndex();
-			feedbackTypeSerializer = getInputSerializer(feedbackDataInput);
+			feedbackTypeSerializer = this.<Y>getInputSerializer(feedbackDataInput).getSerializer();
 			excludeFromReset(feedbackDataInput);
 
 			if (isWorksetIteration) {
 				initialSolutionSetInput = config.getIterationHeadSolutionSetInputIndex();
-				TypeSerializerFactory<X> solutionTypeSerializerFactory = config
-					.getSolutionSetSerializer(userCodeClassLoader);
+				TypeSerializerFactory<X> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
 				solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
 
 				// setup the index for the solution set

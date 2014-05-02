@@ -13,7 +13,6 @@
 
 package eu.stratosphere.pact.runtime.resettable;
 
-import java.io.IOException;
 import java.util.ArrayList;
 
 import org.junit.After;
@@ -33,8 +32,8 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 import junit.framework.Assert;
 
-public class SpillingResettableMutableObjectIteratorTest
-{
+public class SpillingResettableMutableObjectIteratorTest {
+	
 	private static final int NUM_TESTRECORDS = 50000;
 
 	private static final int MEMORY_CAPACITY = 10 * 1024 * 1024;
@@ -93,11 +92,8 @@ public class SpillingResettableMutableObjectIteratorTest
 				this.reader, this.serializer, this.memman, this.ioman, 2, memOwner);
 	
 			// open the iterator
-			try {
-				iterator.open();
-			} catch (IOException e) {
-				Assert.fail("Could not open resettable iterator:" + e.getMessage());
-			}
+			iterator.open();
+			
 			// now test walking through the iterator
 			int count = 0;
 			Record target = new Record();
@@ -136,12 +132,10 @@ public class SpillingResettableMutableObjectIteratorTest
 			// create the resettable Iterator
 			SpillingResettableMutableObjectIterator<Record> iterator = new SpillingResettableMutableObjectIterator<Record>(
 				this.reader, this.serializer, this.memman, this.ioman, 20, memOwner);
+			
 			// open the iterator
-			try {
-				iterator.open();
-			} catch (IOException e) {
-				Assert.fail("Could not open resettable iterator:" + e.getMessage());
-			}
+			iterator.open();
+
 			// now test walking through the iterator
 			int count = 0;
 			Record target = new Record();

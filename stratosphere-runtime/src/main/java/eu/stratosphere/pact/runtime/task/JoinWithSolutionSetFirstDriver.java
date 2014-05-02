@@ -97,7 +97,7 @@ public class JoinWithSolutionSetFirstDriver<IT1, IT2, OT> implements ResettableP
 		ClassLoader classLoader = taskContext.getUserCodeClassLoader();
 		
 		TypeSerializer<IT1> solutionSetSerializer = this.hashTable.getBuildSideSerializer();
-		TypeSerializer<IT2> probeSideSerializer = taskContext.getInputSerializer(0);
+		TypeSerializer<IT2> probeSideSerializer = taskContext.<IT2>getInputSerializer(0).getSerializer();
 		
 		TypeComparatorFactory<IT2> probeSideComparatorFactory = config.getDriverComparator(0, classLoader);
 		TypeComparator<IT1> solutionSetComparator = this.hashTable.getBuildSideComparator().duplicate();

@@ -18,9 +18,8 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
-import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-
 import eu.stratosphere.pact.runtime.sort.AsynchronousPartialSorter;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -29,20 +28,14 @@ import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
- * Combine task which is executed by a Nephele task manager.
+ * Combine operator, standalone (not chained)
  * <p>
- * The task is inserted into a PACT program before a ReduceTask. The combine task has a single input and one output. It
- * is provided with a ReduceFunction that implemented the <code>combine()</code> method.
- * <p>
- * The CombineTask uses a combining iterator over all key-value pairs of its input. The output of the iterator is
- * emitted.
- * 
- * @see eu.stratosphere.pact.ReduceFunction.stub.ReduceStub
+ * The CombineTask uses a combining iterator over its input. The output of the iterator is emitted.
  * 
  * @param <T> The data type consumed and produced by the combiner.
  */
-public class CombineDriver<T> implements PactDriver<GenericGroupReduce<T, ?>, T>
-{
+public class CombineDriver<T> implements PactDriver<GenericGroupReduce<T, ?>, T> {
+	
 	private static final Log LOG = LogFactory.getLog(CoGroupDriver.class);
 
 	
@@ -50,7 +43,7 @@ public class CombineDriver<T> implements PactDriver<GenericGroupReduce<T, ?>, T>
 	
 	private CloseableInputProvider<T> input;
 
-	private TypeSerializer<T> serializer;
+	private TypeSerializerFactory<T> serializerFactory;
 
 	private TypeComparator<T> comparator;
 	
@@ -58,28 +51,17 @@ public class CombineDriver<T> implements PactDriver<GenericGroupReduce<T, ?>, T>
 
 	// ------------------------------------------------------------------------
 
-
 	@Override
 	public void setup(PactTaskContext<GenericGroupReduce<T, ?>, T> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
 	
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getNumberOfInputs()
-	 */
 	@Override
 	public int getNumberOfInputs() {
 		return 1;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#getStubType()
-	 */
 	@Override
 	public Class<GenericGroupReduce<T, ?>> getStubType() {
 		@SuppressWarnings("unchecked")
@@ -87,24 +69,13 @@ public class CombineDriver<T> implements PactDriver<GenericGroupReduce<T, ?>, T>
 		return clazz;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#requiresComparatorOnInput()
-	 */
 	@Override
 	public boolean requiresComparatorOnInput() {
 		return true;
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#prepare()
-	 */
 	@Override
-	public void prepare() throws Exception
-	{
+	public void prepare() throws Exception {
 		final TaskConfig config = this.taskContext.getTaskConfig();
 		final DriverStrategy ls = config.getDriverStrategy();
 
@@ -113,13 +84,13 @@ public class CombineDriver<T> implements PactDriver<GenericGroupReduce<T, ?>, T>
 		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
 
 		final MutableObjectIterator<T> in = this.taskContext.getInput(0);
-		this.serializer = this.taskContext.getInputSerializer(0);
+		this.serializerFactory = this.taskContext.getInputSerializer(0);
 		this.comparator = this.taskContext.getInputComparator(0);
 
 		switch (ls) {
 		case PARTIAL_GROUP:
 			this.input = new AsynchronousPartialSorter<T>(memoryManager, in, this.taskContext.getOwningNepheleTask(),
-						this.serializer, this.comparator.duplicate(), availableMemory);
+						this.serializerFactory, this.comparator.duplicate(), availableMemory);
 			break;
 		// obtain and return a grouped iterator from the combining sort-merger
 		default:
@@ -127,18 +98,13 @@ public class CombineDriver<T> implements PactDriver<GenericGroupReduce<T, ?>, T>
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#run()
-	 */
 	@Override
 	public void run() throws Exception {
 		if (LOG.isDebugEnabled())
 			LOG.debug(this.taskContext.formatLogString("Preprocessing done, iterator obtained."));
 
 		final KeyGroupedIterator<T> iter = new KeyGroupedIterator<T>(this.input.getIterator(),
-				this.serializer, this.comparator);
+				this.serializerFactory.getSerializer(), this.comparator);
 
 		// cache references on the stack
 		final GenericGroupReduce<T, ?> stub = this.taskContext.getStub();
@@ -150,11 +116,6 @@ public class CombineDriver<T> implements PactDriver<GenericGroupReduce<T, ?>, T>
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.runtime.task.AbstractPactTask#cleanup()
-	 */
 	@Override
 	public void cleanup() throws Exception {
 		if (this.input != null) {
@@ -162,7 +123,6 @@ public class CombineDriver<T> implements PactDriver<GenericGroupReduce<T, ?>, T>
 			this.input = null;
 		}
 	}
-
 
 	@Override
 	public void cancel() {

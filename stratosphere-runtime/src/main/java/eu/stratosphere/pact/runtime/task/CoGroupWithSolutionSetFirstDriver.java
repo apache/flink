@@ -98,7 +98,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 		TypeSerializer<IT1> buildSideSerializer = hashTable.getBuildSideSerializer();
 		TypeComparator<IT1> buildSideComparator = hashTable.getBuildSideComparator().duplicate();
 		
-		probeSideSerializer = taskContext.getInputSerializer(0);
+		probeSideSerializer = taskContext.<IT2>getInputSerializer(0).getSerializer();
 		probeSideComparator = taskContext.getInputComparator(0);
 		
 		solutionSideRecord = buildSideSerializer.createInstance();

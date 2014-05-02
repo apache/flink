@@ -24,7 +24,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.typeutils.TypeComparator;
-import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -32,7 +32,7 @@ import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
@@ -63,7 +63,7 @@ public class AsynchonousPartialSorterITCase
 
 	private MemoryManager memoryManager;
 	
-	private TypeSerializer<Record> serializer;
+	private TypeSerializerFactory<Record> serializer;
 	
 	private TypeComparator<Record> comparator;
 
@@ -74,7 +74,7 @@ public class AsynchonousPartialSorterITCase
 	{
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
 		this.ioManager = new IOManager();
-		this.serializer = RecordSerializer.get();
+		this.serializer = RecordSerializerFactory.get();
 		this.comparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
 	}
 
@@ -280,7 +280,7 @@ public class AsynchonousPartialSorterITCase
 
 		public ExceptionThrowingAsynchronousPartialSorter(MemoryManager memoryManager,
 				MutableObjectIterator<E> input, AbstractInvokable parentTask, 
-				TypeSerializer<E> serializer, TypeComparator<E> comparator,
+				TypeSerializerFactory<E> serializer, TypeComparator<E> comparator,
 				long totalMemory)
 		throws IOException, MemoryAllocationException
 		{

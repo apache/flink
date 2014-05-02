@@ -27,6 +27,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelAccess;
@@ -91,7 +92,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
 	 * @param input The input that is sorted by this sorter.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
-	 * @param serializer The type serializer.
+	 * @param serializerFactory The type serializer.
 	 * @param comparator The type comparator establishing the order relation.
 	 * @param totalMemory The total amount of memory dedicated to sorting, merging and I/O.
 	 * @param maxNumFileHandles The maximum number of files to be merged at once.
@@ -105,11 +106,11 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 */
 	public CombiningUnilateralSortMerger(GenericGroupReduce<E, ?> combineStub, MemoryManager memoryManager, IOManager ioManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
-			TypeSerializer<E> serializer, TypeComparator<E> comparator,
+			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			long totalMemory, int maxNumFileHandles, float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
-		this(combineStub, memoryManager, ioManager, input, parentTask, serializer, comparator,
+		this(combineStub, memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
 			totalMemory, -1, maxNumFileHandles, startSpillingFraction);
 	}
 	
@@ -123,7 +124,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * @param ioManager The I/O manager, which is used to write temporary files to disk.
 	 * @param input The input that is sorted by this sorter.
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
-	 * @param serializer The type serializer.
+	 * @param serializerFactory The type serializer.
 	 * @param comparator The type comparator establishing the order relation.
 	 * @param totalMemory The total amount of memory dedicated to sorting, merging and I/O.
 	 * @param numSortBuffers The number of distinct buffers to use creation of the initial runs.
@@ -138,12 +139,12 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 */
 	public CombiningUnilateralSortMerger(GenericGroupReduce<E, ?> combineStub, MemoryManager memoryManager, IOManager ioManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
-			TypeSerializer<E> serializer, TypeComparator<E> comparator,
+			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			long totalMemory, int numSortBuffers, int maxNumFileHandles, 
 			float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
-		super(memoryManager, ioManager, input, parentTask, serializer, comparator,
+		super(memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
 			totalMemory, numSortBuffers, maxNumFileHandles, startSpillingFraction, false);
 		
 		this.combineStub = combineStub;
@@ -160,11 +161,11 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	@Override
 	protected ThreadBase<E> getSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues<E> queues,
 		AbstractInvokable parentTask, MemoryManager memoryManager, IOManager ioManager, 
-		TypeSerializer<E> serializer, TypeComparator<E> comparator,
+		TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 		List<MemorySegment> sortReadMemory, List<MemorySegment> writeMemory, int maxFileHandles)
 	{
 		return new CombiningSpillingThread(exceptionHandler, queues, parentTask,
-			memoryManager, ioManager, serializer, comparator, sortReadMemory, writeMemory, maxFileHandles);
+			memoryManager, ioManager, serializerFactory.getSerializer(), comparator, sortReadMemory, writeMemory, maxFileHandles);
 	}
 
 	// ------------------------------------------------------------------------
@@ -235,9 +236,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 				List<MutableObjectIterator<E>> iterators = new ArrayList<MutableObjectIterator<E>>(cache.size());
 								
 				// iterate buffers and collect a set of iterators
-				for (CircularElement<E> cached : cache)
-				{
-					// note: the yielded iterator only operates on the buffer heap (and disregards the stack)
+				for (CircularElement<E> cached : cache) {
 					iterators.add(cached.buffer.getIterator());
 				}
 				

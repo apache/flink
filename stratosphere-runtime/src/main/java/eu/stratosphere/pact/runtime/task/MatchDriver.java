@@ -93,8 +93,8 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericJoiner<IT1, 
 		final MutableObjectIterator<IT2> in2 = this.taskContext.getInput(1);
 		
 		// get the key positions and types
-		final TypeSerializer<IT1> serializer1 = this.taskContext.getInputSerializer(0);
-		final TypeSerializer<IT2> serializer2 = this.taskContext.getInputSerializer(1);
+		final TypeSerializer<IT1> serializer1 = this.taskContext.<IT1>getInputSerializer(0).getSerializer();
+		final TypeSerializer<IT2> serializer2 = this.taskContext.<IT2>getInputSerializer(1).getSerializer();
 		final TypeComparator<IT1> comparator1 = this.taskContext.getInputComparator(0);
 		final TypeComparator<IT2> comparator2 = this.taskContext.getInputComparator(1);
 		

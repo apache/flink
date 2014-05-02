@@ -16,6 +16,8 @@ package eu.stratosphere.pact.runtime.test.util.types;
 import java.io.IOException;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 
@@ -68,5 +70,24 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.write(source, 8);;
+	}
+
+	public static final class IntPairSerializerFactory implements TypeSerializerFactory<IntPair> {
+
+		@Override
+		public void writeParametersToConfig(Configuration config) {}
+
+		@Override
+		public void readParametersFromConfig(Configuration config, ClassLoader cl) {}
+
+		@Override
+		public IntPairSerializer getSerializer() {
+			return new IntPairSerializer();
+		}
+
+		@Override
+		public Class<IntPair> getDataType() {
+			return IntPair.class;
+		}
 	}
 }

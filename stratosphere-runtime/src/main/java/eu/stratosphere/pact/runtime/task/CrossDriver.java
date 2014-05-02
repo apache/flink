@@ -184,8 +184,8 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		final MutableObjectIterator<T1> in1 = this.taskContext.getInput(0);
 		final MutableObjectIterator<T2> in2 = this.taskContext.getInput(1);
 		
-		final TypeSerializer<T1> serializer1 = this.taskContext.getInputSerializer(0);
-		final TypeSerializer<T2> serializer2 = this.taskContext.getInputSerializer(1);
+		final TypeSerializer<T1> serializer1 = this.taskContext.<T1>getInputSerializer(0).getSerializer();
+		final TypeSerializer<T2> serializer2 = this.taskContext.<T2>getInputSerializer(1).getSerializer();
 		
 		final BlockResettableMutableObjectIterator<T1> blockVals = 
 				new BlockResettableMutableObjectIterator<T1>(this.memManager, in1, serializer1, this.memPagesForBlockSide,
@@ -231,8 +231,8 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		final MutableObjectIterator<T1> in1 = this.taskContext.getInput(0);
 		final MutableObjectIterator<T2> in2 = this.taskContext.getInput(1);
 		
-		final TypeSerializer<T1> serializer1 = this.taskContext.getInputSerializer(0);
-		final TypeSerializer<T2> serializer2 = this.taskContext.getInputSerializer(1);
+		final TypeSerializer<T1> serializer1 = this.taskContext.<T1>getInputSerializer(0).getSerializer();
+		final TypeSerializer<T2> serializer2 = this.taskContext.<T2>getInputSerializer(1).getSerializer();
 		
 		final SpillingResettableMutableObjectIterator<T1> spillVals = new SpillingResettableMutableObjectIterator<T1>(
 				in1, serializer1, this.memManager, this.taskContext.getIOManager(), this.memPagesForSpillingSide,
@@ -278,8 +278,8 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		final MutableObjectIterator<T1> in1 = this.taskContext.getInput(0);
 		final MutableObjectIterator<T2> in2 = this.taskContext.getInput(1);
 		
-		final TypeSerializer<T1> serializer1 = this.taskContext.getInputSerializer(0);
-		final TypeSerializer<T2> serializer2 = this.taskContext.getInputSerializer(1);
+		final TypeSerializer<T1> serializer1 = this.taskContext.<T1>getInputSerializer(0).getSerializer();
+		final TypeSerializer<T2> serializer2 = this.taskContext.<T2>getInputSerializer(1).getSerializer();
 		
 		final SpillingResettableMutableObjectIterator<T2> spillVals = new SpillingResettableMutableObjectIterator<T2>(
 				in2, serializer2, this.memManager, this.taskContext.getIOManager(), this.memPagesForSpillingSide,
@@ -314,8 +314,8 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		final MutableObjectIterator<T1> in1 = this.taskContext.getInput(0);
 		final MutableObjectIterator<T2> in2 = this.taskContext.getInput(1);
 		
-		final TypeSerializer<T1> serializer1 = this.taskContext.getInputSerializer(0);
-		final TypeSerializer<T2> serializer2 = this.taskContext.getInputSerializer(1);
+		final TypeSerializer<T1> serializer1 = this.taskContext.<T1>getInputSerializer(0).getSerializer();
+		final TypeSerializer<T2> serializer2 = this.taskContext.<T2>getInputSerializer(1).getSerializer();
 		
 		final SpillingResettableMutableObjectIterator<T1> spillVals = new SpillingResettableMutableObjectIterator<T1>(
 				in1, serializer1, this.memManager, this.taskContext.getIOManager(), this.memPagesForSpillingSide,

@@ -30,8 +30,8 @@ import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
 /**
  * An output view that buffers written data in memory pages and spills them when they are full.
  */
-public class SpillingBuffer extends AbstractPagedOutputView
-{	
+public class SpillingBuffer extends AbstractPagedOutputView {
+	
 	private final ArrayList<MemorySegment> fullSegments;
 	
 	private final MemorySegmentSource memorySource;
@@ -51,8 +51,7 @@ public class SpillingBuffer extends AbstractPagedOutputView
 	private int numMemorySegmentsInWriter;
 
 
-	public SpillingBuffer(IOManager ioManager, MemorySegmentSource memSource, int segmentSize)
-	{
+	public SpillingBuffer(IOManager ioManager, MemorySegmentSource memSource, int segmentSize) {
 		super(memSource.nextSegment(), segmentSize, 0);
 		
 		this.fullSegments = new ArrayList<MemorySegment>(16);
@@ -60,12 +59,9 @@ public class SpillingBuffer extends AbstractPagedOutputView
 		this.ioManager = ioManager;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView#nextSegment(eu.stratosphere.nephele.services.memorymanager.MemorySegment, int)
-	 */
+
 	@Override
-	protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws IOException
-	{
+	protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws IOException {
 		// check if we are still in memory
 		if (this.writer == null) {
 			this.fullSegments.add(current);
@@ -96,8 +92,7 @@ public class SpillingBuffer extends AbstractPagedOutputView
 		}
 	}
 	
-	public DataInputView flip() throws IOException
-	{
+	public DataInputView flip() throws IOException {
 		// check whether this is the first flip and we need to add the current segment to the full ones
 		if (getCurrentSegment() != null) {
 			// first flip
@@ -143,8 +138,7 @@ public class SpillingBuffer extends AbstractPagedOutputView
 	/**
 	 * @return A list with all memory segments that have been taken from the memory segment source.
 	 */
-	public List<MemorySegment> close() throws IOException
-	{
+	public List<MemorySegment> close() throws IOException {
 		final ArrayList<MemorySegment> segments = new ArrayList<MemorySegment>(this.fullSegments.size() + this.numMemorySegmentsInWriter);
 		
 		// if the buffer is still being written, clean that up

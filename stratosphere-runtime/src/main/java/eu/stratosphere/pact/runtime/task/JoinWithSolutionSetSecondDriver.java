@@ -97,7 +97,7 @@ public class JoinWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resettable
 		ClassLoader classLoader = taskContext.getUserCodeClassLoader();
 		
 		TypeSerializer<IT2> solutionSetSerializer = this.hashTable.getBuildSideSerializer();
-		TypeSerializer<IT1> probeSideSerializer = taskContext.getInputSerializer(0);
+		TypeSerializer<IT1> probeSideSerializer = taskContext.<IT1>getInputSerializer(0).getSerializer();
 		
 		TypeComparatorFactory<IT1> probeSideComparatorFactory = config.getDriverComparator(0, classLoader);
 		TypeComparator<IT2> solutionSetComparator = this.hashTable.getBuildSideComparator().duplicate();

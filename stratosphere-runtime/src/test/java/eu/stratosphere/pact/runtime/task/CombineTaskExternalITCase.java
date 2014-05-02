@@ -16,7 +16,6 @@ package eu.stratosphere.pact.runtime.task;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
 import junit.framework.Assert;
 
 import org.junit.Test;
@@ -31,8 +30,8 @@ import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 
 
-public class CombineTaskExternalITCase extends DriverTestBase<GenericGroupReduce<Record, ?>>
-{
+public class CombineTaskExternalITCase extends DriverTestBase<GenericGroupReduce<Record, ?>> {
+	
 	private static final long COMBINE_MEM = 3 * 1024 * 1024;
 	
 	private final ArrayList<Record> outList = new ArrayList<Record>();

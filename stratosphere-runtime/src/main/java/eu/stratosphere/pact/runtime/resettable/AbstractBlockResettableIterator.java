@@ -84,17 +84,13 @@ abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 	
 	// --------------------------------------------------------------------------------------------
 
-	public void open()
-	{
+	public void open() {
 		if (LOG.isDebugEnabled())
 			LOG.debug("Block Resettable Iterator opened.");
 	}
 	
-	/**
-	 * 
-	 */
-	public void reset()
-	{
+
+	public void reset() {
 		if (this.closed) {
 			throw new IllegalStateException("Iterator was closed.");
 		}
@@ -105,8 +101,7 @@ abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 	
 
 	@Override
-	public boolean nextBlock() throws IOException
-	{
+	public boolean nextBlock() throws IOException {
 		this.numRecordsInBuffer = 0;
 		
 		// add the full segments to the empty ones
@@ -125,8 +120,7 @@ abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 	 * shutdown and as a canceling method. The method may be called multiple times and will not produce
 	 * an error.
 	 */
-	public void close()
-	{
+	public void close() {
 		synchronized (this) {
 			if (this.closed) {
 				return;
@@ -152,8 +146,7 @@ abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 	
 	// --------------------------------------------------------------------------------------------
 	
-	protected boolean writeNextRecord(T record) throws IOException
-	{
+	protected boolean writeNextRecord(T record) throws IOException {
 		try {
 			this.serializer.serialize(record, this.collectingView);
 			this.numRecordsInBuffer++;
@@ -163,8 +156,7 @@ abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 		}
 	}
 	
-	protected T getNextRecord(T reuse) throws IOException
-	{
+	protected T getNextRecord(T reuse) throws IOException {
 		if (this.numRecordsReturned < this.numRecordsInBuffer) {
 			this.numRecordsReturned++;
 			return this.serializer.deserialize(reuse, this.readView);

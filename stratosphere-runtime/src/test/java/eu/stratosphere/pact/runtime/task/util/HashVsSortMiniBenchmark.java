@@ -20,7 +20,7 @@ import org.junit.Test;
 
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypePairComparator;
-import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -30,7 +30,7 @@ import eu.stratosphere.pact.runtime.hash.BuildFirstHashMatchIterator;
 import eu.stratosphere.pact.runtime.hash.BuildSecondHashMatchIterator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.sort.MergeMatchIterator;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
@@ -73,8 +73,8 @@ public class HashVsSortMiniBenchmark {
 	private IOManager ioManager;
 	private MemoryManager memoryManager;
 	
-	private TypeSerializer<Record> serializer1;
-	private TypeSerializer<Record> serializer2;
+	private TypeSerializerFactory<Record> serializer1;
+	private TypeSerializerFactory<Record> serializer2;
 	private TypeComparator<Record> comparator1;
 	private TypeComparator<Record> comparator2;
 	private TypePairComparator<Record, Record> pairComparator11;
@@ -83,8 +83,8 @@ public class HashVsSortMiniBenchmark {
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {
-		this.serializer1 = RecordSerializer.get();
-		this.serializer2 = RecordSerializer.get();
+		this.serializer1 = RecordSerializerFactory.get();
+		this.serializer2 = RecordSerializerFactory.get();
 		this.comparator1 = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
 		this.comparator2 = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
 		this.pairComparator11 = new RecordPairComparator(new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class});
@@ -140,7 +140,7 @@ public class HashVsSortMiniBenchmark {
 			// compare with iterator values
 			MergeMatchIterator<Record, Record, Record> iterator = 
 				new MergeMatchIterator<Record, Record, Record>(sortedInput1, sortedInput2, 
-						this.serializer1, this.comparator1, this.serializer2, this.comparator2, this.pairComparator11,
+						this.serializer1.getSerializer(), this.comparator1, this.serializer2.getSerializer(), this.comparator2, this.pairComparator11,
 						this.memoryManager, this.ioManager, MEMORY_PAGES_FOR_MERGE, this.parentTask);
 			
 			iterator.open();
@@ -180,8 +180,8 @@ public class HashVsSortMiniBenchmark {
 			// compare with iterator values
 			final BuildFirstHashMatchIterator<Record, Record, Record> iterator = 
 					new BuildFirstHashMatchIterator<Record, Record, Record>(
-						input1, input2, this.serializer1, this.comparator1, 
-							this.serializer2, this.comparator2, this.pairComparator11,
+						input1, input2, this.serializer1.getSerializer(), this.comparator1, 
+							this.serializer2.getSerializer(), this.comparator2, this.pairComparator11,
 							this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
 			
 			iterator.open();
@@ -219,8 +219,8 @@ public class HashVsSortMiniBenchmark {
 			// compare with iterator values
 			BuildSecondHashMatchIterator<Record, Record, Record> iterator = 
 					new BuildSecondHashMatchIterator<Record, Record, Record>(
-						input1, input2, this.serializer1, this.comparator1, 
-						this.serializer2, this.comparator2, this.pairComparator11,
+						input1, input2, this.serializer1.getSerializer(), this.comparator1, 
+						this.serializer2.getSerializer(), this.comparator2, this.pairComparator11,
 						this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
 			
 			iterator.open();

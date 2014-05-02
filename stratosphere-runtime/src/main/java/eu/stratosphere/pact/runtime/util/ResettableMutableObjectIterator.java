@@ -21,8 +21,8 @@ import eu.stratosphere.util.MutableObjectIterator;
  * The resettable iterator is a specialization of the iterator, allowing to reset the iterator and re-retrieve elements.
  * Whether the iterator is completely reset or only partially depends on the actual implementation.
  */
-public interface ResettableMutableObjectIterator<E> extends MutableObjectIterator<E>
-{
+public interface ResettableMutableObjectIterator<E> extends MutableObjectIterator<E> {
+	
 	/**
 	 * Resets the iterator.
 	 * 

@@ -91,7 +91,7 @@ public class ChainTaskTest extends TaskTestBase {
 				// udf
 				combineConfig.setStubWrapper(new UserCodeClassWrapper<MockReduceStub>(MockReduceStub.class));
 				
-				getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
+				getTaskConfig().addChainedTask(SynchronousChainedCombineDriver.class, combineConfig, "combine");
 			}
 			
 			// chained map+combine
@@ -147,7 +147,7 @@ public class ChainTaskTest extends TaskTestBase {
 				// udf
 				combineConfig.setStubWrapper(new UserCodeClassWrapper<MockFailingCombineStub>(MockFailingCombineStub.class));
 				
-				getTaskConfig().addChainedTask(ChainedCombineDriver.class, combineConfig, "combine");
+				getTaskConfig().addChainedTask(SynchronousChainedCombineDriver.class, combineConfig, "combine");
 			}
 			
 			// chained map+combine

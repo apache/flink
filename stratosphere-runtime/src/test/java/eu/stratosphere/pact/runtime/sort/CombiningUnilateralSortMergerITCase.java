@@ -23,7 +23,6 @@ import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -31,6 +30,7 @@ import org.junit.Test;
 
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -38,7 +38,7 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
+import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Key;
@@ -72,7 +72,7 @@ public class CombiningUnilateralSortMergerITCase {
 
 	private MemoryManager memoryManager;
 
-	private TypeSerializer<Record> serializer;
+	private TypeSerializerFactory<Record> serializerFactory;
 	
 	private TypeComparator<Record> comparator;
 
@@ -88,7 +88,7 @@ public class CombiningUnilateralSortMergerITCase {
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
 		this.ioManager = new IOManager();
 		
-		this.serializer = RecordSerializer.get();
+		this.serializerFactory = RecordSerializerFactory.get();
 		this.comparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
 	}
 
@@ -120,7 +120,7 @@ public class CombiningUnilateralSortMergerITCase {
 		TestCountCombiner comb = new TestCountCombiner();
 		
 		Sorter<Record> merger = new CombiningUnilateralSortMerger<Record>(comb, 
-				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializer, this.comparator,
+				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory, this.comparator,
 				64 * 1024 * 1024, 64, 0.7f);
 
 		final Record rec = new Record();
@@ -138,7 +138,7 @@ public class CombiningUnilateralSortMergerITCase {
 		
 		MutableObjectIterator<Record> iterator = merger.getIterator();
 
-		Iterator<Integer> result = getReducingIterator(iterator, serializer, comparator.duplicate());
+		Iterator<Integer> result = getReducingIterator(iterator, serializerFactory.getSerializer(), comparator.duplicate());
 		while (result.hasNext()) {
 			Assert.assertEquals(noKeyCnt, result.next().intValue());
 		}
@@ -161,7 +161,7 @@ public class CombiningUnilateralSortMergerITCase {
 		TestCountCombiner comb = new TestCountCombiner();
 		
 		Sorter<Record> merger = new CombiningUnilateralSortMerger<Record>(comb, 
-				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializer, this.comparator,
+				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory, this.comparator,
 				3 * 1024 * 1024, 64, 0.005f);
 
 		final Record rec = new Record();
@@ -179,7 +179,7 @@ public class CombiningUnilateralSortMergerITCase {
 		
 		MutableObjectIterator<Record> iterator = merger.getIterator();
 
-		Iterator<Integer> result = getReducingIterator(iterator, serializer, comparator.duplicate());
+		Iterator<Integer> result = getReducingIterator(iterator, serializerFactory.getSerializer(), comparator.duplicate());
 		while (result.hasNext()) {
 			Assert.assertEquals(noKeyCnt, result.next().intValue());
 		}
@@ -210,7 +210,7 @@ public class CombiningUnilateralSortMergerITCase {
 		TestCountCombiner2 comb = new TestCountCombiner2();
 		
 		Sorter<Record> merger = new CombiningUnilateralSortMerger<Record>(comb, 
-				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializer, this.comparator,
+				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory, this.comparator,
 				64 * 1024 * 1024, 2, 0.7f);
 
 		// emit data

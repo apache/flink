@@ -58,7 +58,7 @@ public class NoOpDriver<T> implements PactDriver<AbstractFunction, T> {
 		// cache references on the stack
 		final MutableObjectIterator<T> input = this.taskContext.getInput(0);
 		final Collector<T> output = this.taskContext.getOutputCollector();
-		T record = this.taskContext.<T>getInputSerializer(0).createInstance();
+		T record = this.taskContext.<T>getInputSerializer(0).getSerializer().createInstance();
 
 		while (this.running && ((record = input.next(record)) != null)) {
 			output.collect(record);

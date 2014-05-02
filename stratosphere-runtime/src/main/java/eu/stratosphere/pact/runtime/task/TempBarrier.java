@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -54,17 +55,17 @@ public class TempBarrier<T> implements CloseableInputProvider<T> {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public TempBarrier(AbstractInvokable owner, MutableObjectIterator<T> input, TypeSerializer<T> serializer,
+	public TempBarrier(AbstractInvokable owner, MutableObjectIterator<T> input, TypeSerializerFactory<T> serializerFactory,
 			MemoryManager memManager, IOManager ioManager, int numPages) throws MemoryAllocationException
 	{
-		this.serializer = serializer;
+		this.serializer = serializerFactory.getSerializer();
 		this.memManager = memManager;
 		
 		this.memory = new ArrayList<MemorySegment>(numPages);
 		memManager.allocatePages(owner, this.memory, numPages);
 		
 		this.buffer = new SpillingBuffer(ioManager, new ListMemorySegmentSource(this.memory), memManager.getPageSize());
-		this.tempWriter = new TempWritingThread(input, serializer, this.buffer);
+		this.tempWriter = new TempWritingThread(input, serializerFactory.getSerializer(), this.buffer);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -113,7 +114,9 @@ public class TempBarrier<T> implements CloseableInputProvider<T> {
 		try {
 			this.tempWriter.shutdown();
 			this.tempWriter.join();
-		} catch (InterruptedException iex) {}
+		} catch (InterruptedException iex) {
+			throw new IOException("Interrupted");
+		}
 		
 		this.memManager.release(this.buffer.close());
 		this.memManager.release(this.memory);
@@ -138,11 +141,14 @@ public class TempBarrier<T> implements CloseableInputProvider<T> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private final class TempWritingThread extends Thread
-	{
+	private final class TempWritingThread extends Thread {
+		
 		private final MutableObjectIterator<T> input;
+		
 		private final TypeSerializer<T> serializer;
+		
 		private final SpillingBuffer buffer;
+		
 		private volatile boolean running = true;
 		
 		private TempWritingThread(MutableObjectIterator<T> input, TypeSerializer<T> serializer, SpillingBuffer buffer) {

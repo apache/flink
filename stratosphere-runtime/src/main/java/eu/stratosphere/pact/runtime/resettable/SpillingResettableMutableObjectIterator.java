@@ -36,11 +36,10 @@ import eu.stratosphere.util.MutableObjectIterator;
  * Implementation of a resettable iterator. While iterating the first time over the data, the iterator writes the
  * records to a spillable buffer. Any subsequent iteration re-reads the data from that buffer.
  * 
- * 
  * @param <T> The type of record that the iterator handles.
  */
-public class SpillingResettableMutableObjectIterator<T> implements ResettableMutableObjectIterator<T>
-{
+public class SpillingResettableMutableObjectIterator<T> implements ResettableMutableObjectIterator<T> {
+	
 	private static final Log LOG = LogFactory.getLog(SpillingResettableMutableObjectIterator.class);
 
 	// ------------------------------------------------------------------------
@@ -96,19 +95,16 @@ public class SpillingResettableMutableObjectIterator<T> implements ResettableMut
 		this.buffer = new SpillingBuffer(ioManager, new ListMemorySegmentSource(memory), memoryManager.getPageSize());
 	}
 
-	public void open() throws IOException
-	{}
+	public void open() {}
 
 
 	@Override
-	public void reset() throws IOException
-	{
+	public void reset() throws IOException {
 		this.inView = this.buffer.flip();
 		this.currentElementNum = 0;
 	}
 
-	public List<MemorySegment> close() throws IOException
-	{
+	public List<MemorySegment> close() throws IOException {
 		if (LOG.isDebugEnabled())
 			LOG.debug("Spilling Resettable Iterator closing. Stored " + this.elementCount + " records.");
 
@@ -127,8 +123,7 @@ public class SpillingResettableMutableObjectIterator<T> implements ResettableMut
 	}
 
 	@Override
-	public T next(T reuse) throws IOException
-	{
+	public T next(T reuse) throws IOException {
 		if (this.inView != null) {
 			if (this.currentElementNum < this.elementCount) {
 				try {

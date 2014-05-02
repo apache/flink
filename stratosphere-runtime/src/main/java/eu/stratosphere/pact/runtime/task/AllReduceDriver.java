@@ -18,6 +18,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.util.MutableToRegularIteratorWrapper;
 import eu.stratosphere.util.Collector;
@@ -75,7 +76,9 @@ public class AllReduceDriver<IT, OT> implements PactDriver<GenericGroupReduce<IT
 		if (config.getDriverStrategy() != DriverStrategy.ALL_GROUP) {
 			throw new Exception("Unrecognized driver strategy for AllReduce driver: " + config.getDriverStrategy().name());
 		}
-		this.serializer = this.taskContext.getInputSerializer(0);
+		
+		TypeSerializerFactory<IT> serializerFactory = this.taskContext.getInputSerializer(0);
+		this.serializer = serializerFactory.getSerializer();
 		this.input = this.taskContext.getInput(0);
 	}
 

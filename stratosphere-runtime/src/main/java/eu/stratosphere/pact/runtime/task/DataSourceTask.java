@@ -43,8 +43,8 @@ import eu.stratosphere.util.Collector;
  * 
  * @see eu.stratosphere.api.io.InputFormat
  */
-public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
-{
+public class DataSourceTask<OT> extends AbstractInputTask<InputSplit> {
+	
 	// Obtain DataSourceTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSourceTask.class);
 
@@ -55,7 +55,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 	private InputFormat<OT, InputSplit> format;
 
 	// type serializer for the input
-	private TypeSerializer<OT> serializer;
+	private TypeSerializerFactory<OT> serializerFactory;
 	
 	// Task configuration
 	private TaskConfig config;
@@ -110,6 +110,8 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		if (LOG.isDebugEnabled())
 			LOG.debug(getLogString("Starting data source operator"));
 		
+		final TypeSerializer<OT> serializer = this.serializerFactory.getSerializer();
+		
 		try {
 			// start all chained tasks
 			RegularPactTask.openChainedTasks(this.chainedTasks, this);
@@ -123,7 +125,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 				// get start and end
 				final InputSplit split = splitIterator.next();
 				
-				OT record = this.serializer.createInstance();
+				OT record = serializer.createInstance();
 	
 				if (LOG.isDebugEnabled())
 					LOG.debug(getLogString("Opening input split " + split.toString()));
@@ -296,8 +298,7 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit>
 		}
 		
 		// get the factory for the type serializer
-		final TypeSerializerFactory<OT> serializerFactory = this.config.getOutputSerializer(cl);
-		this.serializer = serializerFactory.getSerializer();
+		this.serializerFactory = this.config.getOutputSerializer(cl);
 	}
 
 	/**

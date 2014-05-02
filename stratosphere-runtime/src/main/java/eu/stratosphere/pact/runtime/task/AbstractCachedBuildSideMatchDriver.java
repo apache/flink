@@ -57,8 +57,8 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 	public void initialize() throws Exception {
 		TaskConfig config = this.taskContext.getTaskConfig();
 		
-		TypeSerializer<IT1> serializer1 = this.taskContext.getInputSerializer(0);
-		TypeSerializer<IT2> serializer2 = this.taskContext.getInputSerializer(1);
+		TypeSerializer<IT1> serializer1 = this.taskContext.<IT1>getInputSerializer(0).getSerializer();
+		TypeSerializer<IT2> serializer2 = this.taskContext.<IT2>getInputSerializer(1).getSerializer();
 		TypeComparator<IT1> comparator1 = this.taskContext.getInputComparator(0);
 		TypeComparator<IT2> comparator2 = this.taskContext.getInputComparator(1);
 		MutableObjectIterator<IT1> input1 = this.taskContext.getInput(0);
@@ -98,8 +98,8 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		if (buildSideIndex == 0) {
-			final TypeSerializer<IT1> buildSideSerializer = taskContext.<IT1> getInputSerializer(0);
-			final TypeSerializer<IT2> probeSideSerializer = taskContext.<IT2> getInputSerializer(1);
+			final TypeSerializer<IT1> buildSideSerializer = taskContext.<IT1> getInputSerializer(0).getSerializer();
+			final TypeSerializer<IT2> probeSideSerializer = taskContext.<IT2> getInputSerializer(1).getSerializer();
 			
 			IT1 buildSideRecordFirst;
 			IT1 buildSideRecordOther;
@@ -127,8 +127,8 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 				}
 			}
 		} else if (buildSideIndex == 1) {
-			final TypeSerializer<IT2> buildSideSerializer = taskContext.<IT2> getInputSerializer(1);
-			final TypeSerializer<IT1> probeSideSerializer = taskContext.<IT1> getInputSerializer(0);
+			final TypeSerializer<IT2> buildSideSerializer = taskContext.<IT2>getInputSerializer(1).getSerializer();
+			final TypeSerializer<IT1> probeSideSerializer = taskContext.<IT1>getInputSerializer(0).getSerializer();
 			
 			IT2 buildSideRecordFirst;
 			IT2 buildSideRecordOther;

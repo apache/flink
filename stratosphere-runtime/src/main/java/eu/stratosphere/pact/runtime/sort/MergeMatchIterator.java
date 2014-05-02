@@ -41,8 +41,8 @@ import eu.stratosphere.util.MutableObjectIterator;
  * An implementation of the {@link JoinTaskIterator} that realizes the
  * matching through a sort-merge join strategy.
  */
-public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O>
-{
+public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O> {
+	
 	/**
 	 * The log used by this iterator to log messages.
 	 */

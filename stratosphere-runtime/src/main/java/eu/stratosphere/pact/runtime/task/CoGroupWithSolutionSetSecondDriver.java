@@ -98,7 +98,7 @@ public class CoGroupWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resetta
 		TypeSerializer<IT2> buildSideSerializer = hashTable.getBuildSideSerializer();
 		TypeComparator<IT2> buildSideComparator = hashTable.getBuildSideComparator().duplicate();
 		
-		probeSideSerializer = taskContext.getInputSerializer(0);
+		probeSideSerializer = taskContext.<IT1>getInputSerializer(0).getSerializer();
 		probeSideComparator = taskContext.getInputComparator(0);
 		
 		solutionSideRecord = buildSideSerializer.createInstance();

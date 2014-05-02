@@ -229,7 +229,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 					// need to read and drop all non-consumed data until we reach the end-of-superstep
 					@SuppressWarnings("unchecked")
 					MutableObjectIterator<Object> inIter = (MutableObjectIterator<Object>) this.inputIterators[inputNum];
-					Object o = this.inputSerializers[inputNum].createInstance();
+					Object o = this.inputSerializers[inputNum].getSerializer().createInstance();
 					while ((o = inIter.next(o)) != null);
 					
 					if (reader.isInputClosed()) {

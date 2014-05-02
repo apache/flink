@@ -72,7 +72,7 @@ public class MapDriver<IT, OT> implements PactDriver<GenericMap<IT, OT>, OT> {
 		final GenericMap<IT, OT> function = this.taskContext.getStub();
 		final Collector<OT> output = this.taskContext.getOutputCollector();
 
-		IT record = this.taskContext.<IT>getInputSerializer(0).createInstance();
+		IT record = this.taskContext.<IT>getInputSerializer(0).getSerializer().createInstance();
 
 		while (this.running && ((record = input.next(record)) != null)) {
 			output.collect(function.map(record));
