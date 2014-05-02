@@ -15,6 +15,12 @@
 package eu.stratosphere.pact.runtime.hash;
 
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -40,7 +46,6 @@ import eu.stratosphere.pact.runtime.test.util.types.StringPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.StringPairPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.StringPairSerializer;
 import eu.stratosphere.util.MutableObjectIterator;
-import static org.junit.Assert.*;
 
 
 public class MemoryHashTableTest {

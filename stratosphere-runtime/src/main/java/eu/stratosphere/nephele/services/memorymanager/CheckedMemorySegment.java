@@ -366,7 +366,7 @@ public class CheckedMemorySegment {
 	public final char getChar(int index) {
 		if (index >= 0 && index < this.size - 1) {
 			return (char) ( ((this.memory[this.offset + index + 0] & 0xff) << 8) | 
-					         (this.memory[this.offset + index + 1] & 0xff) );
+							(this.memory[this.offset + index + 1] & 0xff) );
 		} else {
 			throw new IndexOutOfBoundsException();
 		}
@@ -437,9 +437,9 @@ public class CheckedMemorySegment {
 	public final int getInt(int index) {
 		if (index >= 0 && index < this.size - 3) {
 			return ((this.memory[index    ] & 0xff) << 24)
-			     | ((this.memory[index + 1] & 0xff) << 16)
-			     | ((this.memory[index + 2] & 0xff) <<  8)
-			     | ((this.memory[index + 3] & 0xff)     );
+				| ((this.memory[index + 1] & 0xff) << 16)
+				| ((this.memory[index + 2] & 0xff) <<  8)
+				| ((this.memory[index + 3] & 0xff)     );
 		} else {
 			throw new IndexOutOfBoundsException();
 		}
@@ -448,9 +448,9 @@ public class CheckedMemorySegment {
 	public final int getIntLittleEndian(int index) {
 		if (index >= 0 && index < this.size - 3) {
 			return ((this.memory[index    ] & 0xff)      )
-			     | ((this.memory[index + 1] & 0xff) <<  8)
-			     | ((this.memory[index + 2] & 0xff) << 16)
-			     | ((this.memory[index + 3] & 0xff) << 24);
+				| ((this.memory[index + 1] & 0xff) <<  8)
+				| ((this.memory[index + 2] & 0xff) << 16)
+				| ((this.memory[index + 3] & 0xff) << 24);
 		} else {
 			throw new IndexOutOfBoundsException();
 		}
@@ -459,9 +459,9 @@ public class CheckedMemorySegment {
 	public final int getIntBigEndian(int index) {
 		if (index >= 0 && index < this.size - 3) {
 			return ((this.memory[index    ] & 0xff) << 24)
-			     | ((this.memory[index + 1] & 0xff) << 16)
-			     | ((this.memory[index + 2] & 0xff) <<  8)
-			     | ((this.memory[index + 3] & 0xff)      );
+				| ((this.memory[index + 1] & 0xff) << 16)
+				| ((this.memory[index + 2] & 0xff) <<  8)
+				| ((this.memory[index + 3] & 0xff)      );
 		} else {
 			throw new IndexOutOfBoundsException();
 		}
@@ -503,13 +503,13 @@ public class CheckedMemorySegment {
 	public final long getLong(int index) {
 		if (index >= 0 && index < this.size - 7) {
 			return (((long) this.memory[index    ] & 0xff) << 56)
-				 | (((long) this.memory[index + 1] & 0xff) << 48)
-				 | (((long) this.memory[index + 2] & 0xff) << 40)
-				 | (((long) this.memory[index + 3] & 0xff) << 32)
-				 | (((long) this.memory[index + 4] & 0xff) << 24)
-				 | (((long) this.memory[index + 5] & 0xff) << 16)
-				 | (((long) this.memory[index + 6] & 0xff) <<  8)
-				 | (((long) this.memory[index + 7] & 0xff)      );
+				| (((long) this.memory[index + 1] & 0xff) << 48)
+				| (((long) this.memory[index + 2] & 0xff) << 40)
+				| (((long) this.memory[index + 3] & 0xff) << 32)
+				| (((long) this.memory[index + 4] & 0xff) << 24)
+				| (((long) this.memory[index + 5] & 0xff) << 16)
+				| (((long) this.memory[index + 6] & 0xff) <<  8)
+				| (((long) this.memory[index + 7] & 0xff)      );
 		} else {
 			throw new IndexOutOfBoundsException();
 		}
@@ -517,13 +517,13 @@ public class CheckedMemorySegment {
 	public final long getLongLittleEndian(int index) {
 		if (index >= 0 && index < this.size - 7) {
 			return (((long) this.memory[index    ] & 0xff)      )
-				 | (((long) this.memory[index + 1] & 0xff) <<  8)
-				 | (((long) this.memory[index + 2] & 0xff) << 16)
-				 | (((long) this.memory[index + 3] & 0xff) << 24)
-				 | (((long) this.memory[index + 4] & 0xff) << 32)
-				 | (((long) this.memory[index + 5] & 0xff) << 40)
-				 | (((long) this.memory[index + 6] & 0xff) << 48)
-				 | (((long) this.memory[index + 7] & 0xff) << 56);
+				| (((long) this.memory[index + 1] & 0xff) <<  8)
+				| (((long) this.memory[index + 2] & 0xff) << 16)
+				| (((long) this.memory[index + 3] & 0xff) << 24)
+				| (((long) this.memory[index + 4] & 0xff) << 32)
+				| (((long) this.memory[index + 5] & 0xff) << 40)
+				| (((long) this.memory[index + 6] & 0xff) << 48)
+				| (((long) this.memory[index + 7] & 0xff) << 56);
 		} else {
 			throw new IndexOutOfBoundsException();
 		}
@@ -532,13 +532,13 @@ public class CheckedMemorySegment {
 	public final long getLongBigEndian(int index) {
 		if (index >= 0 && index < this.size - 7) {
 			return (((long) this.memory[index    ] & 0xff) << 56)
-				 | (((long) this.memory[index + 1] & 0xff) << 48)
-				 | (((long) this.memory[index + 2] & 0xff) << 40)
-				 | (((long) this.memory[index + 3] & 0xff) << 32)
-				 | (((long) this.memory[index + 4] & 0xff) << 24)
-				 | (((long) this.memory[index + 5] & 0xff) << 16)
-				 | (((long) this.memory[index + 6] & 0xff) <<  8)
-				 | (((long) this.memory[index + 7] & 0xff)      );
+				| (((long) this.memory[index + 1] & 0xff) << 48)
+				| (((long) this.memory[index + 2] & 0xff) << 40)
+				| (((long) this.memory[index + 3] & 0xff) << 32)
+				| (((long) this.memory[index + 4] & 0xff) << 24)
+				| (((long) this.memory[index + 5] & 0xff) << 16)
+				| (((long) this.memory[index + 6] & 0xff) <<  8)
+				| (((long) this.memory[index + 7] & 0xff)      );
 		} else {
 			throw new IndexOutOfBoundsException();
 		}

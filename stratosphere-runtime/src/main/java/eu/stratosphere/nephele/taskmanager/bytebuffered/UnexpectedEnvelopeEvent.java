@@ -18,7 +18,6 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
 
 /**
  * This event is sent by an {@link InputChannelContext}. It indicates that the input channel context has received a

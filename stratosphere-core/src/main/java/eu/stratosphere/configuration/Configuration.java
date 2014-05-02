@@ -409,8 +409,9 @@ public class Configuration implements IOReadableWritable {
 	// --------------------------------------------------------------------------------------------
 	
 	private String getStringInternal(String key) {
-		if (key == null)
+		if (key == null) {
 			throw new NullPointerException("Key must not be null.");
+		}
 		
 		synchronized (this.confData) {
 			return this.confData.get(key);
@@ -418,10 +419,12 @@ public class Configuration implements IOReadableWritable {
 	}
 	
 	private void setStringInternal(String key, String value) {
-		if (key == null)
+		if (key == null) {
 			throw new NullPointerException("Key must not be null.");
-		if (value == null)
+		}
+		if (value == null) {
 			throw new NullPointerException("Value must not be null.");
+		}
 			
 		
 		synchronized (this.confData) {

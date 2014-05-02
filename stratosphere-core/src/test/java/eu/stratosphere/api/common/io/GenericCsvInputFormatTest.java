@@ -13,7 +13,11 @@
 
 package eu.stratosphere.api.common.io;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.DataOutputStream;
 import java.io.File;
@@ -27,8 +31,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import eu.stratosphere.api.common.io.GenericCsvInputFormat;
-import eu.stratosphere.api.common.io.ParseException;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.fs.Path;
@@ -346,9 +348,9 @@ public class GenericCsvInputFormatTest {
 	public void testReadInvalidContentsLenientWithSkipping() {
 		try {
 			final String fileContent = "abc|dfgsdf|777|444\n" +  // good line
-			                           "kkz|777|foobar|hhg\n" +  // wrong data type in field
-			                           "kkz|777foobarhhg  \n" +  // too short, a skipped field never ends
-			                           "xyx|ignored|42|\n";      // another good line
+									"kkz|777|foobar|hhg\n" +  // wrong data type in field
+									"kkz|777foobarhhg  \n" +  // too short, a skipped field never ends
+									"xyx|ignored|42|\n";      // another good line
 			final FileInputSplit split = createTempFile(fileContent);	
 		
 			final Configuration parameters = new Configuration();
@@ -416,8 +418,8 @@ public class GenericCsvInputFormatTest {
 	public void readWithHeaderLine() {
 		try {
 			final String fileContent = "colname-1|colname-2|some name 3|column four|\n" +
-			                           "123|abc|456|def|\n"+
-			                           "987|xyz|654|pqr|\n";
+									"123|abc|456|def|\n"+
+									"987|xyz|654|pqr|\n";
 			
 			final FileInputSplit split = createTempFile(fileContent);
 		
@@ -447,9 +449,9 @@ public class GenericCsvInputFormatTest {
 	public void readWithHeaderLineAndInvalidIntermediate() {
 		try {
 			final String fileContent = "colname-1|colname-2|some name 3|column four|\n" +
-			                           "123|abc|456|def|\n"+
-			                           "colname-1|colname-2|some name 3|column four|\n" +  // repeated header in the middle
-			                           "987|xyz|654|pqr|\n";
+									"123|abc|456|def|\n"+
+									"colname-1|colname-2|some name 3|column four|\n" +  // repeated header in the middle
+									"987|xyz|654|pqr|\n";
 			
 			final FileInputSplit split = createTempFile(fileContent);
 		

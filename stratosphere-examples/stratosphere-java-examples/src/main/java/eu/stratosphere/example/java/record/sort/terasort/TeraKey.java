@@ -125,8 +125,9 @@ public final class TeraKey implements Key {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (getClass() != obj.getClass())
+		if (getClass() != obj.getClass()) {
 			return false;
+		}
 		
 		final TeraKey other = (TeraKey) obj;
 		for (int i = 0, tx = this.offset, ox = other.offset; i < KEY_SIZE; i++, tx++, ox++) {

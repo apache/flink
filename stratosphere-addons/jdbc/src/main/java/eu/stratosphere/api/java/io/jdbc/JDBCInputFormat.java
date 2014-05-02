@@ -14,13 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.io.jdbc;
 
-import eu.stratosphere.api.common.io.InputFormat;
-import eu.stratosphere.api.common.io.statistics.BaseStatistics;
-import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.io.GenericInputSplit;
-import eu.stratosphere.core.io.InputSplit;
-import eu.stratosphere.types.NullValue;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -28,8 +21,17 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import eu.stratosphere.api.common.io.InputFormat;
+import eu.stratosphere.api.common.io.statistics.BaseStatistics;
+import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.io.GenericInputSplit;
+import eu.stratosphere.core.io.InputSplit;
+import eu.stratosphere.types.NullValue;
 
 /**
  * InputFormat to read data from a database and generate tuples.
@@ -252,7 +254,7 @@ public class JDBCInputFormat<OUT extends Tuple> implements InputFormat<OUT, Inpu
 				default:
 					throw new SQLException("Unsupported sql-type [" + columnTypes[pos] + "] on column [" + pos + "]");
 
-                // case java.sql.Types.BINARY:
+				// case java.sql.Types.BINARY:
 				// case java.sql.Types.VARBINARY:
 				// case java.sql.Types.LONGVARBINARY:
 				// case java.sql.Types.ARRAY:

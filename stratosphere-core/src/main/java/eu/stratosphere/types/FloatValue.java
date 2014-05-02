@@ -67,10 +67,10 @@ public class FloatValue implements Key, ResettableValue<FloatValue>, CopyableVal
 		this.value = value;
 	}
 
-    @Override
-    public void setValue(FloatValue value) {
-        this.value = value.value;
-    }
+	@Override
+	public void setValue(FloatValue value) {
+		this.value = value.value;
+	}
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -93,8 +93,9 @@ public class FloatValue implements Key, ResettableValue<FloatValue>, CopyableVal
 	
 	@Override
 	public int compareTo(final Key o) {
-		if (!(o instanceof FloatValue))
+		if (!(o instanceof FloatValue)) {
 			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to FloatValue!");
+		}
 
 		final double other = ((FloatValue) o).value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;

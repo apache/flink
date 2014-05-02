@@ -37,8 +37,9 @@ public class DataSource<OUT> extends DataSet<OUT> {
 	public DataSource(ExecutionEnvironment context, InputFormat<OUT, ?> inputFormat, TypeInformation<OUT> type) {
 		super(context, type);
 		
-		if (inputFormat == null)
+		if (inputFormat == null) {
 			throw new IllegalArgumentException("The input format may not be null.");
+		}
 		
 		this.inputFormat = inputFormat;
 	}

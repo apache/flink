@@ -27,30 +27,30 @@ public class NullKeyFieldException extends RuntimeException
 	private final int fieldNumber;
 
 	/**
-     * Constructs an {@code NullKeyFieldException} with {@code null}
-     * as its error detail message.
-     */
+	 * Constructs an {@code NullKeyFieldException} with {@code null}
+	 * as its error detail message.
+	 */
 	public NullKeyFieldException() {
 		super();
 		this.fieldNumber = -1;
 	}
 
 	/**
-     * Constructs an {@code NullKeyFieldException} with the specified detail message.
-     *
-     * @param message The detail message.
-     */
+	 * Constructs an {@code NullKeyFieldException} with the specified detail message.
+	 *
+	 * @param message The detail message.
+	 */
 	public NullKeyFieldException(String message) {
 		super(message);
 		this.fieldNumber = -1;
 	}
 	
 	/**
-     * Constructs an {@code NullKeyFieldException} with a default message, referring to
-     * given field number as the null key field.
-     *
-     * @param fieldNumber The index of the field that was null, bit expected to hold a key.
-     */
+	 * Constructs an {@code NullKeyFieldException} with a default message, referring to
+	 * given field number as the null key field.
+	 *
+	 * @param fieldNumber The index of the field that was null, bit expected to hold a key.
+	 */
 	public NullKeyFieldException(int fieldNumber) {
 		super("Field " + fieldNumber + " is null, but expected to hold a key.");
 		this.fieldNumber = fieldNumber;

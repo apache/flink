@@ -23,9 +23,9 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 import eu.stratosphere.api.common.operators.GenericDataSource;
+import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.core.fs.BlockLocation;
 import eu.stratosphere.core.fs.FSDataInputStream;
 import eu.stratosphere.core.fs.FileInputSplit;
@@ -175,8 +175,9 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	}
 
 	public void setFilePath(String filePath) {
-		if (filePath == null)
+		if (filePath == null) {
 			throw new IllegalArgumentException("File path may not be null.");
+		}
 		
 		// TODO The job-submission web interface passes empty args (and thus empty
 		// paths) to compute the preview graph. The following is a workaround for
@@ -190,8 +191,9 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	}
 	
 	public void setFilePath(Path filePath) {
-		if (filePath == null)
+		if (filePath == null) {
 			throw new IllegalArgumentException("File path may not be null.");
+		}
 		
 		this.filePath = filePath;
 	}
@@ -201,8 +203,9 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	}
 	
 	public void setMinSplitSize(long minSplitSize) {
-		if (minSplitSize < 0)
+		if (minSplitSize < 0) {
 			throw new IllegalArgumentException("The minimum split size cannot be negative.");
+		}
 		
 		this.minSplitSize = minSplitSize;
 	}
@@ -212,8 +215,9 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	}
 	
 	public void setNumSplits(int numSplits) {
-		if (numSplits < -1 || numSplits == 0)
+		if (numSplits < -1 || numSplits == 0) {
 			throw new IllegalArgumentException("The desired number of splits must be positive or -1 (= don't care).");
+		}
 		
 		this.numSplits = numSplits;
 	}
@@ -223,8 +227,9 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	}
 	
 	public void setOpenTimeout(long openTimeout) {
-		if (openTimeout < 0)
+		if (openTimeout < 0) {
 			throw new IllegalArgumentException("The timeout for opening the input splits must be positive or zero (= infinite).");
+		}
 		this.openTimeout = openTimeout;
 	}
 	
@@ -293,14 +298,16 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 			
 			return getFileStats(cachedFileStats, path, fs, new ArrayList<FileStatus>(1));
 		} catch (IOException ioex) {
-			if (LOG.isWarnEnabled())
+			if (LOG.isWarnEnabled()) {
 				LOG.warn("Could not determine statistics for file '" + this.filePath + "' due to an io error: "
 						+ ioex.getMessage());
+			}
 		}
 		catch (Throwable t) {
-			if (LOG.isErrorEnabled())
+			if (LOG.isErrorEnabled()) {
 				LOG.error("Unexpected problen while getting the file statistics for file '" + this.filePath + "': "
 						+ t.getMessage(), t);
+			}
 		}
 		
 		// no statistics available
@@ -414,9 +421,10 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 				minSplitSize = this.minSplitSize;
 			}
 			else {
-				if (LOG.isWarnEnabled())
+				if (LOG.isWarnEnabled()) {
 					LOG.warn("Minimal split size of " + this.minSplitSize + " is larger than the block size of " + 
 						blockSize + ". Decreasing minimal split size to block size.");
+				}
 				minSplitSize = blockSize;
 			}
 
@@ -537,8 +545,9 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		this.splitStart = fileSplit.getStart();
 		this.splitLength = fileSplit.getLength();
 
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug("Opening input split " + fileSplit.getPath() + " [" + this.splitStart + "," + this.splitLength + "]");
+		}
 
 		
 		// open the split in an asynchronous thread

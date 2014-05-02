@@ -14,16 +14,15 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.functions;
 
-import eu.stratosphere.api.common.functions.AbstractFunction;
-import eu.stratosphere.api.common.functions.GenericCoGrouper;
-import eu.stratosphere.api.java.operators.Keys;
-import eu.stratosphere.util.Collector;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.Iterator;
+
+import eu.stratosphere.api.common.functions.AbstractFunction;
+import eu.stratosphere.api.common.functions.GenericCoGrouper;
+import eu.stratosphere.util.Collector;
 
 /**
  * The abstract base class for CoGroup functions. CoGroup functions combine two data sets by first grouping each data set

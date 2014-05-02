@@ -15,7 +15,6 @@ package eu.stratosphere.nephele.services.iomanager;
 
 import java.io.DataInput;
 import java.io.IOException;
-import java.io.InputStream;
 
 /**
  * <p>

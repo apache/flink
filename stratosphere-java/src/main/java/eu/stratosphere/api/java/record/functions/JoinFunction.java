@@ -15,7 +15,6 @@ package eu.stratosphere.api.java.record.functions;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.functions.GenericJoiner;
-import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 

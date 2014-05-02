@@ -31,8 +31,9 @@ public final class QuickSort implements IndexedSorter {
 	 * Returns 2 * ceil(log(n)).
 	 */
 	protected static int getMaxDepth(int x) {
-		if (x <= 0)
+		if (x <= 0) {
 			throw new IllegalArgumentException("Undefined for " + x);
+		}
 		return (32 - Integer.numberOfLeadingZeros(x - 1)) << 2;
 	}
 
@@ -78,23 +79,26 @@ public final class QuickSort implements IndexedSorter {
 			int cr;
 			while (true) {
 				while (++i < j) {
-					if ((cr = s.compare(i, p)) > 0)
+					if ((cr = s.compare(i, p)) > 0) {
 						break;
+					}
 					if (0 == cr && ++ll != i) {
 						s.swap(ll, i);
 					}
 				}
 				while (--j > i) {
-					if ((cr = s.compare(p, j)) > 0)
+					if ((cr = s.compare(p, j)) > 0) {
 						break;
+					}
 					if (0 == cr && --rr != j) {
 						s.swap(rr, j);
 					}
 				}
-				if (i < j)
+				if (i < j) {
 					s.swap(i, j);
-				else
+				} else {
 					break;
+				}
 			}
 			j = i;
 			// swap pivot- and all eq values- into position

@@ -95,12 +95,14 @@ public class FormatUtil {
 		Path nephelePath = new Path(path);
 		FileSystem fs = nephelePath.getFileSystem();
 		FileStatus fileStatus = fs.getFileStatus(nephelePath);
-		if (!fileStatus.isDir())
+		if (!fileStatus.isDir()) {
 			return Arrays.asList(openInput(inputFormatClass, path, configuration));
+		}
 		FileStatus[] list = fs.listStatus(nephelePath);
 		List<F> formats = new ArrayList<F>();
-		for (int index = 0; index < list.length; index++)
+		for (int index = 0; index < list.length; index++) {
 			formats.add(openInput(inputFormatClass, list[index].getPath().toString(), configuration));
+		}
 		return formats;
 	}
 

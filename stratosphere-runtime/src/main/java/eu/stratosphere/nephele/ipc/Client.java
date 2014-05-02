@@ -19,20 +19,18 @@
 
 package eu.stratosphere.nephele.ipc;
 
-import java.net.Socket;
-import java.net.InetSocketAddress;
-import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
-import java.net.ConnectException;
-
-import java.io.IOException;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.FilterInputStream;
+import java.io.IOException;
 import java.io.InputStream;
-
+import java.net.ConnectException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map.Entry;
@@ -41,7 +39,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import javax.net.SocketFactory;
 
-import org.apache.commons.logging.*;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
@@ -218,8 +217,9 @@ public class Client {
 		 * @return true if the call was added.
 		 */
 		private synchronized boolean addCall(Call call) {
-			if (shouldCloseConnection.get())
+			if (shouldCloseConnection.get()) {
 				return false;
+			}
 			calls.put(call.id, call);
 			notify();
 			return true;
@@ -616,8 +616,10 @@ public class Client {
 		public synchronized void callComplete(ParallelCall call) {
 			this.values[call.index] = call.value; // store the value
 			this.count++; // count it
-			if (this.count == this.size) // if all values are in
+			if (this.count == this.size)
+			{
 				notify(); // then notify waiting caller
+			}
 		}
 	}
 

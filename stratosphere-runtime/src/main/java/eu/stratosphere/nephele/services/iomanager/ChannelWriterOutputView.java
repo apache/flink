@@ -81,8 +81,9 @@ public final class ChannelWriterOutputView extends AbstractPagedOutputView
 	{
 		super(segmentSize, HEADER_LENGTH);
 		
-		if (writer == null)
+		if (writer == null) {
 			throw new NullPointerException();
+		}
 		
 		this.writer = writer;
 		

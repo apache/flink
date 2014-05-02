@@ -13,10 +13,11 @@
 
 package eu.stratosphere.hadoopcompatibility;
 
-import eu.stratosphere.runtime.fs.hdfs.DistributedFileSystem;
+import java.util.Map;
+
 import org.apache.hadoop.mapred.JobConf;
 
-import java.util.Map;
+import eu.stratosphere.runtime.fs.hdfs.DistributedFileSystem;
 
 /**
  * merge hadoopConf into jobConf. This is necessary for the hdfs configuration

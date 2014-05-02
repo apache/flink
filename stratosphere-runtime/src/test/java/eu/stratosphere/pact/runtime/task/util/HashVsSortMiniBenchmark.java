@@ -145,7 +145,9 @@ public class HashVsSortMiniBenchmark {
 			
 			iterator.open();
 			
-			while (iterator.callWithNextKey(matcher, collector));
+			while (iterator.callWithNextKey(matcher, collector)) {
+				;
+			}
 			
 			iterator.close();
 			sorter1.close();
@@ -186,7 +188,9 @@ public class HashVsSortMiniBenchmark {
 			
 			iterator.open();
 			
-			while (iterator.callWithNextKey(matcher, collector));
+			while (iterator.callWithNextKey(matcher, collector)) {
+				;
+			}
 			
 			iterator.close();
 			
@@ -225,7 +229,9 @@ public class HashVsSortMiniBenchmark {
 			
 			iterator.open();
 			
-			while (iterator.callWithNextKey(matcher, collector));
+			while (iterator.callWithNextKey(matcher, collector)) {
+				;
+			}
 			
 			iterator.close();
 			

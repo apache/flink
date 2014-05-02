@@ -24,9 +24,9 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.distributions.SimpleDistribution;
-import eu.stratosphere.types.Key;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Key;
 import eu.stratosphere.types.StringValue;
 
 public class SimpleDataDistributionTest {
@@ -66,15 +66,15 @@ public class SimpleDataDistributionTest {
 		// check correct data distribution
 		SimpleDistribution dd = new SimpleDistribution(
 				new Key[][] {{new IntValue(1), new StringValue("A"), new IntValue(1)}, 
-				             {new IntValue(2), new StringValue("A"), new IntValue(1)}, 
-				             {new IntValue(3), new StringValue("A"), new IntValue(1)}});
+							{new IntValue(2), new StringValue("A"), new IntValue(1)}, 
+							{new IntValue(3), new StringValue("A"), new IntValue(1)}});
 		Assert.assertEquals(3, dd.getNumberOfFields());
 		
 		// check inconsistent key types
 		try {
 			new SimpleDistribution( 
 					new Key[][] {{new IntValue(1), new StringValue("A"), new DoubleValue(1.3d)}, 
-								 {new IntValue(2), new StringValue("B"), new IntValue(1)}});
+								{new IntValue(2), new StringValue("B"), new IntValue(1)}});
 			Assert.fail("Data distribution accepts incorrect key types");
 		} catch(IllegalArgumentException iae) {
 			// do nothing
@@ -84,8 +84,8 @@ public class SimpleDataDistributionTest {
 		try {
 			dd = new SimpleDistribution(
 					new Key[][] {{new IntValue(1), new IntValue(2)}, 
-					             {new IntValue(2), new IntValue(2)}, 
-					             {new IntValue(3)}});
+								{new IntValue(2), new IntValue(2)}, 
+								{new IntValue(3)}});
 			Assert.fail("Data distribution accepts bucket boundaries with inconsistent many keys");
 		} catch(IllegalArgumentException iae) {
 			// do nothing
@@ -98,10 +98,10 @@ public class SimpleDataDistributionTest {
 		
 		SimpleDistribution ddWrite = new SimpleDistribution(
 				new Key[][] {{new IntValue(1), new StringValue("A"), new IntValue(1)}, 
-				             {new IntValue(2), new StringValue("A"), new IntValue(1)}, 
-				             {new IntValue(2), new StringValue("B"), new IntValue(4)},
-				             {new IntValue(2), new StringValue("B"), new IntValue(3)},
-				             {new IntValue(2), new StringValue("B"), new IntValue(2)}});
+							{new IntValue(2), new StringValue("A"), new IntValue(1)}, 
+							{new IntValue(2), new StringValue("B"), new IntValue(4)},
+							{new IntValue(2), new StringValue("B"), new IntValue(3)},
+							{new IntValue(2), new StringValue("B"), new IntValue(2)}});
 		Assert.assertEquals(3, ddWrite.getNumberOfFields());
 		
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -143,12 +143,12 @@ public class SimpleDataDistributionTest {
 		
 		SimpleDistribution dd = new SimpleDistribution(
 				new Key[][] {{new IntValue(1), new StringValue("A")}, 
-				             {new IntValue(2), new StringValue("B")}, 
-				             {new IntValue(3), new StringValue("C")},
-				             {new IntValue(4), new StringValue("D")},
-				             {new IntValue(5), new StringValue("E")},
-				             {new IntValue(6), new StringValue("F")},
-				             {new IntValue(7), new StringValue("G")}});
+							{new IntValue(2), new StringValue("B")}, 
+							{new IntValue(3), new StringValue("C")},
+							{new IntValue(4), new StringValue("D")},
+							{new IntValue(5), new StringValue("E")},
+							{new IntValue(6), new StringValue("F")},
+							{new IntValue(7), new StringValue("G")}});
 		
 		Key[] boundRec = dd.getBucketBoundary(0, 8);
 		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 1);

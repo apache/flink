@@ -31,8 +31,6 @@ import org.junit.Test;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.memory.MemorySegment;
-import eu.stratosphere.nephele.services.iomanager.Channel;
-import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.DefaultMemoryManagerTest;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
@@ -286,19 +284,24 @@ public class IOManagerITCase {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (this == obj)
+			if (this == obj) {
 				return true;
-			if (obj == null)
+			}
+			if (obj == null) {
 				return false;
-			if (getClass() != obj.getClass())
+			}
+			if (getClass() != obj.getClass()) {
 				return false;
+			}
 			Value other = (Value) obj;
 
 			if (value == null) {
-				if (other.value != null)
+				if (other.value != null) {
 					return false;
-			} else if (!value.equals(other.value))
+				}
+			} else if (!value.equals(other.value)) {
 				return false;
+			}
 			return true;
 		}
 	}

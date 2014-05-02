@@ -72,11 +72,13 @@ public class Annotations {
 		@Override
 		@SuppressWarnings("unchecked")
 		public boolean equals(Object obj) {
-			if (obj == null || !annotationType().isAssignableFrom(obj.getClass()))
+			if (obj == null || !annotationType().isAssignableFrom(obj.getClass())) {
 				return false;
+			}
 
-			if (!annotationType().equals(((Annotation) obj).annotationType()))
+			if (!annotationType().equals(((Annotation) obj).annotationType())) {
 				return false;
+			}
 
 			int[] otherFields = getOtherFields((T) obj);
 			return Arrays.equals(fields, otherFields);
@@ -187,11 +189,13 @@ public class Annotations {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (obj == null || !annotationType().isAssignableFrom(obj.getClass()))
+			if (obj == null || !annotationType().isAssignableFrom(obj.getClass())) {
 				return false;
+			}
 
-			if (!annotationType().equals(((Annotation) obj).annotationType()))
+			if (!annotationType().equals(((Annotation) obj).annotationType())) {
 				return false;
+			}
 
 			return true;
 		}

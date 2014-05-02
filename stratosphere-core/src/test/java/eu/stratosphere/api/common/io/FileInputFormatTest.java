@@ -19,9 +19,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import eu.stratosphere.api.common.io.statistics.BaseStatistics;
-import eu.stratosphere.api.common.io.FileInputFormat;
 import eu.stratosphere.api.common.io.FileInputFormat.FileBaseStatistics;
+import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.testutils.TestFileUtils;
 import eu.stratosphere.types.IntValue;

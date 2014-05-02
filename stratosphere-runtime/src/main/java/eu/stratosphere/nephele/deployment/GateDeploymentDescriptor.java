@@ -62,7 +62,7 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	 *        the list of channel deployment descriptors attached to this gate
 	 */
 	public GateDeploymentDescriptor(final GateID gateID, final ChannelType channelType,
-			 List<ChannelDeploymentDescriptor> channels) {
+			List<ChannelDeploymentDescriptor> channels) {
 
 		if (gateID == null) {
 			throw new IllegalArgumentException("Argument gateID must no be null");

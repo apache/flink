@@ -13,27 +13,24 @@
 
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
-import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-
 /**
  * Broker to hand over {@link SolutionSetUpdateBarrier} from {@link IterationHeadPactTask} to
  * {@link IterationTailPactTask}.
  */
 public class SolutionSetUpdateBarrierBroker extends Broker<SolutionSetUpdateBarrier> {
 
-    /**
-     * Singleton instance
-     */
-    private static final SolutionSetUpdateBarrierBroker INSTANCE = new SolutionSetUpdateBarrierBroker();
+	/**
+	 * Singleton instance
+	 */
+	private static final SolutionSetUpdateBarrierBroker INSTANCE = new SolutionSetUpdateBarrierBroker();
 
-    private SolutionSetUpdateBarrierBroker() {
-    }
+	private SolutionSetUpdateBarrierBroker() {
+	}
 
-    /**
-     * @return singleton instance
-     */
-    public static Broker<SolutionSetUpdateBarrier> instance() {
-        return INSTANCE;
-    }
+	/**
+	 * @return singleton instance
+	 */
+	public static Broker<SolutionSetUpdateBarrier> instance() {
+		return INSTANCE;
+	}
 }

@@ -38,9 +38,9 @@ import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
  *     public void map(Record record, Collector out)
  *     {
  *        int value = record.getField(2, IntValue.class).getValue();
-		  record.setField(2, new IntValue(Math.abs(value)));
-		  
-		  out.collect(record);
+		record.setField(2, new IntValue(Math.abs(value)));
+		
+		out.collect(record);
  *     }
  * }
  * </blockquote></pre>

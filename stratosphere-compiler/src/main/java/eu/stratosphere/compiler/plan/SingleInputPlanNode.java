@@ -13,6 +13,10 @@
 
 package eu.stratosphere.compiler.plan;
 
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -26,8 +30,6 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DamBehavior;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.util.Visitor;
-
-import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.*;
 
 /**
  * 
@@ -161,8 +163,9 @@ public class SingleInputPlanNode extends PlanNode {
 					if (this.hasLeft) {
 						this.hasLeft = false;
 						return SingleInputPlanNode.this.input.getSource();
-					} else 
+					} else {
 						throw new NoSuchElementException();
+					}
 				}
 				@Override
 				public void remove() {
@@ -197,8 +200,9 @@ public class SingleInputPlanNode extends PlanNode {
 				if (this.hasLeft) {
 					this.hasLeft = false;
 					return SingleInputPlanNode.this.input;
-				} else 
+				} else {
 					throw new NoSuchElementException();
+				}
 			}
 			@Override
 			public void remove() {

@@ -270,18 +270,20 @@ public final class RequestedGlobalProperties implements Cloneable
 	public void addMinimalRequiredCosts(Costs to, CostEstimator estimator, OptimizerNode source, OptimizerNode target) {
 		if (this.partitioning == null || this.partitioning == PartitioningProperty.RANDOM) {
 			return;
-		} else switch (this.partitioning) {
-			case FULL_REPLICATION:
-				estimator.addBroadcastCost(source, target.getDegreeOfParallelism(), to);
-			case ANY_PARTITIONING:
-			case HASH_PARTITIONED:
-				estimator.addHashPartitioningCost(source, to);
-				break;
-			case RANGE_PARTITIONED:
-				estimator.addRangePartitionCost(source, to);
-				break;
-			default:
-				throw new CompilerException();
+		} else {
+			switch (this.partitioning) {
+				case FULL_REPLICATION:
+					estimator.addBroadcastCost(source, target.getDegreeOfParallelism(), to);
+				case ANY_PARTITIONING:
+				case HASH_PARTITIONED:
+					estimator.addHashPartitioningCost(source, to);
+					break;
+				case RANGE_PARTITIONED:
+					estimator.addRangePartitionCost(source, to);
+					break;
+				default:
+					throw new CompilerException();
+			}
 		}
 	}
 

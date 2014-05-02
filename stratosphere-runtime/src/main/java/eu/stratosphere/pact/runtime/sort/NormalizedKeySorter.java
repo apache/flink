@@ -98,10 +98,12 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 	public NormalizedKeySorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, 
 			List<MemorySegment> memory, int maxNormalizedKeyBytes)
 	{
-		if (serializer == null || comparator == null || memory == null)
+		if (serializer == null || comparator == null || memory == null) {
 			throw new NullPointerException();
-		if (maxNormalizedKeyBytes < 0)
+		}
+		if (maxNormalizedKeyBytes < 0) {
 			throw new IllegalArgumentException("Maximal number of normalized key bytes must not be negative.");
+		}
 		
 		this.serializer = serializer;
 		this.comparator = comparator;
@@ -260,8 +262,9 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 				this.sortIndex.add(this.currentSortIndexSegment);
 				this.currentSortIndexOffset = 0;
 				this.sortIndexBytes += this.segmentSize;
+			} else {
+				return false;
 			}
-			else return false;
 		}
 		
 		// add the pointer and the normalized key

@@ -13,13 +13,13 @@
 
 package eu.stratosphere.pact.runtime.iterative.io;
 
-import eu.stratosphere.api.common.typeutils.TypeSerializer;
-import eu.stratosphere.pact.runtime.hash.HashPartition;
-import eu.stratosphere.util.MutableObjectIterator;
-
 import java.io.EOFException;
 import java.io.IOException;
 import java.util.Iterator;
+
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.pact.runtime.hash.HashPartition;
+import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * {@link Iterator} over the buildside entries of a {@link HashPartition}

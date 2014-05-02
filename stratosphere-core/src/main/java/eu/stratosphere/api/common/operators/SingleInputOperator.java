@@ -158,8 +158,9 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 	public int[] getKeyColumns(int inputNum) {
 		if (inputNum == 0) {
 			return this.keyFields;
+		} else {
+			throw new IndexOutOfBoundsException();
 		}
-		else throw new IndexOutOfBoundsException();
 	}
 	
 	// --------------------------------------------------------------------------------------------

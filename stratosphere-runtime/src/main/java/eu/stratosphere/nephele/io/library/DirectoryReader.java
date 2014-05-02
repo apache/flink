@@ -73,8 +73,9 @@ public class DirectoryReader extends AbstractFileInputTask {
 			fdis.seek(split.getStart());
 
 			int read = fdis.read(buffer, 0, buffer.length);
-			if (read == -1)
+			if (read == -1) {
 				continue;
+			}
 
 			fr.append(buffer, 0, read);
 
@@ -83,13 +84,14 @@ public class DirectoryReader extends AbstractFileInputTask {
 			}
 		}
 
-		if (fr != null)
+		if (fr != null) {
 			try {
 				output.emit(fr);
 			} catch (InterruptedException e) {
 				// TODO: Respond to interruption properly
 				LOG.error(e);
 			}
+		}
 	}
 
 

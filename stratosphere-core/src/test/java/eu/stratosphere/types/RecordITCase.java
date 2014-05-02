@@ -23,8 +23,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.types.Value;
-
 public class RecordITCase {
 	
 	private static final long SEED = 354144423270432543L;

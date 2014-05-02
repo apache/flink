@@ -41,9 +41,9 @@ import eu.stratosphere.api.common.operators.Union;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.common.operators.base.FlatMapOperatorBase;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.common.operators.base.MapOperatorBase;
-import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.operators.base.PlainMapOperatorBase;
 import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
 import eu.stratosphere.compiler.costs.CostEstimator;
@@ -57,12 +57,12 @@ import eu.stratosphere.compiler.dag.CrossNode;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.dag.DataSourceNode;
 import eu.stratosphere.compiler.dag.FlatMapNode;
+import eu.stratosphere.compiler.dag.GroupReduceNode;
 import eu.stratosphere.compiler.dag.IterationNode;
 import eu.stratosphere.compiler.dag.MapNode;
 import eu.stratosphere.compiler.dag.MatchNode;
 import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.dag.PactConnection;
-import eu.stratosphere.compiler.dag.GroupReduceNode;
 import eu.stratosphere.compiler.dag.ReduceNode;
 import eu.stratosphere.compiler.dag.SinkJoiner;
 import eu.stratosphere.compiler.dag.SolutionSetNode;
@@ -578,8 +578,9 @@ public class PactCompiler {
 	 *         situation during the compilation process.
 	 */
 	private OptimizedPlan compile(Plan program, InstanceTypeDescription type, OptimizerPostPass postPasser) throws CompilerException {
-		if (program == null || type == null || postPasser == null)
+		if (program == null || type == null || postPasser == null) {
 			throw new NullPointerException();
+		}
 		
 		
 		if (LOG.isDebugEnabled()) {
@@ -796,7 +797,7 @@ public class PactCompiler {
 		}
 
 		private GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceDOP, int maxMachines,
-									 int defaultParallelism, HashMap<Operator, OptimizerNode> closure) {
+									int defaultParallelism, HashMap<Operator, OptimizerNode> closure) {
 			if (closure == null){
 				con2node = new HashMap<Operator, OptimizerNode>();
 			} else {
@@ -1245,8 +1246,9 @@ public class PactCompiler {
 		}
 
 		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, Plan originalPlan, long memPerInstance) {
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug("Available memory per instance: " + memPerInstance);
+			}
 			
 			this.memoryPerInstance = memPerInstance;
 			this.memoryConsumerWeights = 0;
@@ -1260,8 +1262,9 @@ public class PactCompiler {
 			if (this.memoryConsumerWeights > 0) {
 				final long memoryPerInstanceAndWeight = this.memoryPerInstance / this.memoryConsumerWeights;
 				
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Memory per consumer weight: " + memoryPerInstanceAndWeight);
+				}
 				
 				for (PlanNode node : this.allNodes) {
 					// assign memory to the driver strategy of the node
@@ -1596,8 +1599,8 @@ public class PactCompiler {
 			// get, if first, or if it has more instances and not less memory, or if it has significantly more memory
 			// and the same number of cores still
 			if ( (retValue == null) ||
-				 (curInstances > numInstances && (int) (curMemory * 1.2f) > totalMemory) ||
-				 (curInstances * retValue.getInstanceType().getNumberOfCores() >= numInstances && 
+				(curInstances > numInstances && (int) (curMemory * 1.2f) > totalMemory) ||
+				(curInstances * retValue.getInstanceType().getNumberOfCores() >= numInstances && 
 							(int) (curMemory * 1.5f) > totalMemory)
 				)
 			{

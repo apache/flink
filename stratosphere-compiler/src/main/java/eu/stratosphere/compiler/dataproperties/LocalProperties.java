@@ -209,7 +209,7 @@ public class LocalProperties implements Cloneable
 		}
 		
 		return (no == this.ordering && ngf == this.groupedFields && nuf == this.uniqueFields) ? this :
-			   (no == null && ngf == null && nuf == null) ? new LocalProperties() :
+			(no == null && ngf == null && nuf == null) ? new LocalProperties() :
 					new LocalProperties(no, ngf, nuf);
 	}
 

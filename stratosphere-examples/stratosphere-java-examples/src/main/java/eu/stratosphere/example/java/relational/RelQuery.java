@@ -15,6 +15,7 @@
 package eu.stratosphere.example.java.relational;
 
 
+import static eu.stratosphere.api.java.aggregation.Aggregations.SUM;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.functions.FilterFunction;
@@ -22,8 +23,6 @@ import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.api.java.tuple.Tuple5;
-
-import static eu.stratosphere.api.java.aggregation.Aggregations.*;
 
 
 public class RelQuery {

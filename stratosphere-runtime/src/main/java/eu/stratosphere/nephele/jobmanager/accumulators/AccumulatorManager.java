@@ -81,8 +81,9 @@ public class AccumulatorManager {
 	 * reached.
 	 */
 	private void cleanup(JobID jobId) {
-		if (!lru.contains(jobId))
+		if (!lru.contains(jobId)) {
 			lru.addFirst(jobId);
+		}
 		if (lru.size() > this.maxEntries) {
 			JobID toRemove = lru.removeLast();
 			this.jobAccumulators.remove(toRemove);

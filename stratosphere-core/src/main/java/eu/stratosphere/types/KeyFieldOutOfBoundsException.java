@@ -27,30 +27,30 @@ public class KeyFieldOutOfBoundsException extends RuntimeException
 	private final int fieldNumber;
 
 	/**
-     * Constructs an {@code KeyFieldOutOfBoundsException} with {@code null}
-     * as its error detail message.
-     */
+	 * Constructs an {@code KeyFieldOutOfBoundsException} with {@code null}
+	 * as its error detail message.
+	 */
 	public KeyFieldOutOfBoundsException() {
 		super();
 		this.fieldNumber = -1;
 	}
 
 	/**
-     * Constructs an {@code KeyFieldOutOfBoundsException} with the specified detail message.
-     *
-     * @param message The detail message.
-     */
+	 * Constructs an {@code KeyFieldOutOfBoundsException} with the specified detail message.
+	 *
+	 * @param message The detail message.
+	 */
 	public KeyFieldOutOfBoundsException(String message) {
 		super(message);
 		this.fieldNumber = -1;
 	}
 	
 	/**
-     * Constructs an {@code KeyFieldOutOfBoundsException} with a default message, referring to
-     * given field number as the null key field.
-     *
-     * @param fieldNumber The index of the field that was null, bit expected to hold a key.
-     */
+	 * Constructs an {@code KeyFieldOutOfBoundsException} with a default message, referring to
+	 * given field number as the null key field.
+	 *
+	 * @param fieldNumber The index of the field that was null, bit expected to hold a key.
+	 */
 	public KeyFieldOutOfBoundsException(int fieldNumber) {
 		super("Field " + fieldNumber + " is accessed for a key, but out of bounds in the record.");
 		this.fieldNumber = fieldNumber;

@@ -15,7 +15,6 @@ package eu.stratosphere.api.java.record.functions;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.functions.GenericCrosser;
-import eu.stratosphere.api.java.record.operators.CrossOperator;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 

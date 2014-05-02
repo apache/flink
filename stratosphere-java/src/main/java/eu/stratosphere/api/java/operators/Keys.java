@@ -91,8 +91,9 @@ public abstract class Keys<T> {
 				return true;
 				
 			} else if (other instanceof SelectorFunctionKeys) {
-				if(this.types.length != 1)
+				if(this.types.length != 1) {
 					return false;
+				}
 				
 				SelectorFunctionKeys<?, ?> sfk = (SelectorFunctionKeys<?, ?>) other;
 				
@@ -147,8 +148,9 @@ public abstract class Keys<T> {
 			else if (other instanceof FieldPositionKeys) {
 				FieldPositionKeys<?> fpk = (FieldPositionKeys<?>) other;
 						
-				if(fpk.types.length != 1)
+				if(fpk.types.length != 1) {
 					return false;
+				}
 				
 				return fpk.types[0].equals(this.keyType);
 			}
@@ -214,12 +216,14 @@ public abstract class Keys<T> {
 		int i = 1, k = 0;
 		int last = fields[0];
 		
-		if (last < 0 || last > maxAllowedField)
+		if (last < 0 || last > maxAllowedField) {
 			throw new IllegalArgumentException("Tuple position is out of range.");
+		}
 		
 		for (; i < fields.length; i++) {
-			if (fields[i] < 0 || i > maxAllowedField)
+			if (fields[i] < 0 || i > maxAllowedField) {
 				throw new IllegalArgumentException("Tuple position is out of range.");
+			}
 			
 			if (fields[i] != last) {
 				k++;

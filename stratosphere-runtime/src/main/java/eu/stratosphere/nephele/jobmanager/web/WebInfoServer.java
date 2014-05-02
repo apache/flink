@@ -16,6 +16,7 @@ package eu.stratosphere.nephele.jobmanager.web;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.jetty.http.security.Constraint;

@@ -14,16 +14,18 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.io.jdbc;
 
-import eu.stratosphere.api.common.io.OutputFormat;
-import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.configuration.Configuration;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import eu.stratosphere.api.common.io.OutputFormat;
+import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.configuration.Configuration;
 
 /**
  * OutputFormat to write tuples into a database.
@@ -243,8 +245,8 @@ public class JDBCOutputFormat<OUT extends Tuple> implements OutputFormat<OUT> {
 		}
 
 		/**
-		 Finalizes the configuration and checks validity.
-		 @return Configured JDBCOutputFormat
+		Finalizes the configuration and checks validity.
+		@return Configured JDBCOutputFormat
 		 */
 		public JDBCOutputFormat finish() {
 			if (format.username == null) {

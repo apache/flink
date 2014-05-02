@@ -74,8 +74,9 @@ public class NumberSequenceIteratorTest {
 			} else {
 				diff = iter.getTo() - iter.getCurrent();
 			}
-			if (diff < 0)
+			if (diff < 0) {
 				diff = Long.MAX_VALUE;
+			}
 			
 			minSplitSize = Math.min(minSplitSize, diff);
 			maxSplitSize = Math.max(maxSplitSize, diff);

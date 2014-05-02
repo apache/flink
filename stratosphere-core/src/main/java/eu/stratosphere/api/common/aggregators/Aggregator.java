@@ -13,7 +13,6 @@
 
 package eu.stratosphere.api.common.aggregators;
 
-import eu.stratosphere.api.common.accumulators.Accumulator;
 import eu.stratosphere.types.Value;
 
 /**

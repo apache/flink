@@ -21,9 +21,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
-import eu.stratosphere.api.java.record.io.ExternalProcessFixedLengthInputFormat;
-import eu.stratosphere.api.java.record.io.ExternalProcessInputFormat;
-import eu.stratosphere.api.java.record.io.ExternalProcessInputSplit;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.GenericInputSplit;
 import eu.stratosphere.types.IntValue;
@@ -47,13 +44,14 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 	@Test
 	public void testOpen() {
 		
-		if(OperatingSystem.isWindows())
+		if(OperatingSystem.isWindows()) {
 			return;
+		}
 		
 		Configuration config = new Configuration();
 		config.setInteger(ExternalProcessFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, this.neverEndingCommand);
-	    	    
+				
 		boolean processDestroyed = false;
 		try {
 			format.configure(config);
@@ -82,8 +80,9 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 	@Test
 	public void testCheckExitCode() {
 		
-		if(OperatingSystem.isWindows())
+		if(OperatingSystem.isWindows()) {
 			return;
+		}
 		
 		Configuration config = new Configuration();
 		config.setInteger(ExternalProcessFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
@@ -130,15 +129,16 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 	@Test
 	public void testUserCodeTermination() {
 		
-		if(OperatingSystem.isWindows())
+		if(OperatingSystem.isWindows()) {
 			return;
+		}
 		
 		Configuration config = new Configuration();
 		config.setInteger(ExternalProcessFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
 		config.setInteger(MyExternalProcessTestInputFormat.FAILCOUNT_PARAMETER_KEY, 100);
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, this.neverEndingCommand);
 		Record record = new Record();
-	    	    
+				
 		boolean userException = false;
 		boolean processDestroyed = false;
 		try {
@@ -167,8 +167,9 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 	@Test
 	public void testReadStream() {
 		
-		if(OperatingSystem.isWindows())
+		if(OperatingSystem.isWindows()) {
 			return;
+		}
 		
 		Configuration config = new Configuration();
 		config.setInteger(ExternalProcessFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);
@@ -196,8 +197,9 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 	@Test
 	public void testReadInvalidStream() {
 		
-		if(OperatingSystem.isWindows())
+		if(OperatingSystem.isWindows()) {
 			return;
+		}
 		
 		Configuration config = new Configuration();
 		config.setInteger(ExternalProcessFixedLengthInputFormat.RECORDLENGTH_PARAMETER_KEY, 8);

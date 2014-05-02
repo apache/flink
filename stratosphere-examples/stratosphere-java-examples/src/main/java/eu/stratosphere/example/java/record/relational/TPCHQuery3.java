@@ -21,11 +21,11 @@ import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
+import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
@@ -97,24 +97,27 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		 *  o_orderstatus = "X" 
 		 *  AND YEAR(o_orderdate) > Y
 		 *  AND o_orderpriority LIKE "Z"
-	 	 *  
-	 	 * Output Schema: 
-	 	 *   0:ORDERKEY, 
-	 	 *   1:SHIPPRIORITY
+		 *  
+		 * Output Schema: 
+		 *   0:ORDERKEY, 
+		 *   1:SHIPPRIORITY
 		 */
 		@Override
 		public void map(final Record record, final Collector<Record> out) {
 			orderStatus = record.getField(2, StringValue.class);
-			if (!orderStatus.getValue().equals("F"))
+			if (!orderStatus.getValue().equals("F")) {
 				return;
+			}
 			
 			orderPrio = record.getField(4, StringValue.class);
-			if(!orderPrio.getValue().startsWith(this.prioFilter))
+			if(!orderPrio.getValue().startsWith(this.prioFilter)) {
 				return;
+			}
 			
 			orderDate = record.getField(3, StringValue.class);
-			if (!(Integer.parseInt(orderDate.getValue().substring(0, 4)) > this.yearFilter))
+			if (!(Integer.parseInt(orderDate.getValue().substring(0, 4)) > this.yearFilter)) {
 				return;
+			}
 			
 			record.setNumFields(2);
 			out.collect(record);

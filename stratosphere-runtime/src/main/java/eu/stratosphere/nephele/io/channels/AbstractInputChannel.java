@@ -13,13 +13,12 @@
 
 package eu.stratosphere.nephele.io.channels;
 
-import java.io.EOFException;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.io.InputChannelResult;
+import eu.stratosphere.nephele.io.InputGate;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**

@@ -14,18 +14,20 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.io.jdbc.example;
 
+import static eu.stratosphere.api.java.typeutils.BasicTypeInfo.DOUBLE_TYPE_INFO;
+import static eu.stratosphere.api.java.typeutils.BasicTypeInfo.INT_TYPE_INFO;
+import static eu.stratosphere.api.java.typeutils.BasicTypeInfo.STRING_TYPE_INFO;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
+
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.io.jdbc.JDBCInputFormat;
 import eu.stratosphere.api.java.io.jdbc.JDBCOutputFormat;
 import eu.stratosphere.api.java.tuple.Tuple5;
-import static eu.stratosphere.api.java.typeutils.BasicTypeInfo.DOUBLE_TYPE_INFO;
-import static eu.stratosphere.api.java.typeutils.BasicTypeInfo.INT_TYPE_INFO;
-import static eu.stratosphere.api.java.typeutils.BasicTypeInfo.STRING_TYPE_INFO;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
 
 public class JDBCExample {
 

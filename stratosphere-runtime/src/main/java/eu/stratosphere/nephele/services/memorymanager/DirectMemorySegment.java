@@ -185,7 +185,7 @@ public class DirectMemorySegment {
 
 	public final char getChar(int index) {
 		return (char) ( ((this.memory[index    ] & 0xff) << 8) | 
-		                 (this.memory[index + 1] & 0xff) );
+						(this.memory[index + 1] & 0xff) );
 	}
 
 	public final void putChar(int index, char value) {
@@ -206,23 +206,23 @@ public class DirectMemorySegment {
 	
 	public final int getInt(int index) {
 		return ((this.memory[index    ] & 0xff) << 24)
-		     | ((this.memory[index + 1] & 0xff) << 16)
-		     | ((this.memory[index + 2] & 0xff) <<  8)
-		     | ((this.memory[index + 3] & 0xff)     );
+			| ((this.memory[index + 1] & 0xff) << 16)
+			| ((this.memory[index + 2] & 0xff) <<  8)
+			| ((this.memory[index + 3] & 0xff)     );
 	}
 
 	public final int getIntLittleEndian(int index) {
 		return ((this.memory[index    ] & 0xff)      )
-		     | ((this.memory[index + 1] & 0xff) <<  8)
-		     | ((this.memory[index + 2] & 0xff) << 16)
-		     | ((this.memory[index + 3] & 0xff) << 24);
+			| ((this.memory[index + 1] & 0xff) <<  8)
+			| ((this.memory[index + 2] & 0xff) << 16)
+			| ((this.memory[index + 3] & 0xff) << 24);
 	}
 	
 	public final int getIntBigEndian(int index) {
 		return ((this.memory[index    ] & 0xff) << 24)
-		     | ((this.memory[index + 1] & 0xff) << 16)
-		     | ((this.memory[index + 2] & 0xff) <<  8)
-		     | ((this.memory[index + 3] & 0xff)      );
+			| ((this.memory[index + 1] & 0xff) << 16)
+			| ((this.memory[index + 2] & 0xff) <<  8)
+			| ((this.memory[index + 3] & 0xff)      );
 	}
 	
 	public final void putInt(int index, int value) {
@@ -248,34 +248,34 @@ public class DirectMemorySegment {
 	
 	public final long getLong(int index) {
 		return (((long) this.memory[index    ] & 0xff) << 56)
-			 | (((long) this.memory[index + 1] & 0xff) << 48)
-			 | (((long) this.memory[index + 2] & 0xff) << 40)
-			 | (((long) this.memory[index + 3] & 0xff) << 32)
-			 | (((long) this.memory[index + 4] & 0xff) << 24)
-			 | (((long) this.memory[index + 5] & 0xff) << 16)
-			 | (((long) this.memory[index + 6] & 0xff) <<  8)
-			 | (((long) this.memory[index + 7] & 0xff)      );
+			| (((long) this.memory[index + 1] & 0xff) << 48)
+			| (((long) this.memory[index + 2] & 0xff) << 40)
+			| (((long) this.memory[index + 3] & 0xff) << 32)
+			| (((long) this.memory[index + 4] & 0xff) << 24)
+			| (((long) this.memory[index + 5] & 0xff) << 16)
+			| (((long) this.memory[index + 6] & 0xff) <<  8)
+			| (((long) this.memory[index + 7] & 0xff)      );
 	}
 	public final long getLongLittleEndian(int index) {
 		return (((long) this.memory[index    ] & 0xff)      )
-			 | (((long) this.memory[index + 1] & 0xff) <<  8)
-			 | (((long) this.memory[index + 2] & 0xff) << 16)
-			 | (((long) this.memory[index + 3] & 0xff) << 24)
-			 | (((long) this.memory[index + 4] & 0xff) << 32)
-			 | (((long) this.memory[index + 5] & 0xff) << 40)
-			 | (((long) this.memory[index + 6] & 0xff) << 48)
-			 | (((long) this.memory[index + 7] & 0xff) << 56);
+			| (((long) this.memory[index + 1] & 0xff) <<  8)
+			| (((long) this.memory[index + 2] & 0xff) << 16)
+			| (((long) this.memory[index + 3] & 0xff) << 24)
+			| (((long) this.memory[index + 4] & 0xff) << 32)
+			| (((long) this.memory[index + 5] & 0xff) << 40)
+			| (((long) this.memory[index + 6] & 0xff) << 48)
+			| (((long) this.memory[index + 7] & 0xff) << 56);
 	}
 	
 	public final long getLongBigEndian(int index) {
 		return (((long) this.memory[index    ] & 0xff) << 56)
-			 | (((long) this.memory[index + 1] & 0xff) << 48)
-			 | (((long) this.memory[index + 2] & 0xff) << 40)
-			 | (((long) this.memory[index + 3] & 0xff) << 32)
-			 | (((long) this.memory[index + 4] & 0xff) << 24)
-			 | (((long) this.memory[index + 5] & 0xff) << 16)
-			 | (((long) this.memory[index + 6] & 0xff) <<  8)
-			 | (((long) this.memory[index + 7] & 0xff)      );
+			| (((long) this.memory[index + 1] & 0xff) << 48)
+			| (((long) this.memory[index + 2] & 0xff) << 40)
+			| (((long) this.memory[index + 3] & 0xff) << 32)
+			| (((long) this.memory[index + 4] & 0xff) << 24)
+			| (((long) this.memory[index + 5] & 0xff) << 16)
+			| (((long) this.memory[index + 6] & 0xff) <<  8)
+			| (((long) this.memory[index + 7] & 0xff)      );
 	}
 
 	public final void putLong(int index, long value) {

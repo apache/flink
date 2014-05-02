@@ -13,6 +13,9 @@
 
 package eu.stratosphere.pact.runtime.hash;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,25 +36,22 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable.HashBucketIterator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
-import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.UniformIntPairGenerator;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.UnionIterator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPair;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.IntPairSerializer;
+import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Key;
 import eu.stratosphere.types.NullKeyFieldException;
-import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 public class HashTableITCase {
 
@@ -422,7 +422,7 @@ public class HashTableITCase {
 			Assert.assertEquals("Wrong number of values in per-key cross product for key " + key, 
 				(key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2) ?
 					(PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE) * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD) : 
-					 PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
+					PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
 		}
 		
 		
@@ -535,7 +535,7 @@ public class HashTableITCase {
 			Assert.assertEquals("Wrong number of values in per-key cross product for key " + key, 
 				(key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2) ?
 					(PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE) * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD) : 
-					 PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
+					PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
 		}
 		
 		
@@ -609,7 +609,9 @@ public class HashTableITCase {
 				if (buildSide.next(recordReuse) == null) {
 					fail("No build side values found for a probe key.");
 				}
-				while (buildSide.next(recordReuse) != null);
+				while (buildSide.next(recordReuse) != null) {
+					;
+				}
 			}
 			
 			fail("Hash Join must have failed due to too many recursions.");
@@ -1026,7 +1028,7 @@ public class HashTableITCase {
 			Assert.assertEquals("Wrong number of values in per-key cross product for key " + key, 
 				(key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2) ?
 					(PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE) * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD) : 
-					 PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
+					PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
 		}
 		
 		// ----------------------------------------------------------------------------------------
@@ -1138,7 +1140,7 @@ public class HashTableITCase {
 			Assert.assertEquals("Wrong number of values in per-key cross product for key " + key, 
 				(key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2) ?
 					(PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE) * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD) : 
-					 PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
+					PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY, val);
 		}
 		
 		// ----------------------------------------------------------------------------------------
@@ -1211,7 +1213,9 @@ public class HashTableITCase {
 				if (buildSide.next(recordReuse) == null) {
 					fail("No build side values found for a probe key.");
 				}
-				while (buildSide.next(recordReuse) != null);
+				while (buildSide.next(recordReuse) != null) {
+					;
+				}
 			}
 			
 			fail("Hash Join must have failed due to too many recursions.");

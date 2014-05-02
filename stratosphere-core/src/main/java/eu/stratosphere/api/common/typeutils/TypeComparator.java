@@ -19,7 +19,6 @@ import java.io.Serializable;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.core.memory.MemorySegment;
-import eu.stratosphere.types.NormalizableKey;
 
 /**
  * This interface describes the methods that are required for a data type to be handled by the pact

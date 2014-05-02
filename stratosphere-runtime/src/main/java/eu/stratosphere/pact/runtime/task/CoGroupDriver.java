@@ -108,8 +108,9 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<
 		// open CoGroupTaskIterator - this triggers the sorting and blocks until the iterator is ready
 		this.coGroupIterator.open();
 		
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(this.taskContext.formatLogString("CoGroup task iterator ready."));
+		}
 	}
 	
 

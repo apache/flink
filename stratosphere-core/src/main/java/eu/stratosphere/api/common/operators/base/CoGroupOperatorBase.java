@@ -65,12 +65,13 @@ public class CoGroupOperatorBase<T extends GenericCoGrouper<?, ?, ?>> extends Du
 	 * @param order The order for the elements in a group.
 	 */
 	public void setGroupOrder(int inputNum, Ordering order) {
-		if (inputNum == 0)
+		if (inputNum == 0) {
 			this.groupOrder1 = order;
-		else if (inputNum == 1)
+		} else if (inputNum == 1) {
 			this.groupOrder2 = order;
-		else
+		} else {
 			throw new IndexOutOfBoundsException();
+		}
 	}
 	
 	/**
@@ -99,12 +100,13 @@ public class CoGroupOperatorBase<T extends GenericCoGrouper<?, ?, ?>> extends Du
 	 * @return The group order.
 	 */
 	public Ordering getGroupOrder(int inputNum) {
-		if (inputNum == 0)
+		if (inputNum == 0) {
 			return this.groupOrder1;
-		else if (inputNum == 1)
+		} else if (inputNum == 1) {
 			return this.groupOrder2;
-		else
+		} else {
 			throw new IndexOutOfBoundsException();
+		}
 	}
 	
 	/**

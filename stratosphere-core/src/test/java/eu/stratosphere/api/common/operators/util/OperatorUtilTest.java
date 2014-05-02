@@ -19,20 +19,19 @@ import org.junit.Test;
 
 import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.api.common.functions.GenericCoGrouper;
-import eu.stratosphere.api.common.functions.GenericCrosser;
-import eu.stratosphere.api.common.functions.GenericJoiner;
 import eu.stratosphere.api.common.functions.GenericCollectorMap;
+import eu.stratosphere.api.common.functions.GenericCrosser;
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
+import eu.stratosphere.api.common.functions.GenericJoiner;
+import eu.stratosphere.api.common.io.DelimitedInputFormat;
+import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.common.operators.base.MapOperatorBase;
-import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
-import eu.stratosphere.api.common.operators.util.OperatorUtil;
-import eu.stratosphere.api.common.io.DelimitedInputFormat;
-import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.types.IntValue;
 
 /**

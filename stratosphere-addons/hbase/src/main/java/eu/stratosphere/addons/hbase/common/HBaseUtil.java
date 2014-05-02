@@ -22,8 +22,6 @@ import java.io.IOException;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Base64;
 
-import eu.stratosphere.addons.hbase.TableInputFormat;
-
 /**
  * Utility for {@link TableInputFormat}
  */

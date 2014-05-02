@@ -28,11 +28,11 @@ public class DeadlockGraph {
 	public DeadlockGraph() {
 		this.vertices = new HashSet<DeadlockVertex>();
 	}
-	   
+	
 	public Set<DeadlockVertex> vertices() {
 		return vertices;
 	}
-	   
+	
 	public DeadlockVertex addVertex(PlanNode original) {
 		
 		DeadlockVertex v = new DeadlockVertex(original);
@@ -44,8 +44,9 @@ public class DeadlockGraph {
 		
 		DeadlockVertex dest = null;
 		for(DeadlockVertex v : vertices) {
-			if(v.getOriginal().equals(destination))
+			if(v.getOriginal().equals(destination)) {
 				dest = v;
+			}
 		}
 		
 		for(DeadlockVertex v : vertices) {
@@ -55,7 +56,7 @@ public class DeadlockGraph {
 		}
 		
 	}
-	   
+	
 	public long size() {
 		return vertices.size();
 	}
@@ -76,47 +77,50 @@ public class DeadlockGraph {
 
 	public boolean hasCycle() {
 		
-	   Collection <DeadlockVertex> vertexCollect = this.vertices();
-	   
-	   Queue <DeadlockVertex> q; // Queue will store vertices that have in-degree of zero
+	Collection <DeadlockVertex> vertexCollect = this.vertices();
 	
-	   // Calculate the in-degree of all vertices
-	   for (DeadlockVertex v: vertexCollect)
-	      v.setInDegree(0);
-	   
-	   for (DeadlockVertex v: vertexCollect) {
-	      for(DeadlockEdge edge : v.getOutEdges())
-	         edge.getDestination().setInDegree(edge.getDestination().getInDegree()+1);
-	   }
+	Queue <DeadlockVertex> q; // Queue will store vertices that have in-degree of zero
 	
-	   // Find all vertices with in-degree == 0 and put in queue 
-	   q = new LinkedList<DeadlockVertex>();
-	   for (DeadlockVertex v : vertexCollect) {
-	      if (v.getInDegree() == 0)
-	         q.offer(v);
-	   }
-	   
-	   while (!q.isEmpty()) {
-		   
-		   DeadlockVertex v = q.poll();
-		   this.vertices.remove(v);
-		   
-		   for (DeadlockEdge e: v.getOutEdges()) {
-			   
-			   DeadlockVertex w = e.getDestination();
-			   w.setInDegree(w.getInDegree() - 1);
-			   
-			   if(w.getInDegree() == 0) {
-				   q.offer(w);
-			   }
-		   }
-	   }
-	   
-	   if (!vertexCollect.isEmpty() ){
-	      return true;  //Cycle found
-	   }
-	   
-	   return false;
+	// Calculate the in-degree of all vertices
+	for (DeadlockVertex v: vertexCollect) {
+		v.setInDegree(0);
+	}
+	
+	for (DeadlockVertex v: vertexCollect) {
+		for(DeadlockEdge edge : v.getOutEdges()) {
+			edge.getDestination().setInDegree(edge.getDestination().getInDegree()+1);
+		}
+	}
+	
+	// Find all vertices with in-degree == 0 and put in queue 
+	q = new LinkedList<DeadlockVertex>();
+	for (DeadlockVertex v : vertexCollect) {
+		if (v.getInDegree() == 0) {
+			q.offer(v);
+		}
+	}
+	
+	while (!q.isEmpty()) {
+		
+		DeadlockVertex v = q.poll();
+		this.vertices.remove(v);
+		
+		for (DeadlockEdge e: v.getOutEdges()) {
+			
+			DeadlockVertex w = e.getDestination();
+			w.setInDegree(w.getInDegree() - 1);
+			
+			if(w.getInDegree() == 0) {
+				q.offer(w);
+			}
+		}
+	}
+	
+	if (!vertexCollect.isEmpty() ){
+		return true;  //Cycle found
+	}
+	
+	return false;
 	}
 
 	

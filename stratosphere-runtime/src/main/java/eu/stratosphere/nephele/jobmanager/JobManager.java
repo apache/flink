@@ -852,8 +852,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		ManagementGraph mg = this.eventCollector.getManagementGraph(jobID);
 		if (mg == null) {
-			if(this.archive != null)
+			if(this.archive != null) {
 				mg = this.archive.getManagementGraph(jobID);
+			}
 			
 			if (mg == null) {
 				throw new IOException("Cannot find job with ID " + jobID);

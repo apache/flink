@@ -21,37 +21,40 @@ import eu.stratosphere.compiler.plan.PlanNode;
 public class DeadlockVertex {
 	
 	private PlanNode original;
-	   
+	
 	private List<DeadlockEdge> outEdges;
-	   
+	
 	private int inDegree;
-	   
+	
 	public DeadlockVertex( PlanNode original ) {
 		this.original = original;
 		outEdges = new LinkedList<DeadlockEdge>();
 		inDegree = 0;
 	}
-	   
+	
 	public void addEdge(DeadlockVertex destination) {
 		
 		// no duplicates
 		for(DeadlockEdge e : outEdges) {
-			if(e.getDestination().equals(destination))
+			if(e.getDestination().equals(destination)) {
 				return;
+			}
 		}
 		
 		DeadlockEdge e = new DeadlockEdge(destination);
 		this.outEdges.add(e);
 	}
-	   
+	
 	public boolean equals(Object o) {
-		   
-		if(!(o instanceof DeadlockVertex))
+		
+		if(!(o instanceof DeadlockVertex)) {
 			return false;
-		   
+		}
+		
 		DeadlockVertex v = (DeadlockVertex) o;
-		if(v.getOriginal().equals(this.getOriginal()))
+		if(v.getOriginal().equals(this.getOriginal())) {
 			return true;
+		}
 		
 		return false;
 	}

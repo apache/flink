@@ -80,10 +80,10 @@ public class PlanDisplayServlet extends GUIServletStub {
 
 		// write the canvas for the graph area
 		writer.println("    <div style=\"position: relative;\">\n"
-		             + "      <div id=\"mainCanvas\" class=\"canvas boxed\" style=\"height: 500px;\">\n"
-		             + "        <div align=\"center\" id=\"progressContainer\" style=\"margin: auto; margin-top: 200px;\"></div>\n"
-		             + "      </div>\n" + "      <div style=\"position: absolute; right: 20px; bottom: 20px;\">\n"
-		             + "        <input id=\"back_button\" type=\"button\" value=\"&lt; Back\"/>");
+					+ "      <div id=\"mainCanvas\" class=\"canvas boxed\" style=\"height: 500px;\">\n"
+					+ "        <div align=\"center\" id=\"progressContainer\" style=\"margin: auto; margin-top: 200px;\"></div>\n"
+					+ "      </div>\n" + "      <div style=\"position: absolute; right: 20px; bottom: 20px;\">\n"
+					+ "        <input id=\"back_button\" type=\"button\" value=\"&lt; Back\"/>");
 		if (suspended) {
 			writer.println("        <input id=\"run_button\" type=\"button\" value=\"Continue &gt;\"/>");
 		}
@@ -98,18 +98,18 @@ public class PlanDisplayServlet extends GUIServletStub {
 			+ "      var minColumnWidth = 150;\n\n" + "      $(document).ready(function() {\n");
 
 		writer.println("        // register the event handler for the 'run' button\n"
-		             + "        $('#run_button').click(function () {\n" + "          $('#run_button').remove();\n"
-		             + "          $.ajax( {" + " url: '/runJob'," + " data: { action: 'runsubmitted', id: '" + uid + "' },"
-		             + " success: function () { alert('Job succesfully submitted');"
-		             + (this.runtimeVisURL != null ? (" window.location = \"" + this.runtimeVisURL + "\"; },") : " },")
-		             + " error: function (xhr, ajaxOptions, thrownError) { alert(xhr.responseText); }" + "          });\n"
-		             + "        });\n");
+					+ "        $('#run_button').click(function () {\n" + "          $('#run_button').remove();\n"
+					+ "          $.ajax( {" + " url: '/runJob'," + " data: { action: 'runsubmitted', id: '" + uid + "' },"
+					+ " success: function () { alert('Job succesfully submitted');"
+					+ (this.runtimeVisURL != null ? (" window.location = \"" + this.runtimeVisURL + "\"; },") : " },")
+					+ " error: function (xhr, ajaxOptions, thrownError) { alert(xhr.responseText); }" + "          });\n"
+					+ "        });\n");
 
 		writer.println("        // register the event handler for the 'back' button\n"
-		             + "        $('#back_button').click(function () {\n"
+					+ "        $('#back_button').click(function () {\n"
 		+ (suspended ? "          var url = \"/runJob?\" + $.param({action: \"back\", id: \"" + uid + "\" });\n"
-		             : "          var url = \"" + JobSubmissionServlet.START_PAGE_URL + "\";\n")
-		             + "          window.location = url;\n" + "        });\n");
+					: "          var url = \"" + JobSubmissionServlet.START_PAGE_URL + "\";\n")
+					+ "          window.location = url;\n" + "        });\n");
 
 		// writer.println(
 		// "        // register an ajax error handler\n" +

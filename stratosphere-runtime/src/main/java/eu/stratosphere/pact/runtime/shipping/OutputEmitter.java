@@ -88,8 +88,9 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 			throw new IllegalArgumentException("Invalid shipping strategy for OutputEmitter: " + strategy.name());
 		}
 		
-		if ((strategy == ShipStrategyType.PARTITION_RANGE) && distr == null)
+		if ((strategy == ShipStrategyType.PARTITION_RANGE) && distr == null) {
 			throw new NullPointerException("Data distribution must not be null when the ship strategy is range partitioning.");
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -132,8 +133,9 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	private final int[] broadcast(int numberOfChannels) {
 		if (channels == null || channels.length != numberOfChannels) {
 			channels = new int[numberOfChannels];
-			for (int i = 0; i < numberOfChannels; i++)
+			for (int i = 0; i < numberOfChannels; i++) {
 				channels[i] = i;
+			}
 		}
 
 		return channels;

@@ -108,8 +108,9 @@ public abstract class ListValue<V extends Value> implements Value, List<V> {
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		out.writeInt(this.list.size());
-		for (final V value : this.list)
+		for (final V value : this.list) {
 			value.write(out);
+		}
 	}
 
 	/*
@@ -130,18 +131,23 @@ public abstract class ListValue<V extends Value> implements Value, List<V> {
 	 */
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		}
+		if (obj == null) {
 			return false;
-		if (this.getClass() != obj.getClass())
+		}
+		if (this.getClass() != obj.getClass()) {
 			return false;
+		}
 		final ListValue<?> other = (ListValue<?>) obj;
 		if (this.list == null) {
-			if (other.list != null)
+			if (other.list != null) {
 				return false;
-		} else if (!this.list.equals(other.list))
+			}
+		} else if (!this.list.equals(other.list)) {
 			return false;
+		}
 		return true;
 	}
 

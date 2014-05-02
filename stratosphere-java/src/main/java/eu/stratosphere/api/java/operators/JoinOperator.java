@@ -16,6 +16,7 @@ package eu.stratosphere.api.java.operators;
 
 import java.security.InvalidParameterException;
 import java.util.Arrays;
+
 import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
@@ -120,8 +121,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	{
 		super(input1, input2, returnType);
 		
-		if (keys1 == null || keys2 == null)
+		if (keys1 == null || keys2 == null) {
 			throw new NullPointerException();
+		}
 		
 		this.keys1 = keys1;
 		this.keys2 = keys2;
@@ -170,8 +172,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		{
 			super(input1, input2, keys1, keys2, returnType, hint);
 			
-			if (function == null)
+			if (function == null) {
 				throw new NullPointerException();
+			}
 			
 			this.function = function;
 		}
@@ -322,8 +325,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
 				Operator input1, Operator input2)
 		{
-			if(!inputType1.isTupleType())
+			if(!inputType1.isTupleType()) {
 				throw new InvalidParameterException("Should not happen.");
+			}
 			
 			@SuppressWarnings("unchecked")
 			final Keys.SelectorFunctionKeys<I2, K> keys2 = (Keys.SelectorFunctionKeys<I2, K>) rawKeys2;
@@ -357,8 +361,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
 				Operator input1, Operator input2)
 		{
-			if(!inputType2.isTupleType())
+			if(!inputType2.isTupleType()) {
 				throw new InvalidParameterException("Should not happen.");
+			}
 			
 			@SuppressWarnings("unchecked")
 			final Keys.SelectorFunctionKeys<I1, K> keys1 = (Keys.SelectorFunctionKeys<I1, K>) rawKeys1;
@@ -590,8 +595,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 		public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2, JoinHint hint) {
-			if (input1 == null || input2 == null)
+			if (input1 == null || input2 == null) {
 				throw new NullPointerException();
+			}
 			
 			this.input1 = input1;
 			this.input2 = input2;
@@ -635,8 +641,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			private final Keys<I1> keys1;
 			
 			private JoinOperatorSetsPredicate(Keys<I1> keys1) {
-				if (keys1 == null)
+				if (keys1 == null) {
 					throw new NullPointerException();
+				}
 				
 				if (keys1.isEmpty()) {
 					throw new InvalidProgramException("The join keys must not be empty.");
@@ -682,8 +689,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 //			}
 			
 			protected DefaultJoin<I1, I2> createJoinOperator(Keys<I2> keys2) {
-				if (keys2 == null)
+				if (keys2 == null) {
 					throw new NullPointerException("The join keys may not be null.");
+				}
 				
 				if (keys2.isEmpty()) {
 					throw new InvalidProgramException("The join keys may not be empty.");

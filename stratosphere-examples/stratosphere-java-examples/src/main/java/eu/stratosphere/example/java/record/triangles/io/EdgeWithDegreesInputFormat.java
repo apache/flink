@@ -83,8 +83,9 @@ public final class EdgeWithDegreesInputFormat extends DelimitedInputFormat {
 			secondD = secondD * 10 + (bytes[pos++] - '0');
 		}
 		
-		if (firstV <= 0 || secondV <= 0 || firstV == secondV)
+		if (firstV <= 0 || secondV <= 0 || firstV == secondV) {
 			return null;
+		}
 		
 		v1.setValue(firstV);
 		v2.setValue(secondV);

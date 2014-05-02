@@ -31,7 +31,7 @@ public class PlanCrossOperator<IN1, IN2, OUT>
 	public PlanCrossOperator(
 			CrossFunction<IN1, IN2, OUT> udf,
 			String name,
-			 TypeInformation<IN1> inType1, TypeInformation<IN2> inType2, TypeInformation<OUT> outType) {
+			TypeInformation<IN1> inType1, TypeInformation<IN2> inType2, TypeInformation<OUT> outType) {
 		super(udf, name);
 		
 		this.inType1 = inType1;

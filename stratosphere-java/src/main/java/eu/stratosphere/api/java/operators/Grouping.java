@@ -22,7 +22,6 @@ import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.aggregation.Aggregations;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.ReduceFunction;
-import eu.stratosphere.api.java.tuple.Tuple;
 
 /**
  * Grouping is an intermediate step for a transformation on a grouped DataSet.<br/>
@@ -47,8 +46,9 @@ public class Grouping<T> {
 	private Order[] groupSortOrders = null;
 
 	public Grouping(DataSet<T> set, Keys<T> keys) {
-		if (set == null || keys == null)
+		if (set == null || keys == null) {
 			throw new NullPointerException();
+		}
 		
 		if (keys.isEmpty()) {
 			throw new InvalidProgramException("The grouping keys must not be empty.");

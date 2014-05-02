@@ -322,10 +322,12 @@ public abstract class Server {
 						numNuked++;
 						end--;
 						c = null;
-						if (!force && numNuked == maxConnectionsToNuke)
+						if (!force && numNuked == maxConnectionsToNuke) {
 							break;
-					} else
+						}
+					} else {
 						i++;
+					}
 				}
 				lastCleanupRunTime = System.currentTimeMillis();
 			}
@@ -345,10 +347,11 @@ public abstract class Server {
 						iter.remove();
 						try {
 							if (key.isValid()) {
-								if (key.isAcceptable())
+								if (key.isAcceptable()) {
 									doAccept(key);
-								else if (key.isReadable())
+								} else if (key.isReadable()) {
 									doRead(key);
+								}
 							}
 						} catch (IOException e) {
 						}
@@ -419,8 +422,9 @@ public abstract class Server {
 			// accept up to 10 connections
 			for (int i = 0; i < 10; i++) {
 				SocketChannel channel = server.accept();
-				if (channel == null)
+				if (channel == null) {
 					return;
+				}
 
 				channel.configureBlocking(false);
 				channel.socket().setTcpNoDelay(tcpNoDelay);
@@ -801,8 +805,9 @@ public abstract class Server {
 		}
 
 		private boolean timedOut(long currentTime) {
-			if (isIdle() && currentTime - lastContact > maxIdleTime)
+			if (isIdle() && currentTime - lastContact > maxIdleTime) {
 				return true;
+			}
 			return false;
 		}
 
@@ -815,8 +820,9 @@ public abstract class Server {
 				int count = -1;
 				if (dataLengthBuffer.remaining() > 0) {
 					count = channelRead(channel, dataLengthBuffer);
-					if (count < 0 || dataLengthBuffer.remaining() > 0)
+					if (count < 0 || dataLengthBuffer.remaining() > 0) {
 						return count;
+					}
 				}
 
 				if (!headerRead) {
@@ -897,8 +903,9 @@ public abstract class Server {
 		private synchronized void close() throws IOException {
 			data = null;
 			dataLengthBuffer = null;
-			if (!channel.isOpen())
+			if (!channel.isOpen()) {
 				return;
+			}
 			try {
 				socket.shutdownOutput();
 			} catch (Exception e) {
@@ -1001,8 +1008,9 @@ public abstract class Server {
 
 	private void closeConnection(Connection connection) {
 		synchronized (connectionList) {
-			if (connectionList.remove(connection))
+			if (connectionList.remove(connection)) {
 				numConnections--;
+			}
 		}
 		try {
 			connection.close();

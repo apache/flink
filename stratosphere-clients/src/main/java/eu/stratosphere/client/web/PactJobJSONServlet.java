@@ -128,21 +128,21 @@ public class PactJobJSONServlet extends HttpServlet {
 				sb.append('\\');
 				sb.append(c);
 			}
-			else if (c == '\b')
+			else if (c == '\b') {
 				sb.append("\\b");
-			else if (c == '\t')
+			} else if (c == '\t') {
 				sb.append("\\t");
-			else if (c == '\n')
+			} else if (c == '\n') {
 				sb.append("<br>");
-			else if (c == '\f')
+			} else if (c == '\f') {
 				sb.append("\\f");
-			else if (c == '\r')
+			} else if (c == '\r') {
 				sb.append("\\r");
-			else if (c == '>')
+			} else if (c == '>') {
 				sb.append("&gt;");
-			else if (c == '<')
+			} else if (c == '<') {
 				sb.append("&lt;");
-			else {
+			} else {
 				if (c < ' ') {
 					// Unreadable throw away
 				} else {

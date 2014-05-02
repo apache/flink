@@ -67,10 +67,10 @@ public class IntValue implements Key, NormalizableKey, ResettableValue<IntValue>
 		this.value = value;
 	}
 
-    @Override
-    public void setValue(IntValue value) {
-        this.value = value.value;
-    }
+	@Override
+	public void setValue(IntValue value) {
+		this.value = value.value;
+	}
 
 	@Override
 	public String toString() {
@@ -93,8 +93,9 @@ public class IntValue implements Key, NormalizableKey, ResettableValue<IntValue>
 	
 	@Override
 	public int compareTo(final Key o) {
-		if (!(o instanceof IntValue))
+		if (!(o instanceof IntValue)) {
 			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to IntValue!");
+		}
 
 		final int other = ((IntValue) o).value;
 

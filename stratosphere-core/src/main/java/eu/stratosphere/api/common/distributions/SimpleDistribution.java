@@ -33,10 +33,12 @@ public class SimpleDistribution implements DataDistribution {
 	}
 	
 	public SimpleDistribution(Key[] bucketBoundaries) {
-		if (bucketBoundaries == null)
+		if (bucketBoundaries == null) {
 			throw new IllegalArgumentException("Bucket boundaries must not be null.");
-		if (bucketBoundaries.length == 0)
+		}
+		if (bucketBoundaries.length == 0) {
 			throw new IllegalArgumentException("Bucket boundaries must not be empty.");
+		}
 
 		// dimensionality is one in this case
 		dim = 1;
@@ -55,10 +57,12 @@ public class SimpleDistribution implements DataDistribution {
 	}
 	
 	public SimpleDistribution(Key[][] bucketBoundaries) {
-		if (bucketBoundaries == null)
+		if (bucketBoundaries == null) {
 			throw new IllegalArgumentException("Bucket boundaries must not be null.");
-		if (bucketBoundaries.length == 0)
+		}
+		if (bucketBoundaries.length == 0) {
 			throw new IllegalArgumentException("Bucket boundaries must not be empty.");
+		}
 
 		// dimensionality is one in this case
 		dim = bucketBoundaries[0].length;

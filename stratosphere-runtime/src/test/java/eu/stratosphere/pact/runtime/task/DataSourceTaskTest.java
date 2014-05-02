@@ -30,9 +30,9 @@ import org.junit.Test;
 import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.pact.runtime.test.util.NirvanaOutputList;
-import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;
 import eu.stratosphere.pact.runtime.test.util.TaskTestBase;
+import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
@@ -204,8 +204,9 @@ public class DataSourceTaskTest extends TaskTestBase
 			FileWriter fw = new FileWriter(inputFilePath);
 			BufferedWriter bw = new BufferedWriter(fw);
 			
-			if (insertInvalidData)
+			if (insertInvalidData) {
 				bw.write("####_I_AM_INVALID_########\n");
+			}
 			
 			Record rec = new Record();
 			while ((rec = inIt.next(rec)) != null) {
@@ -214,8 +215,9 @@ public class DataSourceTaskTest extends TaskTestBase
 				
 				bw.write(key.getValue() + "_" + value.getValue() + "\n");
 			}
-			if (insertInvalidData)
+			if (insertInvalidData) {
 				bw.write("####_I_AM_INVALID_########\n");
+			}
 			
 			bw.flush();
 			bw.close();

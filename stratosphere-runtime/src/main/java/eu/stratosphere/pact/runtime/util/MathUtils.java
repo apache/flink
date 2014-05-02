@@ -32,12 +32,14 @@ public final class MathUtils
 	 */
 	public static final int log2floor(int value) throws ArithmeticException
 	{
-		if (value == 0)
+		if (value == 0) {
 			throw new ArithmeticException("Logarithm of zero is undefined.");
+		}
 		
 		int log = 0;
-		while ((value = value >>> 1) != 0)
+		while ((value = value >>> 1) != 0) {
 			log++;
+		}
 		
 		return log;
 	}
@@ -53,14 +55,17 @@ public final class MathUtils
 	 */
 	public static final int log2strict(int value) throws ArithmeticException, IllegalArgumentException
 	{
-		if (value == 0)
+		if (value == 0) {
 			throw new ArithmeticException("Logarithm of zero is undefined.");
-		if ((value & (value - 1)) != 0)
+		}
+		if ((value & (value - 1)) != 0) {
 			throw new IllegalArgumentException("The given value " + value + " is not a power of two.");
+		}
 		
 		int log = 0;
-		while ((value = value >>> 1) != 0)
+		while ((value = value >>> 1) != 0) {
 			log++;
+		}
 		
 		return log;
 	}

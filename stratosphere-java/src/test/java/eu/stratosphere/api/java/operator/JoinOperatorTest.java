@@ -145,24 +145,24 @@ public class JoinOperatorTest {
 		// should work
 		try {
 			ds1.join(ds2)
-			   .where(
-					   new KeySelector<CustomType, Long>() {
+			.where(
+					new KeySelector<CustomType, Long>() {
 							
 							@Override
 							public Long getKey(CustomType value) {
 								return value.myLong;
 							}
 						}
-					 )
-			   .equalTo(
-					   new KeySelector<CustomType, Long>() {
+					)
+			.equalTo(
+					new KeySelector<CustomType, Long>() {
 							
 							@Override
 							public Long getKey(CustomType value) {
 								return value.myLong;
 							}
 						}
-					   );
+					);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -179,16 +179,16 @@ public class JoinOperatorTest {
 		// should work
 		try {
 			ds1.join(ds2)
-			   .where(
-					   new KeySelector<CustomType, Long>() {
+			.where(
+					new KeySelector<CustomType, Long>() {
 							
 							@Override
 							public Long getKey(CustomType value) {
 								return value.myLong;
 							}
 						}
-					   )
-			   .equalTo(3);
+					)
+			.equalTo(3);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -204,16 +204,16 @@ public class JoinOperatorTest {
 		// should work
 		try {
 			ds1.join(ds2)
-			   .where(3)
-			   .equalTo(
-					   new KeySelector<CustomType, Long>() {
+			.where(3)
+			.equalTo(
+					new KeySelector<CustomType, Long>() {
 							
 							@Override
 							public Long getKey(CustomType value) {
 								return value.myLong;
 							}
 						}
-					   );
+					);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -228,16 +228,16 @@ public class JoinOperatorTest {
 
 		// should not work, incompatible types
 		ds1.join(ds2)
-		   .where(2)
-		   .equalTo(
-				   new KeySelector<CustomType, Long>() {
+		.where(2)
+		.equalTo(
+				new KeySelector<CustomType, Long>() {
 						
 						@Override
 						public Long getKey(CustomType value) {
 							return value.myLong;
 						}
 					}
-				   );
+				);
 	}
 	
 	@Test(expected = InvalidProgramException.class)
@@ -249,16 +249,16 @@ public class JoinOperatorTest {
 
 		// should not work, more than one key field position
 		ds1.join(ds2)
-		   .where(1,3)
-		   .equalTo(
-				   new KeySelector<CustomType, Long>() {
+		.where(1,3)
+		.equalTo(
+				new KeySelector<CustomType, Long>() {
 						
 						@Override
 						public Long getKey(CustomType value) {
 							return value.myLong;
 						}
 					}
-				   );
+				);
 	}
 	
 	@Test
@@ -271,8 +271,8 @@ public class JoinOperatorTest {
 		// should work
 		try {
 			ds1.join(ds2).where(0).equalTo(0)
-			   .projectFirst(0)
-			   .types(Integer.class);
+			.projectFirst(0)
+			.types(Integer.class);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -288,8 +288,8 @@ public class JoinOperatorTest {
 		// should work
 		try {
 			ds1.join(ds2).where(0).equalTo(0)
-			   .projectFirst(0,3)
-			   .types(Integer.class, Long.class);
+			.projectFirst(0,3)
+			.types(Integer.class, Long.class);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -305,9 +305,9 @@ public class JoinOperatorTest {
 		// should work
 		try {
 			ds1.join(ds2).where(0).equalTo(0)
-			   .projectFirst(0)
-			   .projectSecond(3)
-			   .types(Integer.class, Long.class);
+			.projectFirst(0)
+			.projectSecond(3)
+			.types(Integer.class, Long.class);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -323,10 +323,10 @@ public class JoinOperatorTest {
 		// should work
 		try {
 			ds1.join(ds2).where(0).equalTo(0)
-			   .projectFirst(0,2)
-			   .projectSecond(1,4)
-			   .projectFirst(1)
-			   .types(Integer.class, String.class, Long.class, Integer.class, Long.class);
+			.projectFirst(0,2)
+			.projectSecond(1,4)
+			.projectFirst(1)
+			.types(Integer.class, String.class, Long.class, Integer.class, Long.class);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -343,10 +343,10 @@ public class JoinOperatorTest {
 		// should work
 		try {
 			ds1.join(ds2).where(0).equalTo(0)
-			   .projectSecond(0,2)
-			   .projectFirst(1,4)
-			   .projectFirst(1)
-			   .types(Integer.class, String.class, Long.class, Integer.class, Long.class);
+			.projectSecond(0,2)
+			.projectFirst(1,4)
+			.projectFirst(1)
+			.types(Integer.class, String.class, Long.class, Integer.class, Long.class);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -362,24 +362,24 @@ public class JoinOperatorTest {
 		// should work
 		try {
 			ds1.join(ds2)
-			   .where(
-					   new KeySelector<CustomType, Long>() {
+			.where(
+					new KeySelector<CustomType, Long>() {
 							
 							@Override
 							public Long getKey(CustomType value) {
 								return value.myLong;
 							}
 						}
-					 )
-			   .equalTo(
-					   new KeySelector<CustomType, Long>() {
+					)
+			.equalTo(
+					new KeySelector<CustomType, Long>() {
 							
 							@Override
 							public Long getKey(CustomType value) {
 								return value.myLong;
 							}
 						}
-					   )
+					)
 				.projectFirst()
 				.projectSecond()
 				.types(CustomType.class, CustomType.class);
@@ -398,9 +398,9 @@ public class JoinOperatorTest {
 		// should work
 		try {
 			ds1.join(ds2).where(0).equalTo(0)
-			   .projectSecond()
-			   .projectFirst(1,4)
-			   .types(Tuple5.class, Long.class, Integer.class);
+			.projectSecond()
+			.projectFirst(1,4)
+			.types(Tuple5.class, Long.class, Integer.class);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -415,8 +415,8 @@ public class JoinOperatorTest {
 
 		// should not work, index out of range
 		ds1.join(ds2).where(0).equalTo(0)
-		   .projectFirst(5)
-		   .types(Integer.class);
+		.projectFirst(5)
+		.types(Integer.class);
 	}
 	
 	@Test(expected=IndexOutOfBoundsException.class)
@@ -428,8 +428,8 @@ public class JoinOperatorTest {
 
 		// should not work, index out of range
 		ds1.join(ds2).where(0).equalTo(0)
-		   .projectSecond(5)
-		   .types(Integer.class);
+		.projectSecond(5)
+		.types(Integer.class);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
@@ -441,8 +441,8 @@ public class JoinOperatorTest {
 
 		// should not work, type does not match
 		ds1.join(ds2).where(0).equalTo(0)
-		   .projectFirst(2)
-		   .types(Integer.class);
+		.projectFirst(2)
+		.types(Integer.class);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
@@ -454,8 +454,8 @@ public class JoinOperatorTest {
 
 		// should not work, type does not match
 		ds1.join(ds2).where(0).equalTo(0)
-		   .projectSecond(2)
-		   .types(Integer.class);
+		.projectSecond(2)
+		.types(Integer.class);
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
@@ -467,9 +467,9 @@ public class JoinOperatorTest {
 
 		// should not work, number of types and fields does not match
 		ds1.join(ds2).where(0).equalTo(0)
-		   .projectSecond(2)
-		   .projectFirst(1)
-		   .types(String.class);
+		.projectSecond(2)
+		.projectFirst(1)
+		.types(String.class);
 	}
 	
 	@Test(expected=IndexOutOfBoundsException.class)
@@ -481,9 +481,9 @@ public class JoinOperatorTest {
 
 		// should not work, index out of range
 		ds1.join(ds2).where(0).equalTo(0)
-		   .projectSecond(0)
-		   .projectFirst(5)
-		   .types(Integer.class);
+		.projectSecond(0)
+		.projectFirst(5)
+		.types(Integer.class);
 	}
 	
 	@Test(expected=IndexOutOfBoundsException.class)
@@ -495,9 +495,9 @@ public class JoinOperatorTest {
 
 		// should not work, index out of range
 		ds1.join(ds2).where(0).equalTo(0)
-		   .projectFirst(0)
-		   .projectSecond(5)
-		   .types(Integer.class);
+		.projectFirst(0)
+		.projectSecond(5)
+		.types(Integer.class);
 	}
 	
 	/*

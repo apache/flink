@@ -103,8 +103,9 @@ public class DefaultMemoryManager implements MemoryManager {
 		this.pageSize = pageSize;
 		this.roundingMask = ~((long) (pageSize - 1));
 		int log = 0;
-		while ((pageSize = pageSize >>> 1) != 0)
+		while ((pageSize = pageSize >>> 1) != 0) {
 			log++;
+		}
 		this.pageSizeBits = log;
 		
 		this.totalNumPages = getNumPages(memorySize);
@@ -131,8 +132,9 @@ public class DefaultMemoryManager implements MemoryManager {
 		synchronized (this.lock)
 		{
 			if (!this.isShutDown) {
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Shutting down MemoryManager instance " + toString());
+				}
 	
 				// mark as shutdown and release memory
 				this.isShutDown = true;
@@ -365,14 +367,16 @@ public class DefaultMemoryManager implements MemoryManager {
 	// ------------------------------------------------------------------------
 	
 	private final int getNumPages(long numBytes) {
-		if (numBytes < 0)
+		if (numBytes < 0) {
 			throw new IllegalArgumentException("The number of bytes to allocate must not be negative.");
+		}
 		
 		final long numPages = numBytes >>> this.pageSizeBits;
-		if (numPages <= Integer.MAX_VALUE)
+		if (numPages <= Integer.MAX_VALUE) {
 			return (int) numPages;
-		else
+		} else {
 			throw new IllegalArgumentException("The given number of bytes correstponds to more than MAX_INT pages.");
+		}
 	}
 	
 	// ------------------------------------------------------------------------

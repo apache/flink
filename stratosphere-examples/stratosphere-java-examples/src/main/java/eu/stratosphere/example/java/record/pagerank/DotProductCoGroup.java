@@ -13,6 +13,9 @@
 
 package eu.stratosphere.example.java.record.pagerank;
 
+import java.io.Serializable;
+import java.util.Iterator;
+
 import eu.stratosphere.api.java.record.functions.CoGroupFunction;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.configuration.Configuration;
@@ -22,9 +25,6 @@ import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
-
-import java.io.Serializable;
-import java.util.Iterator;
 
 /**
  * In schema is_

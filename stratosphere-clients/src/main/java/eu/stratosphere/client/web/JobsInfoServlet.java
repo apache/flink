@@ -119,17 +119,17 @@ public class JobsInfoServlet extends HttpServlet {
 			if ((c == '\\') || (c == '"') || (c == '/')) {
 				sb.append('\\');
 				sb.append(c);
-			} else if (c == '\b')
+			} else if (c == '\b') {
 				sb.append("\\b");
-			else if (c == '\t')
+			} else if (c == '\t') {
 				sb.append("\\t");
-			else if (c == '\n')
+			} else if (c == '\n') {
 				sb.append("<br>");
-			else if (c == '\f')
+			} else if (c == '\f') {
 				sb.append("\\f");
-			else if (c == '\r')
+			} else if (c == '\r') {
 				sb.append("\\r");
-			else {
+			} else {
 				if (c < ' ') {
 					// Unreadable throw away
 				} else {

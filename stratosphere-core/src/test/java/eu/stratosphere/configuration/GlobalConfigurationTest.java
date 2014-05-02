@@ -13,21 +13,19 @@
 
 package eu.stratosphere.configuration;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
-
-import static org.junit.Assert.fail;
-import static org.junit.Assert.assertEquals;
 
 import org.apache.log4j.Level;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.core.testutils.CommonTestUtils;
 import eu.stratosphere.util.LogUtils;
 

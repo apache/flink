@@ -87,7 +87,7 @@ public final class ConfigConstants {
 	 */
 	public static final String TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY = "taskmanager.memory.lazyalloc";
 	
-	 
+	
 	/**
 	 * The config parameter defining the number of buffers used in the network stack. This defines the
 	 * number of possible tasks and shuffles.
@@ -104,7 +104,7 @@ public final class ConfigConstants {
 	 * to the JobManager (in msecs).
 	 */
 	public static final String TASK_MANAGER_HEARTBEAT_INTERVAL_KEY = "taskmanager.heartbeat-interval";
-	 
+	
 	/**
 	 * Parameter for the maximum fan for out-of-core algorithms.
 	 * Corresponds to the maximum fan-in for merge-sorts and the maximum fan-out
@@ -323,7 +323,7 @@ public final class ConfigConstants {
 	 * The default interval for TaskManager heart beats (2000 msecs).
 	 */
 	public static final int DEFAULT_TASK_MANAGER_HEARTBEAT_INTERVAL = 2000;
-	 
+	
 	/**
 	 * The default value for the JobClient's polling interval. 2 Seconds.
 	 */

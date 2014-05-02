@@ -15,6 +15,7 @@ package eu.stratosphere.compiler.deadlockdetect;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.PlanNode;
@@ -134,10 +135,11 @@ public class DeadlockPreventer implements Visitor<PlanNode> {
 			s.accept(this);
 		}
 		
-		if(g.hasCycle())
+		if(g.hasCycle()) {
 			return true;
-		else
+		} else {
 			return false;
+		}
 	}
 
 	/**

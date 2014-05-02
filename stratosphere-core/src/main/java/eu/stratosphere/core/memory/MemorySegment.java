@@ -16,8 +16,6 @@ package eu.stratosphere.core.memory;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.nio.BufferOverflowException;
-import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -289,7 +287,7 @@ public class MemorySegment {
 	 */
 	public final char getChar(int index) {
 		return (char) ( ((this.memory[index    ] & 0xff) << 8) | 
-		                 (this.memory[index + 1] & 0xff) );
+						(this.memory[index + 1] & 0xff) );
 	}
 
 	/**
@@ -942,7 +940,8 @@ public class MemorySegment {
 		
 		int val = 0;
 		for (int pos = 0;
-			pos < len && (val = (b1[offset1 + pos] & 0xff) - (b2[offset2 + pos] & 0xff)) == 0; pos++);
+			pos < len && (val = (b1[offset1 + pos] & 0xff) - (b2[offset2 + pos] & 0xff)) == 0; pos++) {
+		}
 		return val;
 	}
 	

@@ -22,27 +22,26 @@ package eu.stratosphere.nephele.ipc;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.lang.reflect.Proxy;
-import java.lang.reflect.Method;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
-
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 
 import javax.net.SocketFactory;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.core.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.util.ClassUtils;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 /**
  * A simple RPC mechanism.
@@ -161,8 +160,9 @@ public class RPC {
 			buffer.append(methodName);
 			buffer.append("(");
 			for (int i = 0; i < parameters.length; i++) {
-				if (i != 0)
+				if (i != 0) {
 					buffer.append(", ");
+				}
 				buffer.append(parameters[i]);
 			}
 			buffer.append(")");
@@ -239,11 +239,12 @@ public class RPC {
 
 				// Check if args are instances of ReadableWritable
 				for (int i = 0; i < args.length; i++) {
-					if ((args[i] != null) && !(args[i] instanceof IOReadableWritable))
+					if ((args[i] != null) && !(args[i] instanceof IOReadableWritable)) {
 						throw new IOException("Argument " + i + " of method " + method.getName()
 							+ " is not of type IOReadableWriteable");
-					else
+					} else {
 						castArgs[i] = (IOReadableWritable) args[i];
+					}
 				}
 			}
 			final IOReadableWritable value = this.client.call(new Invocation(method, castArgs), this.address, method

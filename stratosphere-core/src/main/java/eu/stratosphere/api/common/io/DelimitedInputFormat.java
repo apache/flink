@@ -26,9 +26,9 @@ import com.google.common.base.Charsets;
 
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.fs.FileStatus;
 import eu.stratosphere.core.fs.FileSystem;
@@ -171,8 +171,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	}
 	
 	public void setDelimiter(byte[] delimiter) {
-		if (delimiter == null)
+		if (delimiter == null) {
 			throw new IllegalArgumentException("Delimiter must not be null");
+		}
 		
 		this.delimiter = delimiter;
 	}
@@ -186,18 +187,21 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	}
 	
 	public void setDelimiter(String delimiter, String charsetName) throws IllegalCharsetNameException, UnsupportedCharsetException {
-		if (charsetName == null)
+		if (charsetName == null) {
 			throw new IllegalArgumentException("Charset name must not be null");
+		}
 		
 		Charset charset = Charset.forName(charsetName);
 		setDelimiter(delimiter, charset);
 	}
 	
 	public void setDelimiter(String delimiter, Charset charset) {
-		if (delimiter == null)
+		if (delimiter == null) {
 			throw new IllegalArgumentException("Delimiter must not be null");
-		if (charset == null)
+		}
+		if (charset == null) {
 			throw new IllegalArgumentException("Charset must not be null");
+		}
 		
 		this.delimiter = delimiter.getBytes(charset);
 	}
@@ -207,8 +211,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	}
 	
 	public void setLineLengthLimit(int lineLengthLimit) {
-		if (lineLengthLimit < 1)
+		if (lineLengthLimit < 1) {
 			throw new IllegalArgumentException("Line length limit must be at least 1.");
+		}
 
 		this.lineLengthLimit = lineLengthLimit;
 	}
@@ -218,8 +223,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	}
 	
 	public void setBufferSize(int bufferSize) {
-		if (bufferSize < 1)
+		if (bufferSize < 1) {
 			throw new IllegalArgumentException("Buffer size must be at least 1.");
+		}
 		
 		this.bufferSize = bufferSize;
 	}
@@ -229,8 +235,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	}
 	
 	public void setNumLineSamples(int numLineSamples) {
-		if (numLineSamples < 0)
+		if (numLineSamples < 0) {
 			throw new IllegalArgumentException("Number of line samples must not be negative.");
+		}
 		
 		this.numLineSamples = numLineSamples;
 	}
@@ -291,8 +298,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 				setNumLineSamples(Integer.parseInt(samplesString));
 			}
 			catch (NumberFormatException e) {
-				if (LOG.isWarnEnabled())
+				if (LOG.isWarnEnabled()) {
 					LOG.warn("Invalid value for number of samples to take: " + samplesString + ". Skipping sampling.");
+				}
 				setNumLineSamples(0);
 			}
 		}
@@ -393,14 +401,16 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 				stats.getTotalInputSize(), totalNumBytes / (float) samplesTaken);
 			
 		} catch (IOException ioex) {
-			if (LOG.isWarnEnabled())
+			if (LOG.isWarnEnabled()) {
 				LOG.warn("Could not determine statistics for file '" + this.filePath + "' due to an io error: "
 						+ ioex.getMessage());
+			}
 		}
 		catch (Throwable t) {
-			if (LOG.isErrorEnabled())
+			if (LOG.isErrorEnabled()) {
 				LOG.error("Unexpected problen while getting the file statistics for file '" + this.filePath + "': "
 						+ t.getMessage(), t);
+			}
 		} finally {
 			// restore properties (even on return)
 			this.openTimeout = oldTimeout;

@@ -18,10 +18,10 @@ import java.util.List;
 import com.google.common.base.Preconditions;
 
 import eu.stratosphere.api.common.distributions.DataDistribution;
+import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
-import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.util.Visitor;
 
 /**
@@ -345,8 +345,9 @@ public class GenericDataSink extends Operator {
 	 * @param distribution The distribution to use for the range partitioning.
 	 */
 	public void setRangePartitioned(Ordering partitionOrdering, DataDistribution distribution) {
-		if (partitionOrdering.getNumberOfFields() != distribution.getNumberOfFields())
+		if (partitionOrdering.getNumberOfFields() != distribution.getNumberOfFields()) {
 			throw new IllegalArgumentException("The number of keys in the distribution must match number of ordered fields.");
+		}
 		
 		// TODO: check compatibility of distribution and ordering (number and order of keys, key types, etc.
 		// TODO: adapt partition ordering to data distribution (use prefix of ordering)

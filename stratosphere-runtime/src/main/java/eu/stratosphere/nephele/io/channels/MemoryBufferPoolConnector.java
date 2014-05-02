@@ -14,7 +14,6 @@
 package eu.stratosphere.nephele.io.channels;
 
 import eu.stratosphere.core.memory.MemorySegment;
-import eu.stratosphere.nephele.taskmanager.bufferprovider.LocalBufferPool;
 
 /**
  * The memory buffer pool connector provides a connection between {@link MemoryBuffer} and the {@link LocalBufferPool}

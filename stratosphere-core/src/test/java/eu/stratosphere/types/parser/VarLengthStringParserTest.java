@@ -19,7 +19,6 @@ import org.junit.Test;
 
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
-import eu.stratosphere.types.parser.VarLengthStringParser;
 
 public class VarLengthStringParserTest {
 

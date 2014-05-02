@@ -35,7 +35,7 @@ public class UnionOperator<T> extends TwoInputOperator<T, T, T, UnionOperator<T>
 	public UnionOperator(DataSet<T> input1, DataSet<T> input2) {
 		super(input1, input2, input1.getType());
 	}
-	 
+	
 	/**
 	 * Returns the BinaryNodeTranslation of the Union.
 	 * 

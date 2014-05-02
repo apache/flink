@@ -45,8 +45,9 @@ public class CompilerHints {
 	}
 	
 	public void setOutputSize(long outputSize) {
-		if (outputSize < 0)
+		if (outputSize < 0) {
 			throw new IllegalArgumentException("The output size cannot be smaller than zero.");
+		}
 		
 		this.outputSize = outputSize;
 	}
@@ -56,8 +57,9 @@ public class CompilerHints {
 	}
 	
 	public void setOutputCardinality(long outputCardinality) {
-		if (outputCardinality < 0)
+		if (outputCardinality < 0) {
 			throw new IllegalArgumentException("The output cardinality cannot be smaller than zero.");
+		}
 		
 		this.outputCardinality = outputCardinality;
 	}
@@ -67,8 +69,9 @@ public class CompilerHints {
 	}
 	
 	public void setAvgOutputRecordSize(float avgOutputRecordSize) {
-		if (avgOutputRecordSize <= 0)
+		if (avgOutputRecordSize <= 0) {
 			throw new IllegalArgumentException("The size of produced records must be positive.");
+		}
 		
 		this.avgOutputRecordSize = avgOutputRecordSize;
 	}
@@ -79,8 +82,9 @@ public class CompilerHints {
 
 	
 	public void setFilterFactor(float filterFactor) {
-		if (filterFactor < 0)
+		if (filterFactor < 0) {
 			throw new IllegalArgumentException("The filter factor cannot be smaller than zero.");
+		}
 		
 		this.filterFactor = filterFactor;
 	}

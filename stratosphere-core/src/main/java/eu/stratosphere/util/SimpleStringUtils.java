@@ -105,7 +105,8 @@ public final class SimpleStringUtils {
 			int pos = this.pos;
 			
 			// skip the delimiter
-			for (; pos < limit && Character.isWhitespace(data[pos]); pos++);
+			for (; pos < limit && Character.isWhitespace(data[pos]); pos++) {
+			}
 			
 			if (pos >= limit) {
 				this.pos = pos;
@@ -113,7 +114,8 @@ public final class SimpleStringUtils {
 			}
 			
 			final int start = pos;
-			for (; pos < limit && !Character.isWhitespace(data[pos]); pos++);
+			for (; pos < limit && !Character.isWhitespace(data[pos]); pos++) {
+			}
 			this.pos = pos;
 			target.setValue(this.toTokenize, start, pos - start);
 			return true;

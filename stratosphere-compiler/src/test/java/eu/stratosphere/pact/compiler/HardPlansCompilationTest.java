@@ -41,10 +41,10 @@ public class HardPlansCompilationTest extends CompilerTestBase
 	
 	/**
 	 * Source -> Map -> Reduce -> Cross -> Reduce -> Cross -> Reduce ->
-     * |--------------------------/                  /
-     * |--------------------------------------------/
-     * 
-     * First cross has SameKeyFirst output contract
+	 * |--------------------------/                  /
+	 * |--------------------------------------------/
+	 * 
+	 * First cross has SameKeyFirst output contract
 	 */
 	@Test
 	public void testTicket158() {

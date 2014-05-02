@@ -15,8 +15,8 @@ package eu.stratosphere.pact.compiler.util;
 
 import java.io.Serializable;
 
-import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirstExcept;
+import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 

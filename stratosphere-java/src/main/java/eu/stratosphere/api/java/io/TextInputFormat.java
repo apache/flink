@@ -55,8 +55,9 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 	}
 	
 	public void setCharsetName(String charsetName) {
-		if (charsetName == null)
+		if (charsetName == null) {
 			throw new IllegalArgumentException("Charset must not be null.");
+		}
 		
 		this.charsetName = charsetName;
 	}

@@ -13,20 +13,21 @@
 
 package eu.stratosphere.pact.runtime.cache;
 
+import java.io.File;
+import java.io.IOException;
+
+import junit.framework.Assert;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.fs.local.LocalFileSystem;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import junit.framework.Assert;
-
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.After;
-
-import java.io.File;
-import java.io.IOException;
 
 /**
  * Test delete process of {@link FileCache}. The local cache file should not be deleted why another task comes in 5 seconds.

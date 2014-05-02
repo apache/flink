@@ -86,8 +86,9 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	}
 
 	public void setFieldDelimiter(char fieldDelim) {
-		if (fieldDelim > Byte.MAX_VALUE)
+		if (fieldDelim > Byte.MAX_VALUE) {
 			throw new IllegalArgumentException("The field delimiter must be an ASCII character.");
+		}
 		
 		this.fieldDelim = fieldDelim;
 	}
@@ -136,8 +137,9 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	
 	
 	protected void setFieldTypesGeneric(Class<?> ... fieldTypes) {
-		if (fieldTypes == null)
+		if (fieldTypes == null) {
 			throw new IllegalArgumentException("Field types must not be null.");
+		}
 		
 		this.fieldIncluded = new boolean[fieldTypes.length];
 		ArrayList<Class<?>> types = new ArrayList<Class<?>>();
@@ -336,10 +338,12 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				
 				// skip trailing whitespace characters 
 				while (i < limit && (current = bytes[i]) != delByte) {
-					if (current == ' ' || current == '\t')
+					if (current == ' ' || current == '\t') {
 						i++;
-					else
+					}
+					else {
 						return -1;	// illegal case of non-whitespace characters trailing
+					}
 				}
 				
 				return (i == limit ? limit : i+1);

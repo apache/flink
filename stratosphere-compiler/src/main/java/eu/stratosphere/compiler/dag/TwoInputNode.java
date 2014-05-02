@@ -128,17 +128,19 @@ public abstract class TwoInputNode extends OptimizerNode {
 	}
 	
 	public OptimizerNode getFirstPredecessorNode() {
-		if(this.input1 != null)
+		if(this.input1 != null) {
 			return this.input1.getSource();
-		else
+		} else {
 			return null;
+		}
 	}
 
 	public OptimizerNode getSecondPredecessorNode() {
-		if(this.input2 != null)
+		if(this.input2 != null) {
 			return this.input2.getSource();
-		else
+		} else {
 			return null;
+		}
 	}
 
 	@Override
@@ -714,8 +716,9 @@ public abstract class TwoInputNode extends OptimizerNode {
 	@Override
 	public void accept(Visitor<OptimizerNode> visitor) {
 		if (visitor.preVisit(this)) {
-			if (this.input1 == null || this.input2 == null)
+			if (this.input1 == null || this.input2 == null) {
 				throw new CompilerException();
+			}
 			
 			getFirstPredecessorNode().accept(visitor);
 			getSecondPredecessorNode().accept(visitor);

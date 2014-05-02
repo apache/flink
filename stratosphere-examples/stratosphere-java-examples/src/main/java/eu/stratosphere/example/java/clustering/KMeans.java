@@ -151,12 +151,12 @@ public class KMeans {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
 		DataSet<Point> points = env.fromElements(new Point(-3.78, -42.01), new Point(-45.96, 30.67), new Point(8.96, -41.58),
-		                                         new Point(-22.96, 40.73), new Point(4.79, -35.58), new Point(-41.27, 32.42),
-		                                         new Point(-2.61, -30.43), new Point(-23.33, 26.23), new Point(-9.22, -31.23),
-		                                         new Point(-45.37, 36.42));
+												new Point(-22.96, 40.73), new Point(4.79, -35.58), new Point(-41.27, 32.42),
+												new Point(-2.61, -30.43), new Point(-23.33, 26.23), new Point(-9.22, -31.23),
+												new Point(-45.37, 36.42));
 		
 		DataSet<Centroid> centroids = env.fromElements(new Centroid(0, 43.28, 47.89),
-		                                               new Centroid(1, -0.06, -48.97));
+													new Centroid(1, -0.06, -48.97));
 		
 		IterativeDataSet<Centroid> loop = centroids.iterate(20);
 		

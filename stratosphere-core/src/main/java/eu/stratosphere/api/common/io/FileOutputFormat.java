@@ -122,8 +122,9 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	
 	
 	public void setOutputFilePath(Path path) {
-		if (path == null)
+		if (path == null) {
 			throw new IllegalArgumentException("Output file path may not be null.");
+		}
 		
 		this.outputFilePath = path;
 	}
@@ -210,9 +211,10 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
 		
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug("Openint stream for output (" + (taskNumber+1) + "/" + numTasks + "). WriteMode=" + writeMode +
 					", OutputDirectoryMode=" + outputDirectoryMode + ", timeout=" + openTimeout);
+		}
 		
 		// obtain FSDataOutputStream asynchronously, since HDFS client is vulnerable to InterruptedExceptions
 		OutputPathOpenThread opot = new OutputPathOpenThread(this, (taskNumber + 1), numTasks);

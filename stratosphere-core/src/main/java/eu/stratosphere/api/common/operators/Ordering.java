@@ -198,8 +198,9 @@ public class Ordering {
 		}
 		
 		for (int i = 0; i < fields.size(); i++) {
-			if (!fields.contains(this.indexes.get(i)))
+			if (!fields.contains(this.indexes.get(i))) {
 				return false;
+			}
 		}
 		return true;
 	}
@@ -232,28 +233,37 @@ public class Ordering {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		}
+		if (obj == null) {
 			return false;
-		if (getClass() != obj.getClass())
+		}
+		if (getClass() != obj.getClass()) {
 			return false;
+		}
 		Ordering other = (Ordering) obj;
 		if (indexes == null) {
-			if (other.indexes != null)
+			if (other.indexes != null) {
 				return false;
-		} else if (!indexes.equals(other.indexes))
+			}
+		} else if (!indexes.equals(other.indexes)) {
 			return false;
+		}
 		if (orders == null) {
-			if (other.orders != null)
+			if (other.orders != null) {
 				return false;
-		} else if (!orders.equals(other.orders))
+			}
+		} else if (!orders.equals(other.orders)) {
 			return false;
+		}
 		if (types == null) {
-			if (other.types != null)
+			if (other.types != null) {
 				return false;
-		} else if (!types.equals(other.types))
+			}
+		} else if (!types.equals(other.types)) {
 			return false;
+		}
 		return true;
 	}
 

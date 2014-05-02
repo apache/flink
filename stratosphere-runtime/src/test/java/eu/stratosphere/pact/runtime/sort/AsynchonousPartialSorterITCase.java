@@ -184,11 +184,13 @@ public class AsynchonousPartialSorterITCase
 				
 				Assert.fail("Expected Test Exception not thrown.");
 			} catch(Exception e) {
-				if (!containsTriggerException(e))
+				if (!containsTriggerException(e)) {
 					throw e;
+				}
 			} finally {
-				if (sorter != null)
+				if (sorter != null) {
 					sorter.close();
+				}
 			}
 		}
 		catch (Exception t) {

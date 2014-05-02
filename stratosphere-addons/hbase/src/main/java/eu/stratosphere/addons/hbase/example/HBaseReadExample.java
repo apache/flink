@@ -22,15 +22,15 @@ import org.apache.hadoop.hbase.client.Scan;
 import eu.stratosphere.addons.hbase.TableInputFormat;
 import eu.stratosphere.addons.hbase.common.HBaseKey;
 import eu.stratosphere.addons.hbase.common.HBaseResult;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.types.StringValue;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 
 /**
  * Implements a word count which takes the input file and counts the number of

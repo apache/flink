@@ -22,10 +22,10 @@ import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.java.record.functions.JoinFunction;
-import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirstExcept;
+import eu.stratosphere.api.java.record.functions.JoinFunction;
+import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
@@ -73,19 +73,22 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 			
 			// read RDF subject
 			startPos = parseVarLengthEncapsulatedStringField(bytes, startPos, limit, ' ', rdfSubj, '"');
-			if (startPos < 0) 
+			if (startPos < 0) {
 				// invalid record, exit
 				return null;
+			}
 			// read RDF predicate
 			startPos = parseVarLengthEncapsulatedStringField(bytes, startPos, limit, ' ', rdfPred, '"');
-			if (startPos < 0 || !rdfPred.getValue().equals("<http://xmlns.com/foaf/0.1/knows>"))
+			if (startPos < 0 || !rdfPred.getValue().equals("<http://xmlns.com/foaf/0.1/knows>")) {
 				// invalid record or predicate is not a foaf-knows predicate, exit
 				return null;
+			}
 			// read RDF object
 			startPos = parseVarLengthEncapsulatedStringField(bytes, startPos, limit, ' ', rdfObj, '"');
-			if (startPos < 0)
+			if (startPos < 0) {
 				// invalid record, exit
 				return null;
+			}
 
 			// compare RDF subject and object
 			if (rdfSubj.compareTo(rdfObj) <= 0) {

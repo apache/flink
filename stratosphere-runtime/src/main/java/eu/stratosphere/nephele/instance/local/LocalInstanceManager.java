@@ -265,7 +265,7 @@ public class LocalInstanceManager implements InstanceManager {
 		final HardwareDescription hardwareDescription = HardwareDescriptionFactory.extractFromSystem();
 
 		int diskCapacityInGB = 0;
-		final String tempDirs[] = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+		final String[] tempDirs = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator);
 		
 		for (final String tempDir : tempDirs) {

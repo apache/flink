@@ -23,8 +23,8 @@ import eu.stratosphere.api.common.accumulators.DoubleCounter;
 import eu.stratosphere.api.common.accumulators.Histogram;
 import eu.stratosphere.api.common.accumulators.IntCounter;
 import eu.stratosphere.api.common.accumulators.LongCounter;
-import eu.stratosphere.api.common.functions.RuntimeContext;
 import eu.stratosphere.api.common.cache.DistributedCache;
+import eu.stratosphere.api.common.functions.RuntimeContext;
 import eu.stratosphere.core.fs.Path;
 
 /**

@@ -13,15 +13,14 @@
 
 package eu.stratosphere.configuration;
 
-import static org.junit.Assert.fail;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 
 import org.junit.Test;
 
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.testutils.CommonTestUtils;
 
 /**

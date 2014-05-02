@@ -14,14 +14,14 @@
  **********************************************************************************************************************/
 package eu.stratosphere.example.java.broadcastvar;
 
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.configuration.Configuration;
-
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
 
 @SuppressWarnings("serial")
 public class BroadcastVariableExample {

@@ -23,12 +23,11 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.channels.AbstractOutputChannel;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
 import eu.stratosphere.nephele.io.channels.bytebuffered.InMemoryOutputChannel;
+import eu.stratosphere.nephele.io.channels.bytebuffered.NetworkOutputChannel;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
@@ -177,10 +176,11 @@ public class RuntimeOutputGate<T extends IOReadableWritable> extends AbstractGat
 	 */
 	public AbstractOutputChannel<T> getOutputChannel(int pos) {
 
-		if (pos < this.outputChannels.size())
+		if (pos < this.outputChannels.size()) {
 			return this.outputChannels.get(pos);
-		else
+		} else {
 			return null;
+		}
 	}
 
 

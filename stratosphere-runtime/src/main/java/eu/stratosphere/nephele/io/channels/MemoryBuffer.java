@@ -18,7 +18,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
-
 import eu.stratosphere.core.memory.MemorySegment;
 
 public final class MemoryBuffer extends Buffer {
@@ -144,7 +143,7 @@ public final class MemoryBuffer extends Buffer {
 	
 	public final boolean hasRemaining() {
 		return index < limit;
-    }
+	}
 	
 	public final int remaining() {
 		return limit - index;
@@ -217,7 +216,7 @@ public final class MemoryBuffer extends Buffer {
 		destinationBuffer.flip();
 	}
 
-	 
+	
 
 	@Override
 	public int write(final ByteBuffer src) throws IOException {

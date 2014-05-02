@@ -83,8 +83,9 @@ public final class DistributedFileSystem extends FileSystem {
 				if (fsHandle instanceof Class && org.apache.hadoop.fs.FileSystem.class.isAssignableFrom((Class<?>) fsHandle)) {
 					fsClass = ((Class<?>) fsHandle).asSubclass(org.apache.hadoop.fs.FileSystem.class);
 					
-					if (LOG.isDebugEnabled())
+					if (LOG.isDebugEnabled()) {
 						LOG.debug("Loaded '" + fsClass.getName() + "' as HDFS class.");
+					}
 				}
 				else {
 					LOG.debug("Unexpected return type from 'org.apache.hadoop.fs.FileSystem.getFileSystemClass(String, Configuration)'.");
@@ -97,9 +98,10 @@ public final class DistributedFileSystem extends FileSystem {
 		if (fsClass == null)
 		{
 			// first of all, check for a user-defined hdfs class
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug("Falling back to loading HDFS class old Hadoop style. Looking for HDFS class configuration entry '"
 						+ HDFS_IMPLEMENTATION_KEY + "'.");
+			}
 
 			Class<?> classFromConfig = conf.getClass(HDFS_IMPLEMENTATION_KEY, null);
 			
@@ -108,12 +110,14 @@ public final class DistributedFileSystem extends FileSystem {
 				if (org.apache.hadoop.fs.FileSystem.class.isAssignableFrom(classFromConfig)) {
 					fsClass = classFromConfig.asSubclass(org.apache.hadoop.fs.FileSystem.class);
 					
-					if (LOG.isDebugEnabled())
+					if (LOG.isDebugEnabled()) {
 						LOG.debug("Loaded HDFS class '" + fsClass.getName() + "' as specified in configuration.");
+					}
 				}
 				else {
-					if (LOG.isDebugEnabled())
+					if (LOG.isDebugEnabled()) {
 						LOG.debug("HDFS class specified by " + HDFS_IMPLEMENTATION_KEY + " is of wrong type.");
+					}
 					
 					throw new IOException("HDFS class specified by " + HDFS_IMPLEMENTATION_KEY +
 						" cannot be cast to a FileSystem type.");
@@ -121,24 +125,27 @@ public final class DistributedFileSystem extends FileSystem {
 			}
 			else {
 				// load the default HDFS class
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Trying to load default HDFS implementation " + DEFAULT_HDFS_CLASS);
+				}
 				
 				try {
 					Class <?> reflectedClass = Class.forName(DEFAULT_HDFS_CLASS);
 					if (org.apache.hadoop.fs.FileSystem.class.isAssignableFrom(reflectedClass)) {
 						fsClass = reflectedClass.asSubclass(org.apache.hadoop.fs.FileSystem.class);
 					} else {
-						if (LOG.isDebugEnabled())
+						if (LOG.isDebugEnabled()) {
 							LOG.debug("Default HDFS class is of wrong type.");
+						}
 						
 						throw new IOException("The default HDFS class '" + DEFAULT_HDFS_CLASS + 
 							"' cannot be cast to a FileSystem type.");
 					}
 				}
 				catch (ClassNotFoundException e) {
-					if (LOG.isDebugEnabled())
+					if (LOG.isDebugEnabled()) {
 						LOG.debug("Default HDFS class cannot be loaded.");
+					}
 					
 					throw new IOException("No HDFS class has been configured and the default class '" +
 							DEFAULT_HDFS_CLASS + "' cannot be loaded.");
@@ -194,14 +201,16 @@ public final class DistributedFileSystem extends FileSystem {
 				if (new File(possibleHadoopConfPaths[i]+"/core-site.xml").exists()) {
 					retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPaths[i]+"/core-site.xml"));
 					
-					if (LOG.isDebugEnabled())
+					if (LOG.isDebugEnabled()) {
 						LOG.debug("Adding "+possibleHadoopConfPaths[i]+"/core-site.xml to hadoop configuration");
+					}
 				}
 				if (new File(possibleHadoopConfPaths[i]+"/hdfs-site.xml").exists()) {
 					retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPaths[i]+"/hdfs-site.xml"));
 					
-					if (LOG.isDebugEnabled())
+					if (LOG.isDebugEnabled()) {
 						LOG.debug("Adding "+possibleHadoopConfPaths[i]+"/hdfs-site.xml to hadoop configuration");
+					}
 				}
 			}
 		}
@@ -250,8 +259,9 @@ public final class DistributedFileSystem extends FileSystem {
 				configEntry = this.conf.get("fs.defaultFS", null);
 			}
 			
-			if (LOG.isDebugEnabled())
-					LOG.debug("fs.defaultFS is set to " + configEntry);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("fs.defaultFS is set to " + configEntry);
+			}
 			
 			if (configEntry == null) {
 				throw new IOException(getMissingAuthorityErrorPrefix(path) + "Either no default hdfs configuration was registered, " +

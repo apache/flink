@@ -31,11 +31,13 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	public RemoteEnvironment(String host, int port, String... jarFiles) {
 		super();
 		
-		if (host == null)
+		if (host == null) {
 			throw new NullPointerException("Host must not be null.");
+		}
 		
-		if (port < 1 || port >= 0xffff)
+		if (port < 1 || port >= 0xffff) {
 			throw new IllegalArgumentException("Port out of range");
+		}
 		
 		this.host = host;
 		this.port = port;

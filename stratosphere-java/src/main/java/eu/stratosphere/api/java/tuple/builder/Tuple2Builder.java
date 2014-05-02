@@ -21,8 +21,9 @@
 
 package eu.stratosphere.api.java.tuple.builder;
 
-import java.util.List;
 import java.util.LinkedList;
+import java.util.List;
+
 import eu.stratosphere.api.java.tuple.Tuple2;
 
 public class Tuple2Builder<T0, T1> {

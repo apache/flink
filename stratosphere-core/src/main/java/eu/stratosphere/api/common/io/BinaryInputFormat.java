@@ -73,10 +73,12 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 
 		// read own parameters
 		this.blockSize = parameters.getLong(BLOCK_SIZE_PARAMETER_KEY, NATIVE_BLOCK_SIZE);
-		if (this.blockSize < 1 && this.blockSize != NATIVE_BLOCK_SIZE)
+		if (this.blockSize < 1 && this.blockSize != NATIVE_BLOCK_SIZE) {
 			throw new IllegalArgumentException("The block size parameter must be set and larger than 0.");
-		if (this.blockSize > Integer.MAX_VALUE)
+		}
+		if (this.blockSize > Integer.MAX_VALUE) {
 			throw new UnsupportedOperationException("Currently only block size up to Integer.MAX_VALUE are supported");
+		}
 	}
 
 	@Override
@@ -107,8 +109,9 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 				blockSize, this.filePath, minNumSplits));
 			FileStatus last = files.get(files.size() - 1);
 			final BlockLocation[] blocks = fs.getFileBlockLocations(last, 0, last.getLen());
-			for (int index = files.size(); index < minNumSplits; index++)
+			for (int index = files.size(); index < minNumSplits; index++) {
 				inputSplits.add(new FileInputSplit(index, last.getPath(), last.getLen(), 0, blocks[0].getHosts()));
+			}
 		}
 
 		return inputSplits.toArray(new FileInputSplit[0]);
@@ -124,11 +127,14 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 		if (pathFile.isDir()) {
 			// input is directory. list all contained files
 			final FileStatus[] partials = fs.listStatus(this.filePath);
-			for (int i = 0; i < partials.length; i++)
-				if (!partials[i].isDir())
+			for (int i = 0; i < partials.length; i++) {
+				if (!partials[i].isDir()) {
 					files.add(partials[i]);
-		} else
+				}
+			}
+		} else {
 			files.add(pathFile);
+		}
 
 		return files;
 	}
@@ -158,13 +164,15 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 			}
 			return createStatistics(allFiles, stats);
 		} catch (IOException ioex) {
-			if (LOG.isWarnEnabled())
+			if (LOG.isWarnEnabled()) {
 				LOG.warn(String.format("Could not determine complete statistics for file '%s' due to an I/O error: %s",
 					this.filePath, StringUtils.stringifyException(ioex)));
+			}
 		} catch (Throwable t) {
-			if (LOG.isErrorEnabled())
+			if (LOG.isErrorEnabled()) {
 				LOG.error(String.format("Unexpected problem while getting the file statistics for file '%s' due to %s",
 					this.filePath, StringUtils.stringifyException(t)));
+			}
 		}
 		// no stats available
 		return null;
@@ -188,16 +196,18 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 	 */
 	protected SequentialStatistics createStatistics(List<FileStatus> files, FileBaseStatistics stats)
 			throws IOException {
-		if (files.isEmpty())
+		if (files.isEmpty()) {
 			return null;
+		}
 
 		BlockInfo blockInfo = this.createBlockInfo();
 
 		long totalCount = 0;
 		for (FileStatus file : files) {
 			// invalid file
-			if (file.getLen() < blockInfo.getInfoSize())
+			if (file.getLen() < blockInfo.getInfoSize()) {
 				continue;
+			}
 
 			FSDataInputStream fdis = file.getPath().getFileSystem().open(file.getPath(), blockInfo.getInfoSize());
 			fdis.seek(file.getLen() - blockInfo.getInfoSize());
@@ -254,8 +264,9 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 
 	@Override
 	public T nextRecord(T record) throws IOException {
-		if (this.reachedEnd())
+		if (this.reachedEnd()) {
 			return null;
+		}
 		
 		record = this.deserialize(record, this.dataInputStream);
 		this.readRecords++;
@@ -281,8 +292,9 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 
 		@Override
 		public int read() throws IOException {
-			if (this.blockPos++ >= this.maxPayloadSize)
+			if (this.blockPos++ >= this.maxPayloadSize) {
 				this.skipHeader();
+			}
 			return this.in.read();
 		}
 
@@ -303,13 +315,15 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 			for (int remainingLength = len, offset = off; remainingLength > 0;) {
 				int blockLen = Math.min(remainingLength, this.maxPayloadSize - this.blockPos);
 				int read = this.in.read(b, offset, blockLen);
-				if (read < 0)
+				if (read < 0) {
 					return read;
+				}
 				totalRead += read;
 				this.blockPos += read;
 				offset += read;
-				if (this.blockPos >= this.maxPayloadSize)
+				if (this.blockPos >= this.maxPayloadSize) {
 					this.skipHeader();
+				}
 				remainingLength -= read;
 			}
 			return totalRead;

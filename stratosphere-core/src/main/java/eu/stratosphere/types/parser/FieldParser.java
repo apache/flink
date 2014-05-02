@@ -23,7 +23,6 @@ import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.ShortValue;
 import eu.stratosphere.types.StringValue;
-import eu.stratosphere.types.Value;
 
 /**
  * A FieldParser is used parse a field from a sequence of bytes. Fields occur in a byte sequence and are terminated

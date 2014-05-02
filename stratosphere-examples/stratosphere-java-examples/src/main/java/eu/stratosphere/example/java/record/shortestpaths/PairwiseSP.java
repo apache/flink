@@ -28,9 +28,9 @@ import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.CoGroupFunction;
-import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecond;
+import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.java.record.io.FileOutputFormat;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator;
@@ -68,9 +68,9 @@ public class PairwiseSP implements Program, ProgramDescription {
 	 * The RDFTripleInFormat filters all RDF triples with foaf:knows predicates. 
 	 * For each triple with foaf:knows predicate, a record is emitted with 
 	 * - from-node being the RDF subject at field position 0,
-     * - to-node being the RDF object at field position 1,
-     * - length being 1 at field position 2, and 
-     * - hopList being an empty string at field position 3. 
+	 * - to-node being the RDF object at field position 1,
+	 * - length being 1 at field position 2, and 
+	 * - hopList being an empty string at field position 3. 
 	 *
 	 */
 	public static class RDFTripleInFormat extends DelimitedInputFormat {
@@ -91,16 +91,18 @@ public class PairwiseSP implements Program, ProgramDescription {
 			StringTokenizer st = new StringTokenizer(lineStr, " ");
 
 			// line must have at least three elements
-			if (st.countTokens() < 3)
+			if (st.countTokens() < 3) {
 				return null;
+			}
 
 			String rdfSubj = st.nextToken();
 			String rdfPred = st.nextToken();
 			String rdfObj = st.nextToken();
 
 			// we only want foaf:knows predicates
-			if (!rdfPred.equals("<http://xmlns.com/foaf/0.1/knows>"))
+			if (!rdfPred.equals("<http://xmlns.com/foaf/0.1/knows>")) {
 				return null;
+			}
 
 			// build node pair from subject and object
 			fromNode.setValue(rdfSubj);
@@ -141,7 +143,9 @@ public class PairwiseSP implements Program, ProgramDescription {
 			StringTokenizer st = new StringTokenizer(lineStr, "|");
 			
 			// path must have exactly 5 tokens (fromNode, toNode, length, hopCnt, hopList)
-			if (st.countTokens() != 5) return null;
+			if (st.countTokens() != 5) {
+				return null;
+			}
 			
 			this.fromNode.setValue(st.nextToken());
 			this.toNode.setValue(st.nextToken());
@@ -223,7 +227,9 @@ public class PairwiseSP implements Program, ProgramDescription {
 			final StringValue toNode = rec1.getField(1, StringValue.class);
 			
 			// Check whether from-node = to-node to prevent circles!
-			if (fromNode.equals(toNode)) return;
+			if (fromNode.equals(toNode)) {
+				return;
+			}
 
 			// Create new path
 			outputRecord.setField(0, fromNode);

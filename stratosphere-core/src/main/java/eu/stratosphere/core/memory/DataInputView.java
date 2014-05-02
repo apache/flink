@@ -15,7 +15,6 @@ package eu.stratosphere.core.memory;
 
 
 import java.io.DataInput;
-import java.io.EOFException;
 import java.io.IOException;
 
 

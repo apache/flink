@@ -322,7 +322,7 @@ public class UnsafeMemorySegment {
 	 */
 	public final char getChar(int index) {
 		return (char) ( ((this.memory[index    ] & 0xff) << 8) | 
-		                 (this.memory[index + 1] & 0xff) );
+						(this.memory[index + 1] & 0xff) );
 	}
 
 	/**

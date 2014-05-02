@@ -13,9 +13,6 @@
 
 package eu.stratosphere.core.memory;
 
-import java.io.IOException;
-
-
 /**
  * Interface marking a {@link DataInputView} as seekable. Seekable views can set the position where they
  * read from.

@@ -25,10 +25,12 @@ public class DummyCoGroupStub extends CoGroupFunction implements Serializable {
 
 	@Override
 	public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) {
-		while (records1.hasNext())
+		while (records1.hasNext()) {
 			out.collect(records1.next());
+		}
 
-		while (records2.hasNext())
+		while (records2.hasNext()) {
 			out.collect(records2.next());
+		}
 	}
 }

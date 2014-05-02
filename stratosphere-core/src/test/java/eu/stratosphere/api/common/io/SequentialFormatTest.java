@@ -32,12 +32,6 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
-import eu.stratosphere.api.common.io.BinaryInputFormat;
-import eu.stratosphere.api.common.io.BinaryOutputFormat;
-import eu.stratosphere.api.common.io.BlockInfo;
-import eu.stratosphere.api.common.io.FormatUtil;
-import eu.stratosphere.api.common.io.SerializedInputFormat;
-import eu.stratosphere.api.common.io.SerializedOutputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.fs.Path;
@@ -97,8 +91,9 @@ public class SequentialFormatTest {
 		for (int fileIndex = 0; fileIndex < this.degreeOfParallelism; fileIndex++) {
 			ByteCounter byteCounter = new ByteCounter();
 			DataOutputStream out = new DataOutputStream(byteCounter);
-			for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++)
+			for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++) {
 				this.getRecord(recordIndex).write(out);
+			}
 			this.rawDataSizes[fileIndex] = byteCounter.getLength();
 		}
 	}
@@ -116,8 +111,9 @@ public class SequentialFormatTest {
 			List<FileInputSplit> sameFileSplits = new ArrayList<FileInputSplit>();
 			Path lastPath = inputSplits[splitIndex].getPath();
 			for (; splitIndex < inputSplits.length; splitIndex++) {
-				if (!inputSplits[splitIndex].getPath().equals(lastPath))
+				if (!inputSplits[splitIndex].getPath().equals(lastPath)) {
 					break;
+				}
 				sameFileSplits.add(inputSplits[splitIndex]);
 			}
 
@@ -127,8 +123,9 @@ public class SequentialFormatTest {
 				this.rawDataSizes[fileIndex] % (this.blockSize - this.info.getInfoSize()) + this.info.getInfoSize();
 			for (int index = 0; index < sameFileSplits.size(); index++) {
 				Assert.assertEquals(this.blockSize * index, sameFileSplits.get(index).getStart());
-				if (index < sameFileSplits.size() - 1)
+				if (index < sameFileSplits.size() - 1) {
 					Assert.assertEquals(this.blockSize, sameFileSplits.get(index).getLength());
+				}
 			}
 			Assert.assertEquals(lastBlockLength, sameFileSplits.get(sameFileSplits.size() - 1).getLength());
 		}
@@ -146,11 +143,12 @@ public class SequentialFormatTest {
 		for (FileInputSplit inputSplit : inputSplits) {
 			input.open(inputSplit);
 			Record record = new Record();
-			while (!input.reachedEnd())
+			while (!input.reachedEnd()) {
 				if (input.nextRecord(record) != null) {
 					this.checkEquals(this.getRecord(readCount), record);
 					readCount++;
 				}
+			}
 		}
 		Assert.assertEquals(this.numberOfTuples, readCount);
 	}
@@ -171,11 +169,13 @@ public class SequentialFormatTest {
 	}
 
 	private void deleteRecursively(File file) {
-		if (file.isDirectory())
-			for (File subFile : file.listFiles())
+		if (file.isDirectory()) {
+			for (File subFile : file.listFiles()) {
 				this.deleteRecursively(subFile);
-		else
+			}
+		} else {
 			file.delete();
+		}
 	}
 
 	/**
@@ -191,8 +191,9 @@ public class SequentialFormatTest {
 			SerializedOutputFormat output =
 				FormatUtil.openOutput(SerializedOutputFormat.class, this.tempFile.toURI().toString(),
 					configuration);
-			for (int index = 0; index < this.numberOfTuples; index++)
+			for (int index = 0; index < this.numberOfTuples; index++) {
 				output.writeRecord(this.getRecord(index));
+			}
 			output.close();
 		} else {
 			this.tempFile.delete();
@@ -203,8 +204,9 @@ public class SequentialFormatTest {
 					FormatUtil.openOutput(SerializedOutputFormat.class, this.tempFile.toURI() +
 						"/"
 						+ (fileIndex + 1), configuration);
-				for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++)
+				for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++) {
 					output.writeRecord(this.getRecord(recordIndex));
+				}
 				output.close();
 			}
 		}

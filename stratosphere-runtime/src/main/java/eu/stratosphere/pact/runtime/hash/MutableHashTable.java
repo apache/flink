@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import eu.stratosphere.pact.runtime.iterative.io.HashPartitionIterator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -37,6 +36,7 @@ import eu.stratosphere.nephele.services.iomanager.ChannelReaderInputView;
 import eu.stratosphere.nephele.services.iomanager.HeaderlessChannelReaderInputView;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.pact.runtime.io.ChannelReaderInputViewIterator;
+import eu.stratosphere.pact.runtime.iterative.io.HashPartitionIterator;
 import eu.stratosphere.pact.runtime.util.MathUtils;
 import eu.stratosphere.util.MutableObjectIterator;
 
@@ -702,8 +702,9 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			insertIntoTable(record, hashCode);
 		}
 		
-		if (!this.running)
+		if (!this.running) {
 			return;
+		}
 
 		// finalize the partitions
 		for (int i = 0; i < this.partitionsBeingBuilt.size(); i++) {

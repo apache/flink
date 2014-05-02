@@ -22,17 +22,17 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.common.accumulators.Accumulator;
+import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
-import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
 import eu.stratosphere.pact.runtime.shipping.RecordOutputCollector;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedCollectorMapDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
@@ -72,8 +72,9 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit> {
 	@Override
 	public void registerInputOutput()
 	{
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Start registering input and output"));
+		}
 
 		if (this.userCodeClassLoader == null) {
 			try {
@@ -99,16 +100,18 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit> {
 				ex.getMessage(), ex);
 		}
 
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Finished registering input and output"));
+		}
 	}
 
 
 	@Override
 	public void invoke() throws Exception {
 		
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Starting data source operator"));
+		}
 		
 		final TypeSerializer<OT> serializer = this.serializerFactory.getSerializer();
 		
@@ -127,16 +130,18 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit> {
 				
 				OT record = serializer.createInstance();
 	
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug(getLogString("Opening input split " + split.toString()));
+				}
 				
 				final InputFormat<OT, InputSplit> format = this.format;
 			
 				// open input format
 				format.open(split);
 	
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug(getLogString("Starting to read input from split " + split.toString()));
+				}
 				
 				try {
 					// ======= special-case the Record, to help the JIT and avoid some casts ======
@@ -251,20 +256,23 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit> {
 		}
 
 		if (!this.taskCanceled) {
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug(getLogString("Finished data source operator"));
+			}
 		}
 		else {
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug(getLogString("Data source operator cancelled"));
+			}
 		}
 	}
 
 	@Override
 	public void cancel() throws Exception {
 		this.taskCanceled = true;
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Cancelling data source operator"));
+		}
 	}
 	
 	/**

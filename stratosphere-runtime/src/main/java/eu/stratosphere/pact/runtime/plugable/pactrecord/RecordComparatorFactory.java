@@ -15,7 +15,6 @@ package eu.stratosphere.pact.runtime.plugable.pactrecord;
 
 import java.util.Arrays;
 
-import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.runtime.task.util.CorruptConfigurationException;
@@ -56,10 +55,12 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record>
 	}
 	
 	public RecordComparatorFactory(int[] positions, Class<? extends Key>[] types, boolean[] sortDirections) {
-		if (positions == null || types == null)
+		if (positions == null || types == null) {
 			throw new NullPointerException();
-		if (positions.length != types.length)
+		}
+		if (positions.length != types.length) {
 			throw new IllegalArgumentException();
+		}
 		
 		this.positions = positions;
 		this.types = types;

@@ -431,8 +431,9 @@ public class Path implements IOReadableWritable, Serializable {
 		String scheme = pathUri.getScheme();
 		String authority = pathUri.getAuthority();
 
-		if (scheme != null && (authority != null || fsUri.getAuthority() == null))
+		if (scheme != null && (authority != null || fsUri.getAuthority() == null)) {
 			return path;
+		}
 
 		if (scheme == null) {
 			scheme = fsUri.getScheme();
@@ -492,8 +493,9 @@ public class Path implements IOReadableWritable, Serializable {
 	
 	public static String constructTestPath(String folder) {
 		String path = System.getProperty("java.io.tmpdir");
-		if (!(path.endsWith("/") || path.endsWith("\\")) )
+		if (!(path.endsWith("/") || path.endsWith("\\")) ) {
 			path += System.getProperty("file.separator");
+		}
 		path += folder;
 		return path;
 	}

@@ -13,8 +13,6 @@
 
 package eu.stratosphere.types.parser;
 
-import eu.stratosphere.types.FloatValue;
-
 /**
  * Parses a text field into a {@link FloatValue}
  */

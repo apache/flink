@@ -67,10 +67,10 @@ public class CharValue implements Key, NormalizableKey, ResettableValue<CharValu
 		this.value = value;
 	}
 
-    @Override
-    public void setValue(CharValue value) {
-        this.value = value.value;
-    }
+	@Override
+	public void setValue(CharValue value) {
+		this.value = value.value;
+	}
 
 	@Override
 	public String toString() {
@@ -93,8 +93,9 @@ public class CharValue implements Key, NormalizableKey, ResettableValue<CharValu
 	
 	@Override
 	public int compareTo(final Key o) {
-		if (!(o instanceof CharValue))
+		if (!(o instanceof CharValue)) {
 			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to PactChar!");
+		}
 
 		final int other = ((CharValue) o).value;
 

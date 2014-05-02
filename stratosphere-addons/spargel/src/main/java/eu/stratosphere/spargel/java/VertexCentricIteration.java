@@ -435,12 +435,12 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		private final int maximumNumberOfIterations;
 		
 		private GraphIterationOperator(DataSet<Tuple2<VertexKey, VertexValue>> initialVertices,
-		                                            DataSet<EdgeType> edges,
-		                                            VertexUpdateUdf<VertexKey, VertexValue, Message> updateFunction,
-		                                            CoGroupFunction<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>> messagingFunction,
-		                                            TypeInformation<Message> messageType,
-		                                            Map<String, Class<? extends Aggregator<?>>> aggregators,
-		                                            int maximumNumberOfIterations)
+													DataSet<EdgeType> edges,
+													VertexUpdateUdf<VertexKey, VertexValue, Message> updateFunction,
+													CoGroupFunction<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>> messagingFunction,
+													TypeInformation<Message> messageType,
+													Map<String, Class<? extends Aggregator<?>>> aggregators,
+													int maximumNumberOfIterations)
 		{
 			super(initialVertices, edges, initialVertices.getType());
 			

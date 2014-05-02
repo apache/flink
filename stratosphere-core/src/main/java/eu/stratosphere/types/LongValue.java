@@ -67,10 +67,10 @@ public class LongValue implements Key, NormalizableKey, ResettableValue<LongValu
 		this.value = value;
 	}
 
-    @Override
-    public void setValue(LongValue value) {
-        this.value = value.value;
-    }
+	@Override
+	public void setValue(LongValue value) {
+		this.value = value.value;
+	}
 	
 	/*
 	 * (non-Javadoc)
@@ -109,8 +109,9 @@ public class LongValue implements Key, NormalizableKey, ResettableValue<LongValu
 	 */
 	@Override
 	public int compareTo(final Key o) {
-		if (!(o instanceof LongValue))
+		if (!(o instanceof LongValue)) {
 			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to N_Integer!");
+		}
 
 		final long other = ((LongValue) o).value;
 

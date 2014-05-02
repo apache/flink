@@ -21,8 +21,9 @@
 
 package eu.stratosphere.api.java.tuple.builder;
 
-import java.util.List;
 import java.util.LinkedList;
+import java.util.List;
+
 import eu.stratosphere.api.java.tuple.Tuple16;
 
 public class Tuple16Builder<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15> {

@@ -14,18 +14,21 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.io.jdbc;
 
-import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.api.java.tuple.Tuple5;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+
 import junit.framework.Assert;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import eu.stratosphere.api.java.tuple.Tuple3;
+import eu.stratosphere.api.java.tuple.Tuple5;
 
 public class JDBCOutputFormatTest {
 	private JDBCInputFormat jdbcInputFormat;

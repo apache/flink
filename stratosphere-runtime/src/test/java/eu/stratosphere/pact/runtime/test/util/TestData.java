@@ -99,7 +99,9 @@ public final class TestData {
 					int i = 0, j = 0;
 					
 					while (len-- != 0) {
-						if (tc[i++] != oc[j++]) return false;
+						if (tc[i++] != oc[j++]) {
+							return false;
+						}
 					}
 					return true;
 				}

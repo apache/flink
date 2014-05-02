@@ -67,10 +67,10 @@ public class DoubleValue implements Key, ResettableValue<DoubleValue>, CopyableV
 		this.value = value;
 	}
 
-    @Override
-    public void setValue(DoubleValue value) {
-        this.value = value.value;
-    }
+	@Override
+	public void setValue(DoubleValue value) {
+		this.value = value.value;
+	}
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -93,8 +93,9 @@ public class DoubleValue implements Key, ResettableValue<DoubleValue>, CopyableV
 	
 	@Override
 	public int compareTo(final Key o) {
-		if (!(o instanceof DoubleValue))
+		if (!(o instanceof DoubleValue)) {
 			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to DoubleValue!");
+		}
 
 		final double other = ((DoubleValue) o).value;
 

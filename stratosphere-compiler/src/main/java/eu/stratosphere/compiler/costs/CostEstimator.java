@@ -74,7 +74,7 @@ public abstract class CostEstimator {
 		for (Iterator<Channel> channels = n.getInputs(); channels.hasNext(); ) {
 			final Channel channel = channels.next();
 			final Costs costs = new Costs();
-			 
+			
 			// Plans that apply the same strategies, but at different points
 			// are equally expensive. For example, if a partitioning can be
 			// pushed below a Map function there is often no difference in plan
@@ -142,10 +142,12 @@ public abstract class CostEstimator {
 		// get the inputs, if we have some
 		{
 			Iterator<Channel> channels = n.getInputs();
-			if (channels.hasNext())
+			if (channels.hasNext()) {
 				firstInput = channels.next();
-			if (channels.hasNext())
+			}
+			if (channels.hasNext()) {
 				secondInput = channels.next();
+			}
 		}
 
 		// determine the local costs

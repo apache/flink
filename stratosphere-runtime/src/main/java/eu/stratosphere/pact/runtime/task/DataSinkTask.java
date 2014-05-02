@@ -65,7 +65,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 	private MutableObjectIterator<IT> reader;
 	
 	// input iterator
-	 private MutableObjectIterator<IT> input;
+	private MutableObjectIterator<IT> input;
 	
 	// The serializer for the input type
 	private TypeSerializerFactory<IT> inputTypeSerializerFactory;
@@ -85,8 +85,9 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 
 	@Override
 	public void registerInputOutput() {
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Start registering input and output"));
+		}
 
 		// initialize OutputFormat
 		initOutputFormat();
@@ -99,16 +100,18 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
 		}
 
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Finished registering input and output"));
+		}
 	}
 
 
 	@Override
 	public void invoke() throws Exception
 	{
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Starting data sink operator"));
+		}
 		
 		try {
 			
@@ -182,8 +185,9 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 		catch (Exception ex) {
 			// drop, if the task was canceled
 			if (!this.taskCanceled) {
-				if (LOG.isErrorEnabled())
+				if (LOG.isErrorEnabled()) {
 					LOG.error(getLogString("Error in Pact user code: " + ex.getMessage()), ex);
+				}
 				throw ex;
 			}
 		}
@@ -195,8 +199,9 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 					this.format.close();
 				}
 				catch (Throwable t) {
-					if (LOG.isWarnEnabled())
+					if (LOG.isWarnEnabled()) {
 						LOG.warn(getLogString("Error closing the ouput format."), t);
+					}
 				}
 			}
 			// close local strategy if necessary
@@ -215,8 +220,9 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 			}
 		}
 		else {
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug(getLogString("Data sink operator cancelled"));
+			}
 		}
 	}
 
@@ -230,8 +236,9 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 			} catch (Throwable t) {}
 		}
 		
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Cancelling data sink operator"));
+		}
 	}
 	
 	/**

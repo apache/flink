@@ -14,13 +14,12 @@
  **********************************************************************************************************************/
 package eu.stratosphere.example.java.wordcount;
 
+import static eu.stratosphere.api.java.aggregation.Aggregations.SUM;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
-import eu.stratosphere.api.java.tuple.*;
+import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.util.Collector;
-
-import static eu.stratosphere.api.java.aggregation.Aggregations.*;
 
 @SuppressWarnings("serial")
 public class WordCountCollection {

@@ -13,6 +13,9 @@
 
 package eu.stratosphere.pact.runtime.task.chaining;
 
+import java.io.IOException;
+import java.util.List;
+
 import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
@@ -30,9 +33,6 @@ import eu.stratosphere.pact.runtime.sort.QuickSort;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 import eu.stratosphere.util.Collector;
-
-import java.io.IOException;
-import java.util.List;
 
 public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 
@@ -105,8 +105,9 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 	public void closeTask() throws Exception {
 		this.memManager.release(this.sorter.dispose());
 
-		if (!this.running)
+		if (!this.running) {
 			return;
+		}
 
 		RegularPactTask.closeUserCode(this.combiner);
 	}

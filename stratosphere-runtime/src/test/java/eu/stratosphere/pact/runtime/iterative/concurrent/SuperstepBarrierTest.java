@@ -13,16 +13,16 @@
 
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
-import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
-import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
-
-import org.junit.Test;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Random;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import org.junit.Test;
+
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
+import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 
 public class SuperstepBarrierTest {
 

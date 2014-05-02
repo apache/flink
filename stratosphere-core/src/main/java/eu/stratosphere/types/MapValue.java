@@ -132,18 +132,23 @@ public abstract class MapValue<K extends Value, V extends Value> implements Valu
 	 */
 	@Override
 	public boolean equals(final Object obj) {
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		}
+		if (obj == null) {
 			return false;
-		if (this.getClass() != obj.getClass())
+		}
+		if (this.getClass() != obj.getClass()) {
 			return false;
+		}
 		final MapValue<?, ?> other = (MapValue<?, ?>) obj;
 		if (this.map == null) {
-			if (other.map != null)
+			if (other.map != null) {
 				return false;
-		} else if (!this.map.equals(other.map))
+			}
+		} else if (!this.map.equals(other.map)) {
 			return false;
+		}
 		return true;
 	}
 

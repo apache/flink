@@ -13,12 +13,12 @@
 
 package eu.stratosphere.pact.runtime.io;
 
+import java.io.EOFException;
+import java.io.IOException;
+
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.util.MutableObjectIterator;
-
-import java.io.EOFException;
-import java.io.IOException;
 
 public class InputViewIterator<E> implements MutableObjectIterator<E>
 {

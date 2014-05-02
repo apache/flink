@@ -129,8 +129,9 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericJoiner<IT1, 
 		// and blocks until the iterator is ready
 		this.matchIterator.open();
 		
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(this.taskContext.formatLogString("Match task iterator ready."));
+		}
 	}
 
 	@Override
@@ -139,7 +140,9 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericJoiner<IT1, 
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		final JoinTaskIterator<IT1, IT2, OT> matchIterator = this.matchIterator;
 		
-		while (this.running && matchIterator.callWithNextKey(matchStub, collector));
+		while (this.running && matchIterator.callWithNextKey(matchStub, collector)) {
+			;
+		}
 	}
 
 	@Override

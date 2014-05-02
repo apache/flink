@@ -19,9 +19,9 @@
 
 package eu.stratosphere.core.io;
 
-import java.io.IOException;
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -353,7 +353,7 @@ public class StringRecord implements IOReadableWritable {
 		int h = this.hash;
 		if (h == 0 && this.length > 0) {
 			int off = 0;
-			byte val[] = this.bytes;
+			byte[] val = this.bytes;
 			int len = this.length;
 
 			for (int i = 0; i < len; i++) {
@@ -647,7 +647,7 @@ public class StringRecord implements IOReadableWritable {
 		return ch;
 	}
 
-	static final int offsetsFromUTF8[] = { 0x00000000, 0x00003080, 0x000E2080, 0x03C82080, 0xFA082080, 0x82082080 };
+	static final int[] offsetsFromUTF8 = { 0x00000000, 0x00003080, 0x000E2080, 0x03C82080, 0xFA082080, 0x82082080 };
 
 	/**
 	 * For the given string, returns the number of UTF-8 bytes required to

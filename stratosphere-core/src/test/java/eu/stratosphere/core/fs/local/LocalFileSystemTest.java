@@ -30,7 +30,6 @@ import eu.stratosphere.core.fs.FSDataInputStream;
 import eu.stratosphere.core.fs.FSDataOutputStream;
 import eu.stratosphere.core.fs.FileStatus;
 import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.core.fs.local.LocalFileSystem;
 import eu.stratosphere.core.testutils.CommonTestUtils;
 
 /**

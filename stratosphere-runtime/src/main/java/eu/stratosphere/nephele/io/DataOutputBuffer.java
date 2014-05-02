@@ -20,7 +20,6 @@
 package eu.stratosphere.nephele.io;
 
 import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;

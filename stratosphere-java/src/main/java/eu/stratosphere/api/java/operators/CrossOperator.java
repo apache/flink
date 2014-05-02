@@ -14,20 +14,14 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import java.util.Arrays;
+
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.CrossFunction;
 import eu.stratosphere.api.java.operators.translation.PlanCrossOperator;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.api.java.tuple.Tuple4;
-import eu.stratosphere.api.java.tuple.Tuple5;
-import eu.stratosphere.api.java.tuple.Tuple6;
-import eu.stratosphere.api.java.tuple.Tuple7;
-import eu.stratosphere.api.java.tuple.Tuple8;
-import eu.stratosphere.api.java.tuple.Tuple9;
 import eu.stratosphere.api.java.tuple.Tuple10;
 import eu.stratosphere.api.java.tuple.Tuple11;
 import eu.stratosphere.api.java.tuple.Tuple12;
@@ -38,14 +32,20 @@ import eu.stratosphere.api.java.tuple.Tuple16;
 import eu.stratosphere.api.java.tuple.Tuple17;
 import eu.stratosphere.api.java.tuple.Tuple18;
 import eu.stratosphere.api.java.tuple.Tuple19;
+import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple20;
 import eu.stratosphere.api.java.tuple.Tuple21;
 import eu.stratosphere.api.java.tuple.Tuple22;
+import eu.stratosphere.api.java.tuple.Tuple3;
+import eu.stratosphere.api.java.tuple.Tuple4;
+import eu.stratosphere.api.java.tuple.Tuple5;
+import eu.stratosphere.api.java.tuple.Tuple6;
+import eu.stratosphere.api.java.tuple.Tuple7;
+import eu.stratosphere.api.java.tuple.Tuple8;
+import eu.stratosphere.api.java.tuple.Tuple9;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
-
-import java.util.Arrays;
 
 /**
  * A {@link DataSet} that is the result of a Cross transformation.
@@ -99,8 +99,9 @@ public class CrossOperator<I1, I2, OUT>
 			super(input1, input2, (CrossFunction<I1, I2, Tuple2<I1, I2>>) new DefaultCrossFunction<I1, I2>(), 
 					new TupleTypeInfo<Tuple2<I1, I2>>(input1.getType(), input2.getType()));
 			
-			if (input1 == null || input2 == null)
+			if (input1 == null || input2 == null) {
 				throw new NullPointerException();
+			}
 			
 			this.input1 = input1;
 			this.input2 = input2;

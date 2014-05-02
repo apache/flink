@@ -56,8 +56,9 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Operator {
 	public GenericDataSource(T format) {
 		super(DEFAULT_NAME);
 		
-		if (format == null)
+		if (format == null) {
 			throw new IllegalArgumentException("Input format may not be null.");
+		}
 		
 		this.formatWrapper = new UserCodeObjectWrapper<T>(format);
 	}
@@ -71,8 +72,9 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Operator {
 	public GenericDataSource(Class<? extends T> format, String name) {
 		super(name);
 		
-		if (format == null)
+		if (format == null) {
 			throw new IllegalArgumentException("Input format may not be null.");
+		}
 		
 		this.formatWrapper = new UserCodeClassWrapper<T>(format);
 	}
@@ -85,8 +87,9 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Operator {
 	public GenericDataSource(Class<? extends T> format) {
 		super(DEFAULT_NAME);
 		
-		if (format == null)
+		if (format == null) {
 			throw new IllegalArgumentException("Input format may not be null.");
+		}
 		
 		this.formatWrapper = new UserCodeClassWrapper<T>(format);
 	}

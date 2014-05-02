@@ -13,10 +13,10 @@
 
 package eu.stratosphere.nephele.execution;
 
+import static eu.stratosphere.nephele.execution.ExecutionState.FAILED;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
-import static eu.stratosphere.nephele.execution.ExecutionState.*;
 
 /**
  * This class is a utility class to check the consistency of Nephele's execution state model.

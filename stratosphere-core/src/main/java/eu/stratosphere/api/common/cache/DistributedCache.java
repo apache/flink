@@ -14,15 +14,15 @@
 package eu.stratosphere.api.common.cache;
 
 
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.fs.Path;
-
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.io.File;
 import java.util.Set;
 import java.util.concurrent.FutureTask;
+
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 
 /**
  * DistributedCache provides static method to write the registered cache files into job configuration or decode

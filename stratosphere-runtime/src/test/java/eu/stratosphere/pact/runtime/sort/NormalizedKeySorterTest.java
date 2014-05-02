@@ -348,8 +348,9 @@ public class NormalizedKeySorterTest
 			readTarget.getFieldInto(0, current);
 			
 			final int cmp = last.compareTo(current);
-			if (cmp > 0)
+			if (cmp > 0) {
 				Assert.fail("Next key is not larger or equal to previous key.");
+			}
 			
 			Key tmp = current;
 			current = last;
@@ -396,8 +397,9 @@ public class NormalizedKeySorterTest
 			readTarget.getFieldInto(1, current);
 			
 			final int cmp = last.compareTo(current);
-			if (cmp > 0)
+			if (cmp > 0) {
 				Assert.fail("Next value is not larger or equal to previous value.");
+			}
 			
 			Value tmp = current;
 			current = last;
@@ -444,8 +446,9 @@ public class NormalizedKeySorterTest
 			readTarget.getFieldInto(1, current);
 			
 			final int cmp = last.compareTo(current);
-			if (cmp > 0)
+			if (cmp > 0) {
 				Assert.fail("Next value is not larger or equal to previous value.");
+			}
 			
 			Value tmp = current;
 			current = last;

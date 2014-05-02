@@ -221,8 +221,9 @@ public class DefaultDeserializerTest {
 
 		final InterruptibleByteChannel ibc = new InterruptibleByteChannel(null, readInterruptPositions);
 
-		while (ds.write(ibc))
+		while (ds.write(ibc)) {
 			;
+		}
 
 		ibc.switchToReadPhase();
 

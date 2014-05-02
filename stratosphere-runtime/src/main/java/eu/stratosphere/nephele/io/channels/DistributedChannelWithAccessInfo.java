@@ -121,8 +121,9 @@ final class DistributedChannelWithAccessInfo implements ChannelWithAccessInfo {
 				}
 
 			} catch (IOException ioex) {
-				if (LOG.isErrorEnabled())
+				if (LOG.isErrorEnabled()) {
 					LOG.error("Error while closing spill file for file buffers: " + ioex.getMessage(), ioex);
+				}
 			}
 			return current;
 		} else {

@@ -17,11 +17,11 @@ import java.io.IOException;
 
 import com.google.common.base.Preconditions;
 
+import eu.stratosphere.api.common.io.GenericCsvInputFormat;
+import eu.stratosphere.api.common.io.ParseException;
 import eu.stratosphere.api.common.operators.CompilerHints;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.io.GenericCsvInputFormat;
-import eu.stratosphere.api.common.io.ParseException;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.IllegalConfigurationException;
 import eu.stratosphere.core.fs.FileInputSplit;
@@ -90,8 +90,9 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 	}
 
 	public void setFieldTypes(Class<? extends Value> ... fieldTypes) {
-		if (fieldTypes == null)
+		if (fieldTypes == null) {
 			throw new IllegalArgumentException("Field types must not be null.");
+		}
 		
 		// sanity check
 		for (Class<? extends Value> type : fieldTypes) {

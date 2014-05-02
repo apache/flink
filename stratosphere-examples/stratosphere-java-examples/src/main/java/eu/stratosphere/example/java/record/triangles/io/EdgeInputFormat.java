@@ -49,8 +49,9 @@ public final class EdgeInputFormat extends DelimitedInputFormat {
 			second = second * 10 + (bytes[pos++] - '0');
 		}
 		
-		if (first <= 0 || second <= 0 || first == second)
+		if (first <= 0 || second <= 0 || first == second) {
 			return null;
+		}
 		
 		this.i1.setValue(first);
 		this.i2.setValue(second);

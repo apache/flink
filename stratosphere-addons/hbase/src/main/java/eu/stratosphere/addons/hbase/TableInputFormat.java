@@ -25,7 +25,6 @@ import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
-import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.hbase.mapreduce.TableRecordReader;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
@@ -34,9 +33,9 @@ import org.apache.hadoop.util.StringUtils;
 import eu.stratosphere.addons.hbase.common.HBaseKey;
 import eu.stratosphere.addons.hbase.common.HBaseResult;
 import eu.stratosphere.addons.hbase.common.HBaseUtil;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 import eu.stratosphere.api.common.io.InputFormat;
+import eu.stratosphere.api.common.io.statistics.BaseStatistics;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.OperatingSystem;
 
@@ -178,10 +177,11 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 		if (configLocation != null)
 		{
 			org.apache.hadoop.conf.Configuration dummyConf = new org.apache.hadoop.conf.Configuration();
-			if(OperatingSystem.isWindows())
+			if(OperatingSystem.isWindows()) {
 				dummyConf.addResource(new Path("file:/" + configLocation));
-			else
+			} else {
 				dummyConf.addResource(new Path("file://" + configLocation));
+			}
 			hConf = HBaseConfiguration.create(dummyConf);
 			;
 			// hConf.set("hbase.master", "im1a5.internetmemory.org");
@@ -297,7 +297,7 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 		this.hbaseKey = new HBaseKey();
 		this.hbaseResult = new HBaseResult();
 
-        endReached = false;
+		endReached = false;
 	}
 
 
@@ -342,8 +342,9 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 				final TableInputSplit split = new TableInputSplit(splits.size(), new String[] { regionLocation },
 					this.table.getTableName(), splitStart, splitStop);
 				splits.add(split);
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("getSplits: split -> " + (count++) + " -> " + split);
+				}
 			}
 		}
 

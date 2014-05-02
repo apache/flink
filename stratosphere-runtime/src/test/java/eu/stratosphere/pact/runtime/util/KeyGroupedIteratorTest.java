@@ -24,7 +24,6 @@ import org.junit.Test;
 
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
 import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
-import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;

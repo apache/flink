@@ -35,7 +35,7 @@ import eu.stratosphere.core.io.GenericInputSplit;
  */
 public abstract class ExternalProcessInputFormat<T extends ExternalProcessInputSplit> extends GenericInputFormat {
 	private static final long serialVersionUID = 1L;
-	 
+	
 	/**
 	 * The config parameter lists (comma separated) all allowed exit codes
 	 */

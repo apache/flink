@@ -27,13 +27,6 @@ import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.types.DoubleValue;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.ListValue;
-import eu.stratosphere.types.MapValue;
-import eu.stratosphere.types.Pair;
-import eu.stratosphere.types.StringValue;
-
 public class CollectionsDataTypeTest {
 	private DataOutputStream out;
 

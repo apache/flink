@@ -14,9 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.common.operators.Ordering;
-import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
@@ -45,8 +45,9 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	public ReduceGroupOperator(DataSet<IN> input, GroupReduceFunction<IN, OUT> function) {
 		super(input, TypeExtractor.getGroupReduceReturnTypes(function, input.getType()));
 		
-		if (function == null)
+		if (function == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
+		}
 		
 		this.function = function;
 		this.grouper = null;
@@ -55,8 +56,9 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	public ReduceGroupOperator(Grouping<IN> input, GroupReduceFunction<IN, OUT> function) {
 		super(input != null ? input.getDataSet() : null, TypeExtractor.getGroupReduceReturnTypes(function, input.getDataSet().getType()));
 		
-		if (function == null)
+		if (function == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
+		}
 		
 		this.function = function;
 		this.grouper = input;

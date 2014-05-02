@@ -13,14 +13,6 @@
 
 package eu.stratosphere.pact.runtime.iterative.io;
 
-import eu.stratosphere.core.memory.MemorySegment;
-import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
-import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
-import eu.stratosphere.nephele.services.iomanager.Channel;
-import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.memorymanager.AbstractPagedInputView;
-import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
-
 import java.io.EOFException;
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -28,6 +20,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import eu.stratosphere.core.memory.MemorySegment;
+import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
+import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
+import eu.stratosphere.nephele.services.iomanager.Channel;
+import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.memorymanager.AbstractPagedInputView;
+import eu.stratosphere.nephele.services.memorymanager.AbstractPagedOutputView;
 
 public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 

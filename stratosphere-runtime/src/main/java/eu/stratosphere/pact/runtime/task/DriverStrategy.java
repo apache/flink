@@ -13,13 +13,14 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
+import static eu.stratosphere.pact.runtime.task.DamBehavior.FULL_DAM;
+import static eu.stratosphere.pact.runtime.task.DamBehavior.MATERIALIZING;
+import static eu.stratosphere.pact.runtime.task.DamBehavior.PIPELINED;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedCollectorMapDriver;
+import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedFlatMapDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedMapDriver;
 import eu.stratosphere.pact.runtime.task.chaining.SynchronousChainedCombineDriver;
-
-import static eu.stratosphere.pact.runtime.task.DamBehavior.*;
 
 /**
  * Enumeration of all available operator strategies. 

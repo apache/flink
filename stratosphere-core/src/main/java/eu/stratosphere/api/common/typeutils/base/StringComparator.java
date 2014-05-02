@@ -85,15 +85,18 @@ public final class StringComparator extends BasicTypeComparator<String> {
 			}
 			else if (c < HIGH_BIT2) {
 				target.put(offset++, (byte) ((c >>> 7) | HIGH_BIT));
-				if (offset < limit)
+				if (offset < limit) {
 					target.put(offset++, (byte) c);
+				}
 			}
 			else {
 				target.put(offset++, (byte) ((c >>> 10) | HIGH_BIT2_MASK));
-				if (offset < limit)
+				if (offset < limit) {
 					target.put(offset++, (byte) (c >>> 2));
-				if (offset < limit)
+				}
+				if (offset < limit) {
 					target.put(offset++, (byte) c);
+				}
 			}
 		}
 		while (offset < limit) {

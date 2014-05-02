@@ -13,7 +13,6 @@
 
 package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
-import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

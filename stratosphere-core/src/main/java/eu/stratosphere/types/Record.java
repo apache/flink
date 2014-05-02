@@ -261,10 +261,12 @@ public final class Record implements Value, CopyableValue<Record> {
 	@SuppressWarnings("unchecked")
 	public <T extends Value> T getField(int fieldNum, T target) {
 		// range check
-		if (fieldNum < 0 || fieldNum >= this.numFields)
+		if (fieldNum < 0 || fieldNum >= this.numFields) {
 			throw new IndexOutOfBoundsException();
-		if (target == null)
+		}
+		if (target == null) {
 			throw new NullPointerException("The target object may not be null");
+		}
 		
 		// get offset and check for null
 		final int offset = this.offsets[fieldNum];
@@ -326,8 +328,9 @@ public final class Record implements Value, CopyableValue<Record> {
 	 */
 	public boolean getFieldsInto(int[] positions, Value[] targets) {
 		for (int i = 0; i < positions.length; i++) {
-			if (!getFieldInto(positions[i], targets[i]))
+			if (!getFieldInto(positions[i], targets[i])) {
 				return false;
+			}
 		}
 		return true;
 	}
@@ -345,8 +348,9 @@ public final class Record implements Value, CopyableValue<Record> {
 	 */
 	public void getFieldsIntoCheckingNull(int[] positions, Value[] targets) {
 		for (int i = 0; i < positions.length; i++) {
-			if (!getFieldInto(positions[i], targets[i]))
+			if (!getFieldInto(positions[i], targets[i])) {
 				throw new NullKeyFieldException(i);
+			}
 		}
 	}
 	
@@ -389,8 +393,9 @@ public final class Record implements Value, CopyableValue<Record> {
 	 */
 	public void setField(int fieldNum, Value value) {
 		// range check
-		if (fieldNum < 0)
+		if (fieldNum < 0) {
 			throw new IndexOutOfBoundsException();
+		}
 		
 		// if the field number is beyond the size, the tuple is expanded
 		if (fieldNum >= this.numFields) {
@@ -494,8 +499,9 @@ public final class Record implements Value, CopyableValue<Record> {
 	 */
 	public void setNull(long mask) {
 		for (int i = 0; i < this.numFields; i++, mask >>>= 1) {
-			if ((mask & 0x1) != 0)
+			if ((mask & 0x1) != 0) {
 				internallySetField(i, null);
+			}
 		}
 	}
 
@@ -510,8 +516,9 @@ public final class Record implements Value, CopyableValue<Record> {
 		for (int maskPos = 0, i = 0; i < this.numFields;) {
 			long currMask = mask[maskPos];
 			for (int k = 64; i < this.numFields && k > 0; --k, i++, currMask >>>= 1) {
-				if ((currMask & 0x1) != 0)
+				if ((currMask & 0x1) != 0) {
 					internallySetField(i, null);
+				}
 			}
 		}
 	}
@@ -831,8 +838,9 @@ public final class Record implements Value, CopyableValue<Record> {
 			}
 		}
 		
-		if (numFields < maxFieldNum + 1)
+		if (numFields < maxFieldNum + 1) {
 			setNumFields(maxFieldNum + 1);
+		}
 		
 		final int[] targetLengths = this.lengths;
 		final int[] targetOffsets = this.offsets;
@@ -907,8 +915,9 @@ public final class Record implements Value, CopyableValue<Record> {
 	public void updateBinaryRepresenation() {
 		// check whether the binary state is in sync
 		final int firstModified = this.firstModifiedPos;
-		if (firstModified == Integer.MAX_VALUE)
+		if (firstModified == Integer.MAX_VALUE) {
 			return;
+		}
 		
 		final InternalDeSerializer serializer = this.serializer;
 		final int[] offsets = this.offsets;
@@ -941,8 +950,9 @@ public final class Record implements Value, CopyableValue<Record> {
 				for (int i = firstModified; i < numFields; i++) {
 					final int co = offsets[i];
 					/// skip null fields
-					if (co == NULL_INDICATOR_OFFSET)
+					if (co == NULL_INDICATOR_OFFSET) {
 						continue;
+					}
 					
 					offsets[i] = offset;
 					if (co == MODIFIED_INDICATOR_OFFSET) {
@@ -953,8 +963,9 @@ public final class Record implements Value, CopyableValue<Record> {
 							// RESERVE_SPACE is a placeholder indicating lengths[i] bytes should be reserved
 							final int length = this.lengths[i];
 							
-							if (serializer.position >= serializer.memory.length - length - 1)
+							if (serializer.position >= serializer.memory.length - length - 1) {
 								serializer.resize(length);
+							}
 							serializer.position += length;
 							
 						} else {
@@ -1342,7 +1353,7 @@ public final class Record implements Value, CopyableValue<Record> {
 				@SuppressWarnings("restriction")
 				int value = UNSAFE.getInt(this.memory, BASE_OFFSET + this.position);
 				if (LITTLE_ENDIAN) {
-					 value = Integer.reverseBytes(value);
+					value = Integer.reverseBytes(value);
 				}
 				
 				this.position += 4;
@@ -1381,7 +1392,7 @@ public final class Record implements Value, CopyableValue<Record> {
 				@SuppressWarnings("restriction")
 				long value = UNSAFE.getLong(this.memory, BASE_OFFSET + this.position);
 				if (LITTLE_ENDIAN) {
-					 value = Long.reverseBytes(value);
+					value = Long.reverseBytes(value);
 				}
 				this.position += 8;
 				return value;
@@ -1413,8 +1424,9 @@ public final class Record implements Value, CopyableValue<Record> {
 
 			while (count < utflen) {
 				c = (int) bytearr[count] & 0xff;
-				if (c > 127)
+				if (c > 127) {
 					break;
+				}
 				count++;
 				chararr[chararr_count++] = (char) c;
 			}
@@ -1438,22 +1450,26 @@ public final class Record implements Value, CopyableValue<Record> {
 				case 13:
 					/* 110x xxxx 10xx xxxx */
 					count += 2;
-					if (count > utflen)
+					if (count > utflen) {
 						throw new UTFDataFormatException("malformed input: partial character at end");
+					}
 					char2 = (int) bytearr[count - 1];
-					if ((char2 & 0xC0) != 0x80)
+					if ((char2 & 0xC0) != 0x80) {
 						throw new UTFDataFormatException("malformed input around byte " + count);
+					}
 					chararr[chararr_count++] = (char) (((c & 0x1F) << 6) | (char2 & 0x3F));
 					break;
 				case 14:
 					/* 1110 xxxx 10xx xxxx 10xx xxxx */
 					count += 3;
-					if (count > utflen)
+					if (count > utflen) {
 						throw new UTFDataFormatException("malformed input: partial character at end");
+					}
 					char2 = (int) bytearr[count - 2];
 					char3 = (int) bytearr[count - 1];
-					if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80))
+					if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80)) {
 						throw new UTFDataFormatException("malformed input around byte " + (count - 1));
+					}
 					chararr[chararr_count++] = (char) (((c & 0x0F) << 12) | ((char2 & 0x3F) << 6) | ((char3 & 0x3F) << 0));
 					break;
 				default:
@@ -1630,10 +1646,9 @@ public final class Record implements Value, CopyableValue<Record> {
 				}
 			}
 
-			if (utflen > 65535)
+			if (utflen > 65535) {
 				throw new UTFDataFormatException("Encoded string is too long: " + utflen);
-			
-			else if (this.position > this.memory.length - utflen - 2) {
+			} else if (this.position > this.memory.length - utflen - 2) {
 				resize(utflen + 2);
 			}
 			
@@ -1646,8 +1661,9 @@ public final class Record implements Value, CopyableValue<Record> {
 			int i = 0;
 			for (i = 0; i < strlen; i++) {
 				c = str.charAt(i);
-				if (!((c >= 0x0001) && (c <= 0x007F)))
+				if (!((c >= 0x0001) && (c <= 0x007F))) {
 					break;
+				}
 				bytearr[count++] = (byte) c;
 			}
 

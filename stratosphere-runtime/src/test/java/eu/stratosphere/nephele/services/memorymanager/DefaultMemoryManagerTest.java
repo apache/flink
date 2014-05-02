@@ -24,7 +24,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.core.memory.MemorySegment;
-import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 
@@ -162,8 +161,9 @@ public class DefaultMemoryManagerTest
 	private boolean allMemorySegmentsValid(List<MemorySegment> memSegs)
 	{
 		for (MemorySegment seg : memSegs) {
-			if (seg.isFreed())
+			if (seg.isFreed()) {
 				return false;
+			}
 		}
 		return true;
 	}
@@ -171,8 +171,9 @@ public class DefaultMemoryManagerTest
 	private boolean allMemorySegmentsFreed(List<MemorySegment> memSegs)
 	{
 		for (MemorySegment seg : memSegs) {
-			if (!seg.isFreed())
+			if (!seg.isFreed()) {
 				return false;
+			}
 		}
 		return true;
 	}

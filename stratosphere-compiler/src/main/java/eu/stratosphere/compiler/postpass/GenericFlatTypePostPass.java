@@ -425,8 +425,8 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 		}
 		// catch the sources of the iterative step functions
 		else if (node instanceof BulkPartialSolutionPlanNode || 
-				 node instanceof SolutionSetPlanNode ||
-				 node instanceof WorksetPlanNode)
+				node instanceof SolutionSetPlanNode ||
+				node instanceof WorksetPlanNode)
 		{
 			// get the nodes current schema
 			T schema;

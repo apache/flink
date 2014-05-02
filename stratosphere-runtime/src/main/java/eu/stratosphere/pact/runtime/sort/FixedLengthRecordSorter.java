@@ -83,8 +83,9 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	public FixedLengthRecordSorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, 
 			List<MemorySegment> memory)
 	{
-		if (serializer == null || comparator == null || memory == null)
+		if (serializer == null || comparator == null || memory == null) {
 			throw new NullPointerException();
+		}
 		
 		this.serializer = serializer;
 		this.comparator = comparator;

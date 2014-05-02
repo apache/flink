@@ -15,17 +15,17 @@
 package eu.stratosphere.api.java.io;
 
 
-import eu.stratosphere.api.common.io.OutputFormat;
-import eu.stratosphere.api.common.typeutils.TypeSerializer;
-import eu.stratosphere.api.java.typeutils.InputTypeConfigurable;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
-import eu.stratosphere.configuration.Configuration;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+
+import eu.stratosphere.api.common.io.OutputFormat;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.java.typeutils.InputTypeConfigurable;
+import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.configuration.Configuration;
 
 /**
  *  An output format that writes record into collection

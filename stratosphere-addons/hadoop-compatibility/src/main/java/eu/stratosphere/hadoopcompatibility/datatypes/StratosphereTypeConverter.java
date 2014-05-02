@@ -13,9 +13,9 @@
 
 package eu.stratosphere.hadoopcompatibility.datatypes;
 
-import eu.stratosphere.types.Record;
-
 import java.io.Serializable;
+
+import eu.stratosphere.types.Record;
 
 /**
  * An interface describing a class that is able to

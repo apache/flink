@@ -69,7 +69,6 @@ import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobmanager.JobManager;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
@@ -810,10 +809,11 @@ public class TaskManager implements TaskOperationProtocol {
 		String[] requiredLibraries = request.getRequiredLibraries();
 
 		for (int i = 0; i < requiredLibraries.length; i++) {
-			if (LibraryCacheManager.contains(requiredLibraries[i]) == null)
+			if (LibraryCacheManager.contains(requiredLibraries[i]) == null) {
 				response.setCached(i, false);
-			else
+			} else {
 				response.setCached(i, true);
+			}
 		}
 
 		return response;

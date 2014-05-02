@@ -40,7 +40,6 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
-import eu.stratosphere.types.Key;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
@@ -208,9 +207,9 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 						LOG.error("Sorting thread was interrupted (without being shut down) while grabbing a buffer. " +
 								"Retrying to grab buffer...");
 						continue;
-					}
-					else
+					} else {
 						return;
+					}
 				}
 				if (element == spillingMarker()) {
 					break;
@@ -230,8 +229,9 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 			// ------------------- In-Memory Merge ------------------------
 			if (cacheOnly) {
 				/* operates on in-memory segments only */
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Initiating in memory merge.");
+				}
 				
 				List<MutableObjectIterator<E>> iterators = new ArrayList<MutableObjectIterator<E>>(cache.size());
 								
@@ -241,8 +241,9 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 				}
 				
 				// release the remaining sort-buffers
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Releasing unused sort-buffer memory.");
+				}
 				disposeSortBuffers(true);
 				
 				// set lazy iterator
@@ -281,8 +282,9 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 						LOG.error("Sorting thread was interrupted (without being shut down) while grabbing a buffer. " +
 								"Retrying to grab buffer...");
 						continue;
+					} else {
+						return;
 					}
-					else return;
 				}
 				
 				// check if we are still running
@@ -298,8 +300,9 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 				Channel.ID channel = enumerator.next();
 				registerChannelToBeRemovedAtShudown(channel);
 				
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Creating temp file " + channel.toString() + '.');
+				}
 
 				// create writer
 				final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(
@@ -309,8 +312,9 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 																			this.memManager.getPageSize());
 
 				// write sort-buffer to channel
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Combining buffer " + element.id + '.');
+				}
 
 				// set up the combining helpers
 				final InMemorySorter<E> buffer = element.buffer;
@@ -349,8 +353,9 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 				}
 
 				// done combining and writing out
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Combined and spilled buffer " + element.id + ".");
+				}
 
 				output.close();
 				unregisterOpenChannelToBeRemovedAtShudown(writer);
@@ -372,8 +377,9 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 			disposeSortBuffers(false);
 			
 			
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug("Closing combiner user code.");
+			}
 			
 			// close the user code
 			try {
@@ -383,8 +389,9 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 				throw new IOException("The user-defined combiner failed in its 'close()' method.", t);
 			}
 			
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug("User code closed.");
+			}
 
 			// ------------------- Merging Phase ------------------------
 
@@ -402,8 +409,9 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 				setResultIterator(EmptyMutableObjectIterator.<E>get());
 			}
 			else {
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Beginning final merge.");
+				}
 				
 				// allocate the memory for the final merging step
 				List<List<MemorySegment>> readBuffers = new ArrayList<List<MemorySegment>>(channelIDs.size());
@@ -422,8 +430,9 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 			}
 
 			// done
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug("Spilling and merging thread done.");
+			}
 		}
 		
 		// ------------------ Combining & Merging Methods -----------------

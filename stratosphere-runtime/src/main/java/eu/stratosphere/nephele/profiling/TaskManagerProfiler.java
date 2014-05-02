@@ -14,7 +14,6 @@
 package eu.stratosphere.nephele.profiling;
 
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 

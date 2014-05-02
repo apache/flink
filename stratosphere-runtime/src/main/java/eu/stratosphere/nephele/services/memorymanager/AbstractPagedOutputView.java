@@ -13,7 +13,6 @@
 
 package eu.stratosphere.nephele.services.memorymanager;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
 
@@ -334,8 +333,9 @@ public abstract class AbstractPagedOutputView implements DataOutputView {
 			}
 		}
 
-		if (utflen > 65535)
+		if (utflen > 65535) {
 			throw new UTFDataFormatException("encoded string too long: " + utflen + " memory");
+		}
 
 		if (this.utfBuffer == null || this.utfBuffer.length < utflen + 2) {
 			this.utfBuffer = new byte[utflen + 2];
@@ -348,8 +348,9 @@ public abstract class AbstractPagedOutputView implements DataOutputView {
 		int i = 0;
 		for (i = 0; i < strlen; i++) {
 			c = str.charAt(i);
-			if (!((c >= 0x0001) && (c <= 0x007F)))
+			if (!((c >= 0x0001) && (c <= 0x007F))) {
 				break;
+			}
 			bytearr[count++] = (byte) c;
 		}
 

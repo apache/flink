@@ -13,8 +13,6 @@
 
 package eu.stratosphere.types.parser;
 
-import eu.stratosphere.types.ShortValue;
-
 /**
  * Parses a decimal text field into a {@link ShortValue}.
  * Only characters '1' to '0' and '-' are allowed.

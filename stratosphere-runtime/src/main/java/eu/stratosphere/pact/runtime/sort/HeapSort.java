@@ -28,14 +28,16 @@ public final class HeapSort implements IndexedSorter {
 			if (idx + 1 < N && s.compare(b + idx, b + idx + 1) < 0) {
 				if (s.compare(b + i, b + idx + 1) < 0) {
 					s.swap(b + i, b + idx + 1);
-				} else
+				} else {
 					return;
+				}
 				i = idx + 1;
 			} else if (s.compare(b + i, b + idx) < 0) {
 				s.swap(b + i, b + idx);
 				i = idx;
-			} else
+			} else {
 				return;
+			}
 		}
 	}
 

@@ -159,9 +159,10 @@ public final class ByteBufferedChannelManager implements TransferEnvelopeDispatc
 						outputChannelContext.getChannelID());
 				}
 
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Registering byte buffered output channel " + outputChannelContext.getChannelID() + " ("
 							+ (isActive ? "active" : "inactive") + ")");
+				}
 
 				this.registeredChannels.put(outputChannelContext.getChannelID(), outputChannelContext);
 			}

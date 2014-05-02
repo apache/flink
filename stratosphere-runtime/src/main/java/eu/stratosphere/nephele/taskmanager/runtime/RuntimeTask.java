@@ -234,9 +234,10 @@ public final class RuntimeTask implements Task, ExecutionObserver {
 				break;
 			}
 
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug("Sending repeated " + (cancel == true ? "canceling" : "killing") + " signal to " +
 					this.environment.getTaskName() + " with state " + this.executionState);
+			}
 		}
 	}
 

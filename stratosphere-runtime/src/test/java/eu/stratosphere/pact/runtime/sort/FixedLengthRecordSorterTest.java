@@ -351,8 +351,9 @@ public class FixedLengthRecordSorterTest
 			current = readTarget.getKey();
 			
 			final int cmp = last - current;
-			if (cmp > 0)
+			if (cmp > 0) {
 				Assert.fail("Next key is not larger or equal to previous key.");
+			}
 			
 			int tmp = current;
 			current = last;

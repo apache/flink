@@ -924,13 +924,13 @@ public final class ExecutionGroupVertex {
 		}
 		
 		for (final ExecutionGroupEdge backwardLink : this.backwardLinks) {
-		  
+		
 			backwardLink.setConnectionID(currentConnectionID);
 			
 			++currentConnectionID;
 			
 			currentConnectionID = backwardLink.getSourceVertex()
-			    .calculateConnectionID(currentConnectionID, alreadyVisited);
+				.calculateConnectionID(currentConnectionID, alreadyVisited);
 		}
 		
 		return currentConnectionID;

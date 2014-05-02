@@ -145,24 +145,24 @@ public class CoGroupOperatorTest {
 		// should work
 		try {
 			ds1.coGroup(ds2)
-			   .where(
-					   new KeySelector<CustomType, Long>() {
+			.where(
+					new KeySelector<CustomType, Long>() {
 							
 							@Override
 							public Long getKey(CustomType value) {
 								return value.myLong;
 							}
 						}
-					 )
-			   .equalTo(
-					   new KeySelector<CustomType, Long>() {
+					)
+			.equalTo(
+					new KeySelector<CustomType, Long>() {
 							
 							@Override
 							public Long getKey(CustomType value) {
 								return value.myLong;
 							}
 						}
-					   );
+					);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -179,22 +179,22 @@ public class CoGroupOperatorTest {
 		// should work
 		try {
 			ds1.coGroup(ds2)
-			   .where(
-					   new KeySelector<CustomType, Long>() {
+			.where(
+					new KeySelector<CustomType, Long>() {
 							
 							@Override
 							public Long getKey(CustomType value) {
 								return value.myLong;
 							}
 						}
-					   )
-			   .equalTo(3);
+					)
+			.equalTo(3);
 		} catch(Exception e) {
 			Assert.fail();
 		}
 	}
 	
-    @Test
+	@Test
 	public void testCoGroupKeyMixing2() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -204,16 +204,16 @@ public class CoGroupOperatorTest {
 		// should work
 		try {
 			ds1.coGroup(ds2)
-			   .where(3)
-			   .equalTo(
-					   new KeySelector<CustomType, Long>() {
+			.where(3)
+			.equalTo(
+					new KeySelector<CustomType, Long>() {
 							
 							@Override
 							public Long getKey(CustomType value) {
 								return value.myLong;
 							}
 						}
-					   );
+					);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -228,16 +228,16 @@ public class CoGroupOperatorTest {
 
 		// should not work, incompatible types
 		ds1.coGroup(ds2)
-		   .where(2)
-		   .equalTo(
-				   new KeySelector<CustomType, Long>() {
+		.where(2)
+		.equalTo(
+				new KeySelector<CustomType, Long>() {
 						
 						@Override
 						public Long getKey(CustomType value) {
 							return value.myLong;
 						}
 					}
-				   );
+				);
 	}
 	
 	@Test(expected = InvalidProgramException.class)
@@ -249,16 +249,16 @@ public class CoGroupOperatorTest {
 
 		// should not work, more than one key field position
 		ds1.coGroup(ds2)
-		   .where(1,3)
-		   .equalTo(
-				   new KeySelector<CustomType, Long>() {
+		.where(1,3)
+		.equalTo(
+				new KeySelector<CustomType, Long>() {
 						
 						@Override
 						public Long getKey(CustomType value) {
 							return value.myLong;
 						}
 					}
-				   );
+				);
 	}
 		
 	public static class CustomType implements Serializable {

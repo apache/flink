@@ -88,10 +88,12 @@ public class S3FileSystemTest {
 		
 		if (accessKey != null || secretKey != null) {
 			Configuration conf = new Configuration();
-			if (accessKey != null)
+			if (accessKey != null) {
 				conf.setString(S3FileSystem.S3_ACCESS_KEY_KEY, accessKey);
-			if (secretKey != null)
+			}
+			if (secretKey != null) {
 				conf.setString(S3FileSystem.S3_SECRET_KEY_KEY, secretKey);
+			}
 			GlobalConfiguration.includeConfiguration(conf);
 		}
 	}

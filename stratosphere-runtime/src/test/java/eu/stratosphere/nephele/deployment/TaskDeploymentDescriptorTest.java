@@ -161,7 +161,7 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				 null, outputGates, inputGates);
+				null, outputGates, inputGates);
 		} catch (IllegalArgumentException e) {
 			eighthExceptionCaught = true;
 			

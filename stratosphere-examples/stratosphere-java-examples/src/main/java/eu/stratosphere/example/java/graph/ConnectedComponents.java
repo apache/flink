@@ -72,9 +72,9 @@ public class ConnectedComponents implements ProgramDescription {
 		
 		// apply the step logic: join with the edges, select the minimum neighbor, update the component of the candidate is smaller
 		DataSet<Tuple2<Long, Long>> changes = iteration.join(edges).where(0).equalTo(0).with(new NeighborWithComponentIDJoin())
-		                                               .groupBy(0).aggregate(Aggregations.MIN, 1)
-		                                               .join(iteration.getSolutionSet()).where(0).equalTo(0)
-		                                                .flatMap(new ComponentIdFilter());
+													.groupBy(0).aggregate(Aggregations.MIN, 1)
+													.join(iteration.getSolutionSet()).where(0).equalTo(0)
+														.flatMap(new ComponentIdFilter());
 		
 		// close the delta iteration (delta and new workset are identical)
 		return iteration.closeWith(changes, changes);

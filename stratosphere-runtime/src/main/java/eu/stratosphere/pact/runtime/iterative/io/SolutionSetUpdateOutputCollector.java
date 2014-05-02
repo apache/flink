@@ -15,12 +15,11 @@
 
 package eu.stratosphere.pact.runtime.iterative.io;
 
+import java.io.IOException;
+
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
-import eu.stratosphere.pact.runtime.hash.MutableHashTable;
 import eu.stratosphere.util.Collector;
-
-import java.io.IOException;
 
 /**
  * A {@link Collector} to update the solution set of a workset iteration.

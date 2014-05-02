@@ -13,13 +13,13 @@
 
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
-import eu.stratosphere.core.memory.DataInputView;
-import eu.stratosphere.core.memory.DataOutputView;
-import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
-
 import java.io.IOException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
 
 /**
  * A concurrent datastructure that establishes a backchannel buffer between an iteration head

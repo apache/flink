@@ -16,6 +16,9 @@ package eu.stratosphere.compiler.plan;
 import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
 import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
@@ -26,9 +29,6 @@ import eu.stratosphere.compiler.dag.TwoInputNode;
 import eu.stratosphere.compiler.dag.WorksetIterationNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.util.Visitor;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * 

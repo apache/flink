@@ -13,13 +13,13 @@
 
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
+import java.util.concurrent.CountDownLatch;
+
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.types.Value;
-
-import java.util.concurrent.CountDownLatch;
 
 /**
  * A resettable one-shot latch.

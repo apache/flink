@@ -13,11 +13,6 @@
 
 package eu.stratosphere.pact.runtime.iterative.event;
 
-import eu.stratosphere.api.common.aggregators.Aggregator;
-import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.types.Value;
-import eu.stratosphere.util.InstantiationUtil;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
@@ -26,6 +21,11 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Map;
+
+import eu.stratosphere.api.common.aggregators.Aggregator;
+import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.types.Value;
+import eu.stratosphere.util.InstantiationUtil;
 
 public abstract class IterationEventWithAggregators extends AbstractTaskEvent {
 	
@@ -45,8 +45,9 @@ public abstract class IterationEventWithAggregators extends AbstractTaskEvent {
 	}
 
 	protected IterationEventWithAggregators(String aggregatorName, Value aggregate) {
-		if (aggregatorName == null || aggregate == null)
+		if (aggregatorName == null || aggregate == null) {
 			throw new NullPointerException();
+		}
 		
 		this.aggNames = new String[] { aggregatorName };
 		this.aggregates = new Value[] { aggregate };

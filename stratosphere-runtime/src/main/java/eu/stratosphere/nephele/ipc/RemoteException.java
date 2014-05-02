@@ -48,11 +48,13 @@ public class RemoteException extends IOException {
 	 * @return IOException, which is either the lookupClass exception or this.
 	 */
 	public IOException unwrapRemoteException(Class<?>... lookupTypes) {
-		if (lookupTypes == null)
+		if (lookupTypes == null) {
 			return this;
+		}
 		for (Class<?> lookupClass : lookupTypes) {
-			if (!lookupClass.getName().equals(getClassName()))
+			if (!lookupClass.getName().equals(getClassName())) {
 				continue;
+			}
 			try {
 				return instantiateException(lookupClass.asSubclass(IOException.class));
 			} catch (Exception e) {

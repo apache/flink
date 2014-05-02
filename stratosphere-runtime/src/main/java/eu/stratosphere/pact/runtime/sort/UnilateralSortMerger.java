@@ -36,9 +36,9 @@ import eu.stratosphere.nephele.services.iomanager.BlockChannelAccess;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelReader;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.Channel;
+import eu.stratosphere.nephele.services.iomanager.Channel.ID;
 import eu.stratosphere.nephele.services.iomanager.ChannelReaderInputView;
 import eu.stratosphere.nephele.services.iomanager.ChannelWriterOutputView;
-import eu.stratosphere.nephele.services.iomanager.Channel.ID;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -405,12 +405,15 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 	 * Starts all the threads that are used by this sort-merger.
 	 */
 	protected void startThreads() {
-		if (this.readThread != null)
+		if (this.readThread != null) {
 			this.readThread.start();
-		if (this.sortThread != null)
+		}
+		if (this.sortThread != null) {
 			this.sortThread.start();
-		if (this.spillThread != null)
+		}
+		if (this.spillThread != null) {
 			this.spillThread.start();
+		}
 	}
 
 	/**
@@ -1106,10 +1109,11 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				}
 				catch (InterruptedException iex) {
 					if (isRunning()) {
-						if (LOG.isErrorEnabled())
+						if (LOG.isErrorEnabled()) {
 							LOG.error(
 								"Sorting thread was interrupted (without being shut down) while grabbing a buffer. " +
 								"Retrying to grab buffer...");
+						}
 						continue;
 					}
 					else {
@@ -1118,17 +1122,20 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				}
 
 				if (element != EOF_MARKER && element != SPILLING_MARKER) {
-					if (LOG.isDebugEnabled())
+					if (LOG.isDebugEnabled()) {
 						LOG.debug("Sorting buffer " + element.id + ".");
+					}
 					
 					this.sorter.sort(element.buffer);
 					
-					if (LOG.isDebugEnabled())
+					if (LOG.isDebugEnabled()) {
 						LOG.debug("Sorted buffer " + element.id + ".");
+					}
 				}
 				else if (element == EOF_MARKER) {
-					if (LOG.isDebugEnabled())
+					if (LOG.isDebugEnabled()) {
 						LOG.debug("Sorting thread done.");
+					}
 					alive = false;
 				}
 				this.queues.spill.add(element);
@@ -1209,9 +1216,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 						LOG.error("Sorting thread was interrupted (without being shut down) while grabbing a buffer. " +
 								"Retrying to grab buffer...");
 						continue;
-					}
-					else
+					} else {
 						return;
+					}
 				}
 				if (element == SPILLING_MARKER) {
 					break;
@@ -1231,8 +1238,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			// ------------------- In-Memory Merge ------------------------
 			if (cacheOnly) {
 				/* operates on in-memory segments only */
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Initiating in memory merge.");
+				}
 				
 				List<MutableObjectIterator<E>> iterators = new ArrayList<MutableObjectIterator<E>>(cache.size());
 								
@@ -1243,8 +1251,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				}
 				
 				// release the remaining sort-buffers
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Releasing unused sort-buffer memory.");
+				}
 				disposeSortBuffers(true);
 				
 				// set lazy iterator
@@ -1270,8 +1279,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 						LOG.error("Sorting thread was interrupted (without being shut down) while grabbing a buffer. " +
 								"Retrying to grab buffer...");
 						continue;
+					} else {
+						return;
 					}
-					else return;
 				}
 				
 				// check if we are still running
@@ -1295,11 +1305,13 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 																			this.memManager.getPageSize());
 
 				// write sort-buffer to channel
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Spilling buffer " + element.id + ".");
+				}
 				element.buffer.writeToOutput(output);
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Spilled buffer " + element.id + ".");
+				}
 
 				output.close();
 				unregisterOpenChannelToBeRemovedAtShudown(writer);
@@ -1336,8 +1348,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				setResultIterator(EmptyMutableObjectIterator.<E>get());
 			}
 			else {
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug("Beginning final merge.");
+				}
 				
 				// allocate the memory for the final merging step
 				List<List<MemorySegment>> readBuffers = new ArrayList<List<MemorySegment>>(channelIDs.size());
@@ -1350,8 +1363,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			}
 
 			// done
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug("Spilling and merging thread done.");
+			}
 		}
 		
 		/**
@@ -1403,8 +1417,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			throws IOException
 		{
 			// create one iterator per channel id
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug("Performing merge of " + channelIDs.size() + " sorted streams.");
+			}
 			
 			final List<MutableObjectIterator<E>> iterators = new ArrayList<MutableObjectIterator<E>>(channelIDs.size());
 			
@@ -1678,8 +1693,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				}
 				else {
 					// no spilling in this buffer
-					if (this.currentBuffer.write(record))
+					if (this.currentBuffer.write(record)) {
 						return;
+					}
 				}
 				
 				if (this.bytesUntilSpilling > 0) {
@@ -1713,8 +1729,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 						}
 					}
 				}
-				if (!this.running)
+				if (!this.running) {
 					return;
+				}
 				
 				this.currentBuffer = this.currentElement.buffer;
 				if (!this.currentBuffer.isEmpty()) {

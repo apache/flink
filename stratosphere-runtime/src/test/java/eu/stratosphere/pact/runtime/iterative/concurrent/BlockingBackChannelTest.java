@@ -13,20 +13,21 @@
 
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
-import com.google.common.collect.Lists;
-
-import eu.stratosphere.core.memory.DataInputView;
-import eu.stratosphere.core.memory.DataOutputView;
-import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
-import org.junit.Test;
-import org.mockito.Mockito;
+import static org.junit.Assert.assertEquals;
 
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-import static org.junit.Assert.assertEquals;
+import org.junit.Test;
+import org.mockito.Mockito;
+
+import com.google.common.collect.Lists;
+
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
 
 public class BlockingBackChannelTest {
 

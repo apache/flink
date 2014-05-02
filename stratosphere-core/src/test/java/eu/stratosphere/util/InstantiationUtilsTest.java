@@ -17,6 +17,7 @@ package eu.stratosphere.util;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+
 import org.junit.Test;
 
 import eu.stratosphere.types.StringValue;

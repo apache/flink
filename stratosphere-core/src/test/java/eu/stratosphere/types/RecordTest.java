@@ -13,7 +13,8 @@
 
 package eu.stratosphere.types;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.DataInput;
 import java.io.DataInputStream;
@@ -28,14 +29,6 @@ import java.util.Random;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
-import eu.stratosphere.types.DoubleValue;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.LongValue;
-import eu.stratosphere.types.NullValue;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.types.StringValue;
-import eu.stratosphere.types.Value;
 
 public class RecordTest {
 	
@@ -575,14 +568,16 @@ public class RecordTest {
 		rec = new Record();
 		int updatePos = rnd.nextInt(values.length + 1);
 		for (int i = 0; i < values.length; i++) {
-			if (i == updatePos)
+			if (i == updatePos) {
 				rec.updateBinaryRepresenation();
+			}
 			
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
-		if (updatePos == values.length)
+		if (updatePos == values.length) {
 			rec.updateBinaryRepresenation();
+		}
 		testAllRetrievalMethods(rec, permutation2, values);
 		
 		// test adding and retrieving with full stream serialization and deserialization into a new record
@@ -689,12 +684,14 @@ public class RecordTest {
 
 			if (e == null) {
 				final Value retrieved = rec.getField(pos, IntValue.class);
-				if (retrieved != null)
+				if (retrieved != null) {
 					Assert.fail("Value at position " + pos + " expected to be null in " + Arrays.toString(expected));
+				}
 			} else {
 				final Value retrieved = rec.getField(pos, e.getClass());
-				if (!(e.equals(retrieved)))
-						Assert.assertEquals("Wrong value at position " + pos + " in " + Arrays.toString(expected), e, retrieved);
+				if (!(e.equals(retrieved))) {
+					Assert.assertEquals("Wrong value at position " + pos + " in " + Arrays.toString(expected), e, retrieved);
+				}
 			}
 		}
 		
@@ -705,12 +702,14 @@ public class RecordTest {
 
 			if (e == null) {
 				final Value retrieved = rec.getField(pos, new IntValue());
-				if (retrieved != null)
+				if (retrieved != null) {
 					Assert.fail("Value at position " + pos + " expected to be null in " + Arrays.toString(expected));
+				}
 			} else {
 				final Value retrieved = rec.getField(pos, e.getClass().newInstance());
-				if (!(e.equals(retrieved)))
+				if (!(e.equals(retrieved))) {
 					Assert.assertEquals("Wrong value at position " + pos + " in " + Arrays.toString(expected), e, retrieved);
+				}
 			}
 		}
 		
@@ -720,15 +719,18 @@ public class RecordTest {
 			final Value e = expected[pos];
 
 			if (e == null) {
-				if (rec.getFieldInto(pos, new IntValue()))
+				if (rec.getFieldInto(pos, new IntValue())) {
 					Assert.fail("Value at position " + pos + " expected to be null in " + Arrays.toString(expected));
+				}
 			} else {
 				final Value retrieved = e.getClass().newInstance();
-				if (!rec.getFieldInto(pos, retrieved))
+				if (!rec.getFieldInto(pos, retrieved)) {
 					Assert.fail("Value at position " + pos + " expected to be not null in " + Arrays.toString(expected));
+				}
 				
-				if (!(e.equals(retrieved)))
+				if (!(e.equals(retrieved))) {
 					Assert.assertEquals("Wrong value at position " + pos + " in " + Arrays.toString(expected), e, retrieved);
+				}
 			}
 		}
 	}
@@ -799,25 +801,29 @@ public class RecordTest {
 		
 		int updatePos = rnd.nextInt(rec1fields.length + 1);
 		for (int i = 0; i < rec1fields.length; i++) {
-			if (i == updatePos)
+			if (i == updatePos) {
 				rec1.updateBinaryRepresenation();
+			}
 			
 			final int pos = permutation1[i];
 			rec1.setField(pos, rec1fields[pos]);
 		}
-		if (updatePos == rec1fields.length)
+		if (updatePos == rec1fields.length) {
 			rec1.updateBinaryRepresenation();
+		}
 		
 		updatePos = rnd.nextInt(rec2fields.length + 1);
 		for (int i = 0; i < rec2fields.length; i++) {
-			if (i == updatePos)
+			if (i == updatePos) {
 				rec2.updateBinaryRepresenation();
+			}
 			
 			final int pos = permutation2[i];
 			rec2.setField(pos, rec2fields[pos]);
 		}
-		if (updatePos == rec2fields.length)
+		if (updatePos == rec2fields.length) {
 			rec2.updateBinaryRepresenation();
+		}
 		
 		rec1.unionFields(rec2);
 		checkUnionedRecord(rec1, rec1fields, rec2fields);

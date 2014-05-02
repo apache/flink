@@ -1362,7 +1362,7 @@ public class ExecutionGraph implements ExecutionListener {
 			int currentConnectionID = 0;
 			
 			if (groupVertex.isOutputVertex()) {
-			  currentConnectionID = groupVertex.calculateConnectionID(currentConnectionID, alreadyVisited);
+			currentConnectionID = groupVertex.calculateConnectionID(currentConnectionID, alreadyVisited);
 			}
 		}
 	}

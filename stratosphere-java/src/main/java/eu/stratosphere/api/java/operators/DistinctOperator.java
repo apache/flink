@@ -14,8 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
-import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.java.DataSet;
 
 /**
  * @param <IN> The type of the data set made distinct by the operator.
@@ -28,8 +28,9 @@ public class DistinctOperator<IN> extends SingleInputOperator<IN, IN, DistinctOp
 	public DistinctOperator(DataSet<IN> input, Keys<IN> keys) {
 		super(input, input.getType());
 		
-		if (keys == null)
+		if (keys == null) {
 			throw new NullPointerException();
+		}
 		
 		this.keys = keys;
 	}

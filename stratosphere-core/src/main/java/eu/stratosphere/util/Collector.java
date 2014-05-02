@@ -13,8 +13,6 @@
 
 package eu.stratosphere.util;
 
-import eu.stratosphere.api.common.functions.Function;
-
 /**
  * Collects the output of PACT first-order user function implemented as {@link Function}.
  * The collected data is forwards to the next contract.

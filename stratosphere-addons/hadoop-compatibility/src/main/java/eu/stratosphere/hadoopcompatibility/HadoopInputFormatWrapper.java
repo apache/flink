@@ -16,7 +16,6 @@ package eu.stratosphere.hadoopcompatibility;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.Map.Entry;
 
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
@@ -26,7 +25,6 @@ import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.hadoopcompatibility.datatypes.HadoopTypeConverter;
-import eu.stratosphere.runtime.fs.hdfs.DistributedFileSystem;
 import eu.stratosphere.types.Record;
 
 public class HadoopInputFormatWrapper<K, V> implements InputFormat<Record, HadoopInputSplitWrapper> {
@@ -129,22 +127,22 @@ public class HadoopInputFormatWrapper<K, V> implements InputFormat<Record, Hadoo
 		out.writeUTF(hadoopInputFormatName);
 		jobConf.write(out);
 		out.writeObject(converter);
-    }
+	}
 
-    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-    	hadoopInputFormatName = in.readUTF();
-    	if(jobConf == null) {
-    		jobConf = new JobConf();
-    	}
-    	jobConf.readFields(in);
-        try {
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		hadoopInputFormatName = in.readUTF();
+		if(jobConf == null) {
+			jobConf = new JobConf();
+		}
+		jobConf.readFields(in);
+		try {
 			this.hadoopInputFormat = (org.apache.hadoop.mapred.InputFormat<K,V>) Class.forName(this.hadoopInputFormatName).newInstance();
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to instantiate the hadoop input format", e);
 		}
-        ReflectionUtils.setConf(hadoopInputFormat, jobConf);
-        converter = (HadoopTypeConverter<K,V>) in.readObject();
-    }
+		ReflectionUtils.setConf(hadoopInputFormat, jobConf);
+		converter = (HadoopTypeConverter<K,V>) in.readObject();
+	}
 	
 	public void setJobConf(JobConf job) {
 		this.jobConf = job;

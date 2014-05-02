@@ -13,11 +13,11 @@
 
 package eu.stratosphere.pact.runtime.iterative.convergence;
 
-import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
-import eu.stratosphere.types.LongValue;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
+import eu.stratosphere.types.LongValue;
 
 /**
  * A workset iteration is by definition converged if no records have been updated in the solutionset

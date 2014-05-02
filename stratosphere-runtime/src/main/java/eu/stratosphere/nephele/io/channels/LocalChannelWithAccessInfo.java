@@ -111,8 +111,9 @@ final class LocalChannelWithAccessInfo implements ChannelWithAccessInfo {
 			try {
 				this.channel.close();
 			} catch (IOException ioex) {
-				if (LOG.isErrorEnabled())
+				if (LOG.isErrorEnabled()) {
 					LOG.error("Error while closing spill file for file buffers: " + ioex.getMessage(), ioex);
+				}
 			}
 			if (this.deleteOnClose.get()) {
 				this.file.delete();

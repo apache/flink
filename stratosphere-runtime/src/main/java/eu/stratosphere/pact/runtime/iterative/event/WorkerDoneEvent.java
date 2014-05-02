@@ -13,13 +13,13 @@
 
 package eu.stratosphere.pact.runtime.iterative.event;
 
-import eu.stratosphere.api.common.aggregators.Aggregator;
-import eu.stratosphere.types.Value;
-
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Map;
+
+import eu.stratosphere.api.common.aggregators.Aggregator;
+import eu.stratosphere.types.Value;
 
 public class WorkerDoneEvent extends IterationEventWithAggregators {
 	

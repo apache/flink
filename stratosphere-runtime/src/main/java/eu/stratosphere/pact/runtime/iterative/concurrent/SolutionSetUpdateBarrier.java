@@ -13,9 +13,6 @@
 
 package eu.stratosphere.pact.runtime.iterative.concurrent;
 
-import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -24,25 +21,25 @@ import java.util.concurrent.CountDownLatch;
  */
 public class SolutionSetUpdateBarrier {
 
-    private CountDownLatch latch;
+	private CountDownLatch latch;
 
-    public void setup() {
-        latch = new CountDownLatch(1);
-    }
+	public void setup() {
+		latch = new CountDownLatch(1);
+	}
 
-    /**
-     * Waits (blocking) on barrier.
-     *
-     * @throws InterruptedException
-     */
-    public void waitForSolutionSetUpdate() throws InterruptedException {
-        latch.await();
-    }
+	/**
+	 * Waits (blocking) on barrier.
+	 *
+	 * @throws InterruptedException
+	 */
+	public void waitForSolutionSetUpdate() throws InterruptedException {
+		latch.await();
+	}
 
-    /**
-     * Releases the waiting thread.
-     */
-    public void notifySolutionSetUpdate() {
-        latch.countDown();
-    }
+	/**
+	 * Releases the waiting thread.
+	 */
+	public void notifySolutionSetUpdate() {
+		latch.countDown();
+	}
 }

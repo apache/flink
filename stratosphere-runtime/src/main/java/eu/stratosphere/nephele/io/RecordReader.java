@@ -96,10 +96,12 @@ public class RecordReader<T extends IOReadableWritable> extends AbstractSingleGa
 						return true;
 						
 					case END_OF_SUPERSTEP:
-						if (incrementEndOfSuperstepEventAndCheck())
+						if (incrementEndOfSuperstepEventAndCheck()) {
 							return false;
-						else 
+						}
+						else {
 							break; // fall through and wait for next record/event
+						}
 						
 					case TASK_EVENT:
 						handleEvent(this.inputGate.getCurrentEvent());

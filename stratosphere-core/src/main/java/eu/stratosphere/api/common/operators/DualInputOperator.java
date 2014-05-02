@@ -243,8 +243,9 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 		}
 		else if (inputNum == 1) {
 			return this.keyFields2;
+		} else {
+			throw new IndexOutOfBoundsException();
 		}
-		else throw new IndexOutOfBoundsException();
 	}
 	
 	// --------------------------------------------------------------------------------------------

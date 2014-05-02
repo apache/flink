@@ -21,8 +21,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
-import eu.stratosphere.api.java.record.io.ExternalProcessInputFormat;
-import eu.stratosphere.api.java.record.io.ExternalProcessInputSplit;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.GenericInputSplit;
 import eu.stratosphere.types.IntValue;
@@ -45,8 +43,9 @@ public class ExternalProcessInputFormatTest {
 	@Test
 	public void testOpen() {
 		
-		if(OperatingSystem.isWindows())
+		if(OperatingSystem.isWindows()) {
 			return;
+		}
 		
 		Configuration config = new Configuration();
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, this.neverEndingCommand);
@@ -79,8 +78,9 @@ public class ExternalProcessInputFormatTest {
 	@Test
 	public void testCheckExitCode() {
 		
-		if(OperatingSystem.isWindows())
+		if(OperatingSystem.isWindows()) {
 			return;
+		}
 		
 		Configuration config = new Configuration();
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, failingCommand);
@@ -125,14 +125,15 @@ public class ExternalProcessInputFormatTest {
 	@Test
 	public void testUserCodeTermination() {
 		
-		if(OperatingSystem.isWindows())
+		if(OperatingSystem.isWindows()) {
 			return;
+		}
 		
 		Configuration config = new Configuration();
 		config.setInteger(MyExternalProcessTestInputFormat.FAILCOUNT_PARAMETER_KEY, 100);
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, this.neverEndingCommand);
 		Record record = new Record();
-	    	    
+				
 		boolean userException = false;
 		boolean processDestroyed = false;
 		try {
@@ -161,8 +162,9 @@ public class ExternalProcessInputFormatTest {
 	@Test
 	public void testReadStream() {
 		
-		if(OperatingSystem.isWindows())
+		if(OperatingSystem.isWindows()) {
 			return;
+		}
 		
 		Configuration config = new Configuration();
 		ExternalProcessInputSplit split = new ExternalProcessInputSplit(1, 1, this.thousandRecordsCommand);

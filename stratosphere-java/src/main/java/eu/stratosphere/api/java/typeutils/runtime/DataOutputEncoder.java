@@ -166,8 +166,9 @@ public final class DataOutputEncoder extends Encoder implements java.io.Serializ
 		
 	
 	public static final void writeVarLongCount(DataOutput out, long val) throws IOException {
-		if (val < 0)
+		if (val < 0) {
 			throw new IOException("Illegal count (must be non-negative): " + val);
+		}
 		
 		while ((val & ~0x7FL) != 0) {
 			out.write(((int) val) | 0x80);

@@ -118,10 +118,12 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 	{
 		super(headerLen);
 		
-		if (reader == null || memory == null)
+		if (reader == null || memory == null) {
 			throw new NullPointerException();
-		if (memory.isEmpty())
+		}
+		if (memory.isEmpty()) {
 			throw new IllegalArgumentException("Empty list of memory segments given.");
+		}
 		if (numBlocks < 1 && numBlocks != -1) {
 			throw new IllegalArgumentException("The number of blocks must be a positive number, or -1, if unknown.");
 		}

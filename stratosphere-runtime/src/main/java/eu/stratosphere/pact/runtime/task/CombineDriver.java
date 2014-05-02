@@ -100,8 +100,9 @@ public class CombineDriver<T> implements PactDriver<GenericGroupReduce<T, ?>, T>
 
 	@Override
 	public void run() throws Exception {
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(this.taskContext.formatLogString("Preprocessing done, iterator obtained."));
+		}
 
 		final KeyGroupedIterator<T> iter = new KeyGroupedIterator<T>(this.input.getIterator(),
 				this.serializerFactory.getSerializer(), this.comparator);

@@ -23,8 +23,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import eu.stratosphere.api.common.io.BinaryInputFormat;
-import eu.stratosphere.api.common.io.BlockInfo;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.types.Record;
@@ -56,8 +54,9 @@ public class BinaryInputFormatTest {
 		final int blockSize = blockInfoSize + 8;
 		final int numBlocks = 3;
 		FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
-		for(int i = 0; i < blockSize * numBlocks; i++)
+		for(int i = 0; i < blockSize * numBlocks; i++) {
 			fileOutputStream.write(new byte[]{1});
+		}
 		fileOutputStream.close();
 
 		final Configuration config = new Configuration();

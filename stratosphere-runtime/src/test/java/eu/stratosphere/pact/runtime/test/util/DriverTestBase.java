@@ -285,8 +285,9 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	public void shutdownAll() throws Exception {
 		// 1st, shutdown sorters
 		for (UnilateralSortMerger<?> sorter : this.sorters) {
-			if (sorter != null)
+			if (sorter != null) {
 				sorter.close();
+			}
 		}
 		this.sorters.clear();
 		

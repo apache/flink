@@ -332,8 +332,9 @@ public class InMemoryPartition<T> {
 		public ReadView(ArrayList<MemorySegment> segments, int segmentSize, int segmentSizeBits) {
 			super(segments.get(0), segmentSize, 0);
 			
-			if ((segmentSize & (segmentSize - 1)) != 0)
+			if ((segmentSize & (segmentSize - 1)) != 0) {
 				throw new IllegalArgumentException("Segment size must be a power of 2!");
+			}
 			
 			this.segments = segments;
 			this.segmentSizeBits = segmentSizeBits;

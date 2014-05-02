@@ -117,10 +117,12 @@ public abstract class AbstractUnionRecordReader<T extends IOReadableWritable> ex
 					
 				case END_OF_SUPERSTEP:
 					this.nextInputGateToReadFrom = null;
-					if (incrementEndOfSuperstepEventAndCheck())
+					if (incrementEndOfSuperstepEventAndCheck()) {
 						return false; // end of the superstep
-					else 
+					}
+					else {
 						break; // fall through and wait for next record/event
+					}
 					
 				case TASK_EVENT:	// event for the subscribers is available
 					handleEvent(this.nextInputGateToReadFrom.getCurrentEvent());

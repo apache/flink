@@ -20,10 +20,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import eu.stratosphere.api.common.functions.GenericCoGrouper;
-import eu.stratosphere.api.common.functions.GenericCrosser;
-import eu.stratosphere.api.common.functions.GenericJoiner;
 import eu.stratosphere.api.common.functions.GenericCollectorMap;
+import eu.stratosphere.api.common.functions.GenericCrosser;
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
+import eu.stratosphere.api.common.functions.GenericJoiner;
+import eu.stratosphere.api.common.io.FileInputFormat;
+import eu.stratosphere.api.common.io.FileOutputFormat;
+import eu.stratosphere.api.common.io.InputFormat;
+import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.common.operators.DualInputOperator;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.GenericDataSource;
@@ -31,13 +35,9 @@ import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.common.operators.base.MapOperatorBase;
-import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
-import eu.stratosphere.api.common.io.FileInputFormat;
-import eu.stratosphere.api.common.io.FileOutputFormat;
-import eu.stratosphere.api.common.io.InputFormat;
-import eu.stratosphere.api.common.io.OutputFormat;
 
 /**
  * Convenience methods when dealing with {@link Operator}s.
@@ -67,16 +67,19 @@ public class OperatorUtil {
 	 */
 	@SuppressWarnings({ "unchecked" })
 	public static Class<? extends Operator> getContractClass(final Class<?> stubClass) {
-		if (stubClass == null)
+		if (stubClass == null) {
 			return null;
+		}
 		final Class<?> contract = STUB_CONTRACTS.get(stubClass);
-		if (contract != null)
+		if (contract != null) {
 			return (Class<? extends Operator>) contract;
+		}
 		Iterator<Entry<Class<?>, Class<? extends Operator>>> stubContracts = STUB_CONTRACTS.entrySet().iterator();
 		while (stubContracts.hasNext()) {
 			Map.Entry<Class<?>, Class<? extends Operator>> entry = stubContracts.next();
-			if (entry.getKey().isAssignableFrom(stubClass))
+			if (entry.getKey().isAssignableFrom(stubClass)) {
 				return entry.getValue();
+			}
 		}
 		return null;
 
@@ -92,13 +95,16 @@ public class OperatorUtil {
 	 */
 	public static int getNumInputs(final Class<? extends Operator> contractType) {
 
-		if (GenericDataSource.class.isAssignableFrom(contractType))
+		if (GenericDataSource.class.isAssignableFrom(contractType)) {
 			return 0;
+		}
 		if (GenericDataSink.class.isAssignableFrom(contractType)
-			|| SingleInputOperator.class.isAssignableFrom(contractType))
+			|| SingleInputOperator.class.isAssignableFrom(contractType)) {
 			return 1;
-		if (DualInputOperator.class.isAssignableFrom(contractType))
+		}
+		if (DualInputOperator.class.isAssignableFrom(contractType)) {
 			return 2;
+		}
 		throw new IllegalArgumentException("not supported");
 	}
 
@@ -114,16 +120,19 @@ public class OperatorUtil {
 	 */
 	public static void setInputs(final Operator contract, final List<List<Operator>> inputs) {
 		if (contract instanceof GenericDataSink) {
-			if (inputs.size() != 1)
+			if (inputs.size() != 1) {
 				throw new IllegalArgumentException("wrong number of inputs");
+			}
 			((GenericDataSink) contract).setInputs(inputs.get(0));
 		} else if (contract instanceof SingleInputOperator) {
-			if (inputs.size() != 1)
+			if (inputs.size() != 1) {
 				throw new IllegalArgumentException("wrong number of inputs");
+			}
 			((SingleInputOperator<?>) contract).setInputs(inputs.get(0));
 		} else if (contract instanceof DualInputOperator) {
-			if (inputs.size() != 2)
+			if (inputs.size() != 2) {
 				throw new IllegalArgumentException("wrong number of inputs");
+			}
 			((DualInputOperator<?>) contract).setFirstInputs(inputs.get(0));
 			((DualInputOperator<?>) contract).setSecondInputs(inputs.get(1));
 		}

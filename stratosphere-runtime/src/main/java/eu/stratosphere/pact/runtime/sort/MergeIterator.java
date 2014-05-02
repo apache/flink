@@ -111,8 +111,9 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 			this.comparator = comparator;
 			this.head = serializer.createInstance();
 			
-			if (!nextHead())
+			if (!nextHead()) {
 				throw new IllegalStateException();
+			}
 		}
 
 		public E getHead() {

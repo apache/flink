@@ -59,8 +59,9 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 	}
 	
 	public void setFieldTypes(Class<?> ... fieldTypes) {
-		if (fieldTypes == null || fieldTypes.length == 0)
+		if (fieldTypes == null || fieldTypes.length == 0) {
 			throw new IllegalArgumentException("Field types must not be null or empty.");
+		}
 		
 		setFieldTypesGeneric(fieldTypes);
 	}

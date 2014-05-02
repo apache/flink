@@ -39,9 +39,9 @@ import eu.stratosphere.api.java.operators.DataSource;
 import eu.stratosphere.api.java.operators.OperatorTranslation;
 import eu.stratosphere.api.java.operators.translation.JavaPlan;
 import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
+import eu.stratosphere.api.java.typeutils.ResultTypeQueryable;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
-import eu.stratosphere.api.java.typeutils.ResultTypeQueryable;
 import eu.stratosphere.api.java.typeutils.ValueTypeInfo;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.types.StringValue;
@@ -77,8 +77,9 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	public void setDegreeOfParallelism(int degreeOfParallelism) {
-		if (degreeOfParallelism < 1)
+		if (degreeOfParallelism < 1) {
 			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
+		}
 		
 		this.degreeOfParallelism = degreeOfParallelism;
 	}
@@ -160,11 +161,13 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	public <X> DataSet<X> createInput(InputFormat<X, ?> inputFormat, TypeInformation<X> producedType) {
-		if (inputFormat == null)
+		if (inputFormat == null) {
 			throw new IllegalArgumentException("InputFormat must not be null.");
+		}
 		
-		if (producedType == null)
+		if (producedType == null) {
 			throw new IllegalArgumentException("Produced type information must not be null.");
+		}
 		
 		return new DataSource<X>(this, inputFormat, producedType);
 	}
@@ -172,11 +175,13 @@ public abstract class ExecutionEnvironment {
 	// ----------------------------------- Collection ---------------------------------------
 	
 	public <X> DataSet<X> fromCollection(Collection<X> data) {
-		if (data == null)
+		if (data == null) {
 			throw new IllegalArgumentException("The data must not be null.");
+		}
 		
-		if (data.size() == 0)
+		if (data.size() == 0) {
 			throw new IllegalArgumentException("The size of the collection must not be empty.");
+		}
 		
 		X firstValue = data.iterator().next();
 		
@@ -195,8 +200,9 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	public <X> DataSet<X> fromCollection(Iterator<X> data, TypeInformation<X> type) {
-		if (!(data instanceof Serializable))
+		if (!(data instanceof Serializable)) {
 			throw new IllegalArgumentException("The iterator must be serializable.");
+		}
 		
 		return new DataSource<X>(this, new IteratorInputFormat<X>(data), type);
 	}

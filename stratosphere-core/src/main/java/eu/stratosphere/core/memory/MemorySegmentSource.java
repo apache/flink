@@ -13,7 +13,6 @@
 
 package eu.stratosphere.core.memory;
 
-import eu.stratosphere.core.memory.MemorySegment;
 
 /**
  * Interface describing entities that can provide memory segments.

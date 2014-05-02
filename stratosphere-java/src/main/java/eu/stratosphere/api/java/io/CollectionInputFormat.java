@@ -39,8 +39,9 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements U
 
 	
 	public CollectionInputFormat(Collection<T> dataSet) {
-		if (dataSet == null)
+		if (dataSet == null) {
 			throw new NullPointerException();
+		}
 		
 		this.dataSet = dataSet;
 	}

@@ -16,13 +16,8 @@ package eu.stratosphere.api.java.operators;
 
 import java.util.Map;
 
-import eu.stratosphere.api.common.functions.AbstractFunction;
-import eu.stratosphere.api.common.functions.RuntimeContext;
 import eu.stratosphere.api.common.operators.SemanticProperties;
 import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.functions.CoGroupFunction;
-import eu.stratosphere.api.java.functions.MapFunction;
-import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.configuration.Configuration;
 
 /**
@@ -73,7 +68,7 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 	 * @return The operator itself, to allow chaining function calls.
 	 */
 	O withParameters(Configuration parameters);
-	 
+	
 	/**
 	 * Adds a certain data set as a broadcast set to this operator. Broadcasted data sets are available at all
 	 * parallel instances of this operator. A broadcast data set is registered under a certain name, and can be

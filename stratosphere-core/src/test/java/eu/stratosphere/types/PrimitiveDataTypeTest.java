@@ -24,11 +24,6 @@ import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.types.DoubleValue;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.NullValue;
-import eu.stratosphere.types.StringValue;
-
 public class PrimitiveDataTypeTest {
 
 	private DataOutputStream mOut;

@@ -104,8 +104,9 @@ public class MemoryArchivist implements ArchiveListener {
 	}
 	
 	private void cleanup(JobID jobId) {
-		if(!lru.contains(jobId))
+		if(!lru.contains(jobId)) {
 			lru.addFirst(jobId);
+		}
 		if(lru.size() > this.max_entries) {
 			JobID toRemove = lru.removeLast();
 			collectedEvents.remove(toRemove);

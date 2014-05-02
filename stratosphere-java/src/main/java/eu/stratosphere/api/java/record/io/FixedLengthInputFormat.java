@@ -188,8 +188,9 @@ public abstract class FixedLengthInputFormat extends FileInputFormat {
 			// get another buffer
 			fillReadBuffer();
 			// check if source is exhausted
-			if (this.exhausted)
+			if (this.exhausted) {
 				return null;
+			}
 		}
 		else if (this.readBufferLimit - this.readBufferPos < this.recordLength) {
 			throw new IOException("Unable to read full record");

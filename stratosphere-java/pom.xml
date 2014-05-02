@@ -27,7 +27,7 @@
 			<artifactId>stratosphere-core</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
-  			<scope>test</scope>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.avro</groupId>
@@ -35,5 +35,4 @@
 			<version>1.7.5</version>
 		</dependency>
 	</dependencies>
-
 </project>

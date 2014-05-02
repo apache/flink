@@ -13,11 +13,11 @@
 
 package eu.stratosphere.example.java.record.pagerank;
 
-import eu.stratosphere.types.Value;
-
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+
+import eu.stratosphere.types.Value;
 
 public class LongArrayView implements Value {
 	private static final long serialVersionUID = 1L;

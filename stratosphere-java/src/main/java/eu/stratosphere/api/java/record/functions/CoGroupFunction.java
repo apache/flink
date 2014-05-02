@@ -17,7 +17,6 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.functions.GenericCoGrouper;
-import eu.stratosphere.api.java.record.operators.CoGroupOperator;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 

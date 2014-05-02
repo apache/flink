@@ -30,9 +30,9 @@ import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
+import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
@@ -287,8 +287,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	@Override
 	public void invoke() throws Exception {
 		
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Start task code."));
+		}
 		
 		// whatever happens in this scope, make sure that the local strategies are cleaned up!
 		// note that the initialization of the local strategies is in the try-finally block as well,
@@ -356,8 +357,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			}
 			
 			if (!this.running) {
-				if (LOG.isDebugEnabled())
+				if (LOG.isDebugEnabled()) {
 					LOG.debug(formatLogString("Task cancelled before task code was started."));
+				}
 				return;
 			}
 			
@@ -379,11 +381,13 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		}
 		
 		if (this.running) {
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug(formatLogString("Finished task code."));
+			}
 		} else {
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug(formatLogString("Task code cancelled."));
+			}
 		}
 	}
 	
@@ -391,8 +395,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	public void cancel() throws Exception {
 		this.running = false;
 		
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Cancelling task code"));
+		}
 		
 		try {
 			if (this.driver != null) {
@@ -1434,8 +1439,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		// start all chained tasks
 		for (int i = 0; i < tasks.size(); i++) {
 			final ChainedDriver<?, ?> task = tasks.get(i);
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug(constructLogString("Start task code", task.getTaskName(), parent));
+			}
 			task.openTask();
 		}
 	}
@@ -1453,8 +1459,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			final ChainedDriver<?, ?> task = tasks.get(i);
 			task.closeTask();
 			
-			if (LOG.isDebugEnabled())
+			if (LOG.isDebugEnabled()) {
 				LOG.debug(constructLogString("Finished task code", task.getTaskName(), parent));
+			}
 		}
 	}
 	

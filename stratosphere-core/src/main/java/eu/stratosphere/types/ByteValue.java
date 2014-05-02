@@ -67,10 +67,10 @@ public class ByteValue implements Key, NormalizableKey, ResettableValue<ByteValu
 		this.value = value;
 	}
 
-    @Override
-    public void setValue(ByteValue value) {
-        this.value = value.value;
-    }
+	@Override
+	public void setValue(ByteValue value) {
+		this.value = value.value;
+	}
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -93,8 +93,9 @@ public class ByteValue implements Key, NormalizableKey, ResettableValue<ByteValu
 	
 	@Override
 	public int compareTo(Key o) {
-		if (!(o instanceof ByteValue))
+		if (!(o instanceof ByteValue)) {
 			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to ByteValue!");
+		}
 
 		final byte other = ((ByteValue) o).value;
 		return this.value < other ? -1 : this.value > other ? 1 : 0;

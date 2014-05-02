@@ -13,10 +13,22 @@
 
 package eu.stratosphere.hadoopcompatibility.datatypes;
 
-import eu.stratosphere.types.*;
-import org.apache.hadoop.io.*;
+import org.apache.hadoop.io.BooleanWritable;
+import org.apache.hadoop.io.ByteWritable;
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
 
-import java.lang.reflect.ParameterizedType;
+import eu.stratosphere.types.BooleanValue;
+import eu.stratosphere.types.ByteValue;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.FloatValue;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 
 /**
  * Converter Stratosphere Record into the default hadoop writables.

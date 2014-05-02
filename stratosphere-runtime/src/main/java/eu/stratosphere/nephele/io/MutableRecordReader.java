@@ -82,10 +82,12 @@ public class MutableRecordReader<T extends IOReadableWritable> extends AbstractS
 					return true;
 					
 				case END_OF_SUPERSTEP:
-					if (incrementEndOfSuperstepEventAndCheck())
+					if (incrementEndOfSuperstepEventAndCheck()) {
 						return false; // end of the superstep
-					else 
+					}
+					else {
 						break; // fall through and wait for next record/event
+					}
 					
 				case TASK_EVENT:
 					handleEvent(this.inputGate.getCurrentEvent());

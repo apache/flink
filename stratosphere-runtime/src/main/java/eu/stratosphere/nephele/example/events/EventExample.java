@@ -29,6 +29,8 @@
  */
 package eu.stratosphere.nephele.example.events;
 
+import java.io.IOException;
+
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
@@ -42,8 +44,6 @@ import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-
-import java.io.IOException;
 
 /**
  */

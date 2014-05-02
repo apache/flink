@@ -155,7 +155,7 @@ public class EnumTrianglesBasic {
 		// build and filter triads
 		DataSet<Triad> triangles = edgesById
 				.groupBy(Edge.V1).sortGroup(Edge.V2, Order.ASCENDING).reduceGroup(new TriadBuilder())
- 				.join(edgesById).where(Triad.V2, Triad.V3).equalTo(Edge.V1, Edge.V2).with(new TriadFilter());
+				.join(edgesById).where(Triad.V2, Triad.V3).equalTo(Edge.V1, Edge.V2).with(new TriadFilter());
 
 		// emit triangles
 		if(outPath.equals("STDOUT")) {

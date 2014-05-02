@@ -23,9 +23,9 @@ public class IterativeResultDataSet<T> extends DataSet<T> {
 	private DataSet<T> nextPartialSolution;
 
 	IterativeResultDataSet(ExecutionEnvironment context,
-	                       TypeInformation<T> type,
-	                       IterativeDataSet<T> iterationHead,
-	                       DataSet<T> nextPartialSolution)
+						TypeInformation<T> type,
+						IterativeDataSet<T> iterationHead,
+						DataSet<T> nextPartialSolution)
 	{
 		super(context, type);
 		this.iterationHead = iterationHead;

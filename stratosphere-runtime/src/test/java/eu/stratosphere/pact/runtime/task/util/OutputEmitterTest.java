@@ -32,10 +32,10 @@ import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.types.DeserializationException;
-import eu.stratosphere.types.KeyFieldOutOfBoundsException;
-import eu.stratosphere.types.NullKeyFieldException;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.KeyFieldOutOfBoundsException;
+import eu.stratosphere.types.NullKeyFieldException;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 

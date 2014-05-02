@@ -48,8 +48,9 @@ public class RandomAccessOutputView extends AbstractPagedOutputView implements S
 	{
 		super(segments[0], segmentSize, 0);
 		
-		if ((segmentSize & (segmentSize - 1)) != 0)
+		if ((segmentSize & (segmentSize - 1)) != 0) {
 			throw new IllegalArgumentException("Segment size must be a power of 2!");
+		}
 		
 		this.segments = segments;
 		this.segmentSizeBits = segmentSizeBits;

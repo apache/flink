@@ -14,9 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
-import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.operators.translation.PlanDataSink;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
@@ -35,12 +35,15 @@ public class DataSink<T> {
 	private int dop = -1;
 	
 	public DataSink(DataSet<T> data, OutputFormat<T> format, TypeInformation<T> type) {
-		if (format == null)
+		if (format == null) {
 			throw new IllegalArgumentException("The output format must not be null.");
-		if (type == null)
+		}
+		if (type == null) {
 			throw new IllegalArgumentException("The input type information must not be null.");
-		if (data == null)
+		}
+		if (data == null) {
 			throw new IllegalArgumentException("The data set must not be null.");
+		}
 		
 		
 		this.format = format;

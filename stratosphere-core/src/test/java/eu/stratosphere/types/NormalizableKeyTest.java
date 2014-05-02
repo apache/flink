@@ -18,12 +18,6 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.core.memory.MemorySegment;
-import eu.stratosphere.types.NormalizableKey;
-import eu.stratosphere.types.CharValue;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.LongValue;
-import eu.stratosphere.types.NullValue;
-import eu.stratosphere.types.StringValue;
 
 public class NormalizableKeyTest {
 

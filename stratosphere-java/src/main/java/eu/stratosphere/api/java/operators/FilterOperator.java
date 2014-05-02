@@ -31,8 +31,9 @@ public class FilterOperator<IN> extends SingleInputUdfOperator<IN, IN, FilterOpe
 	public FilterOperator(DataSet<IN> input, FilterFunction<IN> function) {
 		super(input, input.getType());
 		
-		if (function == null)
+		if (function == null) {
 			throw new NullPointerException("Filter function must not be null.");
+		}
 		
 		this.function = function;
 	}

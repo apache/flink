@@ -12,9 +12,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.compiler.util;
 
+import eu.stratosphere.api.common.operators.RecordOperator;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
-import eu.stratosphere.api.common.operators.RecordOperator;
 import eu.stratosphere.types.Key;
 
 

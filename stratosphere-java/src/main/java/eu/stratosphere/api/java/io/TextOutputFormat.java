@@ -50,8 +50,9 @@ public class TextOutputFormat<T> extends FileOutputFormat<T> {
 	}
 	
 	public void setCharsetName(String charsetName) throws IllegalCharsetNameException, UnsupportedCharsetException {
-		if (charsetName == null)
+		if (charsetName == null) {
 			throw new NullPointerException();
+		}
 		
 		if (!Charset.isSupported(charsetName)) {
 			throw new UnsupportedCharsetException("The charset " + charsetName + " is not supported.");

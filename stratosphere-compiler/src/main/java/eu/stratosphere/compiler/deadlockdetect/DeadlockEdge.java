@@ -20,7 +20,7 @@ public class DeadlockEdge {
 	public DeadlockEdge( DeadlockVertex d ){
 		destination = d;
 	}
-	   
+	
 	public DeadlockVertex getDestination() {
 		return destination;
 	}

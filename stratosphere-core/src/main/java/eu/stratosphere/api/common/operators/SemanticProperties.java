@@ -35,10 +35,11 @@ public abstract class SemanticProperties implements Serializable {
 	 * @param writtenFields the position(s) in the destination record(s)
 	 */
 	public void addWrittenFields(FieldSet writtenFields) {
-		if(this.writtenFields == null)
+		if(this.writtenFields == null) {
 			this.writtenFields = new FieldSet(writtenFields);
-		else
+		} else {
 			this.writtenFields.addAll(writtenFields);
+		}
 	}
 	
 	/**

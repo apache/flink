@@ -12,7 +12,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.util;
 
-
 /**
  * An enumeration indicating the operating system that the engine runs on.
  */
@@ -96,14 +95,18 @@ public enum OperatingSystem {
 	private static OperatingSystem readOSFromSystemProperties() {
 		String osName = System.getProperty(OS_KEY);
 		
-		if (osName.startsWith(LINUX_OS_PREFIX))
+		if (osName.startsWith(LINUX_OS_PREFIX)) {
 			return LINUX;
-		if (osName.startsWith(WINDOWS_OS_PREFIX))
+		}
+		if (osName.startsWith(WINDOWS_OS_PREFIX)) {
 			return WINDOWS;
-		if (osName.startsWith(MAC_OS_PREFIX))
+		}
+		if (osName.startsWith(MAC_OS_PREFIX)) {
 			return MAC_OS;
-		if (osName.startsWith(FREEBSD_OS_PREFIX))
+		}
+		if (osName.startsWith(FREEBSD_OS_PREFIX)) {
 			return FREE_BSD;
+		}
 		
 		return UNKNOWN;
 	}

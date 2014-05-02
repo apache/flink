@@ -26,11 +26,11 @@ import org.junit.BeforeClass;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.functions.Function;
+import eu.stratosphere.api.common.io.FileInputFormat.FileBaseStatistics;
 import eu.stratosphere.api.common.operators.BulkIteration;
+import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.operators.DeltaIteration;
-import eu.stratosphere.api.common.io.FileInputFormat.FileBaseStatistics;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.costs.DefaultCostEstimator;

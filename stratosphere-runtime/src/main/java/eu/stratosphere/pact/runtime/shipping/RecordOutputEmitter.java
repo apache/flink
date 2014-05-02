@@ -95,8 +95,9 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 			throw new IllegalArgumentException("Invalid shipping strategy for OutputEmitter: " + strategy.name());
 		}
 		
-		if ((strategy == ShipStrategyType.PARTITION_RANGE) && distr == null)
+		if ((strategy == ShipStrategyType.PARTITION_RANGE) && distr == null) {
 			throw new NullPointerException("Data distribution must not be null when the ship strategy is range partitioning.");
+		}
 	}
 
 	// ------------------------------------------------------------------------

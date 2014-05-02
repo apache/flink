@@ -72,10 +72,11 @@ public class RecordPairComparator extends TypePairComparator<Record, Record>
 	{
 		for (int i = 0; i < this.keyFields2.length; i++) {
 			final Key k = candidate.getField(this.keyFields2[i], this.keyHolders2[i]);
-			if (k == null)
+			if (k == null) {
 				throw new NullKeyFieldException(this.keyFields2[i]);
-			else if (!k.equals(this.keyHolders1[i]))
+			} else if (!k.equals(this.keyHolders1[i])) {
 				return false;
+			}
 		}
 		return true;
 	}
@@ -86,9 +87,9 @@ public class RecordPairComparator extends TypePairComparator<Record, Record>
 	{
 		for (int i = 0; i < this.keyFields2.length; i++) {
 			final Key k = candidate.getField(this.keyFields2[i], this.keyHolders2[i]);
-			if (k == null)
+			if (k == null) {
 				throw new NullKeyFieldException(this.keyFields2[i]);
-			else {
+			} else {
 				final int comp = k.compareTo(this.keyHolders1[i]);
 				if (comp != 0) {
 					return comp;

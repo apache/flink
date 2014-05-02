@@ -245,8 +245,9 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 			Costs result = cumulativeCosts.clone();
 			if(this.template != null && this.template.getOutgoingConnections() != null){
 				int outDegree = this.template.getOutgoingConnections().size();
-				if(outDegree > 0)
+				if(outDegree > 0) {
 					result.divideBy(outDegree);
+				}
 			}
 
 			return result;
@@ -267,10 +268,11 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		this.cumulativeCosts = nodeCosts.clone();
 		for (Iterator<PlanNode> preds = getPredecessors(); preds.hasNext();) {
 			Costs parentCosts = preds.next().getCumulativeCostsShare();
-			if (parentCosts != null)
+			if (parentCosts != null) {
 				this.cumulativeCosts.addCosts(parentCosts);
-			else
+			} else {
 				throw new CompilerException();
+			}
 		}
 	}
 	

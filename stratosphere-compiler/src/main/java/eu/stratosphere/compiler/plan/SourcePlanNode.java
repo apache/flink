@@ -13,6 +13,9 @@
 
 package eu.stratosphere.compiler.plan;
 
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
+
 import java.util.Collections;
 import java.util.Iterator;
 
@@ -22,8 +25,6 @@ import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.util.Visitor;
-
-import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.*;
 
 /**
  * Plan candidate node for data flow sources that have no input and no special strategies.

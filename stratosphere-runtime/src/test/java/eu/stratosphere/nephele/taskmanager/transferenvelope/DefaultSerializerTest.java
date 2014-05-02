@@ -13,8 +13,8 @@
 
 package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
-import static org.junit.Assert.fail;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -33,8 +33,6 @@ import eu.stratosphere.nephele.io.channels.BufferFactory;
 import eu.stratosphere.nephele.io.channels.ChannelID;
 import eu.stratosphere.nephele.io.channels.MemoryBuffer;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.TransferEnvelope;
-import eu.stratosphere.nephele.taskmanager.transferenvelope.DefaultSerializer;
 import eu.stratosphere.nephele.util.BufferPoolConnector;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 
@@ -160,8 +158,9 @@ public class DefaultSerializerTest {
 
 			// set envelope to be serialized and write it to file channel
 			serializer.setTransferEnvelope(transferEnvelope);
-			while (serializer.write(fileChannel))
+			while (serializer.write(fileChannel)) {
 				;
+			}
 
 			// Put buffer back to the recycling queue
 			buffer.recycleBuffer();

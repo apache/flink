@@ -14,9 +14,6 @@ package eu.stratosphere.pact.runtime.iterative.task;
 
 import java.util.Map;
 
-//import org.apache.commons.logging.Log;
-//import org.apache.commons.logging.LogFactory;
-
 import com.google.common.base.Preconditions;
 
 import eu.stratosphere.api.common.aggregators.Aggregator;
@@ -24,7 +21,8 @@ import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
 import eu.stratosphere.types.Value;
-import eu.stratosphere.util.MutableObjectIterator;
+//import org.apache.commons.logging.Log;
+//import org.apache.commons.logging.LogFactory;
 
 /**
 * a delegating {@link MutableObjectIterator} that interrupts the current thread when a given number of events occured.

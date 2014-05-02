@@ -30,10 +30,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.client.program.Client;
-import eu.stratosphere.client.program.PackagedProgram;
-import eu.stratosphere.client.program.JobWithJars;
-import eu.stratosphere.client.program.ProgramInvocationException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.costs.CostEstimator;

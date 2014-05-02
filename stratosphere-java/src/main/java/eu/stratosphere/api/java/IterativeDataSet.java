@@ -14,11 +14,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java;
 
-import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
-import eu.stratosphere.api.common.functions.AbstractFunction;
+import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.operators.SingleInputOperator;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.types.Value;

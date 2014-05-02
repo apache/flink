@@ -67,10 +67,10 @@ public class ShortValue implements Key, NormalizableKey, ResettableValue<ShortVa
 		this.value = value;
 	}
 
-    @Override
-    public void setValue(ShortValue value) {
-        this.value = value.value;
-    }
+	@Override
+	public void setValue(ShortValue value) {
+		this.value = value.value;
+	}
 
 	@Override
 	public String toString() {
@@ -93,8 +93,9 @@ public class ShortValue implements Key, NormalizableKey, ResettableValue<ShortVa
 	
 	@Override
 	public int compareTo(final Key o) {
-		if (!(o instanceof ShortValue))
+		if (!(o instanceof ShortValue)) {
 			throw new ClassCastException("Cannot compare " + o.getClass().getName() + " to ShortValue!");
+		}
 
 		final int other = ((ShortValue) o).value;
 
