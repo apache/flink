@@ -15,11 +15,9 @@ package eu.stratosphere.api.common.typeutils;
 
 import eu.stratosphere.configuration.Configuration;
 
-/**
- * 
- */
-public interface TypeSerializerFactory<T>
-{
+
+public interface TypeSerializerFactory<T> {
+	
 	void writeParametersToConfig(Configuration config);
 	
 	void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException;

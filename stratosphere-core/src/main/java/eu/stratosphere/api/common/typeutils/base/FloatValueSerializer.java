@@ -28,6 +28,17 @@ public class FloatValueSerializer extends TypeSerializer<FloatValue> {
 	
 	public static final FloatValueSerializer INSTANCE = new FloatValueSerializer();
 	
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public FloatValue createInstance() {
 		return new FloatValue();

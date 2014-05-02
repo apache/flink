@@ -23,6 +23,18 @@ import eu.stratosphere.types.StringValue;
 
 public class StringPairSerializer extends TypeSerializer<StringPair> {
 
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public StringPair createInstance() {
 		return new StringPair();
@@ -35,40 +47,27 @@ public class StringPairSerializer extends TypeSerializer<StringPair> {
 		return reuse;
 	}
 
-	public StringPair createCopy(StringPair from) {
-		return new StringPair(from.getKey(), from.getValue());
-	}
-
-	public void copyTo(StringPair from, StringPair to) {
-		to.setKey(from.getKey());
-		to.setValue(from.getValue());
-	}
-
 	@Override
 	public int getLength() {
 		return -1;
 	}
 
 	@Override
-	public void serialize(StringPair record, DataOutputView target)
-			throws IOException {
+	public void serialize(StringPair record, DataOutputView target) throws IOException {
 		StringValue.writeString(record.getKey(), target);
 		StringValue.writeString(record.getValue(), target);
 	}
 
 	@Override
-	public StringPair deserialize(StringPair record, DataInputView source)
-			throws IOException {
+	public StringPair deserialize(StringPair record, DataInputView source) throws IOException {
 		record.setKey(StringValue.readString(source));
 		record.setValue(StringValue.readString(source));
 		return record;
 	}
 
 	@Override
-	public void copy(DataInputView source, DataOutputView target)
-			throws IOException {
+	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		StringValue.writeString(StringValue.readString(source), target);
 		StringValue.writeString(StringValue.readString(source), target);
 	}
-
 }

@@ -16,13 +16,12 @@ package eu.stratosphere.api.common.typeutils.base;
 
 import java.io.IOException;
 
-import eu.stratosphere.api.common.typeutils.ImmutableTypeUtil;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 
 
-public class ShortSerializer extends TypeSerializer<Short> implements ImmutableTypeUtil {
+public class ShortSerializer extends TypeSerializer<Short> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -30,6 +29,16 @@ public class ShortSerializer extends TypeSerializer<Short> implements ImmutableT
 	
 	private static final Short ZERO = Short.valueOf((short)0);
 
+	
+	@Override
+	public boolean isImmutableType() {
+		return true;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
 
 	@Override
 	public Short createInstance() {

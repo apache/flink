@@ -28,6 +28,17 @@ public class StringValueSerializer extends TypeSerializer<StringValue> {
 	
 	public static final StringValueSerializer INSTANCE = new StringValueSerializer();
 	
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public StringValue createInstance() {
 		return new StringValue();

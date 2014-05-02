@@ -39,6 +39,16 @@ public class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 		this.componentClass = componentClass;
 		this.componentSerializer = componentSerializer;
 	}
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return this.componentSerializer.isStateful();
+	}
 
 	
 	@Override

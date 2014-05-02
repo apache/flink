@@ -22,6 +22,17 @@ public final class VertexWithRankAndDanglingSerializer extends TypeSerializer<Ve
 
 	private static final long serialVersionUID = 1L;
 	
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public VertexWithRankAndDangling createInstance() {
 		return new VertexWithRankAndDangling();

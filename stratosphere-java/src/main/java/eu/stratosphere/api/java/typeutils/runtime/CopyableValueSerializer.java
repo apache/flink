@@ -39,6 +39,15 @@ public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSer
 		this.instance = createInstance();
 	}
 
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
 
 	@Override
 	public T createInstance() {

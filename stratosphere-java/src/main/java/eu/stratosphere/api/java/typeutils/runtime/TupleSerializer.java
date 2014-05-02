@@ -34,12 +34,34 @@ public final class TupleSerializer<T extends Tuple> extends TypeSerializer<T> {
 	
 	private final int arity;
 	
+	private final boolean stateful;
+	
 	
 	@SuppressWarnings("unchecked")
 	public TupleSerializer(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
 		this.tupleClass = tupleClass;
 		this.fieldSerializers = (TypeSerializer<Object>[]) fieldSerializers;
 		this.arity = fieldSerializers.length;
+		
+		boolean stateful = false;
+		for (TypeSerializer<?> ser : fieldSerializers) {
+			if (ser.isStateful()) {
+				stateful = true;
+				break;
+			}
+		}
+		this.stateful = stateful;
+	}
+	
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return this.stateful;
 	}
 	
 	

@@ -21,8 +21,10 @@ import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.core.memory.MemorySegment;
 
 
-public class IntPairComparator extends TypeComparator<IntPair>
-{
+public class IntPairComparator extends TypeComparator<IntPair> {
+
+	private static final long serialVersionUID = 1L;
+	
 	private int reference;
 	
 	@Override

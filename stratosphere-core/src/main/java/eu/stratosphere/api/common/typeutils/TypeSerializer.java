@@ -33,6 +33,30 @@ public abstract class TypeSerializer<T> implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 
+	// --------------------------------------------------------------------------------------------
+	// General information about the type and the serializer
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Gets whether the type is an immutable type.
+	 * 
+	 * @return True, if the type is immutable.
+	 */
+	public abstract boolean isImmutableType();
+	
+	
+	/**
+	 * Gets whether the serializer is stateful;
+	 * 
+	 * @return True, if the serializer is stateful, false if it is stateless;
+	 */
+	public abstract boolean isStateful();
+	
+	
+	// --------------------------------------------------------------------------------------------
+	// Instantiation & Cloning
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Creates a new instance of the data type.
 	 * 

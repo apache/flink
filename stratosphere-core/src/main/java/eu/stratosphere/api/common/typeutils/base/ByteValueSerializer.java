@@ -28,6 +28,17 @@ public class ByteValueSerializer extends TypeSerializer<ByteValue> {
 	
 	public static final ByteValueSerializer INSTANCE = new ByteValueSerializer();
 	
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public ByteValue createInstance() {
 		return new ByteValue();

@@ -22,6 +22,18 @@ import eu.stratosphere.core.memory.DataOutputView;
 
 public class IntListSerializer extends TypeSerializer<IntList> {
 
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public IntList createInstance() {
 		return new IntList();
@@ -53,7 +65,7 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 		target.writeInt(record.getKey());
 		target.writeInt(record.getValue().length);
 		for (int i = 0; i < record.getValue().length; i++) {
-				target.writeInt(record.getValue()[i]);
+			target.writeInt(record.getValue()[i]);
 		}
 	}
 
@@ -79,5 +91,4 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 			target.writeInt(source.readInt());
 		}
 	}
-
 }

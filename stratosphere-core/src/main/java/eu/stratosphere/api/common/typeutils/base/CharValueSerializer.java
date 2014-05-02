@@ -28,6 +28,17 @@ public class CharValueSerializer extends TypeSerializer<CharValue> {
 	
 	public static final CharValueSerializer INSTANCE = new CharValueSerializer();
 	
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public CharValue createInstance() {
 		return new CharValue();

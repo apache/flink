@@ -28,6 +28,17 @@ public class ShortValueSerializer extends TypeSerializer<ShortValue> {
 	
 	public static final ShortValueSerializer INSTANCE = new ShortValueSerializer();
 	
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public ShortValue createInstance() {
 		return new ShortValue();

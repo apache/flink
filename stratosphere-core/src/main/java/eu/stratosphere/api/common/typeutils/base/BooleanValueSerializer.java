@@ -28,6 +28,17 @@ public class BooleanValueSerializer extends TypeSerializer<BooleanValue> {
 	
 	public static final BooleanValueSerializer INSTANCE = new BooleanValueSerializer();
 	
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public BooleanValue createInstance() {
 		return new BooleanValue();

@@ -16,13 +16,12 @@ package eu.stratosphere.api.common.typeutils.base;
 
 import java.io.IOException;
 
-import eu.stratosphere.api.common.typeutils.ImmutableTypeUtil;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 
 
-public class ByteSerializer extends TypeSerializer<Byte> implements ImmutableTypeUtil {
+public class ByteSerializer extends TypeSerializer<Byte> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -31,6 +30,16 @@ public class ByteSerializer extends TypeSerializer<Byte> implements ImmutableTyp
 	private static final Byte ZERO = Byte.valueOf((byte) 0);
 
 
+	@Override
+	public boolean isImmutableType() {
+		return true;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public Byte createInstance() {
 		return ZERO;

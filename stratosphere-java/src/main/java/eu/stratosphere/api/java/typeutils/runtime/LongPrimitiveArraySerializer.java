@@ -29,6 +29,17 @@ public class LongPrimitiveArraySerializer extends TypeSerializer<long[]>{
 	
 	private static final long[] EMPTY = new long[0];
 
+	
+	@Override
+	public boolean isImmutableType() {
+		return true;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public long[] createInstance() {
 		return EMPTY;
@@ -36,9 +47,7 @@ public class LongPrimitiveArraySerializer extends TypeSerializer<long[]>{
 
 	@Override
 	public long[] copy(long[] from, long[] reuse) {
-		if (reuse.length != from.length) {
-			reuse = new long[from.length];
-		}
+		reuse = new long[from.length];
 		System.arraycopy(from, 0, reuse, 0, from.length);
 		return reuse;
 	}
@@ -66,10 +75,7 @@ public class LongPrimitiveArraySerializer extends TypeSerializer<long[]>{
 	@Override
 	public long[] deserialize(long[] reuse, DataInputView source) throws IOException {
 		final int len = source.readInt();
-		
-		if (reuse.length != len) {
-			reuse = new long[len];
-		}
+		reuse = new long[len];
 		
 		for (int i = 0; i < len; i++) {
 			reuse[i] = source.readLong();
@@ -82,7 +88,6 @@ public class LongPrimitiveArraySerializer extends TypeSerializer<long[]>{
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		final int len = source.readInt();
 		target.writeInt(len);
-		
 		target.write(source, len * 8);
 	}
 }

@@ -28,6 +28,17 @@ public class IntValueSerializer extends TypeSerializer<IntValue> {
 	
 	public static final IntValueSerializer INSTANCE = new IntValueSerializer();
 	
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public IntValue createInstance() {
 		return new IntValue();

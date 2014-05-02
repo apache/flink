@@ -14,7 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.typeutils.base;
 
-import eu.stratosphere.api.common.typeutils.ImmutableTypeUtil;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
@@ -22,7 +21,7 @@ import eu.stratosphere.core.memory.DataOutputView;
 import java.io.IOException;
 
 
-public class BooleanSerializer extends TypeSerializer<Boolean> implements ImmutableTypeUtil {
+public class BooleanSerializer extends TypeSerializer<Boolean> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -30,7 +29,16 @@ public class BooleanSerializer extends TypeSerializer<Boolean> implements Immuta
 	
 	private static final Boolean FALSE = Boolean.FALSE;
 
+	@Override
+	public boolean isImmutableType() {
+		return true;
+	}
 
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public Boolean createInstance() {
 		return FALSE;

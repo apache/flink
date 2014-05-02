@@ -31,6 +31,17 @@ public class StringArraySerializer extends TypeSerializer<String[]>{
 	
 	private static final String[] EMPTY = new String[0];
 
+	
+	@Override
+	public boolean isImmutableType() {
+		return true;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public String[] createInstance() {
 		return EMPTY;
@@ -38,9 +49,7 @@ public class StringArraySerializer extends TypeSerializer<String[]>{
 
 	@Override
 	public String[] copy(String[] from, String[] reuse) {
-		if (reuse.length != from.length) {
-			reuse = new String[from.length];
-		}
+		reuse = new String[from.length];
 		System.arraycopy(from, 0, reuse, 0, from.length);
 		return reuse;
 	}
@@ -68,10 +77,7 @@ public class StringArraySerializer extends TypeSerializer<String[]>{
 	@Override
 	public String[] deserialize(String[] reuse, DataInputView source) throws IOException {
 		final int len = source.readInt();
-		
-		if (reuse.length != len) {
-			reuse = new String[len];
-		}
+		reuse = new String[len];
 		
 		for (int i = 0; i < len; i++) {
 			reuse[i] = StringValue.readString(source);

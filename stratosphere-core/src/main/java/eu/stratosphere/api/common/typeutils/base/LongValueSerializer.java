@@ -28,6 +28,17 @@ public class LongValueSerializer extends TypeSerializer<LongValue> {
 	
 	public static final LongValueSerializer INSTANCE = new LongValueSerializer();
 	
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public LongValue createInstance() {
 		return new LongValue();

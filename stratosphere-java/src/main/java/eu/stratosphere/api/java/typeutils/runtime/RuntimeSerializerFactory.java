@@ -13,19 +13,23 @@
 
 package eu.stratosphere.api.java.typeutils.runtime;
 
+import java.io.IOException;
+
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.InstantiationUtil;
 
-public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<T>, java.io.Serializable {
-
-	private static final long serialVersionUID = 1L;
+public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<T> {
 
 	private static final String CONFIG_KEY_SER = "SER_DATA";
 
 	private static final String CONFIG_KEY_CLASS = "CLASS_DATA";
 
+	private byte[] serializerData;
+	
+	private ClassLoader loader;
+	
 	private TypeSerializer<T> serializer;
 
 	private Class<T> clazz;
@@ -34,16 +38,22 @@ public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<
 	public RuntimeSerializerFactory() {}
 
 	public RuntimeSerializerFactory(TypeSerializer<T> serializer, Class<T> clazz) {
-		this.serializer = serializer;
 		this.clazz = clazz;
+		this.serializer = serializer;
+		
+		try {
+			this.serializerData = InstantiationUtil.serializeObject(serializer);
+		} catch (IOException e) {
+			throw new RuntimeException("Cannt serialize the Serializer.", e);
+		}
 	}
 
 
 	@Override
 	public void writeParametersToConfig(Configuration config) {
 		try {
-			InstantiationUtil.writeObjectToConfig(serializer, config, CONFIG_KEY_SER);
 			InstantiationUtil.writeObjectToConfig(clazz, config, CONFIG_KEY_CLASS);
+			config.setBytes(CONFIG_KEY_SER, this.serializerData);
 		}
 		catch (Exception e) {
 			throw new RuntimeException("Could not serialize serializer into the configuration.", e);
@@ -53,22 +63,40 @@ public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<
 	@SuppressWarnings("unchecked")
 	@Override
 	public void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException {
+		if (config == null || cl == null) {
+			throw new NullPointerException();
+		}
+		
+		this.serializerData = config.getBytes(CONFIG_KEY_SER, null);
+		if (this.serializerData == null) {
+			throw new RuntimeException("Could not find deserializer in the configuration."); 
+		}
+		
+		this.loader = cl;
+		
 		try {
-			serializer = (TypeSerializer<T>) InstantiationUtil.readObjectFromConfig(config, CONFIG_KEY_SER, cl);
-			clazz = (Class<T>) InstantiationUtil.readObjectFromConfig(config, CONFIG_KEY_CLASS, cl);
+			this.clazz = (Class<T>) InstantiationUtil.readObjectFromConfig(config, CONFIG_KEY_CLASS, cl);
+			this.serializer = (TypeSerializer<T>) InstantiationUtil.deserializeObject(this.serializerData, cl);
 		}
 		catch (ClassNotFoundException e) {
 			throw e;
 		}
 		catch (Exception e) {
-			throw new RuntimeException("Could not serialize serializer into the configuration.", e);
+			throw new RuntimeException("Could not load deserializer from the configuration.", e);
 		}
+		
+
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public TypeSerializer<T> getSerializer() {
-		if (serializer != null) {
-			return serializer;
+		if (serializerData != null) {
+			try {
+				return (TypeSerializer<T>) InstantiationUtil.deserializeObject(this.serializerData, loader);
+			} catch (Exception e) {
+				throw new RuntimeException("Repeated instantiation of serializer failed.", e);
+			}
 		} else {
 			throw new RuntimeException("SerializerFactory has not been initialized from configuration.");
 		}
@@ -93,6 +121,4 @@ public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<
 		RuntimeSerializerFactory<T> otherRSF = (RuntimeSerializerFactory<T>) obj;
 		return otherRSF.clazz == this.clazz && otherRSF.serializer.equals(serializer);
 	}
-
-	
 }

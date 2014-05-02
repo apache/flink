@@ -49,6 +49,16 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return true;
+	}
+	
+	@Override
 	public T createInstance() {
 		return InstantiationUtil.instantiate(type, Object.class);
 	}

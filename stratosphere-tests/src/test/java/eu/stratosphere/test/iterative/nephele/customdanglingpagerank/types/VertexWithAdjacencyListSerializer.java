@@ -22,6 +22,17 @@ public final class VertexWithAdjacencyListSerializer extends TypeSerializer<Vert
 
 	private static final long serialVersionUID = 1L;
 	
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public VertexWithAdjacencyList createInstance() {
 		return new VertexWithAdjacencyList();

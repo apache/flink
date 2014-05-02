@@ -23,6 +23,8 @@ import eu.stratosphere.core.memory.MemorySegment;
 
 public class IntListComparator extends TypeComparator<IntList> {
 	
+	private static final long serialVersionUID = 1L;
+	
 	private int reference;
 
 	@Override
@@ -123,5 +125,4 @@ public class IntListComparator extends TypeComparator<IntList> {
 	public TypeComparator<IntList> duplicate() {
 		return new IntListComparator();
 	}
-
 }

@@ -22,6 +22,17 @@ public final class VertexWithRankSerializer extends TypeSerializer<VertexWithRan
 
 	private static final long serialVersionUID = 1L;
 	
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public VertexWithRank createInstance() {
 		return new VertexWithRank();

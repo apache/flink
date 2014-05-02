@@ -28,6 +28,17 @@ public class DoubleValueSerializer extends TypeSerializer<DoubleValue> {
 	
 	public static final DoubleValueSerializer INSTANCE = new DoubleValueSerializer();
 	
+	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public DoubleValue createInstance() {
 		return new DoubleValue();

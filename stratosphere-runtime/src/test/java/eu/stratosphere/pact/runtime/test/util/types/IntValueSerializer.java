@@ -23,6 +23,17 @@ import eu.stratosphere.types.IntValue;
 
 public class IntValueSerializer extends TypeSerializer<IntValue> {
 
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
 	@Override
 	public IntValue createInstance() {
 		return new IntValue();

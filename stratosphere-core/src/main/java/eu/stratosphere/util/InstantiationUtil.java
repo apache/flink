@@ -204,6 +204,15 @@ public class InstantiationUtil {
 			return null;
 		}
 		
+		return deserializeObject(bytes, cl);
+	}
+	
+	public static void writeObjectToConfig(Object o, Configuration config, String key) throws IOException {
+		byte[] bytes = serializeObject(o);
+		config.setBytes(key, bytes);
+	}
+	
+	public static Object deserializeObject(byte[] bytes, ClassLoader cl) throws IOException, ClassNotFoundException {
 		ObjectInputStream oois = null;
 		try {
 			oois = new ClassLoaderObjectInputStream(new ByteArrayInputStream(bytes), cl);
@@ -215,13 +224,12 @@ public class InstantiationUtil {
 		}
 	}
 	
-	public static void writeObjectToConfig(Object o, Configuration config, String key) throws IOException {
+	public static byte[] serializeObject(Object o) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		ObjectOutputStream oos = new ObjectOutputStream(baos);
 		oos.writeObject(o);
 
-		byte[] bytes = baos.toByteArray();
-		config.setBytes(key, bytes);
+		return baos.toByteArray();
 	}
 	
 	// --------------------------------------------------------------------------------------------

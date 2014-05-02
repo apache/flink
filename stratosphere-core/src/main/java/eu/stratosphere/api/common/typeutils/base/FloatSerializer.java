@@ -14,7 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.typeutils.base;
 
-import eu.stratosphere.api.common.typeutils.ImmutableTypeUtil;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
@@ -22,7 +21,7 @@ import eu.stratosphere.core.memory.DataOutputView;
 import java.io.IOException;
 
 
-public class FloatSerializer extends TypeSerializer<Float> implements ImmutableTypeUtil {
+public class FloatSerializer extends TypeSerializer<Float> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -30,6 +29,16 @@ public class FloatSerializer extends TypeSerializer<Float> implements ImmutableT
 	
 	private static final Float ZERO = Float.valueOf(0);
 
+	
+	@Override
+	public boolean isImmutableType() {
+		return true;
+	}
+
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
 
 	@Override
 	public Float createInstance() {

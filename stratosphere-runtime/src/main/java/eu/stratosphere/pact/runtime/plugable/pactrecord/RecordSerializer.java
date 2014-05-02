@@ -41,20 +41,25 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 	/**
 	 * Creates a new instance of the RecordSerializers. Private to prevent instantiation.
 	 */
-	private RecordSerializer()
-	{}
+	private RecordSerializer() {}
 
 	// --------------------------------------------------------------------------------------------
 	
+	@Override
+	public boolean isImmutableType() {
+		return false;
+	}
 
+	@Override
+	public boolean isStateful() {
+		return false;
+	}
+	
 	@Override
 	public Record createInstance() {
 		return new Record(); 
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#copy(java.lang.Object, java.lang.Object)
-	 */
 	@Override
 	public Record copy(Record from, Record reuse) {
 		from.copyTo(reuse);
@@ -69,26 +74,17 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 
 	// --------------------------------------------------------------------------------------------
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#serialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2)
-	 */
 	@Override
 	public void serialize(Record record, DataOutputView target) throws IOException {
 		record.serialize(target);
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#deserialize(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataInputViewV2)
-	 */
 	@Override
 	public Record deserialize(Record target, DataInputView source) throws IOException {
 		target.deserialize(source);
 		return target;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessorsV2#copy(eu.stratosphere.nephele.services.memorymanager.DataInputViewV2, eu.stratosphere.nephele.services.memorymanager.DataOutputViewV2)
-	 */
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		int val = source.readUnsignedByte();

@@ -24,6 +24,8 @@ import eu.stratosphere.types.StringValue;
 
 public class StringPairComparator extends TypeComparator<StringPair> {
 	
+	private static final long serialVersionUID = 1L;
+	
 	private String reference;
 
 	@Override
@@ -100,5 +102,4 @@ public class StringPairComparator extends TypeComparator<StringPair> {
 	public TypeComparator<StringPair> duplicate() {
 		return new StringPairComparator();
 	}
-
 }
