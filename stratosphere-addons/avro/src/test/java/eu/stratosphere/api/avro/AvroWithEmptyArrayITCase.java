@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.apache.avro.reflect.Nullable;
 
 import eu.stratosphere.api.common.Plan;
@@ -29,13 +30,12 @@ import eu.stratosphere.api.java.record.functions.CoGroupFunction;
 import eu.stratosphere.api.java.record.io.GenericInputFormat;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
-public class AvroWithEmptyArrayITCase extends TestBase2 {
+public class AvroWithEmptyArrayITCase extends RecordAPITestBase {
 
 	@Override
 	protected Plan getTestJob() {

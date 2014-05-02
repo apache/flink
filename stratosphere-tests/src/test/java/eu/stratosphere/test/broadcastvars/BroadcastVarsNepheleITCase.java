@@ -20,6 +20,7 @@ import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.Assert;
 
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
@@ -45,12 +46,11 @@ import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.test.iterative.nephele.JobGraphUtils;
-import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-public class BroadcastVarsNepheleITCase extends TestBase2 {
+public class BroadcastVarsNepheleITCase extends RecordAPITestBase {
 
 	private static final long SEED_POINTS = 0xBADC0FFEEBEEFL;
 

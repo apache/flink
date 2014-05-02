@@ -16,6 +16,7 @@ package eu.stratosphere.test.operators;
 import java.io.Serializable;
 import java.util.Collection;
 
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -33,14 +34,13 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
-import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
 @RunWith(Parameterized.class)
-public class UnionSinkITCase extends TestBase2 {
+public class UnionSinkITCase extends RecordAPITestBase {
 	
 	public UnionSinkITCase(Configuration testConfig) {
 		super(testConfig);

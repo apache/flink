@@ -16,6 +16,7 @@ package eu.stratosphere.test.iterative;
 import java.io.Serializable;
 import java.util.Iterator;
 
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.Assert;
 
 import eu.stratosphere.api.common.Plan;
@@ -28,12 +29,11 @@ import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.io.TextInputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
-import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
-public class IterationTerminationWithTerminationTail extends TestBase2 {
+public class IterationTerminationWithTerminationTail extends RecordAPITestBase {
 
 	private static final String INPUT = "1\n" + "2\n" + "3\n" + "4\n" + "5\n";
 	private static final String EXPECTED = "22\n";

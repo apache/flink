@@ -23,7 +23,7 @@ import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.java.record.kmeans.udfs.PointInFormat;
 import eu.stratosphere.example.java.record.kmeans.udfs.PointOutFormat;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
@@ -37,7 +37,7 @@ import java.util.Collection;
 import java.util.Iterator;
 
 @RunWith(Parameterized.class)
-public class IterationWithChainingITCase extends TestBase2 {
+public class IterationWithChainingITCase extends RecordAPITestBase {
 
     private static final String DATA_POINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n";
 

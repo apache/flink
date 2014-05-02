@@ -25,7 +25,7 @@ import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.operators.CollectionDataSource;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
@@ -34,7 +34,7 @@ import eu.stratosphere.util.Collector;
 /**
  * test the collection and iterator data input using join operator
  */
-public class CollectionSourceTest extends TestBase2 {
+public class CollectionSourceTest extends RecordAPITestBase {
 
 	protected String resultPath;
 

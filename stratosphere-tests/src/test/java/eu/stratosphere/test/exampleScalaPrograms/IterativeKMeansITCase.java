@@ -18,9 +18,9 @@ import java.util.Locale;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.examples.scala.datamining.KMeans;
 import eu.stratosphere.test.testdata.KMeansData;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 
-public class IterativeKMeansITCase extends TestBase2 {
+public class IterativeKMeansITCase extends RecordAPITestBase {
 
 	static {
 		Locale.setDefault(Locale.US);

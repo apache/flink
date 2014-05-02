@@ -31,7 +31,7 @@ import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.DuplicateLon
 import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.MinimumComponentIDReduce;
 import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.test.testdata.ConnectedComponentsData;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
@@ -39,7 +39,7 @@ import eu.stratosphere.util.Collector;
 /**
  * Tests a bug that prevented that the solution set can be on both sides of the match/cogroup function.
  */
-public class ConnectedComponentsWithSolutionSetFirstITCase extends TestBase2 {
+public class ConnectedComponentsWithSolutionSetFirstITCase extends RecordAPITestBase {
 	
 	private static final long SEED = 0xBADC0FFEEBEEFL;
 	

@@ -15,9 +15,9 @@ package eu.stratosphere.test.exampleRecordPrograms;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.test.testPrograms.tpch3Unioned.TPCHQuery3Unioned;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 
-public class TPCHQuery3WithUnionITCase extends TestBase2 {
+public class TPCHQuery3WithUnionITCase extends RecordAPITestBase {
 	
 	private String orders1Path = null;
 	private String orders2Path = null;

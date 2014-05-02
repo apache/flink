@@ -13,19 +13,6 @@
 
 package eu.stratosphere.test.operators;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.LinkedList;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
-
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
@@ -40,42 +27,46 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
-import eu.stratosphere.test.util.TestBase;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.LinkedList;
 
 @RunWith(Parameterized.class)
-public class ReduceITCase extends TestBase {
+public class ReduceITCase extends RecordAPITestBase {
 	
 	private static final Log LOG = LogFactory.getLog(ReduceITCase.class);
 
-	public ReduceITCase(String clusterConfig, Configuration testConfig) {
-		super(testConfig, clusterConfig);
+	String inPath = null;
+	String resultPath = null;
+
+	public ReduceITCase(Configuration testConfig) {
+		super(testConfig);
 	}
 
-	private static final String REDUCE_IN_1 = "1 1\n2 2\n2 8\n4 4\n4 4\n6 6\n7 7\n8 8\n";
+	private static final String IN = "1 1\n2 2\n2 8\n4 4\n4 4\n6 6\n7 7\n8 8\n1 1\n" +
+			"2 2\n2 2\n4 4\n4 4\n6 3\n5 9\n8 8\n1 1\n2 2\n2 2\n3 0\n4 4\n5 9\n7 7\n8 8\n" +
+			"1 1\n9 1\n5 9\n4 4\n4 4\n6 6\n7 7\n8 8\n";
 
-	private static final String REDUCE_IN_2 = "1 1\n2 2\n2 2\n4 4\n4 4\n6 3\n5 9\n8 8\n";
-
-	private static final String REDUCE_IN_3 = "1 1\n2 2\n2 2\n3 0\n4 4\n5 9\n7 7\n8 8\n";
-
-	private static final String REDUCE_IN_4 = "1 1\n9 1\n5 9\n4 4\n4 4\n6 6\n7 7\n8 8\n";
-
-	private static final String REDUCE_RESULT = "1 4\n2 18\n3 0\n4 28\n5 27\n6 15\n7 21\n8 32\n9 1\n";
+	private static final String RESULT = "1 4\n2 18\n3 0\n4 28\n5 27\n6 15\n7 21\n8 32\n9 1\n";
 
 	@Override
 	protected void preSubmit() throws Exception {
-
-		String tempDir = getFilesystemProvider().getTempDirPath();
-
-		this.getFilesystemProvider().createDir(tempDir + "/reduceInput");
-
-		this.getFilesystemProvider().createFile(tempDir + "/reduceInput/reduceTest_1.txt", REDUCE_IN_1);
-		this.getFilesystemProvider().createFile(tempDir + "/reduceInput/reduceTest_2.txt", REDUCE_IN_2);
-		this.getFilesystemProvider().createFile(tempDir + "/reduceInput/reduceTest_3.txt", REDUCE_IN_3);
-		this.getFilesystemProvider().createFile(tempDir + "/reduceInput/reduceTest_4.txt", REDUCE_IN_4);
+		inPath = createTempFile("in.txt", IN);
+		resultPath = getTempDirPath("result");
 	}
 
 	@ReduceOperator.Combinable
@@ -123,10 +114,8 @@ public class ReduceITCase extends TestBase {
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
-		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
-
 		FileDataSource input = new FileDataSource(
-				new ContractITCaseInputFormat(), pathPrefix + "/reduceInput");
+				new ContractITCaseInputFormat(), inPath);
 		DelimitedInputFormat.configureDelimitedFormat(input)
 			.recordDelimiter('\n');
 		input.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
@@ -140,7 +129,7 @@ public class ReduceITCase extends TestBase {
 				config.getString("ReduceTest#ShipStrategy", ""));
 
 		FileDataSink output = new FileDataSink(
-				new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
+				new ContractITCaseOutputFormat(), resultPath);
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testReducer);
@@ -158,13 +147,7 @@ public class ReduceITCase extends TestBase {
 
 	@Override
 	protected void postSubmit() throws Exception {
-
-		String tempDir = getFilesystemProvider().getTempDirPath();
-
-		compareResultsByLinesInMemory(REDUCE_RESULT, tempDir + "/result.txt");
-		
-		getFilesystemProvider().delete(tempDir + "/result.txt", true);
-		getFilesystemProvider().delete(tempDir + "/reduceInput", true);
+		compareResultsByLinesInMemory(RESULT, resultPath);
 	}
 
 	@Parameters
@@ -186,6 +169,6 @@ public class ReduceITCase extends TestBase {
 			}
 		}
 
-		return toParameterList(ReduceITCase.class, tConfigs);
+		return toParameterList(tConfigs);
 	}
 }

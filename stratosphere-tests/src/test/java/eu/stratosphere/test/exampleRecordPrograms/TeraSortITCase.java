@@ -17,14 +17,14 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.net.URI;
 
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.Assert;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.example.java.record.sort.TeraSort;
-import eu.stratosphere.test.util.TestBase2;
 
 
-public class TeraSortITCase extends TestBase2 {
+public class TeraSortITCase extends RecordAPITestBase {
 	
 	private static final String INPUT_DATA_FILE = "/testdata/terainput.txt";
 	

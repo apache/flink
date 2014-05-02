@@ -15,6 +15,7 @@ package eu.stratosphere.test.exampleRecordPrograms;
 
 import java.util.Collection;
 
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -22,10 +23,9 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.java.record.relational.TPCHQuery3;
-import eu.stratosphere.test.util.TestBase2;
 
 @RunWith(Parameterized.class)
-public class TPCHQuery3ITCase extends TestBase2 {
+public class TPCHQuery3ITCase extends RecordAPITestBase {
 	
 	protected String ordersPath = null;
 	protected String lineitemsPath = null;

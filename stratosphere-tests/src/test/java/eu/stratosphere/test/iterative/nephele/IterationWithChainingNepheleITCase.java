@@ -36,7 +36,7 @@ import eu.stratosphere.pact.runtime.task.ReduceDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedCollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
@@ -61,7 +61,7 @@ import java.util.Iterator;
  * @link {https://github.com/stratosphere/stratosphere/issues/123}
  */
 @RunWith(Parameterized.class)
-public class IterationWithChainingNepheleITCase extends TestBase2 {
+public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 
 	private static final String INPUT_STRING = "0|%d.25|\n" + "1|%d.25|\n";
 

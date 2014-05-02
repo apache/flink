@@ -15,9 +15,9 @@ package eu.stratosphere.test.exampleRecordPrograms;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.test.testPrograms.tpch9.TPCHQuery9;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 
-public class TPCHQuery9ITCase extends TestBase2 {
+public class TPCHQuery9ITCase extends RecordAPITestBase {
 	
 	private String partInputPath;
 	private String partSuppInputPath;

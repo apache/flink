@@ -15,6 +15,7 @@ package eu.stratosphere.test.exampleRecordPrograms;
 
 import java.util.Collection;
 
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -22,10 +23,9 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.java.record.triangles.EnumTrianglesOnEdgesWithDegrees;
-import eu.stratosphere.test.util.TestBase2;
 
 @RunWith(Parameterized.class)
-public class EnumTrianglesOnEdgesWithDegreesITCase extends TestBase2 {
+public class EnumTrianglesOnEdgesWithDegreesITCase extends RecordAPITestBase {
 	
 	private static final String EDGES_WITH_DEGREES = "1,4|2,3\n1,4|3,5\n1,4|4,2\n1,4|5,3\n2,3|3,5\n2,3|5,3\n3,5|4,2\n3,5|7,2\n5,3|6,1\n3,5|8,2\n7,2|8,2\n";
 	private static final String EXPECTED = "2,1,3\n4,1,3\n2,1,5\n7,3,8\n";

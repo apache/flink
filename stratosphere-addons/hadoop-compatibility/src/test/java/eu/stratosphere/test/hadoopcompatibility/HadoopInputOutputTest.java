@@ -16,12 +16,12 @@ package eu.stratosphere.test.hadoopcompatibility;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.hadoopcompatibility.example.WordCountWithHadoopOutputFormat;
 import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 
 /**
  * test the hadoop inputformat and outputformat for stratosphere
  */
-public class HadoopInputOutputTest extends TestBase2 {
+public class HadoopInputOutputTest extends RecordAPITestBase {
 	protected String textPath;
 	protected String resultPath;
 	protected String counts;

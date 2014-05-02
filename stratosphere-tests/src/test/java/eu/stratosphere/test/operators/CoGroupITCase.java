@@ -20,6 +20,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.runner.RunWith;
@@ -33,13 +34,8 @@ import eu.stratosphere.api.java.record.functions.CoGroupFunction;
 import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.java.record.io.FileOutputFormat;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator;
-import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.test.util.TestBase;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
@@ -48,48 +44,31 @@ import eu.stratosphere.util.Collector;
 /**
  */
 @RunWith(Parameterized.class)
-public class CoGroupITCase extends TestBase {
+public class CoGroupITCase extends RecordAPITestBase {
+
 	private static final Log LOG = LogFactory.getLog(CoGroupITCase.class);
 
-	public CoGroupITCase(String clusterConfig, Configuration testConfig) {
-		super(testConfig, clusterConfig);
+	String leftInPath = null;
+	String rightInPath = null;
+	String resultPath = null;
+
+	public CoGroupITCase(Configuration testConfig) {
+		super(testConfig);
 	}
 
-	private static final String COGROUP_LEFT_IN_1 = "1 1\n2 2\n3 3\n4 4\n";
+	private static final String LEFT_IN = "1 1\n2 2\n3 3\n4 4\n1 2\n2 3\n3 4\n4 5\n" +
+			"1 3\n2 4\n3 5\n4 6\n1 4\n2 5\n3 6\n4 7\n";
 
-	private static final String COGROUP_LEFT_IN_2 = "1 2\n2 3\n3 4\n4 5\n";
+	private static final String RIGHT_IN = "1 1\n2 2\n3 3\n5 1\n1 1\n2 2\n3 3\n6 1\n" +
+			"1 1\n2 2\n2 2\n7 1\n1 1\n2 2\n2 2\n8 1\n";
 
-	private static final String COGROUP_LEFT_IN_3 = "1 3\n2 4\n3 5\n4 6\n";
-
-	private static final String COGROUP_LEFT_IN_4 = "1 4\n2 5\n3 6\n4 7\n";
-
-	private static final String COGROUP_RIGHT_IN_1 = "1 1\n2 2\n3 3\n5 1\n";
-
-	private static final String COGROUP_RIGHT_IN_2 = "1 1\n2 2\n3 3\n6 1\n";
-
-	private static final String COGROUP_RIGHT_IN_3 = "1 1\n2 2\n2 2\n7 1\n";
-
-	private static final String COGROUP_RIGHT_IN_4 = "1 1\n2 2\n2 2\n8 1\n";
-
-	private static final String COGROUP_RESULT = "1 6\n2 2\n3 12\n4 22\n5 -1\n6 -1\n7 -1\n8 -1\n";
+	private static final String RESULT = "1 6\n2 2\n3 12\n4 22\n5 -1\n6 -1\n7 -1\n8 -1\n";
 
 	@Override
 	protected void preSubmit() throws Exception {
-		String tempPath = getFilesystemProvider().getTempDirPath();
-
-		getFilesystemProvider().createDir(tempPath + "/cogroup_left");
-
-		getFilesystemProvider().createFile(tempPath + "/cogroup_left/cogroupTest_1.txt", COGROUP_LEFT_IN_1);
-		getFilesystemProvider().createFile(tempPath + "/cogroup_left/cogroupTest_2.txt", COGROUP_LEFT_IN_2);
-		getFilesystemProvider().createFile(tempPath + "/cogroup_left/cogroupTest_3.txt", COGROUP_LEFT_IN_3);
-		getFilesystemProvider().createFile(tempPath + "/cogroup_left/cogroupTest_4.txt", COGROUP_LEFT_IN_4);
-
-		getFilesystemProvider().createDir(tempPath + "/cogroup_right");
-
-		getFilesystemProvider().createFile(tempPath + "/cogroup_right/cogroupTest_1.txt", COGROUP_RIGHT_IN_1);
-		getFilesystemProvider().createFile(tempPath + "/cogroup_right/cogroupTest_2.txt", COGROUP_RIGHT_IN_2);
-		getFilesystemProvider().createFile(tempPath + "/cogroup_right/cogroupTest_3.txt", COGROUP_RIGHT_IN_3);
-		getFilesystemProvider().createFile(tempPath + "/cogroup_right/cogroupTest_4.txt", COGROUP_RIGHT_IN_4);
+		leftInPath = createTempFile("left_in.txt", LEFT_IN);
+		rightInPath = createTempFile("right_in.txt", RIGHT_IN);
+		resultPath = getTempDirPath("result");
 	}
 
 	public static class CoGroupTestInFormat extends DelimitedInputFormat {
@@ -104,9 +83,9 @@ public class CoGroupITCase extends TestBase {
 			this.valueString.setValueAscii(bytes, offset + 2, 1);
 			target.setField(0, keyString);
 			target.setField(1, valueString);
-			
+
 			LOG.debug("Read in: [" + keyString.getValue() + "," + valueString.getValue() + "]");
-			
+
 			return target;
 		}
 
@@ -128,9 +107,9 @@ public class CoGroupITCase extends TestBase {
 			this.buffer.append('\n');
 			
 			byte[] bytes = this.buffer.toString().getBytes();
-			
+
 			LOG.debug("Writing out: [" + keyString.toString() + "," + valueInteger.getValue() + "]");
-			
+
 			this.stream.write(bytes);
 		}
 	}
@@ -174,16 +153,13 @@ public class CoGroupITCase extends TestBase {
 	}
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-
-		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
-
-		FileDataSource input_left =  new FileDataSource(new CoGroupTestInFormat(), pathPrefix + "/cogroup_left");
+	protected Plan getTestJob() {
+		FileDataSource input_left =  new FileDataSource(new CoGroupTestInFormat(), leftInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_left)
 			.recordDelimiter('\n');
 		input_left.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
-		FileDataSource input_right =  new FileDataSource(new CoGroupTestInFormat(), pathPrefix + "/cogroup_right");
+		FileDataSource input_right =  new FileDataSource(new CoGroupTestInFormat(), rightInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_right)
 			.recordDelimiter('\n');
 		input_right.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
@@ -196,32 +172,19 @@ public class CoGroupITCase extends TestBase {
 		testCoGrouper.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
 				config.getString("CoGroupTest#ShipStrategy", ""));
 
-		FileDataSink output = new FileDataSink(new CoGroupOutFormat(), pathPrefix + "/result.txt");
+		FileDataSink output = new FileDataSink(new CoGroupOutFormat(), resultPath);
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testCoGrouper);
 		testCoGrouper.setFirstInput(input_left);
 		testCoGrouper.setSecondInput(input_right);
 
-		Plan plan = new Plan(output);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
+		return new Plan(output);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-
-		String tempPath = getFilesystemProvider().getTempDirPath();
-
-		compareResultsByLinesInMemory(COGROUP_RESULT, tempPath + "/result.txt");
-				
-		getFilesystemProvider().delete(tempPath + "/result.txt", true);
-		getFilesystemProvider().delete(tempPath + "/cogroup_left", true);
-		getFilesystemProvider().delete(tempPath + "/cogroup_right", true);
+		compareResultsByLinesInMemory(RESULT, resultPath);
 	}
 
 	@Parameters
@@ -245,6 +208,6 @@ public class CoGroupITCase extends TestBase {
 			}
 		}
 
-		return toParameterList(CoGroupITCase.class, tConfigs);
+		return toParameterList(tConfigs);
 	}
 }

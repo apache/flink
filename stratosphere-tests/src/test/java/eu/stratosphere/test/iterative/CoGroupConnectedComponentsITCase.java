@@ -33,13 +33,13 @@ import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.DuplicateLongMap;
 import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.test.testdata.ConnectedComponentsData;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 
-public class CoGroupConnectedComponentsITCase extends TestBase2 {
+public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 	
 	private static final long SEED = 0xBADC0FFEEBEEFL;
 	

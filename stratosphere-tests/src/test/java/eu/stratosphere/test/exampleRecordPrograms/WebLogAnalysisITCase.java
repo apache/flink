@@ -15,9 +15,9 @@ package eu.stratosphere.test.exampleRecordPrograms;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.example.java.record.relational.WebLogAnalysis;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 
-public class WebLogAnalysisITCase extends TestBase2 {
+public class WebLogAnalysisITCase extends RecordAPITestBase {
 
 	protected String docsPath;
 	protected String ranksPath;

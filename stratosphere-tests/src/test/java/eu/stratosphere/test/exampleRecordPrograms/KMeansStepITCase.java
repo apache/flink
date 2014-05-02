@@ -19,9 +19,9 @@ import java.util.List;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.test.testPrograms.KMeansSingleStep;
 import eu.stratosphere.test.testdata.KMeansData;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 
-public class KMeansStepITCase extends TestBase2 {
+public class KMeansStepITCase extends RecordAPITestBase {
 
 	protected String dataPath;
 	protected String clusterPath;

@@ -13,67 +13,54 @@
 
 package eu.stratosphere.test.operators;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.LinkedList;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
-
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
-import eu.stratosphere.test.util.TestBase;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.LinkedList;
 
 @RunWith(Parameterized.class)
-public class MapITCase extends TestBase {
+public class MapITCase extends RecordAPITestBase {
 	
 	private static final Log LOG = LogFactory.getLog(MapITCase.class);
+
+	String inPath = null;
+	String resultPath = null;
 	
-	public MapITCase(String clusterConfig, Configuration testConfig) {
-		super(testConfig, clusterConfig);
+	public MapITCase(Configuration testConfig) {
+		super(testConfig);
 	}
 
-	private static final String MAP_IN_1 = "1 1\n2 2\n2 8\n4 4\n4 4\n6 6\n7 7\n8 8\n";
+	private static final String IN = "1 1\n2 2\n2 8\n4 4\n4 4\n6 6\n7 7\n8 8\n" +
+			"1 1\n2 2\n2 2\n4 4\n4 4\n6 3\n5 9\n8 8\n1 1\n2 2\n2 2\n3 0\n4 4\n" +
+			"5 9\n7 7\n8 8\n1 1\n9 1\n5 9\n4 4\n4 4\n6 6\n7 7\n8 8\n";
 
-	private static final String MAP_IN_2 = "1 1\n2 2\n2 2\n4 4\n4 4\n6 3\n5 9\n8 8\n";
-
-	private static final String MAP_IN_3 = "1 1\n2 2\n2 2\n3 0\n4 4\n5 9\n7 7\n8 8\n";
-
-	private static final String MAP_IN_4 = "1 1\n9 1\n5 9\n4 4\n4 4\n6 6\n7 7\n8 8\n";
-
-	private static final String MAP_RESULT = "1 11\n2 12\n4 14\n4 14\n1 11\n2 12\n2 12\n4 14\n4 14\n3 16\n1 11\n2 12\n2 12\n0 13\n4 14\n1 11\n4 14\n4 14\n";
+	private static final String RESULT = "1 11\n2 12\n4 14\n4 14\n1 11\n2 12\n2 12\n4 14\n4 14\n3 16\n1 11\n2 12\n2 12\n0 13\n4 14\n1 11\n4 14\n4 14\n";
 
 	@Override
 	protected void preSubmit() throws Exception {
-		String tempDir = getFilesystemProvider().getTempDirPath();
-		
-		getFilesystemProvider().createDir(tempDir + "/mapInput");
-		
-		getFilesystemProvider().createFile(tempDir+"/mapInput/mapTest_1.txt", MAP_IN_1);
-		getFilesystemProvider().createFile(tempDir+"/mapInput/mapTest_2.txt", MAP_IN_2);
-		getFilesystemProvider().createFile(tempDir+"/mapInput/mapTest_3.txt", MAP_IN_3);
-		getFilesystemProvider().createFile(tempDir+"/mapInput/mapTest_4.txt", MAP_IN_4);
+		inPath = createTempFile("in.txt", IN);
+		resultPath = getTempDirPath("result");
 	}
 
 	public static class TestMapper extends MapFunction implements Serializable {
@@ -101,11 +88,9 @@ public class MapITCase extends TestBase {
 	}
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-		String pathPrefix = getFilesystemProvider().getURIPrefix()+getFilesystemProvider().getTempDirPath();
-		
+	protected Plan getTestJob() {
 		FileDataSource input = new FileDataSource(
-				new ContractITCaseInputFormat(), pathPrefix+"/mapInput");
+				new ContractITCaseInputFormat(), inPath);
 		DelimitedInputFormat.configureDelimitedFormat(input)
 			.recordDelimiter('\n');
 		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
@@ -114,30 +99,18 @@ public class MapITCase extends TestBase {
 		testMapper.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		FileDataSink output = new FileDataSink(
-				new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
+				new ContractITCaseOutputFormat(), resultPath);
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testMapper);
 		testMapper.setInput(input);
 
-		Plan plan = new Plan(output);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
+		return new Plan(output);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		String tempDir = getFilesystemProvider().getTempDirPath();
-		
-		compareResultsByLinesInMemory(MAP_RESULT, tempDir+ "/result.txt");
-		
-		getFilesystemProvider().delete(tempDir+ "/result.txt", true);
-		getFilesystemProvider().delete(tempDir+ "/mapInput", true);
-		
+		compareResultsByLinesInMemory(RESULT, resultPath);
 	}
 
 	@Parameters
@@ -148,6 +121,6 @@ public class MapITCase extends TestBase {
 		config.setInteger("MapTest#NoSubtasks", 4);
 		testConfigs.add(config);
 
-		return toParameterList(MapITCase.class, testConfigs);
+		return toParameterList(testConfigs);
 	}
 }

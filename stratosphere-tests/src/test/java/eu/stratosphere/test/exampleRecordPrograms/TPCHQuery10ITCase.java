@@ -13,31 +13,20 @@
 
 package eu.stratosphere.test.exampleRecordPrograms;
 
-import java.util.Collection;
-import java.util.LinkedList;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.test.testPrograms.tpch10.TPCHQuery10;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.test.testPrograms.tpch10.TPCHQuery10;
-import eu.stratosphere.test.util.TestBase;
+import java.util.Collection;
 
 /**
  */
 @RunWith(Parameterized.class)
-public class TPCHQuery10ITCase extends TestBase {
-
-	private static final Log LOG = LogFactory.getLog(TPCHQuery10ITCase.class);
+public class TPCHQuery10ITCase extends RecordAPITestBase {
 
 	private final String CUSTOMERS = "36900|Customer#000036900|ppktIUalnJ quTLD1fWZTEMBQwoEUpmI|8|18-347-285-7152|2667.45|MACHINERY|ts. slyly special packages are al|\n"
 		+ "36901|Customer#000036901|TBb1yDZcf 8Zepk7apFJ|13|23-644-998-4944|4809.84|AUTOMOBILE|nstructions sleep final, regular deposits. quick accounts sleep furiously after the final accounts; instructions wa|\n"
@@ -182,124 +171,36 @@ public class TPCHQuery10ITCase extends TestBase {
 		super(testConfig);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.test.util.TestBase#getJobGraph()
-	 */
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
+	protected Plan getTestJob() {
 		TPCHQuery10 tpchq10 = new TPCHQuery10();
-		Plan plan = tpchq10.getPlan(
+		return tpchq10.getPlan(
 				config.getString("TPCHQuery10Test#NoSubtasks", "1"),
-				getFilesystemProvider().getURIPrefix() + ordersPath,
-				getFilesystemProvider().getURIPrefix() + lineitemsPath,
-				getFilesystemProvider().getURIPrefix() + customersPath,
-				getFilesystemProvider().getURIPrefix() + nationsPath,
-				getFilesystemProvider().getURIPrefix() + resultPath);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
+				ordersPath,
+				lineitemsPath,
+				customersPath,
+				nationsPath,
+				resultPath);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.test.util.TestBase#preSubmit()
-	 */
 	@Override
 	protected void preSubmit() throws Exception {
-
-		ordersPath = getFilesystemProvider().getTempDirPath() + "/orders";
-		lineitemsPath = getFilesystemProvider().getTempDirPath() + "/lineitems";
-		customersPath = getFilesystemProvider().getTempDirPath() + "/customers";
-		nationsPath = getFilesystemProvider().getTempDirPath() + "/nations";
-		resultPath = getFilesystemProvider().getTempDirPath() + "/result";
-
-		String[] splits = splitInputString(ORDERS, '\n', 4);
-		getFilesystemProvider().createDir(ordersPath);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(ordersPath + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Orders Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-
-		splits = splitInputString(LINEITEMS, '\n', 4);
-		getFilesystemProvider().createDir(lineitemsPath);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(lineitemsPath + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Lineitems Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-		splits = splitInputString(CUSTOMERS, '\n', 2);
-		getFilesystemProvider().createDir(customersPath);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(customersPath + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Lineitems Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-		splits = splitInputString(NATIONS, '\n', 1);
-		getFilesystemProvider().createDir(nationsPath);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(nationsPath + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Lineitems Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-
+		ordersPath = createTempFile("orders.txt", ORDERS);
+		lineitemsPath = createTempFile("line_items.txt", LINEITEMS);
+		customersPath = createTempFile("customers.txt", CUSTOMERS);
+		nationsPath = createTempFile("nations.txt", NATIONS);
+		resultPath = createTempFile("result.txt", EXPECTED_RESULT);
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see eu.stratosphere.pact.test.util.TestBase#postSubmit()
-	 */
 	@Override
 	protected void postSubmit() throws Exception {
-		// Test results
 		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
 	}
 
-	@Override
-	public void stopCluster() throws Exception {
-		// clean up hdfs
-		getFilesystemProvider().delete(ordersPath, true);
-		getFilesystemProvider().delete(lineitemsPath, true);
-		getFilesystemProvider().delete(customersPath, true);
-		getFilesystemProvider().delete(nationsPath, true);
-		getFilesystemProvider().delete(resultPath, true);
-
-		super.stopCluster();
-	}
-	
-	
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
-
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
 		Configuration config = new Configuration();
 		config.setInteger("TPCHQuery10Test#NoSubtasks", 4);
-		tConfigs.add(config);
-
-		return toParameterList(tConfigs);
+		return toParameterList(config);
 	}
-
-	private String[] splitInputString(String inputString, char splitChar, int noSplits) {
-
-		String splitString = inputString.toString();
-		String[] splits = new String[noSplits];
-		int partitionSize = (splitString.length() / noSplits) - 2;
-
-		// split data file and copy parts
-		for (int i = 0; i < noSplits - 1; i++) {
-			int cutPos = splitString.indexOf(splitChar, (partitionSize < splitString.length() ? partitionSize
-				: (splitString.length() - 1)));
-			splits[i] = splitString.substring(0, cutPos) + "\n";
-			splitString = splitString.substring(cutPos + 1);
-		}
-		splits[noSplits - 1] = splitString;
-
-		return splits;
-
-	}
-
 }

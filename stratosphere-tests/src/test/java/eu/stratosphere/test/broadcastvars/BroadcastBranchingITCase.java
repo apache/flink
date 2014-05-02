@@ -27,13 +27,13 @@ import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
 
-public class BroadcastBranchingITCase extends TestBase2 {
+public class BroadcastBranchingITCase extends RecordAPITestBase {
 
 	private static final String SC1_ID_ABC = "1 61 6 29\n2 7 13 10\n3 8 13 27\n";
 

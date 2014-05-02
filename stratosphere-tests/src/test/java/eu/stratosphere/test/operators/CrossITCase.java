@@ -13,87 +13,61 @@
 
 package eu.stratosphere.test.operators;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.LinkedList;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
-
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.CrossFunction;
 import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.java.record.operators.CrossOperator;
-import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
-import eu.stratosphere.test.util.TestBase;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.LinkedList;
 
 /**
  */
 @RunWith(Parameterized.class)
-public class CrossITCase extends TestBase
+public class CrossITCase extends RecordAPITestBase {
 
-{
 	private static final Log LOG = LogFactory.getLog(CrossITCase.class);
 
-	public CrossITCase(String clusterConfig, Configuration testConfig) {
-		super(testConfig, clusterConfig);
+	String leftInPath = null;
+	String rightInPath = null;
+	String resultPath = null;
+
+	public CrossITCase(Configuration testConfig) {
+		super(testConfig);
 	}
 
-	private static final String CROSS_LEFT_IN_1 = "1 1\n2 2\n";
+	private static final String LEFT_IN = "1 1\n2 2\n1 1\n2 2\n3 3\n4 4\n3 3\n4 4\n";
 
-	private static final String CROSS_LEFT_IN_2 = "1 1\n2 2\n";
+	private static final String RIGHT_IN = "1 1\n1 2\n2 2\n2 4\n3 3\n3 6\n4 4\n4 8\n";
 
-	private static final String CROSS_LEFT_IN_3 = "3 3\n4 4\n";
-
-	private static final String CROSS_LEFT_IN_4 = "3 3\n4 4\n";
-
-	private static final String CROSS_RIGHT_IN_1 = "1 1\n1 2\n";
-
-	private static final String CROSS_RIGHT_IN_2 = "2 2\n2 4\n";
-
-	private static final String CROSS_RIGHT_IN_3 = "3 3\n3 6\n";
-
-	private static final String CROSS_RIGHT_IN_4 = "4 4\n4 8\n";
-
-	private static final String CROSS_RESULT = "4 1\n4 1\n4 2\n4 2\n5 2\n5 2\n5 4\n5 4\n6 3\n6 3\n7 4\n7 4\n"
+	private static final String RESULT = "4 1\n4 1\n4 2\n4 2\n5 2\n5 2\n5 4\n5 4\n6 3\n6 3\n7 4\n7 4\n"
 		+ "5 0\n5 0\n5 1\n5 1\n6 1\n6 1\n6 3\n6 3\n7 2\n7 2\n8 3\n8 3\n"
 		+ "6 -1\n6 -1\n6 0\n6 0\n7 0\n7 0\n8 1\n8 1\n" + "7 -2\n7 -2\n7 -1\n7 -1\n8 -1\n8 -1\n";
 
 	@Override
 	protected void preSubmit() throws Exception {
-		String tempDir = getFilesystemProvider().getTempDirPath();
-
-		getFilesystemProvider().createDir(tempDir + "/cross_left");
-
-		getFilesystemProvider().createFile(tempDir + "/cross_left/crossTest_1.txt", CROSS_LEFT_IN_1);
-		getFilesystemProvider().createFile(tempDir + "/cross_left/crossTest_2.txt", CROSS_LEFT_IN_2);
-		getFilesystemProvider().createFile(tempDir + "/cross_left/crossTest_3.txt", CROSS_LEFT_IN_3);
-		getFilesystemProvider().createFile(tempDir + "/cross_left/crossTest_4.txt", CROSS_LEFT_IN_4);
-
-		getFilesystemProvider().createDir(tempDir + "/cross_right");
-
-		getFilesystemProvider().createFile(tempDir + "/cross_right/crossTest_1.txt", CROSS_RIGHT_IN_1);
-		getFilesystemProvider().createFile(tempDir + "/cross_right/crossTest_2.txt", CROSS_RIGHT_IN_2);
-		getFilesystemProvider().createFile(tempDir + "/cross_right/crossTest_3.txt", CROSS_RIGHT_IN_3);
-		getFilesystemProvider().createFile(tempDir + "/cross_right/crossTest_4.txt", CROSS_RIGHT_IN_4);
+		leftInPath = createTempFile("left_in.txt", LEFT_IN);
+		rightInPath = createTempFile("right_in.txt", RIGHT_IN);
+		resultPath = getTempDirPath("result");
 	}
 
 
@@ -130,18 +104,16 @@ public class CrossITCase extends TestBase
 	}
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-
-		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
+	protected Plan getTestJob() {
 
 		FileDataSource input_left = new FileDataSource(
-				new ContractITCaseInputFormat(), pathPrefix + "/cross_left");
+				new ContractITCaseInputFormat(), leftInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_left)
 			.recordDelimiter('\n');
 		input_left.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 
 		FileDataSource input_right = new FileDataSource(
-				new ContractITCaseInputFormat(), pathPrefix + "/cross_right");
+				new ContractITCaseInputFormat(), rightInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_right)
 			.recordDelimiter('\n');
 		input_right.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
@@ -166,33 +138,19 @@ public class CrossITCase extends TestBase
 		}
 
 		FileDataSink output = new FileDataSink(
-				new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
+				new ContractITCaseOutputFormat(), resultPath);
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testCross);
 		testCross.setFirstInput(input_left);
 		testCross.setSecondInput(input_right);
 
-		Plan plan = new Plan(output);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
-
+		return new Plan(output);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-
-		String tempDir = getFilesystemProvider().getTempDirPath();
-		
-		compareResultsByLinesInMemory(CROSS_RESULT, tempDir + "/result.txt");
-		
-		getFilesystemProvider().delete(tempDir + "/result.txt", true);
-		getFilesystemProvider().delete(tempDir + "/cross_left", true);
-		getFilesystemProvider().delete(tempDir + "/cross_right", true);
+		compareResultsByLinesInMemory(RESULT, resultPath);
 	}
 
 	@Parameters
@@ -222,6 +180,6 @@ public class CrossITCase extends TestBase
 			}
 		}
 
-		return toParameterList(CrossITCase.class, tConfigs);
+		return toParameterList(tConfigs);
 	}
 }

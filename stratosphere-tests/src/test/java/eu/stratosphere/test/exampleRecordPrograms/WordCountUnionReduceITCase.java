@@ -27,7 +27,7 @@ import eu.stratosphere.example.java.record.wordcount.WordCount.TokenizeLine;
 import eu.stratosphere.nephele.io.MutableUnionRecordReader;
 import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
 
@@ -42,7 +42,7 @@ import eu.stratosphere.types.StringValue;
  * @see {@link UnionRecordReader}
  * @see {@link MutableUnionRecordReader}
  */
-public class WordCountUnionReduceITCase extends TestBase2 {
+public class WordCountUnionReduceITCase extends RecordAPITestBase {
 
 	private static final int MULTIPLY = 1000;
 	

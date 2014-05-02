@@ -13,92 +13,61 @@
 
 package eu.stratosphere.test.operators;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.LinkedList;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
-
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
-import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
-import eu.stratosphere.test.util.TestBase;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
-/**
- */
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.LinkedList;
+
 @RunWith(Parameterized.class)
-public class JoinITCase extends TestBase
+public class JoinITCase extends RecordAPITestBase {
 
-{
 	private static final Log LOG = LogFactory.getLog(JoinITCase.class);
 
-	public JoinITCase(String clusterConfig, Configuration testConfig) {
-		super(testConfig, clusterConfig);
+	String leftInPath = null;
+	String rightInPath = null;
+	String resultPath = null;
+
+	public JoinITCase(Configuration testConfig) {
+		super(testConfig);
 	}
 
-	private static final String MATCH_LEFT_IN_1 = "1 1\n2 2\n3 3\n4 4\n";
+	private static final String LEFT_IN = "1 1\n2 2\n3 3\n4 4\n1 2\n2 3\n3 4\n4 5\n" +
+			"1 3\n2 4\n3 5\n4 6\n1 4\n2 5\n3 6\n4 7\n";
 
-	private static final String MATCH_LEFT_IN_2 = "1 2\n2 3\n3 4\n4 5\n";
+	private static final String RIGHT_IN = "1 1\n2 2\n3 3\n5 1\n1 1\n2 2\n3 3\n6 1\n" +
+			"1 1\n2 2\n2 2\n7 1\n1 1\n2 2\n2 2\n8 1\n";
 
-	private static final String MATCH_LEFT_IN_3 = "1 3\n2 4\n3 5\n4 6\n";
-
-	private static final String MATCH_LEFT_IN_4 = "1 4\n2 5\n3 6\n4 7\n";
-
-	private static final String MATCH_RIGHT_IN_1 = "1 1\n2 2\n3 3\n5 1\n";
-
-	private static final String MATCH_RIGHT_IN_2 = "1 1\n2 2\n3 3\n6 1\n";
-
-	private static final String MATCH_RIGHT_IN_3 = "1 1\n2 2\n2 2\n7 1\n";
-
-	private static final String MATCH_RIGHT_IN_4 = "1 1\n2 2\n2 2\n8 1\n";
-
-//	private static final String MATCH_RESULT = "1 0\n1 0\n1 0\n1 0\n1 1\n1 1\n1 1\n1 1\n1 2\n1 2\n1 2\n1 2\n1 3\n1 3\n1 3\n1 3\n"
-//			+ "3 0\n3 0\n3 1\n3 1\n3 2\n3 2\n3 3\n3 3\n"
-//			+ "2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n2 0\n2 1\n2 2\n2 3\n";
-	
-	private static final String MATCH_RESULT = "2 1\n2 1\n2 1\n2 1\n2 2\n2 2\n2 2\n2 2\n2 3\n2 3\n2 3\n2 3\n2 4\n2 4\n2 4\n2 4\n"
+	private static final String RESULT = "2 1\n2 1\n2 1\n2 1\n2 2\n2 2\n2 2\n2 2\n2 3\n2 3\n2 3\n2 3\n2 4\n2 4\n2 4\n2 4\n"
 		+ "4 1\n4 1\n4 2\n4 2\n4 3\n4 3\n4 4\n4 4\n"
 		+ "3 1\n3 2\n3 3\n3 4\n3 1\n3 2\n3 3\n3 4\n3 1\n3 2\n3 3\n3 4\n3 1\n3 2\n3 3\n3 4\n3 1\n3 2\n3 3\n3 4\n3 1\n3 2\n3 3\n3 4\n";
 
 	@Override
 	protected void preSubmit() throws Exception {
-		String tempPath = getFilesystemProvider().getTempDirPath();
-
-		getFilesystemProvider().createDir(tempPath + "/match_left");
-
-		getFilesystemProvider().createFile(tempPath + "/match_left/matchTest_1.txt", MATCH_LEFT_IN_1);
-		getFilesystemProvider().createFile(tempPath + "/match_left/matchTest_2.txt", MATCH_LEFT_IN_2);
-		getFilesystemProvider().createFile(tempPath + "/match_left/matchTest_3.txt", MATCH_LEFT_IN_3);
-		getFilesystemProvider().createFile(tempPath + "/match_left/matchTest_4.txt", MATCH_LEFT_IN_4);
-
-		getFilesystemProvider().createDir(tempPath + "/match_right");
-
-		getFilesystemProvider().createFile(tempPath + "/match_right/matchTest_1.txt", MATCH_RIGHT_IN_1);
-		getFilesystemProvider().createFile(tempPath + "/match_right/matchTest_2.txt", MATCH_RIGHT_IN_2);
-		getFilesystemProvider().createFile(tempPath + "/match_right/matchTest_3.txt", MATCH_RIGHT_IN_3);
-		getFilesystemProvider().createFile(tempPath + "/match_right/matchTest_4.txt", MATCH_RIGHT_IN_4);
-
+		leftInPath = createTempFile("left_in.txt", LEFT_IN);
+		rightInPath = createTempFile("right_in.txt", RIGHT_IN);
+		resultPath = getTempDirPath("result");
 	}
 
 	public static class TestMatcher extends JoinFunction implements Serializable {
@@ -130,18 +99,15 @@ public class JoinITCase extends TestBase
 	}
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-
-		String pathPrefix = getFilesystemProvider().getURIPrefix() + getFilesystemProvider().getTempDirPath();
-
+	protected Plan getTestJob() {
 		FileDataSource input_left = new FileDataSource(
-				new ContractITCaseInputFormat(), pathPrefix + "/match_left");
+				new ContractITCaseInputFormat(), leftInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_left)
 			.recordDelimiter('\n');
 		input_left.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
 		FileDataSource input_right = new FileDataSource(
-				new ContractITCaseInputFormat(), pathPrefix + "/match_right");
+				new ContractITCaseInputFormat(), rightInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_right)
 			.recordDelimiter('\n');
 		input_right.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
@@ -167,33 +133,19 @@ public class JoinITCase extends TestBase
 		}
 
 		FileDataSink output = new FileDataSink(
-				new ContractITCaseOutputFormat(), pathPrefix + "/result.txt");
+				new ContractITCaseOutputFormat(), resultPath);
 		output.setDegreeOfParallelism(1);
 
 		output.setInput(testMatcher);
 		testMatcher.setFirstInput(input_left);
 		testMatcher.setSecondInput(input_right);
 
-		Plan plan = new Plan(output);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
-
+		return new Plan(output);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		String tempPath = getFilesystemProvider().getTempDirPath();
-
-		compareResultsByLinesInMemory(MATCH_RESULT, tempPath + "/result.txt");
-		
-		getFilesystemProvider().delete(tempPath + "/result.txt", true);
-		getFilesystemProvider().delete(tempPath + "/match_left", true);
-		getFilesystemProvider().delete(tempPath + "/match_right", true);
-
+		compareResultsByLinesInMemory(RESULT, resultPath);
 	}
 
 	@Parameters
@@ -218,7 +170,6 @@ public class JoinITCase extends TestBase
 			}
 		}
 
-		return toParameterList(JoinITCase.class, tConfigs);
+		return toParameterList(tConfigs);
 	}
-
 }

@@ -26,7 +26,7 @@ import eu.stratosphere.util.LogUtils;
 /**
  * Base class for integration tests which test whether the system recovers from failed executions.
  */
-public abstract class FailingTestBase extends TestBase2 {
+public abstract class FailingTestBase extends RecordAPITestBase {
 
 	public FailingTestBase() {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF);

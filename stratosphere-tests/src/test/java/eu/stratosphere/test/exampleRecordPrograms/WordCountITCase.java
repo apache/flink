@@ -16,9 +16,9 @@ package eu.stratosphere.test.exampleRecordPrograms;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.example.java.record.wordcount.WordCount;
 import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 
-public class WordCountITCase extends TestBase2 {
+public class WordCountITCase extends RecordAPITestBase {
 
 	protected String textPath;
 	protected String resultPath;

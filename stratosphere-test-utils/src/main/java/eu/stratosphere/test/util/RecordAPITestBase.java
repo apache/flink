@@ -27,18 +27,18 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 
-public abstract class TestBase2 extends AbstractTestBase {
+public abstract class RecordAPITestBase extends AbstractTestBase {
 	
 	protected JobExecutionResult jobExecutionResult;
 	
 	protected boolean printPlan;
 	
 	
-	public TestBase2() {
+	public RecordAPITestBase() {
 		this(new Configuration());
 	}
 	
-	public TestBase2(Configuration config) {
+	public RecordAPITestBase(Configuration config) {
 		super(config);
 	}
 	

@@ -18,10 +18,10 @@ import java.io.BufferedReader;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.test.testPrograms.WorksetConnectedComponents;
 import eu.stratosphere.test.testdata.ConnectedComponentsData;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 
 
-public class ConnectedComponentsITCase extends TestBase2 {
+public class ConnectedComponentsITCase extends RecordAPITestBase {
 	
 	private static final long SEED = 0xBADC0FFEEBEEFL;
 	

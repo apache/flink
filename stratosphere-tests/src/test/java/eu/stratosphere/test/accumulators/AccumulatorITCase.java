@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.Assert;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -51,7 +52,6 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.util.SerializableHashSet;
-import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
@@ -66,7 +66,7 @@ import eu.stratosphere.util.Collector;
  * but with different type. The conflict will occur in JobManager while merging.
  */
 @RunWith(Parameterized.class)
-public class AccumulatorITCase extends TestBase2 {
+public class AccumulatorITCase extends RecordAPITestBase {
 
 	private static final String INPUT = "one\n" + "two two\n" + "three three three\n";
 	private static final String EXPECTED = "one 1\ntwo 2\nthree 3\n";

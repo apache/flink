@@ -15,9 +15,9 @@ package eu.stratosphere.test.iterative.nephele;
 
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.CustomCompensatableDanglingPageRank;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 
-public class DanglingPageRankNepheleITCase extends TestBase2 {
+public class DanglingPageRankNepheleITCase extends RecordAPITestBase {
 	
 	public static final String TEST_VERTICES = "1\n" +
 	                                           "2\n" +

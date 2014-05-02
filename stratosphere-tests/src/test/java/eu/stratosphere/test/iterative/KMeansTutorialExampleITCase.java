@@ -19,10 +19,10 @@ import java.util.List;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.example.java.record.kmeans.KMeansTutorialExample;
 import eu.stratosphere.test.testdata.KMeansData;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 
 
-public class KMeansTutorialExampleITCase extends TestBase2 {
+public class KMeansTutorialExampleITCase extends RecordAPITestBase {
 
 	protected String dataPath;
 	protected String clusterPath;

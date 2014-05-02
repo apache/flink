@@ -15,6 +15,7 @@ package eu.stratosphere.test.iterative;
 
 import java.util.Collection;
 
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -22,10 +23,9 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.examples.scala.graph.LineRank;
-import eu.stratosphere.test.util.TestBase2;
 
 @RunWith(Parameterized.class)
-public class LineRankITCase extends TestBase2 {
+public class LineRankITCase extends RecordAPITestBase {
 	
 	private static final String SOURCE_INCIDENCE = "1,1,1\n" +
 	                                               "2,1,1\n" +

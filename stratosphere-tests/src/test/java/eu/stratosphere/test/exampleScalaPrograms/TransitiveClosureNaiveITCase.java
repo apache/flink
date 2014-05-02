@@ -14,11 +14,11 @@
 package eu.stratosphere.test.exampleScalaPrograms;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.test.util.RecordAPITestBase;
 
 import eu.stratosphere.examples.scala.graph.TransitiveClosureNaive;
 
-public class TransitiveClosureNaiveITCase extends TestBase2 {
+public class TransitiveClosureNaiveITCase extends RecordAPITestBase {
 
 	protected String verticesPath = null;
 	protected String edgesPath = null;

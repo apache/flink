@@ -15,6 +15,7 @@ package eu.stratosphere.test.exampleRecordPrograms;
 
 import java.util.Collection;
 
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -22,10 +23,9 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.java.record.triangles.ComputeEdgeDegrees;
-import eu.stratosphere.test.util.TestBase2;
 
 @RunWith(Parameterized.class)
-public class ComputeEdgeDegreesITCase extends TestBase2 {
+public class ComputeEdgeDegreesITCase extends RecordAPITestBase {
 	
 	protected String edgesPath = null;
 	protected String resultPath = null; 

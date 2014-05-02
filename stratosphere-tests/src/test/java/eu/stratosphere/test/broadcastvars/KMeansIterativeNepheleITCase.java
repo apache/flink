@@ -14,6 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.broadcastvars;
 
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.apache.log4j.Level;
 
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
@@ -48,13 +49,12 @@ import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.test.iterative.nephele.JobGraphUtils;
 import eu.stratosphere.test.testdata.KMeansData;
-import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.util.LogUtils;
 
 
-public class KMeansIterativeNepheleITCase extends TestBase2 {
+public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 
 	private static final int ITERATION_ID = 42;
 	

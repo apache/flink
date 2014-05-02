@@ -17,6 +17,7 @@ import java.io.BufferedReader;
 import java.io.Serializable;
 import java.util.Collection;
 
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -37,13 +38,12 @@ import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.DuplicateLon
 import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.MinimumComponentIDReduce;
 import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.test.testdata.ConnectedComponentsData;
-import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 @RunWith(Parameterized.class)
-public class ConnectedComponentsWithDeferredUpdateITCase extends TestBase2 {
+public class ConnectedComponentsWithDeferredUpdateITCase extends RecordAPITestBase {
 	
 	private static final long SEED = 0xBADC0FFEEBEEFL;
 	

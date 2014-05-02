@@ -13,30 +13,20 @@
 
 package eu.stratosphere.test.exampleRecordPrograms;
 
-import java.util.ArrayList;
-import java.util.Collection;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.test.testPrograms.mergeOnlyJoin.MergeOnlyJoin;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.test.testPrograms.mergeOnlyJoin.MergeOnlyJoin;
-import eu.stratosphere.test.util.TestBase;
+import java.util.ArrayList;
+import java.util.Collection;
 
 @RunWith(Parameterized.class)
-public class MergeOnlyJoinITCase extends TestBase {
+public class MergeOnlyJoinITCase extends RecordAPITestBase {
 
-	private static final Log LOG = LogFactory.getLog(MergeOnlyJoinITCase.class);
-	
 	private String input1Path = null;
 	private String input2Path = null;
 	private String resultPath = null;
@@ -76,58 +66,26 @@ public class MergeOnlyJoinITCase extends TestBase {
 
 	@Override
 	protected void preSubmit() throws Exception {
-		
-		input1Path = getFilesystemProvider().getTempDirPath() + "/input1";
-		input2Path = getFilesystemProvider().getTempDirPath() + "/input2";
-		resultPath = getFilesystemProvider().getTempDirPath() + "/result";
-
-		String[] splits = splitInputString(INPUT1, '\n', 4);
-		getFilesystemProvider().createDir(input1Path);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(input1Path + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Input 1 Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
-		
-		splits = splitInputString(INPUT2, '\n', 4);
-		getFilesystemProvider().createDir(input2Path);
-		for (int i = 0; i < splits.length; i++) {
-			getFilesystemProvider().createFile(input2Path + "/part_" + i + ".txt", splits[i]);
-			LOG.debug("Input 2 Part " + (i + 1) + ":\n>" + splits[i] + "<");
-		}
+		input1Path = createTempFile("input1.txt", INPUT1);
+		input2Path = createTempFile("input2.txt", INPUT2);
+		resultPath = getTempDirPath("result");
 	}
 
 	@Override
-	protected JobGraph getJobGraph() throws Exception {
-
+	protected Plan getTestJob() {
 		MergeOnlyJoin mergeOnlyJoin = new MergeOnlyJoin();
-		Plan plan = mergeOnlyJoin.getPlan(
+		return mergeOnlyJoin.getPlan(
 				config.getString("MergeOnlyJoinTest#NoSubtasks", "1"), 
-				getFilesystemProvider().getURIPrefix()+input1Path,
-				getFilesystemProvider().getURIPrefix()+input2Path,
-				getFilesystemProvider().getURIPrefix()+resultPath,
+				input1Path,
+				input2Path,
+				resultPath,
 				config.getString("MergeOnlyJoinTest#NoSubtasksInput2", "1"));
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		// Test results
 		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
 	}
-	
-	@Override
-	public void stopCluster() throws Exception {
-		getFilesystemProvider().delete(input1Path, true);
-		getFilesystemProvider().delete(input2Path, true);
-		getFilesystemProvider().delete(resultPath, true);
-		super.stopCluster();
-	}
-	
 
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
@@ -149,26 +107,5 @@ public class MergeOnlyJoinITCase extends TestBase {
 		tConfigs.add(config);
 		
 		return toParameterList(tConfigs);
-	}
-
-	private String[] splitInputString(String inputString, char splitChar, int noSplits) {
-		String splitString = inputString.toString();
-		String[] splits = new String[noSplits];
-		int partitionSize = (splitString.length() / noSplits) - 2;
-
-		// split data file and copy parts
-		for (int i = 0; i < noSplits - 1; i++) {
-			int cutPos = splitString.indexOf(splitChar, (partitionSize < splitString.length() ? partitionSize
-				: (splitString.length() - 1)));
-			if (cutPos != -1) {
-				splits[i] = splitString.substring(0, cutPos) + "\n";
-				splitString = splitString.substring(cutPos + 1);	
-			}
-			else {
-				splits[i] = "";
-			}
-		}
-		splits[noSplits - 1] = splitString;
-		return splits;
 	}
 }
