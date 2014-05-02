@@ -33,8 +33,8 @@ abstract class UDT[T] extends Serializable {
     selection map { udtIdMap.getOrElse(_, -1) }
   }
 
-  def getKeySet(fields: Seq[Int]): Array[Class[_ <: PactKey]] = {
-    fields map { fieldNum => fieldTypes(fieldNum).asInstanceOf[Class[_ <: PactKey]] } toArray
+  def getKeySet(fields: Seq[Int]): Array[Class[_ <: PactKey[_]]] = {
+    fields map { fieldNum => fieldTypes(fieldNum).asInstanceOf[Class[_ <: PactKey[_]]] } toArray
   }
 
   def getSerializer(indexMap: Array[Int]): UDTSerializer[T] = {

@@ -24,7 +24,7 @@ import eu.stratosphere.types.Key;
 /**
  * Simple wrapper to encapsulate an HBase h{@link ImmutableBytesWritable} as a Key
  */
-public class HBaseKey implements Key {
+public class HBaseKey implements Key<HBaseKey> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -76,12 +76,7 @@ public class HBaseKey implements Key {
 	}
 	
 	@Override
-	public int compareTo(Key other) {
-		if (other.getClass() == HBaseKey.class) {
-			return this.writable.compareTo(((HBaseKey) other).writable);
-		} else {
-			throw new IllegalArgumentException("Compare between HBase key and " + 
-					other.getClass().getName() + " is not defined.");
-		}
+	public int compareTo(HBaseKey other) {
+		return this.writable.compareTo(other.writable);
 	}
 }

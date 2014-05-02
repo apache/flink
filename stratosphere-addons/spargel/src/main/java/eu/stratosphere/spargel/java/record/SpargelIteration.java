@@ -34,7 +34,7 @@ public class SpargelIteration {
 	
 	private final DeltaIteration iteration;
 	
-	private final Class<? extends Key> vertexKey;
+	private final Class<? extends Key<?>> vertexKey;
 	private final Class<? extends Value> vertexValue;
 	private final Class<? extends Value> messageType;
 	private final Class<? extends Value> edgeValue;
@@ -45,17 +45,17 @@ public class SpargelIteration {
 	
 	// ----------------------------------------------------------------------------------
 	
-	public <VertexKey extends Key, VertexValue extends Value, Message extends Value, EdgeValue extends Value>
-	SpargelIteration(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
-					VertexUpdateFunction<VertexKey, VertexValue, Message> uf)
+	public <VertexKey extends Key<VertexKey>, VertexValue extends Value, Message extends Value, EdgeValue extends Value>
+    SpargelIteration(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
+                     VertexUpdateFunction<VertexKey, VertexValue, Message> uf)
 	{
 		this(mf, uf, DEFAULT_NAME);
 	}
 	
-	public <VertexKey extends Key, VertexValue extends Value, Message extends Value, EdgeValue extends Value>
-	SpargelIteration(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
-					VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
-					String name)
+	public <VertexKey extends Key<VertexKey>, VertexValue extends Value, Message extends Value, EdgeValue extends Value>
+    SpargelIteration(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
+                     VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
+                     String name)
 	{
 		// get the types
 		this.vertexKey = ReflectionUtil.getTemplateType1(mf.getClass());
@@ -134,7 +134,7 @@ public class SpargelIteration {
 	// --------------------------------------------------------------------------------------------
 	
 	@ConstantFieldsFirst(0)
-	public static final class VertexUpdateDriver<K extends Key, V extends Value, M extends Value> extends CoGroupFunction {
+	public static final class VertexUpdateDriver<K extends Key<K>, V extends Value, M extends Value> extends CoGroupFunction {
 		
 		private static final long serialVersionUID = 1L;
 		
@@ -205,7 +205,7 @@ public class SpargelIteration {
 		}
 	}
 	
-	public static final class MessagingDriver<K extends Key, V extends Value, M extends Value, E extends Value> extends CoGroupFunction {
+	public static final class MessagingDriver<K extends Key<K>, V extends Value, M extends Value, E extends Value> extends CoGroupFunction {
 
 		private static final long serialVersionUID = 1L;
 		
