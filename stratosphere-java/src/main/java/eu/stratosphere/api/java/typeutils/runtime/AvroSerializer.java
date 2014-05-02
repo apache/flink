@@ -20,6 +20,7 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.serializers.FieldSerializer;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
@@ -42,7 +43,10 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	
 	private transient DataOutputEncoder encoder = new DataOutputEncoder();
 	private transient DataInputDecoder decoder = new DataInputDecoder();
-	private transient Kryo kryo = new Kryo();
+	
+	private transient Kryo kryo;
+	
+	private transient FieldSerializer<T> serializer;
 
 	private final Class<T> type;
 	
@@ -50,10 +54,6 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	
 	public AvroSerializer(Class<T> type) {
 		this.type = type;
-		
-		this.writer = new ReflectDatumWriter<T>(type);
-		this.reader = new ReflectDatumReader<T>(type);
-		kryo.register(type);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -86,12 +86,14 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public void serialize(T value, DataOutputView target) throws IOException {
+		checkAvroInitialized();
 		this.encoder.setOut(target);
 		this.writer.write(value, this.encoder);
 	}
 
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
+		checkAvroInitialized();
 		this.decoder.setIn(source);
 		return this.reader.read(reuse, this.decoder);
 	}
@@ -101,16 +103,23 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		throw new UnsupportedOperationException();
 	}
 	
-	// --------------------------------------------------------------------------------------------
 	
-	@Override
-	public int hashCode() {
-		return type.hashCode();
+	private final void checkAvroInitialized() {
+		if (this.reader == null) {
+			this.reader = new ReflectDatumReader<T>(type);
+			this.writer = new ReflectDatumWriter<T>(type);
+			this.encoder = new DataOutputEncoder();
+			this.decoder = new DataInputDecoder();
+		}
 	}
 	
-	@Override
-	public boolean equals(Object obj) {
-		return obj != null && (obj instanceof AvroSerializer) && ((AvroSerializer<?>) obj).type == this.type;
+	private final void checkKryoInitialized() {
+		if (this.kryo == null) {
+			this.kryo = new Kryo();
+			this.kryo.setAsmEnabled(true);
+			this.kryo.register(type);
+			this.serializer = new FieldSerializer<T>(kryo, type);
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -121,11 +130,10 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		// read basic object and the type
 		s.defaultReadObject();
 		
-		this.reader = new ReflectDatumReader<T>(type);
-		this.writer = new ReflectDatumWriter<T>(type);
-		this.encoder = new DataOutputEncoder();
-		this.decoder = new DataInputDecoder();
-		this.kryo = new Kryo();
-		kryo.register(type);
+		this.reader = null;
+		this.writer = null;
+		this.encoder = null;
+		this.decoder = null;
+		this.kryo = null;
 	}
 }
