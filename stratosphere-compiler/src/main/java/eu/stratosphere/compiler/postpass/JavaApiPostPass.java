@@ -35,7 +35,8 @@ import eu.stratosphere.api.java.typeutils.CompositeType;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.api.java.typeutils.runtime.RuntimeComparatorFactory;
 import eu.stratosphere.api.java.typeutils.runtime.RuntimePairComparatorFactory;
-import eu.stratosphere.api.java.typeutils.runtime.RuntimeSerializerFactory;
+import eu.stratosphere.api.java.typeutils.runtime.RuntimeStatelessSerializerFactory;
+import eu.stratosphere.api.java.typeutils.runtime.RuntimeStatefulSerializerFactory;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.CompilerPostPassException;
 import eu.stratosphere.compiler.plan.*;
@@ -279,7 +280,11 @@ public class JavaApiPostPass implements OptimizerPostPass {
 	private static <T> TypeSerializerFactory<?> createSerializer(TypeInformation<T> typeInfo) {
 		TypeSerializer<T> serializer = typeInfo.createSerializer();
 		
-		return new RuntimeSerializerFactory<T>(serializer, typeInfo.getTypeClass());
+		if (serializer.isStateful()) {
+			return new RuntimeStatefulSerializerFactory<T>(serializer, typeInfo.getTypeClass());
+		} else {
+			return new RuntimeStatelessSerializerFactory<T>(serializer, typeInfo.getTypeClass());
+		}
 	}
 	
 	

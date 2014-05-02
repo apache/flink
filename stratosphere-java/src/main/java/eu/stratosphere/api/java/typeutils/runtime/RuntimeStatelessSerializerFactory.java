@@ -13,39 +13,36 @@
 
 package eu.stratosphere.api.java.typeutils.runtime;
 
-import java.io.IOException;
-
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.InstantiationUtil;
 
-public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<T> {
+public final class RuntimeStatelessSerializerFactory<T> implements TypeSerializerFactory<T> {
 
 	private static final String CONFIG_KEY_SER = "SER_DATA";
 
 	private static final String CONFIG_KEY_CLASS = "CLASS_DATA";
 
-	private byte[] serializerData;
-	
-	private ClassLoader loader;
 	
 	private TypeSerializer<T> serializer;
 
 	private Class<T> clazz;
 
 
-	public RuntimeSerializerFactory() {}
+	public RuntimeStatelessSerializerFactory() {}
 
-	public RuntimeSerializerFactory(TypeSerializer<T> serializer, Class<T> clazz) {
+	public RuntimeStatelessSerializerFactory(TypeSerializer<T> serializer, Class<T> clazz) {
+		if (serializer == null || clazz == null) {
+			throw new NullPointerException();
+		}
+		
+		if (serializer.isStateful()) {
+			throw new IllegalArgumentException("Cannot use the stateless serializer factory with a stateful serializer.");
+		}
+		
 		this.clazz = clazz;
 		this.serializer = serializer;
-		
-		try {
-			this.serializerData = InstantiationUtil.serializeObject(serializer);
-		} catch (IOException e) {
-			throw new RuntimeException("Cannt serialize the Serializer.", e);
-		}
 	}
 
 
@@ -53,7 +50,7 @@ public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<
 	public void writeParametersToConfig(Configuration config) {
 		try {
 			InstantiationUtil.writeObjectToConfig(clazz, config, CONFIG_KEY_CLASS);
-			config.setBytes(CONFIG_KEY_SER, this.serializerData);
+			InstantiationUtil.writeObjectToConfig(serializer, config, CONFIG_KEY_SER);
 		}
 		catch (Exception e) {
 			throw new RuntimeException("Could not serialize serializer into the configuration.", e);
@@ -67,16 +64,9 @@ public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<
 			throw new NullPointerException();
 		}
 		
-		this.serializerData = config.getBytes(CONFIG_KEY_SER, null);
-		if (this.serializerData == null) {
-			throw new RuntimeException("Could not find deserializer in the configuration."); 
-		}
-		
-		this.loader = cl;
-		
 		try {
 			this.clazz = (Class<T>) InstantiationUtil.readObjectFromConfig(config, CONFIG_KEY_CLASS, cl);
-			this.serializer = (TypeSerializer<T>) InstantiationUtil.deserializeObject(this.serializerData, cl);
+			this.serializer = (TypeSerializer<T>)  InstantiationUtil.readObjectFromConfig(config, CONFIG_KEY_SER, cl);
 		}
 		catch (ClassNotFoundException e) {
 			throw e;
@@ -84,19 +74,12 @@ public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<
 		catch (Exception e) {
 			throw new RuntimeException("Could not load deserializer from the configuration.", e);
 		}
-		
-
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public TypeSerializer<T> getSerializer() {
-		if (serializerData != null) {
-			try {
-				return (TypeSerializer<T>) InstantiationUtil.deserializeObject(this.serializerData, loader);
-			} catch (Exception e) {
-				throw new RuntimeException("Repeated instantiation of serializer failed.", e);
-			}
+		if (this.serializer != null) {
+			return this.serializer;
 		} else {
 			throw new RuntimeException("SerializerFactory has not been initialized from configuration.");
 		}
@@ -105,20 +88,5 @@ public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<
 	@Override
 	public Class<T> getDataType() {
 		return clazz;
-	}
-	
-	@SuppressWarnings("unchecked")
-	@Override
-	public boolean equals(Object obj) {
-		if(obj == null){
-			return false;
-		}
-		
-		if(!(obj instanceof RuntimeSerializerFactory)){
-			return false;
-		}
-		
-		RuntimeSerializerFactory<T> otherRSF = (RuntimeSerializerFactory<T>) obj;
-		return otherRSF.clazz == this.clazz && otherRSF.serializer.equals(serializer);
 	}
 }
