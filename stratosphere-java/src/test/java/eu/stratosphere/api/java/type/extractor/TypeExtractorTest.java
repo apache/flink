@@ -48,6 +48,8 @@ import eu.stratosphere.util.Collector;
 
 public class TypeExtractorTest {
 
+	
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testBasicType() {
 		// use getGroupReduceReturnTypes()
@@ -60,7 +62,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getGroupReduceReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getGroupReduceReturnTypes(function, (TypeInformation) TypeInformation.parse("Boolean"));
 
 		Assert.assertTrue(ti.isBasicType());
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
@@ -74,6 +76,7 @@ public class TypeExtractorTest {
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, TypeExtractor.getForObject(Boolean.valueOf(true)));
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testTupleWithBasicTypes() throws Exception {
 		// use getMapReturnTypes()
@@ -88,7 +91,7 @@ public class TypeExtractorTest {
 
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple9<Integer, Long, Double, Float, Boolean, String, Character, Short, Byte>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(9, ti.getArity());
@@ -138,6 +141,7 @@ public class TypeExtractorTest {
 		}
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testTupleWithTuples() {
 		// use getFlatMapReturnTypes()
@@ -151,7 +155,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple3<Tuple1<String>, Tuple1<Integer>, Tuple2<Long, Long>>"));
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
 		Assert.assertTrue(ti instanceof TupleTypeInfo);
@@ -192,19 +196,20 @@ public class TypeExtractorTest {
 		Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, ((TupleTypeInfo<?>) tti2.getTypeAt(2)).getTypeAt(1));
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testSubclassOfTuple() {
 		// use getJoinReturnTypes()
-		JoinFunction<?, ?, ?> function = new JoinFunction<String, String, CustomTuple>() {
+		JoinFunction<?, ?, ?> function = new JoinFunction<CustomTuple, String, CustomTuple>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public CustomTuple join(String first, String second) throws Exception {
+			public CustomTuple join(CustomTuple first, String second) throws Exception {
 				return null;
-			}
+			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getJoinReturnTypes(function, null, null);
+		TypeInformation<?> ti = TypeExtractor.getJoinReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<String, Integer>"), (TypeInformation) TypeInformation.parse("String"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -239,19 +244,20 @@ public class TypeExtractorTest {
 		}
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testCustomType() {
 		// use getCrossReturnTypes()
-		CrossFunction<?, ?, ?> function = new CrossFunction<Integer, Integer, CustomType>() {
+		CrossFunction<?, ?, ?> function = new CrossFunction<CustomType, Integer, CustomType>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public CustomType cross(Integer first, Integer second) throws Exception {
+			public CustomType cross(CustomType first, Integer second) throws Exception {
 				return null;
-			}
+			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getCrossReturnTypes(function, null, null);
+		TypeInformation<?> ti = TypeExtractor.getCrossReturnTypes(function, (TypeInformation) TypeInformation.parse("eu.stratosphere.api.java.type.extractor.TypeExtractorTest$CustomType"), (TypeInformation) TypeInformation.parse("Integer"));
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertFalse(ti.isTupleType());
@@ -285,19 +291,21 @@ public class TypeExtractorTest {
 		}
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testTupleWithCustomType() {
 		// use getMapReturnTypes()
-		MapFunction<?, ?> function = new MapFunction<String, Tuple2<Long, CustomType>>() {
+		MapFunction<?, ?> function = new MapFunction<Tuple2<Long, CustomType>, Tuple2<Long, CustomType>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public Tuple2<Long, CustomType> map(String value) throws Exception {
+			public Tuple2<Long, CustomType> map(Tuple2<Long, CustomType> value) throws Exception {
 				return null;
 			}
+
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<Long,eu.stratosphere.api.java.type.extractor.TypeExtractorTest$CustomType>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -323,19 +331,20 @@ public class TypeExtractorTest {
 		Assert.assertEquals(CustomType.class, tti2.getTypeAt(1).getTypeClass());
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testValue() {
 		// use getKeyExtractorType()
-		KeySelector<?, ?> function = new KeySelector<String, StringValue>() {
+		KeySelector<?, ?> function = new KeySelector<StringValue, StringValue>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public StringValue getKey(String value) {
+			public StringValue getKey(StringValue value) {
 				return null;
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getKeyExtractorType(function, null);
+		TypeInformation<?> ti = TypeExtractor.getKeyExtractorType(function, (TypeInformation) TypeInformation.parse("StringValue"));
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertFalse(ti.isTupleType());
@@ -352,19 +361,20 @@ public class TypeExtractorTest {
 		Assert.assertEquals(TypeExtractor.getForObject(v).getTypeClass(), ti.getTypeClass());
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testTupleOfValues() {
 		// use getMapReturnTypes()
-		MapFunction<?, ?> function = new MapFunction<String, Tuple2<StringValue, IntValue>>() {
+		MapFunction<?, ?> function = new MapFunction<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public Tuple2<StringValue, IntValue> map(String value) throws Exception {
+			public Tuple2<StringValue, IntValue> map(Tuple2<StringValue, IntValue> value) throws Exception {
 				return null;
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<StringValue, IntValue>"));
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertTrue(ti.isTupleType());
@@ -390,19 +400,20 @@ public class TypeExtractorTest {
 		}
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testGenericsNotInSuperclass() {
 		// use getMapReturnTypes()
-		MapFunction<?, ?> function = new MapFunction<String, LongKeyValue<String>>() {
+		MapFunction<?, ?> function = new MapFunction<LongKeyValue<String>, LongKeyValue<String>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public LongKeyValue<String> map(String value) throws Exception {
+			public LongKeyValue<String> map(LongKeyValue<String> value) throws Exception {
 				return null;
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<Long, String>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -432,19 +443,20 @@ public class TypeExtractorTest {
 		}
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testChainedGenericsNotInSuperclass() {
 		// use TypeExtractor
-		MapFunction<?, ?> function = new MapFunction<String, ChainedTwo<Integer>>() {
+		MapFunction<?, ?> function = new MapFunction<ChainedTwo<Integer>, ChainedTwo<Integer>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public ChainedTwo<Integer> map(String value) throws Exception {
+			public ChainedTwo<Integer> map(ChainedTwo<Integer> value) throws Exception {
 				return null;
-			}
+			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple3<String, Long, Integer>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
@@ -473,19 +485,20 @@ public class TypeExtractorTest {
 		}
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testGenericsInDirectSuperclass() {
 		// use TypeExtractor
-		MapFunction<?, ?> function = new MapFunction<String, ChainedThree>() {
+		MapFunction<?, ?> function = new MapFunction<ChainedThree, ChainedThree>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public ChainedFour map(String value) throws Exception {
+			public ChainedThree map(ChainedThree value) throws Exception {
 				return null;
-			}
+			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple3<String, Long, String>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
@@ -498,19 +511,20 @@ public class TypeExtractorTest {
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(2));
 	}
 	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testGenericsNotInSuperclassWithNonGenericClassAtEnd() {
 		// use TypeExtractor
-		MapFunction<?, ?> function = new MapFunction<String, ChainedFour>() {
+		MapFunction<?, ?> function = new MapFunction<ChainedFour, ChainedFour>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public ChainedFour map(String value) throws Exception {
+			public ChainedFour map(ChainedFour value) throws Exception {
 				return null;
-			}
+			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple3<String, Long, String>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
@@ -523,8 +537,8 @@ public class TypeExtractorTest {
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(2));
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
-	@SuppressWarnings("rawtypes")
 	public void testMissingTupleGenericsException() {
 		MapFunction<?, ?> function = new MapFunction<String, Tuple2>() {
 			private static final long serialVersionUID = 1L;
@@ -536,13 +550,14 @@ public class TypeExtractorTest {
 		};
 
 		try {
-			TypeExtractor.getMapReturnTypes(function, null);
+			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("String"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
 		}
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testTupleSupertype() {
 		MapFunction<?, ?> function = new MapFunction<String, Tuple>() {
@@ -555,7 +570,7 @@ public class TypeExtractorTest {
 		};
 
 		try {
-			TypeExtractor.getMapReturnTypes(function, null);
+			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("String"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
@@ -570,18 +585,19 @@ public class TypeExtractorTest {
 		}
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testSameGenericVariable() {
-		MapFunction<?, ?> function = new MapFunction<String, SameTypeVariable<String>>() {
+		MapFunction<?, ?> function = new MapFunction<SameTypeVariable<String>, SameTypeVariable<String>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public SameTypeVariable<String> map(String value) throws Exception {
+			public SameTypeVariable<String> map(SameTypeVariable<String> value) throws Exception {
 				return null;
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<String, String>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -601,18 +617,19 @@ public class TypeExtractorTest {
 		}
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testNestedTupleGenerics() {
-		MapFunction<?, ?> function = new MapFunction<String, Nested<String, Integer>>() {
+		MapFunction<?, ?> function = new MapFunction<Nested<String, Integer>, Nested<String, Integer>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public Nested<String, Integer> map(String value) throws Exception {
+			public Nested<String, Integer> map(Nested<String, Integer> value) throws Exception {
 				return null;
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<String, Tuple2<Integer, Integer>>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -639,18 +656,19 @@ public class TypeExtractorTest {
 		}
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testNestedTupleGenerics2() {
-		MapFunction<?, ?> function = new MapFunction<String, Nested2<Boolean>>() {
+		MapFunction<?, ?> function = new MapFunction<Nested2<Boolean>, Nested2<Boolean>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public Nested2<Boolean> map(String value) throws Exception {
+			public Nested2<Boolean> map(Nested2<Boolean> value) throws Exception {
 				return null;
 			}
 		};
-
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<Boolean, Tuple2<Tuple2<Integer, Tuple2<Boolean, Boolean>>, Tuple2<Integer, Tuple2<Boolean, Boolean>>>>"));
 
 		// Should be 
 		// Tuple2<Boolean, Tuple2<Tuple2<Integer, Tuple2<Boolean, Boolean>>, Tuple2<Integer, Tuple2<Boolean, Boolean>>>>
@@ -691,20 +709,21 @@ public class TypeExtractorTest {
 		};
 
 		try {
-			TypeExtractor.getMapReturnTypes(function, null);
+			TypeExtractor.getMapReturnTypes(function, TypeInformation.parse("String"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
 		}
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testFunctionDependingOnInputAsSuperclass() {
 		IdentityMapper<Boolean> function = new IdentityMapper<Boolean>() {
 			private static final long serialVersionUID = 1L;
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Boolean"));
 
 		Assert.assertTrue(ti.isBasicType());
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
@@ -763,16 +782,12 @@ public class TypeExtractorTest {
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testFunctionDependingOnInputWithCustomTupleInput() {
 		IdentityMapper<SameTypeVariable<String>> function = new IdentityMapper<SameTypeVariable<String>>();
 
-		// input (without type erasure)
-		IdentityMapper<SameTypeVariable<String>> input = new IdentityMapper<SameTypeVariable<String>>() {
-			private static final long serialVersionUID = 1L;
-		};
-
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, TypeExtractor.getMapReturnTypes(input, null));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<String, String>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -851,11 +866,12 @@ public class TypeExtractorTest {
 		}
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testFunctionWithNoGenericSuperclass() {
 		MapFunction<?, ?> function = new Mapper2();
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("String"));
 
 		Assert.assertTrue(ti.isBasicType());
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, ti);
@@ -869,13 +885,14 @@ public class TypeExtractorTest {
 		}
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testFunctionDependingPartialOnInput() {
 		MapFunction<?, ?> function = new OneAppender<DoubleValue>() {
 			private static final long serialVersionUID = 1L;
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("DoubleValue"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -959,7 +976,7 @@ public class TypeExtractorTest {
 
 	@Test
 	public void testAbstractAndInterfaceTypesException() {
-		MapFunction<?, ?> function = new MapFunction<String, Testable>() {
+		MapFunction<String, ?> function = new MapFunction<String, Testable>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -969,13 +986,13 @@ public class TypeExtractorTest {
 		};
 		
 		try {
-			TypeExtractor.getMapReturnTypes(function, null);
+			TypeExtractor.getMapReturnTypes(function, BasicTypeInfo.STRING_TYPE_INFO);
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// good
 		}
 
-		MapFunction<?, ?> function2 = new MapFunction<String, AbstractClass>() {
+		MapFunction<String, ?> function2 = new MapFunction<String, AbstractClass>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -985,45 +1002,47 @@ public class TypeExtractorTest {
 		};
 
 		try {
-			TypeExtractor.getMapReturnTypes(function2, null);
+			TypeExtractor.getMapReturnTypes(function2, BasicTypeInfo.STRING_TYPE_INFO);
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// slick!
 		}
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testValueSupertypeException() {
-		MapFunction<?, ?> function = new MapFunction<Value, Value>() {
+		MapFunction<?, ?> function = new MapFunction<StringValue, Value>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public Value map(Value value) throws Exception {
+			public Value map(StringValue value) throws Exception {
 				return null;
 			}
 		};
 
 		try {
-			TypeExtractor.getMapReturnTypes(function, null);
+			TypeExtractor.getMapReturnTypes(function, (TypeInformation)TypeInformation.parse("StringValue"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// bam! go type extractor!
 		}
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testBasicArray() {
 		// use getCoGroupReturnTypes()
-		CoGroupFunction<?, ?, ?> function = new CoGroupFunction<String, String, String[]>() {
+		CoGroupFunction<?, ?, ?> function = new CoGroupFunction<String[], String[], String[]>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public void coGroup(Iterator<String> first, Iterator<String> second, Collector<String[]> out) throws Exception {
+			public void coGroup(Iterator<String[]> first, Iterator<String[]> second, Collector<String[]> out) throws Exception {
 				// nothing to do
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getCoGroupReturnTypes(function, null, null);
+		TypeInformation<?> ti = TypeExtractor.getCoGroupReturnTypes(function, (TypeInformation) TypeInformation.parse("String[]"), (TypeInformation) TypeInformation.parse("String[]"));
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertFalse(ti.isTupleType());
@@ -1051,37 +1070,39 @@ public class TypeExtractorTest {
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, bati.getComponentInfo());
 	}
 
-	public class CustomArrayObject {}
+	public static class CustomArrayObject {}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testCustomArray() {
-		MapFunction<?, ?> function = new MapFunction<String, CustomArrayObject[]>() {
+		MapFunction<?, ?> function = new MapFunction<CustomArrayObject[], CustomArrayObject[]>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public CustomArrayObject[] map(String value) throws Exception {
+			public CustomArrayObject[] map(CustomArrayObject[] value) throws Exception {
 				return null;
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("eu.stratosphere.api.java.type.extractor.TypeExtractorTest$CustomArrayObject[]"));
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
 		Assert.assertEquals(CustomArrayObject.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentType());
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testTupleArray() {
-		MapFunction<?, ?> function = new MapFunction<String, Tuple2<String, String>[]>() {
+		MapFunction<?, ?> function = new MapFunction<Tuple2<String, String>[], Tuple2<String, String>[]>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public Tuple2<String, String>[] map(String value) throws Exception {
+			public Tuple2<String, String>[] map(Tuple2<String, String>[] value) throws Exception {
 				return null;
 			}
 		};
-
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<String, String>[]"));
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
 		ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
@@ -1096,16 +1117,12 @@ public class TypeExtractorTest {
 
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testCustomArrayWithTypeVariable() {
 		MapFunction<CustomArrayObject2<Boolean>[], ?> function = new IdentityMapper<CustomArrayObject2<Boolean>[]>();
 
-		// input (without type erasure)
-		IdentityMapper<CustomArrayObject2<Boolean>[]> input = new IdentityMapper<CustomArrayObject2<Boolean>[]>() {
-			private static final long serialVersionUID = 1L;
-		};
-
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, TypeExtractor.getMapReturnTypes(input, null));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple1<Boolean>[]"));
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
 		ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
@@ -1114,44 +1131,123 @@ public class TypeExtractorTest {
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, tti.getTypeAt(0));
 	}
 	
-	public class GenericArrayClass<T> extends MapFunction<String, T[]> {
+	public class GenericArrayClass<T> extends MapFunction<T[], T[]> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public T[] map(String value) throws Exception {
+		public T[] map(T[] value) throws Exception {
 			return null;
 		}		
 	}
 	
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testParameterizedArrays() {
 		GenericArrayClass<Boolean> function = new GenericArrayClass<Boolean>(){
 			private static final long serialVersionUID = 1L;			
 		};
 		
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Boolean[]"));
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?,?>);
 		ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, oati.getComponentInfo());
 	}
 	
-	public class MyObject<T> {
+	public static class MyObject<T> {
 		public T myField;
 	}
 	
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testParamertizedCustomObject() {
-		MapFunction<?, ?> function = new MapFunction<Boolean, MyObject<String>>() {
+		MapFunction<?, ?> function = new MapFunction<MyObject<String>, MyObject<String>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public MyObject<String> map(Boolean value) throws Exception {
+			public MyObject<String> map(MyObject<String> value) throws Exception {
 				return null;
 			}
 		};
 		
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, null);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("eu.stratosphere.api.java.type.extractor.TypeExtractorTest$MyObject"));
 		Assert.assertTrue(ti instanceof GenericTypeInfo<?>);
 	}
+	
+	@Test
+	public void testFunctionDependingOnInputWithTupleInputWithTypeMismatch() {
+	    IdentityMapper2<Boolean> function = new IdentityMapper2<Boolean>();
 
+	    TypeInformation<Tuple2<Boolean, String>> inputType = new TupleTypeInfo<Tuple2<Boolean, String>>(BasicTypeInfo.BOOLEAN_TYPE_INFO,
+	            BasicTypeInfo.INT_TYPE_INFO);
+	    
+	    // input is: Tuple2<Boolean, Integer>
+	    // allowed: Tuple2<?, String>
+
+	    try {
+	    	TypeExtractor.getMapReturnTypes(function, inputType);
+			Assert.fail("exception expected");
+		} catch (InvalidTypesException e) {
+			// right
+		}
+	}
+	
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Test
+	public void testInputMismatchExceptions() {
+		
+		MapFunction<?, ?> function = new MapFunction<Tuple2<String, String>, String>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public String map(Tuple2<String, String> value) throws Exception {
+				return null;
+			}
+		};
+		
+		try {
+	    	TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<Integer, String>"));
+			Assert.fail("exception expected");
+		} catch (InvalidTypesException e) {
+			// right
+		}
+		
+		try {
+	    	TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple3<String, String, String>"));
+			Assert.fail("exception expected");
+		} catch (InvalidTypesException e) {
+			// right
+		}
+		
+		MapFunction<?, ?> function2 = new MapFunction<StringValue, String>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public String map(StringValue value) throws Exception {
+				return null;
+			}
+		};
+		
+		try {
+	    	TypeExtractor.getMapReturnTypes(function2, (TypeInformation) TypeInformation.parse("IntValue"));
+			Assert.fail("exception expected");
+		} catch (InvalidTypesException e) {
+			// right
+		}
+		
+		MapFunction<?, ?> function3 = new MapFunction<Tuple1<Integer>[], String>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public String map(Tuple1<Integer>[] value) throws Exception {
+				return null;
+			}
+		};
+		
+		try {
+	    	TypeExtractor.getMapReturnTypes(function3, (TypeInformation) TypeInformation.parse("Integer[]"));
+			Assert.fail("exception expected");
+		} catch (InvalidTypesException e) {
+			// right
+		}
+	}
 }
