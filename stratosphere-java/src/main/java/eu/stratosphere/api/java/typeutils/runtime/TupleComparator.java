@@ -17,6 +17,7 @@ package eu.stratosphere.api.java.typeutils.runtime;
 import java.io.IOException;
 
 import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
@@ -34,6 +35,8 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 	
 	private final TypeComparator<Object>[] comparators;
 	
+	private TypeSerializer<Object>[] serializer;
+	
 	private final int[] normalizedKeyLengths;
 	
 	private final int numLeadingNormalizableKeys;
@@ -42,9 +45,14 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 	
 	private final boolean invertNormKey;
 	
+	@SuppressWarnings("unchecked")
+	public TupleComparator(int[] keyPositions, TypeComparator<?>[] comparators, TypeSerializer<?>[] serializer) {
+		this(keyPositions, comparators);
+		this.serializer = (TypeSerializer<Object>[]) serializer;
+	}
 		
 	@SuppressWarnings("unchecked")
-	public TupleComparator(int[] keyPositions, TypeComparator<?>[] comparators) {
+	private TupleComparator(int[] keyPositions, TypeComparator<?>[] comparators) {
 		this.keyPositions = keyPositions;
 		this.comparators = (TypeComparator<Object>[]) comparators;
 		
@@ -54,7 +62,7 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 		int nKeyLen = 0;
 		boolean inverted = false;
 		
-		for (int i = 0; i < this.comparators.length; i++) {
+		for (int i = 0; i < this.keyPositions.length; i++) {
 			TypeComparator<?> k = this.comparators[i];
 			
 			// as long as the leading keys support normalized keys, we can build up the composite key
@@ -94,9 +102,15 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 	private TupleComparator(TupleComparator<T> toClone) {
 		this.keyPositions = toClone.keyPositions;
 		this.comparators = new TypeComparator[toClone.comparators.length];
+		this.serializer = new TypeSerializer[toClone.serializer.length];
 		
 		for (int i = 0; i < toClone.comparators.length; i++) {
 			this.comparators[i] = toClone.comparators[i].duplicate();
+		}
+		
+		for (int i = 0; i < toClone.serializer.length; i++) {
+			//this aint good
+			this.serializer[i] = toClone.serializer[i];
 		}
 		
 		this.normalizedKeyLengths = toClone.normalizedKeyLengths;
@@ -119,16 +133,16 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 		try {
 			int code = 0;
 			for (; i < this.keyPositions.length; i++) {
-				code ^= this.comparators[i].hash(value.getField(this.keyPositions[i]));
+				code ^= this.comparators[i].hash(value.getField(keyPositions[i]));
 				code *= HASH_SALT[i & 0x1F]; // salt code with (i % HASH_SALT.length)-th salt component
 			}
 			return code;
 		}
 		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(this.keyPositions[i]);
+			throw new NullKeyFieldException(i);
 		}
 		catch (IndexOutOfBoundsException iobex) {
-			throw new KeyFieldOutOfBoundsException(this.keyPositions[i]);
+			throw new KeyFieldOutOfBoundsException(i);
 		}
 	}
 
@@ -141,10 +155,10 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 			}
 		}
 		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(this.keyPositions[i]);
+			throw new NullKeyFieldException(i);
 		}
 		catch (IndexOutOfBoundsException iobex) {
-			throw new KeyFieldOutOfBoundsException(this.keyPositions[i]);
+			throw new KeyFieldOutOfBoundsException(i);
 		}
 	}
 
@@ -160,10 +174,10 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 			return true;
 		}
 		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(this.keyPositions[i]);
+			throw new NullKeyFieldException(i);
 		}
 		catch (IndexOutOfBoundsException iobex) {
-			throw new KeyFieldOutOfBoundsException(this.keyPositions[i]);
+			throw new KeyFieldOutOfBoundsException(i);
 		}
 	}
 
@@ -182,33 +196,72 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 			return 0;
 		}
 		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(this.keyPositions[i]);
+			throw new NullKeyFieldException(i);
 		}
 		catch (IndexOutOfBoundsException iobex) {
-			throw new KeyFieldOutOfBoundsException(this.keyPositions[i]);
+			throw new KeyFieldOutOfBoundsException(i);
 		}
 	}
 
 	@Override
 	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		int i = 0;
+		boolean[] fieldUsedAsKey = new boolean[this.comparators.length + this.serializer.length];
+		for (int keyPosition : keyPositions) {
+			fieldUsedAsKey[keyPosition] = true;
+		}
+
+		int nextKeyPositionIndex = 0;
+		int totalLength = this.comparators.length + this.serializer.length;
+		int[] cmpCache = new int[totalLength];
+		boolean[] cmpWasCached = new boolean[totalLength];
+
+		int comparatorIndex = 0;
+		int serializerIndex = 0;
+
+		int fieldIndex = 0;
 		try {
-			for (; i < this.keyPositions.length; i++) {
-				int cmp = this.comparators[i].compare(firstSource, secondSource);
-				if (cmp != 0) {
-					return cmp;
+			for (; fieldIndex < totalLength; fieldIndex++) {
+				if (fieldUsedAsKey[fieldIndex]) {
+					int cmp = this.comparators[comparatorIndex].compare(firstSource, secondSource);
+					comparatorIndex++;
+					if (fieldIndex == keyPositions[nextKeyPositionIndex]) {
+						if (cmp != 0) {
+							return cmp;
+						}
+						nextKeyPositionIndex++;
+						if (nextKeyPositionIndex == this.comparators.length) {
+							return 0;
+						}
+						while (cmpWasCached[keyPositions[nextKeyPositionIndex]]) {
+							if (cmpCache[keyPositions[nextKeyPositionIndex]] != 0) {
+								return cmpCache[keyPositions[nextKeyPositionIndex]];
+							}
+							nextKeyPositionIndex++;
+							if (nextKeyPositionIndex == this.comparators.length) {
+								return 0;
+							}
+						}
+					} else {
+						cmpCache[fieldIndex] = cmp;
+						cmpWasCached[fieldIndex] = true;
+					}
+					if (nextKeyPositionIndex == keyPositions.length) {
+						return 0;
+					}
+				} else {
+					this.serializer[serializerIndex].deserialize(this.serializer[serializerIndex].createInstance(), firstSource);
+					this.serializer[serializerIndex].deserialize(this.serializer[serializerIndex].createInstance(), secondSource);
+					serializerIndex++;
 				}
 			}
 			return 0;
-		}
-		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(this.keyPositions[i]);
-		}
-		catch (IndexOutOfBoundsException iobex) {
-			throw new KeyFieldOutOfBoundsException(this.keyPositions[i]);
+		} catch (NullPointerException npex) {
+			throw new NullKeyFieldException(fieldIndex);
+		} catch (IndexOutOfBoundsException iobex) {
+			throw new KeyFieldOutOfBoundsException(fieldIndex);
 		}
 	}
-
+	
 	@Override
 	public boolean supportsNormalizedKey() {
 		return this.numLeadingNormalizableKeys > 0;

@@ -111,24 +111,39 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 		if (logicalKeyFields.length == 1) {
 			return createSinglefieldComparator(logicalKeyFields[0], orders[0], types[logicalKeyFields[0]]);
 		}
-		
-		// create the comparators for the individual fields
-		TypeComparator<?>[] fieldComparators = new TypeComparator<?>[logicalKeyFields.length];
-		
-		for (int i = 0; i < logicalKeyFields.length; i++) {
-			int field = logicalKeyFields[i];
-			
-			if (field < 0 || field >= types.length) {
-				throw new IllegalArgumentException("The field position " + field + " is out of range [0," + types.length + ")");
-			}
-			if (types[field].isKeyType() && types[field] instanceof AtomicType) {
-				fieldComparators[i] = ((AtomicType<?>) types[field]).createComparator(orders[i]);
-			} else {
-				throw new IllegalArgumentException("The field at position " + field + " (" + types[field] + ") is no atomic key type.");
+				
+		int maxKey = logicalKeyFields[0];
+		for(int key : logicalKeyFields){
+			if (key > maxKey){
+				maxKey = key;
 			}
 		}
 		
-		return new TupleComparator<T>(logicalKeyFields, fieldComparators);
+		boolean[] isKey = new boolean[maxKey + 1];
+		for(int key:logicalKeyFields){
+			isKey[key]=true;
+		}
+		
+		// create the comparators for the individual fields
+		TypeComparator<?>[] fieldComparators = new TypeComparator<?>[logicalKeyFields.length];
+		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[maxKey + 1 -logicalKeyFields.length];
+		
+		int cIndex=0;
+		int sIndex=0;
+		for (int i = 0; i < maxKey + 1; i++) {
+			if(isKey[i]){
+				if (types[i].isKeyType() && types[i] instanceof AtomicType) {
+				fieldComparators[cIndex] = ((AtomicType<?>) types[i]).createComparator(orders[cIndex]);
+				cIndex++;
+			} else {
+				throw new IllegalArgumentException("The field at position " + i + " (" + types[i] + ") is no atomic key type.");
+			}
+			}else{
+				fieldSerializers[sIndex] = types[i].createSerializer();
+				sIndex++;
+			}
+		}		
+		return new TupleComparator<T>(logicalKeyFields, fieldComparators, fieldSerializers);
 	}
 	
 	// --------------------------------------------------------------------------------------------
