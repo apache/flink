@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
+import eu.stratosphere.util.LogUtils;
+import org.apache.log4j.Level;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -125,7 +127,7 @@ public class DeltaPageRankITCase extends JavaProgramTestBase {
 			
 			switch(progId) {
 			case 1: {
-				
+
 				SimpleDeltaPageRank.run(1, pagesPath, deltasPath, edgesPath, resultPath, 4, false);
 				
 				// return expected result

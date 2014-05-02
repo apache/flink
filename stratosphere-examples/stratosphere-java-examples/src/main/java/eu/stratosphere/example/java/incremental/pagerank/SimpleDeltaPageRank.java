@@ -143,7 +143,7 @@ public class SimpleDeltaPageRank {
 		int keyPosition = 0;
 		DeltaIterativeDataSet<Tuple2<Long, Double>, Tuple2<Long, Double>> iteration = initialSolutionSet.iterateDelta(initialDeltaSet, maxIterations, keyPosition);
 		
-		DataSet<Tuple2<Long, Double>> updateRanks = iteration.join(dependencySetInput).where(0).equalTo(0).with(new PRDependenciesComputationMatchDelta())
+		DataSet<Tuple2<Long, Double>> updateRanks = iteration.getWorkset().join(dependencySetInput).where(0).equalTo(0).with(new PRDependenciesComputationMatchDelta())
 				.groupBy(0).reduceGroup(new UpdateRankReduceDelta());
 		
 		DataSet<Tuple2<Long, Double>> oldRankComparison = updateRanks.join(iteration.getSolutionSet()).where(0).equalTo(0).with(new RankComparisonMatch());

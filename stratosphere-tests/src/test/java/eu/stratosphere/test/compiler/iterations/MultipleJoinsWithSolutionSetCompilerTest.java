@@ -90,7 +90,7 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 		DeltaIterativeDataSet<Tuple2<Long, Double>, Tuple2<Long, Double>> iteration = initialData.iterateDelta(initialData, numIterations, 0);
 		
 		DataSet<Tuple2<Long, Double>> delta = iteration.getSolutionSet()
-				.join(iteration.flatMap(new Duplicator())).where(0).equalTo(0).with(new SummingJoin()).name(JOIN_1)
+				.join(iteration.getWorkset().flatMap(new Duplicator())).where(0).equalTo(0).with(new SummingJoin()).name(JOIN_1)
 				.groupBy(0).aggregate(Aggregations.MIN, 1).map(new Expander())
 				.join(iteration.getSolutionSet()).where(0).equalTo(0).with(new SummingJoinProject()).name(JOIN_2);
 		

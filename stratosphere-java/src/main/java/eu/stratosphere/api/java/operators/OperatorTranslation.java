@@ -140,8 +140,14 @@ public class OperatorTranslation {
 		
 		DeltaIterativeDataSet<?, ?> iterationHead = iterationEnd.getIterationHead();
 
-		translated.put(iterationEnd.getIterationHeadSolutionSet(), iterationOperator.getSolutionSet());
-		translated.put(iterationHead, iterationOperator.getWorkset());
+		DeltaIterativeDataSet<D, W>.SolutionSetPlaceHolder solutionSetPlaceHolder =
+				(DeltaIterativeDataSet<D, W>.SolutionSetPlaceHolder) iterationHead.getSolutionSet();
+
+		DeltaIterativeDataSet<D, W>.WorksetPlaceHolder worksetPlaceHolder =
+				(DeltaIterativeDataSet<D, W>.WorksetPlaceHolder) iterationHead.getWorkset();
+
+		translated.put(solutionSetPlaceHolder, iterationOperator.getSolutionSet());
+		translated.put(worksetPlaceHolder, iterationOperator.getWorkset());
 
 		Operator translatedSolutionSet = translate(iterationEnd.getNextSolutionSet());
 		Operator translatedWorkset = translate(iterationEnd.getNextWorkset());

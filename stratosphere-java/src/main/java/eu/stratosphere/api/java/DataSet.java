@@ -166,7 +166,7 @@ public abstract class DataSet<T> {
 	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
 	 * <b>Note: Only Tuple DataSets can be projected.</b></br>
 	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
-	 * This method returns a {@link Projection} on which {@link Projection#types()} needs to 
+	 * This method returns a {@link Projection} on which {@link Projection#types()} needs to
 	 *   be called to completed the transformation.
 	 * 
 	 * @param fieldIndexes The field indexes of the input tuples that are retained.
@@ -527,10 +527,13 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Initiates a delta iteration. A delta iteration is similar to a regular iteration (as started by {@link #iterate(int)),
-	 * but maintains state across the individual iteration steps. The state is called the <i>solution set</i>, can be obtained
-	 * via {@link DeltaIterativeDataSet#getSolutionSet()}, and be accessed by joining (or CoGrouping) with it. The solution
-	 * set is updated by producing a delta for it, which is merged into the solution set at the end of each iteration step.
+	 * Initiates a delta iteration. A delta iteration is similar to a regular iteration (as started by {@link #iterate(int)},
+	 * but maintains state across the individual iteration steps. The Solution set, which represents the current state
+	 * at the beginning of each iteration can be obtained via {@link DeltaIterativeDataSet#getSolutionSet()} ()}.
+	 * It can be be accessed by joining (or CoGrouping) with it. The DataSet that represents the workset of an iteration
+	 * can be obtained via {@link DeltaIterativeDataSet#getWorkset()}.
+	 * The solution set is updated by producing a delta for it, which is merged into the solution set at the end of each
+	 * iteration step.
 	 * <p>
 	 * The delta iteration must be closed by calling {@link DeltaIterativeDataSet#closeWith(DataSet, DataSet)}. The two 
 	 * parameters are the delta for the solution set and the new workset (the data set that will be fed back).
@@ -563,7 +566,7 @@ public abstract class DataSet<T> {
 	 * 
 	 * @param workset The initial version of the data set that is fed back to the next iteration step (the workset).
 	 * @param maxIterations The maximum number of iteration steps, as a fall back safeguard.
-	 * @param keyPosition The position of the tuple fields that is used as the key of the solution set.
+	 * @param keyPositions The position of the tuple fields that is used as the key of the solution set.
 	 * 
 	 * @return The DeltaIterativeDataSet that marks the start of a delta iteration.
 	 * 

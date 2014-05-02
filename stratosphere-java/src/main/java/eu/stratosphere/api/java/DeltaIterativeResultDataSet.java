@@ -17,55 +17,47 @@ package eu.stratosphere.api.java;
 import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 
-public class DeltaIterativeResultDataSet<T, U> extends DataSet<T> {
+public class DeltaIterativeResultDataSet<ST, WT> extends DataSet<ST> {
 
-	private DeltaIterativeDataSet<T, U> iterationHead;
-	
-	private DeltaIterativeDataSet<T, U> iterationHeadSolutionSet;
+	private DeltaIterativeDataSet<ST, WT> iterationHead;
 
-	private DataSet<T> nextSolutionSet;
+	private DataSet<ST> nextSolutionSet;
 	
-	private DataSet<U> nextWorkset;
+	private DataSet<WT> nextWorkset;
 	
-	private Keys<T> keys;
+	private Keys<ST> keys;
 	
 	private int maxIterations;
 	
-	private TypeInformation<U> typeWS;
+	private TypeInformation<WT> typeWS;
 
 	DeltaIterativeResultDataSet(ExecutionEnvironment context,
-						TypeInformation<T> typeSS,
-						TypeInformation<U> typeWS,
-						DeltaIterativeDataSet<T, U> iterationHead,
-						DeltaIterativeDataSet<T, U> iterationHeadSolutionSet,
-						DataSet<T> nextSolutionSet,
-						DataSet<U> nextWorkset,
-						Keys<T> keys,
-						int maxIterations)
+	                       TypeInformation<ST> typeSS,
+	                       TypeInformation<WT> typeWS,
+	                       DeltaIterativeDataSet<ST, WT> iterationHead,
+	                       DataSet<ST> nextSolutionSet,
+	                       DataSet<WT> nextWorkset,
+	                       Keys<ST> keys,
+	                       int maxIterations)
 	{
 		super(context, typeSS);
 		this.iterationHead = iterationHead;
 		this.nextWorkset = nextWorkset;
 		this.nextSolutionSet = nextSolutionSet;
-		this.iterationHeadSolutionSet = iterationHeadSolutionSet;
 		this.keys = keys;
 		this.maxIterations = maxIterations;
 		this.typeWS = typeWS;
 	}
 
-	public DeltaIterativeDataSet<T, U> getIterationHead() {
+	public DeltaIterativeDataSet<ST, WT> getIterationHead() {
 		return iterationHead;
 	}
 	
-	public DeltaIterativeDataSet<T, U> getIterationHeadSolutionSet() {
-		return iterationHeadSolutionSet;
-	}
-
-	public DataSet<T> getNextSolutionSet() {
+	public DataSet<ST> getNextSolutionSet() {
 		return nextSolutionSet;
 	}
 
-	public DataSet<U> getNextWorkset() {
+	public DataSet<WT> getNextWorkset() {
 		return nextWorkset;
 	}
 	
@@ -77,7 +69,7 @@ public class DeltaIterativeResultDataSet<T, U> extends DataSet<T> {
 		return maxIterations;
 	}
 	
-	public TypeInformation<U> getWorksetType() {
+	public TypeInformation<WT> getWorksetType() {
 		return typeWS;
 	}
 }

@@ -14,6 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java;
 
+import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.operators.TwoInputOperator;
@@ -21,18 +22,19 @@ import eu.stratosphere.api.java.typeutils.TypeInformation;
 
 /**
  * The DeltaIterativeDataSet represents the start of a delta iteration. It is created from the DataSet that 
- * represents the initial solution set via the {@link DataSet#iterateDelta(DataSet, int, int)} method.
+ * represents the initial solution set via the {@link DataSet#iterateDelta(DataSet, int, int...)} method.
  * 
- * @param<ST> The data type of the solution set.
- * @param<WT> The data type of the workset (the feedback data set).
+ * @param <ST> The data type of the solution set.
+ * @param <WT> The data type of the workset (the feedback data set).
  *
- * @see DataSet#iterateDelta(DataSet, int, int)
+ * @see DataSet#iterateDelta(DataSet, int, int...)
  * @see DataSet#iterateDelta(DataSet, int, int[])
  */
 public class DeltaIterativeDataSet<ST, WT> extends TwoInputOperator<ST, WT, ST, DeltaIterativeDataSet<ST, WT>> {
 	
-	private DeltaIterativeDataSet<ST, WT> solutionSetPlaceholder;
-	
+	private SolutionSetPlaceHolder solutionSetPlaceholder;
+	private WorksetPlaceHolder worksetPlaceholder;
+
 	private Keys<ST> keys;
 	
 	private int maxIterations;
@@ -40,7 +42,8 @@ public class DeltaIterativeDataSet<ST, WT> extends TwoInputOperator<ST, WT, ST, 
 	DeltaIterativeDataSet(ExecutionEnvironment context, TypeInformation<ST> type, DataSet<ST> solutionSet, DataSet<WT> workset, Keys<ST> keys, int maxIterations) {
 		super(solutionSet, workset, type);
 		
-		solutionSetPlaceholder = new DeltaIterativeDataSet<ST, WT>(context, type, solutionSet, workset, true);
+		solutionSetPlaceholder = new SolutionSetPlaceHolder(context, solutionSet.getType());
+		worksetPlaceholder = new WorksetPlaceHolder(context, workset.getType());
 		this.keys = keys;
 		this.maxIterations = maxIterations;
 	}
@@ -59,10 +62,10 @@ public class DeltaIterativeDataSet<ST, WT> extends TwoInputOperator<ST, WT, ST, 
 	 * @param newWorkset The new workset (feedback data set) that will be fed back to the next iteration.
 	 * @return The DataSet that represents the result of the iteration, after the computation has terminated.
 	 * 
-	 * @see DataSet#iterateDelta(DataSet, int, int)
+	 * @see DataSet#iterateDelta(DataSet, int, int...)
 	 */
 	public DataSet<ST> closeWith(DataSet<ST> solutionSetDelta, DataSet<WT> newWorkset) {
-		return new DeltaIterativeResultDataSet<ST, WT>(getExecutionEnvironment(), getType(), newWorkset.getType(), this, solutionSetPlaceholder, solutionSetDelta, newWorkset, keys, maxIterations);
+		return new DeltaIterativeResultDataSet<ST, WT>(getExecutionEnvironment(), getType(), newWorkset.getType(), this, solutionSetDelta, newWorkset, keys, maxIterations);
 	}
 	
 	/**
@@ -74,11 +77,34 @@ public class DeltaIterativeDataSet<ST, WT> extends TwoInputOperator<ST, WT, ST, 
 		return solutionSetPlaceholder;
 	}
 
+
+	/**
+	 * Gets the working set of the delta iteration. The working set is constructed by the previous iteration.
+	 *
+	 * @return The working set of the delta iteration.
+	 */
+	public DataSet<WT> getWorkset() {
+		return worksetPlaceholder;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	protected Operator translateToDataFlow(Operator input1, Operator input2) {
 		// All the translation magic happens when the iteration end is encountered.
-		throw new UnsupportedOperationException("This should never happen.");
+		throw new UnsupportedOperationException("The result of DataSet.iterateDelta() cannot be used directly. Please use" +
+				" DeltaIterativeDataSet.getWorkset() and DeltaIterativeDataSet.getSolutionSet().");
+	}
+
+	public class SolutionSetPlaceHolder extends DataSet<ST>{
+		private SolutionSetPlaceHolder(ExecutionEnvironment context, TypeInformation<ST> type) {
+			super(context, type);
+		}
+	}
+
+	public class WorksetPlaceHolder extends DataSet<WT>{
+		private WorksetPlaceHolder(ExecutionEnvironment context, TypeInformation<WT> type) {
+			super(context, type);
+		}
 	}
 }

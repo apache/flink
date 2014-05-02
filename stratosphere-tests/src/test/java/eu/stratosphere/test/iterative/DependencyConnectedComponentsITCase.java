@@ -112,7 +112,7 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 			DeltaIterativeDataSet<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration = 
 					initialSolutionSet.iterateDelta(initialSolutionSet, MAX_ITERATIONS, keyPosition);
 			
-			DataSet<Long> candidates = iteration.join(edges).where(0).equalTo(0)
+			DataSet<Long> candidates = iteration.getWorkset().join(edges).where(0).equalTo(0)
 					.with(new FindCandidatesJoin())
 					.groupBy(new KeySelector<Long, Long>() { 
                         public Long getKey(Long id) { return id; } 
