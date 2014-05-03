@@ -89,4 +89,23 @@ public final class RuntimeStatelessSerializerFactory<T> implements TypeSerialize
 	public Class<T> getDataType() {
 		return clazz;
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int hashCode() {
+		return clazz.hashCode() ^ serializer.hashCode();
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj != null && obj instanceof RuntimeStatelessSerializerFactory) {
+			RuntimeStatelessSerializerFactory<?> other = (RuntimeStatelessSerializerFactory<?>) obj;
+			
+			return this.clazz == other.clazz &&
+					this.serializer.equals(other.serializer);
+		} else {
+			return false;
+		}
+	}
 }

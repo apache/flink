@@ -120,4 +120,19 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * @throws IOException Thrown if any of the two views raises an exception.
 	 */
 	public abstract void copy(DataInputView source, DataOutputView target) throws IOException;
+	
+	// --------------------------------------------------------------------------------------------
+	//  Default Utilities: Hash code and equals are pre-defined for singleton serializers, where
+	//                     all instances are equal
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int hashCode() {
+		return getClass().hashCode();
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		return obj != null && obj.getClass() == this.getClass();
+	}
 }

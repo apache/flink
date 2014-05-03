@@ -70,4 +70,16 @@ public final class VertexWithRankAndDanglingSerializer extends TypeSerializer<Ve
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.write(source, 17);
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int hashCode() {
+		return 2;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		return obj != null && obj.getClass() == VertexWithRankAndDanglingSerializer.class;
+	}
 }

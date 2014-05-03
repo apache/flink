@@ -15,9 +15,7 @@ package eu.stratosphere.test.iterative.nephele.customdanglingpagerank.types;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
 
-/**
- *
- */
+
 public final class VertexWithRankSerializerFactory implements TypeSerializerFactory<VertexWithRank> {
 
 	private static final VertexWithRankSerializer INSTANCE = new VertexWithRankSerializer();
@@ -36,5 +34,17 @@ public final class VertexWithRankSerializerFactory implements TypeSerializerFact
 	@Override
 	public Class<VertexWithRank> getDataType() {
 		return VertexWithRank.class;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int hashCode() {
+		return 1;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		return obj != null && obj.getClass() == VertexWithRankSerializerFactory.class;
 	}
 }

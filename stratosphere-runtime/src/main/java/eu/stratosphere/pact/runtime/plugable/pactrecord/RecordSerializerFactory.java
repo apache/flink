@@ -54,4 +54,16 @@ public class RecordSerializerFactory implements TypeSerializerFactory<Record> {
 	public Class<Record> getDataType() {
 		return Record.class;
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int hashCode() {
+		return 31;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		return obj != null && obj.getClass() == RecordSerializerFactory.class;
+	}
 }

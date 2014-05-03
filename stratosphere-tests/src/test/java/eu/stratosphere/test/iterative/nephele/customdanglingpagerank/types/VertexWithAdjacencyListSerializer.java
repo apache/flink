@@ -95,4 +95,16 @@ public final class VertexWithAdjacencyListSerializer extends TypeSerializer<Vert
 		target.writeInt(numTargets);
 		target.write(source, numTargets * 8);
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int hashCode() {
+		return 3;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		return obj != null && obj.getClass() == VertexWithAdjacencyListSerializer.class;
+	}
 }

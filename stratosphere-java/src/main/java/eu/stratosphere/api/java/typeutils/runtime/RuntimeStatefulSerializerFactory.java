@@ -28,6 +28,8 @@ public final class RuntimeStatefulSerializerFactory<T> implements TypeSerializer
 
 	private byte[] serializerData;
 	
+	private TypeSerializer<T> serializer;		// only for equality comparisons
+	
 	private ClassLoader loader;
 
 	private Class<T> clazz;
@@ -100,5 +102,32 @@ public final class RuntimeStatefulSerializerFactory<T> implements TypeSerializer
 	@Override
 	public Class<T> getDataType() {
 		return this.clazz;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int hashCode() {
+		return clazz.hashCode();
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj != null && obj instanceof RuntimeStatefulSerializerFactory) {
+			@SuppressWarnings("unchecked")
+			RuntimeStatefulSerializerFactory<T> other = (RuntimeStatefulSerializerFactory<T>) obj;
+			
+			if (this.serializer == null) {
+				this.serializer = getSerializer();
+			}
+			if (other.serializer == null) {
+				other.serializer = other.getSerializer();
+			}
+			
+			return this.clazz == other.clazz &&
+					this.serializer.equals(other.serializer);
+		} else {
+			return false;
+		}
 	}
 }

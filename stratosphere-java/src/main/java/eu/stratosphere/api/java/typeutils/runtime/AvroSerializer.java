@@ -90,9 +90,16 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		throw new UnsupportedOperationException();
 	}
 	
-	private void writeObject(java.io.ObjectOutputStream s) throws java.io.IOException {
-		// write the core object, ignore the remainder
-		s.defaultWriteObject();
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int hashCode() {
+		return type.hashCode();
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		return obj != null && (obj instanceof AvroSerializer) && ((AvroSerializer<?>) obj).type == this.type;
 	}
 	
 	// --------------------------------------------------------------------------------------------
