@@ -29,7 +29,6 @@ import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.IterationAggregatorBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
-import eu.stratosphere.pact.runtime.iterative.io.SolutionSetFastUpdateOutputCollector;
 import eu.stratosphere.pact.runtime.iterative.io.SolutionSetUpdateOutputCollector;
 import eu.stratosphere.pact.runtime.iterative.io.WorksetUpdateOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactDriver;

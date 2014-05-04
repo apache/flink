@@ -14,7 +14,9 @@
 		</module>
 		<module name="AvoidStarImport" />
 		<module name="UnusedImports" />
-		<module name="NeedBraces" />
+		<module name="NeedBraces">
+			<property name="tokens" value="LITERAL_IF, LITERAL_ELSE"/>
+		</module>
 		<module name="ArrayTypeStyle" />
 
 	<!--	<module name="ConstantName" />

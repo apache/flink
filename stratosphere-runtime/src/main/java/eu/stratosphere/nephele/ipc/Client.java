@@ -616,8 +616,7 @@ public class Client {
 		public synchronized void callComplete(ParallelCall call) {
 			this.values[call.index] = call.value; // store the value
 			this.count++; // count it
-			if (this.count == this.size)
-			{
+			if (this.count == this.size) { // if all values are in
 				notify(); // then notify waiting caller
 			}
 		}

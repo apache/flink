@@ -221,9 +221,7 @@ public class DefaultDeserializerTest {
 
 		final InterruptibleByteChannel ibc = new InterruptibleByteChannel(null, readInterruptPositions);
 
-		while (ds.write(ibc)) {
-			;
-		}
+		while (ds.write(ibc));
 
 		ibc.switchToReadPhase();
 
@@ -344,11 +342,8 @@ public class DefaultDeserializerTest {
 	public void testDeserializationWithNoBufferAvailable() {
 
 		try {
-
 			final ReadableByteChannel rbc = createByteChannel(null, 10);
-
 			final TestBufferProviderBroker tbpb = new TestBufferProviderBroker(new TestBufferProvider(0));
-
 			executeDeserialization(rbc, tbpb);
 
 		} catch (IOException ioe) {

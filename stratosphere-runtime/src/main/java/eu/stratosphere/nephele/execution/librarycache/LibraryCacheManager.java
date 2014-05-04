@@ -178,9 +178,7 @@ public final class LibraryCacheManager {
 				}
 
 				// We had a race, try again
-
 			} else {
-
 				return ai.incrementAndGet();
 			}
 		}
@@ -294,9 +292,7 @@ public final class LibraryCacheManager {
 	private void registerInternal(final JobID id, final String[] requiredJarFiles) throws IOException {
 
 		// Use spin lock here
-		while (this.lockMap.putIfAbsent(id, LOCK_OBJECT) != null) {
-			;
-		}
+		while (this.lockMap.putIfAbsent(id, LOCK_OBJECT) != null);
 
 		try {
 			if (incrementReferenceCounter(id) > 1) {
@@ -361,9 +357,7 @@ public final class LibraryCacheManager {
 	private void unregisterInternal(final JobID id) {
 
 		// Use spin lock here
-		while (this.lockMap.putIfAbsent(id, LOCK_OBJECT) != null) {
-			;
-		}
+		while (this.lockMap.putIfAbsent(id, LOCK_OBJECT) != null);
 
 		if (decrementReferenceCounter(id) == 0) {
 			this.libraryManagerEntries.remove(id);

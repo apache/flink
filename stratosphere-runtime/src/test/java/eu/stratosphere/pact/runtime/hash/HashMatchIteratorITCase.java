@@ -154,11 +154,9 @@ public class HashMatchIteratorITCase {
 			
 			iterator.open();
 			
-			while (iterator.callWithNextKey(matcher, collector)) {
-				;
-			}
+			while (iterator.callWithNextKey(matcher, collector));
 			
-			iterator.close();;
+			iterator.close();
 	
 			// assert that each expected match was seen
 			for (Entry<TestData.Key, Collection<RecordMatch>> entry : expectedMatchesMap.entrySet()) {
@@ -243,9 +241,7 @@ public class HashMatchIteratorITCase {
 
 			iterator.open();
 			
-			while (iterator.callWithNextKey(matcher, collector)) {
-				;
-			}
+			while (iterator.callWithNextKey(matcher, collector));
 			
 			iterator.close();
 	
@@ -294,9 +290,7 @@ public class HashMatchIteratorITCase {
 
 			iterator.open();
 			
-			while (iterator.callWithNextKey(matcher, collector)) {
-				;
-			}
+			while (iterator.callWithNextKey(matcher, collector));
 			
 			iterator.close();
 	
@@ -383,9 +377,7 @@ public class HashMatchIteratorITCase {
 			
 			iterator.open();
 			
-			while (iterator.callWithNextKey(matcher, collector)) {
-				;
-			}
+			while (iterator.callWithNextKey(matcher, collector));
 			
 			iterator.close();
 	
@@ -432,9 +424,7 @@ public class HashMatchIteratorITCase {
 			
 			iterator.open();
 			
-			while (iterator.callWithNextKey(matcher, collector)) {
-				;
-			}
+			while (iterator.callWithNextKey(matcher, collector));
 			
 			iterator.close();;
 	
@@ -481,9 +471,7 @@ public class HashMatchIteratorITCase {
 			
 			iterator.open();
 			
-			while (iterator.callWithNextKey(matcher, collector)) {
-				;
-			}
+			while (iterator.callWithNextKey(matcher, collector));
 			
 			iterator.close();;
 	

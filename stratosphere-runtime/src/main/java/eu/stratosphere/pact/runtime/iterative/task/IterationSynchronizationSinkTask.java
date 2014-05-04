@@ -38,7 +38,6 @@ import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.InstantiationUtil;
-//import eu.stratosphere.pact.runtime.iterative.monitoring.IterationMonitoring;
 
 /**
  * The task responsible for synchronizing all iteration heads, implemented as an {@link AbstractOutputTask}. This task

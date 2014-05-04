@@ -158,9 +158,7 @@ public class DefaultSerializerTest {
 
 			// set envelope to be serialized and write it to file channel
 			serializer.setTransferEnvelope(transferEnvelope);
-			while (serializer.write(fileChannel)) {
-				;
-			}
+			while (serializer.write(fileChannel));
 
 			// Put buffer back to the recycling queue
 			buffer.recycleBuffer();

@@ -146,9 +146,7 @@ public class SortMergeMatchIteratorITCase
 	
 			iterator.open();
 			
-			while (iterator.callWithNextKey(matcher, collector)) {
-				;
-			}
+			while (iterator.callWithNextKey(matcher, collector));
 			
 			iterator.close();
 	
@@ -235,9 +233,7 @@ public class SortMergeMatchIteratorITCase
 	
 			iterator.open();
 			
-			while (iterator.callWithNextKey(matcher, collector)) {
-				;
-			}
+			while (iterator.callWithNextKey(matcher, collector));
 			
 			iterator.close();
 	

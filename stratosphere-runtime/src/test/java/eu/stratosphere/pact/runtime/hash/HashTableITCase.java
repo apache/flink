@@ -603,15 +603,12 @@ public class HashTableITCase {
 		final Record recordReuse = new Record();
 
 		try {
-			while (join.nextRecord())
-			{	
+			while (join.nextRecord()) {	
 				HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
 				if (buildSide.next(recordReuse) == null) {
 					fail("No build side values found for a probe key.");
 				}
-				while (buildSide.next(recordReuse) != null) {
-					;
-				}
+				while (buildSide.next(recordReuse) != null);
 			}
 			
 			fail("Hash Join must have failed due to too many recursions.");
@@ -1213,9 +1210,7 @@ public class HashTableITCase {
 				if (buildSide.next(recordReuse) == null) {
 					fail("No build side values found for a probe key.");
 				}
-				while (buildSide.next(recordReuse) != null) {
-					;
-				}
+				while (buildSide.next(recordReuse) != null);
 			}
 			
 			fail("Hash Join must have failed due to too many recursions.");

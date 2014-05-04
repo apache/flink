@@ -939,9 +939,7 @@ public class MemorySegment {
 		final byte[] b2 = seg2.memory;
 		
 		int val = 0;
-		for (int pos = 0;
-			pos < len && (val = (b1[offset1 + pos] & 0xff) - (b2[offset2 + pos] & 0xff)) == 0; pos++) {
-		}
+		for (int pos = 0; pos < len && (val = (b1[offset1 + pos] & 0xff) - (b2[offset2 + pos] & 0xff)) == 0; pos++);
 		return val;
 	}
 	
