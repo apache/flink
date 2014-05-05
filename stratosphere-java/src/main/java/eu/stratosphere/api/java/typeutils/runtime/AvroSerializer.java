@@ -20,7 +20,6 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.Serializer;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
@@ -29,8 +28,8 @@ import eu.stratosphere.util.InstantiationUtil;
 
 
 /**
- * General purpose serialization using Apache Avro's Reflect-serializers.
- * For deep object copies, this class is using Kryo.
+ * General purpose serialization. Currently using Apache Avro's Reflect-serializers for serialization and
+ * Kryo for deep object copies. We want to change this to Kryo-only.
  *
  * @param <T> The type serialized.
  */
@@ -40,6 +39,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	
 	private final Class<T> type;
 	
+	private final Class<? extends T> typeToInstantiate;
+	
 	private transient ReflectDatumWriter<T> writer;
 	private transient ReflectDatumReader<T> reader;
 	
@@ -48,14 +49,23 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	
 	private transient Kryo kryo;
 	
-	private transient Serializer<T> serializer;
-	
 	private transient T deepCopyInstance;
 	
 	// --------------------------------------------------------------------------------------------
 	
 	public AvroSerializer(Class<T> type) {
+		this(type, type);
+	}
+	
+	public AvroSerializer(Class<T> type, Class<? extends T> typeToInstantiate) {
+		if (type == null || typeToInstantiate == null) {
+			throw new NullPointerException();
+		}
+		
+		InstantiationUtil.checkForInstantiation(typeToInstantiate);
+		
 		this.type = type;
+		this.typeToInstantiate = typeToInstantiate;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -72,13 +82,17 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	
 	@Override
 	public T createInstance() {
-		return InstantiationUtil.instantiate(type, Object.class);
+		try  {
+			return this.typeToInstantiate.newInstance();
+		} catch (Exception e) {
+			throw new RuntimeException("Instantiation failed, even though type pre-checks passed.", e);
+		}
 	}
 
 	@Override
 	public T copy(T from, T reuse) {
 		checkKryoInitialized();
-		reuse = serializer.copy(this.kryo, from);
+		reuse = this.kryo.copy(from);
 		return reuse;
 	}
 
@@ -126,13 +140,11 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	private final void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
 			this.kryo.setAsmEnabled(true);
 			this.kryo.register(type);
-			this.serializer = this.kryo.getSerializer(this.type);
 		}
 	}
 	

@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
@@ -30,7 +31,7 @@ import org.junit.Test;
 
 import eu.stratosphere.api.java.record.io.avro.generated.Colors;
 import eu.stratosphere.api.java.record.io.avro.generated.User;
-
+import eu.stratosphere.util.StringUtils;
 import static org.junit.Assert.*;
 
 
@@ -38,6 +39,47 @@ import static org.junit.Assert.*;
  * Tests the {@link DataOutputEncoder} and {@link DataInputDecoder} classes for Avro serialization.
  */
 public class EncoderDecoderTest {
+	
+	@Test
+	public void testComplexStringsDirecty() {
+		try {
+			Random rnd = new Random(349712539451944123L);
+			
+			for (int i = 0; i < 10; i++) {
+				String testString = StringUtils.getRandomString(rnd, 10, 100);
+				
+				ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
+				{
+					DataOutputStream dataOut = new DataOutputStream(baos);
+					DataOutputEncoder encoder = new DataOutputEncoder();
+					encoder.setOut(dataOut);
+					
+					encoder.writeString(testString);
+					dataOut.flush();
+					dataOut.close();
+				}
+				
+				byte[] data = baos.toByteArray();
+				
+				// deserialize
+				{
+					ByteArrayInputStream bais = new ByteArrayInputStream(data);
+					DataInputStream dataIn = new DataInputStream(bais);
+					DataInputDecoder decoder = new DataInputDecoder();
+					decoder.setIn(dataIn);
+	
+					String deserialized = decoder.readString();
+					
+					assertEquals(testString, deserialized);
+				}
+			}
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail("Test failed due to an exception: " + e.getMessage());
+		}
+	}
 	
 	@Test
 	public void testPrimitiveTypes() {
