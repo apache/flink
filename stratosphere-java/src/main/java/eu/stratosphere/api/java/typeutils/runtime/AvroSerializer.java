@@ -20,7 +20,7 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.serializers.FieldSerializer;
+import com.esotericsoftware.kryo.Serializer;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
@@ -32,23 +32,25 @@ import eu.stratosphere.util.InstantiationUtil;
  * General purpose serialization using Apache Avro's Reflect-serializers.
  * For deep object copies, this class is using Kryo.
  *
- * @param <T>
+ * @param <T> The type serialized.
  */
 public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
 	
+	private final Class<T> type;
+	
 	private transient ReflectDatumWriter<T> writer;
 	private transient ReflectDatumReader<T> reader;
 	
-	private transient DataOutputEncoder encoder = new DataOutputEncoder();
-	private transient DataInputDecoder decoder = new DataInputDecoder();
+	private transient DataOutputEncoder encoder;
+	private transient DataInputDecoder decoder;
 	
 	private transient Kryo kryo;
 	
-	private transient FieldSerializer<T> serializer;
-
-	private final Class<T> type;
+	private transient Serializer<T> serializer;
+	
+	private transient T deepCopyInstance;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -75,7 +77,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public T copy(T from, T reuse) {
-		reuse = kryo.copy(from);
+		checkKryoInitialized();
+		reuse = serializer.copy(this.kryo, from);
 		return reuse;
 	}
 
@@ -100,7 +103,17 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		throw new UnsupportedOperationException();
+		checkAvroInitialized();
+		
+		if (this.deepCopyInstance == null) {
+			this.deepCopyInstance = InstantiationUtil.instantiate(type, Object.class);
+		}
+		
+		this.decoder.setIn(source);
+		this.encoder.setOut(target);
+		
+		T tmp = this.reader.read(this.deepCopyInstance, this.decoder);
+		this.writer.write(tmp, this.encoder);
 	}
 	
 	
@@ -113,12 +126,13 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		}
 	}
 	
+	@SuppressWarnings("unchecked")
 	private final void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
 			this.kryo.setAsmEnabled(true);
 			this.kryo.register(type);
-			this.serializer = new FieldSerializer<T>(kryo, type);
+			this.serializer = this.kryo.getSerializer(this.type);
 		}
 	}
 	
