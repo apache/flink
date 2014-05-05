@@ -14,12 +14,23 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils;
 
-import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.api.common.typeutils.base.ValueComparator;
 import eu.stratosphere.api.java.functions.InvalidTypesException;
 import eu.stratosphere.api.java.typeutils.runtime.CopyableValueSerializer;
+import eu.stratosphere.types.BooleanValue;
+import eu.stratosphere.types.ByteValue;
+import eu.stratosphere.types.CharValue;
 import eu.stratosphere.types.CopyableValue;
+import eu.stratosphere.types.DoubleValue;
+import eu.stratosphere.types.FloatValue;
+import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Key;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.NullValue;
+import eu.stratosphere.types.ShortValue;
+import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 
 
@@ -77,9 +88,42 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 		return ser;
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	public TypeComparator<T> createComparator(boolean sortOrderAscending) {
-		throw new UnsupportedOperationException("Value comparators not yet implemented.");
+		if(type.isAssignableFrom(BooleanValue.class)) {
+			return (TypeComparator<T>) new ValueComparator<BooleanValue>(sortOrderAscending, (Class<BooleanValue>) type);
+		}
+		else if(type.isAssignableFrom(ByteValue.class)) {
+			return (TypeComparator<T>) new ValueComparator<ByteValue>(sortOrderAscending, (Class<ByteValue>) type);
+		}
+		else if(type.isAssignableFrom(CharValue.class)) {
+			return (TypeComparator<T>) new ValueComparator<CharValue>(sortOrderAscending, (Class<CharValue>) type);
+		}
+		else if(type.isAssignableFrom(IntValue.class)) {
+			return (TypeComparator<T>) new ValueComparator<IntValue>(sortOrderAscending, (Class<IntValue>) type);
+		}
+		else if(type.isAssignableFrom(LongValue.class)) {
+			return (TypeComparator<T>) new ValueComparator<LongValue>(sortOrderAscending, (Class<LongValue>) type);
+		}
+		else if(type.isAssignableFrom(NullValue.class)) {
+			return (TypeComparator<T>) new ValueComparator<NullValue>(sortOrderAscending, (Class<NullValue>) type);
+		}
+		else if(type.isAssignableFrom(ShortValue.class)) {
+			return (TypeComparator<T>) new ValueComparator<ShortValue>(sortOrderAscending, (Class<ShortValue>) type);
+		}
+		else if(type.isAssignableFrom(StringValue.class)) {
+			return (TypeComparator<T>) new ValueComparator<StringValue>(sortOrderAscending, (Class<StringValue>) type);
+		}
+		else if(type.isAssignableFrom(DoubleValue.class)) {
+			return (TypeComparator<T>) new ValueComparator<DoubleValue>(sortOrderAscending, (Class<DoubleValue>) type);
+		}
+		else if(type.isAssignableFrom(FloatValue.class)) {
+			return (TypeComparator<T>) new ValueComparator<FloatValue>(sortOrderAscending, (Class<FloatValue>) type);
+		}
+		else {
+			throw new UnsupportedOperationException("Cannot create a comparator for a value type that is not a subtype of Key.");
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
