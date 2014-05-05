@@ -24,6 +24,7 @@
 
 # Home directory of Java JVM installation (JAVA_HOME)
 # env.java.home: /usr/lib/jvm/java-7-oracle
+# env.java.opts: 
 
 #=======================================================================================================================
 #                                                   JOB MANAGER (MASTER)
