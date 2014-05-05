@@ -18,7 +18,12 @@ import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.PlanExecutor;
 
-
+/**
+ * Special {@link ExecutionEnvironment} for running a Job
+ * on a remote machine.
+ * A host:port and jarFiles have to be supplied.
+ *
+ */
 public class RemoteEnvironment extends ExecutionEnvironment {
 	
 	private final String host;

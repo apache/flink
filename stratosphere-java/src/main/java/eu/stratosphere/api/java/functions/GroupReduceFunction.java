@@ -25,7 +25,13 @@ import eu.stratosphere.api.common.functions.GenericCombine;
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.util.Collector;
 
-
+/**
+ * Base class for user-defined group reduce functions.
+ *
+ * 
+ * @param <IN> Object types of the incoming tuple/object stream
+ * @param <OUT> Types of the elements returned by the user-defined function.
+ */
 public abstract class GroupReduceFunction<IN, OUT> extends AbstractFunction implements GenericGroupReduce<IN, OUT>, GenericCombine<IN> {
 	
 	private static final long serialVersionUID = 1L;

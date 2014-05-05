@@ -16,8 +16,21 @@ package eu.stratosphere.api.common.functions;
 import eu.stratosphere.util.Collector;
 
 
-
+/**
+ *
+ * @param <T>
+ * @param <O>
+ */
 public interface GenericFlatMap<T, O> extends Function {
 	
+	/**
+	 * User defined function to perform transformations on records.
+	 * This method allows to submit an arbitrary number of records
+	 * per incoming tuple.
+	 * 
+	 * @param record incoming record
+	 * @param out outgoing collector to return none, one or more records
+	 * @throws Exception
+	 */
 	void flatMap(T record, Collector<O> out) throws Exception;
 }

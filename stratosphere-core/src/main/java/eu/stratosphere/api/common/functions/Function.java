@@ -13,6 +13,8 @@
 
 package eu.stratosphere.api.common.functions;
 
+import eu.stratosphere.api.common.accumulators.Accumulator;
+import eu.stratosphere.api.common.cache.DistributedCache;
 import eu.stratosphere.configuration.Configuration;
 
 /**
@@ -71,6 +73,9 @@ public interface Function {
 	
 	/**
 	 * Gets the context that contains information about the UDF's runtime.
+	 * 
+	 * Context information are for example {@link Accumulator}s or the
+	 * {@link DistributedCache}.
 	 * 
 	 * @return The UDF's runtime context.
 	 */

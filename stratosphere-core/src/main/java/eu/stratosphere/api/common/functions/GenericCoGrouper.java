@@ -20,9 +20,38 @@ import eu.stratosphere.util.Collector;
 
 public interface GenericCoGrouper<V1, V2, O> extends Function {
 	
+	/**
+	 * This method must be implemented to provide a user implementation of a
+	 * coGroup. It is called for each two key-value pairs that share the same
+	 * key and come from different inputs.
+	 * 
+	 * @param records1 The records from the first input which were paired with the key.
+	 * @param records2 The records from the second input which were paired with the key.
+	 * @param out A collector that collects all output pairs.
+	 */
 	void coGroup(Iterator<V1> records1, Iterator<V2> records2, Collector<O> out) throws Exception;
 	
+	/**
+	 * This method must be overridden by CoGoup UDFs that want to make use of the combining feature
+	 * on their first input. In addition, the extending class must be annotated as CombinableFirst.
+	 * 
+	 * The use of the combiner is typically a pre-reduction of the data.
+	 * 
+	 * @param records The records to be combined.
+	 * @param out The collector to write the result to.
+	 * 
+	 */
 	V1 combineFirst(Iterator<V1> records) throws Exception;
 	
+	/**
+	 * This method must be overridden by CoGoup UDFs that want to make use of the combining feature
+	 * on their second input. In addition, the extending class must be annotated as CombinableSecond.
+	 * 
+	 * The use of the combiner is typically a pre-reduction of the data.
+	 * 
+	 * @param records The records to be combined.
+	 * @param out The collector to write the result to.
+	 * 
+	 */
 	V2 combineSecond(Iterator<V2> records) throws Exception;
 }

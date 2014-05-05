@@ -16,5 +16,9 @@ package eu.stratosphere.api.common.functions;
 
 public interface GenericMap<T, O> extends Function {
 	
+	/**
+	 * A user-implemented function that modifies or transforms an incoming object and
+	 * returns the result.
+	 */
 	O map(T record) throws Exception;
 }

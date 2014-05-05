@@ -52,6 +52,11 @@ import eu.stratosphere.util.NumberSequenceIterator;
 import eu.stratosphere.util.SplittableIterator;
 
 
+/**
+ * The ExecutionEnviroment has methods to control the job execution
+ * and to interact with the outside world (data access).
+ * 
+ */
 public abstract class ExecutionEnvironment {
 	
 	private static ExecutionEnvironment contextEnvironment;
@@ -81,6 +86,15 @@ public abstract class ExecutionEnvironment {
 		return degreeOfParallelism;
 	}
 	
+	/**
+	 * The degreeOfParallelism (DOP) specifies the parallelism of the operators in a job.
+	 * Setting a DOP of x here will cause all operators (such as join, map, reduce) to run with
+	 * x parallel instances.
+	 * In a {@link LocalEnvironment} the DOP should be set to the number of hardware contexts
+	 * On a cluster, we recommend to set the DOP 
+	 * 
+	 * @param degreeOfParallelism
+	 */
 	public void setDegreeOfParallelism(int degreeOfParallelism) {
 		if (degreeOfParallelism < 1) {
 			throw new IllegalArgumentException("Degree of parallelism must be at least one.");

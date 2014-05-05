@@ -16,5 +16,12 @@ package eu.stratosphere.api.common.functions;
 
 public interface GenericFilter<T> extends Function {
 	
+	/**
+	 * User defined function for a filter.
+	 * 
+	 * @param value Incoming tuples
+	 * @return true for tuples that are allowed to pass the filter
+	 * @throws Exception
+	 */
 	boolean filter(T value) throws Exception;
 }

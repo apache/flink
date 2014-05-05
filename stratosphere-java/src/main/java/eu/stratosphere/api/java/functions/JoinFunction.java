@@ -19,10 +19,30 @@ import eu.stratosphere.api.common.functions.GenericJoiner;
 import eu.stratosphere.util.Collector;
 
 
+/**
+ * Base class for a user defined join function. 
+ *
+ * (Use a {@link CoGroupFunction} to perform an outer join)
+ * 
+ * @param <IN1> Type of the incoming objects from the first input
+ * @param <IN2> Type of the objects from the second input
+ * @param <OUT> Type of the resulting objects.
+ */
 public abstract class JoinFunction<IN1, IN2, OUT> extends AbstractFunction implements GenericJoiner<IN1, IN2, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
+	/**
+	 * A user-defined method for performing transformations after a join.
+	 * The method with the user-code is called with an object from each input.
+	 * The two objects match on the given join criterion.
+	 * Users can use this method to combine the data from the two inputs into a new object.
+	 * 
+	 * @param first object from first input
+	 * @param second object from second input
+	 * @return resulting object.
+	 * @throws Exception
+	 */
 	public abstract OUT join(IN1 first, IN2 second) throws Exception;
 	
 	

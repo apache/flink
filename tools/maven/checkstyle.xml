@@ -21,7 +21,10 @@
 			<property name="ignoreComments" value="true" />
 		</module>
 		<module name="AvoidStarImport" />
-		<module name="UnusedImports" />
+		<module name="UnusedImports">
+			<!-- Allow imports for JavaDocs -->
+			<property name="processJavadoc" value="true"/>
+		</module>
 		<module name="NeedBraces">
 			<property name="tokens" value="LITERAL_IF, LITERAL_ELSE"/>
 		</module>

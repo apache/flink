@@ -14,14 +14,24 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.functions;
 
+import eu.stratosphere.api.common.accumulators.Accumulator;
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.functions.GenericMap;
 
-
+/**
+ * This abstract class is the base for all user-defined "tuple-at-a-time"
+ * operations.
+ * The user has to implement the map()-method with custom code.
+ * 
+ * The {@link AbstractFunction#open(eu.stratosphere.configuration.Configuration)} and
+ * {@link AbstractFunction#close()} methods can be used for setup tasks (such as creating {@link Accumulator}s)
+ *
+ * @param <IN> Type of incoming objects
+ * @param <OUT> Type of outgoing objects
+ */
 public abstract class MapFunction<IN, OUT> extends AbstractFunction implements GenericMap<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
-	
 	public abstract OUT map(IN value) throws Exception;
 }

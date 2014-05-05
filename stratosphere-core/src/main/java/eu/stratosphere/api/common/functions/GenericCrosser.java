@@ -16,8 +16,20 @@ package eu.stratosphere.api.common.functions;
 import eu.stratosphere.util.Collector;
 
 
-
+/**
+ * @param <V1> First input type
+ * @param <V2> Second input type
+ * @param <O> Output type
+ */
 public interface GenericCrosser<V1, V2, O> extends Function {
-	
+
+	/**
+	 * User defined function for the cross operator.
+	 * 
+	 * @param record1 Record from first input
+	 * @param record2 Record from the second input
+	 * @param out Collector to submit resulting records.
+	 * @throws Exception
+	 */
 	void cross(V1 record1, V2 record2, Collector<O> out) throws Exception;
 }
