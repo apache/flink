@@ -43,7 +43,7 @@ public class HadoopInputSplitWrapper implements InputSplit {
 	
 	public HadoopInputSplitWrapper(org.apache.hadoop.mapred.InputSplit hInputSplit, JobConf jobconf) {
 		this.hadoopInputSplit = hInputSplit;
-		this.hadoopInputSplitTypeName = hInputSplit.getClass().getCanonicalName();
+		this.hadoopInputSplitTypeName = hInputSplit.getClass().getName();
 		this.jobConf=jobconf;
 	}
 	
