@@ -14,14 +14,17 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators.translation;
 
+import java.lang.annotation.Annotation;
+import java.util.Set;
+
 import eu.stratosphere.api.common.functions.GenericFlatMap;
 import eu.stratosphere.api.common.operators.base.FlatMapOperatorBase;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
+import eu.stratosphere.api.java.functions.FunctionAnnotation;
+import eu.stratosphere.api.java.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 
-/**
- *
- */
+
 public class PlanFlatMapOperator<T, O> extends FlatMapOperatorBase<GenericFlatMap<T, O>>
 	implements UnaryJavaPlanNode<T, O>
 {
@@ -34,6 +37,9 @@ public class PlanFlatMapOperator<T, O> extends FlatMapOperatorBase<GenericFlatMa
 		super(udf, name);
 		this.inType = inType;
 		this.outType = outType;
+		
+		Set<Annotation> annotations = FunctionAnnotation.readSingleConstantAnnotations(this.getUserCodeWrapper());
+		System.out.println(annotations);
 	}
 	
 	@Override
