@@ -51,7 +51,7 @@ public abstract class GenericInputFormat<OT> implements InputFormat<OT, GenericI
 			throw new IllegalArgumentException("Number of input splits has to be at least 1.");
 		}
 
-		numSplits = (this instanceof UnsplittableInput) ? 1 : numSplits;
+		numSplits = (this instanceof NonParallelInput) ? 1 : numSplits;
 		GenericInputSplit[] splits = new GenericInputSplit[numSplits];
 		for (int i = 0; i < splits.length; i++) {
 			splits[i] = new GenericInputSplit(i, numSplits);

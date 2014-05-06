@@ -68,7 +68,7 @@ public class FileInputSplit implements InputSplit {
 	 * @param start
 	 *        the position of the first byte in the file to process
 	 * @param length
-	 *        the number of bytes in the file to process
+	 *        the number of bytes in the file to process (-1 is flag for "read whole file")
 	 * @param hosts
 	 *        the list of hosts containing the block, possibly <code>null</code>
 	 */

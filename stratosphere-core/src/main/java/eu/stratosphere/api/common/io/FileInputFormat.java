@@ -16,7 +16,9 @@ package eu.stratosphere.api.common.io;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -83,6 +85,17 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * The timeout (in milliseconds) to wait for a filesystem stream to respond.
 	 */
 	private static long DEFAULT_OPENING_TIMEOUT;
+	
+	/**
+	 * Files with that suffix are unsplittable at a file level
+	 * and compressed.
+	 */
+	protected static final String DEFLATE_SUFFIX = ".deflate";
+	
+	/**
+	 * The splitLength is set to -1L for reading the whole split.
+	 */
+	protected static final long READ_WHOLE_SPLIT_FLAG = -1L;
 	
 	static {
 		initDefaultsFromConfiguration();
@@ -151,7 +164,12 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * Stream opening timeout.
 	 */
 	protected long openTimeout = DEFAULT_OPENING_TIMEOUT;
-
+	
+	/**
+	 * Some file input formats are not splittable on a block level (avro, deflate)
+	 * Therefore, the FileInputFormat can only read whole files.
+	 */
+	protected boolean unsplittable = false;
 	
 	// --------------------------------------------------------------------------------------------
 	//  Constructors
@@ -330,10 +348,12 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 				if (!s.isDir()) {
 					files.add(s);
 					latestModTime = Math.max(s.getModificationTime(), latestModTime);
+					testForUnsplittable(s);
 				}
 			}
 		} else {
 			files.add(file);
+			testForUnsplittable(file);
 		}
 
 		// check whether the cached statistics are still valid, if we have any
@@ -399,12 +419,36 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 				if (!dir[i].isDir() && acceptFile(dir[i])) {
 					files.add(dir[i]);
 					totalLength += dir[i].getLen();
+					// as soon as there is one deflate file in a directory, we can not split it
+					testForUnsplittable(dir[i]);
 				}
 			}
 		} else {
+			testForUnsplittable(pathFile);
+			
 			files.add(pathFile);
 			totalLength += pathFile.getLen();
 		}
+		// returns if unsplittable
+		if(unsplittable) {
+			int splitNum = 0;
+			for (final FileStatus file : files) {
+				final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, file.getLen());
+				Set<String> hosts = new HashSet<String>();
+				for(BlockLocation block : blocks) {
+					hosts.addAll(Arrays.asList(block.getHosts()));
+				}
+				long len = file.getLen();
+				if(testForUnsplittable(file)) {
+					len = READ_WHOLE_SPLIT_FLAG;
+				}
+				FileInputSplit fis = new FileInputSplit(splitNum++, file.getPath(), 0, len,
+						hosts.toArray(new String[hosts.size()]));
+				inputSplits.add(fis);
+			}
+			return inputSplits.toArray(new FileInputSplit[inputSplits.size()]);
+		}
+		
 
 		final long maxSplitSize = (minNumSplits < 1) ? Long.MAX_VALUE : (totalLength / minNumSplits +
 					(totalLength % minNumSplits == 0 ? 0 : 1));
@@ -479,6 +523,14 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		}
 
 		return inputSplits.toArray(new FileInputSplit[inputSplits.size()]);
+	}
+
+	private boolean testForUnsplittable(FileStatus pathFile) {
+		if(pathFile.getPath().getName().endsWith(DEFLATE_SUFFIX)) {
+			unsplittable = true;
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -556,6 +608,11 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		
 		try {
 			this.stream = isot.waitForCompletion();
+			// Wrap stream in a extracting (decompressing) stream if file ends with .deflate.
+			if(fileSplit.getPath().getName().endsWith(DEFLATE_SUFFIX)) {
+				this.stream = new InflaterInputStreamFSInputWrapper(stream);
+			}
+			
 		}
 		catch (Throwable t) {
 			throw new IOException("Error opening the Input Split " + fileSplit.getPath() + 
@@ -563,7 +620,9 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		}
 		
 		// get FSDataInputStream
-		this.stream.seek(this.splitStart);
+		if (this.splitStart != 0) {
+			this.stream.seek(this.splitStart);
+		}
 	}
 	
 	/**

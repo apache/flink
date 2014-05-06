@@ -54,6 +54,7 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 	public AvroInputFormat(Path filePath, Class<E> type) {
 		super(filePath);
 		this.avroValueType = type;
+		this.unsplittable = true;
 	}
 	
 	

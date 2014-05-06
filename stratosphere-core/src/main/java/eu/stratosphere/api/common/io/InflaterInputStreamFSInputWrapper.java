@@ -1,5 +1,4 @@
 /***********************************************************************************************************************
- *
  * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
@@ -10,42 +9,40 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
- *
  **********************************************************************************************************************/
 
-package eu.stratosphere.api.java.io;
+package eu.stratosphere.api.common.io;
 
-import java.io.Serializable;
-import java.util.Iterator;
+import java.io.IOException;
+import java.util.zip.InflaterInputStream;
 
-import eu.stratosphere.api.common.io.GenericInputFormat;
-import eu.stratosphere.api.common.io.NonParallelInput;
+import eu.stratosphere.core.fs.FSDataInputStream;
 
-/**
- * An input format that returns objects from an iterator.
- */
-public class IteratorInputFormat<T> extends GenericInputFormat<T> implements NonParallelInput {
+public class InflaterInputStreamFSInputWrapper extends FSDataInputStream {
 
-	private static final long serialVersionUID = 1L;
+	private InflaterInputStream inStream;
 
-	private Iterator<T> iterator; // input data as serializable iterator
+	public InflaterInputStreamFSInputWrapper(FSDataInputStream inStream) {
+		this.inStream = new InflaterInputStream(inStream);
+	}
 	
-	
-	public IteratorInputFormat(Iterator<T> iterator) {
-		if (!(iterator instanceof Serializable)) {
-			throw new IllegalArgumentException("The data source iterator must be serializable.");
-		}
-		
-		this.iterator = iterator;
+	@Override
+	public void seek(long desired) throws IOException {
+		throw new UnsupportedOperationException("Compressed streams do not support the seek operation");
 	}
 
 	@Override
-	public boolean reachedEnd() {
-		return !this.iterator.hasNext();
+	public int read() throws IOException {
+		return inStream.read();
 	}
-
+	
 	@Override
-	public T nextRecord(T record) {
-		return this.iterator.next();
+	public int read(byte[] b, int off, int len) throws IOException {
+		return inStream.read(b, off, len);
+	}
+	
+	@Override
+	public int read(byte[] b) throws IOException {
+		return inStream.read(b);
 	}
 }

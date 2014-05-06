@@ -57,11 +57,13 @@ public class AvroInputFormat<E> extends FileInputFormat {
 	public AvroInputFormat(Class<? extends AvroBaseValue<E>> wrapperClass) {
 		this.avroWrapperTypeClass = wrapperClass;
 		this.avroValueType = ReflectionUtil.getTemplateType1(wrapperClass);
+		this.unsplittable = true;
 	}
 	
 	public AvroInputFormat(Class<? extends AvroBaseValue<E>> wrapperClass, Class<E> avroType) {
 		this.avroValueType = avroType;
 		this.avroWrapperTypeClass = wrapperClass;
+		this.unsplittable = true;
 	}
 
 	@Override

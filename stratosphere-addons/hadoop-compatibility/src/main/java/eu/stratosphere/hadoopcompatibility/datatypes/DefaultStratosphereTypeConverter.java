@@ -46,12 +46,20 @@ public class DefaultStratosphereTypeConverter<K,V> implements StratosphereTypeCo
 	}
 	@Override
 	public K convertKey(Record stratosphereRecord) {
-		return convert(stratosphereRecord, 0, this.keyClass);
+		if(stratosphereRecord.getNumFields() > 0) {
+			return convert(stratosphereRecord, 0, this.keyClass);
+		} else {
+			return null;
+		}
 	}
 
 	@Override
 	public V convertValue(Record stratosphereRecord) {
-		return convert(stratosphereRecord, 1, this.valueClass);
+		if(stratosphereRecord.getNumFields() > 1) {
+			return convert(stratosphereRecord, 1, this.valueClass);
+		} else {
+			return null;
+		}
 	}
 
 	@SuppressWarnings("unchecked")

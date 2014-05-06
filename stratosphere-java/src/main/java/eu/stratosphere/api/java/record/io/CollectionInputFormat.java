@@ -20,7 +20,7 @@ import java.util.Collection;
 import java.util.Iterator;
 
 import eu.stratosphere.api.common.io.GenericInputFormat;
-import eu.stratosphere.api.common.io.UnsplittableInput;
+import eu.stratosphere.api.common.io.NonParallelInput;
 import eu.stratosphere.core.io.GenericInputSplit;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.ValueUtil;
@@ -28,7 +28,7 @@ import eu.stratosphere.types.ValueUtil;
 /**
  * input format for java collection input. It can accept collection data or serializable iterator
  */
-public class CollectionInputFormat extends GenericInputFormat<Record> implements UnsplittableInput {
+public class CollectionInputFormat extends GenericInputFormat<Record> implements NonParallelInput {
 
 	private static final long serialVersionUID = 1L;
 

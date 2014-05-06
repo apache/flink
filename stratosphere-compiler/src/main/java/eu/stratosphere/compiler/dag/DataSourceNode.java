@@ -20,7 +20,7 @@ import java.util.Map;
 
 import eu.stratosphere.api.common.io.FileInputFormat;
 import eu.stratosphere.api.common.io.InputFormat;
-import eu.stratosphere.api.common.io.UnsplittableInput;
+import eu.stratosphere.api.common.io.NonParallelInput;
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
@@ -38,7 +38,7 @@ import eu.stratosphere.util.Visitor;
  */
 public class DataSourceNode extends OptimizerNode {
 	
-	private final boolean unsplittable;
+	private final boolean sequentialInput;
 
 	/**
 	 * Creates a new DataSourceNode for the given contract.
@@ -53,12 +53,12 @@ public class DataSourceNode extends OptimizerNode {
 			throw new IllegalArgumentException("Input format has not been set.");
 		}
 		
-		if (UnsplittableInput.class.isAssignableFrom(pactContract.getUserCodeWrapper().getUserCodeClass())) {
+		if (NonParallelInput.class.isAssignableFrom(pactContract.getUserCodeWrapper().getUserCodeClass())) {
 			setDegreeOfParallelism(1);
 			setSubtasksPerInstance(1);
-			this.unsplittable = true;
+			this.sequentialInput = true;
 		} else {
-			this.unsplittable = false;
+			this.sequentialInput = false;
 		}
 	}
 
@@ -86,7 +86,7 @@ public class DataSourceNode extends OptimizerNode {
 	@Override
 	public void setDegreeOfParallelism(int degreeOfParallelism) {
 		// if unsplittable, DOP remains at 1
-		if (!this.unsplittable) {
+		if (!this.sequentialInput) {
 			super.setDegreeOfParallelism(degreeOfParallelism);
 		}
 	}
@@ -95,7 +95,7 @@ public class DataSourceNode extends OptimizerNode {
 	@Override
 	public void setSubtasksPerInstance(int instancesPerMachine) {
 		// if unsplittable, DOP remains at 1
-		if (!this.unsplittable) {
+		if (!this.sequentialInput) {
 			super.setSubtasksPerInstance(instancesPerMachine);
 		}
 	}

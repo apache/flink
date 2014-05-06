@@ -336,6 +336,12 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 				return stats;
 			}
 			
+			// disabling sampling for unsplittable files since the logic below assumes splitability.
+			// TODO: Add sampling for unsplittable files. Right now, only compressed text files are affected by this limitation.
+			if(unsplittable) {
+				return stats;
+			}
+			
 			// compute how many samples to take, depending on the defined upper and lower bound
 			final int numSamples;
 			if (this.numLineSamples != NUM_SAMPLES_UNDEFINED) {
@@ -582,6 +588,20 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	}
 
 	private final boolean fillBuffer() throws IOException {
+		// special case for reading the whole split.
+		if(this.splitLength == FileInputFormat.READ_WHOLE_SPLIT_FLAG) {
+			int read = this.stream.read(this.readBuffer, 0, readBuffer.length);
+			if (read == -1) {
+				this.stream.close();
+				this.stream = null;
+				return false;
+			} else {
+				this.readPos = 0;
+				this.limit = read;
+				return true;
+			}
+		}
+		// else ..
 		int toRead = this.splitLength > this.readBuffer.length ? this.readBuffer.length : (int) this.splitLength;
 		if (this.splitLength <= 0) {
 			toRead = this.readBuffer.length;

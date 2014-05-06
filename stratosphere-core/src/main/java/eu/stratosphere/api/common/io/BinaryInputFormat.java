@@ -246,6 +246,7 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 
 		this.blockInfo = this.createBlockInfo();
 		if (this.splitLength > this.blockInfo.getInfoSize()) {
+			// TODO: seek not supported by compressed streams. Will throw exception
 			this.stream.seek(this.splitStart + this.splitLength - this.blockInfo.getInfoSize());
 			DataInputStream infoStream = new DataInputStream(this.stream);
 			this.blockInfo.read(infoStream);

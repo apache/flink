@@ -27,9 +27,9 @@ package eu.stratosphere.core.fs;
 public interface FileStatus {
 
 	/**
-	 * Return the length of this file, in blocks.
+	 * Return the length of this file
 	 * 
-	 * @return the length of this file, in blocks
+	 * @return the length of this file
 	 */
 	long getLen();
 

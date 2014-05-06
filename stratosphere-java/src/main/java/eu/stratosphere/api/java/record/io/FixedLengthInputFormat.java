@@ -128,11 +128,6 @@ public abstract class FixedLengthInputFormat extends FileInputFormat {
 		}
 	}
 	
-	/**
-	 * {@inheritDoc}
-	 * 
-	 * @throws IOException
-	 */
 	@Override
 	public void open(FileInputSplit split) throws IOException {
 		// open input split using FileInputFormat
@@ -211,6 +206,19 @@ public abstract class FixedLengthInputFormat extends FileInputFormat {
 	 * @throws IOException
 	 */
 	private void fillReadBuffer() throws IOException {
+		// special case for compressed files.
+		if(splitLength == FileInputFormat.READ_WHOLE_SPLIT_FLAG) {
+			int read = this.stream.read(this.readBuffer, 0, this.readBufferSize);
+			if (read == -1) {
+				exhausted = true;
+			} else {
+				this.streamPos += read;
+				this.readBufferPos = 0;
+				this.readBufferLimit = read;
+			}
+			return;
+		}
+		
 		int toRead = (int) Math.min(this.streamEnd - this.streamPos, this.readBufferSize);
 		if (toRead <= 0) {
 			this.exhausted = true;
