@@ -32,10 +32,10 @@
 				<version>2.4</version>
 				<executions>
 				
-				    <!-- EXAMPLES FOR THE NEW JAVA API -->
-				    
-				    <!-- TPC-H Query 10 -->
-				    <execution>
+					<!-- EXAMPLES FOR THE NEW JAVA API -->
+
+					<!-- TPC-H Query 10 -->
+					<execution>
 						<id>TPCHQuery10</id>
 						<phase>package</phase>
 						<goals>
@@ -52,7 +52,6 @@
 							<includes>
 								<include>**/java/relational/TPCHQuery10.class</include>
 								<include>**/java/relational/TPCHQuery10$*.class</include>
-								<include>**/Testdata/*</include>
 							</includes>
 						</configuration>
 					</execution>
