@@ -38,7 +38,8 @@ import org.apache.commons.lang3.Validate;
  * @see java.lang.CharSequence
  */
 public class StringValue implements NormalizableKey<StringValue>, CharSequence, ResettableValue<StringValue>, 
-        CopyableValue<StringValue>, Appendable {
+		CopyableValue<StringValue>, Appendable
+{
 	private static final long serialVersionUID = 1L;
 	
 	private static final char[] EMPTY_STRING = new char[0];
@@ -541,8 +542,8 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		int len1 = this.len;
 		int len2 = other.len;
 		int n = Math.min(len1, len2);
-		char v1[] = value;
-		char v2[] = other.value;
+		char[] v1 = value;
+		char[] v2 = other.value;
 
 		for (int k = 0; k < n; k++) {
 			char c1 = v1[k];

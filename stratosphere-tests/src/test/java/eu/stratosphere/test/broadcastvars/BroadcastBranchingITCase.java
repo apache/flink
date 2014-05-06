@@ -92,7 +92,7 @@ public class BroadcastBranchingITCase extends RecordAPITestBase {
 
 		FileDataSink output = new FileDataSink(new ContractITCaseOutputFormat(), resultPath);
 		output.setDegreeOfParallelism(1);
-		output.addInput(mp2);
+		output.setInput(mp2);
 
 		return new Plan(output);
 	}

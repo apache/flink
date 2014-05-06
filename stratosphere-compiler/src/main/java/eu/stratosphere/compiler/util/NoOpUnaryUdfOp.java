@@ -28,8 +28,8 @@ public class NoOpUnaryUdfOp extends SingleInputOperator<NoOpFunction> implements
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public Class<? extends Key>[] getKeyClasses() {
-		return (Class<? extends Key>[]) new Class[0];
+	public Class<? extends Key<?>>[] getKeyClasses() {
+		return (Class<? extends Key<?>>[]) new Class[0];
 	}
 }
 

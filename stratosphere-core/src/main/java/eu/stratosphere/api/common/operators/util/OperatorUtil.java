@@ -118,6 +118,7 @@ public class OperatorUtil {
 	 * @param inputs
 	 *        all input contracts to this contract
 	 */
+	@SuppressWarnings("deprecation")
 	public static void setInputs(final Operator contract, final List<List<Operator>> inputs) {
 		if (contract instanceof GenericDataSink) {
 			if (inputs.size() != 1) {

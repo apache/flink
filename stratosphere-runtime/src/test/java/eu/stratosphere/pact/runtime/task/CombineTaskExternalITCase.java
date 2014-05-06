@@ -38,7 +38,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<GenericGroupReduce
 	
 	@SuppressWarnings("unchecked")
 	private final RecordComparator comparator = new RecordComparator(
-		new int[]{0}, (Class<? extends Key>[])new Class[]{ IntValue.class });
+		new int[]{0}, (Class<? extends Key<?>>[])new Class[]{ IntValue.class });
 
 	public CombineTaskExternalITCase() {
 		super(COMBINE_MEM, 0);

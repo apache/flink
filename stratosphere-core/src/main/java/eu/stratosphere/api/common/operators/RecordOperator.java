@@ -25,5 +25,5 @@ public interface RecordOperator {
 	 * 
 	 * @return The key classes that this record works on.
 	 */
-	Class<? extends Key>[] getKeyClasses();
+	Class<? extends Key<?>>[] getKeyClasses();
 }

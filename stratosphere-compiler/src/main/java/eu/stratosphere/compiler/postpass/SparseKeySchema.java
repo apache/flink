@@ -23,32 +23,32 @@ import eu.stratosphere.types.Key;
 /**
  * Class encapsulating a schema map (int column position -> column type) and a reference counter.
  */
-public class SparseKeySchema extends AbstractSchema<Class<? extends Key>> {
+public class SparseKeySchema extends AbstractSchema<Class<? extends Key<?>>> {
 	
-	private final Map<Integer, Class<? extends Key>> schema;
+	private final Map<Integer, Class<? extends Key<?>>> schema;
 	
 	
 	public SparseKeySchema() {
-		this.schema = new HashMap<Integer, Class<? extends Key>>();
+		this.schema = new HashMap<Integer, Class<? extends Key<?>>>();
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public void addType(int key, Class<? extends Key> type) throws ConflictingFieldTypeInfoException  {
-		Class<? extends Key> previous = this.schema.put(key, type);
+	public void addType(int key, Class<? extends Key<?>> type) throws ConflictingFieldTypeInfoException  {
+		Class<? extends Key<?>> previous = this.schema.put(key, type);
 		if (previous != null && previous != type) {
 			throw new ConflictingFieldTypeInfoException(key, previous, type);
 		}
 	}
 	
 	@Override
-	public Class<? extends Key> getType(int field) {
+	public Class<? extends Key<?>> getType(int field) {
 		return this.schema.get(field);
 	}
 	
 	@Override
-	public Iterator<Entry<Integer, Class<? extends Key>>> iterator() {
+	public Iterator<Entry<Integer, Class<? extends Key<?>>>> iterator() {
 		return this.schema.entrySet().iterator();
 	}
 	

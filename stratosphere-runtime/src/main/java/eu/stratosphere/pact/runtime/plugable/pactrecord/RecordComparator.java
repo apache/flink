@@ -51,6 +51,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 	
 	private final int[] keyFields;
 	
+	@SuppressWarnings("rawtypes")
 	private final Key[] keyHolders, transientKeyHolders;
 	
 	private final Record temp1, temp2;
@@ -71,7 +72,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 	 * @param keyFields The positions of the key fields.
 	 * @param keyTypes The types (classes) of the key fields.
 	 */
-	public RecordComparator(int[] keyFields, Class<? extends Key>[] keyTypes) {
+	public RecordComparator(int[] keyFields, Class<? extends Key<?>>[] keyTypes) {
 		this(keyFields, keyTypes, null);
 	}
 	
@@ -85,7 +86,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 	 *                  a value of <i>false</i> indicated descending. If the parameter is <i>null</i>, then
 	 *                  all order comparisons will assume ascending order on all fields.
 	 */
-	public RecordComparator(int[] keyFields, Class<? extends Key>[] keyTypes, boolean[] sortDirection) {
+	public RecordComparator(int[] keyFields, Class<? extends Key<?>>[] keyTypes, boolean[] sortDirection) {
 		this.keyFields = keyFields;
 		
 		// instantiate fields to extract keys into
@@ -105,7 +106,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 		int nKeyLen = 0;
 		boolean inverted = false;
 		for (int i = 0; i < this.keyHolders.length; i++) {
-			Key k = this.keyHolders[i];
+			Key<?> k = this.keyHolders[i];
 			if (k instanceof NormalizableKey) {
 				if (sortDirection != null) {
 					if (sortDirection[i] && inverted) {
@@ -115,7 +116,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 					}
 				}
 				nKeys++;
-				final int len = ((NormalizableKey) k).getMaxNormalizedKeyLen();
+				final int len = ((NormalizableKey<?>) k).getMaxNormalizedKeyLen();
 				if (len < 0) {
 					throw new RuntimeException("Data type " + k.getClass().getName() + 
 						" specifies an invalid length for the normalized key: " + len);
@@ -215,7 +216,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 	@Override
 	public boolean equalToReference(Record candidate) {
 		for (int i = 0; i < this.keyFields.length; i++) {
-			final Key k = candidate.getField(this.keyFields[i], this.transientKeyHolders[i]);
+			final Key<?> k = candidate.getField(this.keyFields[i], this.transientKeyHolders[i]);
 			if (k == null) {
 				throw new NullKeyFieldException(this.keyFields[i]);
 			} else if (!k.equals(this.keyHolders[i])) {
@@ -231,6 +232,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 		final RecordComparator pra = (RecordComparator) referencedAccessors;
 		
 		for (int i = 0; i < this.keyFields.length; i++) {
+			@SuppressWarnings("unchecked")
 			final int comp = pra.keyHolders[i].compareTo(this.keyHolders[i]);
 			if (comp != 0) {
 				return this.ascending[i] ? comp : -comp;
@@ -239,22 +241,22 @@ public final class RecordComparator extends TypeComparator<Record> {
 		return 0;
 	}
 	
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.runtime.plugable.TypeAccessors#compare(eu.stratosphere.nephele.services.memorymanager.DataInputView, eu.stratosphere.nephele.services.memorymanager.DataInputView)
-	 */
 	@Override
 	public int compare(DataInputView source1, DataInputView source2) throws IOException {
 		this.temp1.read(source1);
 		this.temp2.read(source2);
 		
 		for (int i = 0; i < this.keyFields.length; i++) {
+			@SuppressWarnings("rawtypes")
 			final Key k1 = this.temp1.getField(this.keyFields[i], this.keyHolders[i]);
+			@SuppressWarnings("rawtypes")
 			final Key k2 = this.temp2.getField(this.keyFields[i], this.transientKeyHolders[i]);
 			
 			if (k1 == null || k2 == null) {
 				throw new NullKeyFieldException(this.keyFields[i]);
 			}
 			
+			@SuppressWarnings("unchecked")
 			final int comp = k1.compareTo(k2);
 			if (comp != 0) {
 				return this.ascending[i] ? comp : -comp;
@@ -285,9 +287,6 @@ public final class RecordComparator extends TypeComparator<Record> {
 				this.normalizableKeyPrefixLen > keyBytes;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.generic.types.TypeComparator#putNormalizedKey(java.lang.Object, byte[], int, int)
-	 */
 	@Override
 	public void putNormalizedKey(Record record, MemorySegment target, int offset, int numBytes) {
 		int i = 0;
@@ -296,7 +295,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 			{
 				int len = this.normalizedKeyLengths[i]; 
 				len = numBytes >= len ? len : numBytes;
-				((NormalizableKey) record.getField(this.keyFields[i], this.transientKeyHolders[i])).copyNormalizedKey(target, offset, len);
+				((NormalizableKey<?>) record.getField(this.keyFields[i], this.transientKeyHolders[i])).copyNormalizedKey(target, offset, len);
 				numBytes -= len;
 				offset += len;
 			}
@@ -314,30 +313,22 @@ public final class RecordComparator extends TypeComparator<Record> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-
 	@Override
 	public boolean supportsSerializationWithKeyNormalization() {
 		return false;
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.generic.types.TypeComparator#writeWithKeyNormalization(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataOutputView)
-	 */
 	@Override
 	public void writeWithKeyNormalization(Record record, DataOutputView target) {
 		throw new UnsupportedOperationException();
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.generic.types.TypeComparator#readWithKeyDenormalization(java.lang.Object, eu.stratosphere.nephele.services.memorymanager.DataInputView)
-	 */
 	@Override
 	public Record readWithKeyDenormalization(Record reuse, DataInputView source) {
 		throw new UnsupportedOperationException();
 	}
 	
 	// --------------------------------------------------------------------------------------------
-
 
 	@Override
 	public RecordComparator duplicate() {
@@ -352,18 +343,18 @@ public final class RecordComparator extends TypeComparator<Record> {
 		return this.keyFields;
 	}
 	
-	public final Class<? extends Key>[] getKeyTypes() {
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyTypes = new Class[this.keyHolders.length];
+	@SuppressWarnings("unchecked")
+	public final Class<? extends Key<?>>[] getKeyTypes() {
+		final Class<? extends Key<?>>[] keyTypes = new Class[this.keyHolders.length];
 		for (int i = 0; i < keyTypes.length; i++) {
-			keyTypes[i] = this.keyHolders[i].getClass();
+			keyTypes[i] = (Class<? extends Key<?>>) this.keyHolders[i].getClass();
 		}
 		return keyTypes;
 	}
 	
-	public final Key[] getKeysAsCopy(Record record) {
+	public final Key<?>[] getKeysAsCopy(Record record) {
 		try {
-			final Key[] keys = new Key[this.keyFields.length];
+			final Key<?>[] keys = new Key[this.keyFields.length];
 			for (int i = 0; i < keys.length; i++) {
 				keys[i] = this.keyHolders[i].getClass().newInstance();
 			}
@@ -377,6 +368,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 		}
 	}
 	
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public final int compareAgainstReference(Key[] keys) {
 		for (int i = 0; i < this.keyFields.length; i++)
 		{

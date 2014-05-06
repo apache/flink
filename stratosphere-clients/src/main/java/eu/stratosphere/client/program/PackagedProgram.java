@@ -493,8 +493,9 @@ public class PackagedProgram {
 		
 		Random rnd = new Random();
 		
+		JarFile jar = null;
 		try {
-			final JarFile jar = new JarFile(jarFile);
+			jar = new JarFile(jarFile);
 			final List<JarEntry> containedJarFileEntries = new ArrayList<JarEntry>();
 			
 			Enumeration<JarEntry> entries = jar.entries();
@@ -577,6 +578,13 @@ public class PackagedProgram {
 		}
 		catch (Throwable t) {
 			throw new ProgramInvocationException("Unknown I/O error while extracting contained jar files.", t);
+		}
+		finally {
+			if (jar != null) {
+				try {
+					jar.close();
+				} catch (Throwable t) {}
+			}
 		}
 	}
 	

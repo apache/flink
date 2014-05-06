@@ -16,7 +16,6 @@ package eu.stratosphere.hadoopcompatibility;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.Map.Entry;
 
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
@@ -26,7 +25,6 @@ import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.hadoopcompatibility.datatypes.HadoopTypeConverter;
-import eu.stratosphere.runtime.fs.hdfs.DistributedFileSystem;
 import eu.stratosphere.types.Record;
 
 public class HadoopInputFormatWrapper<K, V> implements InputFormat<Record, HadoopInputSplitWrapper> {
@@ -131,7 +129,7 @@ public class HadoopInputFormatWrapper<K, V> implements InputFormat<Record, Hadoo
 		out.writeObject(converter);
 	}
 
-    @SuppressWarnings("unchecked")
+	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		hadoopInputFormatName = in.readUTF();
 		if(jobConf == null) {

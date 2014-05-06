@@ -18,9 +18,9 @@ import eu.stratosphere.types.Key;
 
 public class PostPassUtils {
 
-	public static <X> Class<? extends Key>[] getKeys(AbstractSchema<Class< ? extends X>> schema, int[] fields) throws MissingFieldTypeInfoException {
+	public static <X> Class<? extends Key<?>>[] getKeys(AbstractSchema<Class< ? extends X>> schema, int[] fields) throws MissingFieldTypeInfoException {
 		@SuppressWarnings("unchecked")
-		Class<? extends Key>[] keyTypes = new Class[fields.length];
+		Class<? extends Key<?>>[] keyTypes = new Class[fields.length];
 		
 		for (int i = 0; i < fields.length; i++) {
 			Class<? extends X> type = schema.getType(fields[i]);
@@ -28,7 +28,7 @@ public class PostPassUtils {
 				throw new MissingFieldTypeInfoException(i);
 			} else if (Key.class.isAssignableFrom(type)) {
 				@SuppressWarnings("unchecked")
-				Class<? extends Key> keyType = (Class<? extends Key>) type;
+				Class<? extends Key<?>> keyType = (Class<? extends Key<?>>) type;
 				keyTypes[i] = keyType;
 			} else {
 				throw new CompilerException("The field type " + type.getName() +

@@ -27,6 +27,7 @@ import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.runner.RunWith;
@@ -63,10 +64,6 @@ public class UnionITCase extends RecordAPITestBase {
 	private static final String MAP_RESULT_TWICE = "1 11\n2 12\n4 14\n4 14\n1 11\n2 12\n2 12\n4 14\n4 14\n3 16\n1 11\n2 12\n2 12\n0 13\n4 14\n1 11\n4 14\n4 14\n" +
 												"1 11\n2 12\n4 14\n4 14\n1 11\n2 12\n2 12\n4 14\n4 14\n3 16\n1 11\n2 12\n2 12\n0 13\n4 14\n1 11\n4 14\n4 14\n";
 	
-	private static final String emptyInputFilePathPostfix = "/emptyInput";
-	
-	private static final String inputFilePathPostfix = "/mapInput";
-	
 	@Override
 	protected void preSubmit() throws Exception {
 		inPath = createTempFile("in.txt", IN);
@@ -99,6 +96,7 @@ public class UnionITCase extends RecordAPITestBase {
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	@Override
 	protected Plan getTestJob() {
 		String input1Path = config.getString("UnionTest#Input1Path", "").equals("empty") ? emptyInPath : inPath;

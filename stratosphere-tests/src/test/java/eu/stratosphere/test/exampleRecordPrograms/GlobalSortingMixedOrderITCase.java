@@ -122,7 +122,7 @@ public class GlobalSortingMixedOrderITCase extends RecordAPITestBase {
 		}
 
 		@Override
-		public Key[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+		public Key<?>[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
 			
 			final float bucketWidth = ((float) RANGE_I1) / totalNumBuckets;
 			int boundVal = (int) ((bucketNum + 1) * bucketWidth);

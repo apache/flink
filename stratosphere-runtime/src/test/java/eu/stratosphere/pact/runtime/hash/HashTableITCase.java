@@ -77,7 +77,7 @@ public class HashTableITCase {
 	{
 		final int[] keyPos = new int[] {0};
 		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] keyType = (Class<? extends Key>[]) new Class[] { IntValue.class };
+		final Class<? extends Key<?>>[] keyType = (Class<? extends Key<?>>[]) new Class[] { IntValue.class };
 		
 		this.recordBuildSideAccesssor = RecordSerializer.get();
 		this.recordProbeSideAccesssor = RecordSerializer.get();

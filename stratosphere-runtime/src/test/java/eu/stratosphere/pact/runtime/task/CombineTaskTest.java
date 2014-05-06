@@ -44,7 +44,7 @@ public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?
 	
 	@SuppressWarnings("unchecked")
 	private final RecordComparator comparator = new RecordComparator(
-		new int[]{0}, (Class<? extends Key>[])new Class[]{ IntValue.class });
+		new int[]{0}, (Class<? extends Key<?>>[])new Class[]{ IntValue.class });
 
 	public CombineTaskTest() {
 		super(COMBINE_MEM, 0);

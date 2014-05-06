@@ -67,10 +67,10 @@ public class DoubleValue implements Key<DoubleValue>, ResettableValue<DoubleValu
 		this.value = value;
 	}
 
-    @Override
-    public void setValue(DoubleValue value) {
-        this.value = value.value;
-    }
+	@Override
+	public void setValue(DoubleValue value) {
+		this.value = value.value;
+	}
 
 	// --------------------------------------------------------------------------------------------
 	

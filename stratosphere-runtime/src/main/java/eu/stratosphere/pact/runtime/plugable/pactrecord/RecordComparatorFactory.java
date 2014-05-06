@@ -26,8 +26,8 @@ import eu.stratosphere.types.Record;
  * the fields for the comparison. That subset of fields (positions and types) is read from the
  * supplied configuration.
  */
-public class RecordComparatorFactory implements TypeComparatorFactory<Record>
-{
+public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
+	
 	private static final String NUM_KEYS = "numkeys";
 	
 	private static final String KEY_POS_PREFIX = "keypos.";
@@ -40,7 +40,7 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record>
 	
 	private int[] positions;
 	
-	private Class<? extends Key>[] types;
+	private Class<? extends Key<?>>[] types;
 	
 	private boolean[] sortDirections;
 	
@@ -50,11 +50,11 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record>
 		// do nothing, allow to be configured via config
 	}
 	
-	public RecordComparatorFactory(int[] positions, Class<? extends Key>[] types) {
+	public RecordComparatorFactory(int[] positions, Class<? extends Key<?>>[] types) {
 		this(positions, types, null);
 	}
 	
-	public RecordComparatorFactory(int[] positions, Class<? extends Key>[] types, boolean[] sortDirections) {
+	public RecordComparatorFactory(int[] positions, Class<? extends Key<?>>[] types, boolean[] sortDirections) {
 		if (positions == null || types == null) {
 			throw new NullPointerException();
 		}
@@ -97,9 +97,7 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record>
 		}
 	}
 
-	/* (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.generic.types.TypeComparatorFactory#readParametersFromConfig(eu.stratosphere.nephele.configuration.Configuration, java.lang.ClassLoader)
-	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public void readParametersFromConfig(Configuration config, ClassLoader cl) throws ClassNotFoundException {
 		// figure out how many key fields there are
@@ -109,8 +107,7 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record>
 		}
 		
 		final int[] positions = new int[numKeyFields];
-		@SuppressWarnings("unchecked")
-		final Class<? extends Key>[] types = new Class[numKeyFields];
+		final Class<? extends Key<?>>[] types = new Class[numKeyFields];
 		final boolean[] direction = new boolean[numKeyFields];
 		
 		// read the individual key positions and types
@@ -126,7 +123,7 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record>
 			// next key type
 			final String name = config.getString(KEY_CLASS_PREFIX + i, null);
 			if (name != null) {
-				types[i] = Class.forName(name, true, cl).asSubclass(Key.class);
+				types[i] = (Class<? extends Key<?>>) Class.forName(name, true, cl).asSubclass(Key.class);
 			} else {
 				throw new CorruptConfigurationException("The key type (" + i + 
 					") for the comparator is null"); 

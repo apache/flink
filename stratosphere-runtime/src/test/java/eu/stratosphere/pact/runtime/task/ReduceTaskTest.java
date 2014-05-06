@@ -47,7 +47,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 	
 	@SuppressWarnings("unchecked")
 	private final RecordComparator comparator = new RecordComparator(
-		new int[]{0}, (Class<? extends Key>[])new Class[]{ IntValue.class });
+		new int[]{0}, (Class<? extends Key<?>>[])new Class[]{ IntValue.class });
 	
 	private final List<Record> outList = new ArrayList<Record>();
 

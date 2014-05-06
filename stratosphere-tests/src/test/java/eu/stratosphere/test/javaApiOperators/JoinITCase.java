@@ -416,7 +416,7 @@ public class JoinITCase extends JavaProgramTestBase {
 				
 				DataSet<CustomType> ds1 = CollectionDataSets.getCustomTypeDataSet(env);
 				DataSet<CustomType> ds2 = CollectionDataSets.getSmallCustomTypeDataSet(env);
-				@SuppressWarnings("serial")
+				
 				DataSet<Tuple2<CustomType, CustomType>> joinDs = 
 					ds1.join(ds2)
 					   .where(

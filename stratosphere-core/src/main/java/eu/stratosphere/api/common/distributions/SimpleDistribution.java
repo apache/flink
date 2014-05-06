@@ -23,7 +23,7 @@ public class SimpleDistribution implements DataDistribution {
 	
 	private static final long serialVersionUID = 1L;
 
-	protected Key[][] boundaries; 
+	protected Key<?>[][] boundaries; 
 	
 	protected int dim;
 	
@@ -32,7 +32,7 @@ public class SimpleDistribution implements DataDistribution {
 		boundaries = new Key[0][];
 	}
 	
-	public SimpleDistribution(Key[] bucketBoundaries) {
+	public SimpleDistribution(Key<?>[] bucketBoundaries) {
 		if (bucketBoundaries == null) {
 			throw new IllegalArgumentException("Bucket boundaries must not be null.");
 		}
@@ -43,7 +43,8 @@ public class SimpleDistribution implements DataDistribution {
 		// dimensionality is one in this case
 		dim = 1;
 		
-		Class<? extends Key> clazz = bucketBoundaries[0].getClass();
+		@SuppressWarnings("unchecked")
+		Class<? extends Key<?>> clazz = (Class<? extends Key<?>>) bucketBoundaries[0].getClass();
 		
 		// make the array 2-dimensional
 		boundaries = new Key[bucketBoundaries.length][];
@@ -56,7 +57,8 @@ public class SimpleDistribution implements DataDistribution {
 		}
 	}
 	
-	public SimpleDistribution(Key[][] bucketBoundaries) {
+	@SuppressWarnings("unchecked")
+	public SimpleDistribution(Key<?>[][] bucketBoundaries) {
 		if (bucketBoundaries == null) {
 			throw new IllegalArgumentException("Bucket boundaries must not be null.");
 		}
@@ -67,10 +69,9 @@ public class SimpleDistribution implements DataDistribution {
 		// dimensionality is one in this case
 		dim = bucketBoundaries[0].length;
 		
-		@SuppressWarnings("unchecked")
-		Class<? extends Key>[] types = new Class[dim];
+		Class<? extends Key<?>>[] types = new Class[dim];
 		for (int i = 0; i < dim; i++) {
-			types[i] = bucketBoundaries[0][i].getClass();
+			types[i] = (Class<? extends Key<?>>) bucketBoundaries[0][i].getClass();
 		}
 		
 		// check the array
@@ -94,7 +95,7 @@ public class SimpleDistribution implements DataDistribution {
 	}
 
 	@Override
-	public Key[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+	public Key<?>[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
 		// check validity of arguments
 		if(bucketNum < 0) {
 			throw new IllegalArgumentException("Requested bucket must be greater than or equal to 0.");
@@ -138,6 +139,7 @@ public class SimpleDistribution implements DataDistribution {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void read(DataInput in) throws IOException {
 		this.dim = in.readInt();
@@ -146,12 +148,11 @@ public class SimpleDistribution implements DataDistribution {
 		boundaries = new Key[len][];
 		
 		// read types
-		@SuppressWarnings("unchecked")
-		Class<? extends Key>[] types = new Class[dim];
+		Class<? extends Key<?>>[] types = new Class[dim];
 		for (int i = 0; i < dim; i++) {
 			String className = in.readUTF();
 			try {
-				types[i] = Class.forName(className, true, getClass().getClassLoader()).asSubclass(Key.class);
+				types[i] = (Class<? extends Key<?>>) Class.forName(className, true, getClass().getClassLoader()).asSubclass(Key.class);
 			} catch (ClassNotFoundException e) {
 				throw new IOException("Could not load type class '" + className + "'.");
 			} catch (Throwable t) {
@@ -160,9 +161,9 @@ public class SimpleDistribution implements DataDistribution {
 		}
 		
 		for (int i = 0; i < len; i++) {
-			Key[] bucket = new Key[dim]; 
+			Key<?>[] bucket = new Key[dim]; 
 			for (int d = 0; d < dim; d++) {
-				Key val = InstantiationUtil.instantiate(types[d], Key.class);
+				Key<?> val = InstantiationUtil.instantiate(types[d], Key.class);
 				val.read(in);
 				bucket[d] = val;
 			}

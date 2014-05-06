@@ -35,7 +35,7 @@ import eu.stratosphere.types.Key;
  * Post pass implementation for the Record data model. Does only type inference and creates
  * serializers and comparators.
  */
-public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends Key>, SparseKeySchema> {
+public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends Key<?>>, SparseKeySchema> {
 	
 	// --------------------------------------------------------------------------------------------
 	//  Type specific methods that extract schema information
@@ -78,7 +78,7 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 		
 		// add the information to the schema
 		int[] localPositions = contract.getKeyColumns(0);
-		Class<? extends Key>[] types = recContract.getKeyClasses();
+		Class<? extends Key<?>>[] types = recContract.getKeyClasses();
 		for (int i = 0; i < localPositions.length; i++) {
 			schema.addType(localPositions[i], types[i]);
 		}
@@ -105,7 +105,7 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 		RecordOperator recContract = (RecordOperator) contract;
 		int[] localPositions1 = contract.getKeyColumns(0);
 		int[] localPositions2 = contract.getKeyColumns(1);
-		Class<? extends Key>[] types = recContract.getKeyClasses();
+		Class<? extends Key<?>>[] types = recContract.getKeyClasses();
 		
 		if (localPositions1.length != localPositions2.length) {
 			throw new CompilerException("Error: The keys for the first and second input have a different number of fields.");
@@ -136,7 +136,7 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 	private void addOrderingToSchema(Ordering o, SparseKeySchema schema) throws ConflictingFieldTypeInfoException {
 		for (int i = 0; i < o.getNumberOfFields(); i++) {
 			Integer pos = o.getFieldNumber(i);
-			Class<? extends Key> type = o.getType(i);
+			Class<? extends Key<?>> type = o.getType(i);
 			schema.addType(pos, type);
 		}
 	}
@@ -155,7 +155,7 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 			throws MissingFieldTypeInfoException
 	{
 		int[] positions = fields.toArray();
-		Class<? extends Key>[] keyTypes = PostPassUtils.getKeys(schema, positions);
+		Class<? extends Key<?>>[] keyTypes = PostPassUtils.getKeys(schema, positions);
 		return new RecordComparatorFactory(positions, keyTypes, directions);
 	}
 	

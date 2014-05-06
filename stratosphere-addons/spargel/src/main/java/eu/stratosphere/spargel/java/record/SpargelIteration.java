@@ -46,16 +46,15 @@ public class SpargelIteration {
 	// ----------------------------------------------------------------------------------
 	
 	public <VertexKey extends Key<VertexKey>, VertexValue extends Value, Message extends Value, EdgeValue extends Value>
-    SpargelIteration(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
-                     VertexUpdateFunction<VertexKey, VertexValue, Message> uf)
+			SpargelIteration(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
+			VertexUpdateFunction<VertexKey, VertexValue, Message> uf)
 	{
 		this(mf, uf, DEFAULT_NAME);
 	}
 	
-	public <VertexKey extends Key<VertexKey>, VertexValue extends Value, Message extends Value, EdgeValue extends Value>
-    SpargelIteration(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
-                     VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
-                     String name)
+	public <VertexKey extends Key<VertexKey>, VertexValue extends Value, Message extends Value, EdgeValue extends Value> SpargelIteration(
+			MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf, VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
+			String name)
 	{
 		// get the types
 		this.vertexKey = ReflectionUtil.getTemplateType1(mf.getClass());

@@ -24,15 +24,15 @@ import eu.stratosphere.util.InstantiationUtil;
  * Implementation of the {@link TypePairComparator} interface for Pact Records. The equality is established on a set of
  * key fields. The indices of the key fields may be different on the reference and candidate side.
  */
-public class RecordPairComparator extends TypePairComparator<Record, Record>
-{
+public class RecordPairComparator extends TypePairComparator<Record, Record>  {
+	
 	private final int[] keyFields1, keyFields2;			// arrays with the positions of the keys in the records
 	
+	@SuppressWarnings("rawtypes")
 	private final Key[] keyHolders1, keyHolders2;		// arrays with mutable objects for the key types
 	
 	
-	public RecordPairComparator(int[] keyFieldsReference, int[] keyFieldsCandidate, Class<? extends Key>[] keyTypes)
-	{
+	public RecordPairComparator(int[] keyFieldsReference, int[] keyFieldsCandidate, Class<? extends Key<?>>[] keyTypes) {
 		if (keyFieldsReference.length != keyFieldsCandidate.length || keyFieldsCandidate.length != keyTypes.length) {
 			throw new IllegalArgumentException(
 				"The arrays describing the key positions and types must be of the same length.");
@@ -57,8 +57,7 @@ public class RecordPairComparator extends TypePairComparator<Record, Record>
 
 
 	@Override
-	public void setReference(Record reference)
-	{
+	public void setReference(Record reference) {
 		for (int i = 0; i < this.keyFields1.length; i++) {
 			if (!reference.getFieldInto(this.keyFields1[i], this.keyHolders1[i])) {
 				throw new NullKeyFieldException(this.keyFields1[i]);
@@ -67,9 +66,9 @@ public class RecordPairComparator extends TypePairComparator<Record, Record>
 	}
 
 
+	@SuppressWarnings("rawtypes")
 	@Override
-	public boolean equalToReference(Record candidate)
-	{
+	public boolean equalToReference(Record candidate) {
 		for (int i = 0; i < this.keyFields2.length; i++) {
 			final Key k = candidate.getField(this.keyFields2[i], this.keyHolders2[i]);
 			if (k == null) {
@@ -82,9 +81,9 @@ public class RecordPairComparator extends TypePairComparator<Record, Record>
 	}
 
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Override
-	public int compareToReference(Record candidate)
-	{
+	public int compareToReference(Record candidate) {
 		for (int i = 0; i < this.keyFields2.length; i++) {
 			final Key k = candidate.getField(this.keyFields2[i], this.keyHolders2[i]);
 			if (k == null) {

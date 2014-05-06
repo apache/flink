@@ -129,8 +129,8 @@ public class SimpleDataDistributionTest {
 		
 		// compare written and read distributions
 		for(int i=0;i<6;i++) {
-			Key[] recW = ddWrite.getBucketBoundary(0, 6);
-			Key[] recR = ddWrite.getBucketBoundary(0, 6);
+			Key<?>[] recW = ddWrite.getBucketBoundary(0, 6);
+			Key<?>[] recR = ddWrite.getBucketBoundary(0, 6);
 			
 			Assert.assertEquals(recW[0], recR[0]);
 			Assert.assertEquals(recW[1], recR[1]);
@@ -150,7 +150,7 @@ public class SimpleDataDistributionTest {
 							{new IntValue(6), new StringValue("F")},
 							{new IntValue(7), new StringValue("G")}});
 		
-		Key[] boundRec = dd.getBucketBoundary(0, 8);
+		Key<?>[] boundRec = dd.getBucketBoundary(0, 8);
 		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 1);
 		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("A"));
 		
