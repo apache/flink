@@ -19,32 +19,9 @@ import java.util.Arrays;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.operators.translation.PlanProjectOperator;
-import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.api.java.tuple.Tuple10;
-import eu.stratosphere.api.java.tuple.Tuple11;
-import eu.stratosphere.api.java.tuple.Tuple12;
-import eu.stratosphere.api.java.tuple.Tuple13;
-import eu.stratosphere.api.java.tuple.Tuple14;
-import eu.stratosphere.api.java.tuple.Tuple15;
-import eu.stratosphere.api.java.tuple.Tuple16;
-import eu.stratosphere.api.java.tuple.Tuple17;
-import eu.stratosphere.api.java.tuple.Tuple18;
-import eu.stratosphere.api.java.tuple.Tuple19;
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.api.java.tuple.Tuple20;
-import eu.stratosphere.api.java.tuple.Tuple21;
-import eu.stratosphere.api.java.tuple.Tuple22;
-import eu.stratosphere.api.java.tuple.Tuple23;
-import eu.stratosphere.api.java.tuple.Tuple24;
-import eu.stratosphere.api.java.tuple.Tuple25;
-import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.api.java.tuple.Tuple4;
-import eu.stratosphere.api.java.tuple.Tuple5;
-import eu.stratosphere.api.java.tuple.Tuple6;
-import eu.stratosphere.api.java.tuple.Tuple7;
-import eu.stratosphere.api.java.tuple.Tuple8;
-import eu.stratosphere.api.java.tuple.Tuple9;
+//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
+import eu.stratosphere.api.java.tuple.*;
+//CHECKSTYLE.ON: AvoidStarImport
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 
