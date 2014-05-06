@@ -25,8 +25,9 @@ import org.junit.Assert;
 public class ConnectedComponentsData {
 
 	public static final String getEnumeratingVertices(int num) {
-		if (num < 1 || num > 1000000)
+		if (num < 1 || num > 1000000) {
 			throw new IllegalArgumentException();
+		}
 
 		StringBuilder bld = new StringBuilder(3 * num);
 		for (int i = 1; i <= num; i++) {
@@ -46,8 +47,9 @@ public class ConnectedComponentsData {
 	 * @return
 	 */
 	public static final String getRandomOddEvenEdges(int numEdges, int numVertices, long seed) {
-		if (numVertices < 2 || numVertices > 1000000 || numEdges < numVertices || numEdges > 1000000)
+		if (numVertices < 2 || numVertices > 1000000 || numEdges < numVertices || numEdges > 1000000) {
 			throw new IllegalArgumentException();
+		}
 
 		StringBuilder bld = new StringBuilder(5 * numEdges);
 
