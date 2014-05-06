@@ -330,9 +330,6 @@ public class TaskManager implements TaskOperationProtocol {
 		
 		this.heartbeatThread.setName("Heartbeat Thread");
 		this.heartbeatThread.start();
-		
-		// Add shutdown hook for clean up tasks
-		Runtime.getRuntime().addShutdownHook(new TaskManagerCleanUp(this));
 	}
 
 	private int getAvailablePort() {

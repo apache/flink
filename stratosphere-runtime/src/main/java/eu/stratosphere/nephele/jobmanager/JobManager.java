@@ -261,10 +261,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			this.profiler = null;
 			LOG.debug("Profiler disabled");
 		}
-
-		// Add shutdown hook for clean up tasks
-		Runtime.getRuntime().addShutdownHook(new JobManagerCleanUp(this));
-
 	}
 
 	public void shutdown() {
