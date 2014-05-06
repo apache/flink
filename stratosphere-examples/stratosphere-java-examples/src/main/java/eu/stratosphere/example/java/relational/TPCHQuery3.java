@@ -62,19 +62,13 @@ import eu.stratosphere.api.java.tuple.Tuple5;
  *
  */
 @SuppressWarnings("serial")
-public class TPCH3 {
+public class TPCHQuery3 {
+
+	// --------------------------------------------------------------------------------------------
+	//  Custom type classes
+	// --------------------------------------------------------------------------------------------
+	
 	public static class Lineitem extends Tuple4<Integer, Double, Double, String> {
-
-		public Lineitem() {
-		}
-
-		public Lineitem(Integer l_orderkey, Double l_extendedprice,
-				Double l_discount, String l_shipdate) {
-			this.f0 = l_orderkey;
-			this.f1 = l_extendedprice;
-			this.f2 = l_discount;
-			this.f3 = l_shipdate;
-		}
 
 		public Integer getOrderkey() {
 			return this.f0;
@@ -93,15 +87,7 @@ public class TPCH3 {
 		}
 	}
 
-	public static class Customer extends Tuple2<Integer, String>{
-
-		public Customer() {
-		}
-
-		public Customer(Integer c_custkey, String c_mktsegment) {
-			this.f0 = c_custkey;
-			this.f1 = c_mktsegment;
-		}
+	public static class Customer extends Tuple2<Integer, String> {
 		
 		public Integer getCustKey() {
 			return this.f0;
@@ -112,17 +98,7 @@ public class TPCH3 {
 		}
 	}
 
-	public static class Order extends Tuple3<Integer, String, Integer>{
-
-		public Order() {
-		}
-
-		public Order(Integer o_orderkey, String o_orderdate,
-				Integer o_shippriority) {
-			this.f0 = o_orderkey;
-			this.f1 = o_orderdate;
-			this.f2 = o_shippriority;
-		}
+	public static class Order extends Tuple3<Integer, String, Integer> {
 		
 		public Integer getOrderkey() {
 			return this.f0;
@@ -179,22 +155,25 @@ public class TPCH3 {
 			return this.f4;
 		}
 	}
+	
+	
+	// --------------------------------------------------------------------------------------------
+	//  Query program
+	// --------------------------------------------------------------------------------------------
+	
 	/*
 	 * This example TPCH3 query uses custom objects.
 	 */
 	public static void main(String[] args) throws Exception {
-		final String lineitemPath;
-		final String customerPath;
-		final String ordersPath;
-
 		if (args.length < 3) {
-			throw new IllegalArgumentException(
-					"Invalid number of parameters: [lineitem.tbl] [customer.tbl] [orders.tbl]");
-		} else {
-			lineitemPath = args[0];
-			customerPath = args[1];
-			ordersPath = args[2];
+			System.err.println("Parameters: <lineitem.tbl> <customer.tbl> <orders.tbl> [<output>].");
+			return;
 		}
+
+		final String lineitemPath = args[0];
+		final String customerPath = args[1];
+		final String ordersPath = args[2];
+		final String resultPath = args.length >= 4 ? args[4] : null;
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -222,7 +201,6 @@ public class TPCH3 {
 		cust = cust.filter(new FilterFunction<Customer>() {
 			@Override
 			public boolean filter(Customer value) {
-				
 				return value.getMktsegment().equals("AUTOMOBILE");
 			}
 		});
@@ -276,12 +254,9 @@ public class TPCH3 {
 				.equalTo(0)
 				.with(new JoinFunction<Customer, Order, ShippingPriorityItem>() {
 					@Override
-					public ShippingPriorityItem join(Customer first,
-							Order second) throws Exception {
-						ShippingPriorityItem it = new ShippingPriorityItem(0, 0.0,
-								second.getOrderdate(), second.getShippriority(),
-								second.getOrderkey());
-						return it;
+					public ShippingPriorityItem join(Customer first, Order second) {
+						return new ShippingPriorityItem(0, 0.0, second.getOrderdate(),
+								second.getShippriority(), second.getOrderkey());
 					}
 				});
 		
@@ -294,10 +269,7 @@ public class TPCH3 {
 				.equalTo(0)
 				.with(new JoinFunction<ShippingPriorityItem, Lineitem, ShippingPriorityItem>() {
 					@Override
-					public ShippingPriorityItem join(
-							ShippingPriorityItem first, Lineitem second)
-							throws Exception {
-						
+					public ShippingPriorityItem join(ShippingPriorityItem first, Lineitem second) {
 						first.setL_Orderkey(second.getOrderkey());
 						first.setRevenue(second.getExtendedprice() * (1 - second.getDiscount()));
 						return first;
@@ -310,20 +282,20 @@ public class TPCH3 {
 		 */
 		joined = joined
 				.groupBy(0, 2, 3)
-				.reduce(new ReduceFunction<TPCH3.ShippingPriorityItem>() {	
+				.reduce(new ReduceFunction<TPCHQuery3.ShippingPriorityItem>() {	
 					@Override
-					public ShippingPriorityItem reduce(ShippingPriorityItem value1,
-							ShippingPriorityItem value2) throws Exception {
+					public ShippingPriorityItem reduce(ShippingPriorityItem value1, ShippingPriorityItem value2) {
 						value1.setRevenue(value1.getRevenue() + value2.getRevenue());
 						return value1;
 					}
 				});
 		
-		joined.print();
+		if (resultPath == null) {
+			joined.print();
+		} else {
+			joined.writeAsCsv(resultPath, "\n", "|");
+		}
+		
 		env.execute();
-
-	
 	}
-	
-	
 }
