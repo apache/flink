@@ -69,7 +69,7 @@ class TupleGenerator {
 	// min. and max. tuple arity	
 	private static final int FIRST = 1;
 
-	private static final int LAST = 22;
+	private static final int LAST = 25;
 
 	public static void main(String[] args) throws Exception {
 		File root = new File(ROOT_DIRECTORY);
@@ -723,8 +723,9 @@ class TupleGenerator {
 		// package and imports
 		w.println("package " + PACKAGE + "." + BUILDER_SUFFIX + ';');
 		w.println();
-		w.println("import java.util.List;");
 		w.println("import java.util.LinkedList;");
+		w.println("import java.util.List;");
+		w.println();
 		w.println("import " + PACKAGE + ".Tuple" + numFields + ";");
 		w.println();
 
