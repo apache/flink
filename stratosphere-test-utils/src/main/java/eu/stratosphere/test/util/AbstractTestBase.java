@@ -120,7 +120,7 @@ public abstract class AbstractTestBase {
 		return f.toURI().toString();
 	}
 	
-	private File createAndRegisterTempFile(String fileName) throws IOException {
+	public File createAndRegisterTempFile(String fileName) throws IOException {
 		File baseDir = new File(System.getProperty("java.io.tmpdir"));
 		File f = new File(baseDir, fileName);
 		
