@@ -54,6 +54,7 @@ public class DefaultStratosphereTypeConverter<K,V> implements StratosphereTypeCo
 		return convert(stratosphereRecord, 1, this.valueClass);
 	}
 
+	@SuppressWarnings("unchecked")
 	private<T> T convert(Record stratosphereType, int pos, Class<T> hadoopType) {
 		if(hadoopType == LongWritable.class ) {
 			return (T) new LongWritable((stratosphereType.getField(pos, LongValue.class)).getValue());

@@ -60,9 +60,11 @@ public class HadoopInputSplitWrapper implements InputSplit {
 		this.hadoopInputSplitTypeName = in.readUTF();
 		if(hadoopInputSplit == null) {
 			try {
-				Class inputSplit = Class.forName(hadoopInputSplitTypeName );
+				Class<? extends org.apache.hadoop.io.Writable> inputSplit = 
+						Class.forName(hadoopInputSplitTypeName).asSubclass(org.apache.hadoop.io.Writable.class);
 				this.hadoopInputSplit = (org.apache.hadoop.mapred.InputSplit) WritableFactories.newInstance( inputSplit );
-			} catch (Exception e) {
+			}
+			catch (Exception e) {
 				throw new RuntimeException("Unable to create InputSplit", e);
 			}
 		}
