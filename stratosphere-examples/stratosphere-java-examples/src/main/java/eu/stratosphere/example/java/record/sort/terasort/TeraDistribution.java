@@ -26,9 +26,9 @@ public class TeraDistribution implements DataDistribution  {
 
 	private static final long serialVersionUID = 1L;
 	private static final int ALPHABETH_SIZE = 95;
-
+	
 	@Override
-	public Key[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+	public Key<?>[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
 		final byte[] buf = new byte[TeraKey.KEY_SIZE];
 		double threshold = (double) ALPHABETH_SIZE / (double) (totalNumBuckets + 1) * (double) (bucketNum + 1);
 

@@ -18,29 +18,27 @@ import eu.stratosphere.api.java.typeutils.TypeInformation;
 
 public class IterativeResultDataSet<T> extends DataSet<T> {
 
-	private IterativeDataSet<T> iterationHead;
+	private final IterativeDataSet<T> iterationHead;
 
-	private DataSet<T> nextPartialSolution;
+	private final DataSet<T> nextPartialSolution;
 	
-	private DataSet<T> terminationCriterion;
+	private final DataSet<?> terminationCriterion;
 
 	IterativeResultDataSet(ExecutionEnvironment context,
 						TypeInformation<T> type,
 						IterativeDataSet<T> iterationHead,
 						DataSet<T> nextPartialSolution)
 	{
-		super(context, type);
-		this.iterationHead = iterationHead;
-		this.nextPartialSolution = nextPartialSolution;
+		this(context, type, iterationHead, nextPartialSolution, null);
 	}
 	
 	IterativeResultDataSet(ExecutionEnvironment context,
-            TypeInformation<T> type,
-            IterativeDataSet<T> iterationHead,
-            DataSet<T> nextPartialSolution,
-            DataSet<T> terminationCriterion)
+			TypeInformation<T> type, IterativeDataSet<T> iterationHead,
+			DataSet<T> nextPartialSolution, DataSet<?> terminationCriterion)
 	{
-		this(context, type, iterationHead, nextPartialSolution);
+		super(context, type);
+		this.iterationHead = iterationHead;
+		this.nextPartialSolution = nextPartialSolution;
 		this.terminationCriterion = terminationCriterion;
 	}
 
@@ -52,7 +50,7 @@ public class IterativeResultDataSet<T> extends DataSet<T> {
 		return nextPartialSolution;
 	}
 	
-	public DataSet<T> getTerminationCriterion() {
+	public DataSet<?> getTerminationCriterion() {
 		return terminationCriterion;
 	}
 }
