@@ -10,27 +10,31 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
+package eu.stratosphere.test.hadoopcompatibility.mapreduce;
 
-package eu.stratosphere.hadoopcompatibility.datatypes;
+import eu.stratosphere.hadoopcompatibility.mapreduce.example.WordCount;
+import eu.stratosphere.test.testdata.WordCountData;
+import eu.stratosphere.test.util.JavaProgramTestBase;
 
-import java.io.Serializable;
-
-import eu.stratosphere.types.Record;
-
-
-/**
- * An interface describing a class that is able to 
- * convert Hadoop types into Stratosphere's Record model.
- * 
- * The converter must be Serializable.
- * 
- * Stratosphere provides a DefaultHadoopTypeConverter. Custom implementations should
- * chain the type converters.
- */
-public interface HadoopTypeConverter<K, V> extends Serializable {
+public class HadoopInputOutputITCase extends JavaProgramTestBase {
 	
-	/**
-	 * Convert a Hadoop type to a Stratosphere type.
-	 */
-	public void convert(Record stratosphereRecord, K hadoopKey, V hadoopValue);
+	protected String textPath;
+	protected String resultPath;
+	
+	
+	@Override
+	protected void preSubmit() throws Exception {
+		textPath = createTempFile("text.txt", WordCountData.TEXT);
+		resultPath = getTempDirPath("result");
+	}
+	
+	@Override
+	protected void postSubmit() throws Exception {
+		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath + "/1");
+	}
+	
+	@Override
+	protected void testProgram() throws Exception {
+		WordCount.main(new String[] { textPath, resultPath });
+	}
 }

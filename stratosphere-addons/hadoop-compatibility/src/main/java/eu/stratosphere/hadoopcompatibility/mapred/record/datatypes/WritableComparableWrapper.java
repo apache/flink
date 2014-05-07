@@ -11,55 +11,25 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility;
+package eu.stratosphere.hadoopcompatibility.mapred.record.datatypes;
 
-import org.apache.hadoop.mapred.Counters.Counter;
-import org.apache.hadoop.mapred.InputSplit;
-import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.io.WritableComparable;
 
-/**
- * This is a dummy progress monitor / reporter
- *
- */
-public class DummyHadoopReporter implements Reporter {
+import eu.stratosphere.types.Key;
 
-	@Override
-	public void progress() {
+public class WritableComparableWrapper<T extends WritableComparable<T>> extends WritableWrapper<T> implements Key<WritableComparableWrapper<T>> {
+	private static final long serialVersionUID = 1L;
+	
+	public WritableComparableWrapper() {
+		super();
+	}
+	
+	public WritableComparableWrapper(T toWrap) {
+		super(toWrap);
 	}
 
 	@Override
-	public void setStatus(String status) {
-
+	public int compareTo(WritableComparableWrapper<T> o) {
+		return super.value().compareTo(o.value());
 	}
-
-	@Override
-	public Counter getCounter(Enum<?> name) {
-		return null;
-	}
-
-	@Override
-	public Counter getCounter(String group, String name) {
-		return null;
-	}
-
-	@Override
-	public void incrCounter(Enum<?> key, long amount) {
-
-	}
-
-	@Override
-	public void incrCounter(String group, String counter, long amount) {
-
-	}
-
-	@Override
-	public InputSplit getInputSplit() throws UnsupportedOperationException {
-		return null;
-	}
-
-	@Override
-	public float getProgress() {
-		return 0;
-	}
-
 }

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -10,39 +10,31 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
+package eu.stratosphere.test.hadoopcompatibility.mapred;
 
-package eu.stratosphere.test.hadoopcompatibility;
-
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.hadoopcompatibility.example.WordCountWithHadoopOutputFormat;
+import eu.stratosphere.hadoopcompatibility.mapred.example.WordCount;
 import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.RecordAPITestBase;
+import eu.stratosphere.test.util.JavaProgramTestBase;
 
-/**
- * test the hadoop inputformat and outputformat for stratosphere
- */
-public class HadoopInputOutputTest extends RecordAPITestBase {
+public class HadoopInputOutputITCase extends JavaProgramTestBase {
+	
 	protected String textPath;
 	protected String resultPath;
-	protected String counts;
-
+	
+	
 	@Override
 	protected void preSubmit() throws Exception {
 		textPath = createTempFile("text.txt", WordCountData.TEXT);
 		resultPath = getTempDirPath("result");
-		counts = WordCountData.COUNTS.replaceAll(" ", "\t");
 	}
-
-	@Override
-	protected Plan getTestJob() {
-		//WordCountWithHadoopOutputFormat takes hadoop TextInputFormat as input and output file in hadoop TextOutputFormat
-		WordCountWithHadoopOutputFormat wc = new WordCountWithHadoopOutputFormat();
-		return wc.getPlan("1", textPath, resultPath);
-	}
-
+	
 	@Override
 	protected void postSubmit() throws Exception {
-		// Test results, append /1 to resultPath due to the generated _temproray file.
-		compareResultsByLinesInMemory(counts, resultPath + "/1");
+		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath + "/1");
+	}
+	
+	@Override
+	protected void testProgram() throws Exception {
+		WordCount.main(new String[] { textPath, resultPath });
 	}
 }

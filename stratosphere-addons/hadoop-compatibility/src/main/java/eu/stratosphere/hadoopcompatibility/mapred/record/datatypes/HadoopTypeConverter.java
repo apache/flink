@@ -11,25 +11,26 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility.datatypes;
+package eu.stratosphere.hadoopcompatibility.mapred.record.datatypes;
 
-import org.apache.hadoop.io.WritableComparable;
+import java.io.Serializable;
 
-import eu.stratosphere.types.Key;
+import eu.stratosphere.types.Record;
 
-public class WritableComparableWrapper<T extends WritableComparable<T>> extends WritableWrapper<T> implements Key<WritableComparableWrapper<T>> {
-	private static final long serialVersionUID = 1L;
+
+/**
+ * An interface describing a class that is able to 
+ * convert Hadoop types into Stratosphere's Record model.
+ * 
+ * The converter must be Serializable.
+ * 
+ * Stratosphere provides a DefaultHadoopTypeConverter. Custom implementations should
+ * chain the type converters.
+ */
+public interface HadoopTypeConverter<K, V> extends Serializable {
 	
-	public WritableComparableWrapper() {
-		super();
-	}
-	
-	public WritableComparableWrapper(T toWrap) {
-		super(toWrap);
-	}
-
-	@Override
-	public int compareTo(WritableComparableWrapper<T> o) {
-		return super.value().compareTo(o.value());
-	}
+	/**
+	 * Convert a Hadoop type to a Stratosphere type.
+	 */
+	public void convert(Record stratosphereRecord, K hadoopKey, V hadoopValue);
 }

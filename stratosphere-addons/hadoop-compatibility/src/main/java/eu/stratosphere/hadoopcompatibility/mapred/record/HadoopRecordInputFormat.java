@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility;
+package eu.stratosphere.hadoopcompatibility.mapred.record;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -24,10 +24,13 @@ import org.apache.hadoop.util.ReflectionUtils;
 import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.hadoopcompatibility.datatypes.HadoopTypeConverter;
+import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.HadoopTypeConverter;
+import eu.stratosphere.hadoopcompatibility.mapred.utils.HadoopUtils;
+import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopDummyReporter;
+import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopInputSplit;
 import eu.stratosphere.types.Record;
 
-public class HadoopInputFormatWrapper<K, V> implements InputFormat<Record, HadoopInputSplitWrapper> {
+public class HadoopRecordInputFormat<K, V> implements InputFormat<Record, HadoopInputSplit> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -41,16 +44,16 @@ public class HadoopInputFormatWrapper<K, V> implements InputFormat<Record, Hadoo
 	private boolean fetched = false;
 	private boolean hasNext;
 		
-	public HadoopInputFormatWrapper() {
+	public HadoopRecordInputFormat() {
 		super();
 	}
 	
-	public HadoopInputFormatWrapper(org.apache.hadoop.mapred.InputFormat<K,V> hadoopInputFormat, JobConf job, HadoopTypeConverter<K,V> conv) {
+	public HadoopRecordInputFormat(org.apache.hadoop.mapred.InputFormat<K,V> hadoopInputFormat, JobConf job, HadoopTypeConverter<K,V> conv) {
 		super();
 		this.hadoopInputFormat = hadoopInputFormat;
 		this.hadoopInputFormatName = hadoopInputFormat.getClass().getName();
 		this.converter = conv;
-		HadoopConfiguration.mergeHadoopConf(job);
+		HadoopUtils.mergeHadoopConf(job);
 		this.jobConf = job;
 	}
 
@@ -65,24 +68,24 @@ public class HadoopInputFormatWrapper<K, V> implements InputFormat<Record, Hadoo
 	}
 
 	@Override
-	public HadoopInputSplitWrapper[] createInputSplits(int minNumSplits)
+	public HadoopInputSplit[] createInputSplits(int minNumSplits)
 			throws IOException {
 		org.apache.hadoop.mapred.InputSplit[] splitArray = hadoopInputFormat.getSplits(jobConf, minNumSplits);
-		HadoopInputSplitWrapper[] hiSplit = new HadoopInputSplitWrapper[splitArray.length];
+		HadoopInputSplit[] hiSplit = new HadoopInputSplit[splitArray.length];
 		for(int i=0;i<splitArray.length;i++){
-			hiSplit[i] = new HadoopInputSplitWrapper(splitArray[i], jobConf);
+			hiSplit[i] = new HadoopInputSplit(splitArray[i], jobConf);
 		}
 		return hiSplit;
 	}
 
 	@Override
-	public Class<? extends HadoopInputSplitWrapper> getInputSplitType() {
-		return HadoopInputSplitWrapper.class;
+	public Class<? extends HadoopInputSplit> getInputSplitType() {
+		return HadoopInputSplit.class;
 	}
 
 	@Override
-	public void open(HadoopInputSplitWrapper split) throws IOException {
-		this.recordReader = this.hadoopInputFormat.getRecordReader(split.getHadoopInputSplit(), jobConf, new DummyHadoopReporter());
+	public void open(HadoopInputSplit split) throws IOException {
+		this.recordReader = this.hadoopInputFormat.getRecordReader(split.getHadoopInputSplit(), jobConf, new HadoopDummyReporter());
 		key = this.recordReader.createKey();
 		value = this.recordReader.createValue();
 		this.fetched = false;

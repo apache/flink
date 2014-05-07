@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility;
+package eu.stratosphere.hadoopcompatibility.mapred.record;
 
 
 import org.apache.hadoop.mapred.InputFormat;
@@ -20,8 +20,10 @@ import org.apache.hadoop.mapred.JobConf;
 import com.google.common.base.Preconditions;
 
 import eu.stratosphere.api.java.record.operators.GenericDataSource;
-import eu.stratosphere.hadoopcompatibility.datatypes.DefaultHadoopTypeConverter;
-import eu.stratosphere.hadoopcompatibility.datatypes.HadoopTypeConverter;
+import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.DefaultHadoopTypeConverter;
+import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.HadoopTypeConverter;
+
+
 
 /**
  * The HadoopDataSource is a generic wrapper for all Hadoop InputFormats.
@@ -39,7 +41,7 @@ import eu.stratosphere.hadoopcompatibility.datatypes.HadoopTypeConverter;
  * * DefaultHadoopTypeConverter: Converts the standard hadoop types (longWritable, Text) to Stratosphere's standard types.
  *
  */
-public class HadoopDataSource<K,V> extends GenericDataSource<HadoopInputFormatWrapper<K,V>> {
+public class HadoopDataSource<K,V> extends GenericDataSource<HadoopRecordInputFormat<K,V>> {
 
 	private static String DEFAULT_NAME = "<Unnamed Hadoop Data Source>";
 	
@@ -53,7 +55,7 @@ public class HadoopDataSource<K,V> extends GenericDataSource<HadoopInputFormatWr
 	 * @param conv Definition of a custom type converter {@link DefaultHadoopTypeConverter}.
 	 */
 	public HadoopDataSource(InputFormat<K,V> hadoopFormat, JobConf jobConf, String name, HadoopTypeConverter<K,V> conv) {
-		super(new HadoopInputFormatWrapper<K,V>(hadoopFormat, jobConf, conv),name);
+		super(new HadoopRecordInputFormat<K,V>(hadoopFormat, jobConf, conv),name);
 		Preconditions.checkNotNull(hadoopFormat);
 		Preconditions.checkNotNull(jobConf);
 		Preconditions.checkNotNull(conv);

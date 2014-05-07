@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility;
+package eu.stratosphere.hadoopcompatibility.mapred.wrapper;
 
 import org.apache.hadoop.util.Progressable;
 
@@ -19,7 +19,7 @@ import org.apache.hadoop.util.Progressable;
  * This is a dummy progress
  *
  */
-public class DummyHadoopProgressable implements Progressable {
+public class HadoopDummyProgressable implements Progressable {
 	@Override
 	public void progress() {
 
