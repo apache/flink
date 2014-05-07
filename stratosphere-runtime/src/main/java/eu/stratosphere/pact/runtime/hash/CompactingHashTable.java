@@ -362,7 +362,35 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 				// retry append
 				pointer = this.partitions.get(partitionNumber).appendRecord(record);
 			} catch (EOFException ex) {
-				throw new RuntimeException("Memory ran out. Compaction failed. Message: " + ex.getMessage());
+				throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
+						" minPartition: " + getMinPartition() +
+						" maxPartition: " + getMaxPartition() +
+						" bucketSize: " + this.buckets.length +
+						" Message: " + ex.getMessage());
+			} catch (IndexOutOfBoundsException ex) {
+				throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
+						" minPartition: " + getMinPartition() +
+						" maxPartition: " + getMaxPartition() +
+						" bucketSize: " + this.buckets.length +
+						" Message: " + ex.getMessage());
+			}
+		} catch (IndexOutOfBoundsException e1) {
+			try {
+				compactPartition(partitionNumber);
+				// retry append
+				pointer = this.partitions.get(partitionNumber).appendRecord(record);
+			} catch (EOFException ex) {
+				throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
+						" minPartition: " + getMinPartition() +
+						" maxPartition: " + getMaxPartition() +
+						" bucketSize: " + this.buckets.length +
+						" Message: " + ex.getMessage());
+			} catch (IndexOutOfBoundsException ex) {
+				throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
+						" minPartition: " + getMinPartition() +
+						" maxPartition: " + getMaxPartition() +
+						" bucketSize: " + this.buckets.length +
+						" Message: " + ex.getMessage());
 			}
 		}
 		insertBucketEntryFromStart(p, bucket, bucketInSegmentPos, hashCode, pointer);
@@ -449,9 +477,17 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 							// retry append
 							newPointer = this.partitions.get(partitionNumber).appendRecord(record);
 						} catch (EOFException ex) {
-							throw new RuntimeException("Memory ran out. Compaction failed. Message: " + ex.getMessage());
+							throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
+									" minPartition: " + getMinPartition() +
+									" maxPartition: " + getMaxPartition() +
+									" bucketSize: " + this.buckets.length +
+									" Message: " + ex.getMessage());
 						} catch (IndexOutOfBoundsException ex) {
-							throw new RuntimeException("Memory ran out. Compaction failed. Message: " + ex.getMessage());
+							throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
+									" minPartition: " + getMinPartition() +
+									" maxPartition: " + getMaxPartition() +
+									" bucketSize: " + this.buckets.length +
+									" Message: " + ex.getMessage());
 						}
 						bucket.putLong(pointerOffset, newPointer);
 						return;
@@ -463,9 +499,17 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 							// retry append
 							newPointer = this.partitions.get(partitionNumber).appendRecord(record);
 						} catch (EOFException ex) {
-							throw new RuntimeException("Memory ran out. Compaction failed. Message: " + ex.getMessage());
+							throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
+									" minPartition: " + getMinPartition() +
+									" maxPartition: " + getMaxPartition() +
+									" bucketSize: " + this.buckets.length +
+									" Message: " + ex.getMessage());
 						} catch (IndexOutOfBoundsException ex) {
-							throw new RuntimeException("Memory ran out. Compaction failed. Message: " + ex.getMessage());
+							throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
+									" minPartition: " + getMinPartition() +
+									" maxPartition: " + getMaxPartition() +
+									" bucketSize: " + this.buckets.length +
+									" Message: " + ex.getMessage());
 						}
 						bucket.putLong(pointerOffset, newPointer);
 						return;
@@ -719,7 +763,11 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 		if (s > 0) {
 			return this.availableMemory.remove(s-1);
 		} else {
-			throw new RuntimeException("The hash table ran out of memory.");
+			throw new RuntimeException("Memory ran out. numPartitions: " + this.partitions.size() + 
+													" minPartition: " + getMinPartition() +
+													" maxPartition: " + getMaxPartition() + 
+													" bucketSize: " + this.buckets.length);
+			//throw new RuntimeException("The hash table ran out of memory.");
 		}
 	}
 
@@ -739,6 +787,26 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 	 */
 	private static final int getPartitioningFanOutNoEstimates(int numBuffers) {
 		return Math.max(10, Math.min(numBuffers / 10, MAX_NUM_PARTITIONS));
+	}
+	
+	private int getMaxPartition() {
+		int maxPartition = 0;
+		for(InMemoryPartition<T> p1 : this.partitions) {
+			if(p1.getBlockCount() > maxPartition) {
+				maxPartition = p1.getBlockCount();
+			}
+		}
+		return maxPartition;
+	}
+	
+	private int getMinPartition() {
+		int minPartition = Integer.MAX_VALUE;
+		for(InMemoryPartition<T> p1 : this.partitions) {
+			if(p1.getBlockCount() < minPartition) {
+				minPartition = p1.getBlockCount();
+			}
+		}
+		return minPartition;
 	}
 	
 	private static final int getInitialTableSize(int numBuffers, int bufferSize, int numPartitions, int recordLenBytes) {
