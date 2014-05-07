@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.api.java.typeutils;
+package eu.stratosphere.types;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 
