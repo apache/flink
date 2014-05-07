@@ -137,13 +137,11 @@ public class OperatorTranslation {
 		PlanDeltaIterationOperator<D, W> iterationOperator = new PlanDeltaIterationOperator<D, W>(iterationEnd.getKeyPositions(), "Unnamed Java Delta Iteration", iterationEnd.getType(), iterationEnd.getWorksetType()); // always assume 0 as key position?
 		iterationOperator.setMaximumNumberOfIterations(iterationEnd.getMaxIterations());
 		
-		DeltaIteration<?, ?> iterationHead = iterationEnd.getIterationHead();
+		DeltaIteration<D, W> iterationHead = iterationEnd.getIterationHead();
 
-		DeltaIteration<D, W>.SolutionSetPlaceHolder solutionSetPlaceHolder =
-				(DeltaIteration<D, W>.SolutionSetPlaceHolder) iterationHead.getSolutionSet();
+		DeltaIteration.SolutionSetPlaceHolder<D> solutionSetPlaceHolder = iterationHead.getSolutionSet();
 
-		DeltaIteration<D, W>.WorksetPlaceHolder worksetPlaceHolder =
-				(DeltaIteration<D, W>.WorksetPlaceHolder) iterationHead.getWorkset();
+		DeltaIteration.WorksetPlaceHolder<W> worksetPlaceHolder = iterationHead.getWorkset();
 
 		translated.put(solutionSetPlaceHolder, iterationOperator.getSolutionSet());
 		translated.put(worksetPlaceHolder, iterationOperator.getWorkset());

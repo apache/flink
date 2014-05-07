@@ -32,8 +32,8 @@ public class DeltaIteration<ST, WT> {
 	private final DataSet<ST> initialSolutionSet;
 	private final DataSet<WT> initialWorkset;
 	
-	private final SolutionSetPlaceHolder solutionSetPlaceholder;
-	private final WorksetPlaceHolder worksetPlaceholder;
+	private final SolutionSetPlaceHolder<ST> solutionSetPlaceholder;
+	private final WorksetPlaceHolder<WT> worksetPlaceholder;
 
 	private final Keys<ST> keys;
 	
@@ -42,8 +42,8 @@ public class DeltaIteration<ST, WT> {
 	DeltaIteration(ExecutionEnvironment context, TypeInformation<ST> type, DataSet<ST> solutionSet, DataSet<WT> workset, Keys<ST> keys, int maxIterations) {
 		initialSolutionSet = solutionSet;
 		initialWorkset = workset;
-		solutionSetPlaceholder = new SolutionSetPlaceHolder(context, solutionSet.getType());
-		worksetPlaceholder = new WorksetPlaceHolder(context, workset.getType());
+		solutionSetPlaceholder = new SolutionSetPlaceHolder<ST>(context, solutionSet.getType());
+		worksetPlaceholder = new WorksetPlaceHolder<WT>(context, workset.getType());
 		this.keys = keys;
 		this.maxIterations = maxIterations;
 	}
@@ -78,7 +78,7 @@ public class DeltaIteration<ST, WT> {
 	 * 
 	 * @return The solution set of the delta iteration.
 	 */
-	public DataSet<ST> getSolutionSet() {
+	public SolutionSetPlaceHolder<ST> getSolutionSet() {
 		return solutionSetPlaceholder;
 	}
 
@@ -87,17 +87,17 @@ public class DeltaIteration<ST, WT> {
 	 *
 	 * @return The working set of the delta iteration.
 	 */
-	public DataSet<WT> getWorkset() {
+	public WorksetPlaceHolder<WT> getWorkset() {
 		return worksetPlaceholder;
 	}
 
-	public class SolutionSetPlaceHolder extends DataSet<ST>{
+	public static class SolutionSetPlaceHolder<ST> extends DataSet<ST>{
 		private SolutionSetPlaceHolder(ExecutionEnvironment context, TypeInformation<ST> type) {
 			super(context, type);
 		}
 	}
 
-	public class WorksetPlaceHolder extends DataSet<WT>{
+	public static class WorksetPlaceHolder<WT> extends DataSet<WT>{
 		private WorksetPlaceHolder(ExecutionEnvironment context, TypeInformation<WT> type) {
 			super(context, type);
 		}
