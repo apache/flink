@@ -20,8 +20,8 @@ import eu.stratosphere.core.memory.DataOutputView;
 /**
  * Interface to be implemented by basic types that support to be copied efficiently.
  */
-public interface CopyableValue<T> extends Value
-{
+public interface CopyableValue<T> extends Value {
+	
 	/**
 	 * Gets the length of the data type when it is serialized, in bytes.
 	 * 

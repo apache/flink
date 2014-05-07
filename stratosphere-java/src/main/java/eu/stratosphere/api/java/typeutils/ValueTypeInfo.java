@@ -14,23 +14,14 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils;
 
-import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
-import eu.stratosphere.api.common.typeutils.base.ValueComparator;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.java.functions.InvalidTypesException;
+import eu.stratosphere.api.java.typeutils.runtime.CopyableValueComparator;
 import eu.stratosphere.api.java.typeutils.runtime.CopyableValueSerializer;
-import eu.stratosphere.types.BooleanValue;
-import eu.stratosphere.types.ByteValue;
-import eu.stratosphere.types.CharValue;
+import eu.stratosphere.api.java.typeutils.runtime.ValueComparator;
+import eu.stratosphere.api.java.typeutils.runtime.ValueSerializer;
 import eu.stratosphere.types.CopyableValue;
-import eu.stratosphere.types.DoubleValue;
-import eu.stratosphere.types.FloatValue;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.Key;
-import eu.stratosphere.types.LongValue;
-import eu.stratosphere.types.NullValue;
-import eu.stratosphere.types.ShortValue;
-import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 
 
@@ -40,21 +31,25 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 
 	
 	public ValueTypeInfo(Class<T> type) {
+		if (type == null) {
+			throw new NullPointerException();
+		}
+		if (!Value.class.isAssignableFrom(type)) {
+			throw new IllegalArgumentException("ValueTypeInfo can only be used for subclasses of " + Value.class.getName());
+		}
+		
 		this.type = type;
 	}
-	
 	
 	@Override
 	public int getArity() {
 		return 1;
 	}
 
-
 	@Override
 	public Class<T> getTypeClass() {
 		return this.type;
 	}
-
 
 	@Override
 	public boolean isBasicType() {
@@ -66,64 +61,54 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 		return false;
 	}
 	
-	
 	@Override
 	public boolean isKeyType() {
-		return Key.class.isAssignableFrom(type);
+		return Comparable.class.isAssignableFrom(type);
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
 	public TypeSerializer<T> createSerializer() {
 		if (CopyableValue.class.isAssignableFrom(type)) {
-			return (TypeSerializer<T>) createCopyableSerializer(type.asSubclass(CopyableValue.class));
+			return (TypeSerializer<T>) createCopyableValueSerializer(type.asSubclass(CopyableValue.class));
 		}
 		else {
-			throw new UnsupportedOperationException("Serialization is not yet implemented for Value types that are not CopyableValue subclasses.");
+			return new ValueSerializer<T>(type);
 		}
-	}
-	
-	private static <X extends CopyableValue<X>> TypeSerializer<X> createCopyableSerializer(Class<X> clazz) {
-		TypeSerializer<X> ser = new CopyableValueSerializer<X>(clazz);
-		return ser;
 	}
 	
 	@SuppressWarnings("unchecked")
 	@Override
 	public TypeComparator<T> createComparator(boolean sortOrderAscending) {
-		if(type.isAssignableFrom(BooleanValue.class)) {
-			return (TypeComparator<T>) new ValueComparator<BooleanValue>(sortOrderAscending, (Class<BooleanValue>) type);
+		if (!isKeyType()) {
+			throw new RuntimeException("The type " + type.getName() + " is not Comparable.");
 		}
-		else if(type.isAssignableFrom(ByteValue.class)) {
-			return (TypeComparator<T>) new ValueComparator<ByteValue>(sortOrderAscending, (Class<ByteValue>) type);
-		}
-		else if(type.isAssignableFrom(CharValue.class)) {
-			return (TypeComparator<T>) new ValueComparator<CharValue>(sortOrderAscending, (Class<CharValue>) type);
-		}
-		else if(type.isAssignableFrom(IntValue.class)) {
-			return (TypeComparator<T>) new ValueComparator<IntValue>(sortOrderAscending, (Class<IntValue>) type);
-		}
-		else if(type.isAssignableFrom(LongValue.class)) {
-			return (TypeComparator<T>) new ValueComparator<LongValue>(sortOrderAscending, (Class<LongValue>) type);
-		}
-		else if(type.isAssignableFrom(NullValue.class)) {
-			return (TypeComparator<T>) new ValueComparator<NullValue>(sortOrderAscending, (Class<NullValue>) type);
-		}
-		else if(type.isAssignableFrom(ShortValue.class)) {
-			return (TypeComparator<T>) new ValueComparator<ShortValue>(sortOrderAscending, (Class<ShortValue>) type);
-		}
-		else if(type.isAssignableFrom(StringValue.class)) {
-			return (TypeComparator<T>) new ValueComparator<StringValue>(sortOrderAscending, (Class<StringValue>) type);
-		}
-		else if(type.isAssignableFrom(DoubleValue.class)) {
-			return (TypeComparator<T>) new ValueComparator<DoubleValue>(sortOrderAscending, (Class<DoubleValue>) type);
-		}
-		else if(type.isAssignableFrom(FloatValue.class)) {
-			return (TypeComparator<T>) new ValueComparator<FloatValue>(sortOrderAscending, (Class<FloatValue>) type);
+		
+		if (CopyableValue.class.isAssignableFrom(type)) {
+			return (TypeComparator<T>) createCopyableValueComparator(type, sortOrderAscending);
 		}
 		else {
-			throw new UnsupportedOperationException("Cannot create a comparator for a value type that is not a subtype of Key.");
+			return (TypeComparator<T>) createValueComparator(type, sortOrderAscending);
 		}
+	}
+	
+	// utility method to summon the necessary bound
+	private static <X extends CopyableValue<X>> CopyableValueSerializer<X> createCopyableValueSerializer(Class<X> clazz) {
+		return new CopyableValueSerializer<X>(clazz);
+	}
+	
+	// utility method to summon the necessary bound
+	private static <X extends Value & Comparable<X>> ValueComparator<X> createValueComparator(Class<?> clazz, boolean ascending) {
+		@SuppressWarnings("unchecked")
+		Class<X> type = (Class<X>) clazz;
+		return new ValueComparator<X>(ascending, type);
+	}
+	
+	// utility method to summon the necessary bounds
+	private static <X extends CopyableValue<X> & Comparable<X>> CopyableValueComparator<X> createCopyableValueComparator(Class<?> clazz, boolean ascending) {
+		@SuppressWarnings("unchecked")
+		Class<X> type = (Class<X>) clazz;
+		return new CopyableValueComparator<X>(ascending, type);
 	}
 	
 	// --------------------------------------------------------------------------------------------

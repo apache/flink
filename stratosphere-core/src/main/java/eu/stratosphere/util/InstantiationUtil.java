@@ -53,7 +53,8 @@ public class InstantiationUtil {
 			this.classLoader = classLoader;
 		}
 	}
-
+	
+	
 	/**
 	 * Creates a new instance of the given class.
 	 * 
@@ -75,6 +76,25 @@ public class InstantiationUtil {
 		if (castTo != null && !castTo.isAssignableFrom(clazz)) {
 			throw new RuntimeException("The class '" + clazz.getName() + "' is not a subclass of '" + 
 				castTo.getName() + "' as is required.");
+		}
+		
+		return instantiate(clazz);
+	}
+
+	/**
+	 * Creates a new instance of the given class.
+	 * 
+	 * @param <T> The generic type of the class.
+	 * @param clazz The class to instantiate.
+
+	 * @return An instance of the given class.
+	 * 
+	 * @throws RuntimeException Thrown, if the class could not be instantiated. The exception contains a detailed
+	 *                          message about the reason why the instantiation failed.
+	 */
+	public static <T> T instantiate(Class<T> clazz) {
+		if (clazz == null) {
+			throw new NullPointerException();
 		}
 		
 		// try to instantiate the class

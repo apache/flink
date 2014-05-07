@@ -16,56 +16,38 @@ package eu.stratosphere.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
-import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.avro.reflect.ReflectDatumWriter;
-
 import com.esotericsoftware.kryo.Kryo;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
+import eu.stratosphere.types.Value;
 import eu.stratosphere.util.InstantiationUtil;
 
-
 /**
- * General purpose serialization. Currently using Apache Avro's Reflect-serializers for serialization and
- * Kryo for deep object copies. We want to change this to Kryo-only.
+ * Serializer for {@link Value} types. Uses the value's serialization methods, and uses
+ * Kryo for deep object copies.
  *
  * @param <T> The type serialized.
  */
-public class AvroSerializer<T> extends TypeSerializer<T> {
+public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
 	
 	private final Class<T> type;
 	
-	private final Class<? extends T> typeToInstantiate;
-	
-	private transient ReflectDatumWriter<T> writer;
-	private transient ReflectDatumReader<T> reader;
-	
-	private transient DataOutputEncoder encoder;
-	private transient DataInputDecoder decoder;
-	
 	private transient Kryo kryo;
 	
-	private transient T deepCopyInstance;
+	private transient T copyInstance;
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public AvroSerializer(Class<T> type) {
-		this(type, type);
-	}
-	
-	public AvroSerializer(Class<T> type, Class<? extends T> typeToInstantiate) {
-		if (type == null || typeToInstantiate == null) {
+	public ValueSerializer(Class<T> type) {
+		if (type == null) {
 			throw new NullPointerException();
 		}
 		
-		InstantiationUtil.checkForInstantiation(typeToInstantiate);
-		
 		this.type = type;
-		this.typeToInstantiate = typeToInstantiate;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -82,7 +64,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	
 	@Override
 	public T createInstance() {
-		return InstantiationUtil.instantiate(this.typeToInstantiate);
+		return InstantiationUtil.instantiate(this.type);
 	}
 
 	@Override
@@ -99,41 +81,23 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public void serialize(T value, DataOutputView target) throws IOException {
-		checkAvroInitialized();
-		this.encoder.setOut(target);
-		this.writer.write(value, this.encoder);
+		value.write(target);
 	}
 
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
-		checkAvroInitialized();
-		this.decoder.setIn(source);
-		return this.reader.read(reuse, this.decoder);
+		reuse.read(source);
+		return reuse;
 	}
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		checkAvroInitialized();
-		
-		if (this.deepCopyInstance == null) {
-			this.deepCopyInstance = InstantiationUtil.instantiate(type, Object.class);
+		if (this.copyInstance == null) {
+			this.copyInstance = InstantiationUtil.instantiate(type);
 		}
 		
-		this.decoder.setIn(source);
-		this.encoder.setOut(target);
-		
-		T tmp = this.reader.read(this.deepCopyInstance, this.decoder);
-		this.writer.write(tmp, this.encoder);
-	}
-	
-	
-	private final void checkAvroInitialized() {
-		if (this.reader == null) {
-			this.reader = new ReflectDatumReader<T>(type);
-			this.writer = new ReflectDatumWriter<T>(type);
-			this.encoder = new DataOutputEncoder();
-			this.decoder = new DataInputDecoder();
-		}
+		this.copyInstance.read(source);
+		this.copyInstance.write(target);
 	}
 	
 	private final void checkKryoInitialized() {
