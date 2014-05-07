@@ -277,7 +277,7 @@ public abstract class ExecutionEnvironment {
 			@SuppressWarnings("unchecked")
 			TypeInformation<X> producedType = (inputFormat instanceof ResultTypeQueryable) ?
 					((ResultTypeQueryable<X>) inputFormat).getProducedType() :
-					TypeExtractor.extractInputFormatTypes(inputFormat);
+					TypeExtractor.getInputFormatTypes(inputFormat);
 			
 			return createInput(inputFormat, producedType);
 		}

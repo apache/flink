@@ -14,8 +14,13 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
 import junit.framework.Assert;
 
+import org.apache.hadoop.io.Writable;
 import org.junit.Test;
 
 import eu.stratosphere.api.java.typeutils.BasicArrayTypeInfo;
@@ -143,6 +148,27 @@ public class TypeInfoParserTest {
 		TypeInformation<?> ti = TypeInformation.parse("java.lang.Class");
 		Assert.assertTrue(ti instanceof GenericTypeInfo);
 		Assert.assertEquals(Class.class, ((GenericTypeInfo<?>) ti).getTypeClass());
+	}
+	
+	public static class MyWritable implements Writable {
+
+		@Override
+		public void write(DataOutput out) throws IOException {
+			
+		}
+
+		@Override
+		public void readFields(DataInput in) throws IOException {
+			
+		}
+		
+	}
+	
+	@Test
+	public void testWritableType() {
+		TypeInformation<?> ti = TypeInformation.parse("Writable<eu.stratosphere.api.java.typeutils.TypeInfoParserTest$MyWritable>");
+		Assert.assertTrue(ti instanceof WritableTypeInfo<?>);
+		Assert.assertEquals(MyWritable.class, ((WritableTypeInfo<?>) ti).getTypeClass());
 	}
 	
 	@Test

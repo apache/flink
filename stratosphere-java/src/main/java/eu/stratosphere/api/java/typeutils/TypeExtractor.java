@@ -22,6 +22,7 @@ import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 
 import org.apache.commons.lang3.Validate;
+import org.apache.hadoop.io.Writable;
 
 import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
@@ -74,13 +75,13 @@ public class TypeExtractor {
 		return createTypeInfo(CrossFunction.class, crossFunction.getClass(), 2, in1Type, in2Type);
 	}
 	
-	public static <IN, OUT> TypeInformation<OUT> getKeyExtractorType(KeySelector<IN, OUT> selector, TypeInformation<IN> inType) {
+	public static <IN, OUT> TypeInformation<OUT> getKeySelectorTypes(KeySelector<IN, OUT> selector, TypeInformation<IN> inType) {
 		validateInputType(KeySelector.class, selector.getClass(), 0, inType);
 		return createTypeInfo(KeySelector.class, selector.getClass(), 1, inType, null);
 	}
 	
-	public static <IN> TypeInformation<IN> extractInputFormatTypes(InputFormat<IN, ?> format) {
-		throw new UnsupportedOperationException("not implemented yet");
+	public static <IN> TypeInformation<IN> getInputFormatTypes(InputFormat<IN, ?> inputFormat) {
+		return createTypeInfo(InputFormat.class, inputFormat.getClass(), 0, null, null);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -201,6 +202,21 @@ public class TypeExtractor {
 				
 				for (int i = 0; i < subTypes.length; i++) {
 					validateInfo(new ArrayList<Type>(typeHierarchy), subTypes[i], ((TupleTypeInfo<?>) typeInfo).getTypeAt(i));
+				}
+			}
+			// check for Writable
+			else if (typeInfo instanceof WritableTypeInfo<?>) {
+				// check if writable at all
+				if (!(type instanceof Class<?> && Writable.class.isAssignableFrom((Class<?>) type))) {
+					throw new InvalidTypesException("Writable type expected.");
+				}
+				
+				// check writable type contents
+				Class<?> clazz = null;
+				if (((WritableTypeInfo<?>) typeInfo).getTypeClass() != (clazz = (Class<?>) type)) {
+					throw new InvalidTypesException("Writable type '"
+							+ ((WritableTypeInfo<?>) typeInfo).getTypeClass().getCanonicalName() + "' expected but was '"
+							+ clazz.getCanonicalName() + "'.");
 				}
 			}
 			// check for basic array
@@ -564,6 +580,11 @@ public class TypeExtractor {
 			else {
 				return ObjectArrayTypeInfo.getInfoFor(clazz);
 			}
+		}
+		
+		// check for writable types
+		if(Writable.class.isAssignableFrom(clazz)) {
+			return (TypeInformation<X>) WritableTypeInfo.getWritableTypeInfo((Class<? extends Writable>) clazz);
 		}
 		
 		// check for basic types
