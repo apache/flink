@@ -34,7 +34,7 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 		if (type == null) {
 			throw new NullPointerException();
 		}
-		if (!Value.class.isAssignableFrom(type)) {
+		if (!Value.class.isAssignableFrom(type) && !type.equals(Value.class)) {
 			throw new IllegalArgumentException("ValueTypeInfo can only be used for subclasses of " + Value.class.getName());
 		}
 		

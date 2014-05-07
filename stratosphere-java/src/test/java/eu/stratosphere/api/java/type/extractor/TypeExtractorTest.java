@@ -14,8 +14,12 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.type.extractor;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.util.Iterator;
 
+import org.apache.hadoop.io.Writable;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -40,6 +44,7 @@ import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.api.java.typeutils.ValueTypeInfo;
+import eu.stratosphere.api.java.typeutils.WritableTypeInfo;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
@@ -74,6 +79,38 @@ public class TypeExtractorTest {
 
 		// use getForObject()
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, TypeExtractor.getForObject(Boolean.valueOf(true)));
+	}
+	
+	public static class MyWritable implements Writable {
+		
+		@Override
+		public void write(DataOutput out) throws IOException {
+			
+		}
+		
+		@Override
+		public void readFields(DataInput in) throws IOException {			
+		}
+		
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testWritableType() {
+		MapFunction<?, ?> function = new MapFunction<MyWritable, MyWritable>() {
+			private static final long serialVersionUID = 1L;
+			
+			@Override
+			public MyWritable map(MyWritable value) throws Exception {
+				return null;
+			}
+			
+		};
+		
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) new WritableTypeInfo<MyWritable>(MyWritable.class));
+		
+		Assert.assertTrue(ti instanceof WritableTypeInfo<?>);
+		Assert.assertEquals(MyWritable.class, ((WritableTypeInfo<?>) ti).getTypeClass());
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -344,7 +381,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getKeyExtractorType(function, (TypeInformation) TypeInformation.parse("StringValue"));
+		TypeInformation<?> ti = TypeExtractor.getKeySelectorTypes(function, (TypeInformation) TypeInformation.parse("StringValue"));
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertFalse(ti.isTupleType());
@@ -1245,6 +1282,22 @@ public class TypeExtractorTest {
 		
 		try {
 	    	TypeExtractor.getMapReturnTypes(function3, (TypeInformation) TypeInformation.parse("Integer[]"));
+			Assert.fail("exception expected");
+		} catch (InvalidTypesException e) {
+			// right
+		}
+		
+		MapFunction<?, ?> function4 = new MapFunction<Writable, String>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public String map(Writable value) throws Exception {
+				return null;
+			}
+		};
+		
+		try {
+			TypeExtractor.getMapReturnTypes(function4, (TypeInformation) new WritableTypeInfo<MyWritable>(MyWritable.class));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right

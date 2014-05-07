@@ -38,8 +38,10 @@ public abstract class TypeInformation<T> {
 	
 	private static final String TUPLE_PACKAGE = "eu.stratosphere.api.java.tuple";
 	private static final String VALUE_PACKAGE = "eu.stratosphere.types";
+	private static final String WRITABLE_PACKAGE = "org.apache.hadoop.io";
 	
 	private static final Pattern tuplePattern = Pattern.compile("^((" + TUPLE_PACKAGE.replaceAll("\\.", "\\\\.") + "\\.)?Tuple[0-9]+)<");
+	private static final Pattern writablePattern = Pattern.compile("^((" + WRITABLE_PACKAGE.replaceAll("\\.", "\\\\.") + "\\.)?Writable)<([^\\s,>]*)(,|>|$)");
 	private static final Pattern basicTypePattern = Pattern
 			.compile("^((java\\.lang\\.)?(String|Integer|Byte|Short|Character|Double|Float|Long|Boolean))(,|>|$)");
 	private static final Pattern basicType2Pattern = Pattern.compile("^(int|byte|short|char|double|float|long|boolean)(,|>|$)");
@@ -61,13 +63,14 @@ public abstract class TypeInformation<T> {
 	 * <code>String[]</code>, etc.
 	 * <li>Tuple types such as <code>Tuple1&lt;TYPE0&gt;</code>,
 	 * <code>Tuple2&lt;TYPE0, TYPE1&gt;</code>, etc.</li>
-	 * <li>Custom types such as <code>org.my.CustomObject</code>,
-	 * <code>org.my.CustomObject$StaticInnerClass</code>, etc.
-	 * <li>Custom type arrays such as <code>org.my.CustomObject[]</code>,
-	 * <code>org.my.CustomObject$InnerClass[]</code>, etc.
+	 * <li>Custom types such as <code>org.my.CustomClass</code>,
+	 * <code>org.my.CustomClass$StaticInnerClass</code>, etc.
+	 * <li>Custom type arrays such as <code>org.my.CustomClass[]</code>,
+	 * <code>org.my.CustomClass$StaticInnerClass[]</code>, etc.
 	 * <li>Value types such as <code>DoubleValue</code>,
 	 * <code>StringValue</code>, <code>IntegerValue</code>, etc.</li>
-	 * <li>Tuple arrays such as <code>Tuple2<TYPE0,TYPE1>[], etc.</code></li>
+	 * <li>Tuple array types such as <code>Tuple2<TYPE0,TYPE1>[], etc.</code></li>
+	 * <li>Writable types such as <code>Writable&lt;org.my.CustomWritable&gt;</code></li>
 	 * </ul>
 	 * 
 	 * Example:
@@ -98,6 +101,8 @@ public abstract class TypeInformation<T> {
 	private static TypeInformation<?> parse(StringBuilder sb) throws ClassNotFoundException {
 		String infoString = sb.toString();
 		final Matcher tupleMatcher = tuplePattern.matcher(infoString);
+		
+		final Matcher writableMatcher = writablePattern.matcher(infoString);
 		
 		final Matcher basicTypeMatcher = basicTypePattern.matcher(infoString);
 		final Matcher basicType2Matcher = basicType2Pattern.matcher(infoString);
@@ -160,6 +165,20 @@ public abstract class TypeInformation<T> {
 				}
 			} else {
 				returnType = new TupleTypeInfo(clazz, types);
+			}
+		}
+		// writable types
+		else if (writableMatcher.find()) {
+			String className = writableMatcher.group(1);
+			String fullyQualifiedName = writableMatcher.group(3);
+			sb.delete(0, className.length() + 1 + fullyQualifiedName.length());
+			
+			try {
+				Class<?> clazz = Class.forName(fullyQualifiedName);
+				returnType = WritableTypeInfo.getWritableTypeInfo((Class) clazz);
+			} catch (ClassNotFoundException e) {
+				throw new IllegalArgumentException("Class '" + fullyQualifiedName
+						+ "' could not be found for use as writable type. Please note that inner classes must be declared static.");
 			}
 		}
 		// basic types of classes
