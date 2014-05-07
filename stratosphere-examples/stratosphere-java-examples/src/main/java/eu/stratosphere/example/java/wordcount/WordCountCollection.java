@@ -21,29 +21,55 @@ import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.util.Collector;
 
+/**
+ * Implements the "WordCount" program which takes a collection of strings and counts the number of
+ * occurrences of each word in these strings. Finally, the result will be written to the
+ * console.
+ */
 @SuppressWarnings("serial")
 public class WordCountCollection {
 	
+	/**
+	 * Runs the WordCount program. 
+	 * 
+	 * @param args Command line parameters, ignored.
+	 */
+	public static void main(String[] args) throws Exception {
+		
+		// get the environment as starting point
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		// define the strings to be analyzed
+		DataSet<String> text = env.fromElements("To be", "or not to be", "or to be still", "and certainly not to be not at all", "is that the question?");
+		
+		// split the strings into tuple of (word,1), group by field "0" and sum up field "1" 
+		DataSet<Tuple2<String, Integer>> result = text.flatMap(new Tokenizer()).groupBy(0).aggregate(SUM, 1);
+		
+		// print the result on the console
+		result.print();
+		
+		// execute the defined program
+		env.execute();
+	}
+	
+	/**
+	 * Implements the string tokenizer that splits sentences into words as a user-defined
+	 * FlatMapFunction. The function takes a line (String) and splits it into 
+	 * multiple pairs in the form of "(word,1)" (Tuple2<String, Integer>).
+	 */
 	public static final class Tokenizer extends FlatMapFunction<String, Tuple2<String, Integer>> {
 
 		@Override
 		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
-			String[] tokens = value.toLowerCase().split("\\W");
+			// normalize and split the line
+			String[] tokens = value.toLowerCase().split("\\W+");
+			
+			// emit the pairs
 			for (String token : tokens) {
-				out.collect(new Tuple2<String, Integer>(token, 1));
+				if (token.length() > 0) {
+					out.collect(new Tuple2<String, Integer>(token, 1));
+				}
 			}
 		}
-	}
-	
-	public static void main(String[] args) throws Exception {
-		
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
-		DataSet<String> text = env.fromElements("To be", "or not to be", "or to be still", "and certainly not to be not at all", "is that the question?");
-		
-		DataSet<Tuple2<String, Integer>> result = text.flatMap(new Tokenizer()).groupBy(0).aggregate(SUM, 1);
-				
-		result.print();
-		env.execute();
 	}
 }

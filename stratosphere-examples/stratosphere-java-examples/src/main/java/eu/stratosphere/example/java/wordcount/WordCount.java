@@ -21,42 +21,65 @@ import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.util.Collector;
 
-
+/**
+ * Implements a the "WordCount" program that computes a simple word occurrence histogram
+ * over text files. The histogram is written back to disk as '(word, count)' pairs.
+ */
 @SuppressWarnings("serial")
 public class WordCount {
 	
-	public static final class Tokenizer extends FlatMapFunction<String, Tuple2<String, Integer>> {
-
-		@Override
-		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
-			String[] tokens = value.toLowerCase().split("\\W");
-			for (String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new Tuple2<String, Integer>(token, 1));
-				}
-			}
-		}
-	}
-	
-	
+	/**
+	 * Runs the WordCount program. Accepts parameters: <input file path> <result file path>.
+	 * Paths must be qualified URIs, i.e., start with "file://..." or "hdfs://...".
+	 * 
+	 * @param args Parameters defining the input and output path.
+	 */
 	public static void main(String[] args) throws Exception {
 		if (args.length < 2) {
 			System.err.println("Usage: WordCount <input path> <result path>");
 			return;
 		}
 		
-		final String input = args[0];
-		final String output = args[1];
+		final String inputPath = args[0];
+		final String outputPath = args[1];
 		
+		// get the environment as starting point
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		DataSet<String> text = env.readTextFile(input);
 		
+		// read the text file from given input path
+		DataSet<String> text = env.readTextFile(inputPath);
+		
+		// split up the lines in pairs (2-tuples) containing: (word,1)
 		DataSet<Tuple2<String, Integer>> words = text.flatMap(new Tokenizer());
 		
+		// group by the tuple field "0" and sum up tuple field "1"
 		DataSet<Tuple2<String, Integer>> result = words.groupBy(0).aggregate(Aggregations.SUM, 1);
 		
-		result.writeAsText(output);
+		// write out the result
+		result.writeAsText(outputPath);
+		
+		// execute the defined program
 		env.execute("Word Count");
+	}
+	
+	/**
+	 * Implements the string tokenizer that splits sentences into words as a user-defined
+	 * FlatMapFunction. The function takes a line (String) and splits it into 
+	 * multiple pairs in the form of "(word,1)" (Tuple2<String, Integer>).
+	 */
+	public static final class Tokenizer extends FlatMapFunction<String, Tuple2<String, Integer>> {
+
+		@Override
+		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
+			// normalize and split the line
+			String[] tokens = value.toLowerCase().split("\\W+");
+			
+			// emit the pairs
+			for (String token : tokens) {
+				if (token.length() > 0) {
+					out.collect(new Tuple2<String, Integer>(token, 1));
+				}
+			}
+		}
 	}
 }
