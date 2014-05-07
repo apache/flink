@@ -11,24 +11,30 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility;
+package eu.stratosphere.hadoopcompatibility.mapred.record.datatypes;
 
-import java.util.Map;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableComparable;
 
-import org.apache.hadoop.mapred.JobConf;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.Value;
 
-import eu.stratosphere.runtime.fs.hdfs.DistributedFileSystem;
+@SuppressWarnings("rawtypes")
+public class WritableWrapperConverter<K extends WritableComparable, V extends Writable> implements HadoopTypeConverter<K,V> {
+	private static final long serialVersionUID = 1L;
 
-/**
- * merge hadoopConf into jobConf. This is necessary for the hdfs configuration
-
- */
-
-public class HadoopConfiguration {
-	public static void mergeHadoopConf(JobConf jobConf) {
-		org.apache.hadoop.conf.Configuration hadoopConf = DistributedFileSystem.getHadoopConfiguration();
-		for (Map.Entry<String, String> e : hadoopConf) {
-			jobConf.set(e.getKey(), e.getValue());
-		}
+	@Override
+	public void convert(Record stratosphereRecord, K hadoopKey, V hadoopValue) {
+		stratosphereRecord.setField(0, convertKey(hadoopKey));
+		stratosphereRecord.setField(1, convertValue(hadoopValue));
+	}
+	
+	@SuppressWarnings("unchecked")
+	private final Value convertKey(K in) {
+		return new WritableComparableWrapper(in);
+	}
+	
+	private final Value convertValue(V in) {
+		return new WritableWrapper<V>(in);
 	}
 }

@@ -11,30 +11,55 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility.datatypes;
+package eu.stratosphere.hadoopcompatibility.mapred.wrapper;
 
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.mapred.Counters.Counter;
+import org.apache.hadoop.mapred.InputSplit;
+import org.apache.hadoop.mapred.Reporter;
 
-import eu.stratosphere.types.Record;
-import eu.stratosphere.types.Value;
-
-@SuppressWarnings("rawtypes")
-public class WritableWrapperConverter<K extends WritableComparable, V extends Writable> implements HadoopTypeConverter<K,V> {
-	private static final long serialVersionUID = 1L;
+/**
+ * This is a dummy progress monitor / reporter
+ *
+ */
+public class HadoopDummyReporter implements Reporter {
 
 	@Override
-	public void convert(Record stratosphereRecord, K hadoopKey, V hadoopValue) {
-		stratosphereRecord.setField(0, convertKey(hadoopKey));
-		stratosphereRecord.setField(1, convertValue(hadoopValue));
+	public void progress() {
 	}
-	
-	@SuppressWarnings("unchecked")
-	private final Value convertKey(K in) {
-		return new WritableComparableWrapper(in);
+
+	@Override
+	public void setStatus(String status) {
+
 	}
-	
-	private final Value convertValue(V in) {
-		return new WritableWrapper<V>(in);
+
+	@Override
+	public Counter getCounter(Enum<?> name) {
+		return null;
 	}
+
+	@Override
+	public Counter getCounter(String group, String name) {
+		return null;
+	}
+
+	@Override
+	public void incrCounter(Enum<?> key, long amount) {
+
+	}
+
+	@Override
+	public void incrCounter(String group, String counter, long amount) {
+
+	}
+
+	@Override
+	public InputSplit getInputSplit() throws UnsupportedOperationException {
+		return null;
+	}
+
+	@Override
+	public float getProgress() {
+		return 0;
+	}
+
 }
