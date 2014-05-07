@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility;
+package eu.stratosphere.hadoopcompatibility.mapred.record.datatypes;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -31,7 +31,7 @@ import org.apache.hadoop.util.StringUtils;
  * as input parameter. However JobContext class is package private, and in Hadoop 2.2.0 it's public.
  * This class takes {@link org.apache.hadoop.mapred.JobConf} as input instead of JobContext in order to setup and commit tasks.
  */
-public class FileOutputCommitterWrapper extends FileOutputCommitter implements Serializable {
+public class HadoopFileOutputCommitter extends FileOutputCommitter implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 	

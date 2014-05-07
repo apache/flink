@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility;
+package eu.stratosphere.hadoopcompatibility.mapred.record;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -24,11 +24,15 @@ import org.apache.hadoop.util.ReflectionUtils;
 
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.hadoopcompatibility.datatypes.StratosphereTypeConverter;
+import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.HadoopFileOutputCommitter;
+import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.StratosphereTypeConverter;
+import eu.stratosphere.hadoopcompatibility.mapred.utils.HadoopUtils;
+import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopDummyProgressable;
+import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopDummyReporter;
 import eu.stratosphere.types.Record;
 
 
-public class HadoopOutputFormatWrapper<K,V> implements OutputFormat<Record> {
+public class HadoopRecordOutputFormat<K,V> implements OutputFormat<Record> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -42,15 +46,15 @@ public class HadoopOutputFormatWrapper<K,V> implements OutputFormat<Record> {
 
 	public StratosphereTypeConverter<K,V> converter;
 
-	public FileOutputCommitterWrapper fileOutputCommitterWrapper;
+	public HadoopFileOutputCommitter fileOutputCommitterWrapper;
 
-	public HadoopOutputFormatWrapper(org.apache.hadoop.mapred.OutputFormat<K,V> hadoopFormat, JobConf job, StratosphereTypeConverter<K,V> conv) {
+	public HadoopRecordOutputFormat(org.apache.hadoop.mapred.OutputFormat<K,V> hadoopFormat, JobConf job, StratosphereTypeConverter<K,V> conv) {
 		super();
 		this.hadoopOutputFormat = hadoopFormat;
 		this.hadoopOutputFormatName = hadoopFormat.getClass().getName();
 		this.converter = conv;
-		this.fileOutputCommitterWrapper = new FileOutputCommitterWrapper();
-		HadoopConfiguration.mergeHadoopConf(job);
+		this.fileOutputCommitterWrapper = new HadoopFileOutputCommitter();
+		HadoopUtils.mergeHadoopConf(job);
 		this.jobConf = job;
 	}
 
@@ -74,7 +78,7 @@ public class HadoopOutputFormatWrapper<K,V> implements OutputFormat<Record> {
 		} else {
 			throw new IOException("task id too large");
 		}
-		this.recordWriter = this.hadoopOutputFormat.getRecordWriter(null, this.jobConf, Integer.toString(taskNumber + 1), new DummyHadoopProgressable());
+		this.recordWriter = this.hadoopOutputFormat.getRecordWriter(null, this.jobConf, Integer.toString(taskNumber + 1), new HadoopDummyProgressable());
 	}
 
 
@@ -91,7 +95,7 @@ public class HadoopOutputFormatWrapper<K,V> implements OutputFormat<Record> {
 	 */
 	@Override
 	public void close() throws IOException {
-		this.recordWriter.close(new DummyHadoopReporter());
+		this.recordWriter.close(new HadoopDummyReporter());
 		if (this.fileOutputCommitterWrapper.needsTaskCommit(this.jobConf, TaskAttemptID.forName(this.jobConf.get("mapred.task.id")))) {
 			this.fileOutputCommitterWrapper.commitTask(this.jobConf, TaskAttemptID.forName(this.jobConf.get("mapred.task.id")));
 		}
@@ -124,7 +128,7 @@ public class HadoopOutputFormatWrapper<K,V> implements OutputFormat<Record> {
 		}
 		ReflectionUtils.setConf(hadoopOutputFormat, jobConf);
 		converter = (StratosphereTypeConverter<K,V>) in.readObject();
-		fileOutputCommitterWrapper = (FileOutputCommitterWrapper) in.readObject();
+		fileOutputCommitterWrapper = (HadoopFileOutputCommitter) in.readObject();
 	}
 
 

@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility.example;
+package eu.stratosphere.hadoopcompatibility.mapred.record.example;
 
 import java.io.Serializable;
 import java.util.Iterator;
@@ -35,8 +35,8 @@ import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.hadoopcompatibility.HadoopDataSink;
-import eu.stratosphere.hadoopcompatibility.HadoopDataSource;
+import eu.stratosphere.hadoopcompatibility.mapred.record.HadoopDataSink;
+import eu.stratosphere.hadoopcompatibility.mapred.record.HadoopDataSource;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
@@ -45,9 +45,16 @@ import eu.stratosphere.util.Collector;
 /**
  * Implements a word count which takes the input file and counts the number of
  * the occurrences of each word in the file.
+ * 
+ * <br /><br />
+ * 
+ * <b>Note</b>: This example uses the out dated Record API.
+ * It is recommended to use the new Java API.
+ * 
+ * @see eu.stratosphere.hadoopcompatibility.mapred.record.example.example.WordCount
  */
 @SuppressWarnings("serial")
-public class WordCountWithHadoopOutputFormat implements Program, ProgramDescription {
+public class WordCountWithOutputFormat implements Program, ProgramDescription {
 
 	/**
 	 * Converts a Record containing one string in to multiple string/integer pairs.
@@ -143,7 +150,7 @@ public class WordCountWithHadoopOutputFormat implements Program, ProgramDescript
 
 
 	public static void main(String[] args) throws Exception {
-		WordCountWithHadoopOutputFormat wc = new WordCountWithHadoopOutputFormat();
+		WordCountWithOutputFormat wc = new WordCountWithOutputFormat();
 
 		if (args.length < 3) {
 			System.err.println(wc.getDescription());
