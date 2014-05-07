@@ -899,6 +899,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 					if (this.tempBarriers[i] != null) {
 						this.inputs[i] = this.tempBarriers[i].getIterator();
 					} else if (this.resettableInputs[i] != null) {
+						this.resettableInputs[i].consumeAndCacheRemainingData();
 						this.resettableInputs[i].reset();
 						this.inputs[i] = this.resettableInputs[i];
 					} else {
