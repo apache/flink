@@ -247,6 +247,29 @@ public abstract class AbstractTestBase {
 		Assert.assertArrayEquals(expected, result);
 	}
 	
+	public void compareKeyValueParisWithDelta(String expectedLines, String resultPath, String delimiter, double maxDelta) throws Exception {
+		ArrayList<String> list = new ArrayList<String>();
+		readAllResultLines(list, resultPath, false);
+		
+		String[] result = (String[]) list.toArray(new String[list.size()]);
+		String[] expected = expectedLines.isEmpty() ? new String[0] : expectedLines.split("\n");
+		
+		Assert.assertEquals("Wrong number of result lines.", expected.length, result.length);
+		
+		Arrays.sort(result);
+		Arrays.sort(expected);
+		
+		for (int i = 0; i < expected.length; i++) {
+			String[] expectedFields = expected[i].split(delimiter);
+			String[] resultFields = result[i].split(delimiter);
+			
+			double expectedPayLoad = Double.parseDouble(expectedFields[1]);
+			double resultPayLoad = Double.parseDouble(resultFields[1]);
+			
+			Assert.assertTrue("Values differ by more than the permissible delta", Math.abs(expectedPayLoad - resultPayLoad) < maxDelta);
+		}
+	}
+	
 	private File[] getAllInvolvedFiles(String resultPath) {
 		File result = asFile(resultPath);
 		if (!result.exists()) {
