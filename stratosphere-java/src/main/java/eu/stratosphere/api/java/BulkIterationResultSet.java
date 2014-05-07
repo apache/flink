@@ -16,25 +16,24 @@ package eu.stratosphere.api.java;
 
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 
-public class IterativeResultDataSet<T> extends DataSet<T> {
+public class BulkIterationResultSet<T> extends DataSet<T> {
 
 	private final IterativeDataSet<T> iterationHead;
 
 	private final DataSet<T> nextPartialSolution;
-	
+
 	private final DataSet<?> terminationCriterion;
 
-	IterativeResultDataSet(ExecutionEnvironment context,
+	BulkIterationResultSet(ExecutionEnvironment context,
 						TypeInformation<T> type,
 						IterativeDataSet<T> iterationHead,
-						DataSet<T> nextPartialSolution)
-	{
+						DataSet<T> nextPartialSolution) {
 		this(context, type, iterationHead, nextPartialSolution, null);
 	}
-	
-	IterativeResultDataSet(ExecutionEnvironment context,
-			TypeInformation<T> type, IterativeDataSet<T> iterationHead,
-			DataSet<T> nextPartialSolution, DataSet<?> terminationCriterion)
+
+	BulkIterationResultSet(ExecutionEnvironment context,
+		TypeInformation<T> type, IterativeDataSet<T> iterationHead,
+		DataSet<T> nextPartialSolution, DataSet<?> terminationCriterion)
 	{
 		super(context, type);
 		this.iterationHead = iterationHead;
@@ -49,7 +48,7 @@ public class IterativeResultDataSet<T> extends DataSet<T> {
 	public DataSet<T> getNextPartialSolution() {
 		return nextPartialSolution;
 	}
-	
+
 	public DataSet<?> getTerminationCriterion() {
 		return terminationCriterion;
 	}

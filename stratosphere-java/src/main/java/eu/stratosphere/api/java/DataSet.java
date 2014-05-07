@@ -529,13 +529,13 @@ public abstract class DataSet<T> {
 	/**
 	 * Initiates a delta iteration. A delta iteration is similar to a regular iteration (as started by {@link #iterate(int)},
 	 * but maintains state across the individual iteration steps. The Solution set, which represents the current state
-	 * at the beginning of each iteration can be obtained via {@link DeltaIterativeDataSet#getSolutionSet()} ()}.
+	 * at the beginning of each iteration can be obtained via {@link DeltaIteration#getSolutionSet()} ()}.
 	 * It can be be accessed by joining (or CoGrouping) with it. The DataSet that represents the workset of an iteration
-	 * can be obtained via {@link DeltaIterativeDataSet#getWorkset()}.
+	 * can be obtained via {@link DeltaIteration#getWorkset()}.
 	 * The solution set is updated by producing a delta for it, which is merged into the solution set at the end of each
 	 * iteration step.
 	 * <p>
-	 * The delta iteration must be closed by calling {@link DeltaIterativeDataSet#closeWith(DataSet, DataSet)}. The two 
+	 * The delta iteration must be closed by calling {@link DeltaIteration#closeWith(DataSet, DataSet)}. The two
 	 * parameters are the delta for the solution set and the new workset (the data set that will be fed back).
 	 * The return value of the {@code closeWith(DataSet, DataSet)} method is the resulting
 	 * data set after the iteration has terminated. Delta iterations terminate when the feed back data set
@@ -550,7 +550,7 @@ public abstract class DataSet<T> {
 	 * A code example for a delta iteration is as follows
 	 * <pre>
 	 * {@code
-	 * DeltaIterativeDataSet<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration = 
+	 * DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
 	 *                                                  initialState.iterateDelta(initialFeedbakSet, 100, 0);
 	 * 
 	 * DataSet<Tuple2<Long, Long>> delta = iteration.groupBy(0).aggregate(Aggregations.AVG, 1)
@@ -568,13 +568,13 @@ public abstract class DataSet<T> {
 	 * @param maxIterations The maximum number of iteration steps, as a fall back safeguard.
 	 * @param keyPositions The position of the tuple fields that is used as the key of the solution set.
 	 * 
-	 * @return The DeltaIterativeDataSet that marks the start of a delta iteration.
+	 * @return The DeltaIteration that marks the start of a delta iteration.
 	 * 
-	 * @see eu.stratosphere.api.java.DeltaIterativeDataSet
+	 * @see DeltaIteration
 	 */
-	public <R> DeltaIterativeDataSet<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int... keyPositions) {
+	public <R> DeltaIteration<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int... keyPositions) {
 		Keys.FieldPositionKeys<T> keys = new Keys.FieldPositionKeys<T>(keyPositions, getType(), false);
-		return new DeltaIterativeDataSet<T, R>(getExecutionEnvironment(), getType(), this, workset, keys, maxIterations);
+		return new DeltaIteration<T, R>(getExecutionEnvironment(), getType(), this, workset, keys, maxIterations);
 	}
 
 	// --------------------------------------------------------------------------------------------

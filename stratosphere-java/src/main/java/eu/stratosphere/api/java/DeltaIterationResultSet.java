@@ -17,9 +17,9 @@ package eu.stratosphere.api.java;
 import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 
-public class DeltaIterativeResultDataSet<ST, WT> extends DataSet<ST> {
+public class DeltaIterationResultSet<ST, WT> extends DataSet<ST> {
 
-	private DeltaIterativeDataSet<ST, WT> iterationHead;
+	private DeltaIteration<ST, WT> iterationHead;
 
 	private DataSet<ST> nextSolutionSet;
 	
@@ -31,14 +31,14 @@ public class DeltaIterativeResultDataSet<ST, WT> extends DataSet<ST> {
 	
 	private TypeInformation<WT> typeWS;
 
-	DeltaIterativeResultDataSet(ExecutionEnvironment context,
-	                       TypeInformation<ST> typeSS,
-	                       TypeInformation<WT> typeWS,
-	                       DeltaIterativeDataSet<ST, WT> iterationHead,
-	                       DataSet<ST> nextSolutionSet,
-	                       DataSet<WT> nextWorkset,
-	                       Keys<ST> keys,
-	                       int maxIterations)
+	DeltaIterationResultSet(ExecutionEnvironment context,
+							TypeInformation<ST> typeSS,
+							TypeInformation<WT> typeWS,
+							DeltaIteration<ST, WT> iterationHead,
+							DataSet<ST> nextSolutionSet,
+							DataSet<WT> nextWorkset,
+							Keys<ST> keys,
+							int maxIterations)
 	{
 		super(context, typeSS);
 		this.iterationHead = iterationHead;
@@ -49,7 +49,7 @@ public class DeltaIterativeResultDataSet<ST, WT> extends DataSet<ST> {
 		this.typeWS = typeWS;
 	}
 
-	public DeltaIterativeDataSet<ST, WT> getIterationHead() {
+	public DeltaIteration<ST, WT> getIterationHead() {
 		return iterationHead;
 	}
 	

@@ -14,24 +14,23 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import eu.stratosphere.api.common.operators.AbstractUdfOperator;
+import eu.stratosphere.api.common.operators.BulkIteration;
+import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.java.BulkIterationResultSet;
+import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.DeltaIteration;
+import eu.stratosphere.api.java.DeltaIterationResultSet;
+import eu.stratosphere.api.java.IterativeDataSet;
+import eu.stratosphere.api.java.operators.translation.JavaPlan;
+import eu.stratosphere.api.java.operators.translation.PlanBulkIterationOperator;
+import eu.stratosphere.api.java.operators.translation.PlanDeltaIterationOperator;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import eu.stratosphere.api.common.operators.AbstractUdfOperator;
-import eu.stratosphere.api.common.operators.BulkIteration;
-import eu.stratosphere.api.common.operators.DeltaIteration;
-import eu.stratosphere.api.common.operators.GenericDataSink;
-import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.DeltaIterativeDataSet;
-import eu.stratosphere.api.java.DeltaIterativeResultDataSet;
-import eu.stratosphere.api.java.IterativeDataSet;
-import eu.stratosphere.api.java.IterativeResultDataSet;
-import eu.stratosphere.api.java.operators.translation.JavaPlan;
-import eu.stratosphere.api.java.operators.translation.PlanBulkIterationOperator;
-import eu.stratosphere.api.java.operators.translation.PlanDeltaIterationOperator;
 
 
 /**
@@ -96,11 +95,11 @@ public class OperatorTranslation {
 			// translate the operation itself and connect it to the inputs
 			dataFlowOp = op.translateToDataFlow(input1, input2);
 		}
-		else if (dataSet instanceof IterativeResultDataSet<?>) {
-			dataFlowOp = translateBulkIteration((IterativeResultDataSet<?>) dataSet);
+		else if (dataSet instanceof BulkIterationResultSet<?>) {
+			dataFlowOp = translateBulkIteration((BulkIterationResultSet<?>) dataSet);
 		}
-		else if (dataSet instanceof DeltaIterativeResultDataSet<?, ?>) {
-			dataFlowOp = translateDeltaIteration((DeltaIterativeResultDataSet<?, ?>) dataSet);
+		else if (dataSet instanceof DeltaIterationResultSet<?, ?>) {
+			dataFlowOp = translateDeltaIteration((DeltaIterationResultSet<?, ?>) dataSet);
 		}
 		else {
 			throw new RuntimeException("Error while creating the data flow plan for the program: Unknown operator or data set type: " + dataSet);
@@ -114,7 +113,7 @@ public class OperatorTranslation {
 		return dataFlowOp;
 	}
 	
-	private <T> BulkIteration translateBulkIteration(IterativeResultDataSet<T> iterationEnd) {
+	private <T> BulkIteration translateBulkIteration(BulkIterationResultSet<T> iterationEnd) {
 		PlanBulkIterationOperator<T> iterationOperator = new PlanBulkIterationOperator<T>("Bulk Iteration", iterationEnd.getType());
 		IterativeDataSet<?> iterationHead = iterationEnd.getIterationHead();
 
@@ -134,17 +133,17 @@ public class OperatorTranslation {
 		return iterationOperator;
 	}
 	
-	private <D, W> DeltaIteration translateDeltaIteration(DeltaIterativeResultDataSet<D, W> iterationEnd) {
+	private <D, W> eu.stratosphere.api.common.operators.DeltaIteration translateDeltaIteration(DeltaIterationResultSet<D, W> iterationEnd) {
 		PlanDeltaIterationOperator<D, W> iterationOperator = new PlanDeltaIterationOperator<D, W>(iterationEnd.getKeyPositions(), "Unnamed Java Delta Iteration", iterationEnd.getType(), iterationEnd.getWorksetType()); // always assume 0 as key position?
 		iterationOperator.setMaximumNumberOfIterations(iterationEnd.getMaxIterations());
 		
-		DeltaIterativeDataSet<?, ?> iterationHead = iterationEnd.getIterationHead();
+		DeltaIteration<?, ?> iterationHead = iterationEnd.getIterationHead();
 
-		DeltaIterativeDataSet<D, W>.SolutionSetPlaceHolder solutionSetPlaceHolder =
-				(DeltaIterativeDataSet<D, W>.SolutionSetPlaceHolder) iterationHead.getSolutionSet();
+		DeltaIteration<D, W>.SolutionSetPlaceHolder solutionSetPlaceHolder =
+				(DeltaIteration<D, W>.SolutionSetPlaceHolder) iterationHead.getSolutionSet();
 
-		DeltaIterativeDataSet<D, W>.WorksetPlaceHolder worksetPlaceHolder =
-				(DeltaIterativeDataSet<D, W>.WorksetPlaceHolder) iterationHead.getWorkset();
+		DeltaIteration<D, W>.WorksetPlaceHolder worksetPlaceHolder =
+				(DeltaIteration<D, W>.WorksetPlaceHolder) iterationHead.getWorkset();
 
 		translated.put(solutionSetPlaceHolder, iterationOperator.getSolutionSet());
 		translated.put(worksetPlaceHolder, iterationOperator.getWorkset());
@@ -155,8 +154,8 @@ public class OperatorTranslation {
 		iterationOperator.setNextWorkset(translatedWorkset);
 		iterationOperator.setSolutionSetDelta(translatedSolutionSet);
 
-		iterationOperator.setInitialSolutionSet(translate(iterationHead.getInput1()));
-		iterationOperator.setInitialWorkset(translate(iterationHead.getInput2()));
+		iterationOperator.setInitialSolutionSet(translate(iterationHead.getInitialSolutionSet()));
+		iterationOperator.setInitialWorkset(translate(iterationHead.getInitialWorkset()));
 
 		return iterationOperator;
 	}

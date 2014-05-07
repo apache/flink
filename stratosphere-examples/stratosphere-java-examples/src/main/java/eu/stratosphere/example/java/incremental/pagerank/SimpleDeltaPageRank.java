@@ -18,7 +18,7 @@ package eu.stratosphere.example.java.incremental.pagerank;
 import java.util.Iterator;
 
 import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.DeltaIterativeDataSet;
+import eu.stratosphere.api.java.DeltaIteration;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.JoinFunction;
@@ -141,7 +141,7 @@ public class SimpleDeltaPageRank {
 		DataSet<Tuple3<Long, Long, Long>> dependencySetInput = env.readCsvFile(dependencySetInputPath).fieldDelimiter(' ').types(Long.class, Long.class, Long.class);
 		
 		int keyPosition = 0;
-		DeltaIterativeDataSet<Tuple2<Long, Double>, Tuple2<Long, Double>> iteration = initialSolutionSet.iterateDelta(initialDeltaSet, maxIterations, keyPosition);
+		DeltaIteration<Tuple2<Long, Double>, Tuple2<Long, Double>> iteration = initialSolutionSet.iterateDelta(initialDeltaSet, maxIterations, keyPosition);
 		
 		DataSet<Tuple2<Long, Double>> updateRanks = iteration.getWorkset().join(dependencySetInput).where(0).equalTo(0).with(new PRDependenciesComputationMatchDelta())
 				.groupBy(0).reduceGroup(new UpdateRankReduceDelta());

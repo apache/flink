@@ -52,11 +52,11 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	 * @see DataSet#iterate(int)
 	 */
 	public DataSet<T> closeWith(DataSet<T> iterationResult) {
-		return new IterativeResultDataSet<T>(getExecutionEnvironment(), getType(), this, iterationResult);
+		return new BulkIterationResultSet<T>(getExecutionEnvironment(), getType(), this, iterationResult);
 	}
 	
 	public DataSet<T> closeWith(DataSet<T> iterationResult, DataSet<?> terminationCriterion) {
-		return new IterativeResultDataSet<T>(getExecutionEnvironment(), getType(), this, iterationResult, terminationCriterion);
+		return new BulkIterationResultSet<T>(getExecutionEnvironment(), getType(), this, iterationResult, terminationCriterion);
 	}
 
 	/**
