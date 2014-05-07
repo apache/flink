@@ -61,6 +61,12 @@
 
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
+			<artifactId>avro</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-java-examples</artifactId>
 			<version>${project.version}</version>
 		</dependency>
