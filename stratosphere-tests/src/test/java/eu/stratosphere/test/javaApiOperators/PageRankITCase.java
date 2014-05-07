@@ -24,22 +24,20 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.java.pagerank.SimplePageRank;
+import eu.stratosphere.example.java.graph.SimplePageRank;
+import eu.stratosphere.test.testdata.PageRankData;
 import eu.stratosphere.test.util.JavaProgramTestBase;
 
 @RunWith(Parameterized.class)
 public class PageRankITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 3;
-	
-	private static final String VERTICES = "1,5.0\n2,2.1\n3,4.3\n4,0.4\n5,1.6\n6,6.8\n7,7.3\n8,3.1\n9,2.9\n10,1.2";
-	private static final String EDGES = "1,2\n2,3\n3,4\n4,5\n5,6\n6,7\n7,8\n8,9\n9,10\n10,1\n";
+	private static int NUM_PROGRAMS = 2;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	
+	private String verticesPath;
+	private String edgesPath;
 	private String resultPath;
-	protected static String pagesPath;
-	protected static String edgesPath;
 	private String expectedResult;
 	
 	public PageRankITCase(Configuration config) {
@@ -49,18 +47,18 @@ public class PageRankITCase extends JavaProgramTestBase {
 	@Override
 	protected void preSubmit() throws Exception {
 		resultPath = getTempDirPath("result");
-		pagesPath = createTempFile("pages.txt", VERTICES);
-		edgesPath = createTempFile("edges.txt", EDGES);
+		verticesPath = createTempFile("vertices.txt", PageRankData.VERTICES_WITH_INITIAL_RANK);
+		edgesPath = createTempFile("edges.txt", PageRankData.EDGES);
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		expectedResult = ReduceProgs.runProgram(curProgId, resultPath);
+		expectedResult = runProgram(curProgId);
 	}
 	
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expectedResult, resultPath);
+		compareKeyValueParisWithDelta(expectedResult, resultPath, ",", 0.01);
 	}
 	
 	@Parameters
@@ -77,39 +75,22 @@ public class PageRankITCase extends JavaProgramTestBase {
 		return toParameterList(tConfigs);
 	}
 	
-	private static class ReduceProgs {
+
+	public String runProgram(int progId) throws Exception {
 		
-		public static String runProgram(int progId, String resultPath) throws Exception {
-			
-			switch(progId) {
-			case 1: {
-				
-				SimplePageRank.run(1, pagesPath, edgesPath, resultPath, 3, false);
-				
-				// return expected result
-				return "1,3.1\n2,2.9\n3,1.2\n4,5.0\n5,2.1\n6,4.3\n7,0.4\n8,1.6\n9,6.8\n10,7.3";
-			}
-			case 2: {
-
-				SimplePageRank.run(1, pagesPath, edgesPath, resultPath, 5, false);
-				
-				// return expected result
-				return "1,6.8\n2,7.3\n3,3.1\n4,2.9\n5,1.2\n6,5.0\n7,2.1\n8,4.3\n9,0.4\n10,1.6";
-			}
-			case 3: {
-
-				SimplePageRank.run(1, pagesPath, edgesPath, resultPath, 1000, true);
-				
-				// return expected result
-				return "1,5.0\n2,2.1\n3,4.3\n4,0.4\n5,1.6\n6,6.8\n7,7.3\n8,3.1\n9,2.9\n10,1.2";
-			}
-			
-			default: 
-				throw new IllegalArgumentException("Invalid program id");
-			}
-			
+		switch(progId) {
+		case 1: {
+			SimplePageRank.runPageRank(verticesPath, edgesPath, resultPath, PageRankData.NUM_VERTICES, 3);
+			return PageRankData.RANKS_AFTER_3_ITERATIONS;
 		}
-	
+		case 2: {
+			// start with a very high number of iteration such that the dynamic convergence criterion must handle termination
+			SimplePageRank.runPageRank(verticesPath, edgesPath, resultPath, PageRankData.NUM_VERTICES, 1000);
+			return PageRankData.RANKS_AFTER_EPSILON_0_0001_CONVERGENCE;
+		}
+		
+		default: 
+			throw new IllegalArgumentException("Invalid program id");
+		}
 	}
-	
 }
