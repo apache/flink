@@ -17,7 +17,11 @@ package eu.stratosphere.api.java.operators.translation;
 import eu.stratosphere.api.common.functions.GenericReduce;
 import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
 import eu.stratosphere.api.java.functions.ReduceFunction;
+import eu.stratosphere.api.java.functions.SemanticPropUtil;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
+
+import java.lang.annotation.Annotation;
+import java.util.Set;
 
 /**
  *
@@ -32,6 +36,10 @@ public class PlanReduceOperator<T> extends ReduceOperatorBase<GenericReduce<T>>
 	public PlanReduceOperator(ReduceFunction<T> udf, int[] logicalGroupingFields, String name, TypeInformation<T> type) {
 		super(udf, logicalGroupingFields, name);
 		this.type = type;
+
+		Set<Annotation> annotations = FunctionAnnotation.readSingleConstantAnnotations(this.getUserCodeWrapper());
+		SingleInputSemanticProperties sp = SemanticPropUtil.getSemanticPropsSingle(annotations, this.getInputType(), this.getReturnType());
+		setSemanticProperties(sp);
 	}
 	
 	
@@ -44,5 +52,4 @@ public class PlanReduceOperator<T> extends ReduceOperatorBase<GenericReduce<T>>
 	public TypeInformation<T> getInputType() {
 		return this.type;
 	}
-	
 }

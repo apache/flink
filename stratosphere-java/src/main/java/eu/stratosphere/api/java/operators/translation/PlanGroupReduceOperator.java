@@ -15,10 +15,16 @@
 package eu.stratosphere.api.java.operators.translation;
 
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
+import eu.stratosphere.api.common.operators.SingleInputSemanticProperties;
 import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
+import eu.stratosphere.api.java.functions.FunctionAnnotation;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.GroupReduceFunction.Combinable;
+import eu.stratosphere.api.java.functions.SemanticPropUtil;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
+
+import java.lang.annotation.Annotation;
+import java.util.Set;
 
 /**
  *
@@ -28,20 +34,24 @@ public class PlanGroupReduceOperator<IN, OUT> extends GroupReduceOperatorBase<Ge
 {
 
 	private final TypeInformation<IN> inType;
-	
+
 	private final TypeInformation<OUT> outType;
-	
-	
-	public PlanGroupReduceOperator(GroupReduceFunction<IN, OUT> udf, int[] logicalGroupingFields, String name, 
+
+
+	public PlanGroupReduceOperator(GroupReduceFunction<IN, OUT> udf, int[] logicalGroupingFields, String name,
 				TypeInformation<IN> inputType, TypeInformation<OUT> outputType)
 	{
 		super(udf, logicalGroupingFields, name);
-		
+
 		this.inType = inputType;
 		this.outType = outputType;
 		super.setCombinable(getUserCodeWrapper().getUserCodeAnnotation(Combinable.class) != null);
+
+		Set<Annotation> annotations = FunctionAnnotation.readSingleConstantAnnotations(this.getUserCodeWrapper());
+		SingleInputSemanticProperties sp = SemanticPropUtil.getSemanticPropsSingle(annotations, this.inType, this.outType);
+		setSemanticProperties(sp);
 	}
-	
+
 	@Override
 	public TypeInformation<OUT> getReturnType() {
 		return this.outType;
