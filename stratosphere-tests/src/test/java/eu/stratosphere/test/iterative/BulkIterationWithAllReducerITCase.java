@@ -13,114 +13,73 @@
 
 package eu.stratosphere.test.iterative;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.BulkIteration;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.java.record.functions.ReduceFunction;
-import eu.stratosphere.api.java.record.io.CsvInputFormat;
-import eu.stratosphere.api.java.record.operators.ReduceOperator;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
-import eu.stratosphere.test.util.RecordAPITestBase;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.types.StringValue;
+import junit.framework.Assert;
+import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.ExecutionEnvironment;
+import eu.stratosphere.api.java.IterativeDataSet;
+import eu.stratosphere.api.java.functions.GroupReduceFunction;
+import eu.stratosphere.api.java.io.LocalCollectionOutputFormat;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.test.util.JavaProgramTestBase;
 import eu.stratosphere.util.Collector;
 
-public class BulkIterationWithAllReducerITCase extends RecordAPITestBase {
 
-	private static final String IN = "1 1\n2 2\n3 3\n4 4\n5 5\n6 6\n7 7\n8 8\n";
-	private static final String RESULT = "8 8\n";
-
-	private String inputPath;
-	private String resultPath;
+@SuppressWarnings("serial")
+public class BulkIterationWithAllReducerITCase extends JavaProgramTestBase {
 
 	@Override
-	protected void preSubmit() throws Exception {
-		inputPath = createTempFile("input.txt", IN);
-		resultPath = getTempDirPath("result.txt");
+	protected void testProgram() throws Exception {
+		
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(1);
+		
+		DataSet<Integer> data = env.fromElements(1, 2, 3, 4, 5, 6, 7, 8);
+		
+		IterativeDataSet<Integer> iteration = data.iterate(10);
+		
+		DataSet<Integer> result = data.reduceGroup(new PickOneAllReduce()).withBroadcastSet(iteration, "bc");
+		
+		final List<Integer> resultList = new ArrayList<Integer>();
+		iteration.closeWith(result).output(new LocalCollectionOutputFormat<Integer>(resultList));
+		
+		env.execute();
+		
+		Assert.assertEquals(8, resultList.get(0).intValue());
 	}
 
-	@Override
-	protected JobGraph getJobGraph() throws Exception {
-		FileDataSource input = new FileDataSource(new CsvInputFormat(), inputPath);
-		CsvInputFormat.configureRecordFormat(input).fieldDelimiter(' ').field(StringValue.class, 0).field(IntValue.class, 1);
-
-		// Use bulk iteration for iterating through input
-		BulkIteration bulkIteration = new BulkIteration();
-		bulkIteration.setMaximumNumberOfIterations(10);
-
-		bulkIteration.setInput(input);
-
-		// begin of iteration step
-		ReduceOperator reduce = ReduceOperator.builder(PickOneAllReduce.class)
-				.setBroadcastVariable("bc", bulkIteration.getPartialSolution()).input(input).build();
-
-		bulkIteration.setNextPartialSolution(reduce);
-
-		FileDataSink output = new FileDataSink(new ContractITCaseOutputFormat(), resultPath);
-		output.setDegreeOfParallelism(1);
-		output.setInput(bulkIteration);
-
-		Plan plan = new Plan(output);
-
-		PactCompiler pc = new PactCompiler(new DataStatistics());
-		OptimizedPlan op = pc.compile(plan);
-
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-		return jgg.compileJobGraph(op);
-	}
-
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(RESULT, resultPath);
-	}
-
-	public static class PickOneAllReduce extends ReduceFunction {
-		private static final long serialVersionUID = 1L;
-
-		// returns the next higher key-value-pair (if available) compared to the broadcast variable
+	
+	public static class PickOneAllReduce extends GroupReduceFunction<Integer, Integer> {
+		
+		private Integer bcValue;
+		
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
-			Collection<Record> vars = getRuntimeContext().getBroadcastVariable("bc");
-			Iterator<Record> iterator = vars.iterator();
+		public void open(Configuration parameters) {
+			Collection<Integer> bc = getRuntimeContext().getBroadcastVariable("bc");
+			this.bcValue = bc.isEmpty() ? null : bc.iterator().next();
+		}
 
-			// Prevent bug in Iteration maxIteration+1
-			if (!iterator.hasNext()) {
+		@Override
+		public void reduce(Iterator<Integer> records, Collector<Integer> out) {
+			if (bcValue == null) {
 				return;
 			}
-			Record bc = iterator.next();
-			int x = bc.getField(1, IntValue.class).getValue();
-
-			boolean collected = false;
-			while (records.hasNext()) {
-				Record r = records.next();
-				int y = r.getField(1, IntValue.class).getValue();
+			final int x = bcValue;
+			
+			while (records.hasNext()) { 
+				int y = records.next();
 
 				if (y > x) {
-					out.collect(r);
-					collected = true;
-					break;
+					out.collect(y);
+					return;
 				}
 			}
 
-			if (!collected) {
-				out.collect(bc.createCopy());
-			}
-			
-			// THIS SHOULD NOT BE NECESSARY!!!
-			while(records.hasNext()) {
-				records.next();
-			}
-			// THIS SHOULD NOT BE NECESSARY!!!
+			out.collect(bcValue);
 		}
 	}
 }
