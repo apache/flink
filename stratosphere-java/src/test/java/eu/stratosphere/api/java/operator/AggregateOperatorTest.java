@@ -25,6 +25,7 @@ import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.aggregation.Aggregations;
+import eu.stratosphere.api.java.aggregation.UnsupportedAggregationTypeException;
 import eu.stratosphere.api.java.tuple.Tuple5;
 import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
@@ -87,33 +88,28 @@ public class AggregateOperatorTest {
 	
 	@Test
 	public void testAggregationTypes() {
-		
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
-		
-		// should work: multiple aggregates
 		try {
+			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
+			
+			// should work: multiple aggregates
 			tupleDs.aggregate(Aggregations.AVG, 0).and(Aggregations.MIN, 4);
-		} catch(Exception e) {
-			Assert.fail();
+
+			// should work: nested aggregates
+			tupleDs.aggregate(Aggregations.MIN, 2).aggregate(Aggregations.SUM, 1);
+			
+			// should not work: average on string
+			try {
+				tupleDs.aggregate(Aggregations.AVG, 2);
+				Assert.fail();
+			} catch (UnsupportedAggregationTypeException iae) {
+				// we're good here
+			}
 		}
-		
-		// should work: nested aggregates
-		try {
-			tupleDs.aggregate(Aggregations.AVG, 2).aggregate(Aggregations.SUM, 1);
-		} catch(Exception e) {
-			Assert.fail();
+		catch(Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
 		}
-		
-		// should not work: average on string
-		try {
-			tupleDs.aggregate(Aggregations.AVG, 2);
-			Assert.fail();
-		} catch(IllegalArgumentException iae) {
-			// we're good here
-		} catch(Exception e) {
-			Assert.fail();
-		}
-				
 	}
 }

@@ -199,7 +199,7 @@ public abstract class AvgAggregationFunction<T> extends AggregationFunction<T> {
 			}
 			else {
 				throw new UnsupportedAggregationTypeException("The type " + type.getName() + 
-					" has currently not supported for built-in sum aggregations.");
+					" has currently not supported for built-in average aggregations.");
 			}
 		}
 	}
