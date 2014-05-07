@@ -55,6 +55,20 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 		return new BulkIterationResultSet<T>(getExecutionEnvironment(), getType(), this, iterationResult);
 	}
 	
+	/**
+	 * Closes the iteration and specifies a termination criterion. This method defines the end of
+	 * the iterative program part.
+	 * <p>
+	 * The termination criterion is a means of dynamically signaling the iteration to halt. It is expressed via a data
+	 * set that will trigger to halt the loop as soon as the data set is empty. A typical way of using the termination
+	 * criterion is to have a filter that filters out all elements that are considered non-converged. As soon as no more
+	 * such elements exist, the iteration finishes.
+	 * 
+	 * @param iterationResult The data set that will be fed back to the next iteration.
+	 * @return The DataSet that represents the result of the iteration, after the computation has terminated.
+	 * 
+	 * @see DataSet#iterate(int)
+	 */
 	public DataSet<T> closeWith(DataSet<T> iterationResult, DataSet<?> terminationCriterion) {
 		return new BulkIterationResultSet<T>(getExecutionEnvironment(), getType(), this, iterationResult, terminationCriterion);
 	}
