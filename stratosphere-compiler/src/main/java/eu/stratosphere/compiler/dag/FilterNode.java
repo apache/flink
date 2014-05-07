@@ -38,7 +38,7 @@ public class FilterNode extends SingleInputNode {
 
 	@Override
 	public String getName() {
-		return "FlatMap";
+		return "Filter";
 	}
 
 	@Override
@@ -48,7 +48,7 @@ public class FilterNode extends SingleInputNode {
 
 	/**
 	 * Computes the estimates for the Filter operator. Since it applies a filter on the data we assume a cardinality
-	 * decrease. To give the system a hint at data decrease, we take a default magic number of a 0.5 times decrease. 
+	 * decrease. To give the system a hint at data decrease, we use a default magic number to indicate a 0.5 decrease. 
 	 */
 	@Override
 	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
