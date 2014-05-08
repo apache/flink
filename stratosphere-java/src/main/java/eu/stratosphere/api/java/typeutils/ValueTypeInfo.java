@@ -77,7 +77,7 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public TypeComparator<T> createComparator(boolean sortOrderAscending) {
 		if (!isKeyType()) {
@@ -85,30 +85,16 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 		}
 		
 		if (CopyableValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<T>) createCopyableValueComparator(type, sortOrderAscending);
+			return (TypeComparator<T>) new ValueComparator(sortOrderAscending, type);
 		}
 		else {
-			return (TypeComparator<T>) createValueComparator(type, sortOrderAscending);
+			return (TypeComparator<T>) new CopyableValueComparator(sortOrderAscending, type);
 		}
 	}
 	
 	// utility method to summon the necessary bound
 	private static <X extends CopyableValue<X>> CopyableValueSerializer<X> createCopyableValueSerializer(Class<X> clazz) {
 		return new CopyableValueSerializer<X>(clazz);
-	}
-	
-	// utility method to summon the necessary bound
-	private static <X extends Value & Comparable<X>> ValueComparator<X> createValueComparator(Class<?> clazz, boolean ascending) {
-		@SuppressWarnings("unchecked")
-		Class<X> type = (Class<X>) clazz;
-		return new ValueComparator<X>(ascending, type);
-	}
-	
-	// utility method to summon the necessary bounds
-	private static <X extends CopyableValue<X> & Comparable<X>> CopyableValueComparator<X> createCopyableValueComparator(Class<?> clazz, boolean ascending) {
-		@SuppressWarnings("unchecked")
-		Class<X> type = (Class<X>) clazz;
-		return new CopyableValueComparator<X>(ascending, type);
 	}
 	
 	// --------------------------------------------------------------------------------------------
