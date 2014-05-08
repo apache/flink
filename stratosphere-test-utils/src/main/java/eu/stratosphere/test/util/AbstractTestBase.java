@@ -30,8 +30,6 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 
-import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.configuration.ConfigConstants;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.log4j.Level;
@@ -47,11 +45,13 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.LogUtils;
 
 public abstract class AbstractTestBase {
+	private static final int DEFAULT_NUM_TASK_MANAGER = 1;
 	
 	private static final int MINIMUM_HEAP_SIZE_MB = 192;
 	
-	private static final long TASK_MANAGER_MEMORY_SIZE = 80;
+	private static final long MEMORY_SIZE = 80;
 
+	private int numTaskManager = DEFAULT_NUM_TASK_MANAGER;
 	
 	protected final Configuration config;
 	
@@ -73,7 +73,14 @@ public abstract class AbstractTestBase {
 		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
 				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+	//  Getter/Setter
+	// --------------------------------------------------------------------------------------------
+
+	public int getNumTaskManager() { return numTaskManager; }
+
+	public void setNumTaskManager(int numTaskManager) { this.numTaskManager = numTaskManager; }
 
 	// --------------------------------------------------------------------------------------------
 	//  Local Test Cluster Life Cycle
@@ -84,7 +91,8 @@ public abstract class AbstractTestBase {
 		this.executor = new NepheleMiniCluster();
 		this.executor.setDefaultOverwriteFiles(true);
 		this.executor.setLazyMemoryAllocation(true);
-		this.executor.setMemorySize(TASK_MANAGER_MEMORY_SIZE);
+		this.executor.setMemorySize(MEMORY_SIZE);
+		this.executor.setNumTaskManager(this.numTaskManager);
 		this.executor.start();
 	}
 

@@ -15,11 +15,8 @@ package eu.stratosphere.test.localDistributed;
 import java.io.File;
 import java.io.FileWriter;
 import java.net.URL;
-import java.util.Collections;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
-import eu.stratosphere.configuration.ConfigConstants;
-import eu.stratosphere.configuration.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -60,11 +57,10 @@ public class PackagedProgramEndToEndITCase {
 			URL jarFileURL = getClass().getResource("/KMeansForTest.jar");
 			String jarPath = jarFileURL.getFile();
 
-			// run WordCount
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
-			cluster.start(config);
-			RemoteExecutor ex = new RemoteExecutor("localhost", 6498, new LinkedList<String>());
+			// run KMeans
+			cluster.setNumTaskManager(2);
+			cluster.start();
+			RemoteExecutor ex = new RemoteExecutor("localhost", 6498);
 
 			ex.executeJar(jarPath,
 					"eu.stratosphere.examples.scala.testing.KMeansForTest",

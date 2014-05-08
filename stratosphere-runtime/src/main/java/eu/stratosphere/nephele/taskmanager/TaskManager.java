@@ -121,7 +121,7 @@ public class TaskManager implements TaskOperationProtocol {
 	/**
 	 * This map contains all the tasks whose threads are in a state other than TERMINATED. If any task
 	 * is stored inside this map and its thread status is TERMINATED, this indicates a virtual machine error.
-	 * As a result, task status will switch to FAILED and reported to the {@link JobManager}.
+	 * As a result, task status will switch to FAILED and reported to the {@link eu.stratosphere.nephele.jobmanager.JobManager}.
 	 */
 	private final Map<ExecutionVertexID, Task> runningTasks = new ConcurrentHashMap<ExecutionVertexID, Task>();
 

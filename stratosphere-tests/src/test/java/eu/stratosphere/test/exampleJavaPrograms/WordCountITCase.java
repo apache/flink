@@ -14,7 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.exampleJavaPrograms;
 
-import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.example.java.wordcount.WordCount;
 import eu.stratosphere.test.testdata.WordCountData;
 import eu.stratosphere.test.util.JavaProgramTestBase;
@@ -26,7 +25,7 @@ public class WordCountITCase extends JavaProgramTestBase {
 	protected String resultPath;
 
 	public WordCountITCase(){
-		this.config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
+		setNumTaskManager(2);
 	}
 
 	

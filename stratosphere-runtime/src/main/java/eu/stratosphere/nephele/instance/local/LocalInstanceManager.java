@@ -14,10 +14,11 @@
 package eu.stratosphere.nephele.instance.local;
 
 import java.io.File;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.List;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -65,6 +66,11 @@ public class LocalInstanceManager implements InstanceManager {
 
 	private static final String LOCALINSTANCE_TYPE_KEY = "instancemanager.local.type";
 
+	private static final int SLEEP_TIME = 50;
+
+	private static final int START_STOP_TIMEOUT = 2000;
+
+
 	/**
 	 * The instance listener registered with this instance manager.
 	 */
@@ -90,12 +96,12 @@ public class LocalInstanceManager implements InstanceManager {
 	 * The local instances encapsulating the task managers
 	 */
 	private Map<InstanceConnectionInfo, LocalInstance> localInstances = new HashMap<InstanceConnectionInfo,
-				LocalInstance>();
+					LocalInstance>();
 
 	/**
 	 * The threads running the local task managers.
 	 */
-	private final List<LocalTaskManagerThread> localTaskManagerThreads = new ArrayList<LocalTaskManagerThread>();
+	private final List<TaskManager> taskManagers = new ArrayList<TaskManager>();
 
 	/**
 	 * The network topology the local instance is part of.
@@ -147,26 +153,18 @@ public class LocalInstanceManager implements InstanceManager {
 		for(int i=0; i< numTaskManagers; i++){
 
 			Configuration tm = new Configuration();
-			int ipcPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0);
-			int dataPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, 0);
+			int ipcPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
+					ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT);
+			int dataPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
+					ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT);
 
-			//if a port was defined than adjust for the different task manager instances
-			if(ipcPort != 0){
-				ipcPort += i;
-			}
-
-			if(dataPort != 0){
-				dataPort += 1;
-			}
-
-			tm.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, ipcPort);
-			tm.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort);
+			tm.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, ipcPort + i);
+			tm.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort + i);
 
 			GlobalConfiguration.includeConfiguration(tm);
 
-			localTaskManagerThreads.add(new LocalTaskManagerThread("Local Taskmanager IO Loop #" + i,
-					numTaskManagers));
-			localTaskManagerThreads.get(i).start();
+			TaskManager t = new TaskManager();
+			taskManagers.add(t);
 		}
 	}
 
@@ -255,27 +253,38 @@ public class LocalInstanceManager implements InstanceManager {
 
 	@Override
 	public void shutdown() {
-		// Stop the task manager threads
-		int numTMShutDown;
-		do{
-			numTMShutDown = 0;
-			for(LocalTaskManagerThread thread: localTaskManagerThreads){
-				if(!thread.isShutDown()){
-					thread.interrupt();
-				}else{
-					numTMShutDown++;
-				}
-			}
+		// Stop the task managers
+		for(TaskManager t : taskManagers){
+			t.shutdown();
+		}
 
-			if(numTMShutDown < localTaskManagerThreads.size()){
-				try{
-					Thread.sleep(100);
-				} catch(InterruptedException e){
+		boolean areAllTaskManagerShutdown = false;
+		int timeout = START_STOP_TIMEOUT * this.taskManagers.size();
+
+		for(int sleep = 0; sleep < timeout; sleep += SLEEP_TIME){
+			areAllTaskManagerShutdown = true;
+
+			for(TaskManager t: taskManagers){
+				if(!t.isShutDown()){
+					areAllTaskManagerShutdown = false;
 					break;
 				}
 			}
-		}while(numTMShutDown < localTaskManagerThreads.size());
 
+			if(areAllTaskManagerShutdown){
+				break;
+			}
+
+			try {
+				Thread.sleep(SLEEP_TIME);
+			}catch(InterruptedException e){
+				break;
+			}
+		}
+
+		if(!areAllTaskManagerShutdown){
+			throw new RuntimeException(String.format("TaskManager shut down timed out (%d ms).", timeout));
+		}
 
 		instanceTypeDescriptionMap.clear();
 
