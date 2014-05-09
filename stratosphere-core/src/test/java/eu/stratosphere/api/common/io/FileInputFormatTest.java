@@ -22,6 +22,7 @@ import org.junit.Test;
 import eu.stratosphere.api.common.io.FileInputFormat.FileBaseStatistics;
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.testutils.TestFileUtils;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.util.LogUtils;
@@ -183,6 +184,53 @@ public class FileInputFormatTest {
 			Assert.fail(ex.getMessage());
 		}
 	}
+	
+	// ---- Tests for .deflate ---------
+	
+	/**
+	 * Create directory with files with .deflate extension and see if it creates a split
+	 * for each file. Each split has to start from the beginning.
+	 */
+	@Test
+	public void testFileInputSplit() {
+		try {
+			String tempFile = TestFileUtils.createTempFileDirExtension(".deflate", "some", "stupid", "meaningless", "files");
+			final DummyFileInputFormat format = new DummyFileInputFormat();
+			format.setFilePath(tempFile);
+			format.configure(new Configuration());
+			FileInputSplit[] splits = format.createInputSplits(2);
+			Assert.assertEquals(4, splits.length);
+			for(FileInputSplit split : splits) {
+				Assert.assertEquals(-1L, split.getLength()); // unsplittable deflate files have this size as a flag for "read whole file"
+				Assert.assertEquals(0L, split.getStart()); // always read from the beginning.
+			}
+			
+			// test if this also works for "mixed" directories
+			String newDir = TestFileUtils.createTempFileInDirectory(tempFile.replace("file:", ""), "this creates a test file with a random extension (at least not .deflate)");
+			
+			final DummyFileInputFormat formatMixed = new DummyFileInputFormat();
+			formatMixed.setFilePath(tempFile);
+			formatMixed.configure(new Configuration());
+			FileInputSplit[] splitsMixed = formatMixed.createInputSplits(2);
+			Assert.assertEquals(5, splitsMixed.length);
+			for(FileInputSplit split : splitsMixed) {
+				if(split.getPath().getName().endsWith(".deflate")) {
+					Assert.assertEquals(-1L, split.getLength()); // unsplittable deflate files have this size as a flag for "read whole file"
+					Assert.assertEquals(0L, split.getStart()); // always read from the beginning.
+				} else {
+					Assert.assertEquals(0L, split.getStart());
+					Assert.assertTrue("split size not correct", split.getLength() > 0);
+				}
+			}
+			
+			
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail(ex.getMessage());
+		}
+	}
+	
+	
 	
 	// ------------------------------------------------------------------------
 	

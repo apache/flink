@@ -40,6 +40,24 @@ public class TestFileUtils {
 		return f.toURI().toString();
 	}
 	
+	public static String createTempFileInDirectory(String dir, String contents) throws IOException {
+		File f;
+		do {
+			f = new File(dir + "/" + randomFileName());
+		} while (f.exists());
+		f.getParentFile().mkdirs();
+		f.createNewFile();
+		f.deleteOnExit();
+		
+		BufferedWriter out = new BufferedWriter(new FileWriter(f));
+		try { 
+			out.write(contents);
+		} finally {
+			out.close();
+		}
+		return f.toURI().toString();
+	}
+	
 	public static String createTempFile(String contents) throws IOException {
 		File f = File.createTempFile(FILE_PREFIX, FILE_SUFFIX);
 		f.deleteOnExit();
@@ -81,16 +99,20 @@ public class TestFileUtils {
 	}
 	
 	public static String createTempFileDir(String ... contents) throws IOException {
+		return createTempFileDirExtension(FILE_SUFFIX, contents);
+	}
+	
+	public static String createTempFileDirExtension(String fileExtension, String ... contents ) throws IOException {
 		File tempDir = new File(System.getProperty("java.io.tmpdir"));
 		File f = null;
 		do {
-			f = new File(tempDir, randomFileName());
+			f = new File(tempDir, randomFileName(FILE_SUFFIX));
 		} while (f.exists());
 		f.mkdirs();
 		f.deleteOnExit();
 		
 		for (String s : contents) {
-			File child = new File(f, randomFileName());
+			File child = new File(f, randomFileName(fileExtension));
 			child.deleteOnExit();
 		
 			BufferedWriter out = new BufferedWriter(new FileWriter(child));
@@ -104,7 +126,10 @@ public class TestFileUtils {
 	}
 	
 	public static String randomFileName() {
-		return FILE_PREFIX + ((int) (Math.random() * Integer.MAX_VALUE)) + FILE_SUFFIX;
+		return randomFileName(FILE_SUFFIX);
+	}
+	public static String randomFileName(String fileSuffix) {
+		return FILE_PREFIX + ((int) (Math.random() * Integer.MAX_VALUE)) + fileSuffix;
 	}
 
 	// ------------------------------------------------------------------------
