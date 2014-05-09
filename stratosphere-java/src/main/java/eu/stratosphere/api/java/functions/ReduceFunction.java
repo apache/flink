@@ -14,12 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.functions;
 
-import java.util.Iterator;
-
 import eu.stratosphere.api.common.functions.AbstractFunction;
-import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.functions.GenericReduce;
-import eu.stratosphere.util.Collector;
 
 
 public abstract class ReduceFunction<T> extends AbstractFunction implements GenericReduce<T> {
@@ -41,15 +37,4 @@ public abstract class ReduceFunction<T> extends AbstractFunction implements Gene
 	* @throws Exception
 	*/
 	public abstract T reduce(T value1, T value2) throws Exception;
-	
-	@Override
-	public final void combine(Iterator<T> values, Collector<T> out) throws Exception {
-		T curr = values.next();
-		
-		while (values.hasNext()) {
-			curr = reduce(curr, values.next());
-		}
-		
-		out.collect(curr);
-	}
 }

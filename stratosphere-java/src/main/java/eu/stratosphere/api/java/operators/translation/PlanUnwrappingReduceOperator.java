@@ -14,24 +14,17 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators.translation;
 
-import java.util.Iterator;
-
-import eu.stratosphere.api.common.functions.GenericGroupReduce;
-import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
+import eu.stratosphere.api.common.functions.GenericReduce;
+import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
 import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
-import eu.stratosphere.util.Collector;
 
-/**
- *
- */
-public class PlanUnwrappingReduceOperator<T, K> extends GroupReduceOperatorBase<GenericGroupReduce<Tuple2<K, T>, T>>
-	implements UnaryJavaPlanNode<Tuple2<K, T>, T>
+
+public class PlanUnwrappingReduceOperator<T, K> extends ReduceOperatorBase<GenericReduce<Tuple2<K, T>>>
+	implements UnaryJavaPlanNode<Tuple2<K, T>, Tuple2<K, T>>
 {
-
-	private final TypeInformation<T> type;
 	
 	private final TypeInformation<Tuple2<K, T>> typeInfoWithKey;
 
@@ -39,16 +32,15 @@ public class PlanUnwrappingReduceOperator<T, K> extends GroupReduceOperatorBase<
 	public PlanUnwrappingReduceOperator(ReduceFunction<T> udf, Keys.SelectorFunctionKeys<T, K> key, String name,
 			TypeInformation<T> type, TypeInformation<Tuple2<K, T>> typeInfoWithKey)
 	{
-		super(new ReduceGroupWrapper<T, K>(udf), key.computeLogicalKeyPositions(), name);
-		this.type = type;
+		super(new ReduceWrapper<T, K>(udf), key.computeLogicalKeyPositions(), name);
 		
 		this.typeInfoWithKey = typeInfoWithKey;
 	}
 	
 	
 	@Override
-	public TypeInformation<T> getReturnType() {
-		return this.type;
+	public TypeInformation<Tuple2<K, T>> getReturnType() {
+		return this.typeInfoWithKey;
 	}
 
 	@Override
@@ -59,43 +51,20 @@ public class PlanUnwrappingReduceOperator<T, K> extends GroupReduceOperatorBase<
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class ReduceGroupWrapper<T, K> extends WrappingFunction<ReduceFunction<T>>
-		implements GenericGroupReduce<Tuple2<K, T>, T>
+	public static final class ReduceWrapper<T, K> extends WrappingFunction<ReduceFunction<T>>
+		implements GenericReduce<Tuple2<K, T>>
 	{
-
 		private static final long serialVersionUID = 1L;
 		
 
-		private ReduceGroupWrapper(ReduceFunction<T> wrapped) {
+		private ReduceWrapper(ReduceFunction<T> wrapped) {
 			super(wrapped);
 		}
 
-
 		@Override
-		public void reduce(Iterator<Tuple2<K, T>> values, Collector<T> out) throws Exception {
-			T curr = values.next().f1;
-			
-			while (values.hasNext()) {
-				curr = this.wrappedFunction.reduce(curr, values.next().f1);
-			}
-			
-			out.collect(curr);
+		public Tuple2<K, T> reduce(Tuple2<K, T> value1, Tuple2<K, T> value2) throws Exception {
+			value1.f1 = this.wrappedFunction.reduce(value1.f1, value2.f1);
+			return value1;
 		}
-
-		@Override
-		public void combine(Iterator<Tuple2<K, T>> values, Collector<Tuple2<K, T>> out) throws Exception {
-			
-			Tuple2<K, T> currentTuple = values.next();
-			
-			T curr = currentTuple.f1;
-
-			while (values.hasNext()) {
-				currentTuple = values.next();
-				curr = this.wrappedFunction.reduce(curr, currentTuple.f1);
-			}
-
-			out.collect(new Tuple2<K, T>(currentTuple.f0, curr));
-		}
-
 	}
 }

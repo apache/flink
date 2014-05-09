@@ -18,6 +18,7 @@ import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
+import eu.stratosphere.api.java.operators.translation.KeyRemovingMapper;
 import eu.stratosphere.api.java.operators.translation.PlanMapOperator;
 import eu.stratosphere.api.java.operators.translation.PlanReduceOperator;
 import eu.stratosphere.api.java.operators.translation.PlanUnwrappingReduceOperator;
@@ -79,7 +80,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			// set dop
 			po.setDegreeOfParallelism(this.getParallelism());
 			
-			return po;			
+			return po;
 		}
 		
 		if (grouper.getKeys() instanceof Keys.SelectorFunctionKeys) {
@@ -88,10 +89,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			@SuppressWarnings("unchecked")
 			Keys.SelectorFunctionKeys<IN, ?> selectorKeys = (Keys.SelectorFunctionKeys<IN, ?>) grouper.getKeys();
 			
-			PlanUnwrappingReduceOperator<IN, ?> po = translateSelectorFunctionReducer(selectorKeys, function, getInputType(), name, input);
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
-			
+			PlanMapOperator<?, IN> po = translateSelectorFunctionReducer(selectorKeys, function, getInputType(), name, input, this.getParallelism());			
 			return po;
 		}
 		else if (grouper.getKeys() instanceof Keys.FieldPositionKeys) {
@@ -115,8 +113,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static <T, K> PlanUnwrappingReduceOperator<T, K> translateSelectorFunctionReducer(Keys.SelectorFunctionKeys<T, ?> rawKeys,
-			ReduceFunction<T> function, TypeInformation<T> inputType, String name, Operator input)
+	private static <T, K> PlanMapOperator<Tuple2<K, T>, T> translateSelectorFunctionReducer(Keys.SelectorFunctionKeys<T, ?> rawKeys,
+			ReduceFunction<T> function, TypeInformation<T> inputType, String name, Operator input, int dop)
 	{
 		@SuppressWarnings("unchecked")
 		final Keys.SelectorFunctionKeys<T, K> keys = (Keys.SelectorFunctionKeys<T, K>) rawKeys;
@@ -127,13 +125,18 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		
 		PlanUnwrappingReduceOperator<T, K> reducer = new PlanUnwrappingReduceOperator<T, K>(function, keys, name, inputType, typeInfoWithKey);
 		
-		PlanMapOperator<T, Tuple2<K, T>> mapper = new PlanMapOperator<T, Tuple2<K, T>>(extractor, "Key Extractor", inputType, typeInfoWithKey);
+		PlanMapOperator<T, Tuple2<K, T>> keyExtractingMap = new PlanMapOperator<T, Tuple2<K, T>>(extractor, "Key Extractor", inputType, typeInfoWithKey);
+		PlanMapOperator<Tuple2<K, T>, T> keyRemovingMap = new PlanMapOperator<Tuple2<K, T>, T>(new KeyRemovingMapper<T, K>(), "Key Remover", typeInfoWithKey, inputType);
 
-		reducer.setInput(mapper);
-		mapper.setInput(input);
-		// set dop
-		mapper.setDegreeOfParallelism(input.getDegreeOfParallelism());
+		keyExtractingMap.setInput(input);
+		reducer.setInput(keyExtractingMap);
+		keyRemovingMap.setInput(reducer);
 		
-		return reducer;
+		// set dop
+		keyExtractingMap.setDegreeOfParallelism(input.getDegreeOfParallelism());
+		reducer.setDegreeOfParallelism(dop);
+		keyRemovingMap.setDegreeOfParallelism(dop);
+		
+		return keyRemovingMap;
 	}
 }
