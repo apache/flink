@@ -17,8 +17,8 @@ import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.runtime.io.network.envelope.Envelope;
-import eu.stratosphere.runtime.io.network.envelope.EnvelopeDispatcher;
+import eu.stratosphere.runtime.io.network.Envelope;
+import eu.stratosphere.runtime.io.network.EnvelopeDispatcher;
 
 /**
  * The base class for channel objects.

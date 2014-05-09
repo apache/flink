@@ -15,9 +15,6 @@ package eu.stratosphere.runtime.io.serialization;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.memory.MemorySegment;
-import eu.stratosphere.runtime.io.serialization.DataInputDeserializer;
-import eu.stratosphere.runtime.io.serialization.DataOutputSerializer;
-import eu.stratosphere.runtime.io.serialization.RecordDeserializer;
 
 import java.io.DataInput;
 import java.io.EOFException;
@@ -62,6 +59,7 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 		// check if we can get a full length;
 		if (nonSpanningRemaining >= 4) {
 			int len = this.nonSpanningWrapper.readInt();
+
 			if (len <= nonSpanningRemaining - 4) {
 				// we can get a full record from here
 				target.read(this.nonSpanningWrapper);
@@ -156,8 +154,9 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 
 		@Override
 		public final void readFully(byte[] b, int off, int len) throws IOException {
-			if (off < 0 || len < 0 || off + len > b.length)
+			if (off < 0 || len < 0 || off + len > b.length) {
 				throw new IndexOutOfBoundsException();
+			}
 			
 			this.segment.get(this.position, b, off, len);
 			this.position += len;
@@ -230,14 +229,16 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 			try {
 				int b;
 				while ((b = readUnsignedByte()) != '\n') {
-					if (b != '\r')
+					if (b != '\r') {
 						bld.append((char) b);
+					}
 				}
 			}
 			catch (EOFException eofex) {}
 
-			if (bld.length() == 0)
+			if (bld.length() == 0) {
 				return null;
+			}
 			
 			// trim a trailing carriage return
 			int len = bld.length();
@@ -275,8 +276,9 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 
 			while (count < utflen) {
 				c = (int) bytearr[count] & 0xff;
-				if (c > 127)
+				if (c > 127) {
 					break;
+				}
 				count++;
 				chararr[chararr_count++] = (char) c;
 			}
@@ -298,21 +300,25 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 				case 12:
 				case 13:
 					count += 2;
-					if (count > utflen)
+					if (count > utflen) {
 						throw new UTFDataFormatException("malformed input: partial character at end");
+					}
 					char2 = (int) bytearr[count - 1];
-					if ((char2 & 0xC0) != 0x80)
+					if ((char2 & 0xC0) != 0x80) {
 						throw new UTFDataFormatException("malformed input around byte " + count);
+					}
 					chararr[chararr_count++] = (char) (((c & 0x1F) << 6) | (char2 & 0x3F));
 					break;
 				case 14:
 					count += 3;
-					if (count > utflen)
+					if (count > utflen) {
 						throw new UTFDataFormatException("malformed input: partial character at end");
+					}
 					char2 = (int) bytearr[count - 2];
 					char3 = (int) bytearr[count - 1];
-					if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80))
+					if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80)) {
 						throw new UTFDataFormatException("malformed input around byte " + (count - 1));
+					}
 					chararr[chararr_count++] = (char) (((c & 0x0F) << 12) | ((char2 & 0x3F) << 6) | ((char3 & 0x3F) << 0));
 					break;
 				default:
@@ -325,8 +331,9 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 		
 		@Override
 		public final int skipBytes(int n) throws IOException {
-			if (n < 0)
+			if (n < 0) {
 				throw new IllegalArgumentException();
+			}
 			
 			int toSkip = Math.min(n, remaining());
 			this.position += toSkip;
@@ -390,6 +397,7 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 					return;
 				} else {
 					this.recordLength = this.lengthBuffer.getInt(0);
+
 					this.lengthBuffer.clear();
 					segmentPosition = toPut;
 				}

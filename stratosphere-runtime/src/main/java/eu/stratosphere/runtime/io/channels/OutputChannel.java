@@ -17,7 +17,7 @@ import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.runtime.io.Buffer;
-import eu.stratosphere.runtime.io.network.envelope.Envelope;
+import eu.stratosphere.runtime.io.network.Envelope;
 import eu.stratosphere.runtime.io.gates.OutputGate;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -107,7 +107,6 @@ public class OutputChannel extends Channel {
 					this.receiverCloseRequested = true;
 					this.closeLock.notifyAll();
 				}
-				LOG.debug("OutputChannel received close event from target.");
 			} 
 			else if (event instanceof AbstractTaskEvent) {
 				if (LOG.isDebugEnabled()) {
@@ -165,7 +164,7 @@ public class OutputChannel extends Channel {
 	
 	private void checkStatus() throws IOException {
 		if (this.senderCloseRequested) {
-			throw new IllegalStateException(String.format("Channel %s already requested to be closed.", getID()));
+			throw new IllegalStateException(String.format("Channel %s already requested to be closed", getID()));
 		}
 		if (this.receiverCloseRequested) {
 			throw new ReceiverAlreadyClosedException();

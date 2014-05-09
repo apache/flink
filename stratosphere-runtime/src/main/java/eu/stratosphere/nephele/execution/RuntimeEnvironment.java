@@ -13,6 +13,32 @@
 
 package eu.stratosphere.nephele.execution;
 
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
+import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.nephele.template.InputSplitProvider;
+import eu.stratosphere.runtime.io.Buffer;
+import eu.stratosphere.runtime.io.channels.ChannelID;
+import eu.stratosphere.runtime.io.channels.OutputChannel;
+import eu.stratosphere.runtime.io.gates.GateID;
+import eu.stratosphere.runtime.io.gates.InputGate;
+import eu.stratosphere.runtime.io.gates.OutputGate;
+import eu.stratosphere.runtime.io.network.bufferprovider.BufferAvailabilityListener;
+import eu.stratosphere.runtime.io.network.bufferprovider.BufferProvider;
+import eu.stratosphere.runtime.io.network.bufferprovider.GlobalBufferPool;
+import eu.stratosphere.runtime.io.network.bufferprovider.LocalBufferPool;
+import eu.stratosphere.runtime.io.network.bufferprovider.LocalBufferPoolOwner;
+import eu.stratosphere.util.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -26,42 +52,11 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.FutureTask;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.nephele.deployment.ChannelDeploymentDescriptor;
-import eu.stratosphere.nephele.deployment.GateDeploymentDescriptor;
-import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
-import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.InputSplitProvider;
-import eu.stratosphere.runtime.io.Buffer;
-import eu.stratosphere.runtime.io.channels.ChannelID;
-import eu.stratosphere.runtime.io.channels.ChannelType;
-import eu.stratosphere.runtime.io.channels.OutputChannel;
-import eu.stratosphere.runtime.io.gates.GateID;
-import eu.stratosphere.runtime.io.gates.InputGate;
-import eu.stratosphere.runtime.io.gates.OutputGate;
-import eu.stratosphere.runtime.io.network.bufferprovider.BufferAvailabilityListener;
-import eu.stratosphere.runtime.io.network.bufferprovider.BufferProvider;
-import eu.stratosphere.runtime.io.network.bufferprovider.GlobalBufferPool;
-import eu.stratosphere.runtime.io.network.bufferprovider.LocalBufferPool;
-import eu.stratosphere.runtime.io.network.bufferprovider.LocalBufferPoolOwner;
-import eu.stratosphere.util.StringUtils;
-
 /**
  * The user code of every Nephele task runs inside a <code>RuntimeEnvironment</code> object. The environment provides
  * important services to the task. It keeps track of setting up the communication channels and provides access to input
  * splits, memory manager, etc.
- * <p>
+ * <p/>
  * This class is thread-safe.
  */
 public class RuntimeEnvironment implements Environment, BufferProvider, LocalBufferPoolOwner, Runnable {
@@ -141,7 +136,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	 * The observer object for the task's execution.
 	 */
 	private volatile ExecutionObserver executionObserver = null;
-	
+
 	/**
 	 * The RPC proxy to report accumulators to JobManager
 	 */
@@ -164,26 +159,22 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	private LocalBufferPool outputBufferPool;
 
+	private Map<String,FutureTask<Path>> cacheCopyTasks = new HashMap<String, FutureTask<Path>>();
+
 	/**
 	 * Creates a new runtime environment object which contains the runtime information for the encapsulated Nephele
 	 * task.
-	 * 
-	 * @param jobID
-	 *        the ID of the original Nephele job
-	 * @param taskName
-	 *        the name of task running in this environment
-	 * @param invokableClass
-	 *        invokableClass the class that should be instantiated as a Nephele task
-	 * @param taskConfiguration
-	 *        the configuration object which was attached to the original JobVertex
-	 * @param jobConfiguration
-	 *        the configuration object which was attached to the original {@link JobGraph}
-	 * @throws Exception
-	 *         thrown if an error occurs while instantiating the invokable class
+	 *
+	 * @param jobID             the ID of the original Nephele job
+	 * @param taskName          the name of task running in this environment
+	 * @param invokableClass    invokableClass the class that should be instantiated as a Nephele task
+	 * @param taskConfiguration the configuration object which was attached to the original JobVertex
+	 * @param jobConfiguration  the configuration object which was attached to the original JobGraph
+	 * @throws Exception thrown if an error occurs while instantiating the invokable class
 	 */
 	public RuntimeEnvironment(final JobID jobID, final String taskName,
-			final Class<? extends AbstractInvokable> invokableClass, final Configuration taskConfiguration,
-			final Configuration jobConfiguration) throws Exception {
+							final Class<? extends AbstractInvokable> invokableClass, final Configuration taskConfiguration,
+							final Configuration jobConfiguration) throws Exception {
 
 		this.jobID = jobID;
 		this.taskName = taskName;
@@ -203,23 +194,18 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	/**
 	 * Constructs a runtime environment from a task deployment description.
-	 * 
-	 * @param tdd
-	 *        the task deployment description
-	 * @param memoryManager
-	 *        the task manager's memory manager component
-	 * @param ioManager
-	 *        the task manager's I/O manager component
-	 * @param inputSplitProvider
-	 *        the input split provider for this environment
-	 * @throws Exception
-	 *         thrown if an error occurs while instantiating the invokable class
+	 *
+	 * @param tdd                the task deployment description
+	 * @param memoryManager      the task manager's memory manager component
+	 * @param ioManager          the task manager's I/O manager component
+	 * @param inputSplitProvider the input split provider for this environment
+	 * @throws Exception thrown if an error occurs while instantiating the invokable class
 	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	public RuntimeEnvironment(final TaskDeploymentDescriptor tdd,
-			final MemoryManager memoryManager, final IOManager ioManager,
-			final InputSplitProvider inputSplitProvider,
-			AccumulatorProtocol accumulatorProtocolProxy, Map<String, FutureTask<Path>> cpTasks) throws Exception {
+							final MemoryManager memoryManager, final IOManager ioManager,
+							final InputSplitProvider inputSplitProvider,
+							AccumulatorProtocol accumulatorProtocolProxy, Map<String, FutureTask<Path>> cpTasks) throws Exception {
 
 		this.jobID = tdd.getJobID();
 		this.taskName = tdd.getTaskName();
@@ -246,14 +232,14 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 		int numInputGates = tdd.getNumberOfInputGateDescriptors();
 
-		for(int i = 0; i < numInputGates; i++){
+		for (int i = 0; i < numInputGates; i++) {
 			this.inputGates.get(i).initializeChannels(tdd.getInputGateDescriptor(i));
 		}
 	}
 
 	/**
 	 * Returns the invokable object that represents the Nephele task.
-	 * 
+	 *
 	 * @return the invokable object that represents the Nephele task
 	 */
 	public AbstractInvokable getInvokable() {
@@ -272,7 +258,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	@Override
 	public OutputGate createAndRegisterOutputGate() {
-		OutputGate gate = new OutputGate(getJobID(), new GateID(),  getNumberOfOutputGates());
+		OutputGate gate = new OutputGate(getJobID(), new GateID(), getNumberOfOutputGates());
 		this.outputGates.add(gate);
 
 		return gate;
@@ -318,7 +304,8 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 			if (this.executionObserver.isCanceled() || t instanceof CancelTaskException) {
 				changeExecutionState(ExecutionState.CANCELED, null);
-			} else {
+			}
+			else {
 				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(t));
 			}
 
@@ -347,7 +334,8 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 			if (this.executionObserver.isCanceled() || t instanceof CancelTaskException) {
 				changeExecutionState(ExecutionState.CANCELED, null);
-			} else {
+			}
+			else {
 				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(t));
 			}
 
@@ -400,9 +388,8 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	/**
 	 * Returns the registered input gate with index <code>pos</code>.
-	 * 
-	 * @param pos
-	 *        the index of the input gate to return
+	 *
+	 * @param pos the index of the input gate to return
 	 * @return the input gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
 	public InputGate<? extends IOReadableWritable> getInputGate(final int pos) {
@@ -415,9 +402,8 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	/**
 	 * Returns the registered output gate with index <code>pos</code>.
-	 * 
-	 * @param index
-	 *        the index of the output gate to return
+	 *
+	 * @param index the index of the output gate to return
 	 * @return the output gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
 	public OutputGate getOutputGate(int index) {
@@ -430,7 +416,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	/**
 	 * Returns the thread which is assigned to execute the user code.
-	 * 
+	 *
 	 * @return the thread which is assigned to execute the user code
 	 */
 	public Thread getExecutingThread() {
@@ -439,7 +425,8 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			if (this.executingThread == null) {
 				if (this.taskName == null) {
 					this.executingThread = new Thread(this);
-				} else {
+				}
+				else {
 					this.executingThread = new Thread(this, getTaskNameWithIndex());
 				}
 			}
@@ -450,11 +437,9 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	/**
 	 * Blocks until all output channels are closed.
-	 * 
-	 * @throws IOException
-	 *         thrown if an error occurred while closing the output channels
-	 * @throws InterruptedException
-	 *         thrown if the thread waiting for the channels to be closed is interrupted
+	 *
+	 * @throws IOException          thrown if an error occurred while closing the output channels
+	 * @throws InterruptedException thrown if the thread waiting for the channels to be closed is interrupted
 	 */
 	private void waitForOutputChannelsToBeClosed() throws InterruptedException {
 		// Make sure, we leave this method with an InterruptedException when the task has been canceled
@@ -469,11 +454,9 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	/**
 	 * Blocks until all input channels are closed.
-	 * 
-	 * @throws IOException
-	 *         thrown if an error occurred while closing the input channels
-	 * @throws InterruptedException
-	 *         thrown if the thread waiting for the channels to be closed is interrupted
+	 *
+	 * @throws IOException          thrown if an error occurred while closing the input channels
+	 * @throws InterruptedException thrown if the thread waiting for the channels to be closed is interrupted
 	 */
 	private void waitForInputChannelsToBeClosed() throws IOException, InterruptedException {
 		// Wait for disconnection of all output gates
@@ -494,7 +477,8 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 			if (allClosed) {
 				break;
-			} else {
+			}
+			else {
 				Thread.sleep(SLEEPINTERVAL);
 			}
 		}
@@ -564,7 +548,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	/**
 	 * Returns the name of the task with its index in the subtask group and the total number of subtasks.
-	 * 
+	 *
 	 * @return the name of the task with its index in the subtask group and the total number of subtasks
 	 */
 	public String getTaskNameWithIndex() {
@@ -573,9 +557,8 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	/**
 	 * Sets the execution observer for this environment.
-	 * 
-	 * @param executionObserver
-	 *        the execution observer for this environment
+	 *
+	 * @param executionObserver the execution observer for this environment
 	 */
 	public void setExecutionObserver(final ExecutionObserver executionObserver) {
 		this.executionObserver = executionObserver;
@@ -616,7 +599,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	@Override
 	public Set<ChannelID> getOutputChannelIDs() {
-		Set<ChannelID> ids= new HashSet<ChannelID>();
+		Set<ChannelID> ids = new HashSet<ChannelID>();
 
 		for (OutputGate gate : this.outputGates) {
 			for (OutputChannel channel : gate.channels()) {
@@ -726,38 +709,47 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	public List<InputGate<? extends IOReadableWritable>> inputGates() {
 		return this.inputGates;
 	}
-	
+
 	@Override
 	public AccumulatorProtocol getAccumulatorProtocolProxy() {
 		return accumulatorProtocolProxy;
+	}
+
+	public void addCopyTaskForCacheFile(String name, FutureTask<Path> copyTask) {
+		this.cacheCopyTasks.put(name, copyTask);
+	}
+
+	@Override
+	public Map<String, FutureTask<Path>> getCopyTask() {
+		return this.cacheCopyTasks;
 	}
 
 	@Override
 	public BufferProvider getOutputBufferProvider() {
 		return this;
 	}
-	
+
 	// -----------------------------------------------------------------------------------------------------------------
 	//                                            BufferProvider methods
 	// -----------------------------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public Buffer requestBuffer(int minBufferSize) throws IOException {
 		return this.outputBufferPool.requestBuffer(minBufferSize);
 	}
-	
+
 	@Override
 	public Buffer requestBufferBlocking(int minBufferSize) throws IOException, InterruptedException {
 		return this.outputBufferPool.requestBufferBlocking(minBufferSize);
 	}
-	
+
 	@Override
 	public int getBufferSize() {
 		return this.outputBufferPool.getBufferSize();
 	}
-	
+
 	@Override
-	public boolean registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
+	public BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
 		return this.outputBufferPool.registerBufferAvailabilityListener(listener);
 	}
 

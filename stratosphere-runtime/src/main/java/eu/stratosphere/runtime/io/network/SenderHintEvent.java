@@ -21,7 +21,6 @@ import java.util.List;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.runtime.io.channels.ChannelID;
-import eu.stratosphere.runtime.io.network.envelope.Envelope;
 
 public final class SenderHintEvent extends AbstractEvent {
 
