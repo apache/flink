@@ -28,8 +28,6 @@ import org.junit.Test;
 import eu.stratosphere.api.common.distributions.DataDistribution;
 import eu.stratosphere.api.common.distributions.UniformIntegerDistribution;
 import eu.stratosphere.runtime.io.api.ChannelSelector;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
-import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
 import eu.stratosphere.pact.runtime.shipping.RecordOutputEmitter;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;

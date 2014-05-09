@@ -31,15 +31,13 @@ import eu.stratosphere.nephele.AbstractID;
 import eu.stratosphere.runtime.io.Buffer;
 import eu.stratosphere.runtime.io.network.bufferprovider.BufferProvider;
 import eu.stratosphere.runtime.io.network.bufferprovider.BufferProviderBroker;
+import eu.stratosphere.runtime.io.network.bufferprovider.DiscardBufferPool;
 import eu.stratosphere.runtime.io.network.bufferprovider.GlobalBufferPool;
 import eu.stratosphere.runtime.io.network.bufferprovider.LocalBufferPoolOwner;
-import eu.stratosphere.runtime.io.network.bufferprovider.SerialSingleBufferPool;
-import eu.stratosphere.runtime.io.network.envelope.Envelope;
-import eu.stratosphere.runtime.io.network.envelope.EnvelopeDispatcher;
-import eu.stratosphere.runtime.io.network.envelope.EnvelopeReceiverList;
 import eu.stratosphere.runtime.io.gates.GateID;
 import eu.stratosphere.runtime.io.gates.InputGate;
 import eu.stratosphere.runtime.io.gates.OutputGate;
+import eu.stratosphere.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -52,7 +50,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * The channel manager sets up the network buffers and dispatches data between channels.
  */
-public final class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker {
+public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker {
 
 	private static final Log LOG = LogFactory.getLog(ChannelManager.class);
 
@@ -68,20 +66,27 @@ public final class ChannelManager implements EnvelopeDispatcher, BufferProviderB
 
 	private final GlobalBufferPool globalBufferPool;
 
-	private final NetworkConnectionManager networkConnectionManager;
+	private final NettyConnectionManager nettyConnectionManager;
 	
 	private final InetSocketAddress ourAddress;
 	
-	private final SerialSingleBufferPool discardingDataPool;
+	private final DiscardBufferPool discardBufferPool;
 
 	// -----------------------------------------------------------------------------------------------------------------
 
 	public ChannelManager(ChannelLookupProtocol channelLookupService, InstanceConnectionInfo connectionInfo,
-						  int numNetworkBuffers, int networkBufferSize) throws IOException {
+						int numNetworkBuffers, int networkBufferSize,
+						int numInThreads, int numOutThreads,
+						int lowWatermark, int highWaterMark) throws IOException {
+
 		this.channelLookupService = channelLookupService;
 		this.connectionInfo = connectionInfo;
+
 		this.globalBufferPool = new GlobalBufferPool(numNetworkBuffers, networkBufferSize);
-		this.networkConnectionManager = new NetworkConnectionManager(this, connectionInfo.address(), connectionInfo.dataPort());
+
+		this.nettyConnectionManager = new NettyConnectionManager(
+				this, connectionInfo.address(), connectionInfo.dataPort(),
+				networkBufferSize, numInThreads, numOutThreads, lowWatermark, highWaterMark);
 
 		// management data structures
 		this.channels = new ConcurrentHashMap<ChannelID, Channel>();
@@ -91,11 +96,11 @@ public final class ChannelManager implements EnvelopeDispatcher, BufferProviderB
 		this.ourAddress = new InetSocketAddress(connectionInfo.address(), connectionInfo.dataPort());
 		
 		// a special pool if the data is to be discarded
-		this.discardingDataPool = new SerialSingleBufferPool(networkBufferSize);
+		this.discardBufferPool = new DiscardBufferPool();
 	}
 
 	public void shutdown() {
-		this.networkConnectionManager.shutDown();
+		this.nettyConnectionManager.shutdown();
 		this.globalBufferPool.destroy();
 	}
 
@@ -301,7 +306,7 @@ public final class ChannelManager implements EnvelopeDispatcher, BufferProviderB
 		}
 	}
 
-	private void generateSenderHint(Envelope envelope, RemoteReceiver receiver) {
+	private void generateSenderHint(Envelope envelope, RemoteReceiver receiver) throws IOException {
 		Channel channel = this.channels.get(envelope.getSource());
 		if (channel == null) {
 			LOG.error("Cannot find channel for channel ID " + envelope.getSource());
@@ -319,7 +324,7 @@ public final class ChannelManager implements EnvelopeDispatcher, BufferProviderB
 		final RemoteReceiver ourAddress = new RemoteReceiver(this.ourAddress, connectionIndex);
 		final Envelope senderHint = SenderHintEvent.createEnvelopeWithEvent(envelope, targetChannelID, ourAddress);
 
-		this.networkConnectionManager.queueEnvelopeForTransfer(receiver, senderHint);
+		this.nettyConnectionManager.enqueue(senderHint, receiver);
 	}
 
 	/**
@@ -331,7 +336,6 @@ public final class ChannelManager implements EnvelopeDispatcher, BufferProviderB
 	 *        the source channel ID for which the receiver list shall be retrieved
 	 * @return the list of receivers or <code>null</code> if the receiver could not be determined
 	 * @throws IOException
-	 * @throws InterruptedException
 	 */
 	private EnvelopeReceiverList getReceiverList(JobID jobID, ChannelID sourceChannelID, boolean reportException) throws IOException {
 		EnvelopeReceiverList receiverList = this.receiverCache.get(sourceChannelID);
@@ -383,8 +387,10 @@ public final class ChannelManager implements EnvelopeDispatcher, BufferProviderB
 		this.receiverCache.put(sourceChannelID, receiverList);
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Receivers for source channel ID " + sourceChannelID + " at task manager " + this.connectionInfo +
-				": " + receiverList);
+			LOG.debug(String.format("Receiver for %s: %s [%s])",
+					sourceChannelID,
+					receiverList.hasLocalReceiver() ? receiverList.getLocalReceiver() : receiverList.getRemoteReceiver(),
+					receiverList.hasLocalReceiver() ? "local" : "remote"));
 		}
 
 		return receiverList;
@@ -436,7 +442,7 @@ public final class ChannelManager implements EnvelopeDispatcher, BufferProviderB
 					} catch (InterruptedException e) {
 						throw new IOException(e.getMessage());
 					}
-					
+
 					srcBuffer.copyToBuffer(destBuffer);
 					envelope.setBuffer(destBuffer);
 					srcBuffer.recycleBuffer();
@@ -453,7 +459,7 @@ public final class ChannelManager implements EnvelopeDispatcher, BufferProviderB
 					generateSenderHint(envelope, remoteReceiver);
 				}
 
-				this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceiver, envelope);
+				this.nettyConnectionManager.enqueue(envelope, remoteReceiver);
 				success = true;
 			}
 		} finally {
@@ -501,7 +507,7 @@ public final class ChannelManager implements EnvelopeDispatcher, BufferProviderB
 				generateSenderHint(envelope, remoteReceiver);
 			}
 
-			this.networkConnectionManager.queueEnvelopeForTransfer(remoteReceiver, envelope);
+			this.nettyConnectionManager.enqueue(envelope, remoteReceiver);
 		}
 	}
 
@@ -597,7 +603,7 @@ public final class ChannelManager implements EnvelopeDispatcher, BufferProviderB
 		
 		// check if the receiver is already gone
 		if (receiverList == null) {
-			return this.discardingDataPool;
+			return this.discardBufferPool;
 		}
 
 		if (!receiverList.hasLocalReceiver() || receiverList.hasRemoteReceiver()) {
@@ -610,7 +616,7 @@ public final class ChannelManager implements EnvelopeDispatcher, BufferProviderB
 		
 		if (channel == null) {
 			// receiver is already canceled
-			return this.discardingDataPool;
+			return this.discardBufferPool;
 		}
 
 		if (!channel.isInputChannel()) {
@@ -632,8 +638,6 @@ public final class ChannelManager implements EnvelopeDispatcher, BufferProviderB
 		for (LocalBufferPoolOwner bufferPool : this.localBuffersPools.values()) {
 			bufferPool.logBufferUtilization();
 		}
-
-		this.networkConnectionManager.logBufferUtilization();
 
 		System.out.println("\tIncoming connections:");
 

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,16 +13,19 @@
 
 package eu.stratosphere.runtime.io.network.bufferprovider;
 
+import eu.stratosphere.runtime.io.Buffer;
+
 /**
- * This interface must be implemented to receive a notification from a {@link BufferProvider} when an empty
- * {@link eu.stratosphere.runtime.io.Buffer} has
- * become available again.
- * 
+ * This interface must be implemented to receive an asynchronous callback from
+ * a {@link BufferProvider} as soon as a buffer has become available again.
  */
 public interface BufferAvailabilityListener {
 
 	/**
-	 * Indicates that at least one {@link eu.stratosphere.runtime.io.Buffer} has become available again.
+	 * Returns a Buffer to the listener.
+	 * <p/>
+	 * Note: the listener has to adjust the size of the returned Buffer to the
+	 * requested size manually via {@link Buffer#limitSize(int)}.
 	 */
-	void bufferAvailable();
+	void bufferAvailable(Buffer buffer) throws Exception;
 }

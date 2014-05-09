@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
+import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -87,8 +88,8 @@ public final class RecoveryLogic {
 				verticesToBeRestarted.put(vertex.getID(), vertex);
 				final TaskCancelResult cancelResult = vertex.cancelTask();
 
-				if (cancelResult.getReturnCode() != ReturnCode.SUCCESS
-						&& cancelResult.getReturnCode() != ReturnCode.TASK_NOT_FOUND) {
+				if (cancelResult.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS
+						&& cancelResult.getReturnCode() != AbstractTaskResult.ReturnCode.TASK_NOT_FOUND) {
 
 					verticesToBeRestarted.remove(vertex.getID());
 					LOG.error("Unable to cancel vertex" + cancelResult.getDescription());

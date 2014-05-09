@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.runtime.io.network.envelope;
+package eu.stratosphere.runtime.io.network;
 
 import java.io.IOException;
 

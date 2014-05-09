@@ -14,9 +14,6 @@
 package eu.stratosphere.runtime.io.gates;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
@@ -24,7 +21,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import eu.stratosphere.nephele.deployment.ChannelDeploymentDescriptor;
 import eu.stratosphere.nephele.deployment.GateDeploymentDescriptor;
 import eu.stratosphere.runtime.io.Buffer;
-import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.runtime.io.network.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.runtime.io.network.bufferprovider.BufferProvider;
 import eu.stratosphere.runtime.io.network.bufferprovider.GlobalBufferPool;
@@ -38,7 +34,6 @@ import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.runtime.io.channels.InputChannel;
-import eu.stratosphere.runtime.io.channels.ChannelID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
@@ -378,7 +373,7 @@ public class InputGate<T extends IOReadableWritable> extends Gate<T> implements 
 	}
 
 	@Override
-	public boolean registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
+	public BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
 		return this.bufferPool.registerBufferAvailabilityListener(listener);
 	}
 }

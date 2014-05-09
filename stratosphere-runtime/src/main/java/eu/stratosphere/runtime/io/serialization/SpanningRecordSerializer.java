@@ -68,6 +68,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 
 		// write data and length
 		record.write(this.serializationBuffer);
+
 		this.lengthBuffer.putInt(0, this.serializationBuffer.length());
 
 		this.dataBuffer = this.serializationBuffer.wrapAsByteBuffer();
@@ -103,8 +104,9 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	 * @param source the {@link ByteBuffer} to copy data from
 	 */
 	private void copyToTargetBufferFrom(ByteBuffer source) {
-		if (this.targetBuffer == null)
+		if (this.targetBuffer == null) {
 			return;
+		}
 
 		int needed = source.remaining();
 		int available = this.limit - this.position;
@@ -127,8 +129,9 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 
 	@Override
 	public Buffer getCurrentBuffer() {
-		if (targetBuffer == null)
+		if (targetBuffer == null) {
 			return null;
+		}
 
 		this.targetBuffer.limitSize(this.position);
 		return this.targetBuffer;

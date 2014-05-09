@@ -13,9 +13,9 @@
 
 package eu.stratosphere.runtime.io.channels;
 
-import java.nio.ByteBuffer;
-
 import eu.stratosphere.nephele.AbstractID;
+
+import java.nio.ByteBuffer;
 
 public class ChannelID extends AbstractID {
 
@@ -29,6 +29,12 @@ public class ChannelID extends AbstractID {
 
 	public ChannelID(byte[] bytes) {
 		super(bytes);
+	}
+
+	public static ChannelID fromByteBuffer(ByteBuffer buf) {
+		long lower = buf.getLong();
+		long upper = buf.getLong();
+		return new ChannelID(lower, upper);
 	}
 
 	public static ChannelID fromByteBuffer(ByteBuffer buf, int offset) {

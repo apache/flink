@@ -21,7 +21,7 @@ import eu.stratosphere.runtime.io.Buffer;
 import eu.stratosphere.runtime.io.gates.InputChannelResult;
 import eu.stratosphere.runtime.io.network.bufferprovider.BufferAvailabilityListener;
 import eu.stratosphere.runtime.io.network.bufferprovider.BufferProvider;
-import eu.stratosphere.runtime.io.network.envelope.Envelope;
+import eu.stratosphere.runtime.io.network.Envelope;
 import eu.stratosphere.runtime.io.gates.InputGate;
 import eu.stratosphere.runtime.io.serialization.AdaptiveSpanningRecordDeserializer;
 import eu.stratosphere.runtime.io.serialization.RecordDeserializer;
@@ -30,7 +30,6 @@ import eu.stratosphere.runtime.io.serialization.RecordDeserializer.Deserializati
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -83,6 +82,8 @@ public class InputChannel<T extends IOReadableWritable> extends Channel implemen
 
 	private int lastReceivedEnvelope = -1;
 
+	private ChannelID lastSourceID = null;
+
 	private boolean destroyCalled = false;
 
 	// ----------------------
@@ -104,7 +105,7 @@ public class InputChannel<T extends IOReadableWritable> extends Channel implemen
 	 *        the ID of the channel this channel is connected to
 	 */
 	public InputChannel(final InputGate<T> inputGate, final int channelIndex, final ChannelID channelID,
-						   final ChannelID connectedChannelID, ChannelType type) {
+						final ChannelID connectedChannelID, ChannelType type) {
 		super(channelIndex, channelID, connectedChannelID, type);
 		this.inputGate = inputGate;
 		this.deserializer = new AdaptiveSpanningRecordDeserializer<T>();
@@ -158,6 +159,9 @@ public class InputChannel<T extends IOReadableWritable> extends Channel implemen
 
 //	public abstract AbstractTaskEvent getCurrentEvent();
 
+	private DeserializationResult lastDeserializationResult;
+
+
 	public InputChannelResult readRecord(T target) throws IOException {
 		if (this.dataBuffer == null) {
 			if (isClosed()) {
@@ -176,7 +180,7 @@ public class InputChannel<T extends IOReadableWritable> extends Channel implemen
 			{
 				// sanity check: an event may only come after a complete record.
 				if (this.deserializer.hasUnfinishedData()) {
-					throw new IOException("Channel received an event before completing the current partial record.");
+					throw new IllegalStateException("Channel received an event before completing the current partial record.");
 				}
 
 				AbstractEvent evt = boe.getEvent();
@@ -202,8 +206,8 @@ public class InputChannel<T extends IOReadableWritable> extends Channel implemen
 			}
 		}
 
-
 		DeserializationResult deserializationResult = this.deserializer.getNextRecord(target);
+		this.lastDeserializationResult = deserializationResult;
 
 		if (deserializationResult.isBufferConsumed()) {
 			releasedConsumedReadBuffer(this.dataBuffer);
@@ -348,6 +352,7 @@ public class InputChannel<T extends IOReadableWritable> extends Channel implemen
 
 				this.queuedEnvelopes.add(envelope);
 				this.lastReceivedEnvelope = sequenceNumber;
+				this.lastSourceID = envelope.getSource();
 
 				// Notify the channel about the new data. notify as much as there is (buffer plus once per event)
 				if (envelope.getBuffer() != null) {
@@ -432,7 +437,7 @@ public class InputChannel<T extends IOReadableWritable> extends Channel implemen
 	}
 
 	@Override
-	public boolean registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
+	public BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
 		return this.inputGate.registerBufferAvailabilityListener(listener);
 	}
 

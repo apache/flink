@@ -65,5 +65,21 @@ public interface BufferProvider {
 	 * @return <code>true</code> if the registration has been successful; <code>false</code> if the registration
 	 *         failed, because the buffer pool was not empty or has already been destroyed
 	 */
-	boolean registerBufferAvailabilityListener(BufferAvailabilityListener listener);
+	BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener);
+
+	public enum BufferAvailabilityRegistration {
+		NOT_REGISTERED_BUFFER_AVAILABLE(false),
+		NOT_REGISTERED_BUFFER_POOL_DESTROYED(false),
+		REGISTERED(true);
+
+		private final boolean isSuccessful;
+
+		private BufferAvailabilityRegistration(boolean isSuccessful) {
+			this.isSuccessful = isSuccessful;
+		}
+
+		public boolean isSuccessful() {
+			return isSuccessful;
+		}
+	}
 }

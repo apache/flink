@@ -20,6 +20,7 @@ import java.nio.ByteBuffer;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.util.StringUtils;
+import io.netty.buffer.ByteBuf;
 
 /**
  * A statistically unique identification number.
@@ -165,6 +166,11 @@ public class AbstractID implements IOReadableWritable {
 	public void write(ByteBuffer buffer) {
 		buffer.putLong(this.lowerPart);
 		buffer.putLong(this.upperPart);
+	}
+
+	public void writeTo(ByteBuf buf) {
+		buf.writeLong(this.lowerPart);
+		buf.writeLong(this.upperPart);
 	}
 
 	@Override

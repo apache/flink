@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.runtime.io.api.BufferWriter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -27,8 +28,6 @@ import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.MemorySegment;
-import eu.stratosphere.nephele.io.AbstractRecordWriter;
-import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
 import eu.stratosphere.pact.runtime.io.InputViewIterator;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;

@@ -193,8 +193,9 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 			}
 			// drop, if the task was canceled
 			else if (!this.taskCanceled) {
-				if (LOG.isErrorEnabled())
+				if (LOG.isErrorEnabled()) {
 					LOG.error(getLogString("Error in user code: " + ex.getMessage()), ex);
+				}
 				throw ex;
 			}
 		}

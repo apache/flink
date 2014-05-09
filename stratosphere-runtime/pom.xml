@@ -52,7 +52,13 @@
 			<artifactId>aws-java-sdk</artifactId>
 			<version>1.2.1</version>
 		</dependency>
-		
+
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-all</artifactId>
+			<version>4.0.19.Final</version>
+		</dependency>
+
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-java</artifactId>

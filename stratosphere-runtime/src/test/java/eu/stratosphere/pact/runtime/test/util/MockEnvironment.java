@@ -44,7 +44,9 @@ import eu.stratosphere.util.MutableObjectIterator;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.FutureTask;
 
 public class MockEnvironment implements Environment, BufferProvider, LocalBufferPoolOwner {
 	
@@ -124,8 +126,8 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	}
 
 	@Override
-	public boolean registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
-		return false;
+	public BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
+		return BufferAvailabilityRegistration.NOT_REGISTERED_BUFFER_POOL_DESTROYED;
 	}
 
 	@Override
@@ -337,5 +339,10 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	@Override
 	public BufferProvider getOutputBufferProvider() {
 		return this;
+	}
+
+	@Override
+	public Map<String, FutureTask<Path>> getCopyTask() {
+		return null;
 	}
 }

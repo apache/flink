@@ -23,9 +23,8 @@ import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.test.recordJobs.wordcount.WordCount;
 import eu.stratosphere.test.testdata.WordCountData;
 
-
 public class LocalExecutorITCase {
-	
+
 	@Test
 	public void testLocalExecutorWithWordCount() {
 		try {

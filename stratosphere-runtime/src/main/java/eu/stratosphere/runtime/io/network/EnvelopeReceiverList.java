@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.runtime.io.network.envelope;
+package eu.stratosphere.runtime.io.network;
 
 import java.net.InetAddress;
 
@@ -20,7 +20,7 @@ import eu.stratosphere.runtime.io.network.ConnectionInfoLookupResponse;
 import eu.stratosphere.runtime.io.network.RemoteReceiver;
 
 /**
- * A transfer envelope receiver list contains all recipients of a transfer envelope. Their are three d ifferent types of
+ * A transfer envelope receiver list contains all recipients of a transfer envelope. Their are three different types of
  * receivers: Local receivers identified by {@link ChannelID} objects, remote receivers identified by
  * {@link InetAddress} objects and finally checkpoints which are identified by
  * <p>

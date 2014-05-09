@@ -70,7 +70,7 @@ public class TestBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public boolean registerBufferAvailabilityListener(BufferAvailabilityListener bufferAvailabilityListener) {
+	public BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener bufferAvailabilityListener) {
 		throw new UnsupportedOperationException();
 	}
 }

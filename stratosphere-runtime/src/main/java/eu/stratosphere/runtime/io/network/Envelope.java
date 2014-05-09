@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.runtime.io.network.envelope;
+package eu.stratosphere.runtime.io.network;
 
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.runtime.io.Buffer;
@@ -79,15 +79,17 @@ public final class Envelope {
 	}
 
 	public void setEventsSerialized(ByteBuffer serializedEventList) {
-		if (this.serializedEventList != null)
+		if (this.serializedEventList != null) {
 			throw new IllegalStateException("Event list has already been set.");
+		}
 
 		this.serializedEventList = serializedEventList;
 	}
 
 	public void serializeEventList(List<? extends AbstractEvent> eventList) {
-		if (this.serializedEventList != null)
+		if (this.serializedEventList != null) {
 			throw new IllegalStateException("Event list has already been set.");
+		}
 
 		this.serializedEventList = serializeEvents(eventList);
 	}
@@ -165,5 +167,12 @@ public final class Envelope {
 
 	public boolean hasBuffer() {
 		return this.buffer != null;
+	}
+
+	@Override
+	public String toString() {
+		return String.format("Envelope %d [source id: %s, buffer size: %d, events size: %d]",
+				this.sequenceNumber, this.getSource(), this.buffer == null ? -1 : this.buffer.size(),
+				this.serializedEventList == null ? -1 : this.serializedEventList.remaining());
 	}
 }
