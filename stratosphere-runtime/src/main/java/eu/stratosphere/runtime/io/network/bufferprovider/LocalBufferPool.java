@@ -184,20 +184,20 @@ public final class LocalBufferPool implements BufferProvider {
 	}
 
 	@Override
-	public boolean registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
+	public BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
 		synchronized (this.buffers) {
 			if (!this.buffers.isEmpty()) {
-				return false;
+				return BufferAvailabilityRegistration.NOT_REGISTERED_BUFFER_AVAILABLE;
 			}
 
 			if (this.isDestroyed) {
-				return false;
+				return BufferAvailabilityRegistration.NOT_REGISTERED_BUFFER_POOL_DESTROYED;
 			}
 
 			this.listeners.add(listener);
 		}
 
-		return true;
+		return BufferAvailabilityRegistration.REGISTERED;
 	}
 
 	/**
@@ -221,7 +221,7 @@ public final class LocalBufferPool implements BufferProvider {
 				}
 
 				this.globalBufferPool.returnBuffer(this.buffers.poll());
-				this.numRequestedBuffers --;
+				this.numRequestedBuffers--;
 			}
 
 			this.buffers.notify();
@@ -294,11 +294,17 @@ public final class LocalBufferPool implements BufferProvider {
 				this.globalBufferPool.returnBuffer(buffer);
 				this.numRequestedBuffers--;
 			} else {
-				this.buffers.add(buffer);
-				this.buffers.notify();
-
-				while (!this.listeners.isEmpty()) {
-					this.listeners.poll().bufferAvailable();
+				if (!this.listeners.isEmpty()) {
+					Buffer availableBuffer = new Buffer(buffer, buffer.size(), this.recycler);
+					try {
+						this.listeners.poll().bufferAvailable(availableBuffer);
+					} catch (Exception e) {
+						this.buffers.add(buffer);
+						this.buffers.notify();
+					}
+				} else {
+					this.buffers.add(buffer);
+					this.buffers.notify();
 				}
 			}
 		}

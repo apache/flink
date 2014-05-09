@@ -14,9 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.nephele.execution;
 
-
-import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
-
 /**
  * Thrown to trigger a canceling of the executing task. Intended to cause a cancelled status, rather than a failed status.
  */

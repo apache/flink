@@ -18,7 +18,6 @@ import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.runtime.io.api.ChannelSelector;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 
-
 public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T>> {
 	
 	private final ShipStrategyType strategy;		// the shipping strategy used by this output emitter

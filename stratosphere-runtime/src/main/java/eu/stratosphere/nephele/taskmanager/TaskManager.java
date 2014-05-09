@@ -126,7 +126,7 @@ public class TaskManager implements TaskOperationProtocol {
 	private final InstanceConnectionInfo localInstanceConnectionInfo;
 
 	/**
-	 * The instance of the {@link eu.stratosphere.nephele.taskmanager.io.bytebuffered.ChannelManager} which is responsible for
+	 * The instance of the {@link ChannelManager} which is responsible for
 	 * setting up and cleaning up the byte buffered channels of the tasks.
 	 */
 	private final ChannelManager channelManager;
@@ -286,16 +286,32 @@ public class TaskManager implements TaskOperationProtocol {
 				ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
 				ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE);
 
-		// Initialize the byte buffered channel manager
-		ChannelManager channelManager = null;
+		int numInThreads = GlobalConfiguration.getInteger(
+				ConfigConstants.TASK_MANAGER_NETTY_NUM_IN_THREADS_KEY,
+				ConfigConstants.DEFAULT_TASK_MANAGER_NETTY_NUM_IN_THREADS);
+
+		int numOutThreads = GlobalConfiguration.getInteger(
+				ConfigConstants.TASK_MANAGER_NETTY_NUM_OUT_THREADS_KEY,
+				ConfigConstants.DEFAULT_TASK_MANAGER_NETTY_NUM_OUT_THREADS);
+
+		int lowWaterMark = GlobalConfiguration.getInteger(
+				ConfigConstants.TASK_MANAGER_NETTY_LOW_WATER_MARK,
+				ConfigConstants.DEFAULT_TASK_MANAGER_NETTY_LOW_WATER_MARK);
+
+		int highWaterMark = GlobalConfiguration.getInteger(
+				ConfigConstants.TASK_MANAGER_NETTY_HIGH_WATER_MARK,
+				ConfigConstants.DEFAULT_TASK_MANAGER_NETTY_HIGH_WATER_MARK);
+
+		// Initialize the channel manager
 		try {
-			channelManager = new ChannelManager(this.lookupService, this.localInstanceConnectionInfo, numBuffers, bufferSize);
+			this.channelManager = new ChannelManager(
+					this.lookupService, this.localInstanceConnectionInfo,
+					numBuffers, bufferSize, numInThreads, numOutThreads, lowWaterMark, highWaterMark);
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
 			throw new Exception("Failed to instantiate Byte-buffered channel manager. " + ioe.getMessage(), ioe);
 		}
-		this.channelManager = channelManager;
-		
+
 		{
 			HardwareDescription resources = HardwareDescriptionFactory.extractFromSystem();
 
@@ -933,7 +949,7 @@ public class TaskManager implements TaskOperationProtocol {
 	}
 
 	@Override
-	public void logBufferUtilization() throws IOException {
+	public void logBufferUtilization() {
 
 		this.channelManager.logBufferUtilization();
 	}
@@ -956,7 +972,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 	@Override
 	public void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException {
-		this.byteBufferedChannelManager.invalidateLookupCacheEntries(channelIDs);
+		this.channelManager.invalidateLookupCacheEntries(channelIDs);
 	}
 
 	/**

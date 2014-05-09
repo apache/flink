@@ -23,6 +23,7 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
+import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.runtime.io.channels.ChannelID;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
@@ -56,6 +57,17 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	 *         thrown if an error occurs during this remote procedure call
 	 */
 	TaskCancelResult cancelTask(ExecutionVertexID id) throws IOException;
+
+	/**
+	 * Advises the task manager to kill the task with the given ID.
+	 *
+	 * @param id
+	 *        the ID of the task to kill
+	 * @return the result of the task kill attempt
+	 * @throws IOException
+	 *         thrown if an error occurs during this remote procedure call
+	 */
+	TaskKillResult killTask(ExecutionVertexID id) throws IOException;
 
 	/**
 	 * Queries the task manager about the cache status of the libraries stated in the {@link LibraryCacheProfileRequest}

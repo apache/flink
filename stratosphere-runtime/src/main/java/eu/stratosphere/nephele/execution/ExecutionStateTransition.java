@@ -14,6 +14,8 @@
 package eu.stratosphere.nephele.execution;
 
 import static eu.stratosphere.nephele.execution.ExecutionState.FAILED;
+import static eu.stratosphere.nephele.execution.ExecutionState.CANCELED;
+import static eu.stratosphere.nephele.execution.ExecutionState.CANCELING;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;

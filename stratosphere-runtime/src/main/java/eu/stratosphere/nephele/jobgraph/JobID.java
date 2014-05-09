@@ -13,11 +13,10 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import java.nio.ByteBuffer;
+import eu.stratosphere.nephele.AbstractID;
 
 import javax.xml.bind.DatatypeConverter;
-
-import eu.stratosphere.nephele.AbstractID;
+import java.nio.ByteBuffer;
 
 public final class JobID extends AbstractID {
 
@@ -42,6 +41,12 @@ public final class JobID extends AbstractID {
 
 	public static JobID fromByteArray(byte[] bytes) {
 		return new JobID(bytes);
+	}
+
+	public static JobID fromByteBuffer(ByteBuffer buf) {
+		long lower = buf.getLong();
+		long upper = buf.getLong();
+		return new JobID(lower, upper);
 	}
 
 	public static JobID fromByteBuffer(ByteBuffer buf, int offset) {

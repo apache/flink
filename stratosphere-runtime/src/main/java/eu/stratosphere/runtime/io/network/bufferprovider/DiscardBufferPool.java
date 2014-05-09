@@ -17,49 +17,21 @@ import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.runtime.io.Buffer;
 import eu.stratosphere.runtime.io.BufferRecycler;
 
-/**
- * 
- */
-public final class SerialSingleBufferPool implements BufferProvider, BufferRecycler {
+public final class DiscardBufferPool implements BufferProvider, BufferRecycler {
 	
-	private final Buffer buffer;
-
-	/** Size of the buffer in this pool */
-	private final int bufferSize;
-
-
-	// -----------------------------------------------------------------------------------------------------------------
-
-	public SerialSingleBufferPool(int bufferSize) {
-		this.buffer = new Buffer(new MemorySegment(new byte[bufferSize]), bufferSize, this);
-		this.bufferSize = bufferSize;
-	}
-	
-	// -----------------------------------------------------------------------------------------------------------------
-
 	@Override
 	public Buffer requestBuffer(int minBufferSize) {
-		if (minBufferSize <= this.bufferSize) {
-			return this.buffer.duplicate();
-		}
-		else {
-			throw new IllegalArgumentException("Requesting buffer with size " + minBufferSize + ". Pool's buffer size is " + this.bufferSize);
-		}
+		return null;
 	}
 
 	@Override
 	public Buffer requestBufferBlocking(int minBufferSize) {
-		if (minBufferSize <= this.bufferSize) {
-			return this.buffer.duplicate();
-		}
-		else {
-			throw new IllegalArgumentException("Requesting buffer with size " + minBufferSize + ". Pool's buffer size is " + this.bufferSize);
-		}
+		return null;
 	}
 
 	@Override
 	public int getBufferSize() {
-		return this.bufferSize;
+		return 0;
 	}
 
 	@Override
@@ -68,10 +40,12 @@ public final class SerialSingleBufferPool implements BufferProvider, BufferRecyc
 	}
 
 	@Override
-	public boolean registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
-		throw new UnsupportedOperationException();
+	public BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
+		return BufferAvailabilityRegistration.NOT_REGISTERED_BUFFER_POOL_DESTROYED;
 	}
 
 	@Override
-	public void recycle(MemorySegment buffer) {}
+	public void recycle(MemorySegment buffer) {
+		throw new UnsupportedOperationException();
+	}
 }

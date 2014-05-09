@@ -196,9 +196,9 @@ public class DataOutputSerializer implements DataOutput {
 			}
 		}
 
-		if (utflen > 65535)
+		if (utflen > 65535) {
 			throw new UTFDataFormatException("Encoded string is too long: " + utflen);
-		
+		}
 		else if (this.position > this.buffer.length - utflen - 2) {
 			resize(utflen + 2);
 		}
@@ -212,8 +212,9 @@ public class DataOutputSerializer implements DataOutput {
 		int i = 0;
 		for (i = 0; i < strlen; i++) {
 			c = str.charAt(i);
-			if (!((c >= 0x0001) && (c <= 0x007F)))
+			if (!((c >= 0x0001) && (c <= 0x007F))) {
 				break;
+			}
 			bytearr[count++] = (byte) c;
 		}
 

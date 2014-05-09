@@ -40,8 +40,6 @@ public class Buffer {
 	}
 
 	/**
-	 * NOTE: Requires that the reference counter was increased prior to the constructor call!
-	 *
 	 * @param toDuplicate Buffer instance to duplicate
 	 */
 	private Buffer(Buffer toDuplicate) {
@@ -74,7 +72,8 @@ public class Buffer {
 	}
 
 	public void recycleBuffer() {
-		if (this.referenceCounter.decrementAndGet() == 0) {
+		int refCount = this.referenceCounter.decrementAndGet();
+		if (refCount == 0) {
 			this.recycler.recycle(this.memorySegment);
 		}
 	}
