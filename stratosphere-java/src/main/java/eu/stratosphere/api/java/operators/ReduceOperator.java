@@ -68,17 +68,16 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 
 	@Override
 	protected Operator translateToDataFlow(Operator input) {
-		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		
 		// distinguish between grouped reduce and non-grouped reduce
 		if (grouper == null) {
 			// non grouped reduce
 			PlanReduceOperator<IN> po = new PlanReduceOperator<IN>(function, new int[0], name, getInputType());
-			// set input
 			po.setInput(input);
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
+			
+			// the degree of parallelism for a non grouped reduce can only be 1
+			po.setDegreeOfParallelism(1);
 			
 			return po;
 		}

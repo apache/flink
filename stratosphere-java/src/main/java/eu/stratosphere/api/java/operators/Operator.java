@@ -26,6 +26,7 @@ import eu.stratosphere.api.java.typeutils.TypeInformation;
 public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<OUT> {
 
 	private String name;
+	
 	private int dop = -1;
 
 	protected Operator(ExecutionEnvironment context, TypeInformation<OUT> resultType) {
