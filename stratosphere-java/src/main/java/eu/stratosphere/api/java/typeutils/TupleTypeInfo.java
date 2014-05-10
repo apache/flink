@@ -14,6 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils;
 
+import java.util.Arrays;
+
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
@@ -127,6 +129,26 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 		}
 		
 		return new TupleComparator<T>(logicalKeyFields, fieldComparators);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof TupleTypeInfo) {
+			@SuppressWarnings("unchecked")
+			TupleTypeInfo<T> other = (TupleTypeInfo<T>) obj;
+			return ((this.tupleType == null && other.tupleType == null) || this.tupleType.equals(other.tupleType)) &&
+					Arrays.deepEquals(this.types, other.types);
+			
+		} else {
+			return false;
+		}
+	}
+	
+	@Override
+	public int hashCode() {
+		return this.types.hashCode() ^ Arrays.deepHashCode(this.types);
 	}
 	
 	@Override

@@ -107,6 +107,24 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 		return instantiateComparator(comparatorClass, sortOrderAscending);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int hashCode() {
+		return this.clazz.hashCode();
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof BasicTypeInfo) {
+			@SuppressWarnings("unchecked")
+			BasicTypeInfo<T> other = (BasicTypeInfo<T>) obj;
+			return this.clazz.equals(other.clazz);
+		} else {
+			return false;
+		}
+	}
+	
 	@Override
 	public String toString() {
 		return clazz.getSimpleName();

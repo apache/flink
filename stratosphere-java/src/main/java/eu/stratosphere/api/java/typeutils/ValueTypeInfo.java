@@ -101,7 +101,7 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	
 	@Override
 	public int hashCode() {
-		return type.hashCode() ^ 0xd3a2646c;
+		return this.type.hashCode() ^ 0xd3a2646c;
 	}
 	
 	@Override
