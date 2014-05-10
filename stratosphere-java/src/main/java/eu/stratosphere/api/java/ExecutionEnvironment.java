@@ -103,13 +103,13 @@ public abstract class ExecutionEnvironment {
 
 	// ---------------------------------- Text Input Format ---------------------------------------
 	
-	public DataSet<String> readTextFile(String filePath) {
+	public DataSource<String> readTextFile(String filePath) {
 		Validate.notNull(filePath, "The file path may not be null.");
 		
 		return new DataSource<String>(this, new TextInputFormat(new Path(filePath)), BasicTypeInfo.STRING_TYPE_INFO );
 	}
 	
-	public DataSet<String> readTextFile(String filePath, String charsetName) {
+	public DataSource<String> readTextFile(String filePath, String charsetName) {
 		Validate.notNull(filePath, "The file path may not be null.");
 
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
@@ -119,13 +119,13 @@ public abstract class ExecutionEnvironment {
 	
 	// -------------------------- Text Input Format With String Value------------------------------
 	
-	public DataSet<StringValue> readTextFileWithValue(String filePath) {
+	public DataSource<StringValue> readTextFileWithValue(String filePath) {
 		Validate.notNull(filePath, "The file path may not be null.");
 		
 		return new DataSource<StringValue>(this, new TextValueInputFormat(new Path(filePath)), new ValueTypeInfo<StringValue>(StringValue.class) );
 	}
 	
-	public DataSet<StringValue> readTextFileWithValue(String filePath, String charsetName, boolean skipInvalidLines) {
+	public DataSource<StringValue> readTextFileWithValue(String filePath, String charsetName, boolean skipInvalidLines) {
 		Validate.notNull(filePath, "The file path may not be null.");
 		
 		TextValueInputFormat format = new TextValueInputFormat(new Path(filePath));
@@ -146,7 +146,7 @@ public abstract class ExecutionEnvironment {
 	
 	// ----------------------------------- Generic Input Format ---------------------------------------
 	
-	public <X> DataSet<X> createInput(InputFormat<X, ?> inputFormat) {
+	public <X> DataSource<X> createInput(InputFormat<X, ?> inputFormat) {
 		if (inputFormat == null) {
 			throw new IllegalArgumentException("InputFormat must not be null.");
 		}
@@ -165,7 +165,7 @@ public abstract class ExecutionEnvironment {
 		}
 	}
 	
-	public <X> DataSet<X> createInput(InputFormat<X, ?> inputFormat, TypeInformation<X> producedType) {
+	public <X> DataSource<X> createInput(InputFormat<X, ?> inputFormat, TypeInformation<X> producedType) {
 		if (inputFormat == null) {
 			throw new IllegalArgumentException("InputFormat must not be null.");
 		}
@@ -179,11 +179,10 @@ public abstract class ExecutionEnvironment {
 	
 	// ----------------------------------- Collection ---------------------------------------
 	
-	public <X> DataSet<X> fromCollection(Collection<X> data) {
+	public <X> DataSource<X> fromCollection(Collection<X> data) {
 		if (data == null) {
 			throw new IllegalArgumentException("The data must not be null.");
 		}
-		
 		if (data.size() == 0) {
 			throw new IllegalArgumentException("The size of the collection must not be empty.");
 		}
@@ -194,17 +193,17 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	
-	public <X> DataSet<X> fromCollection(Collection<X> data, TypeInformation<X> type) {
+	public <X> DataSource<X> fromCollection(Collection<X> data, TypeInformation<X> type) {
 		CollectionInputFormat.checkCollection(data, type.getTypeClass());
 		
 		return new DataSource<X>(this, new CollectionInputFormat<X>(data), type);
 	}
 	
-	public <X> DataSet<X> fromCollection(Iterator<X> data, Class<X> type) {
+	public <X> DataSource<X> fromCollection(Iterator<X> data, Class<X> type) {
 		return fromCollection(data, TypeExtractor.getForClass(type));
 	}
 	
-	public <X> DataSet<X> fromCollection(Iterator<X> data, TypeInformation<X> type) {
+	public <X> DataSource<X> fromCollection(Iterator<X> data, TypeInformation<X> type) {
 		if (!(data instanceof Serializable)) {
 			throw new IllegalArgumentException("The iterator must be serializable.");
 		}
@@ -220,7 +219,7 @@ public abstract class ExecutionEnvironment {
 	 * @param data The elements to make up the data set.
 	 * @return A data set representing the given list of elements.
 	 */
-	public <X> DataSet<X> fromElements(X... data) {
+	public <X> DataSource<X> fromElements(X... data) {
 		if (data == null) {
 			throw new IllegalArgumentException("The data must not be null.");
 		}
@@ -232,17 +231,17 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	
-	public <X> DataSet<X> fromParallelCollection(SplittableIterator<X> iterator, Class<X> type) {
+	public <X> DataSource<X> fromParallelCollection(SplittableIterator<X> iterator, Class<X> type) {
 		return fromParallelCollection(iterator, TypeExtractor.getForClass(type));
 	}
 	
 	
-	public <X> DataSet<X> fromParallelCollection(SplittableIterator<X> iterator, TypeInformation<X> type) {
+	public <X> DataSource<X> fromParallelCollection(SplittableIterator<X> iterator, TypeInformation<X> type) {
 		return new DataSource<X>(this, new ParallelIteratorInputFormat<X>(iterator), type);
 	}
 	
 	
-	public DataSet<Long> generateSequence(long from, long to) {
+	public DataSource<Long> generateSequence(long from, long to) {
 		return fromParallelCollection(new NumberSequenceIterator(from, to), BasicTypeInfo.LONG_TYPE_INFO);
 	}	
 	
