@@ -65,10 +65,43 @@ public class DeltaIteration<ST, WT> {
 				initialSolutionSet.getType(), initialWorkset.getType(), this, solutionSetDelta, newWorkset, keys, maxIterations);
 	}
 
+	/**
+	 * Gets the initial solution set. This is the data set on which the delta iteration was started.
+	 * <p>
+	 * Consider the following example:
+	 * <pre>
+	 * {@code
+	 * DataSet<MyType> solutionSetData = ...;
+	 * DataSet<AnotherType> worksetData = ...;
+	 * 
+	 * DeltaIteration<MyType, AnotherType> iteration = solutionSetData.iteratorDelta(worksetData, 10, ...);
+	 * }
+	 * </pre>
+	 * The <tt>solutionSetData</tt> would be the data set returned by {@code iteration.getInitialSolutionSet();}.
+	 * 
+	 * @return The data set that forms the initial solution set.
+	 */
 	public DataSet<ST> getInitialSolutionSet() {
 		return initialSolutionSet;
 	}
 
+	/**
+	 * Gets the initial workset. This is the data set passed to the method that starts the delta
+	 * iteration.
+	 * <p>
+	 * Consider the following example:
+	 * <pre>
+	 * {@code
+	 * DataSet<MyType> solutionSetData = ...;
+	 * DataSet<AnotherType> worksetData = ...;
+	 * 
+	 * DeltaIteration<MyType, AnotherType> iteration = solutionSetData.iteratorDelta(worksetData, 10, ...);
+	 * }
+	 * </pre>
+	 * The <tt>worksetData</tt> would be the data set returned by {@code iteration.getInitialWorkset();}.
+	 * 
+	 * @return The data set that forms the initial workset.
+	 */
 	public DataSet<WT> getInitialWorkset() {
 		return initialWorkset;
 	}
@@ -91,12 +124,23 @@ public class DeltaIteration<ST, WT> {
 		return worksetPlaceholder;
 	}
 
+	
+	/**
+	 * A {@link DataSet} that acts as a placeholder for the solution set during the iteration.
+	 * 
+	 * @param <ST> The type of the elements in the solution set.
+	 */
 	public static class SolutionSetPlaceHolder<ST> extends DataSet<ST>{
 		private SolutionSetPlaceHolder(ExecutionEnvironment context, TypeInformation<ST> type) {
 			super(context, type);
 		}
 	}
 
+	/**
+	 * A {@link DataSet} that acts as a placeholder for the workset during the iteration.
+	 *
+	 * @param <WT> The data type of the elements in the workset.
+	 */
 	public static class WorksetPlaceHolder<WT> extends DataSet<WT>{
 		private WorksetPlaceHolder(ExecutionEnvironment context, TypeInformation<WT> type) {
 			super(context, type);
