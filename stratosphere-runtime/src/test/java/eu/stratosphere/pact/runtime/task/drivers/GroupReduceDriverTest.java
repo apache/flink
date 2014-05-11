@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.runtime.task.drivers;
 
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -93,16 +92,10 @@ public class GroupReduceDriverTest {
 			driver.prepare();
 			driver.run();
 			
-			Tuple2<String,Integer> res = result.getList().get(0);
+			Object[] res = result.getList().toArray();
+			Object[] expected = DriverTestData.createReduceImmutableDataGroupedResult().toArray();
 			
-			char[] foundString = res.f0.toCharArray();
-			Arrays.sort(foundString);
-			
-			char[] expectedString = "abcddeeeffff".toCharArray();
-			Arrays.sort(expectedString);
-			
-			Assert.assertArrayEquals(expectedString, foundString);
-			Assert.assertEquals(78, res.f1.intValue());
+			DriverTestData.compareTupleArrays(expected, res);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -136,10 +129,9 @@ public class GroupReduceDriverTest {
 			driver.run();
 			
 			Object[] res = result.getList().toArray();
-			Object[] expected = DriverTestData.createReduceImmutableDataGroupedResult().toArray();
+			Object[] expected = DriverTestData.createReduceMutableDataGroupedResult().toArray();
 			
-			
-			Assert.assertArrayEquals(expected, res);
+			DriverTestData.compareTupleArrays(expected, res);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -147,6 +139,9 @@ public class GroupReduceDriverTest {
 			Assert.fail(e.getMessage());
 		}
 	}
+	
+
+	
 	// --------------------------------------------------------------------------------------------
 	//  Test UDFs
 	// --------------------------------------------------------------------------------------------

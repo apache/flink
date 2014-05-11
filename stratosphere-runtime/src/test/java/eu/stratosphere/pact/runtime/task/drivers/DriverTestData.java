@@ -18,6 +18,9 @@ package eu.stratosphere.pact.runtime.task.drivers;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.junit.Assert;
+
+import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
@@ -43,19 +46,6 @@ public class DriverTestData {
 		return data;
 	}
 	
-	public static List<Tuple2<String, Integer>> createReduceImmutableDataGroupedResult() {
-		List<Tuple2<String, Integer>> data = new ArrayList<Tuple2<String,Integer>>();
-		
-		data.add(new Tuple2<String, Integer>("a", 1));
-		data.add(new Tuple2<String, Integer>("b", 2));
-		data.add(new Tuple2<String, Integer>("c", 3));
-		data.add(new Tuple2<String, Integer>("dd", 9));
-		data.add(new Tuple2<String, Integer>("eee", 21));
-		data.add(new Tuple2<String, Integer>("ffff", 42));
-		
-		return data;
-	}
-	
 	public static List<Tuple2<StringValue, IntValue>> createReduceMutableData() {
 		List<Tuple2<StringValue, IntValue>> data = new ArrayList<Tuple2<StringValue, IntValue>>();
 		
@@ -75,6 +65,53 @@ public class DriverTestData {
 		return data;
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	
+	public static List<Tuple2<String, Integer>> createReduceImmutableDataGroupedResult() {
+		List<Tuple2<String, Integer>> data = new ArrayList<Tuple2<String, Integer>>();
+		
+		data.add(new Tuple2<String, Integer>("a", 1));
+		data.add(new Tuple2<String, Integer>("b", 2));
+		data.add(new Tuple2<String, Integer>("c", 3));
+		data.add(new Tuple2<String, Integer>("dd", 9));
+		data.add(new Tuple2<String, Integer>("eee", 21));
+		data.add(new Tuple2<String, Integer>("ffff", 42));
+		
+		return data;
+	}
+	
+	public static List<Tuple2<StringValue, IntValue>> createReduceMutableDataGroupedResult() {
+		List<Tuple2<StringValue, IntValue>> data = new ArrayList<Tuple2<StringValue, IntValue>>();
+		
+		data.add(new Tuple2<StringValue, IntValue>(new StringValue("a"), new IntValue(1)));
+		data.add(new Tuple2<StringValue, IntValue>(new StringValue("b"), new IntValue(2)));
+		data.add(new Tuple2<StringValue, IntValue>(new StringValue("c"), new IntValue(3)));
+		data.add(new Tuple2<StringValue, IntValue>(new StringValue("dd"), new IntValue(9)));
+		data.add(new Tuple2<StringValue, IntValue>(new StringValue("eee"), new IntValue(21)));
+		data.add(new Tuple2<StringValue, IntValue>(new StringValue("ffff"), new IntValue(42)));
+		
+		return data;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public static final void compareTupleArrays(Object[] expected, Object[] found) {
+		if (expected.length != found.length) {
+			throw new IllegalArgumentException();
+		}
+		
+		for (int i = 0; i < expected.length; i++) {
+			Tuple v1 = (Tuple) expected[i];
+			Tuple v2 = (Tuple) found[i];
+			
+			for (int k = 0; k < v1.getArity(); k++) {
+				Object o1 = v1.getField(k);
+				Object o2 = v2.getField(k);
+				Assert.assertEquals(o1, o2);
+			}
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	private DriverTestData() {}
