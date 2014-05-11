@@ -48,15 +48,6 @@ public abstract class Tuple implements java.io.Serializable {
 	 * @throws IndexOutOfBoundsException Thrown, if the position is negative, or equal to, or larger than the number of fields.
 	 */
 	public abstract <T> void setField(T value, int pos);
-	
-	/**
-	 * This method is similar to the {@link #getField(int)} method. Internally, it does not do a switch on the
-	 * position, but it uses an offset lookup table. For long tuple types, this may be faster.
-	 * 
-	 * @param pos The position of the field, zero indexed.
-	 * @return The field at the specified position.
-	 */
-	public abstract <T> T getFieldFast(int pos);
 
 	/**
 	 * Gets the number of field in the tuple (the tuple arity).

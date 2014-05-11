@@ -532,7 +532,6 @@ class TupleGenerator {
 			w.println(" * @param <" + GEN_TYPE_PREFIX + i + "> The type of field " + i);
 		}
 		w.println(" */");
-		w.println("@SuppressWarnings({\"restriction\"})");
 		w.print("public class " + className + "<");
 		for (int i = 0; i < numFields; i++) {
 			if (i > 0) {
@@ -658,33 +657,6 @@ class TupleGenerator {
 			w.println("\t\t\t+ \", \" + StringUtils.arrayAwareToString(this.f" + i + ")");
 		}
 		w.println("\t\t\t+ \")\";");
-		w.println("\t}");
-
-		// unsafe fast field access
-		w.println();
-		w.println("\t// -------------------------------------------------------------------------------------------------");
-		w.println("\t// unsafe fast field access");
-		w.println("\t// -------------------------------------------------------------------------------------------------");
-		w.println();
-		w.println("\t@SuppressWarnings({ \"unchecked\"})");
-		w.println("\tpublic <T> T getFieldFast(int pos) {");
-		w.println("\t\treturn (T) UNSAFE.getObject(this, offsets[pos]);");
-		w.println("\t}");
-		w.println();
-		w.println("\tprivate static final sun.misc.Unsafe UNSAFE = eu.stratosphere.core.memory.MemoryUtils.UNSAFE;");
-		w.println();
-		w.println("\tprivate static final long[] offsets = new long[" + numFields + "];");
-		w.println();
-		w.println("\tstatic {");
-		w.println("\t\ttry {");
-
-		for (int i = 0; i < numFields; i++) {
-			w.println("\t\t\toffsets[" + i + "] = UNSAFE.objectFieldOffset(Tuple" + numFields + ".class.getDeclaredField(\"f" + i + "\"));");
-		}
-
-		w.println("\t\t} catch (Throwable t) {");
-		w.println("\t\t\tthrow new RuntimeException(\"Could not initialize fast field accesses for tuple data type.\");");
-		w.println("\t\t}");
 		w.println("\t}");
 
 		// foot

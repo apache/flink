@@ -47,7 +47,6 @@ import eu.stratosphere.util.StringUtils;
  * @param <T11> The type of field 11
  * @param <T12> The type of field 12
  */
-@SuppressWarnings({"restriction"})
 public class Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> extends Tuple {
 
 	private static final long serialVersionUID = 1L;
@@ -248,38 +247,5 @@ public class Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> exte
 			+ ", " + StringUtils.arrayAwareToString(this.f11)
 			+ ", " + StringUtils.arrayAwareToString(this.f12)
 			+ ")";
-	}
-
-	// -------------------------------------------------------------------------------------------------
-	// unsafe fast field access
-	// -------------------------------------------------------------------------------------------------
-
-	@SuppressWarnings({ "unchecked"})
-	public <T> T getFieldFast(int pos) {
-		return (T) UNSAFE.getObject(this, offsets[pos]);
-	}
-
-	private static final sun.misc.Unsafe UNSAFE = eu.stratosphere.core.memory.MemoryUtils.UNSAFE;
-
-	private static final long[] offsets = new long[13];
-
-	static {
-		try {
-			offsets[0] = UNSAFE.objectFieldOffset(Tuple13.class.getDeclaredField("f0"));
-			offsets[1] = UNSAFE.objectFieldOffset(Tuple13.class.getDeclaredField("f1"));
-			offsets[2] = UNSAFE.objectFieldOffset(Tuple13.class.getDeclaredField("f2"));
-			offsets[3] = UNSAFE.objectFieldOffset(Tuple13.class.getDeclaredField("f3"));
-			offsets[4] = UNSAFE.objectFieldOffset(Tuple13.class.getDeclaredField("f4"));
-			offsets[5] = UNSAFE.objectFieldOffset(Tuple13.class.getDeclaredField("f5"));
-			offsets[6] = UNSAFE.objectFieldOffset(Tuple13.class.getDeclaredField("f6"));
-			offsets[7] = UNSAFE.objectFieldOffset(Tuple13.class.getDeclaredField("f7"));
-			offsets[8] = UNSAFE.objectFieldOffset(Tuple13.class.getDeclaredField("f8"));
-			offsets[9] = UNSAFE.objectFieldOffset(Tuple13.class.getDeclaredField("f9"));
-			offsets[10] = UNSAFE.objectFieldOffset(Tuple13.class.getDeclaredField("f10"));
-			offsets[11] = UNSAFE.objectFieldOffset(Tuple13.class.getDeclaredField("f11"));
-			offsets[12] = UNSAFE.objectFieldOffset(Tuple13.class.getDeclaredField("f12"));
-		} catch (Throwable t) {
-			throw new RuntimeException("Could not initialize fast field accesses for tuple data type.");
-		}
 	}
 }

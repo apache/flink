@@ -167,7 +167,7 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 		int numFields = element.getArity();
 
 		for (int i = 0; i < numFields; i++) {
-			Object v = element.getFieldFast(i);
+			Object v = element.getField(i);
 			if (v != null) {
 				if (i != 0) {
 					this.wrt.write(this.fieldDelimiter);

@@ -43,6 +43,19 @@ public class DriverTestData {
 		return data;
 	}
 	
+	public static List<Tuple2<String, Integer>> createReduceImmutableDataGroupedResult() {
+		List<Tuple2<String, Integer>> data = new ArrayList<Tuple2<String,Integer>>();
+		
+		data.add(new Tuple2<String, Integer>("a", 1));
+		data.add(new Tuple2<String, Integer>("b", 2));
+		data.add(new Tuple2<String, Integer>("c", 3));
+		data.add(new Tuple2<String, Integer>("dd", 9));
+		data.add(new Tuple2<String, Integer>("eee", 21));
+		data.add(new Tuple2<String, Integer>("ffff", 42));
+		
+		return data;
+	}
+	
 	public static List<Tuple2<StringValue, IntValue>> createReduceMutableData() {
 		List<Tuple2<StringValue, IntValue>> data = new ArrayList<Tuple2<StringValue, IntValue>>();
 		

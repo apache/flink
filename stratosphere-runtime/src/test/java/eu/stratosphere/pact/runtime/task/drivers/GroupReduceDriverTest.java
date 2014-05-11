@@ -135,16 +135,11 @@ public class GroupReduceDriverTest {
 			driver.prepare();
 			driver.run();
 			
-			Tuple2<StringValue, IntValue> res = result.getList().get(0);
+			Object[] res = result.getList().toArray();
+			Object[] expected = DriverTestData.createReduceImmutableDataGroupedResult().toArray();
 			
-			char[] foundString = res.f0.getValue().toCharArray();
-			Arrays.sort(foundString);
 			
-			char[] expectedString = "abcddeeeffff".toCharArray();
-			Arrays.sort(expectedString);
-			
-			Assert.assertArrayEquals(expectedString, foundString);
-			Assert.assertEquals(78, res.f1.getValue());
+			Assert.assertArrayEquals(expected, res);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

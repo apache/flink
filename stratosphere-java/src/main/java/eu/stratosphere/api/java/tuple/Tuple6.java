@@ -40,7 +40,6 @@ import eu.stratosphere.util.StringUtils;
  * @param <T4> The type of field 4
  * @param <T5> The type of field 5
  */
-@SuppressWarnings({"restriction"})
 public class Tuple6<T0, T1, T2, T3, T4, T5> extends Tuple {
 
 	private static final long serialVersionUID = 1L;
@@ -164,31 +163,5 @@ public class Tuple6<T0, T1, T2, T3, T4, T5> extends Tuple {
 			+ ", " + StringUtils.arrayAwareToString(this.f4)
 			+ ", " + StringUtils.arrayAwareToString(this.f5)
 			+ ")";
-	}
-
-	// -------------------------------------------------------------------------------------------------
-	// unsafe fast field access
-	// -------------------------------------------------------------------------------------------------
-
-	@SuppressWarnings({ "unchecked"})
-	public <T> T getFieldFast(int pos) {
-		return (T) UNSAFE.getObject(this, offsets[pos]);
-	}
-
-	private static final sun.misc.Unsafe UNSAFE = eu.stratosphere.core.memory.MemoryUtils.UNSAFE;
-
-	private static final long[] offsets = new long[6];
-
-	static {
-		try {
-			offsets[0] = UNSAFE.objectFieldOffset(Tuple6.class.getDeclaredField("f0"));
-			offsets[1] = UNSAFE.objectFieldOffset(Tuple6.class.getDeclaredField("f1"));
-			offsets[2] = UNSAFE.objectFieldOffset(Tuple6.class.getDeclaredField("f2"));
-			offsets[3] = UNSAFE.objectFieldOffset(Tuple6.class.getDeclaredField("f3"));
-			offsets[4] = UNSAFE.objectFieldOffset(Tuple6.class.getDeclaredField("f4"));
-			offsets[5] = UNSAFE.objectFieldOffset(Tuple6.class.getDeclaredField("f5"));
-		} catch (Throwable t) {
-			throw new RuntimeException("Could not initialize fast field accesses for tuple data type.");
-		}
 	}
 }

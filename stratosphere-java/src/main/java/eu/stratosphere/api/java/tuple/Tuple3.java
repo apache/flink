@@ -37,7 +37,6 @@ import eu.stratosphere.util.StringUtils;
  * @param <T1> The type of field 1
  * @param <T2> The type of field 2
  */
-@SuppressWarnings({"restriction"})
 public class Tuple3<T0, T1, T2> extends Tuple {
 
 	private static final long serialVersionUID = 1L;
@@ -128,28 +127,5 @@ public class Tuple3<T0, T1, T2> extends Tuple {
 			+ ", " + StringUtils.arrayAwareToString(this.f1)
 			+ ", " + StringUtils.arrayAwareToString(this.f2)
 			+ ")";
-	}
-
-	// -------------------------------------------------------------------------------------------------
-	// unsafe fast field access
-	// -------------------------------------------------------------------------------------------------
-
-	@SuppressWarnings({ "unchecked"})
-	public <T> T getFieldFast(int pos) {
-		return (T) UNSAFE.getObject(this, offsets[pos]);
-	}
-
-	private static final sun.misc.Unsafe UNSAFE = eu.stratosphere.core.memory.MemoryUtils.UNSAFE;
-
-	private static final long[] offsets = new long[3];
-
-	static {
-		try {
-			offsets[0] = UNSAFE.objectFieldOffset(Tuple3.class.getDeclaredField("f0"));
-			offsets[1] = UNSAFE.objectFieldOffset(Tuple3.class.getDeclaredField("f1"));
-			offsets[2] = UNSAFE.objectFieldOffset(Tuple3.class.getDeclaredField("f2"));
-		} catch (Throwable t) {
-			throw new RuntimeException("Could not initialize fast field accesses for tuple data type.");
-		}
 	}
 }
