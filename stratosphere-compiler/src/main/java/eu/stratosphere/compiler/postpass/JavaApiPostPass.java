@@ -232,11 +232,11 @@ public class JavaApiPostPass implements OptimizerPostPass {
 
 		TypeInformation<?> type = null;
 
-		if(javaOp instanceof PlanGroupReduceOperator && source.getDriverStrategy().equals(DriverStrategy.PARTIAL_GROUP)) {
+		if(javaOp instanceof PlanGroupReduceOperator && source.getDriverStrategy().equals(DriverStrategy.SORTED_GROUP_COMBINE)) {
 			PlanGroupReduceOperator<?, ?> groupNode = (PlanGroupReduceOperator<?, ?>) javaOp;
 			type = groupNode.getInputType();
 		}
-		else if(javaOp instanceof PlanUnwrappingReduceGroupOperator && source.getDriverStrategy().equals(DriverStrategy.PARTIAL_GROUP)) {
+		else if(javaOp instanceof PlanUnwrappingReduceGroupOperator && source.getDriverStrategy().equals(DriverStrategy.SORTED_GROUP_COMBINE)) {
 			PlanUnwrappingReduceGroupOperator<?, ?, ?> groupNode = (PlanUnwrappingReduceGroupOperator<?, ?, ?>) javaOp;
 			type = groupNode.getInputType();
 		}

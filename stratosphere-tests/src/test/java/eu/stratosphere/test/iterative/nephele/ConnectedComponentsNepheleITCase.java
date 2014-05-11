@@ -305,7 +305,7 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 			intermediateConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 
 			intermediateConfig.setDriver(GroupReduceDriver.class);
-			intermediateConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP);
+			intermediateConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 			intermediateConfig.setDriverComparator(comparator, 0);
 			intermediateConfig.setStubWrapper(
 				new UserCodeClassWrapper<MinimumComponentIDReduce>(MinimumComponentIDReduce.class));

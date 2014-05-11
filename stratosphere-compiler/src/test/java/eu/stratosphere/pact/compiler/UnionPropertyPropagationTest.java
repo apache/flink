@@ -46,6 +46,7 @@ import eu.stratosphere.util.Visitor;
 
 public class UnionPropertyPropagationTest extends CompilerTestBase {
 
+	@SuppressWarnings("deprecation")
 	@Test
 	public void testUnionPropertyOldApiPropagation() {
 		// construct the plan

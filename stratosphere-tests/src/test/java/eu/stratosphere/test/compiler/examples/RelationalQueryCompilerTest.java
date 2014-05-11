@@ -229,10 +229,10 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		
 		// check the driver strategies that are always fix
 		Assert.assertEquals(DriverStrategy.COLLECTOR_MAP, map.getDriverStrategy());
-		Assert.assertEquals(DriverStrategy.SORTED_GROUP, reducer.getDriverStrategy());
+		Assert.assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reducer.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.NONE, sink.getDriverStrategy());
 		if (combiner != null) {
-			Assert.assertEquals(DriverStrategy.PARTIAL_GROUP_COMBINE, combiner.getDriverStrategy());
+			Assert.assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());
 			Assert.assertEquals(LocalStrategy.NONE, combiner.getInput().getLocalStrategy());
 		}
 	}

@@ -32,16 +32,16 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
-public final class GroupWithPartialPreGroupProperties extends OperatorDescriptorSingle {
+public final class GroupReduceWithCombineProperties extends OperatorDescriptorSingle {
 	
 	private final Ordering ordering;		// ordering that we need to use if an additional ordering is requested 
 	
 	
-	public GroupWithPartialPreGroupProperties(FieldSet keys) {
+	public GroupReduceWithCombineProperties(FieldSet keys) {
 		this(keys, null);
 	}
 	
-	public GroupWithPartialPreGroupProperties(FieldSet groupKeys, Ordering additionalOrderKeys) {
+	public GroupReduceWithCombineProperties(FieldSet groupKeys, Ordering additionalOrderKeys) {
 		super(groupKeys);
 		
 		// if we have an additional ordering, construct the ordering to have primarily the grouping fields
@@ -64,7 +64,7 @@ public final class GroupWithPartialPreGroupProperties extends OperatorDescriptor
 	
 	@Override
 	public DriverStrategy getStrategy() {
-		return DriverStrategy.SORTED_GROUP;
+		return DriverStrategy.SORTED_GROUP_REDUCE;
 	}
 
 	@Override
@@ -77,7 +77,7 @@ public final class GroupWithPartialPreGroupProperties extends OperatorDescriptor
 				}
 				in.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
 			}
-			return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", in, DriverStrategy.SORTED_GROUP, this.keyList);
+			return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", in, DriverStrategy.SORTED_GROUP_REDUCE, this.keyList);
 		} else {
 			// non forward case. all local properties are killed anyways, so we can safely plug in a combiner
 			Channel toCombiner = new Channel(in.getSource());
@@ -87,14 +87,14 @@ public final class GroupWithPartialPreGroupProperties extends OperatorDescriptor
 			combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
 			combinerNode.setSubtasksPerInstance(in.getSource().getSubtasksPerInstance());
 			
-			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, "Combine("+node.getPactContract().getName()+")", toCombiner, DriverStrategy.PARTIAL_GROUP_COMBINE, this.keyList);
+			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, "Combine ("+node.getPactContract().getName()+")", toCombiner, DriverStrategy.SORTED_GROUP_COMBINE, this.keyList);
 			combiner.setCosts(new Costs(0, 0));
 			combiner.initProperties(toCombiner.getGlobalProperties(), toCombiner.getLocalProperties());
 			
 			Channel toReducer = new Channel(combiner);
 			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(), in.getShipStrategySortOrder());
 			toReducer.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
-			return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", toReducer, DriverStrategy.SORTED_GROUP, this.keyList);
+			return new SingleInputPlanNode(node, "Reduce ("+node.getPactContract().getName()+")", toReducer, DriverStrategy.SORTED_GROUP_REDUCE, this.keyList);
 		}
 	}
 

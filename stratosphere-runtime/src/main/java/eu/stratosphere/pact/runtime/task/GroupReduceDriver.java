@@ -78,7 +78,7 @@ public class GroupReduceDriver<IT, OT> implements PactDriver<GenericGroupReduce<
 	@Override
 	public void prepare() throws Exception {
 		TaskConfig config = this.taskContext.getTaskConfig();
-		if (config.getDriverStrategy() != DriverStrategy.SORTED_GROUP) {
+		if (config.getDriverStrategy() != DriverStrategy.SORTED_GROUP_REDUCE) {
 			throw new Exception("Unrecognized driver strategy for GroupReduce driver: " + config.getDriverStrategy().name());
 		}
 		this.serializer = this.taskContext.<IT>getInputSerializer(0).getSerializer();

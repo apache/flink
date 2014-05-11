@@ -16,7 +16,7 @@ package eu.stratosphere.pact.runtime.task;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.common.functions.GenericGroupReduce;
+import eu.stratosphere.api.common.functions.GenericCombine;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -34,9 +34,9 @@ import eu.stratosphere.util.MutableObjectIterator;
  * 
  * @param <T> The data type consumed and produced by the combiner.
  */
-public class CombineDriver<T> implements PactDriver<GenericCombine<T>, T>
-{
-	private static final Log LOG = LogFactory.getLog(CoGroupDriver.class);
+public class CombineDriver<T> implements PactDriver<GenericCombine<T>, T> {
+	
+	private static final Log LOG = LogFactory.getLog(CombineDriver.class);
 
 	
 	private PactTaskContext<GenericCombine<T>, T> taskContext;
@@ -88,7 +88,7 @@ public class CombineDriver<T> implements PactDriver<GenericCombine<T>, T>
 		this.comparator = this.taskContext.getInputComparator(0);
 
 		switch (ls) {
-		case PARTIAL_GROUP_COMBINE:
+		case SORTED_GROUP_COMBINE:
 			this.input = new AsynchronousPartialSorter<T>(memoryManager, in, this.taskContext.getOwningNepheleTask(),
 						this.serializerFactory, this.comparator.duplicate(), availableMemory);
 			break;

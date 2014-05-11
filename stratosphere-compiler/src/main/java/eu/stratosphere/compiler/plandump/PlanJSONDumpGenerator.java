@@ -232,7 +232,7 @@ public class PlanJSONDumpGenerator {
 		
 		String name = n.getName();
 		if (name.equals("Reduce") && (node instanceof SingleInputPlanNode) && 
-				((SingleInputPlanNode) node).getDriverStrategy() == DriverStrategy.PARTIAL_GROUP_COMBINE) {
+				((SingleInputPlanNode) node).getDriverStrategy() == DriverStrategy.SORTED_GROUP_COMBINE) {
 			name = "Combine";
 		}
 		
@@ -399,19 +399,23 @@ public class PlanJSONDumpGenerator {
 				break;
 			case COLLECTOR_MAP:
 			case MAP:
-				locString = "Map";
-				break;
 			case FLAT_MAP:
 				locString = "Map";
 				break;
-			case PARTIAL_GROUP_COMBINE:
-				locString = "Ordered Partial Grouping";
+			case SORTED_GROUP_COMBINE:
+				locString = "Sorted Combine";
 				break;
-			case SORTED_GROUP:
-				locString = "Ordered Grouping";
+			case SORTED_GROUP_REDUCE:
+				locString = "Sorted Group Reduce";
 				break;
-			case ALL_GROUP: 
-				locString = "Group all into a single group";
+			case ALL_GROUP_REDUCE: 
+				locString = "Group Reduce All";
+				break;
+			case SORTED_REDUCE:
+				locString = "Sorted Incremental Reduce";
+				break;
+			case ALL_REDUCE:
+				locString = "Incremental Reduce All";
 				break;
 			case HYBRIDHASH_BUILD_FIRST:
 				locString = "Hybrid Hash (build: " + child1name + ")";

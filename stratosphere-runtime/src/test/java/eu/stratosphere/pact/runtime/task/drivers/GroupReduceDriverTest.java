@@ -50,7 +50,7 @@ public class GroupReduceDriverTest {
 			TupleTypeInfo<Tuple2<String, Integer>> typeInfo = (TupleTypeInfo<Tuple2<String, Integer>>) TypeExtractor.getForObject(data.get(0));
 			MutableObjectIterator<Tuple2<String, Integer>> input = EmptyMutableObjectIterator.get();
 			TypeComparator<Tuple2<String, Integer>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true});
-			context.setDriverStrategy(DriverStrategy.SORTED_GROUP);
+			context.setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 			
 			context.setInput1(input, typeInfo.createSerializer());
 			context.setComparator1(comparator);
@@ -81,7 +81,7 @@ public class GroupReduceDriverTest {
 			
 			GatheringCollector<Tuple2<String, Integer>> result = new GatheringCollector<Tuple2<String,Integer>>(typeInfo.createSerializer());
 			
-			context.setDriverStrategy(DriverStrategy.SORTED_GROUP);
+			context.setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 			context.setInput1(input, typeInfo.createSerializer());
 			context.setCollector(result);
 			context.setComparator1(comparator);
@@ -117,7 +117,7 @@ public class GroupReduceDriverTest {
 			
 			GatheringCollector<Tuple2<StringValue, IntValue>> result = new GatheringCollector<Tuple2<StringValue, IntValue>>(typeInfo.createSerializer());
 			
-			context.setDriverStrategy(DriverStrategy.SORTED_GROUP);
+			context.setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 			context.setInput1(input, typeInfo.createSerializer());
 			context.setComparator1(comparator);
 			context.setCollector(result);

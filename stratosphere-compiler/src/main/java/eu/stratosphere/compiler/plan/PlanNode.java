@@ -66,6 +66,10 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	
 	private long memoryPerSubTask;					// the amount of memory dedicated to each task, in bytes
 	
+	private int degreeOfParallelism;
+	
+	private int subtasksPerInstance;
+	
 	private boolean pFlag;							// flag for the internal pruning algorithm
 	
 	// --------------------------------------------------------------------------------------------
@@ -76,6 +80,9 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		this.template = template;
 		this.nodeName = nodeName;
 		this.driverStrategy = strategy;
+		
+		this.degreeOfParallelism = template.getDegreeOfParallelism();
+		this.subtasksPerInstance = template.getSubtasksPerInstance();
 		
 		// check, if there is branch at this node. if yes, this candidate must be associated with
 		// the branching template node.
@@ -276,12 +283,20 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		}
 	}
 	
+	public void setDegreeOfParallelism(int parallelism) {
+		this.degreeOfParallelism = parallelism;
+	}
+	
+	public void setSubtasksPerInstance(int subTasksPerInstance) {
+		this.subtasksPerInstance = subTasksPerInstance;
+	}
+	
 	public int getDegreeOfParallelism() {
-		return this.template.getDegreeOfParallelism();
+		return this.degreeOfParallelism;
 	}
 	
 	public int getSubtasksPerInstance() {
-		return this.template.getSubtasksPerInstance();
+		return this.subtasksPerInstance;
 	}
 	
 	public long getGuaranteedAvailableMemory() {

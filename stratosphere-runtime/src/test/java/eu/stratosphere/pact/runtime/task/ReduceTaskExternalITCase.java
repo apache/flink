@@ -61,7 +61,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericGroupReduce<
 		
 		addInputComparator(this.comparator);
 		setOutput(this.outList);
-		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt, valCnt, false), this.comparator.duplicate());
@@ -93,7 +93,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericGroupReduce<
 		
 		addInputComparator(this.comparator);
 		setOutput(this.outList);
-		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt, valCnt, false), this.comparator.duplicate());
@@ -124,7 +124,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericGroupReduce<
 		
 		addInputComparator(this.comparator);
 		setOutput(this.outList);
-		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
 		CombiningUnilateralSortMerger<Record> sorter = null;
 		try {
@@ -168,7 +168,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericGroupReduce<
 		
 		addInputComparator(this.comparator);
 		setOutput(this.outList);
-		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP);
+		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
 		CombiningUnilateralSortMerger<Record> sorter = null;
 		try {

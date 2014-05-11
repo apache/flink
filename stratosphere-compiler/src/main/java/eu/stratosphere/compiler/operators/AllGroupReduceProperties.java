@@ -15,9 +15,6 @@ package eu.stratosphere.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.common.operators.Order;
-import eu.stratosphere.api.common.operators.Ordering;
-import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.dag.SingleInputNode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
@@ -28,63 +25,28 @@ import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
-public final class GroupProperties extends OperatorDescriptorSingle {
-	
-	private final Ordering ordering;		// ordering that we need to use if an additional ordering is requested 
+public final class AllGroupReduceProperties extends OperatorDescriptorSingle {
 
-	
-	public GroupProperties(FieldSet keys) {
-		this(keys, null);
-	}
-	
-	public GroupProperties(FieldSet groupKeys, Ordering additionalOrderKeys) {
-		super(groupKeys);
-		
-		// if we have an additional ordering, construct the ordering to have primarily the grouping fields
-		if (additionalOrderKeys != null) {
-			this.ordering = new Ordering();
-			for (Integer key : this.keyList) {
-				this.ordering.appendOrdering(key, null, Order.ANY);
-			}
-		
-			// and next the additional order fields
-			for (int i = 0; i < additionalOrderKeys.getNumberOfFields(); i++) {
-				Integer field = additionalOrderKeys.getFieldNumber(i);
-				Order order = additionalOrderKeys.getOrder(i);
-				this.ordering.appendOrdering(field, additionalOrderKeys.getType(i), order);
-			}
-		} else {
-			this.ordering = null;
-		}
-	}
-	
 	@Override
 	public DriverStrategy getStrategy() {
-		return DriverStrategy.SORTED_GROUP;
+		return DriverStrategy.ALL_GROUP_REDUCE;
 	}
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", in, DriverStrategy.SORTED_GROUP, this.keyList);
+		return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", in, DriverStrategy.ALL_GROUP_REDUCE);
 	}
 
 	@Override
 	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
-		RequestedGlobalProperties props = new RequestedGlobalProperties();
-		props.setAnyPartitioning(this.keys);
-		return Collections.singletonList(props);
+		return Collections.singletonList(new RequestedGlobalProperties());
 	}
 
 	@Override
 	protected List<RequestedLocalProperties> createPossibleLocalProperties() {
-		RequestedLocalProperties props = new RequestedLocalProperties();
-		if (this.ordering == null) {
-			props.setGroupedFields(this.keys);
-		} else {
-			props.setOrdering(this.ordering);
-		}
-		return Collections.singletonList(props);
+		return Collections.singletonList(new RequestedLocalProperties());
 	}
+	
 	
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
@@ -97,6 +59,7 @@ public final class GroupProperties extends OperatorDescriptorSingle {
 		return gProps;
 	}
 	
+
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties lProps) {
 		lProps.clearUniqueFieldSets();

@@ -21,11 +21,12 @@ import java.lang.annotation.Target;
 import java.util.Iterator;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
+import eu.stratosphere.api.common.functions.GenericCombine;
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.util.Collector;
 
 
-public abstract class GroupReduceFunction<IN, OUT> extends AbstractFunction implements GenericGroupReduce<IN, OUT> {
+public abstract class GroupReduceFunction<IN, OUT> extends AbstractFunction implements GenericGroupReduce<IN, OUT>, GenericCombine<IN> {
 	
 	private static final long serialVersionUID = 1L;
 

@@ -24,7 +24,7 @@ import eu.stratosphere.example.java.record.wordcount.WordCount;
 import eu.stratosphere.test.testdata.WordCountData;
 
 
-public class LocalExecutorTest {
+public class LocalExecutorITCase {
 	
 	@Test
 	public void testLocalExecutorWithWordCount() {

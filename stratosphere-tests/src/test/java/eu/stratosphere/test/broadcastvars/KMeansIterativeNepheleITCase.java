@@ -228,7 +228,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		
 		// inputs and driver
 		tailConfig.setDriver(GroupReduceDriver.class);
-		tailConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP);
+		tailConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		tailConfig.addInputToGroup(0);
 		tailConfig.setInputSerializer(inputSerializer, 0);		
 		tailConfig.setDriverComparator(inputComparator, 0);

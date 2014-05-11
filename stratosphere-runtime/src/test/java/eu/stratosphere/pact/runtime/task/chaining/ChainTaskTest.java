@@ -84,7 +84,7 @@ public class ChainTaskTest extends TaskTestBase {
 				combineConfig.setOutputSerializer(serFact);
 				
 				// driver
-				combineConfig.setDriverStrategy(DriverStrategy.PARTIAL_GROUP_COMBINE);
+				combineConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
 				combineConfig.setDriverComparator(compFact, 0);
 				combineConfig.setMemoryDriver(3 * 1024 * 1024);
 				
@@ -140,7 +140,7 @@ public class ChainTaskTest extends TaskTestBase {
 				combineConfig.setOutputSerializer(serFact);
 				
 				// driver
-				combineConfig.setDriverStrategy(DriverStrategy.PARTIAL_GROUP_COMBINE);
+				combineConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
 				combineConfig.setDriverComparator(compFact, 0);
 				combineConfig.setMemoryDriver(3 * 1024 * 1024);
 				

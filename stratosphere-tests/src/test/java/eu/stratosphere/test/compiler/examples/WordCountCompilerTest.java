@@ -90,7 +90,7 @@ public class WordCountCompilerTest extends CompilerTestBase {
 			
 			// check the combiner
 			SingleInputPlanNode combiner = (SingleInputPlanNode) reducer.getPredecessor();
-			Assert.assertEquals(DriverStrategy.PARTIAL_GROUP_COMBINE, combiner.getDriverStrategy());
+			Assert.assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());
 			Assert.assertEquals(l, combiner.getKeys());
 			Assert.assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
 			
@@ -163,7 +163,7 @@ public class WordCountCompilerTest extends CompilerTestBase {
 			
 			// check the combiner
 			SingleInputPlanNode combiner = (SingleInputPlanNode) reducer.getPredecessor();
-			Assert.assertEquals(DriverStrategy.PARTIAL_GROUP_COMBINE, combiner.getDriverStrategy());
+			Assert.assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());
 			Assert.assertEquals(l, combiner.getKeys());
 			Assert.assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
 		} catch (Exception e) {

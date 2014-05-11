@@ -19,8 +19,6 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
-import eu.stratosphere.util.LogUtils;
-import org.apache.log4j.Level;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -32,15 +30,16 @@ import eu.stratosphere.test.util.JavaProgramTestBase;
 @RunWith(Parameterized.class)
 public class DeltaPageRankITCase extends JavaProgramTestBase {
 
-	private static final String INITIAL_VERTICES_WITH_RANK = "1 0.025\n" +
-            "2 0.125\n" +
-            "3 0.0833333333333333\n" +
-            "4 0.0833333333333333\n" +
-            "5 0.075\n" +
-            "6 0.075\n" +
-            "7 0.183333333333333\n" +
-            "8 0.15\n" +
-            "9 0.1\n";
+	private static final String INITIAL_VERTICES_WITH_RANK =
+			"1 0.025\n" +
+			"2 0.125\n" +
+			"3 0.0833333333333333\n" + 
+			"4 0.0833333333333333\n" +
+			"5 0.075\n" +
+			"6 0.075\n" +
+			"7 0.183333333333333\n" +
+			"8 0.15\n" +
+			"9 0.1\n";
 
 	private static final String INITIAL_DELTAS = "1 -0.075\n" +
 			"2 0.025\n" +
@@ -99,7 +98,7 @@ public class DeltaPageRankITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		expectedResult = ReduceProgs.runProgram(curProgId, resultPath);
+		expectedResult = TestPrograms.runProgram(curProgId, resultPath);
 	}
 	
 	@Override
@@ -121,7 +120,7 @@ public class DeltaPageRankITCase extends JavaProgramTestBase {
 		return toParameterList(tConfigs);
 	}
 	
-	private static class ReduceProgs {
+	private static class TestPrograms {
 		
 		public static String runProgram(int progId, String resultPath) throws Exception {
 			
@@ -132,23 +131,20 @@ public class DeltaPageRankITCase extends JavaProgramTestBase {
 				
 				// return expected result
 				return  "1,0.006987847222222211\n" +
-		                "2,0.032682291666666634\n" +
-		                "3,0.018663194444444395\n" +
-		                "4,0.029340277777777726\n" +
-		                "5,0.02209201388888886\n" +
-		                "6,0.02209201388888886\n" +
-		                "7,0.2621527777777774\n" +
-		                "8,0.2607638888888888\n" +
-		                "9,0.2452256944444444\n";
+						"2,0.032682291666666634\n" +
+						"3,0.018663194444444395\n" +
+						"4,0.029340277777777726\n" +
+						"5,0.02209201388888886\n" +
+						"6,0.02209201388888886\n" +
+						"7,0.2621527777777774\n" +
+						"8,0.2607638888888888\n" +
+						"9,0.2452256944444444\n";
 			}
 			
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
 			}
-			
 		}
-	
 	}
-	
 }
 

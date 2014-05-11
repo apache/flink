@@ -49,7 +49,7 @@ public class AllGroupReduceDriverTest {
 			List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
 			TypeInformation<Tuple2<String, Integer>> typeInfo = TypeExtractor.getForObject(data.get(0));
 			MutableObjectIterator<Tuple2<String, Integer>> input = EmptyMutableObjectIterator.get();
-			context.setDriverStrategy(DriverStrategy.ALL_GROUP);
+			context.setDriverStrategy(DriverStrategy.ALL_GROUP_REDUCE);
 			
 			context.setInput1(input, typeInfo.createSerializer());
 			context.setCollector(new DiscardingOutputCollector<Tuple2<String, Integer>>());
@@ -78,7 +78,7 @@ public class AllGroupReduceDriverTest {
 			
 			GatheringCollector<Tuple2<String, Integer>> result = new GatheringCollector<Tuple2<String,Integer>>(typeInfo.createSerializer());
 			
-			context.setDriverStrategy(DriverStrategy.ALL_GROUP);
+			context.setDriverStrategy(DriverStrategy.ALL_GROUP_REDUCE);
 			context.setInput1(input, typeInfo.createSerializer());
 			context.setCollector(result);
 			context.setUdf(new ConcatSumReducer());
@@ -118,7 +118,7 @@ public class AllGroupReduceDriverTest {
 			
 			GatheringCollector<Tuple2<StringValue, IntValue>> result = new GatheringCollector<Tuple2<StringValue, IntValue>>(typeInfo.createSerializer());
 			
-			context.setDriverStrategy(DriverStrategy.ALL_GROUP);
+			context.setDriverStrategy(DriverStrategy.ALL_GROUP_REDUCE);
 			context.setInput1(input, typeInfo.createSerializer());
 			context.setCollector(result);
 			context.setUdf(new ConcatSumMutableReducer());

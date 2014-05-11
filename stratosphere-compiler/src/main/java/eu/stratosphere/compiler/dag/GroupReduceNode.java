@@ -21,10 +21,10 @@ import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.operators.AllGroupProperties;
+import eu.stratosphere.compiler.operators.AllGroupReduceProperties;
 import eu.stratosphere.compiler.operators.AllGroupWithPartialPreGroupProperties;
-import eu.stratosphere.compiler.operators.GroupProperties;
-import eu.stratosphere.compiler.operators.GroupWithPartialPreGroupProperties;
+import eu.stratosphere.compiler.operators.GroupReduceProperties;
+import eu.stratosphere.compiler.operators.GroupReduceWithCombineProperties;
 import eu.stratosphere.compiler.operators.OperatorDescriptorSingle;
 import eu.stratosphere.configuration.Configuration;
 
@@ -114,8 +114,8 @@ public class GroupReduceNode extends SingleInputNode {
 		}
 		
 		OperatorDescriptorSingle props = useCombiner ?
-			(this.keys == null ? new AllGroupWithPartialPreGroupProperties() : new GroupWithPartialPreGroupProperties(this.keys, groupOrder)) :
-			(this.keys == null ? new AllGroupProperties() : new GroupProperties(this.keys, groupOrder));
+			(this.keys == null ? new AllGroupWithPartialPreGroupProperties() : new GroupReduceWithCombineProperties(this.keys, groupOrder)) :
+			(this.keys == null ? new AllGroupReduceProperties() : new GroupReduceProperties(this.keys, groupOrder));
 
 			return Collections.singletonList(props);
 	}

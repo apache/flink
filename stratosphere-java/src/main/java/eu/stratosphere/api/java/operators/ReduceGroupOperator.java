@@ -14,11 +14,13 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import eu.stratosphere.api.common.functions.GenericCombine;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
+import eu.stratosphere.api.java.functions.GroupReduceFunction.Combinable;
 import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
 import eu.stratosphere.api.java.operators.translation.PlanGroupReduceOperator;
 import eu.stratosphere.api.java.operators.translation.PlanMapOperator;
@@ -42,6 +44,12 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	private boolean combinable;
 	
 	
+	/**
+	 * Constructor for a non-grouped reduce (all reduce).
+	 * 
+	 * @param input
+	 * @param function
+	 */
 	public ReduceGroupOperator(DataSet<IN> input, GroupReduceFunction<IN, OUT> function) {
 		super(input, TypeExtractor.getGroupReduceReturnTypes(function, input.getType()));
 		
@@ -51,8 +59,15 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		
 		this.function = function;
 		this.grouper = null;
+		checkCombinability();
 	}
 	
+	/**
+	 * Constructor for a grouped reduce.
+	 * 
+	 * @param input
+	 * @param function
+	 */
 	public ReduceGroupOperator(Grouping<IN> input, GroupReduceFunction<IN, OUT> function) {
 		super(input != null ? input.getDataSet() : null, TypeExtractor.getGroupReduceReturnTypes(function, input.getDataSet().getType()));
 		
@@ -62,6 +77,13 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		
 		this.function = function;
 		this.grouper = input;
+		checkCombinability();
+	}
+	
+	private void checkCombinability() {
+		if (function instanceof GenericCombine && function.getClass().getAnnotation(Combinable.class) != null) {
+			this.combinable = true;
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -73,6 +95,11 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	}
 	
 	public void setCombinable(boolean combinable) {
+		// sanity check that the function is a subclass of the combine interface
+		if (combinable && !(function instanceof GenericCombine)) {
+			throw new IllegalArgumentException("The function does not implement the combine interface.");
+		}
+		
 		this.combinable = combinable;
 	}
 	
@@ -86,11 +113,11 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			// non grouped reduce
 			PlanGroupReduceOperator<IN, OUT> po = 
 					new PlanGroupReduceOperator<IN, OUT>(function, new int[0], name, getInputType(), getResultType());
-			// set input
-			po.setInput(input);
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
+			po.setCombinable(combinable);
 			
+			po.setInput(input);
+			// the degree of parallelism for a non grouped reduce can only be 1
+			po.setDegreeOfParallelism(1);
 			return po;
 		}
 	
@@ -99,8 +126,9 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			@SuppressWarnings("unchecked")
 			Keys.SelectorFunctionKeys<IN, ?> selectorKeys = (Keys.SelectorFunctionKeys<IN, ?>) grouper.getKeys();
 			
-			PlanUnwrappingReduceGroupOperator<IN, OUT, ?> po = 
-					translateSelectorFunctionReducer(selectorKeys, function, getInputType(),getResultType(), name, input);
+			PlanUnwrappingReduceGroupOperator<IN, OUT, ?> po = translateSelectorFunctionReducer(
+							selectorKeys, function, getInputType(), getResultType(), name, input, isCombinable());
+			po.setCombinable(combinable);
 			
 			// set dop
 			po.setDegreeOfParallelism(this.getParallelism());
@@ -112,6 +140,7 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
 			PlanGroupReduceOperator<IN, OUT> po = 
 					new PlanGroupReduceOperator<IN, OUT>(function, logicalKeyPositions, name, getInputType(), getResultType());
+			po.setCombinable(combinable);
 			
 			// set input
 			po.setInput(input);
@@ -143,8 +172,9 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	// --------------------------------------------------------------------------------------------
 	
 	private static <IN, OUT, K> PlanUnwrappingReduceGroupOperator<IN, OUT, K> translateSelectorFunctionReducer(
-			Keys.SelectorFunctionKeys<IN, ?> rawKeys,
-			GroupReduceFunction<IN, OUT> function, TypeInformation<IN> inputType, TypeInformation<OUT> outputType, String name, Operator input)
+			Keys.SelectorFunctionKeys<IN, ?> rawKeys, GroupReduceFunction<IN, OUT> function,
+			TypeInformation<IN> inputType, TypeInformation<OUT> outputType, String name, Operator input,
+			boolean combinable)
 	{
 		@SuppressWarnings("unchecked")
 		final Keys.SelectorFunctionKeys<IN, K> keys = (Keys.SelectorFunctionKeys<IN, K>) rawKeys;
@@ -153,13 +183,14 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		
 		KeyExtractingMapper<IN, K> extractor = new KeyExtractingMapper<IN, K>(keys.getKeyExtractor());
 		
-		PlanUnwrappingReduceGroupOperator<IN, OUT, K> reducer = new PlanUnwrappingReduceGroupOperator<IN, OUT, K>(function, keys, name, inputType, outputType, typeInfoWithKey);
+		PlanUnwrappingReduceGroupOperator<IN, OUT, K> reducer = new PlanUnwrappingReduceGroupOperator<IN, OUT, K>(function, keys, name, inputType, outputType, typeInfoWithKey, combinable);
 		
 		PlanMapOperator<IN, Tuple2<K, IN>> mapper = new PlanMapOperator<IN, Tuple2<K, IN>>(extractor, "Key Extractor", inputType, typeInfoWithKey);
 
 		reducer.setInput(mapper);
 		mapper.setInput(input);
-		// set dop
+		
+		// set the mapper's parallelism to the input parallelism to make sure it is chained
 		mapper.setDegreeOfParallelism(input.getDegreeOfParallelism());
 		
 		return reducer;

@@ -36,7 +36,7 @@ public final class PartialGroupProperties extends OperatorDescriptorSingle {
 	
 	@Override
 	public DriverStrategy getStrategy() {
-		return DriverStrategy.PARTIAL_GROUP_COMBINE;
+		return DriverStrategy.SORTED_GROUP_COMBINE;
 	}
 
 	@Override
@@ -46,7 +46,7 @@ public final class PartialGroupProperties extends OperatorDescriptorSingle {
 		combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
 		combinerNode.setSubtasksPerInstance(in.getSource().getSubtasksPerInstance());
 		
-		return new SingleInputPlanNode(combinerNode, "Combine("+node.getPactContract().getName()+")", in, DriverStrategy.PARTIAL_GROUP_COMBINE, this.keyList);
+		return new SingleInputPlanNode(combinerNode, "Combine("+node.getPactContract().getName()+")", in, DriverStrategy.SORTED_GROUP_COMBINE, this.keyList);
 	}
 
 	@Override

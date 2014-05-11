@@ -159,16 +159,16 @@ public abstract class CostEstimator {
 		case MAP:
 		case FLAT_MAP:
 			
-		case ALL_GROUP:
+		case ALL_GROUP_REDUCE:
 		case ALL_REDUCE:
 			// this operations does not do any actual grouping, since every element is in the same single group
 			
 		case CO_GROUP:
-		case SORTED_GROUP:
+		case SORTED_GROUP_REDUCE:
 		case SORTED_REDUCE:
 			// grouping or co-grouping over sorted streams for free
 			
-		case PARTIAL_GROUP_COMBINE:
+		case SORTED_GROUP_COMBINE:
 			// partial grouping is always local and main memory resident. we should add a relative cpu cost at some point
 		
 		case UNION:
@@ -196,7 +196,6 @@ public abstract class CostEstimator {
 		case NESTEDLOOP_STREAMED_OUTER_SECOND:
 			addStreamedNestedLoopsCosts(secondInput, firstInput, availableMemory, driverCosts);
 			break;
-		case GROUP_SELF_NESTEDLOOP:
 		default:
 			throw new CompilerException("Unknown local strategy: " + n.getDriverStrategy().name());
 		}

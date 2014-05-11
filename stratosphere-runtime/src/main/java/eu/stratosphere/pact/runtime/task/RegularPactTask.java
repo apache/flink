@@ -966,18 +966,20 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 				
 				// instantiate ourselves a combiner. we should not use the stub, because the sort and the
 				// subsequent (group)reduce would otherwise share it multi-threaded
+				final Class<S> userCodeFunctionType = this.driver.getStubType();
+				if (userCodeFunctionType == null) {
+					throw new IllegalStateException("Performing combining sort outside a reduce task!");
+				}
 				final S localStub;
 				try {
-					final Class<S> userCodeFunctionType = this.driver.getStubType();
-					// if the class is null, the driver has no user code 
-					if (userCodeFunctionType != null && GenericCombine.class.isAssignableFrom(userCodeFunctionType)) {
-						localStub = initStub(userCodeFunctionType);
-					} else {
-						throw new IllegalStateException("Performing combining sort outside a reduce task!");
-					}
+					localStub = initStub(userCodeFunctionType);
 				} catch (Exception e) {
 					throw new RuntimeException("Initializing the user code and the configuration failed" +
 						e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+				}
+				
+				if (!(localStub instanceof GenericCombine)) {
+					throw new IllegalStateException("Performing combining sort outside a reduce task!");
 				}
 
 				@SuppressWarnings({ "rawtypes", "unchecked" })

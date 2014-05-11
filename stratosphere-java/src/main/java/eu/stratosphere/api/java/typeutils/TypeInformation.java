@@ -77,7 +77,8 @@ public abstract class TypeInformation<T> {
 	 *            type information string to be parsed
 	 * @return <code>TypeInformation</code> representation of the string
 	 */
-	public static TypeInformation<?> parse(String infoString) {
+	@SuppressWarnings("unchecked")
+	public static <X> TypeInformation<X> parse(String infoString) {
 		
 		try {
 			if (infoString == null) {
@@ -87,7 +88,7 @@ public abstract class TypeInformation<T> {
 			if (clearedString.length() == 0) {
 				throw new IllegalArgumentException("String must not be empty.");
 			}
-			return parse(new StringBuilder(clearedString));
+			return (TypeInformation<X>) parse(new StringBuilder(clearedString));
 		} catch (Exception e) {
 			throw new IllegalArgumentException("String could not be parsed: " + e.getMessage());
 		}
