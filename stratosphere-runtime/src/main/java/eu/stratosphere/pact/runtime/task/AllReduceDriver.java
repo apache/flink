@@ -21,8 +21,6 @@ import eu.stratosphere.api.common.functions.GenericReduce;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.pact.runtime.util.MutableToRegularIteratorWrapper;
-import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
 /**
@@ -81,7 +79,7 @@ public class AllReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
 			throw new Exception("Unrecognized driver strategy for AllReduce driver: " + config.getDriverStrategy().name());
 		}
 		
-		TypeSerializerFactory<IT> serializerFactory = this.taskContext.getInputSerializer(0);
+		TypeSerializerFactory<T> serializerFactory = this.taskContext.getInputSerializer(0);
 		this.serializer = serializerFactory.getSerializer();
 		this.input = this.taskContext.getInput(0);
 	}
@@ -93,16 +91,21 @@ public class AllReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
 		}
 
 		final GenericReduce<T> stub = this.taskContext.getStub();
-		final Collector<T> output = this.taskContext.getOutputCollector();
-		final MutableToRegularIteratorWrapper<T> inIter = new MutableToRegularIteratorWrapper<T>(this.input, this.serializer);
-
-		// Reduce everything together
-		T curr = inIter.next();
-		while(running & inIter.hasNext()){
-			curr = stub.reduce(curr, inIter.next());
+		final MutableObjectIterator<T> input = this.input;
+		final TypeSerializer<T> serializer = this.serializer;
+		
+		T val1 = serializer.createInstance();
+		
+		if ((val1 = input.next(val1)) == null) {
+			return;
 		}
-			
-		output.collect(curr);
+		
+		T val2;
+		while (running && (val2 = input.next(serializer.createInstance())) != null) {
+			val1 = stub.reduce(val1, val2);
+		}
+		
+		this.taskContext.getOutputCollector().collect(val1);
 	}
 
 	@Override

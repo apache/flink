@@ -13,7 +13,6 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -30,9 +29,12 @@ import eu.stratosphere.util.MutableObjectIterator;
  * deals with the runtime setup and teardown and the control-flow logic. The later appears especially
  * in the case of iterations.
  *
+ * @param <S> The UDF type.
+ * @param <OT> The produced data type.
+ *
  * @see PactDriver
  */
-public interface PactTaskContext<S extends Function, OT> {
+public interface PactTaskContext<S, OT> {
 	
 	TaskConfig getTaskConfig();
 	

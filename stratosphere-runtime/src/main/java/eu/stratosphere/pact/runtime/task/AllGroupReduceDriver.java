@@ -75,7 +75,7 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GenericGroupRedu
 		if (config.getDriverStrategy() != DriverStrategy.ALL_GROUP) {
 			throw new Exception("Unrecognized driver strategy for AllGroupReduce driver: " + config.getDriverStrategy().name());
 		}
-		this.serializer = this.taskContext.getInputSerializer(0);
+		this.serializer = this.taskContext.<IT>getInputSerializer(0).getSerializer();
 		this.input = this.taskContext.getInput(0);
 	}
 
