@@ -15,7 +15,6 @@
 
 package eu.stratosphere.pact.runtime.task.drivers;
 
-import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Assert;
@@ -95,16 +94,10 @@ public class ReduceDriverTest {
 				driver.prepare();
 				driver.run();
 				
-				Tuple2<String,Integer> res = result.getList().get(0);
+				Object[] res = result.getList().toArray();
+				Object[] expected = DriverTestData.createReduceImmutableDataGroupedResult().toArray();
 				
-				char[] foundString = res.f0.toCharArray();
-				Arrays.sort(foundString);
-				
-				char[] expectedString = "abcddeeeffff".toCharArray();
-				Arrays.sort(expectedString);
-				
-				Assert.assertArrayEquals(expectedString, foundString);
-				Assert.assertEquals(78, res.f1.intValue());
+				DriverTestData.compareTupleArrays(expected, res);
 			}
 			
 			{
@@ -129,16 +122,10 @@ public class ReduceDriverTest {
 				driver.prepare();
 				driver.run();
 				
-				Tuple2<String,Integer> res = result.getList().get(0);
+				Object[] res = result.getList().toArray();
+				Object[] expected = DriverTestData.createReduceImmutableDataGroupedResult().toArray();
 				
-				char[] foundString = res.f0.toCharArray();
-				Arrays.sort(foundString);
-				
-				char[] expectedString = "abcddeeeffff".toCharArray();
-				Arrays.sort(expectedString);
-				
-				Assert.assertArrayEquals(expectedString, foundString);
-				Assert.assertEquals(78, res.f1.intValue());
+				DriverTestData.compareTupleArrays(expected, res);
 			}
 		}
 		catch (Exception e) {
@@ -173,16 +160,10 @@ public class ReduceDriverTest {
 				driver.prepare();
 				driver.run();
 				
-				Tuple2<StringValue, IntValue> res = result.getList().get(0);
+				Object[] res = result.getList().toArray();
+				Object[] expected = DriverTestData.createReduceMutableDataGroupedResult().toArray();
 				
-				char[] foundString = res.f0.getValue().toCharArray();
-				Arrays.sort(foundString);
-				
-				char[] expectedString = "abcddeeeffff".toCharArray();
-				Arrays.sort(expectedString);
-				
-				Assert.assertArrayEquals(expectedString, foundString);
-				Assert.assertEquals(78, res.f1.getValue());
+				DriverTestData.compareTupleArrays(expected, res);
 			}
 			{
 				TestTaskContext<GenericReduce<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
@@ -206,16 +187,10 @@ public class ReduceDriverTest {
 				driver.prepare();
 				driver.run();
 				
-				Tuple2<StringValue, IntValue> res = result.getList().get(0);
+				Object[] res = result.getList().toArray();
+				Object[] expected = DriverTestData.createReduceMutableDataGroupedResult().toArray();
 				
-				char[] foundString = res.f0.getValue().toCharArray();
-				Arrays.sort(foundString);
-				
-				char[] expectedString = "abcddeeeffff".toCharArray();
-				Arrays.sort(expectedString);
-				
-				Assert.assertArrayEquals(expectedString, foundString);
-				Assert.assertEquals(78, res.f1.getValue());
+				DriverTestData.compareTupleArrays(expected, res);
 			}
 		}
 		catch (Exception e) {

@@ -21,8 +21,6 @@ import eu.stratosphere.api.common.functions.GenericReduce;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
-import eu.stratosphere.pact.runtime.util.KeyGroupedIterator.ValuesIterator;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
@@ -89,29 +87,40 @@ public class ReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
 	}
 
 	@Override
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public void run() throws Exception {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(this.taskContext.formatLogString("Reducer preprocessing done. Running Reducer code."));
 		}
 
-		final KeyGroupedIterator<T> iter = new KeyGroupedIterator<T>(this.input, this.serializer, this.comparator);
-
 		// cache references on the stack
-		final GenericReduce<T> stub = this.taskContext.getStub();
-		final Collector<T> output = this.taskContext.getOutputCollector();
-
-		// run stub implementation, iterate over different keys
-		while (this.running && iter.nextKey()) {
-			ValuesIterator vIter = iter.getValues();
-			// Reduce everything together for this key
-			T curr = (T) vIter.next();
-			while(running & vIter.hasNext()){
-				curr = stub.reduce(curr, (T)vIter.next());
-			}
-			output.collect(curr);
-		}
+		final MutableObjectIterator<T> input = this.input;
+		final TypeSerializer<T> serializer = this.serializer;
+		final TypeComparator<T> comparator = this.comparator;
 		
+		final GenericReduce<T> function = this.taskContext.getStub();
+		
+		final Collector<T> output = this.taskContext.getOutputCollector();
+		
+		T value = input.next(serializer.createInstance());
+		
+		// iterate over key groups
+		while (this.running && value != null) {
+			comparator.setReference(value);
+			T res = value;
+			
+			// iterate within a key group
+			while ((value = input.next(serializer.createInstance())) != null) {
+				if (comparator.equalToReference(value)) {
+					// same group, reduce
+					res = function.reduce(res, value);
+				} else {
+					// new key group
+					break;
+				}
+			}
+			
+			output.collect(res);
+		}
 	}
 
 	@Override
