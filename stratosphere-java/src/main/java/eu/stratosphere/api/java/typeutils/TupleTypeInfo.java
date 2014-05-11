@@ -32,7 +32,7 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 	private final Class<T> tupleType;
 	
 	public TupleTypeInfo(Class<T> tupleType, TypeInformation<?>... types) {
-		if (types == null || types.length == 0 || types.length >= Tuple.MAX_ARITY) {
+		if (types == null || types.length == 0 || types.length > Tuple.MAX_ARITY) {
 			throw new IllegalArgumentException();
 		}
 		
