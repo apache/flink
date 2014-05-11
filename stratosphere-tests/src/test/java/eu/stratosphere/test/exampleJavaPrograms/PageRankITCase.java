@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.test.javaApiOperators;
+package eu.stratosphere.test.exampleJavaPrograms;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
