@@ -29,7 +29,9 @@ import org.mockito.Mock;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.costs.CostEstimator;
@@ -130,5 +132,17 @@ public class ClientTest {
 		program.deleteExtractedLibraries();
 		
 		verify(this.jobClientMock).submitJob();
+	}
+	
+	/**
+	 * @throws Exception
+	 */
+	@Test(expected=InvalidProgramException.class)
+	public void tryLocalExecution() throws Exception
+	{
+		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.ERROR);
+		
+		Client out = new Client(configMock);
+		LocalExecutor.execute(planMock);
 	}
 }

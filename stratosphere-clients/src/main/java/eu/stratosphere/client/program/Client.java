@@ -66,6 +66,9 @@ public class Client {
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
 		
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator(), jobManagerAddress);
+		
+		//  Disable Local Execution when using a Client
+		ExecutionEnvironment.disableLocalExecution();
 	}
 
 	/**
@@ -90,6 +93,9 @@ public class Client {
 
 		final InetSocketAddress jobManagerAddress = new InetSocketAddress(address, port);
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator(), jobManagerAddress);
+		
+		//  Disable Local Execution when using a Client
+		ExecutionEnvironment.disableLocalExecution();
 	}
 	
 	public void setPrintStatusDuringExecution(boolean print) {
