@@ -35,6 +35,7 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 public class FileCacheDeleteValidationTest {
 	FileCache fileCache = new FileCache();
 	LocalFileSystem lfs = new LocalFileSystem();
+	File f;
 
 
 	String testFileContent = "Goethe - Faust: Der Tragoedie erster Teil\n" + "Prolog im Himmel.\n"
@@ -54,7 +55,7 @@ public class FileCacheDeleteValidationTest {
 
 	@Before
 	public void createTmpCacheFile() {
-		File f = new File(System.getProperty("java.io.tmpdir"), "cacheFile");
+		f = new File(System.getProperty("java.io.tmpdir"), "cacheFile");
 		try {
 			Files.write(testFileContent, f, Charsets.UTF_8);
 		} catch (IOException e) {
@@ -65,7 +66,7 @@ public class FileCacheDeleteValidationTest {
 	@Test
 	public void testFileReuseForNextTask() {
 		JobID jobID = new JobID();
-		String filePath = "file://" + new Path(System.getProperty("java.io.tmpdir"), "cacheFile").toString();
+		String filePath = f.toURI().toString();
 		fileCache.createTmpFile("test_file", filePath, jobID);
 		try {
 			Thread.sleep(1000);
