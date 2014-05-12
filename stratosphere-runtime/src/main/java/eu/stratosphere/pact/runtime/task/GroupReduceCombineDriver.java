@@ -34,9 +34,9 @@ import eu.stratosphere.util.MutableObjectIterator;
  * 
  * @param <T> The data type consumed and produced by the combiner.
  */
-public class CombineDriver<T> implements PactDriver<GenericCombine<T>, T> {
+public class GroupReduceCombineDriver<T> implements PactDriver<GenericCombine<T>, T> {
 	
-	private static final Log LOG = LogFactory.getLog(CombineDriver.class);
+	private static final Log LOG = LogFactory.getLog(GroupReduceCombineDriver.class);
 
 	
 	private PactTaskContext<GenericCombine<T>, T> taskContext;

@@ -48,12 +48,12 @@ public enum DriverStrategy {
 	// grouping the inputs and apply the Reduce Function
 	SORTED_REDUCE(ReduceDriver.class, null, PIPELINED, true),
 	// sorted partial reduce is the combiner for the Reduce. same function, but potentially not fully sorted
-	SORTED_PARTIAL_REDUCE(null, null, MATERIALIZING, true),
+	SORTED_PARTIAL_REDUCE(ReduceCombineDriver.class, null, MATERIALIZING, true),
 	
 	// grouping the inputs and apply the GroupReduce function
 	SORTED_GROUP_REDUCE(GroupReduceDriver.class, null, PIPELINED, true),
 	// partially grouping inputs (best effort resulting possibly in duplicates --> combiner)
-	SORTED_GROUP_COMBINE(CombineDriver.class, SynchronousChainedCombineDriver.class, MATERIALIZING, true),
+	SORTED_GROUP_COMBINE(GroupReduceCombineDriver.class, SynchronousChainedCombineDriver.class, MATERIALIZING, true),
 
 	// both inputs are merged, but materialized to the side for block-nested-loop-join among values with equal key
 	MERGE(MatchDriver.class, null, MATERIALIZING, MATERIALIZING, true),

@@ -22,14 +22,18 @@ import eu.stratosphere.api.java.typeutils.runtime.RuntimeStatefulSerializerFacto
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
 public class TestTaskContext<S, T> implements PactTaskContext<S, T> {
+	
+	private final AbstractInvokable owner = new DummyInvokable();
 	
 	private MutableObjectIterator<?> input1;
 	
@@ -48,7 +52,19 @@ public class TestTaskContext<S, T> implements PactTaskContext<S, T> {
 	private S udf;
 	
 	private Collector<T> outputCollector;
+	
+	private MemoryManager memoryManager;
 
+	// --------------------------------------------------------------------------------------------
+	//  Constructors
+	// --------------------------------------------------------------------------------------------
+	
+	public TestTaskContext() {}
+	
+	public TestTaskContext(long memoryInBytes) {
+		this.memoryManager = new DefaultMemoryManager(memoryInBytes, 32 * 1024);
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Setters
 	// --------------------------------------------------------------------------------------------
@@ -115,7 +131,7 @@ public class TestTaskContext<S, T> implements PactTaskContext<S, T> {
 
 	@Override
 	public MemoryManager getMemoryManager() {
-		return null;
+		return this.memoryManager;
 	}
 
 	@Override
@@ -174,12 +190,11 @@ public class TestTaskContext<S, T> implements PactTaskContext<S, T> {
 
 	@Override
 	public AbstractInvokable getOwningNepheleTask() {
-		return null;
+		return this.owner;
 	}
 
 	@Override
 	public String formatLogString(String message) {
 		return message;
 	}
-
 }
