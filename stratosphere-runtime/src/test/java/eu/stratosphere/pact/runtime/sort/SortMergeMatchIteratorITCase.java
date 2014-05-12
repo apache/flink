@@ -130,7 +130,7 @@ public class SortMergeMatchIteratorITCase
 			
 			final JoinFunction matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
-			final Collector<Record> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 	
 			// reset the generators
 			generator1.reset();
@@ -221,7 +221,7 @@ public class SortMergeMatchIteratorITCase
 			
 			final JoinFunction matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			
-			final Collector<Record> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 	
 			
 			// we create this sort-merge iterator with little memory for the block-nested-loops fall-back to make sure it

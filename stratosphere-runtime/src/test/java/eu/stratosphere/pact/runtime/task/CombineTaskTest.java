@@ -93,7 +93,7 @@ public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInputComparator(this.comparator);
-		setOutput(new DiscardingOutputCollector());
+		setOutput(new DiscardingOutputCollector<Record>());
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
 		getTaskConfig().setMemoryDriver(COMBINE_MEM);
@@ -117,7 +117,7 @@ public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?
 	{
 		addInput(new DelayingInfinitiveInputIterator(100));
 		addInputComparator(this.comparator);
-		setOutput(new DiscardingOutputCollector());
+		setOutput(new DiscardingOutputCollector<Record>());
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
 		getTaskConfig().setMemoryDriver(COMBINE_MEM);

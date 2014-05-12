@@ -225,7 +225,7 @@ public class ReOpenableHashTableITCase {
 		
 		final JoinFunction firstMatcher = new RecordMatchRemovingJoin(expectedFirstMatchesMap);
 		
-		final Collector<Record> collector = new DiscardingOutputCollector();
+		final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 
 		// reset the generators
 		bgen.reset();

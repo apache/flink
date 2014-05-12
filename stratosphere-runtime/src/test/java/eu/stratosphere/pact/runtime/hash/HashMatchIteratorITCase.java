@@ -137,7 +137,7 @@ public class HashMatchIteratorITCase {
 				collectRecordData(input2));
 			
 			final JoinFunction matcher = new RecordMatchRemovingJoin(expectedMatchesMap);
-			final Collector<Record> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 	
 			// reset the generators
 			generator1.reset();
@@ -231,7 +231,7 @@ public class HashMatchIteratorITCase {
 			input2 = new UnionIterator<Record>(inList2);
 			
 			final JoinFunction matcher = new RecordMatchRemovingJoin(expectedMatchesMap);
-			final Collector<Record> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 	
 			BuildFirstHashMatchIterator<Record, Record, Record> iterator = 
 					new BuildFirstHashMatchIterator<Record, Record, Record>(
@@ -273,7 +273,7 @@ public class HashMatchIteratorITCase {
 				collectRecordData(input2));
 			
 			final JoinFunction matcher = new RecordMatchRemovingJoin(expectedMatchesMap);
-			final Collector<Record> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 	
 			// reset the generators
 			generator1.reset();
@@ -367,7 +367,7 @@ public class HashMatchIteratorITCase {
 			input2 = new UnionIterator<Record>(inList2);
 			
 			final JoinFunction matcher = new RecordMatchRemovingJoin(expectedMatchesMap);
-			final Collector<Record> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 	
 			BuildSecondHashMatchIterator<Record, Record, Record> iterator = 
 				new BuildSecondHashMatchIterator<Record, Record, Record>(
@@ -408,7 +408,7 @@ public class HashMatchIteratorITCase {
 				collectRecordData(input2));
 			
 			final GenericJoiner<IntPair, Record, Record> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
-			final Collector<Record> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 	
 			// reset the generators
 			input1 = new UniformIntPairGenerator(500, 40, false);
@@ -455,7 +455,7 @@ public class HashMatchIteratorITCase {
 				collectRecordData(input2));
 			
 			final GenericJoiner<IntPair, Record, Record> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
-			final Collector<Record> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 	
 			// reset the generators
 			input1 = new UniformIntPairGenerator(500, 40, false);

@@ -68,7 +68,7 @@ public class MapTaskTest extends DriverTestBase<GenericCollectorMap<Record, Reco
 		final int valCnt = 20;
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
-		setOutput(new DiscardingOutputCollector());
+		setOutput(new DiscardingOutputCollector<Record>());
 		
 		final CollectorMapDriver<Record, Record> testTask = new CollectorMapDriver<Record, Record>();
 		try {
@@ -85,7 +85,7 @@ public class MapTaskTest extends DriverTestBase<GenericCollectorMap<Record, Reco
 	@Test
 	public void testCancelMapTask() {
 		addInput(new InfiniteInputIterator());
-		setOutput(new DiscardingOutputCollector());
+		setOutput(new DiscardingOutputCollector<Record>());
 		
 		final CollectorMapDriver<Record, Record> testTask = new CollectorMapDriver<Record, Record>();
 		

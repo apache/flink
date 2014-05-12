@@ -122,7 +122,7 @@ public class HashVsSortMiniBenchmark {
 			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
 			
 			final JoinFunction matcher = new NoOpMatcher();
-			final Collector<Record> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 			
 			long start = System.nanoTime();
 			
@@ -173,7 +173,7 @@ public class HashVsSortMiniBenchmark {
 			
 			final JoinFunction matcher = new NoOpMatcher();
 			
-			final Collector<Record> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 			
 			long start = System.nanoTime();
 			
@@ -212,7 +212,7 @@ public class HashVsSortMiniBenchmark {
 			
 			final JoinFunction matcher = new NoOpMatcher();
 			
-			final Collector<Record> collector = new DiscardingOutputCollector();
+			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 			
 			long start = System.nanoTime();
 			
