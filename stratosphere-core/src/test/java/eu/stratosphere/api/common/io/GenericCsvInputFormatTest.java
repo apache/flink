@@ -36,6 +36,7 @@ import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.LogUtils;
@@ -197,6 +198,43 @@ public class GenericCsvInputFormatTest {
 		}
 	}
 
+	@Test
+	public void testLongLongLong() {
+		try {
+			final String fileContent = "1,2,3\n3,2,1";
+			final FileInputSplit split = createTempFile(fileContent);
+
+			final Configuration parameters = new Configuration();
+
+			format.setFieldDelimiter(',');
+			format.setFieldTypesGeneric(LongValue.class, LongValue.class, LongValue.class);
+			format.configure(parameters);
+			format.open(split);
+
+			Value[] values = createLongValues(3);
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals(1L, ((LongValue) values[0]).getValue());
+			assertEquals(2L, ((LongValue) values[1]).getValue());
+			assertEquals(3L, ((LongValue) values[2]).getValue());
+			
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals(3L, ((LongValue) values[0]).getValue());
+			assertEquals(2L, ((LongValue) values[1]).getValue());
+			assertEquals(1L, ((LongValue) values[2]).getValue());
+
+			assertNull(format.nextRecord(values));
+			assertTrue(format.reachedEnd());
+		} catch (Exception ex) {
+			System.err.println(ex.getMessage());
+			ex.printStackTrace();
+			fail("Test erroneous");
+		}
+	}
+	
+	
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testSparseParseWithIndices() {
@@ -499,6 +537,16 @@ public class GenericCsvInputFormatTest {
 		
 		for (int i = 0; i < num; i++) {
 			v[i] = new IntValue();
+		}
+		
+		return v;
+	}
+	
+	private final Value[] createLongValues(int num) {
+		Value[] v = new Value[num];
+		
+		for (int i = 0; i < num; i++) {
+			v[i] = new LongValue();
 		}
 		
 		return v;
