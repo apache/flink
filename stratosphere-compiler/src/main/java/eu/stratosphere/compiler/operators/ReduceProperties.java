@@ -43,16 +43,12 @@ public final class ReduceProperties extends OperatorDescriptorSingle {
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		if (in.getShipStrategy() == ShipStrategyType.FORWARD) {
-			// adjust a sort (changes grouping, so it must be for this driver to combining sort
-			if (in.getLocalStrategy() == LocalStrategy.SORT) {
-				if (!in.getLocalStrategyKeys().isValidUnorderedPrefix(this.keys)) {
-					throw new RuntimeException("Bug: Inconsistent sort for group strategy.");
-				}
-				in.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
-			}
+		if (in.getShipStrategy() == ShipStrategyType.FORWARD ||
+				(node.getBroadcastConnections() != null && !node.getBroadcastConnections().isEmpty()))
+		{
 			return new SingleInputPlanNode(node, "Reduce ("+node.getPactContract().getName()+")", in, DriverStrategy.SORTED_REDUCE, this.keyList);
-		} else {
+		}
+		else {
 			// non forward case. all local properties are killed anyways, so we can safely plug in a combiner
 			Channel toCombiner = new Channel(in.getSource());
 			toCombiner.setShipStrategy(ShipStrategyType.FORWARD);
@@ -68,7 +64,7 @@ public final class ReduceProperties extends OperatorDescriptorSingle {
 			
 			Channel toReducer = new Channel(combiner);
 			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(), in.getShipStrategySortOrder());
-			toReducer.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
+			toReducer.setLocalStrategy(LocalStrategy.SORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
 			return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", toReducer, DriverStrategy.SORTED_REDUCE, this.keyList);
 		}
 	}
