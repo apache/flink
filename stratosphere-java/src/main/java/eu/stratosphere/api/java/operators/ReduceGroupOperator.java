@@ -148,10 +148,11 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			po.setDegreeOfParallelism(this.getParallelism());
 			
 			// set group order
-			if(grouper.getGroupSortKeyPositions() != null) {
+			if(grouper instanceof SortedGrouping) {
+				SortedGrouping<IN> sortedGrouper = (SortedGrouping<IN>) grouper;
 								
-				int[] sortKeyPositions = grouper.getGroupSortKeyPositions();
-				Order[] sortOrders = grouper.getGroupSortOrders();
+				int[] sortKeyPositions = sortedGrouper.getGroupSortKeyPositions();
+				Order[] sortOrders = sortedGrouper.getGroupSortOrders();
 				
 				Ordering o = new Ordering();
 				for(int i=0; i < sortKeyPositions.length; i++) {
