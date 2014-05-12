@@ -21,7 +21,7 @@ import java.io.IOException;
 
 public class TestFileUtils {
 	
-	private static final String FILE_PREFIX = "pact_test_";
+	private static final String FILE_PREFIX = "stratosphere_test_";
 	
 	private static final String FILE_SUFFIX = ".tmp";
 

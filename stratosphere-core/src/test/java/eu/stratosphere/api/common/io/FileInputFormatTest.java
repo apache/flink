@@ -12,7 +12,11 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.io;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URI;
 
 import org.apache.log4j.Level;
 import org.junit.Assert;
@@ -206,7 +210,7 @@ public class FileInputFormatTest {
 			}
 			
 			// test if this also works for "mixed" directories
-			String newDir = TestFileUtils.createTempFileInDirectory(tempFile.replace("file:", ""), "this creates a test file with a random extension (at least not .deflate)");
+			TestFileUtils.createTempFileInDirectory(tempFile.replace("file:", ""), "this creates a test file with a random extension (at least not .deflate)");
 			
 			final DummyFileInputFormat formatMixed = new DummyFileInputFormat();
 			formatMixed.setFilePath(tempFile);
@@ -230,7 +234,63 @@ public class FileInputFormatTest {
 		}
 	}
 	
-	
+	@Test
+	public void testIgnoredUnderscoreFiles() {
+		try {
+			final String contents = "CONTENTS";
+			
+			// create some accepted, some ignored files
+			
+			File tempDir = new File(System.getProperty("java.io.tmpdir"));
+			File f = null;
+			do {
+				f = new File(tempDir, TestFileUtils.randomFileName(""));
+			} while (f.exists());
+			f.mkdirs();
+			f.deleteOnExit();
+			
+			File child1 = new File(f, "dataFile1.txt");
+			File child2 = new File(f, "another_file.bin");
+			File luigiFile = new File(f, "_luigi");
+			File success = new File(f, "_SUCCESS");
+			
+			File[] files = { child1, child2, luigiFile, success };
+			
+			for (File child : files) {
+				child.deleteOnExit();
+			
+				BufferedWriter out = new BufferedWriter(new FileWriter(child));
+				try { 
+					out.write(contents);
+				} finally {
+					out.close();
+				}
+			}
+			
+			// test that only the valid files are accepted
+			
+			final DummyFileInputFormat format = new DummyFileInputFormat();
+			format.setFilePath(f.toURI().toString());
+			format.configure(new Configuration());
+			FileInputSplit[] splits = format.createInputSplits(1);
+			
+			Assert.assertEquals(2, splits.length);
+			
+			final URI uri1 = splits[0].getPath().toUri();
+			final URI uri2 = splits[1].getPath().toUri();
+
+			final URI childUri1 = child1.toURI();
+			final URI childUri2 = child2.toURI();
+			
+			Assert.assertTrue(  (uri1.equals(childUri1) && uri2.equals(childUri2)) ||
+								(uri1.equals(childUri2) && uri2.equals(childUri1)) );
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
 	
 	// ------------------------------------------------------------------------
 	
