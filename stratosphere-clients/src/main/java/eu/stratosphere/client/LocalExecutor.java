@@ -17,10 +17,12 @@ import java.util.List;
 
 import org.apache.log4j.Level;
 
+import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.PlanExecutor;
 import eu.stratosphere.api.common.Program;
+import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -65,6 +67,9 @@ public class LocalExecutor extends PlanExecutor {
 	public LocalExecutor() {
 		if (System.getProperty("log4j.configuration") == null) {
 			setLoggingLevel(Level.INFO);
+		}
+		if(!ExecutionEnvironment.localExecutionIsAllowed()) {
+			throw new InvalidProgramException("You cannot start a job in local execution mode when submitting a job from a client.");
 		}
 	}
 

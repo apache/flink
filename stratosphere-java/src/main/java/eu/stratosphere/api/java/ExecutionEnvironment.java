@@ -73,6 +73,8 @@ public abstract class ExecutionEnvironment {
 	
 	protected List<Tuple2<String, String>> cacheFile = new ArrayList<Tuple2<String, String>>();
 	
+	private static boolean allowLocalExecution = true;
+	
 	
 	// --------------------------------------------------------------------------------------------
 	//  Constructor and Properties
@@ -109,6 +111,14 @@ public abstract class ExecutionEnvironment {
 	
 	public String getIdString() {
 		return this.executionId.toString();
+	}
+	
+	public static boolean localExecutionIsAllowed() {
+		return allowLocalExecution;
+	}
+	
+	public static void disableLocalExecution() {
+		allowLocalExecution = false;
 	}
 	
 	// --------------------------------------------------------------------------------------------
