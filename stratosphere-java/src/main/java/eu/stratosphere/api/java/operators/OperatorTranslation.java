@@ -26,6 +26,7 @@ import eu.stratosphere.api.java.IterativeDataSet;
 import eu.stratosphere.api.java.operators.translation.JavaPlan;
 import eu.stratosphere.api.java.operators.translation.PlanBulkIterationOperator;
 import eu.stratosphere.api.java.operators.translation.PlanDeltaIterationOperator;
+import eu.stratosphere.configuration.Configuration;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -84,6 +85,13 @@ public class OperatorTranslation {
 			Operator input = translate(op.getInput());
 			// translate the operation itself and connect it to the input
 			dataFlowOp = op.translateToDataFlow(input);
+			
+			if(dataSet instanceof UdfOperator<?> ) {
+				Configuration opParams = ((UdfOperator<?>) op).getParameters();
+				if(opParams != null) {
+					dataFlowOp.getParameters().addAll(opParams);
+				}
+			}
 		}
 		else if (dataSet instanceof TwoInputOperator) {
 			TwoInputOperator<?, ?, ?, ?> op = (TwoInputOperator<?, ?, ?, ?>) dataSet;
@@ -94,6 +102,14 @@ public class OperatorTranslation {
 			
 			// translate the operation itself and connect it to the inputs
 			dataFlowOp = op.translateToDataFlow(input1, input2);
+			
+			// set configuration params
+			if(dataSet instanceof UdfOperator<?> ) {
+				Configuration opParams = ((UdfOperator<?>) op).getParameters();
+				if(opParams != null) {
+					dataFlowOp.getParameters().addAll(opParams);
+				}
+			}
 		}
 		else if (dataSet instanceof BulkIterationResultSet<?>) {
 			dataFlowOp = translateBulkIteration((BulkIterationResultSet<?>) dataSet);

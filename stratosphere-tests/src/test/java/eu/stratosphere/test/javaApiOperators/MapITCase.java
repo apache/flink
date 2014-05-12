@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
+import junit.framework.Assert;
+
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -35,7 +37,7 @@ import eu.stratosphere.test.util.JavaProgramTestBase;
 @RunWith(Parameterized.class)
 public class MapITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 8;
+	private static int NUM_PROGRAMS = 9;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -438,6 +440,43 @@ public class MapITCase extends JavaProgramTestBase {
 						"55,6,Comment#13\n" +
 						"55,6,Comment#14\n" +
 						"55,6,Comment#15\n";
+			}
+			case 9: {
+				/*
+				 * Test passing configuration object.
+				 */
+					
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
+				Configuration conf = new Configuration();
+				final String testKey = "testVariable";
+				final int testValue = 666;
+				conf.setInteger(testKey, testValue);
+				DataSet<Tuple3<Integer, Long, String>> bcMapDs = ds.
+						map(new MapFunction<Tuple3<Integer,Long,String>, Tuple3<Integer,Long,String>>() {
+							private static final long serialVersionUID = 1L;
+							private final Tuple3<Integer, Long, String> out = new Tuple3<Integer, Long, String>();
+							
+							@Override
+							public void open(Configuration config) {
+								int val = config.getInteger(testKey, -1);
+								Assert.assertEquals(testValue, val);
+							}
+							
+							@Override
+							public Tuple3<Integer, Long, String> map(Tuple3<Integer, Long, String> value) 
+									throws Exception {
+								return value;
+							}
+						}).withParameters(conf);
+				bcMapDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return 	"1,1,Hi\n"
+						+ "2,2,Hello\n"
+						+ "3,2,Hello world";
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

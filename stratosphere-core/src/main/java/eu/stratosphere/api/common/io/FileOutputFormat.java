@@ -120,7 +120,6 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		this.outputFilePath = outputPath;
 	}
 	
-	
 	public void setOutputFilePath(Path path) {
 		if (path == null) {
 			throw new IllegalArgumentException("Output file path may not be null.");
