@@ -14,8 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
-import java.util.Arrays;
-
 import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.java.DataSet;
@@ -38,12 +36,9 @@ import eu.stratosphere.api.java.functions.ReduceFunction;
  */
 public class Grouping<T> {
 	
-	private final DataSet<T> dataSet;
+	protected final DataSet<T> dataSet;
 	
-	private final Keys<T> keys;
-	
-	private int[] groupSortKeyPositions = null;
-	private Order[] groupSortOrders = null;
+	protected final Keys<T> keys;
 
 	public Grouping(DataSet<T> set, Keys<T> keys) {
 		if (set == null || keys == null) {
@@ -67,14 +62,6 @@ public class Grouping<T> {
 		return this.keys;
 	}
 	
-	protected int[] getGroupSortKeyPositions() {
-		return this.groupSortKeyPositions;
-	}
-	
-	protected Order[] getGroupSortOrders() {
-		return this.groupSortOrders;
-	}
-	
 	// --------------------------------------------------------------------------------------------
 	//  Operations / Transformations
 	// --------------------------------------------------------------------------------------------
@@ -96,9 +83,6 @@ public class Grouping<T> {
 	 * @see DataSet
 	 */
 	public AggregateOperator<T> aggregate(Aggregations agg, int field) {
-		if(this.groupSortKeyPositions != null) {
-			throw new UnsupportedOperationException("Sorted groups not supported for Aggregation operation at the moment.");
-		}
 		return new AggregateOperator<T>(this, agg, field);
 	}
 	
@@ -116,9 +100,6 @@ public class Grouping<T> {
 	 * @see DataSet
 	 */
 	public ReduceOperator<T> reduce(ReduceFunction<T> reducer) {
-		if(this.groupSortKeyPositions != null) {
-			throw new UnsupportedOperationException("Sorted groups not supported for Aggregation operation at the moment.");
-		}
 		return new ReduceOperator<T>(this, reducer);
 	}
 	
@@ -150,14 +131,16 @@ public class Grouping<T> {
 	 * 
 	 * @param field The Tuple field on which the group is sorted.
 	 * @param order The Order in which the specified Tuple field is sorted.
-	 * @return A Grouping with specified order of group element.
+	 * @return A SortedGrouping with specified order of group element.
 	 * 
 	 * @see Tuple
 	 * @see Order
 	 */
-	public Grouping<T> sortGroup(int field, Order order) {
+	public SortedGrouping<T> sortGroup(int field, Order order) {
 		
 		int pos;
+		int[] groupSortKeyPositions;
+		Order[] groupSortOrders ;
 		
 		if (!dataSet.getType().isTupleType()) {
 			throw new InvalidProgramException("Specifying order keys via field positions is only valid for tuple data types");
@@ -166,20 +149,13 @@ public class Grouping<T> {
 			throw new IllegalArgumentException("Order key out of tuple bounds.");
 		}
 		
-		if(this.groupSortKeyPositions == null) {
-			this.groupSortKeyPositions = new int[1];
-			this.groupSortOrders = new Order[1];
-			pos = 0;
-		} else {
-			int newLength = this.groupSortKeyPositions.length + 1;
-			this.groupSortKeyPositions = Arrays.copyOf(this.groupSortKeyPositions, newLength);
-			this.groupSortOrders = Arrays.copyOf(this.groupSortOrders, newLength);
-			pos = newLength - 1;
-		}
+		groupSortKeyPositions = new int[1];
+		groupSortOrders = new Order[1];
+		pos = 0;
 		
-		this.groupSortKeyPositions[pos] = field;
-		this.groupSortOrders[pos] = order;
-		return this;
+		groupSortKeyPositions[pos] = field;
+		groupSortOrders[pos] = order;
+		return new SortedGrouping<T>(this.dataSet, this.keys, groupSortKeyPositions, groupSortOrders);
 	}
 	
 //	public <K extends Comparable<K>> Grouping<T> sortGroup(KeySelector<T, K> keyExtractor, Order order) {
