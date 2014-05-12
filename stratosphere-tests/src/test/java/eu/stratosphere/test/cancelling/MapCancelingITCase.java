@@ -21,8 +21,8 @@ import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.test.testPrograms.util.DiscardingOutputFormat;
-import eu.stratosphere.test.testPrograms.util.InfiniteIntegerInputFormat;
+import eu.stratosphere.test.recordJobs.util.DiscardingOutputFormat;
+import eu.stratosphere.test.recordJobs.util.InfiniteIntegerInputFormat;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 

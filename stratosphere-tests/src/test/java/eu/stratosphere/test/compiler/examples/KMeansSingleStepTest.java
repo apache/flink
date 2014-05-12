@@ -29,7 +29,7 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.test.compiler.CompilerTestBase;
-import eu.stratosphere.test.testPrograms.KMeansSingleStep;
+import eu.stratosphere.test.recordJobs.kmeans.KMeansSingleStep;
 
 
 public class KMeansSingleStepTest extends CompilerTestBase {

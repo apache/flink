@@ -16,7 +16,7 @@ package eu.stratosphere.test.iterative;
 import java.io.BufferedReader;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponents;
+import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents;
 import eu.stratosphere.test.testdata.ConnectedComponentsData;
 import eu.stratosphere.test.util.RecordAPITestBase;
 

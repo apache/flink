@@ -16,8 +16,8 @@ package eu.stratosphere.test.testPrograms.util.tests;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.test.testPrograms.util.IntTupleDataInFormat;
-import eu.stratosphere.test.testPrograms.util.Tuple;
+import eu.stratosphere.test.recordJobs.util.IntTupleDataInFormat;
+import eu.stratosphere.test.recordJobs.util.Tuple;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 

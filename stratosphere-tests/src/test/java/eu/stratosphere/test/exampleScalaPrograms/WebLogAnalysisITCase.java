@@ -16,7 +16,7 @@ package eu.stratosphere.test.exampleScalaPrograms;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.examples.scala.relational.WebLogAnalysis;
 
-public class WebLogAnalysisITCase extends eu.stratosphere.test.exampleRecordPrograms.WebLogAnalysisITCase {
+public class WebLogAnalysisITCase extends eu.stratosphere.test.recordJobTests.WebLogAnalysisITCase {
 
 	@Override
 	protected Plan getTestJob() {

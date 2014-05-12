@@ -28,11 +28,11 @@ import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.example.java.graph.ConnectedComponents;
-import eu.stratosphere.example.java.record.kmeans.KMeans;
-import eu.stratosphere.example.java.record.relational.TPCHQuery3;
-import eu.stratosphere.example.java.record.relational.WebLogAnalysis;
-import eu.stratosphere.example.java.record.wordcount.WordCount;
-import eu.stratosphere.test.testPrograms.KMeansSingleStep;
+import eu.stratosphere.test.recordJobs.kmeans.KMeans;
+import eu.stratosphere.test.recordJobs.kmeans.KMeansSingleStep;
+import eu.stratosphere.test.recordJobs.relational.TPCHQuery3;
+import eu.stratosphere.test.recordJobs.relational.WebLogAnalysis;
+import eu.stratosphere.test.recordJobs.wordcount.WordCount;
 import eu.stratosphere.util.OperatingSystem;
 
 /*
