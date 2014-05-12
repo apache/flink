@@ -12,6 +12,14 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.iterative;
 
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Iterator;
+
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
+
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.BulkIteration;
 import eu.stratosphere.api.common.operators.FileDataSink;
@@ -21,20 +29,12 @@ import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.java.record.kmeans.udfs.PointInFormat;
-import eu.stratosphere.example.java.record.kmeans.udfs.PointOutFormat;
+import eu.stratosphere.test.recordJobs.kmeans.udfs.PointInFormat;
+import eu.stratosphere.test.recordJobs.kmeans.udfs.PointOutFormat;
 import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
-
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
-
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Iterator;
 
 @RunWith(Parameterized.class)
 public class IterationWithChainingITCase extends RecordAPITestBase {

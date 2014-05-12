@@ -16,7 +16,7 @@ package eu.stratosphere.test.exampleScalaPrograms;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.examples.scala.wordcount.WordCountWithCount;
 
-public class WordCountWithCountFunctionITCase extends eu.stratosphere.test.exampleRecordPrograms.WordCountITCase {
+public class WordCountWithCountFunctionITCase extends eu.stratosphere.test.recordJobTests.WordCountITCase {
 
 	@Override
 	protected Plan getTestJob() {

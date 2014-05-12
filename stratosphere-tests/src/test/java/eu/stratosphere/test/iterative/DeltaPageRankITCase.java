@@ -22,7 +22,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponents;
+import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents;
 
 @RunWith(Parameterized.class)
 public class DeltaPageRankITCase extends RecordAPITestBase {

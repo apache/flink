@@ -17,7 +17,7 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.examples.scala.graph.ComputeEdgeDegrees;
 
-public class ComputeEdgeDegreesITCase extends eu.stratosphere.test.exampleRecordPrograms.ComputeEdgeDegreesITCase {
+public class ComputeEdgeDegreesITCase extends eu.stratosphere.test.recordJobTests.ComputeEdgeDegreesITCase {
 
 	public ComputeEdgeDegreesITCase(Configuration config) {
 		super(config);

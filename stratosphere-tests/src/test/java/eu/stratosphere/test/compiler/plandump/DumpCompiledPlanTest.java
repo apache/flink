@@ -25,12 +25,12 @@ import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.example.java.graph.ConnectedComponents;
-import eu.stratosphere.example.java.record.kmeans.KMeans;
-import eu.stratosphere.example.java.record.relational.TPCHQuery3;
-import eu.stratosphere.example.java.record.relational.WebLogAnalysis;
-import eu.stratosphere.example.java.record.wordcount.WordCount;
 import eu.stratosphere.test.compiler.CompilerTestBase;
-import eu.stratosphere.test.testPrograms.KMeansSingleStep;
+import eu.stratosphere.test.recordJobs.kmeans.KMeans;
+import eu.stratosphere.test.recordJobs.kmeans.KMeansSingleStep;
+import eu.stratosphere.test.recordJobs.relational.TPCHQuery3;
+import eu.stratosphere.test.recordJobs.relational.WebLogAnalysis;
+import eu.stratosphere.test.recordJobs.wordcount.WordCount;
 
 /*
  * The tests in this class simply invokes the JSON dump code for the optimized plan.

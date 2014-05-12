@@ -22,7 +22,7 @@ import java.io.IOException;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.test.testPrograms.util.Tuple;
+import eu.stratosphere.test.recordJobs.util.Tuple;
 
 public class TupleTest {
 

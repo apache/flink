@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.example.java.record.kmeans.KMeans;
+import eu.stratosphere.test.recordJobs.kmeans.KMeans;
 import eu.stratosphere.test.testdata.KMeansData;
 import eu.stratosphere.test.util.RecordAPITestBase;
 

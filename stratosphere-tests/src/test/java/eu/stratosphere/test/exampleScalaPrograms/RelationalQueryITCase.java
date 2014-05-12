@@ -23,7 +23,7 @@ import eu.stratosphere.examples.scala.relational.RelationalQuery;
 import java.util.Locale;
 
 @RunWith(Parameterized.class)
-public class RelationalQueryITCase extends eu.stratosphere.test.exampleRecordPrograms.TPCHQuery3ITCase {
+public class RelationalQueryITCase extends eu.stratosphere.test.recordJobTests.TPCHQuery3ITCase {
 
 	public RelationalQueryITCase(Configuration config) {
 		super(config);
