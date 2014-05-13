@@ -37,7 +37,7 @@ public class WordCountITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WordCountData.COUNTS_AS_TUPLES, resultPath);
+		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
 	}
 	
 	@Override

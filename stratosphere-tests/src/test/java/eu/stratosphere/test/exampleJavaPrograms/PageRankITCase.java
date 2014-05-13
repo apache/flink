@@ -24,7 +24,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.java.graph.SimplePageRank;
+import eu.stratosphere.example.java.graph.PageRankBasic;
 import eu.stratosphere.test.testdata.PageRankData;
 import eu.stratosphere.test.util.JavaProgramTestBase;
 
@@ -58,7 +58,7 @@ public class PageRankITCase extends JavaProgramTestBase {
 	
 	@Override
 	protected void postSubmit() throws Exception {
-		compareKeyValueParisWithDelta(expectedResult, resultPath, ",", 0.01);
+		compareKeyValueParisWithDelta(expectedResult, resultPath, " ", 0.01);
 	}
 	
 	@Parameters
@@ -80,12 +80,12 @@ public class PageRankITCase extends JavaProgramTestBase {
 		
 		switch(progId) {
 		case 1: {
-			SimplePageRank.runPageRank(verticesPath, edgesPath, resultPath, PageRankData.NUM_VERTICES, 3);
+			PageRankBasic.main(new String[] {verticesPath, edgesPath, resultPath, PageRankData.NUM_VERTICES+"", "3"});
 			return PageRankData.RANKS_AFTER_3_ITERATIONS;
 		}
 		case 2: {
 			// start with a very high number of iteration such that the dynamic convergence criterion must handle termination
-			SimplePageRank.runPageRank(verticesPath, edgesPath, resultPath, PageRankData.NUM_VERTICES, 1000);
+			PageRankBasic.main(new String[] {verticesPath, edgesPath, resultPath, PageRankData.NUM_VERTICES+"", "1000"});
 			return PageRankData.RANKS_AFTER_EPSILON_0_0001_CONVERGENCE;
 		}
 		

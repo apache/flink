@@ -12,13 +12,14 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.example.java.triangles.util;
+
+package eu.stratosphere.example.java.graph.util;
 
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.example.java.triangles.util.EdgeDataTypes.Edge;
+import eu.stratosphere.example.java.graph.util.EnumTrianglesDataTypes.Edge;
 
-public class EdgeData {
+public class EnumTrianglesData {
 
 	public static DataSet<Edge> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 		

@@ -13,6 +13,8 @@
 
 package eu.stratosphere.example.java.relational;
 
+import java.util.Iterator;
+
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
@@ -20,57 +22,135 @@ import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
+import eu.stratosphere.example.java.relational.util.WebLogData;
+import eu.stratosphere.example.java.relational.util.WebLogDataGenerator;
 import eu.stratosphere.util.Collector;
 
-import java.util.Iterator;
-
 /**
- * Implements the following relational OLAP query as Stratosphere program:
+ * This program processes web logs and relational data. 
+ * It implements the following relational query:
  *
  * <code><pre>
- * SELECT r.pageURL, r.pageRank, r.avgDuration
- * FROM Documents d JOIN Rankings r
- * 	ON d.url = r.url
- * WHERE CONTAINS(d.text, [keywords])
- * 	AND r.rank > [rank]
- * 	AND NOT EXISTS (
- * 		SELECT * FROM Visits v
- * 		WHERE v.destUrl = d.url
- * 			AND v.visitDate < [date]);
- *  * </pre></code>
+ * SELECT 
+ *       r.pageURL, 
+ *       r.pageRank, 
+ *       r.avgDuration
+ * FROM documents d JOIN rankings r
+ *                  ON d.url = r.url
+ * WHERE CONTAINS(d.text, [keywords]) 
+ *       AND r.rank > [rank] 
+ *       AND NOT EXISTS 
+ *           (
+ *              SELECT * FROM Visits v
+ *              WHERE v.destUrl = d.url 
+ *                    AND v.visitDate < [date]
+ *           );
+ * </pre></code>
  *
- * Table Schemas: <code><pre>
+ * <p>
+ * Input files are plain text CSV files using the pipe character ('|') as field separator.
+ * The tables referenced in the query can be generated using the {@link WebLogDataGenerator} and 
+ * have the following schemas
+ * <code><pre>
  * CREATE TABLE Documents (
- * 					url VARCHAR(100) PRIMARY KEY,
- * 					contents TEXT );
+ *                url VARCHAR(100) PRIMARY KEY,
+ *                contents TEXT );
  *
  * CREATE TABLE Rankings (
- * 					pageRank INT,
- * 					pageURL VARCHAR(100) PRIMARY KEY,
- * 					avgDuration INT );
+ *                pageRank INT,
+ *                pageURL VARCHAR(100) PRIMARY KEY,
+ *                avgDuration INT );
  *
  * CREATE TABLE Visits (
- * 					sourceIP VARCHAR(16),
- * 					destURL VARCHAR(100),
- * 					visitDate DATE,
- * 					adRevenue FLOAT,
- * 					userAgent VARCHAR(64),
- * 					countryCode VARCHAR(3),
- * 					languageCode VARCHAR(6),
- * 					searchWord VARCHAR(32),
- * 					duration INT );
+ *                sourceIP VARCHAR(16),
+ *                destURL VARCHAR(100),
+ *                visitDate DATE,
+ *                adRevenue FLOAT,
+ *                userAgent VARCHAR(64),
+ *                countryCode VARCHAR(3),
+ *                languageCode VARCHAR(6),
+ *                searchWord VARCHAR(32),
+ *                duration INT );
  * </pre></code>
+ * 
+ * <p>
+ * This example shows how to use:
+ * <ul>
+ * <li> tuple data types
+ * <li> projection and join projection
+ * <li> the CoGroup transformation for an anti-join
+ * </ul>
+ * 
  */
 @SuppressWarnings("serial")
 public class WebLogAnalysis {
+	
+	// *************************************************************************
+	//     PROGRAM
+	// *************************************************************************
+	
+	public static void main(String[] args) throws Exception {
+		
+		parseParameters(args);
 
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		// get input data
+		DataSet<Tuple2<String, String>> documents = getDocumentsDataSet(env);
+		DataSet<Tuple3<Integer, String, Integer>> ranks = getRanksDataSet(env);
+		DataSet<Tuple2<String, String>> visits = getVisitsDataSet(env);
+		
+		// Create DataSet for filtering the entries from the documents relation
+		DataSet<Tuple1<String>> filterDocs = documents
+				.filter(new FilterDocs())
+				.project(0).types(String.class);
+
+		// Create DataSet for filtering the entries from the ranks relation
+		DataSet<Tuple3<Integer, String, Integer>> filterRanks = ranks
+				.filter(new FilterRanks());
+
+		// Create DataSet for filtering the entries from the visits relation
+		DataSet<Tuple1<String>> filterVisits = visits
+				.filter(new FilterVisits())
+				.project(0).types(String.class);
+
+		// Create DataSet to join the filtered documents and ranks relation
+		DataSet<Tuple3<Integer, String, Integer>> joinDocsRanks = 
+				filterDocs.join(filterRanks)
+							.where(0).equalTo(1)
+							.projectSecond(0,1,2)
+							.types(Integer.class, String.class, Integer.class);
+
+		// Create DataSet to realize a anti join between the joined
+		// documents and ranks relation and the filtered visits relation
+		DataSet<Tuple3<Integer, String, Integer>> result = 
+				joinDocsRanks.coGroup(filterVisits)
+								.where(1).equalTo(0)
+								.with(new AntiJoinVisits());
+
+		// emit result
+		if(fileOutput) {
+			result.writeAsCsv(outputPath, "\n", "|");
+		} else {
+			result.print();
+		}
+
+		// execute program
+		env.execute("WebLogAnalysis Example");
+		
+	}
+	
+	// *************************************************************************
+	//     USER FUNCTIONS
+	// *************************************************************************
+	
 	/**
 	 * MapFunction that filters for documents that contain a certain set of
 	 * keywords.
 	 */
 	public static class FilterDocs extends FilterFunction<Tuple2<String, String>> {
 
-		private static final String[] KEYWORDS = { " editors ", " oscillations ", " convection " };
+		private static final String[] KEYWORDS = { " editors ", " oscillations " };
 
 		/**
 		 * Filters for documents that contain all of the given keywords and projects the records on the URL field.
@@ -98,7 +178,7 @@ public class WebLogAnalysis {
 	 */
 	public static class FilterRanks extends FilterFunction<Tuple3<Integer, String, Integer>> {
 
-		private static final int RANKFILTER = 50;
+		private static final int RANKFILTER = 40;
 
 		/**
 		 * Filters for records of the rank relation where the rank is greater
@@ -121,7 +201,7 @@ public class WebLogAnalysis {
 	 */
 	public static class FilterVisits extends FilterFunction<Tuple2<String, String>> {
 
-		private static final int YEARFILTER = 2010;
+		private static final int YEARFILTER = 2007;
 
 		/**
 		 * Filters for records of the visits relation where the year of visit is equal to a
@@ -169,76 +249,68 @@ public class WebLogAnalysis {
 		}
 	}
 
-	public static void main(String[] args) throws Exception {
-		if (args.length < 4) {
-			System.err.println("Parameters: <docs> <ranks> <visits> <output>.");
-			System.err.println("            If <output> is \"STDOUT\", prints result to the command line.");
-			return;
-		}
+	// *************************************************************************
+	//     UTIL METHODS
+	// *************************************************************************
+	
+	private static boolean fileOutput = false;
+	private static String documentsPath;
+	private static String ranksPath;
+	private static String visitsPath;
+	private static String outputPath;
+	
+	private static void parseParameters(String[] args) {
 		
-		String docsInput   = args[0];
-		String ranksInput  = args[1];
-		String visitsInput = args[2];
-		String output      = args[3];
-
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		/*
-		 * Output Format:
-		 * 0: URL
-		 * 1: DOCUMENT_TEXT
-		 */
-		// Create DataSet for documents relation
-		DataSet<Tuple2<String, String>> docs = env.readCsvFile(docsInput)
-			.fieldDelimiter('|')
-			.types(String.class, String.class);
-
-		/*
-		 * Output Format:
-		 * 0: RANK
-		 * 1: URL
-		 * 2: AVG_DURATION
-		 */
-		// Create DataSet for ranks relation
-		DataSet<Tuple3<Integer, String, Integer>> ranks = env.readCsvFile(ranksInput)
-			.fieldDelimiter('|')
-			.types(Integer.class, String.class, Integer.class);
-
-		/*
-		 * Output Format:
-		 * 0: URL
-		 * 1: DATE
-		 */
-		// Create DataSet for visits relation
-		DataSet<Tuple2<String, String>> visits = env.readCsvFile(visitsInput)
-			.fieldDelimiter('|')
-			.includeFields("011000000")
-			.types(String.class, String.class);
-
-		// Create DataSet for filtering the entries from the documents relation
-		DataSet<Tuple1<String>> filterDocs = docs.filter(new FilterDocs()).project(0).types(String.class);
-
-		// Create DataSet for filtering the entries from the ranks relation
-		DataSet<Tuple3<Integer, String, Integer>> filterRanks = ranks.filter(new FilterRanks());
-
-		// Create DataSet for filtering the entries from the visits relation
-		DataSet<Tuple1<String>> filterVisits = visits.filter(new FilterVisits()).project(0).types(String.class);
-
-		// Create DataSet to join the filtered documents and ranks relation
-		DataSet<Tuple3<Integer, String, Integer>> joinDocsRanks = filterDocs.join(filterRanks)
-			.where(0).equalTo(1).projectSecond(0,1,2).types(Integer.class, String.class, Integer.class);
-
-		// Create DataSet to realize a anti join between the joined
-		// documents and ranks relation and the filtered visits relation
-		DataSet<Tuple3<Integer, String, Integer>> antiJoinVisits = joinDocsRanks.coGroup(filterVisits)
-			.where(1).equalTo(0).with(new AntiJoinVisits());
-
-		if (output.equals("STDOUT")) {
-			antiJoinVisits.print();
+		if(args.length > 0) {
+			fileOutput = true;
+			if(args.length == 4) {
+				documentsPath = args[0];
+				ranksPath = args[1];
+				visitsPath = args[2];
+				outputPath = args[3];
+			} else {
+				System.err.println("Usage: WebLogAnalysis <documents path> <ranks path> <visits path> <result path>");
+				System.exit(1);
+			}
 		} else {
-			antiJoinVisits.writeAsCsv(output, "\n", "|");
+			System.out.println("Executing WebLog Analysis example with built-in default data.");
+			System.out.println("  Provide parameters to read input data from files.");
+			System.out.println("  Usage: WebLogAnalysis <documents path> <ranks path> <visits path> <result path>");
 		}
-
-		env.execute();
 	}
+	
+	private static DataSet<Tuple2<String, String>> getDocumentsDataSet(ExecutionEnvironment env) {
+		// Create DataSet for documents relation (URL, Doc-Text)
+		if(fileOutput) {
+			return env.readCsvFile(documentsPath)
+						.fieldDelimiter('|')
+						.types(String.class, String.class);
+		} else {
+			return WebLogData.getDocumentDataSet(env);
+		}
+	}
+	
+	private static DataSet<Tuple3<Integer, String, Integer>> getRanksDataSet(ExecutionEnvironment env) {
+		// Create DataSet for ranks relation (Rank, URL, Avg-Visit-Duration)
+		if(fileOutput) {
+			return env.readCsvFile(ranksPath)
+						.fieldDelimiter('|')
+						.types(Integer.class, String.class, Integer.class);
+		} else {
+			return WebLogData.getRankDataSet(env);
+		}
+	}
+
+	private static DataSet<Tuple2<String, String>> getVisitsDataSet(ExecutionEnvironment env) {
+		// Create DataSet for visits relation (URL, Date)
+		if(fileOutput) {
+			return env.readCsvFile(visitsPath)
+						.fieldDelimiter('|')
+						.includeFields("011000000")
+						.types(String.class, String.class);
+		} else {
+			return WebLogData.getVisitDataSet(env);
+		}
+	}
+		
 }

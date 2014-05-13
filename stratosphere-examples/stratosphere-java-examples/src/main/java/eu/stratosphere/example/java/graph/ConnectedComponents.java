@@ -23,6 +23,7 @@ import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.example.java.graph.util.ConnectedComponentsData;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -35,33 +36,41 @@ import eu.stratosphere.util.Collector;
  * their current component ids, and the workset as the changed vertices. Because we see all vertices initially as
  * changed, the initial workset and the initial solution set are identical. Also, the delta to the solution set
  * is consequently also the next workset.
+ * 
+ * <p>
+ * Input files are plain text files must be formatted as follows:
+ * <ul>
+ * <li>Vertexes represented as IDs and separated by new-line characters.<br> 
+ * For example <code>"1\n2\n12\n42\n63\n"</code> gives five vertices (1), (2), (12), (42), and (63). 
+ * <li>Edges are represented as pairs for vertex IDs which are separated by space 
+ * characters. Edges are separated by new-line characters.<br>
+ * For example <code>"1 2\n2 12\n1 12\n42 63\n"</code> gives four (undirected) edges (1)-(2), (2)-(12), (1)-(12), and (42)-(63).
+ * </ul>
+ * 
+ * <p>
+ * This example shows how to use:
+ * <ul>
+ * <li>Delta Iterations
+ * <li>Generic-typed Functions 
+ * </ul>
  */
 @SuppressWarnings("serial")
 public class ConnectedComponents implements ProgramDescription {
 	
+	// *************************************************************************
+	//     PROGRAM
+	// *************************************************************************
+	
 	public static void main(String... args) throws Exception {
-		if (args.length < 4) {
-			System.err.println("Parameters: <vertices-path> <edges-path> <result-path> <max-number-of-iterations>");
-			return;
-		}
 		
-		final int maxIterations = Integer.parseInt(args[3]);
+		parseParameters(args);
 		
+		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
-		DataSet<Long> vertices = env.readCsvFile(args[0]).types(Long.class).map(new MapFunction<Tuple1<Long>, Long>() {
-			public Long map(Tuple1<Long> value) { return value.f0; } });
-		
-		DataSet<Tuple2<Long, Long>> edges = env.readCsvFile(args[1]).fieldDelimiter(' ').types(Long.class, Long.class);
-		
-		DataSet<Tuple2<Long, Long>> result = doConnectedComponents(vertices, edges, maxIterations);
-		
-		result.writeAsCsv(args[2], "\n", " ");
-		env.execute("Connected Components");
-	}
-	
-	
-	public static DataSet<Tuple2<Long, Long>> doConnectedComponents(DataSet<Long> vertices, DataSet<Tuple2<Long, Long>> edges, int maxIterations) {
+		// read vertex and edge data
+		DataSet<Long> vertices = getVertexDataSet(env);
+		DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env);
 		
 		// assign the initial components (equal to the vertex id.
 		DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices.map(new DuplicateValue<Long>());
@@ -77,8 +86,23 @@ public class ConnectedComponents implements ProgramDescription {
 				.flatMap(new ComponentIdFilter());
 
 		// close the delta iteration (delta and new workset are identical)
-		return iteration.closeWith(changes, changes);
+		DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
+		
+		// emit result
+		if(fileOutput) {
+			result.writeAsCsv(outputPath, "\n", " ");
+		} else {
+			result.print();
+		}
+				
+		// execute program
+		env.execute("Connected Components Example");
+				
 	}
+	
+	// *************************************************************************
+	//     USER FUNCTIONS
+	// *************************************************************************
 	
 	/**
 	 * Function that turns a value into a 2-tuple where both fields are that value.
@@ -121,4 +145,59 @@ public class ConnectedComponents implements ProgramDescription {
 	public String getDescription() {
 		return "Parameters: <vertices-path> <edges-path> <result-path> <max-number-of-iterations>";
 	}
+	
+	// *************************************************************************
+	//     UTIL METHODS
+	// *************************************************************************
+	
+	private static boolean fileOutput = false;
+	private static String verticesPath = null;
+	private static String edgesPath = null;
+	private static String outputPath = null;
+	private static int maxIterations = 10;
+	
+	private static void parseParameters(String[] programArguments) {
+		
+		if(programArguments.length > 0) {
+			// parse input arguments
+			fileOutput = true;
+			if(programArguments.length == 4) {
+				verticesPath = programArguments[0];
+				edgesPath = programArguments[1];
+				outputPath = programArguments[2];
+				maxIterations = Integer.parseInt(programArguments[3]);
+			} else {
+				System.err.println("Usage: ConnectedComponents <vertices path> <edges path> <result path> <max number of iterations>");
+				System.exit(1);
+			}
+		} else {
+			System.out.println("Executing Connected Components example with default parameters and built-in default data.");
+			System.out.println("  Provide parameters to read input data from files.");
+			System.out.println("  Usage: ConnectedComponents <vertices path> <edges path> <result path> <max number of iterations>");
+		}
+	}
+	
+	private static DataSet<Long> getVertexDataSet(ExecutionEnvironment env) {
+		
+		if(fileOutput) {
+			return env.readCsvFile(verticesPath).types(Long.class)
+						.map(
+								new MapFunction<Tuple1<Long>, Long>() {
+									public Long map(Tuple1<Long> value) { return value.f0; }
+								});
+		} else {
+			return ConnectedComponentsData.getDefaultVertexDataSet(env);
+		}
+	}
+	
+	private static DataSet<Tuple2<Long, Long>> getEdgeDataSet(ExecutionEnvironment env) {
+		
+		if(fileOutput) {
+			return env.readCsvFile(edgesPath).fieldDelimiter(' ').types(Long.class, Long.class); 
+		} else {
+			return ConnectedComponentsData.getDefaultEdgeDataSet(env);
+		}
+	}
+	
+	
 }
