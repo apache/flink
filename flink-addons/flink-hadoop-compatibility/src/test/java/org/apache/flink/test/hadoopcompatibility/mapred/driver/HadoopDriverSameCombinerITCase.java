@@ -15,19 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.test.hadoopcompatibility.mapred.driver;
+
+import org.apache.flink.test.hadoopcompatibility.HadoopTestBase;
+import org.apache.flink.test.testdata.WordCountData;
+
+public class HadoopDriverSameCombinerITCase extends HadoopTestBase {
+
+	protected String textPath;
+	protected String resultPath;
 
 
-package org.apache.flink.hadoopcompatibility.mapred.wrapper;
-
-import org.apache.hadoop.util.Progressable;
-
-/**
- * This is a dummy progress
- *
- */
-public class HadoopDummyProgressable implements Progressable {
 	@Override
-	public void progress() {
-		throw new UnsupportedOperationException();
+	protected void preSubmit() throws Exception {
+		textPath = createTempFile("text.txt", WordCountData.TEXT);
+		resultPath = getTempDirPath("result");
+	}
+
+	@Override
+	protected void postSubmit() throws Exception {
+		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath + "/1");
+	}
+
+	@Override
+	protected void testProgram() throws Exception {
+		HadoopWordCountVariations.WordCountSameCombiner.main(new String[]{textPath, resultPath});
 	}
 }
+

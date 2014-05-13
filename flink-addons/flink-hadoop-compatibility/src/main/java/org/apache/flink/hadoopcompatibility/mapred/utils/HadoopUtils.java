@@ -19,15 +19,15 @@
 
 package org.apache.flink.hadoopcompatibility.mapred.utils;
 
-import java.lang.reflect.Constructor;
-import java.util.Map;
-
 import org.apache.flink.runtime.fs.hdfs.DistributedFileSystem;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.apache.hadoop.mapred.TaskAttemptID;
+
+import java.lang.reflect.Constructor;
+import java.util.Map;
 
 
 public class HadoopUtils {
