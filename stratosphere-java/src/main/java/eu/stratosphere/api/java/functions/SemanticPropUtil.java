@@ -24,15 +24,15 @@ import eu.stratosphere.api.common.operators.SemanticProperties;
 import eu.stratosphere.api.common.operators.SingleInputSemanticProperties;
 import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.api.java.functions.FunctionAnnotation.ConstantFields;
+import eu.stratosphere.api.java.functions.FunctionAnnotation.ConstantFieldsExcept;
 import eu.stratosphere.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.api.java.functions.FunctionAnnotation.ConstantFieldsSecond;
 import eu.stratosphere.api.java.functions.FunctionAnnotation.ConstantFieldsFirstExcept;
+import eu.stratosphere.api.java.functions.FunctionAnnotation.ConstantFieldsSecond;
 import eu.stratosphere.api.java.functions.FunctionAnnotation.ConstantFieldsSecondExcept;
+import eu.stratosphere.api.java.functions.FunctionAnnotation.ReadFields;
 import eu.stratosphere.api.java.functions.FunctionAnnotation.ReadFieldsFirst;
 import eu.stratosphere.api.java.functions.FunctionAnnotation.ReadFieldsSecond;
-import eu.stratosphere.api.java.functions.FunctionAnnotation.ConstantFieldsExcept;
-import eu.stratosphere.api.java.functions.FunctionAnnotation.ReadFields;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 
 public class SemanticPropUtil {
 

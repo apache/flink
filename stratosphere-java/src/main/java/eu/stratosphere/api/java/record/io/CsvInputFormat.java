@@ -20,8 +20,8 @@ import com.google.common.base.Preconditions;
 import eu.stratosphere.api.common.io.GenericCsvInputFormat;
 import eu.stratosphere.api.common.io.ParseException;
 import eu.stratosphere.api.common.operators.CompilerHints;
-import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.IllegalConfigurationException;
 import eu.stratosphere.core.fs.FileInputSplit;
@@ -290,7 +290,7 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 		 *                 If contract is null, new compiler hints are generated.  
 		 * @param config The configuration into which the parameters will be written.
 		 */
-		protected AbstractConfigBuilder(Operator contract, Configuration config) {
+		protected AbstractConfigBuilder(Operator<?> contract, Configuration config) {
 			super(config);
 			
 			if (contract != null) {
@@ -356,7 +356,7 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 	 */
 	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder> {
 		
-		protected ConfigBuilder(Operator target, Configuration targetConfig) {
+		protected ConfigBuilder(Operator<?> target, Configuration targetConfig) {
 			super(target, targetConfig);
 		}
 	}

@@ -14,6 +14,7 @@
 package eu.stratosphere.api.common.operators.base;
 
 import eu.stratosphere.api.common.functions.GenericJoiner;
+import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
 import eu.stratosphere.api.common.operators.DualInputOperator;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
@@ -22,17 +23,17 @@ import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 /**
  * @see GenericJoiner
  */
-public class JoinOperatorBase<T extends GenericJoiner<?, ?, ?>> extends DualInputOperator<T>
+public class JoinOperatorBase<IN1, IN2, OUT, FT extends GenericJoiner<IN1, IN2, OUT>> extends DualInputOperator<IN1, IN2, OUT, FT>
 {
-	public JoinOperatorBase(UserCodeWrapper<T> udf, int[] keyPositions1, int[] keyPositions2, String name) {
-		super(udf, keyPositions1, keyPositions2, name);
+	public JoinOperatorBase(UserCodeWrapper<FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
+		super(udf, operatorInfo, keyPositions1, keyPositions2, name);
 	}
 	
-	public JoinOperatorBase(T udf, int[] keyPositions1, int[] keyPositions2, String name) {
-		super(new UserCodeObjectWrapper<T>(udf), keyPositions1, keyPositions2, name);
+	public JoinOperatorBase(FT udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
+		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, keyPositions1, keyPositions2, name);
 	}
 	
-	public JoinOperatorBase(Class<? extends T> udf, int[] keyPositions1, int[] keyPositions2, String name) {
-		super(new UserCodeClassWrapper<T>(udf), keyPositions1, keyPositions2, name);
+	public JoinOperatorBase(Class<? extends FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
+		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, keyPositions1, keyPositions2, name);
 	}
 }

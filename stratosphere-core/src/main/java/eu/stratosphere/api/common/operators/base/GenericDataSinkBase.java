@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.api.common.operators;
+package eu.stratosphere.api.common.operators.base;
 
 import java.util.List;
 
@@ -19,253 +19,127 @@ import com.google.common.base.Preconditions;
 
 import eu.stratosphere.api.common.distributions.DataDistribution;
 import eu.stratosphere.api.common.io.OutputFormat;
-import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
+import eu.stratosphere.types.Nothing;
 import eu.stratosphere.util.Visitor;
 
 /**
  * Operator for nodes that act as data sinks, storing the data they receive.
- * The way the data is stored is handled by the {@link OutputFormat}.
+ * The way the data is stored is handled by the {@link eu.stratosphere.api.common.io.OutputFormat}.
  */
-public class GenericDataSink extends Operator {
-	
-	private static String DEFAULT_NAME = "<Unnamed Generic Data Sink>";
+public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 
-	// --------------------------------------------------------------------------------------------
-	
-	protected final UserCodeWrapper<? extends OutputFormat<?>> formatWrapper;
+	protected final UserCodeWrapper<? extends OutputFormat<IN>> formatWrapper;
 
-	private Operator input = null;
+	protected Operator<IN> input = null;
 
 	private Ordering localOrdering;
-	
+
 	private Ordering partitionOrdering;
-	
+
 	private DataDistribution distribution;
 
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation 
-	 * and the given name. 
-	 * 
-	 * @param f The {@link OutputFormat} implementation used to sink the data.
+	 * Creates a GenericDataSink with the provided {@link eu.stratosphere.api.common.io.OutputFormat} implementation
+	 * and the given name.
+	 *
+	 * @param f The {@link eu.stratosphere.api.common.io.OutputFormat} implementation used to sink the data.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(OutputFormat<?> f, String name) {
-		super(name);
-		
+	public GenericDataSinkBase(OutputFormat<IN> f, UnaryOperatorInformation<IN, Nothing> operatorInfo, String name) {
+		super(operatorInfo, name);
+
 		Preconditions.checkNotNull(f, "The OutputFormat may not be null.");
-		this.formatWrapper = new UserCodeObjectWrapper<OutputFormat<?>>(f);
-	}
-
-	
-	/**
-	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation
-	 * and a default name.
-	 * 
-	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 */
-	public GenericDataSink(OutputFormat<?> f) {
-		this(f, DEFAULT_NAME);
-	}
-	
-	/**
-	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation the default name.
-	 * It uses the given operator as its input.
-	 * 
-	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 * @param input The operator to use as the input.
-	 */
-	public GenericDataSink(OutputFormat<?> f, Operator input) {
-		this(f, input, DEFAULT_NAME);
-	}
-	
-	/**
-	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation the default name.
-	 * It uses the given contracts as its input.
-	 * 
-	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 * @param input The contracts to use as the input.
-	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
-	 */
-	@Deprecated
-	public GenericDataSink(OutputFormat<?> f, List<Operator> input) {
-		this(f, input, DEFAULT_NAME);
+		this.formatWrapper = new UserCodeObjectWrapper<OutputFormat<IN>>(f);
 	}
 
 	/**
-	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation and the given name.
-	 * It uses the given operator as its input.
-	 * 
-	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 * @param input The operator to use as the input.
+	 * Creates a GenericDataSink with the provided {@link eu.stratosphere.api.common.io.OutputFormat} implementation
+	 * and the given name.
+	 *
+	 * @param f The {@link eu.stratosphere.api.common.io.OutputFormat} implementation used to sink the data.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public GenericDataSink(OutputFormat<?> f, Operator input, String name) {
-		this(f, name);
-		setInput(input);
-	}
-
-	/**
-	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation and the given name.
-	 * It uses the given contracts as its input.
-	 * 
-	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 * @param input The contracts to use as the input.
-	 * @param name The given name for the sink, used in plans, logs and progress messages.
-	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
-	 */
-	@Deprecated
-	public GenericDataSink(OutputFormat<?> f, List<Operator> input, String name) {
-		this(f, name);
-		setInputs(input);
-	}
-	
-	/**
-	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation 
-	 * and the given name. 
-	 * 
-	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 * @param name The given name for the sink, used in plans, logs and progress messages.
-	 */
-	public GenericDataSink(Class<? extends OutputFormat<?>> f, String name) {
-		super(name);
+	public GenericDataSinkBase(UserCodeWrapper<? extends OutputFormat<IN>> f, UnaryOperatorInformation<IN, Nothing> operatorInfo, String name) {
+		super(operatorInfo, name);
 		Preconditions.checkNotNull(f, "The OutputFormat class may not be null.");
-		this.formatWrapper = new UserCodeClassWrapper<OutputFormat<?>>(f);
-	}
-
-	
-	/**
-	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation
-	 * and a default name.
-	 * 
-	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 */
-	public GenericDataSink(Class<? extends OutputFormat<?>> f) {
-		this(f, DEFAULT_NAME);
-	}
-	
-	/**
-	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation the default name.
-	 * It uses the given operator as its input.
-	 * 
-	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 * @param input The operator to use as the input.
-	 */
-	public GenericDataSink(Class<? extends OutputFormat<?>> f, Operator input) {
-		this(f, input, DEFAULT_NAME);
-	}
-	
-	/**
-	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation the default name.
-	 * It uses the given contracts as its input.
-	 * 
-	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 * @param input The contracts to use as the input.
-	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
-	 */
-	@Deprecated
-	public GenericDataSink(Class<? extends OutputFormat<?>> f, List<Operator> input) {
-		this(f, input, DEFAULT_NAME);
-	}
-
-	/**
-	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation and the given name.
-	 * It uses the given operator as its input.
-	 * 
-	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 * @param input The operator to use as the input.
-	 * @param name The given name for the sink, used in plans, logs and progress messages.
-	 */
-	public GenericDataSink(Class<? extends OutputFormat<?>> f, Operator input, String name) {
-		this(f, name);
-		setInput(input);
-	}
-
-	/**
-	 * Creates a GenericDataSink with the provided {@link OutputFormat} implementation and the given name.
-	 * It uses the given contracts as its input.
-	 * 
-	 * @param f The {@link OutputFormat} implementation used to sink the data.
-	 * @param input The contracts to use as the input.
-	 * @param name The given name for the sink, used in plans, logs and progress messages.
-	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
-	 */
-	@Deprecated
-	public GenericDataSink(Class<? extends OutputFormat<?>> f, List<Operator> input, String name) {
-		this(f, name);
-		setInputs(input);
+		this.formatWrapper = f;
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Returns this operator's input operator.
-	 * 
+	 *
 	 * @return This operator's input.
 	 */
-	public Operator getInput() {
+	public Operator<IN> getInput() {
 		return this.input;
 	}
-	
+
 	/**
 	 * Sets the given operator as the input to this operator.
-	 * 
+	 *
 	 * @param input The operator to use as the input.
 	 */
-	public void setInput(Operator input) {
+	public void setInput(Operator<IN> input) {
 		Preconditions.checkNotNull(input, "The input may not be null.");
 		this.input = input;
 	}
-	
+
 	/**
 	 * Sets the input to the union of the given operators.
-	 * 
+	 *
 	 * @param inputs The operator(s) that form the input.
-	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 * @deprecated This method will be removed in future versions. Use the {@link eu.stratosphere.api.common.operators.Union} operator instead.
 	 */
 	@Deprecated
-	public void setInputs(Operator... inputs) {
+	public void setInputs(Operator<IN>... inputs) {
 		Preconditions.checkNotNull(inputs, "The inputs may not be null.");
 		this.input = Operator.createUnionCascade(inputs);
 	}
-	
+
 	/**
 	 * Sets the input to the union of the given operators.
-	 * 
+	 *
 	 * @param inputs The operator(s) that form the input.
-	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 * @deprecated This method will be removed in future versions. Use the {@link eu.stratosphere.api.common.operators.Union} operator instead.
 	 */
 	@Deprecated
-	public void setInputs(List<Operator> inputs) {
+	public void setInputs(List<Operator<IN>> inputs) {
 		Preconditions.checkNotNull(inputs, "The inputs may not be null.");
 		this.input = Operator.createUnionCascade(inputs);
 	}
-	
+
 	/**
 	 * Adds to the input the union of the given operators.
-	 * 
+	 *
 	 * @param inputs The operator(s) to be unioned with the input.
-	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 * @deprecated This method will be removed in future versions. Use the {@link eu.stratosphere.api.common.operators.Union} operator instead.
 	 */
 	@Deprecated
-	public void addInput(Operator... inputs) {
+	public void addInput(Operator<IN>... inputs) {
 		Preconditions.checkNotNull(inputs, "The input may not be null.");
 		this.input = Operator.createUnionCascade(this.input, inputs);
 	}
 
 	/**
 	 * Adds to the input the union of the given operators.
-	 * 
+	 *
 	 * @param inputs The operator(s) to be unioned with the input.
-	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 * @deprecated This method will be removed in future versions. Use the {@link eu.stratosphere.api.common.operators.Union} operator instead.
 	 */
+	@SuppressWarnings("unchecked")
 	@Deprecated
-	public void addInputs(List<? extends Operator> inputs) {
+	public void addInputs(List<? extends Operator<IN>> inputs) {
 		Preconditions.checkNotNull(inputs, "The inputs may not be null.");
-		this.input = createUnionCascade(this.input, inputs.toArray(new Operator[inputs.size()]));
+		this.input = createUnionCascade(this.input, (Operator<IN>[]) inputs.toArray(new Operator[inputs.size()]));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -372,7 +246,7 @@ public class GenericDataSink extends Operator {
 	 * 
 	 * @return The output format class.
 	 */
-	public UserCodeWrapper<? extends OutputFormat<?>> getFormatWrapper() {
+	public UserCodeWrapper<? extends OutputFormat<IN>> getFormatWrapper() {
 		return this.formatWrapper;
 	}
 	
@@ -386,7 +260,7 @@ public class GenericDataSink extends Operator {
 	 * @see eu.stratosphere.api.common.operators.Operator#getUserCodeWrapper()
 	 */
 	@Override
-	public UserCodeWrapper<? extends OutputFormat<?>> getUserCodeWrapper() {
+	public UserCodeWrapper<? extends OutputFormat<IN>> getUserCodeWrapper() {
 		return this.formatWrapper;
 	}
 
@@ -403,7 +277,7 @@ public class GenericDataSink extends Operator {
 	 * @see eu.stratosphere.util.Visitable#accept(eu.stratosphere.util.Visitor)
 	 */
 	@Override
-	public void accept(Visitor<Operator> visitor) {
+	public void accept(Visitor<Operator<?>> visitor) {
 		boolean descend = visitor.preVisit(this);
 		if (descend) {
 			this.input.accept(visitor);

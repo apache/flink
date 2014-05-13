@@ -11,22 +11,27 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.api.common.operators;
+package eu.stratosphere.api.common.operators.base;
 
 import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.common.functions.AbstractFunction;
+import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
+import eu.stratosphere.api.common.operators.DualInputOperator;
+import eu.stratosphere.api.common.operators.IterationOperator;
+import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.OperatorInformation;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.util.Visitor;
 
 /**
- * A DeltaIteration is similar to a {@link BulkIteration}, 
+ * A DeltaIteration is similar to a {@link BulkIterationBase},
  * but maintains state across the individual iteration steps. The state is called the <i>solution set</i>, can be obtained
  * via {@link #getSolutionSet()}, and be accessed by joining (or CoGrouping) with it. The solution
  * set is updated by producing a delta for it, which is merged into the solution set at the end of each iteration step.
  * <p>
- * The delta iteration must be closed by setting a delta for the solution set ({@link #setSolutionSetDelta(Operator)})
- * and the new workset (the data set that will be fed back, {@link #setNextWorkset(Operator)}).
+ * The delta iteration must be closed by setting a delta for the solution set ({@link #setSolutionSetDelta(eu.stratosphere.api.common.operators.Operator)})
+ * and the new workset (the data set that will be fed back, {@link #setNextWorkset(eu.stratosphere.api.common.operators.Operator)}).
  * The DeltaIteration itself represents the result after the iteration has terminated.
  * Delta iterations terminate when the feed back data set (the workset) is empty.
  * In addition, a maximum number of steps is given as a fall back termination guard.
@@ -37,45 +42,47 @@ import eu.stratosphere.util.Visitor;
  * This class is a subclass of {@code DualInputOperator}. The solution set is considered the first input, the
  * workset is considered the second input.
  */
-public class DeltaIteration extends DualInputOperator<AbstractFunction> implements IterationOperator {
-	
-	private final Operator solutionSetPlaceholder = new SolutionSetPlaceHolder(this);
+public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, AbstractFunction> implements IterationOperator {
 
-	private final Operator worksetPlaceholder = new WorksetPlaceHolder(this);
+	private final Operator<ST> solutionSetPlaceholder;
 
-	private Operator solutionSetDelta;
+	private final Operator<WT> worksetPlaceholder;
 
-	private Operator nextWorkset;
-	
+	private Operator<ST> solutionSetDelta;
+
+	private Operator<WT> nextWorkset;
+
 	/**
 	 * The positions of the keys in the solution tuple.
 	 */
 	private final int[] solutionSetKeyFields;
-	
+
 	/**
 	 * The maximum number of iterations. Possibly used only as a safeguard.
 	 */
 	private int maxNumberOfIterations = -1;
-	
+
 	private final AggregatorRegistry aggregators = new AggregatorRegistry();
-	
+
 	// --------------------------------------------------------------------------------------------
 
-	public DeltaIteration(int keyPosition) {
-		this(new int[] {keyPosition});
-	}
-	
-	public DeltaIteration(int[] keyPositions) {
-		this(keyPositions, "<Unnamed Workset-Iteration>");
+	public DeltaIterationBase(BinaryOperatorInformation<ST, WT, ST> operatorInfo, int keyPosition) {
+		this(operatorInfo, new int[] {keyPosition});
 	}
 
-	public DeltaIteration(int keyPosition, String name) {
-		this(new int[] {keyPosition}, name);
+	public DeltaIterationBase(BinaryOperatorInformation<ST, WT, ST> operatorInfo, int[] keyPositions) {
+		this(operatorInfo, keyPositions, "<Unnamed Workset-Iteration>");
 	}
-	
-	public DeltaIteration(int[] keyPositions, String name) {
-		super(new UserCodeClassWrapper<AbstractFunction>(AbstractFunction.class), name);
+
+	public DeltaIterationBase(BinaryOperatorInformation<ST, WT, ST> operatorInfo, int keyPosition, String name) {
+		this(operatorInfo, new int[] {keyPosition}, name);
+	}
+
+	public DeltaIterationBase(BinaryOperatorInformation<ST, WT, ST> operatorInfo, int[] keyPositions, String name) {
+		super(new UserCodeClassWrapper<AbstractFunction>(AbstractFunction.class), operatorInfo, name);
 		this.solutionSetKeyFields = keyPositions;
+		solutionSetPlaceholder = new SolutionSetPlaceHolder<ST>(this, new OperatorInformation<ST>(operatorInfo.getFirstInputType()));
+		worksetPlaceholder = new WorksetPlaceHolder<WT>(this, new OperatorInformation<WT>(operatorInfo.getSecondInputType()));
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -106,7 +113,7 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	 * 
 	 * @return The solution set for the step function.
 	 */
-	public Operator getSolutionSet() {
+	public Operator<ST> getSolutionSet() {
 		return this.solutionSetPlaceholder;
 	}
 
@@ -115,7 +122,7 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	 * 
 	 * @return The workset for the step function.
 	 */
-	public Operator getWorkset() {
+	public Operator<WT> getWorkset() {
 		return this.worksetPlaceholder;
 	}
 
@@ -125,7 +132,7 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	 * 
 	 * @param result The contract representing the next workset.
 	 */
-	public void setNextWorkset(Operator result) {
+	public void setNextWorkset(Operator<WT> result) {
 		this.nextWorkset = result;
 	}
 	
@@ -134,7 +141,7 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	 * 
 	 * @return The contract that has been set as the next workset.
 	 */
-	public Operator getNextWorkset() {
+	public Operator<WT> getNextWorkset() {
 		return this.nextWorkset;
 	}
 	
@@ -144,7 +151,7 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	 * 
 	 * @param delta The contract representing the solution set delta.
 	 */
-	public void setSolutionSetDelta(Operator delta) {
+	public void setSolutionSetDelta(Operator<ST> delta) {
 		this.solutionSetDelta = delta;
 	}
 	
@@ -153,7 +160,7 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	 * 
 	 * @return The contract that has been set as the solution set delta.
 	 */
-	public Operator getSolutionSetDelta() {
+	public Operator<ST> getSolutionSetDelta() {
 		return this.solutionSetDelta;
 	}
 
@@ -166,7 +173,7 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	 * 
 	 * @return The iteration's initial solution set input.
 	 */
-	public Operator getInitialSolutionSet() {
+	public Operator<ST> getInitialSolutionSet() {
 		return getFirstInput();
 	}
 	
@@ -175,7 +182,7 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	 * 
 	 * @return The iteration's workset input.
 	 */
-	public Operator getInitialWorkset() {
+	public Operator<WT> getInitialWorkset() {
 		return getSecondInput();
 	}
 	
@@ -184,7 +191,7 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	 * 
 	 * @param input The contract to set the initial solution set.
 	 */
-	public void setInitialSolutionSet(Operator input) {
+	public void setInitialSolutionSet(Operator<ST> input) {
 		setFirstInput(input);
 	}
 	
@@ -193,7 +200,7 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	 * 
 	 * @param input The contract to set as the initial workset.
 	 */
-	public void setInitialWorkset(Operator input) {
+	public void setInitialWorkset(Operator<WT> input) {
 		setSecondInput(input);
 	}
 	
@@ -205,21 +212,21 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	 * Specialized operator to use as a recognizable place-holder for the working set input to the
 	 * step function.
 	 */
-	public static class WorksetPlaceHolder extends Operator {
+	public static class WorksetPlaceHolder<WT> extends Operator<WT> {
 
-		private final DeltaIteration containingIteration;
+		private final DeltaIterationBase<?, WT> containingIteration;
 
-		public WorksetPlaceHolder(DeltaIteration container) {
-			super("Workset Place Holder");
+		public WorksetPlaceHolder(DeltaIterationBase<?, WT> container, OperatorInformation<WT> operatorInfo) {
+			super(operatorInfo, "Workset Place Holder");
 			this.containingIteration = container;
 		}
 
-		public DeltaIteration getContainingWorksetIteration() {
+		public DeltaIterationBase<?, WT> getContainingWorksetIteration() {
 			return this.containingIteration;
 		}
 
 		@Override
-		public void accept(Visitor<Operator> visitor) {
+		public void accept(Visitor<Operator<?>> visitor) {
 			visitor.preVisit(this);
 			visitor.postVisit(this);
 		}
@@ -234,21 +241,21 @@ public class DeltaIteration extends DualInputOperator<AbstractFunction> implemen
 	 * Specialized operator to use as a recognizable place-holder for the solution set input to the
 	 * step function.
 	 */
-	public static class SolutionSetPlaceHolder extends Operator {
+	public static class SolutionSetPlaceHolder<ST> extends Operator<ST> {
 
-		private final DeltaIteration containingIteration;
+		private final DeltaIterationBase<ST, ?> containingIteration;
 
-		public SolutionSetPlaceHolder(DeltaIteration container) {
-			super("Solution Set Place Holder");
+		public SolutionSetPlaceHolder(DeltaIterationBase<ST, ?> container, OperatorInformation<ST> operatorInfo) {
+			super(operatorInfo, "Solution Set Place Holder");
 			this.containingIteration = container;
 		}
 
-		public DeltaIteration getContainingWorksetIteration() {
+		public DeltaIterationBase<ST, ?> getContainingWorksetIteration() {
 			return this.containingIteration;
 		}
 
 		@Override
-		public void accept(Visitor<Operator> visitor) {
+		public void accept(Visitor<Operator<?>> visitor) {
 			visitor.preVisit(this);
 			visitor.postVisit(this);
 		}

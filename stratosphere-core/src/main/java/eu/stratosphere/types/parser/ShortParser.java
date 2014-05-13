@@ -14,7 +14,7 @@
 package eu.stratosphere.types.parser;
 
 /**
- * Parses a decimal text field into a {@link ShortValue}.
+ * Parses a decimal text field into a {@link Short}.
  * Only characters '1' to '0' and '-' are allowed.
  * The parser does not check for the maximum value.
  */

@@ -14,21 +14,28 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import eu.stratosphere.api.common.functions.GenericMap;
+import eu.stratosphere.api.common.functions.GenericReduce;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
+import eu.stratosphere.api.common.operators.base.MapOperatorBase;
+import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
 import eu.stratosphere.api.java.operators.translation.KeyRemovingMapper;
-import eu.stratosphere.api.java.operators.translation.PlanMapOperator;
-import eu.stratosphere.api.java.operators.translation.PlanReduceOperator;
 import eu.stratosphere.api.java.operators.translation.PlanUnwrappingReduceOperator;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 
 /**
- *
+ * This operator represents the application of a "reduce" function on a data set, and the
+ * result data set produced by the function.
+ * 
  * @param <IN> The type of the data set reduced by the operator.
+ * 
+ * @see ReduceFunction
  */
 public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOperator<IN>> {
 	
@@ -52,6 +59,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		
 		this.function = function;
 		this.grouper = null;
+		
+		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 	
 	
@@ -64,16 +73,21 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		
 		this.function = function;
 		this.grouper = input;
+		
+		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 
 	@Override
-	protected eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.SingleInputOperator<?, IN, ?> translateToDataFlow(Operator<IN> input) {
+		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		
 		// distinguish between grouped reduce and non-grouped reduce
 		if (grouper == null) {
 			// non grouped reduce
-			PlanReduceOperator<IN> po = new PlanReduceOperator<IN>(function, new int[0], name, getInputType());
+			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getInputType());
+			ReduceOperatorBase<IN, GenericReduce<IN>> po =
+					new ReduceOperatorBase<IN, GenericReduce<IN>>(function, operatorInfo, new int[0], name);
 			// set input
 			po.setInput(input);
 			
@@ -89,14 +103,16 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			@SuppressWarnings("unchecked")
 			Keys.SelectorFunctionKeys<IN, ?> selectorKeys = (Keys.SelectorFunctionKeys<IN, ?>) grouper.getKeys();
 			
-			PlanMapOperator<?, IN> po = translateSelectorFunctionReducer(selectorKeys, function, getInputType(), name, input, this.getParallelism());			
+			MapOperatorBase<?, IN, ?> po = translateSelectorFunctionReducer(selectorKeys, function, getInputType(), name, input, this.getParallelism());
 			return po;
 		}
 		else if (grouper.getKeys() instanceof Keys.FieldPositionKeys) {
 			
 			// reduce with field positions
 			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
-			PlanReduceOperator<IN> po = new PlanReduceOperator<IN>(function, logicalKeyPositions, name, getInputType());
+			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getInputType());
+			ReduceOperatorBase<IN, GenericReduce<IN>> po =
+					new ReduceOperatorBase<IN, GenericReduce<IN>>(function, operatorInfo, logicalKeyPositions, name);
 			
 			// set input
 			po.setInput(input);
@@ -113,8 +129,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static <T, K> PlanMapOperator<Tuple2<K, T>, T> translateSelectorFunctionReducer(Keys.SelectorFunctionKeys<T, ?> rawKeys,
-			ReduceFunction<T> function, TypeInformation<T> inputType, String name, Operator input, int dop)
+	private static <T, K> MapOperatorBase<Tuple2<K, T>, T, ?> translateSelectorFunctionReducer(Keys.SelectorFunctionKeys<T, ?> rawKeys,
+			ReduceFunction<T> function, TypeInformation<T> inputType, String name, Operator<T> input, int dop)
 	{
 		@SuppressWarnings("unchecked")
 		final Keys.SelectorFunctionKeys<T, K> keys = (Keys.SelectorFunctionKeys<T, K>) rawKeys;
@@ -125,8 +141,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		
 		PlanUnwrappingReduceOperator<T, K> reducer = new PlanUnwrappingReduceOperator<T, K>(function, keys, name, inputType, typeInfoWithKey);
 		
-		PlanMapOperator<T, Tuple2<K, T>> keyExtractingMap = new PlanMapOperator<T, Tuple2<K, T>>(extractor, "Key Extractor", inputType, typeInfoWithKey);
-		PlanMapOperator<Tuple2<K, T>, T> keyRemovingMap = new PlanMapOperator<Tuple2<K, T>, T>(new KeyRemovingMapper<T, K>(), "Key Remover", typeInfoWithKey, inputType);
+		MapOperatorBase<T, Tuple2<K, T>, GenericMap<T, Tuple2<K, T>>> keyExtractingMap = new MapOperatorBase<T, Tuple2<K, T>, GenericMap<T, Tuple2<K, T>>>(extractor, new UnaryOperatorInformation<T, Tuple2<K, T>>(inputType, typeInfoWithKey), "Key Extractor");
+		MapOperatorBase<Tuple2<K, T>, T, GenericMap<Tuple2<K, T>, T>> keyRemovingMap = new MapOperatorBase<Tuple2<K, T>, T, GenericMap<Tuple2<K, T>, T>>(new KeyRemovingMapper<T, K>(), new UnaryOperatorInformation<Tuple2<K, T>, T>(typeInfoWithKey, inputType), "Key Extractor");
 
 		keyExtractingMap.setInput(input);
 		reducer.setInput(keyExtractingMap);

@@ -17,20 +17,24 @@ package eu.stratosphere.api.java.operators;
 import java.security.InvalidParameterException;
 
 import eu.stratosphere.api.common.InvalidProgramException;
+import eu.stratosphere.api.common.functions.GenericCoGrouper;
+import eu.stratosphere.api.common.functions.GenericMap;
+import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
+import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
+import eu.stratosphere.api.common.operators.base.MapOperatorBase;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
 import eu.stratosphere.api.java.functions.KeySelector;
 import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
-import eu.stratosphere.api.java.operators.translation.PlanCogroupOperator;
-import eu.stratosphere.api.java.operators.translation.PlanMapOperator;
 import eu.stratosphere.api.java.operators.translation.PlanUnwrappingCoGroupOperator;
 import eu.stratosphere.api.java.operators.translation.TupleKeyExtractingMapper;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 
 /**
  * A {@link DataSet} that is the result of a CoGroup transformation. 
@@ -64,6 +68,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 		this.keys1 = keys1;
 		this.keys2 = keys2;
+		
+		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 
 	protected Keys<I1> getKeys1() {
@@ -75,8 +81,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	}
 
 	@Override
-	protected eu.stratosphere.api.common.operators.DualInputOperator<?> translateToDataFlow(Operator input1, Operator input2) {
-
+	protected eu.stratosphere.api.common.operators.base.CoGroupOperatorBase<?, ?, OUT, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
+		
 		String name = getName() != null ? getName() : function.getClass().getName();
 
 		if (keys1 instanceof Keys.SelectorFunctionKeys
@@ -105,11 +111,12 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 			int[] logicalKeyPositions1 = keys1.computeLogicalKeyPositions();
 			int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
-
-			PlanCogroupOperator<I1, I2, OUT> po =
-					new PlanCogroupOperator<I1, I2, OUT>(function, logicalKeyPositions1, logicalKeyPositions2,
-							name, getInput1Type(), getInput2Type(), getResultType());
-
+			
+			CoGroupOperatorBase<I1, I2, OUT, GenericCoGrouper<I1, I2, OUT>> po =
+					new CoGroupOperatorBase<I1, I2, OUT, GenericCoGrouper<I1, I2, OUT>>(
+							function, new BinaryOperatorInformation<I1, I2, OUT>(getInput1Type(), getInput2Type(), getResultType()),
+							logicalKeyPositions1, logicalKeyPositions2, name);
+			
 			// set inputs
 			po.setFirstInput(input1);
 			po.setSecondInput(input2);
@@ -168,7 +175,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			Keys.SelectorFunctionKeys<I1, ?> rawKeys1, Keys.SelectorFunctionKeys<I2, ?> rawKeys2,
 			CoGroupFunction<I1, I2, OUT> function,
 			TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
-			Operator input1, Operator input2)
+			Operator<I1> input1, Operator<I2> input2)
 	{
 		@SuppressWarnings("unchecked")
 		final Keys.SelectorFunctionKeys<I1, K> keys1 = (Keys.SelectorFunctionKeys<I1, K>) rawKeys1;
@@ -180,9 +187,11 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 		final KeyExtractingMapper<I1, K> extractor1 = new KeyExtractingMapper<I1, K>(keys1.getKeyExtractor());
 		final KeyExtractingMapper<I2, K> extractor2 = new KeyExtractingMapper<I2, K>(keys2.getKeyExtractor());
-
-		final PlanMapOperator<I1, Tuple2<K, I1>> keyMapper1 = new PlanMapOperator<I1, Tuple2<K, I1>>(extractor1, "Key Extractor 1", inputType1, typeInfoWithKey1);
-		final PlanMapOperator<I2, Tuple2<K, I2>> keyMapper2 = new PlanMapOperator<I2, Tuple2<K, I2>>(extractor2, "Key Extractor 2", inputType2, typeInfoWithKey2);
+		
+		final MapOperatorBase<I1, Tuple2<K, I1>, GenericMap<I1, Tuple2<K, I1>>> keyMapper1 =
+				new MapOperatorBase<I1, Tuple2<K, I1>, GenericMap<I1, Tuple2<K, I1>>>(extractor1, new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1), "Key Extractor 1");
+		final MapOperatorBase<I2, Tuple2<K, I2>, GenericMap<I2, Tuple2<K, I2>>> keyMapper2 =
+				new MapOperatorBase<I2, Tuple2<K, I2>, GenericMap<I2, Tuple2<K, I2>>>(extractor2, new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2), "Key Extractor 2");
 		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, keys1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 
 		cogroup.setFirstInput(keyMapper1);
@@ -201,7 +210,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			int[] logicalKeyPositions1, Keys.SelectorFunctionKeys<I2, ?> rawKeys2,
 			CoGroupFunction<I1, I2, OUT> function,
 			TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
-			Operator input1, Operator input2)
+			Operator<I1> input1, Operator<I2> input2)
 	{
 		if(!inputType1.isTupleType()) {
 			throw new InvalidParameterException("Should not happen.");
@@ -216,9 +225,11 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		final TupleKeyExtractingMapper<I1, K> extractor1 = new TupleKeyExtractingMapper<I1, K>(logicalKeyPositions1[0]);
 		final KeyExtractingMapper<I2, K> extractor2 = new KeyExtractingMapper<I2, K>(keys2.getKeyExtractor());
 
-		final PlanMapOperator<I1, Tuple2<K, I1>> keyMapper1 = new PlanMapOperator<I1, Tuple2<K, I1>>(extractor1, "Key Extractor 1", inputType1, typeInfoWithKey1);
-		final PlanMapOperator<I2, Tuple2<K, I2>> keyMapper2 = new PlanMapOperator<I2, Tuple2<K, I2>>(extractor2, "Key Extractor 2", inputType2, typeInfoWithKey2);
-
+		final MapOperatorBase<I1, Tuple2<K, I1>, GenericMap<I1, Tuple2<K, I1>>> keyMapper1 =
+				new MapOperatorBase<I1, Tuple2<K, I1>, GenericMap<I1, Tuple2<K, I1>>>(extractor1, new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1), "Key Extractor 1");
+		final MapOperatorBase<I2, Tuple2<K, I2>, GenericMap<I2, Tuple2<K, I2>>> keyMapper2 =
+				new MapOperatorBase<I2, Tuple2<K, I2>, GenericMap<I2, Tuple2<K, I2>>>(extractor2, new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2), "Key Extractor 2");
+		
 		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, logicalKeyPositions1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 
 		cogroup.setFirstInput(keyMapper1);
@@ -237,7 +248,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			Keys.SelectorFunctionKeys<I1, ?> rawKeys1, int[] logicalKeyPositions2,
 			CoGroupFunction<I1, I2, OUT> function,
 			TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
-			Operator input1, Operator input2)
+			Operator<I1> input1, Operator<I2> input2)
 	{
 		if(!inputType2.isTupleType()) {
 			throw new InvalidParameterException("Should not happen.");
@@ -252,9 +263,11 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		final KeyExtractingMapper<I1, K> extractor1 = new KeyExtractingMapper<I1, K>(keys1.getKeyExtractor());
 		final TupleKeyExtractingMapper<I2, K> extractor2 = new TupleKeyExtractingMapper<I2, K>(logicalKeyPositions2[0]);
 
-		final PlanMapOperator<I1, Tuple2<K, I1>> keyMapper1 = new PlanMapOperator<I1, Tuple2<K, I1>>(extractor1, "Key Extractor 1", inputType1, typeInfoWithKey1);
-		final PlanMapOperator<I2, Tuple2<K, I2>> keyMapper2 = new PlanMapOperator<I2, Tuple2<K, I2>>(extractor2, "Key Extractor 2", inputType2, typeInfoWithKey2);
-
+		final MapOperatorBase<I1, Tuple2<K, I1>, GenericMap<I1, Tuple2<K, I1>>> keyMapper1 =
+				new MapOperatorBase<I1, Tuple2<K, I1>, GenericMap<I1, Tuple2<K, I1>>>(extractor1, new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1), "Key Extractor 1");
+		final MapOperatorBase<I2, Tuple2<K, I2>, GenericMap<I2, Tuple2<K, I2>>> keyMapper2 =
+				new MapOperatorBase<I2, Tuple2<K, I2>, GenericMap<I2, Tuple2<K, I2>>>(extractor2, new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2), "Key Extractor 2");
+		
 		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, keys1, logicalKeyPositions2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 
 		cogroup.setFirstInput(keyMapper1);

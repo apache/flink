@@ -14,6 +14,7 @@
 package eu.stratosphere.api.common.operators.base;
 
 import eu.stratosphere.api.common.functions.GenericCoGrouper;
+import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
 import eu.stratosphere.api.common.operators.DualInputOperator;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
@@ -23,7 +24,7 @@ import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 /**
  * @see GenericCoGrouper
  */
-public class CoGroupOperatorBase<T extends GenericCoGrouper<?, ?, ?>> extends DualInputOperator<T> {
+public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends GenericCoGrouper<IN1, IN2, OUT>> extends DualInputOperator<IN1, IN2, OUT, FT> {
 	
 	/**
 	 * The ordering for the order inside a group from input one.
@@ -41,19 +42,18 @@ public class CoGroupOperatorBase<T extends GenericCoGrouper<?, ?, ?>> extends Du
 
 	private boolean combinableSecond;
 
-	
-	public CoGroupOperatorBase(UserCodeWrapper<T> udf, int[] keyPositions1, int[] keyPositions2, String name) {
-		super(udf, keyPositions1, keyPositions2, name);
+	public CoGroupOperatorBase(UserCodeWrapper<FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
+		super(udf, operatorInfo, keyPositions1, keyPositions2, name);
 		this.combinableFirst = false;
 		this.combinableSecond = false;
 	}
 	
-	public CoGroupOperatorBase(T udf, int[] keyPositions1, int[] keyPositions2, String name) {
-		this(new UserCodeObjectWrapper<T>(udf), keyPositions1, keyPositions2, name);
+	public CoGroupOperatorBase(FT udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
+		this(new UserCodeObjectWrapper<FT>(udf), operatorInfo, keyPositions1, keyPositions2, name);
 	}
 	
-	public CoGroupOperatorBase(Class<? extends T> udf, int[] keyPositions1, int[] keyPositions2, String name) {
-		this(new UserCodeClassWrapper<T>(udf), keyPositions1, keyPositions2, name);
+	public CoGroupOperatorBase(Class<? extends FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
+		this(new UserCodeClassWrapper<FT>(udf), operatorInfo, keyPositions1, keyPositions2, name);
 	}
 	
 	// --------------------------------------------------------------------------------------------

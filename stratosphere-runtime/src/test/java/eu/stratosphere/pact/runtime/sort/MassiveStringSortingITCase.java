@@ -31,7 +31,7 @@ import eu.stratosphere.api.common.typeutils.base.StringComparator;
 import eu.stratosphere.api.common.typeutils.base.StringSerializer;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.api.java.typeutils.TypeInfoParser;
 import eu.stratosphere.api.java.typeutils.runtime.RuntimeStatelessSerializerFactory;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -173,7 +173,7 @@ public class MassiveStringSortingITCase {
 				MemoryManager mm = new DefaultMemoryManager(1024 * 1024);
 				IOManager ioMan = new IOManager();
 					
-				TupleTypeInfo<Tuple2<String, String[]>> typeInfo = (TupleTypeInfo<Tuple2<String, String[]>>) (TupleTypeInfo<?>) TypeInformation.parse("Tuple2<String, String[]>");
+				TupleTypeInfo<Tuple2<String, String[]>> typeInfo = (TupleTypeInfo<Tuple2<String, String[]>>) (TupleTypeInfo<?>) TypeInfoParser.parse("Tuple2<String, String[]>");
 
 				TypeSerializer<Tuple2<String, String[]>> serializer = typeInfo.createSerializer();
 				TypeComparator<Tuple2<String, String[]>> comparator = typeInfo.createComparator(new int[] { 0 }, new boolean[] { true } );

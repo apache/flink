@@ -18,6 +18,7 @@ import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.java.typeutils.runtime.AvroSerializer;
 import eu.stratosphere.api.java.typeutils.runtime.GenericTypeComparator;
+import eu.stratosphere.types.TypeInformation;
 
 
 /**
@@ -62,16 +63,16 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 		return new AvroSerializer<T>(this.typeClass);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public TypeComparator<T> createComparator(boolean sortOrderAscending) {
 		if (isKeyType()) {
-			@SuppressWarnings("unchecked")
+			@SuppressWarnings("rawtypes")
 			GenericTypeComparator comparator = new GenericTypeComparator(sortOrderAscending, createSerializer(), this.typeClass);
-
-			return comparator;
+			return (TypeComparator<T>) comparator;
 		}
 
-		throw new UnsupportedOperationException("Generic types that don't implement java.lang.Comparable cannot be used as keys.");
+		throw new UnsupportedOperationException("Types that do not implement java.lang.Comparable cannot be used as keys.");
 	}
 
 	// --------------------------------------------------------------------------------------------

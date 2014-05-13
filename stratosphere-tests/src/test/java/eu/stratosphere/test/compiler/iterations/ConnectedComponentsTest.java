@@ -18,9 +18,9 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.DeltaIteration;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecond;

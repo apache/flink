@@ -11,13 +11,13 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.plugable.pactrecord;
+package eu.stratosphere.api.java.typeutils.runtime.record;
 
 import java.util.Arrays;
 
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.runtime.task.util.CorruptConfigurationException;
+import eu.stratosphere.configuration.IllegalConfigurationException;
 import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
 
@@ -103,7 +103,7 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
 		// figure out how many key fields there are
 		final int numKeyFields = config.getInteger(NUM_KEYS, -1);
 		if (numKeyFields < 0) {
-			throw new CorruptConfigurationException("The number of keys for the comparator is invalid: " + numKeyFields);
+			throw new IllegalConfigurationException("The number of keys for the comparator is invalid: " + numKeyFields);
 		}
 		
 		final int[] positions = new int[numKeyFields];
@@ -117,7 +117,7 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
 			if (p >= 0) {
 				positions[i] = p;
 			} else {
-				throw new CorruptConfigurationException("Contained invalid position for key no positions for keys."); 
+				throw new IllegalConfigurationException("Contained invalid position for key no positions for keys.");
 			}
 			
 			// next key type
@@ -125,7 +125,7 @@ public class RecordComparatorFactory implements TypeComparatorFactory<Record> {
 			if (name != null) {
 				types[i] = (Class<? extends Key<?>>) Class.forName(name, true, cl).asSubclass(Key.class);
 			} else {
-				throw new CorruptConfigurationException("The key type (" + i + 
+				throw new IllegalConfigurationException("The key type (" + i +
 					") for the comparator is null"); 
 			}
 			

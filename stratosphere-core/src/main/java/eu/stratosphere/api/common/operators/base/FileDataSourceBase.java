@@ -11,71 +11,75 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.api.common.operators;
+package eu.stratosphere.api.common.operators.base;
 
 import com.google.common.base.Preconditions;
-
 import eu.stratosphere.api.common.io.FileInputFormat;
+import eu.stratosphere.api.common.operators.OperatorInformation;
 
 /**
  * Operator for input nodes which read data from files.
  */
-public class FileDataSource extends GenericDataSource<FileInputFormat<?>> {
-	
+public class FileDataSourceBase<OUT> extends GenericDataSourceBase<OUT, FileInputFormat<OUT>> {
+
 	protected final String filePath;
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Creates a new instance for the given file using the given file input format.
-	 * 
-	 * @param f The {@link FileInputFormat} implementation used to read the data.
+	 *
+	 * @param f The {@link eu.stratosphere.api.common.io.FileInputFormat} implementation used to read the data.
+	 * @param operatorInfo The type information for the output type.
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	public FileDataSource(FileInputFormat<?> f, String filePath, String name) {
-		super(f, name);
-		
+	public FileDataSourceBase(FileInputFormat<OUT> f, OperatorInformation<OUT> operatorInfo, String filePath, String name) {
+		super(f, operatorInfo, name);
+
 		Preconditions.checkNotNull(filePath, "The file path may not be null.");
-		
+
 		this.filePath = filePath;
 		f.setFilePath(filePath);
 	}
 
 	/**
 	 * Creates a new instance for the given file using the given input format. The contract has the default name.
-	 * 
-	 * @param f The {@link FileInputFormat} implementation used to read the data.
+	 *
+	 * @param f The {@link eu.stratosphere.api.common.io.FileInputFormat} implementation used to read the data.
+	 * @param operatorInfo The type information for the output type.
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 */
-	public FileDataSource(FileInputFormat<?> f, String filePath) {
-		this(f, Preconditions.checkNotNull(filePath, "The file path may not be null."), "File " + filePath);
+	public FileDataSourceBase(FileInputFormat<OUT> f, OperatorInformation<OUT> operatorInfo, String filePath) {
+		this(f, operatorInfo, Preconditions.checkNotNull(filePath, "The file path may not be null."), "File " + filePath);
 	}
-	
+
 	/**
 	 * Creates a new instance for the given file using the given file input format.
-	 * 
-	 * @param f The {@link FileInputFormat} implementation used to read the data.
+	 *
+	 * @param f The {@link eu.stratosphere.api.common.io.FileInputFormat} implementation used to read the data.
+	 * @param operatorInfo The type information for the output type.
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	public FileDataSource(Class<? extends FileInputFormat<?>> f, String filePath, String name) {
-		super(f, name);
-		
+	public FileDataSourceBase(Class<? extends FileInputFormat<OUT>> f, OperatorInformation<OUT> operatorInfo, String filePath, String name) {
+		super(f, operatorInfo, name);
+
 		Preconditions.checkNotNull(filePath, "The file path may not be null.");
-		
+
 		this.filePath = filePath;
 		FileInputFormat.configureFileFormat(this).filePath(filePath);
 	}
 
 	/**
 	 * Creates a new instance for the given file using the given input format. The contract has the default name.
-	 * 
-	 * @param f The {@link FileInputFormat} implementation used to read the data.
+	 *
+	 * @param f The {@link eu.stratosphere.api.common.io.FileInputFormat} implementation used to read the data.
+	 * @param operatorInfo The type information for the output type.
 	 * @param filePath The file location. The file path must be a fully qualified URI, including the address schema.
 	 */
-	public FileDataSource(Class<? extends FileInputFormat<?>> f, String filePath) {
-		this(f, Preconditions.checkNotNull(filePath, "The file path may not be null."), "File " + filePath);
+	public FileDataSourceBase(Class<? extends FileInputFormat<OUT>> f, OperatorInformation<OUT> operatorInfo, String filePath) {
+		this(f, operatorInfo, Preconditions.checkNotNull(filePath, "The file path may not be null."), "File " + filePath);
 	}
 
 	// --------------------------------------------------------------------------------------------

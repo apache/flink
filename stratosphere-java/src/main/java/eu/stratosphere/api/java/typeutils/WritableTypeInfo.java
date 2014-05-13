@@ -14,6 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils;
 
+import eu.stratosphere.types.TypeInformation;
 import org.apache.hadoop.io.Writable;
 
 import eu.stratosphere.api.common.typeutils.TypeComparator;

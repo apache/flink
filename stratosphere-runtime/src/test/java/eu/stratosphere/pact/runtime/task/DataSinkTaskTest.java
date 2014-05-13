@@ -32,7 +32,7 @@ import org.junit.Test;
 import eu.stratosphere.api.java.record.io.DelimitedOutputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparatorFactory;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.test.util.InfiniteInputIterator;
 import eu.stratosphere.pact.runtime.test.util.TaskCancelThread;

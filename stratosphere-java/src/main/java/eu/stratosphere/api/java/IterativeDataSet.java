@@ -19,14 +19,14 @@ import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.operators.SingleInputOperator;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.types.Value;
 
 /**
  * The IterativeDataSet represents the start of an iteration. It is created from the DataSet that 
  * represents the initial solution set via the {@link DataSet#iterate(int)} method.
  * 
- * @param<T> The data type of set that is the input and feedback of the iteration.
+ * @param <T> The data type of set that is the input and feedback of the iteration.
  *
  * @see DataSet#iterate(int)
  */
@@ -135,7 +135,7 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	protected eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.SingleInputOperator<T, T, ?> translateToDataFlow(Operator<T> input) {
 		// All the translation magic happens when the iteration end is encountered.
 		throw new UnsupportedOperationException("This should never happen.");
 	}

@@ -18,14 +18,17 @@ import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 
 /**
- * @param <IN> The type of the data set made distinct by the operator.
+ * This operator represents the application of a "distinct" function on a data set, and the
+ * result data set produced by the function.
+ * 
+ * @param <T> The type of the data set made distinct by the operator.
  */
-public class DistinctOperator<IN> extends SingleInputOperator<IN, IN, DistinctOperator<IN>> {
+public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOperator<T>> {
 	
 	@SuppressWarnings("unused")
-	private final Keys<IN> keys;
+	private final Keys<T> keys;
 	
-	public DistinctOperator(DataSet<IN> input, Keys<IN> keys) {
+	public DistinctOperator(DataSet<T> input, Keys<T> keys) {
 		super(input, input.getType());
 		
 		if (keys == null) {
@@ -36,7 +39,7 @@ public class DistinctOperator<IN> extends SingleInputOperator<IN, IN, DistinctOp
 	}
 
 	@Override
-	protected eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.SingleInputOperator<T, T, ?> translateToDataFlow(Operator<T> input) {
 		throw new UnsupportedOperationException("NOT IMPLEMENTED");
 	}
 }

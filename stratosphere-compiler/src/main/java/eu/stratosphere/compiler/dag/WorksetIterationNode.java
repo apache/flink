@@ -19,7 +19,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.api.common.operators.DeltaIteration;
+import eu.stratosphere.api.common.operators.base.DeltaIterationBase;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
@@ -45,6 +45,8 @@ import eu.stratosphere.compiler.util.NoOpBinaryUdfOp;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
+import eu.stratosphere.types.Nothing;
+import eu.stratosphere.types.NothingTypeInfo;
 import eu.stratosphere.util.Visitor;
 
 /**
@@ -84,7 +86,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	 * 
 	 * @param iteration The iteration operator that the node represents.
 	 */
-	public WorksetIterationNode(DeltaIteration iteration) {
+	public WorksetIterationNode(DeltaIterationBase<?, ?> iteration) {
 		super(iteration);
 		
 		final int[] ssKeys = iteration.getSolutionSetKeyFields();
@@ -108,8 +110,8 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 
 	// --------------------------------------------------------------------------------------------
 	
-	public DeltaIteration getIterationContract() {
-		return (DeltaIteration) getPactContract();
+	public DeltaIterationBase<?, ?> getIterationContract() {
+		return (DeltaIterationBase<?, ?>) getPactContract();
 	}
 	
 	public SolutionSetNode getSolutionSetNode() {
@@ -468,7 +470,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	public static class SingleRootJoiner extends TwoInputNode {
 		
 		SingleRootJoiner() {
-			super(NoOpBinaryUdfOp.INSTANCE);
+			super(new NoOpBinaryUdfOp<Nothing>(new NothingTypeInfo()));
 			
 			setDegreeOfParallelism(1);
 			setSubtasksPerInstance(1);

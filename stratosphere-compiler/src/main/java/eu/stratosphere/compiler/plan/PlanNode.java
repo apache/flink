@@ -145,7 +145,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	 * 
 	 * @return The pact contract this node represents in the plan.
 	 */
-	public Operator getPactContract() {
+	public Operator<?> getPactContract() {
 		return this.template.getPactContract();
 	}
 	

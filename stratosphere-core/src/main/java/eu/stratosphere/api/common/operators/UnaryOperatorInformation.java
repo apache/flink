@@ -12,23 +12,34 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.api.java.operators.translation;
 
-import eu.stratosphere.api.common.io.OutputFormat;
-import eu.stratosphere.api.common.operators.GenericDataSink;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+package eu.stratosphere.api.common.operators;
 
+import eu.stratosphere.types.TypeInformation;
 
-public class PlanDataSink<T> extends GenericDataSink {
+/**
+ *  A class for holding information about a single input operator, such as input/output TypeInformation.
+ *
+ * @param <IN> Output type of the input operator
+ * @param <OUT> Output type of the records output by the operator described by this information
+ */
+public class UnaryOperatorInformation<IN, OUT> extends OperatorInformation<OUT> {
 
-	private final TypeInformation<T> inputDataType;
+	/**
+	 * Input Type of the operator
+	 */
+	protected final TypeInformation<IN> inputType;
 
-	public PlanDataSink(OutputFormat<T> format, String name, TypeInformation<T> inputDataType) {
-		super(format, name);
-		this.inputDataType = inputDataType;
+	/**
+	 * @param inputType Input type of first input
+	 * @param outputType The output type of the operator
+	 */
+	public UnaryOperatorInformation(TypeInformation<IN> inputType, TypeInformation<OUT> outputType) {
+		super(outputType);
+		this.inputType = inputType;
 	}
-	
-	public TypeInformation<T> getType() {
-		return this.inputDataType;
+
+	public TypeInformation<IN> getInputType() {
+		return inputType;
 	}
 }

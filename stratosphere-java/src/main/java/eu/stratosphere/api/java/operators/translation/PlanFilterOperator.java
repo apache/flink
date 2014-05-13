@@ -15,38 +15,20 @@
 package eu.stratosphere.api.java.operators.translation;
 
 import eu.stratosphere.api.common.functions.GenericFlatMap;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
 import eu.stratosphere.api.common.operators.base.FilterOperatorBase;
 import eu.stratosphere.api.java.functions.FilterFunction;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.util.Collector;
 
 /**
  *
  */
-public class PlanFilterOperator<T> extends FilterOperatorBase<GenericFlatMap<T, T>>
-	implements UnaryJavaPlanNode<T, T>
-{
-	private final TypeInformation<T> type;
-	
-	
+public class PlanFilterOperator<T> extends FilterOperatorBase<T, GenericFlatMap<T, T>> {
 	public PlanFilterOperator(FilterFunction<T> udf, String name, TypeInformation<T> type) {
-		super(new FlatMapFilter<T>(udf), name);
-		this.type = type;
-	}
-	
-	@Override
-	public TypeInformation<T> getReturnType() {
-		return this.type;
+		super(new FlatMapFilter<T>(udf), new UnaryOperatorInformation<T, T>(type, type), name);
 	}
 
-	@Override
-	public TypeInformation<T> getInputType() {
-		return this.type;
-	}
-	
-	
-	// --------------------------------------------------------------------------------------------
-	
 	public static final class FlatMapFilter<T> extends WrappingFunction<FilterFunction<T>>
 		implements GenericFlatMap<T, T>
 	{

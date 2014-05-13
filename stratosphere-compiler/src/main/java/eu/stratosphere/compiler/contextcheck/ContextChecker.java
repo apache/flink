@@ -20,13 +20,13 @@ import com.google.common.base.Preconditions;
 
 import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.BulkIteration;
+import eu.stratosphere.api.common.operators.base.BulkIterationBase;
 import eu.stratosphere.api.common.operators.DualInputOperator;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.GenericDataSink;
-import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
+import eu.stratosphere.api.common.operators.base.FileDataSinkBase;
+import eu.stratosphere.api.common.operators.base.FileDataSourceBase;
+import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
+import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.util.Visitor;
 
@@ -34,13 +34,13 @@ import eu.stratosphere.util.Visitor;
  * Traverses a plan and checks whether all Contracts are correctly connected to
  * their input contracts.
  */
-public class ContextChecker implements Visitor<Operator> {
+public class ContextChecker implements Visitor<Operator<?>> {
 
 	/**
 	 * A set of all already visited nodes during DAG traversal. Is used
 	 * to avoid processing one node multiple times.
 	 */
-	private final Set<Operator> visitedNodes = new HashSet<Operator>();
+	private final Set<Operator<?>> visitedNodes = new HashSet<Operator<?>>();
 
 	/**
 	 * Default constructor
@@ -66,25 +66,25 @@ public class ContextChecker implements Visitor<Operator> {
 	 * Checks whether the node is correctly connected to its input.
 	 */
 	@Override
-	public boolean preVisit(Operator node) {
+	public boolean preVisit(Operator<?> node) {
 		// check if node was already visited
 		if (!this.visitedNodes.add(node)) {
 			return false;
 		}
 
 		// apply the appropriate check method
-		if (node instanceof FileDataSink) {
-			checkFileDataSink((FileDataSink) node);
-		} else if (node instanceof FileDataSource) {
-			checkFileDataSource((FileDataSource) node);
-		} else if (node instanceof GenericDataSink) {
-			checkDataSink((GenericDataSink) node);
-		} else if (node instanceof BulkIteration) {
-			checkBulkIteration((BulkIteration) node);
+		if (node instanceof FileDataSinkBase) {
+			checkFileDataSink((FileDataSinkBase<?>) node);
+		} else if (node instanceof FileDataSourceBase) {
+			checkFileDataSource((FileDataSourceBase<?>) node);
+		} else if (node instanceof GenericDataSinkBase) {
+			checkDataSink((GenericDataSinkBase<?>) node);
+		} else if (node instanceof BulkIterationBase) {
+			checkBulkIteration((BulkIterationBase<?>) node);
 		} else if (node instanceof SingleInputOperator) {
-			checkSingleInputContract((SingleInputOperator<?>) node);
-		} else if (node instanceof DualInputOperator<?>) {
-			checkDualInputContract((DualInputOperator<?>) node);
+			checkSingleInputContract((SingleInputOperator<?, ?, ?>) node);
+		} else if (node instanceof DualInputOperator<?, ?, ?, ?>) {
+			checkDualInputContract((DualInputOperator<?, ?, ?, ?>) node);
 		}
 		if(node instanceof Validatable) {
 			((Validatable) node).check();
@@ -93,7 +93,7 @@ public class ContextChecker implements Visitor<Operator> {
 	}
 
 	@Override
-	public void postVisit(Operator node) {}
+	public void postVisit(Operator<?> node) {}
 
 	/**
 	 * Checks if DataSinkContract is correctly connected. In case that the
@@ -102,8 +102,8 @@ public class ContextChecker implements Visitor<Operator> {
 	 * @param dataSinkContract
 	 *        DataSinkContract that is checked.
 	 */
-	private void checkDataSink(GenericDataSink dataSinkContract) {
-		Operator input = dataSinkContract.getInput();
+	private void checkDataSink(GenericDataSinkBase<?> dataSinkContract) {
+		Operator<?> input = dataSinkContract.getInput();
 		// check if input exists
 		if (input == null) {
 			throw new MissingChildException();
@@ -117,7 +117,7 @@ public class ContextChecker implements Visitor<Operator> {
 	 * @param fileSink
 	 *        FileDataSink that is checked.
 	 */
-	private void checkFileDataSink(FileDataSink fileSink) {
+	private void checkFileDataSink(FileDataSinkBase<?> fileSink) {
 		String path = fileSink.getFilePath();
 		if (path == null) {
 			throw new InvalidProgramException("File path of FileDataSink is null.");
@@ -146,7 +146,7 @@ public class ContextChecker implements Visitor<Operator> {
 	 * @param fileSource
 	 *        FileDataSource that is checked.
 	 */
-	private void checkFileDataSource(FileDataSource fileSource) {
+	private void checkFileDataSource(FileDataSourceBase<?> fileSource) {
 		String path = fileSource.getFilePath();
 		if (path == null) {
 			throw new InvalidProgramException("File path of FileDataSource is null.");
@@ -174,8 +174,8 @@ public class ContextChecker implements Visitor<Operator> {
 	 * @param singleInputContract
 	 *        SingleInputOperator that is checked.
 	 */
-	private void checkSingleInputContract(SingleInputOperator<?> singleInputContract) {
-		Operator input = singleInputContract.getInput();
+	private void checkSingleInputContract(SingleInputOperator<?, ?, ?> singleInputContract) {
+		Operator<?> input = singleInputContract.getInput();
 		// check if input exists
 		if (input == null) {
 			throw new MissingChildException();
@@ -189,16 +189,16 @@ public class ContextChecker implements Visitor<Operator> {
 	 * @param dualInputContract
 	 *        DualInputOperator that is checked.
 	 */
-	private void checkDualInputContract(DualInputOperator<?> dualInputContract) {
-		Operator input1 = dualInputContract.getFirstInput();
-		Operator input2 = dualInputContract.getSecondInput();
+	private void checkDualInputContract(DualInputOperator<?, ?, ?, ?> dualInputContract) {
+		Operator<?> input1 = dualInputContract.getFirstInput();
+		Operator<?> input2 = dualInputContract.getSecondInput();
 		// check if input exists
 		if (input1 == null || input2 == null) {
 			throw new MissingChildException();
 		}
 	}
 	
-	private void checkBulkIteration(BulkIteration iter) {
+	private void checkBulkIteration(BulkIterationBase<?> iter) {
 		iter.validate();
 		checkSingleInputContract(iter);
 	}

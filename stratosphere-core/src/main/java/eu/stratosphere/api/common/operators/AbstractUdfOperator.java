@@ -21,18 +21,20 @@ import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 
 /**
  * Abstract superclass for all contracts that represent actual operators.
+ *
+ * @param <FT> Type of the user function
  */
-public abstract class AbstractUdfOperator<T extends Function> extends Operator {
+public abstract class AbstractUdfOperator<OUT, FT extends Function> extends Operator<OUT> {
 	
 	/**
 	 * The object or class containing the user function.
 	 */
-	protected final UserCodeWrapper<T> userFunction;
-	
+	protected final UserCodeWrapper<FT> userFunction;
+
 	/**
 	 * The extra inputs which parameterize the user function.
 	 */
-	protected final Map<String, Operator> broadcastInputs = new HashMap<String, Operator>();
+	protected final Map<String, Operator<?>> broadcastInputs = new HashMap<String, Operator<?>>();
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -42,13 +44,13 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	 * @param function The wrapper object containing the user function.
 	 * @param name The given name for the operator, used in plans, logs and progress messages.
 	 */
-	protected AbstractUdfOperator(UserCodeWrapper<T> function, String name) {
-		super(name);
+	protected AbstractUdfOperator(UserCodeWrapper<FT> function, OperatorInformation<OUT> operatorInfo,  String name) {
+		super(operatorInfo, name);
 		this.userFunction = function;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Gets the function that is held by this operator. The function is the actual implementation of the
 	 * user code.
@@ -61,18 +63,18 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	 * @see eu.stratosphere.api.common.operators.Operator#getUserCodeWrapper()
 	 */
 	@Override
-	public UserCodeWrapper<T> getUserCodeWrapper() {
+	public UserCodeWrapper<FT> getUserCodeWrapper() {
 		return userFunction;
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	
+
+// --------------------------------------------------------------------------------------------
+
 	/**
 	 * Returns the input, or null, if none is set.
 	 * 
 	 * @return The broadcast input root operator.
 	 */
-	public Map<String, Operator> getBroadcastInputs() {
+	public Map<String, Operator<?>> getBroadcastInputs() {
 		return this.broadcastInputs;
 	}
 	
@@ -82,7 +84,7 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	 * 
 	 * @param root The root of the plan producing this input.
 	 */
-	public void setBroadcastVariable(String name, Operator root) {
+	public void setBroadcastVariable(String name, Operator<?> root) {
 		if (name == null) {
 			throw new IllegalArgumentException("The broadcast input name may not be null.");
 		}
@@ -99,13 +101,13 @@ public abstract class AbstractUdfOperator<T extends Function> extends Operator {
 	 * 
 	 * @param inputs The <name, root> pairs to be set as broadcast inputs.
 	 */
-	public void setBroadcastVariables(Map<String, Operator> inputs) {
+	public <T> void setBroadcastVariables(Map<String, Operator<T>> inputs) {
 		this.broadcastInputs.clear();
 		this.broadcastInputs.putAll(inputs);
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Gets the number of inputs for this operator.
 	 * 

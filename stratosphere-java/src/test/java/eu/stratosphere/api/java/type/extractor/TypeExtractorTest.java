@@ -19,7 +19,6 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Iterator;
 
-import org.apache.hadoop.io.Writable;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -42,14 +41,16 @@ import eu.stratosphere.api.java.typeutils.GenericTypeInfo;
 import eu.stratosphere.api.java.typeutils.ObjectArrayTypeInfo;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.api.java.typeutils.TypeInfoParser;
 import eu.stratosphere.api.java.typeutils.ValueTypeInfo;
 import eu.stratosphere.api.java.typeutils.WritableTypeInfo;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
+import org.apache.hadoop.io.Writable;
 
 public class TypeExtractorTest {
 
@@ -67,7 +68,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getGroupReduceReturnTypes(function, (TypeInformation) TypeInformation.parse("Boolean"));
+		TypeInformation<?> ti = TypeExtractor.getGroupReduceReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Boolean"));
 
 		Assert.assertTrue(ti.isBasicType());
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
@@ -89,7 +90,7 @@ public class TypeExtractorTest {
 		}
 		
 		@Override
-		public void readFields(DataInput in) throws IOException {			
+		public void readFields(DataInput in) throws IOException {
 		}
 		
 	}
@@ -128,7 +129,7 @@ public class TypeExtractorTest {
 
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple9<Integer, Long, Double, Float, Boolean, String, Character, Short, Byte>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple9<Integer, Long, Double, Float, Boolean, String, Character, Short, Byte>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(9, ti.getArity());
@@ -192,7 +193,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple3<Tuple1<String>, Tuple1<Integer>, Tuple2<Long, Long>>"));
+		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple3<Tuple1<String>, Tuple1<Integer>, Tuple2<Long, Long>>"));
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
 		Assert.assertTrue(ti instanceof TupleTypeInfo);
@@ -246,7 +247,7 @@ public class TypeExtractorTest {
 			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getJoinReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<String, Integer>"), (TypeInformation) TypeInformation.parse("String"));
+		TypeInformation<?> ti = TypeExtractor.getJoinReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<String, Integer>"), (TypeInformation) TypeInfoParser.parse("String"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -294,7 +295,7 @@ public class TypeExtractorTest {
 			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getCrossReturnTypes(function, (TypeInformation) TypeInformation.parse("eu.stratosphere.api.java.type.extractor.TypeExtractorTest$CustomType"), (TypeInformation) TypeInformation.parse("Integer"));
+		TypeInformation<?> ti = TypeExtractor.getCrossReturnTypes(function, (TypeInformation) TypeInfoParser.parse("eu.stratosphere.api.java.type.extractor.TypeExtractorTest$CustomType"), (TypeInformation) TypeInfoParser.parse("Integer"));
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertFalse(ti.isTupleType());
@@ -342,7 +343,7 @@ public class TypeExtractorTest {
 
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<Long,eu.stratosphere.api.java.type.extractor.TypeExtractorTest$CustomType>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<Long,eu.stratosphere.api.java.type.extractor.TypeExtractorTest$CustomType>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -381,7 +382,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getKeySelectorTypes(function, (TypeInformation) TypeInformation.parse("StringValue"));
+		TypeInformation<?> ti = TypeExtractor.getKeySelectorTypes(function, (TypeInformation) TypeInfoParser.parse("StringValue"));
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertFalse(ti.isTupleType());
@@ -411,7 +412,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<StringValue, IntValue>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<StringValue, IntValue>"));
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertTrue(ti.isTupleType());
@@ -450,7 +451,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<Long, String>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<Long, String>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -493,7 +494,7 @@ public class TypeExtractorTest {
 			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple3<String, Long, Integer>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple3<String, Long, Integer>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
@@ -535,7 +536,7 @@ public class TypeExtractorTest {
 			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple3<String, Long, String>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple3<String, Long, String>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
@@ -561,7 +562,7 @@ public class TypeExtractorTest {
 			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple3<String, Long, String>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple3<String, Long, String>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
@@ -587,7 +588,7 @@ public class TypeExtractorTest {
 		};
 
 		try {
-			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("String"));
+			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
@@ -607,7 +608,7 @@ public class TypeExtractorTest {
 		};
 
 		try {
-			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("String"));
+			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
@@ -634,7 +635,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<String, String>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<String, String>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -666,7 +667,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<String, Tuple2<Integer, Integer>>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<String, Tuple2<Integer, Integer>>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -705,7 +706,7 @@ public class TypeExtractorTest {
 			}
 		};
 		
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<Boolean, Tuple2<Tuple2<Integer, Tuple2<Boolean, Boolean>>, Tuple2<Integer, Tuple2<Boolean, Boolean>>>>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<Boolean, Tuple2<Tuple2<Integer, Tuple2<Boolean, Boolean>>, Tuple2<Integer, Tuple2<Boolean, Boolean>>>>"));
 
 		// Should be 
 		// Tuple2<Boolean, Tuple2<Tuple2<Integer, Tuple2<Boolean, Boolean>>, Tuple2<Integer, Tuple2<Boolean, Boolean>>>>
@@ -746,7 +747,7 @@ public class TypeExtractorTest {
 		};
 
 		try {
-			TypeExtractor.getMapReturnTypes(function, TypeInformation.parse("String"));
+			TypeExtractor.getMapReturnTypes(function, TypeInfoParser.parse("String"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
@@ -760,7 +761,7 @@ public class TypeExtractorTest {
 			private static final long serialVersionUID = 1L;
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Boolean"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Boolean"));
 
 		Assert.assertTrue(ti.isBasicType());
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
@@ -824,7 +825,7 @@ public class TypeExtractorTest {
 	public void testFunctionDependingOnInputWithCustomTupleInput() {
 		IdentityMapper<SameTypeVariable<String>> function = new IdentityMapper<SameTypeVariable<String>>();
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<String, String>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<String, String>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -908,7 +909,7 @@ public class TypeExtractorTest {
 	public void testFunctionWithNoGenericSuperclass() {
 		MapFunction<?, ?> function = new Mapper2();
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("String"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"));
 
 		Assert.assertTrue(ti.isBasicType());
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, ti);
@@ -929,7 +930,7 @@ public class TypeExtractorTest {
 			private static final long serialVersionUID = 1L;
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("DoubleValue"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("DoubleValue"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -1059,7 +1060,7 @@ public class TypeExtractorTest {
 		};
 
 		try {
-			TypeExtractor.getMapReturnTypes(function, (TypeInformation)TypeInformation.parse("StringValue"));
+			TypeExtractor.getMapReturnTypes(function, (TypeInformation)TypeInfoParser.parse("StringValue"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// bam! go type extractor!
@@ -1079,7 +1080,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getCoGroupReturnTypes(function, (TypeInformation) TypeInformation.parse("String[]"), (TypeInformation) TypeInformation.parse("String[]"));
+		TypeInformation<?> ti = TypeExtractor.getCoGroupReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String[]"), (TypeInformation) TypeInfoParser.parse("String[]"));
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertFalse(ti.isTupleType());
@@ -1121,7 +1122,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("eu.stratosphere.api.java.type.extractor.TypeExtractorTest$CustomArrayObject[]"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("eu.stratosphere.api.java.type.extractor.TypeExtractorTest$CustomArrayObject[]"));
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
 		Assert.assertEquals(CustomArrayObject.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentType());
@@ -1139,7 +1140,7 @@ public class TypeExtractorTest {
 			}
 		};
 		
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<String, String>[]"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<String, String>[]"));
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
 		ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
@@ -1159,7 +1160,7 @@ public class TypeExtractorTest {
 	public void testCustomArrayWithTypeVariable() {
 		MapFunction<CustomArrayObject2<Boolean>[], ?> function = new IdentityMapper<CustomArrayObject2<Boolean>[]>();
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple1<Boolean>[]"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple1<Boolean>[]"));
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
 		ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
@@ -1184,7 +1185,7 @@ public class TypeExtractorTest {
 			private static final long serialVersionUID = 1L;			
 		};
 		
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Boolean[]"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Boolean[]"));
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?,?>);
 		ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, oati.getComponentInfo());
@@ -1206,7 +1207,7 @@ public class TypeExtractorTest {
 			}
 		};
 		
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("eu.stratosphere.api.java.type.extractor.TypeExtractorTest$MyObject"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("eu.stratosphere.api.java.type.extractor.TypeExtractorTest$MyObject"));
 		Assert.assertTrue(ti instanceof GenericTypeInfo<?>);
 	}
 	
@@ -1242,14 +1243,14 @@ public class TypeExtractorTest {
 		};
 		
 		try {
-	    	TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple2<Integer, String>"));
+	    	TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<Integer, String>"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
 		}
 		
 		try {
-	    	TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.parse("Tuple3<String, String, String>"));
+	    	TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple3<String, String, String>"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
@@ -1265,7 +1266,7 @@ public class TypeExtractorTest {
 		};
 		
 		try {
-	    	TypeExtractor.getMapReturnTypes(function2, (TypeInformation) TypeInformation.parse("IntValue"));
+	    	TypeExtractor.getMapReturnTypes(function2, (TypeInformation) TypeInfoParser.parse("IntValue"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
@@ -1281,7 +1282,7 @@ public class TypeExtractorTest {
 		};
 		
 		try {
-	    	TypeExtractor.getMapReturnTypes(function3, (TypeInformation) TypeInformation.parse("Integer[]"));
+	    	TypeExtractor.getMapReturnTypes(function3, (TypeInformation) TypeInfoParser.parse("Integer[]"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right

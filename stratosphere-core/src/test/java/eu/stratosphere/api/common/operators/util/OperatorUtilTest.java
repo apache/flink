@@ -25,13 +25,13 @@ import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.functions.GenericJoiner;
 import eu.stratosphere.api.common.io.DelimitedInputFormat;
 import eu.stratosphere.api.common.io.FileOutputFormat;
-import eu.stratosphere.api.common.operators.GenericDataSink;
-import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
+import eu.stratosphere.api.common.operators.base.CollectorMapOperatorBase;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
+import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
+import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
 import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
-import eu.stratosphere.api.common.operators.base.MapOperatorBase;
 import eu.stratosphere.types.IntValue;
 
 /**
@@ -62,7 +62,7 @@ public class OperatorUtilTest {
 	@Test
 	public void getContractClassShouldReturnMapForMapStub() {
 		final Class<?> result = OperatorUtil.getContractClass(Mapper.class);
-		assertEquals(MapOperatorBase.class, result);
+		assertEquals(CollectorMapOperatorBase.class, result);
 	}
 
 	/**
@@ -98,7 +98,7 @@ public class OperatorUtilTest {
 	@Test
 	public void getContractClassShouldReturnSinkForOutputFormat() {
 		final Class<?> result = OperatorUtil.getContractClass(FileOutputFormat.class);
-		assertEquals(GenericDataSink.class, result);
+		assertEquals(GenericDataSinkBase.class, result);
 	}
 
 	/**
@@ -107,7 +107,7 @@ public class OperatorUtilTest {
 	@Test
 	public void getContractClassShouldReturnSourceForInputFormat() {
 		final Class<?> result = OperatorUtil.getContractClass(DelimitedInputFormat.class);
-		assertEquals(GenericDataSource.class, result);
+		assertEquals(GenericDataSourceBase.class, result);
 	}
 
 	static abstract class CoGrouper implements GenericCoGrouper<IntValue, IntValue, IntValue> {}

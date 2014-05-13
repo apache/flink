@@ -14,14 +14,17 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import java.lang.annotation.Annotation;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import eu.stratosphere.api.common.operators.SingleInputSemanticProperties;
 import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.functions.FunctionAnnotation;
 import eu.stratosphere.api.java.functions.SemanticPropUtil;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.configuration.Configuration;
 
 /**
@@ -54,6 +57,13 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 */
 	protected SingleInputUdfOperator(DataSet<IN> input, TypeInformation<OUT> resultType) {
 		super(input, resultType);
+	}
+	
+	
+	protected void extractSemanticAnnotationsFromUdf(Class<?> udfClass) {
+		Set<Annotation> annotations = FunctionAnnotation.readSingleConstantAnnotations(udfClass);
+		SingleInputSemanticProperties sp = SemanticPropUtil.getSemanticPropsSingle(annotations, getInputType(), getResultType());
+		setSemanticProperties(sp);
 	}
 
 	// --------------------------------------------------------------------------------------------

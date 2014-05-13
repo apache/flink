@@ -38,15 +38,15 @@ public class CrossNode extends TwoInputNode {
 	 * 
 	 * @param pactContract The Cross contract object.
 	 */
-	public CrossNode(CrossOperatorBase<?> pactContract) {
+	public CrossNode(CrossOperatorBase<?, ?, ?, ?> pactContract) {
 		super(pactContract);
 	}
 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public CrossOperatorBase<?> getPactContract() {
-		return (CrossOperatorBase<?>) super.getPactContract();
+	public CrossOperatorBase<?, ?, ?, ?> getPactContract() {
+		return (CrossOperatorBase<?, ?, ?, ?>) super.getPactContract();
 	}
 
 	@Override
@@ -57,7 +57,7 @@ public class CrossNode extends TwoInputNode {
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
 		
-		CrossOperatorBase<?> operation = getPactContract();
+		CrossOperatorBase<?, ?, ?, ?> operation = getPactContract();
 		
 		// check small / large hints to decide upon which side is to be broadcasted
 		boolean allowBCfirst = true;

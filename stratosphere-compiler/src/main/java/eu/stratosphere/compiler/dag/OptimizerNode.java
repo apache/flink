@@ -51,7 +51,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	//                                      Members
 	// --------------------------------------------------------------------------------------------
 
-	private final Operator pactContract; // The operator (Reduce / Join / DataSource / ...)
+	private final Operator<?> pactContract; // The operator (Reduce / Join / DataSource / ...)
 	
 	private List<String> broadcastConnectionNames = new ArrayList<String>(); // the broadcast inputs names of this node
 	
@@ -105,12 +105,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @param op The operator that the node represents.
 	 */
-	public OptimizerNode(Operator op) {
+	public OptimizerNode(Operator<?> op) {
 		this.pactContract = op;
 		readStubAnnotations();
 		
 		if (this.pactContract instanceof AbstractUdfOperator) {
-			final AbstractUdfOperator<?> pact = (AbstractUdfOperator<?>) this.pactContract;
+			final AbstractUdfOperator<?, ?> pact = (AbstractUdfOperator<?, ?>) this.pactContract;
 			this.remappedKeys = new int[pact.getNumberOfInputs()][];
 			for (int i = 0; i < this.remappedKeys.length; i++) {
 				final int[] keys = pact.getKeyColumns(i);
@@ -166,7 +166,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @param contractToNode
 	 *        The map to translate the contracts to their corresponding optimizer nodes.
 	 */
-	public abstract void setInput(Map<Operator, OptimizerNode> contractToNode);
+	public abstract void setInput(Map<Operator<?>, OptimizerNode> contractToNode);
 
 	/**
 	 * This function is for plan translation purposes. Upon invocation, this method creates a {@link PactConnection}
@@ -178,18 +178,18 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 *        The map associating operators with their corresponding optimizer nodes.
 	 * @throws CompilerException
 	 */
-	public void setBroadcastInputs(Map<Operator, OptimizerNode> operatorToNode) throws CompilerException {
+	public void setBroadcastInputs(Map<Operator<?>, OptimizerNode> operatorToNode) throws CompilerException {
 
 		// skip for Operators that don't support broadcast variables 
-		if (!(getPactContract() instanceof AbstractUdfOperator<?>)) {
+		if (!(getPactContract() instanceof AbstractUdfOperator<?, ?>)) {
 			return;
 		}
 
 		// get all broadcast inputs
-		AbstractUdfOperator<?> operator = ((AbstractUdfOperator<?>) getPactContract());
+		AbstractUdfOperator<?, ?> operator = ((AbstractUdfOperator<?, ?>) getPactContract());
 
 		// create connections and add them
-		for (Map.Entry<String, Operator> input: operator.getBroadcastInputs().entrySet()) {
+		for (Map.Entry<String, Operator<?>> input: operator.getBroadcastInputs().entrySet()) {
 			OptimizerNode predecessor = operatorToNode.get(input.getValue());
 			PactConnection connection = new PactConnection(predecessor, this, ShipStrategyType.BROADCAST);
 			addBroadcastConnection(input.getKey(), connection);
@@ -383,7 +383,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @return This node's contract.
 	 */
-	public Operator getPactContract() {
+	public Operator<?> getPactContract() {
 		return this.pactContract;
 	}
 
@@ -710,9 +710,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @return
 	 */
 	protected int[] getConstantKeySet(int input) {
-		Operator contract = getPactContract();
-		if (contract instanceof AbstractUdfOperator<?>) {
-			AbstractUdfOperator<?> abstractPact = (AbstractUdfOperator<?>) contract;
+		Operator<?> contract = getPactContract();
+		if (contract instanceof AbstractUdfOperator<?, ?>) {
+			AbstractUdfOperator<?, ?> abstractPact = (AbstractUdfOperator<?, ?>) contract;
 			int[] keyColumns = abstractPact.getKeyColumns(input);
 			if (keyColumns != null) {
 				if (keyColumns.length == 0) {

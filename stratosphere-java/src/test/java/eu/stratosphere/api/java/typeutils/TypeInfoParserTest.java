@@ -23,13 +23,7 @@ import junit.framework.Assert;
 import org.apache.hadoop.io.Writable;
 import org.junit.Test;
 
-import eu.stratosphere.api.java.typeutils.BasicArrayTypeInfo;
-import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
-import eu.stratosphere.api.java.typeutils.GenericTypeInfo;
-import eu.stratosphere.api.java.typeutils.ObjectArrayTypeInfo;
-import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
-import eu.stratosphere.api.java.typeutils.ValueTypeInfo;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.types.BooleanValue;
 import eu.stratosphere.types.ByteValue;
 import eu.stratosphere.types.CharValue;
@@ -166,7 +160,7 @@ public class TypeInfoParserTest {
 	
 	@Test
 	public void testWritableType() {
-		TypeInformation<?> ti = TypeInformation.parse("Writable<eu.stratosphere.api.java.typeutils.TypeInfoParserTest$MyWritable>");
+		TypeInformation<?> ti = TypeInfoParser.parse("Writable<eu.stratosphere.api.java.typeutils.TypeInfoParserTest$MyWritable>");
 		Assert.assertTrue(ti instanceof WritableTypeInfo<?>);
 		Assert.assertEquals(MyWritable.class, ((WritableTypeInfo<?>) ti).getTypeClass());
 	}

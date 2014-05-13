@@ -15,7 +15,7 @@ package eu.stratosphere.addons.hbase;
 
 import java.util.Random;
 
-import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.java.record.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.Operator;
 
 /**

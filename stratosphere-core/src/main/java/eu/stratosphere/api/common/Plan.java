@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.core.fs.FileSystem;
 import eu.stratosphere.core.fs.Path;
@@ -41,7 +41,7 @@ import java.net.URISyntaxException;
  * Parameters include the name and a default degree of parallelism. The job is referenced by the data sinks,
  * from which a traversal reaches all connected nodes of the job.
  */
-public class Plan implements Visitable<Operator> {
+public class Plan implements Visitable<Operator<?>> {
 
 	private static final int DEFAULT_PARALELLISM = -1;
 	
@@ -49,7 +49,7 @@ public class Plan implements Visitable<Operator> {
 	 * A collection of all sinks in the plan. Since the plan is traversed from the sinks to the sources, this
 	 * collection must contain all the sinks.
 	 */
-	protected final List<GenericDataSink> sinks = new ArrayList<GenericDataSink>(4);
+	protected final List<GenericDataSinkBase<?>> sinks = new ArrayList<GenericDataSinkBase<?>>(4);
 
 	/**
 	 * The name of the job.
@@ -80,7 +80,7 @@ public class Plan implements Visitable<Operator> {
 	 * @param sinks The collection will the sinks of the job's data flow.
 	 * @param jobName The name to display for the job.
 	 */
-	public Plan(Collection<GenericDataSink> sinks, String jobName) {
+	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, String jobName) {
 		this(sinks, jobName, DEFAULT_PARALELLISM);
 	}
 
@@ -95,7 +95,7 @@ public class Plan implements Visitable<Operator> {
 	 * @param jobName The name to display for the job.
 	 * @param defaultParallelism The default degree of parallelism for the job.
 	 */
-	public Plan(Collection<GenericDataSink> sinks, String jobName, int defaultParallelism) {
+	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, String jobName, int defaultParallelism) {
 		this.sinks.addAll(sinks);
 		this.jobName = jobName;
 		this.defaultParallelism = defaultParallelism;
@@ -111,7 +111,7 @@ public class Plan implements Visitable<Operator> {
 	 * @param sink The data sink of the data flow.
 	 * @param jobName The name to display for the job.
 	 */
-	public Plan(GenericDataSink sink, String jobName) {
+	public Plan(GenericDataSinkBase<?> sink, String jobName) {
 		this(sink, jobName, DEFAULT_PARALELLISM);
 	}
 
@@ -127,8 +127,8 @@ public class Plan implements Visitable<Operator> {
 	 * @param jobName The name to display for the job.
 	 * @param defaultParallelism The default degree of parallelism for the job.
 	 */
-	public Plan(GenericDataSink sink, String jobName, int defaultParallelism) {
-		this(Collections.singletonList(sink), jobName, defaultParallelism);
+	public Plan(GenericDataSinkBase<?> sink, String jobName, int defaultParallelism) {
+		this(Collections.<GenericDataSinkBase<?>>singletonList(sink), jobName, defaultParallelism);
 	}
 
 	/**
@@ -141,7 +141,7 @@ public class Plan implements Visitable<Operator> {
 	 *  
 	 * @param sinks The collection will the sinks of the data flow.
 	 */
-	public Plan(Collection<GenericDataSink> sinks) {
+	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks) {
 		this(sinks, DEFAULT_PARALELLISM);
 	}
 
@@ -156,7 +156,7 @@ public class Plan implements Visitable<Operator> {
 	 * @param sinks The collection will the sinks of the data flow.
 	 * @param defaultParallelism The default degree of parallelism for the job.
 	 */
-	public Plan(Collection<GenericDataSink> sinks, int defaultParallelism) {
+	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, int defaultParallelism) {
 		this(sinks, "Stratosphere Job at " + Calendar.getInstance().getTime(), defaultParallelism);
 	}
 
@@ -169,7 +169,7 @@ public class Plan implements Visitable<Operator> {
 	 * 
 	 * @param sink The data sink of the data flow.
 	 */
-	public Plan(GenericDataSink sink) {
+	public Plan(GenericDataSinkBase<?> sink) {
 		this(sink, DEFAULT_PARALELLISM);
 	}
 
@@ -183,7 +183,7 @@ public class Plan implements Visitable<Operator> {
 	 * @param sink The data sink of the data flow.
 	 * @param defaultParallelism The default degree of parallelism for the job.
 	 */
-	public Plan(GenericDataSink sink, int defaultParallelism) {
+	public Plan(GenericDataSinkBase<?> sink, int defaultParallelism) {
 		this(sink, "Stratosphere Job at " + Calendar.getInstance().getTime(), defaultParallelism);
 	}
 
@@ -194,7 +194,7 @@ public class Plan implements Visitable<Operator> {
 	 * 
 	 * @param sink The data sink to add.
 	 */
-	public void addDataSink(GenericDataSink sink) {
+	public void addDataSink(GenericDataSinkBase<?> sink) {
 		checkNotNull(jobName, "The data sink must not be null.");
 		
 		if (!this.sinks.contains(sink)) {
@@ -207,7 +207,7 @@ public class Plan implements Visitable<Operator> {
 	 * 
 	 * @return All sinks of the program.
 	 */
-	public Collection<GenericDataSink> getDataSinks() {
+	public Collection<? extends GenericDataSinkBase<?>> getDataSinks() {
 		return this.sinks;
 	}
 
@@ -293,8 +293,8 @@ public class Plan implements Visitable<Operator> {
 	 * @see Visitable#accept(Visitor)
 	 */
 	@Override
-	public void accept(Visitor<Operator> visitor) {
-		for (GenericDataSink sink : this.sinks) {
+	public void accept(Visitor<Operator<?>> visitor) {
+		for (GenericDataSinkBase<?> sink : this.sinks) {
 			sink.accept(visitor);
 		}
 	}

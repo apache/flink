@@ -65,7 +65,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * 
 	 * @param pactContract The PACT that the node represents.
 	 */
-	protected SingleInputNode(SingleInputOperator<?> pactContract) {
+	protected SingleInputNode(SingleInputOperator<?, ?, ?> pactContract) {
 		super(pactContract);
 		
 		int[] k = pactContract.getKeyColumns(0);
@@ -91,8 +91,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public SingleInputOperator<?> getPactContract() {
-		return (SingleInputOperator<?>) super.getPactContract();
+	public SingleInputOperator<?, ?, ?> getPactContract() {
+		return (SingleInputOperator<?, ?, ?>) super.getPactContract();
 	}
 	
 	/**
@@ -107,7 +107,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	/**
 	 * Sets the <tt>PactConnection</tt> through which this node receives its input.
 	 * 
-	 * @param conn The input connection to set.
+	 * @param inConn The input connection to set.
 	 */
 	public void setIncomingConnection(PactConnection inConn) {
 		this.inConn = inConn;
@@ -139,7 +139,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 			throw new IndexOutOfBoundsException();
 		}
 		
-		SingleInputOperator<?> c = getPactContract();
+		SingleInputOperator<?, ?, ?> c = getPactContract();
 		SingleInputSemanticProperties semanticProperties = c.getSemanticProperties();
 		
 		if (semanticProperties != null) {
@@ -154,7 +154,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	
 
 	@Override
-	public void setInput(Map<Operator, OptimizerNode> contractToNode) throws CompilerException {
+	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode) throws CompilerException {
 		// see if an internal hint dictates the strategy to use
 		final Configuration conf = getPactContract().getParameters();
 		final String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
@@ -177,7 +177,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 		
 		// get the predecessor node
-		Operator children = ((SingleInputOperator<?>) getPactContract()).getInput();
+		Operator<?> children = ((SingleInputOperator<?, ?, ?>) getPactContract()).getInput();
 		
 		OptimizerNode pred;
 		PactConnection conn;

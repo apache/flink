@@ -16,8 +16,8 @@ package eu.stratosphere.test.cancelling;
 //import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.GenericDataSink;
-import eu.stratosphere.api.common.operators.GenericDataSource;
+import eu.stratosphere.api.java.record.operators.GenericDataSink;
+import eu.stratosphere.api.java.record.operators.GenericDataSource;
 import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.configuration.Configuration;

@@ -80,9 +80,9 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	private List<AbstractRecordWriter<?>> finalOutputWriters;
 
-	private TypeSerializer<Y> feedbackTypeSerializer;
+	private TypeSerializerFactory<Y> feedbackTypeSerializer;
 
-	private TypeSerializer<X> solutionTypeSerializer;
+	private TypeSerializerFactory<X> solutionTypeSerializer;
 
 	private RecordWriter<?> toSync;
 
@@ -220,13 +220,13 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			SolutionSetUpdateBarrier solutionSetUpdateBarrier = null;
 
 			feedbackDataInput = config.getIterationHeadPartialSolutionOrWorksetInputIndex();
-			feedbackTypeSerializer = this.<Y>getInputSerializer(feedbackDataInput).getSerializer();
+			feedbackTypeSerializer = this.<Y>getInputSerializer(feedbackDataInput);
 			excludeFromReset(feedbackDataInput);
 
 			if (isWorksetIteration) {
 				initialSolutionSetInput = config.getIterationHeadSolutionSetInputIndex();
 				TypeSerializerFactory<X> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
-				solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
+				solutionTypeSerializer = solutionTypeSerializerFactory;
 
 				// setup the index for the solution set
 				//solutionSet = initHashTable();
@@ -249,7 +249,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 				initialSolutionSetInput = -1;
 
 				@SuppressWarnings("unchecked")
-				TypeSerializer<X> solSer = (TypeSerializer<X>) feedbackTypeSerializer;
+				TypeSerializerFactory<X> solSer = (TypeSerializerFactory<X>) feedbackTypeSerializer;
 				solutionTypeSerializer = solSer;
 				
 				// = termination Criterion tail
@@ -327,7 +327,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			if (isWorksetIteration) {
 				streamSolutionSetToFinalOutput(solutionSet);
 			} else {
-				streamOutFinalOutputBulk(new InputViewIterator<X>(superstepResult, this.solutionTypeSerializer));
+				streamOutFinalOutputBulk(new InputViewIterator<X>(superstepResult, this.solutionTypeSerializer.getSerializer()));
 			}
 
 		} finally {
@@ -352,7 +352,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	private void streamOutFinalOutputBulk(MutableObjectIterator<X> results) throws IOException {
 		final Collector<X> out = this.finalOutputCollector;
-		X record = this.solutionTypeSerializer.createInstance();
+		X record = this.solutionTypeSerializer.getSerializer().createInstance();
 
 		while ((record = results.next(record)) != null) {
 			out.collect(record);
@@ -362,7 +362,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	private void streamSolutionSetToFinalOutput(CompactingHashTable<X> hashTable) throws IOException {
 		final MutableObjectIterator<X> results = hashTable.getEntryIterator();
 		final Collector<X> output = this.finalOutputCollector;
-		X record = solutionTypeSerializer.createInstance();
+		X record = solutionTypeSerializer.getSerializer().createInstance();
 
 		while ((record = results.next(record)) != null) {
 			output.collect(record);
@@ -371,7 +371,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	private void feedBackSuperstepResult(DataInputView superstepResult) {
 		this.inputs[this.feedbackDataInput] =
-			new InputViewIterator<Y>(superstepResult, this.feedbackTypeSerializer);
+			new InputViewIterator<Y>(superstepResult, this.feedbackTypeSerializer.getSerializer());
 	}
 
 	private void sendEndOfSuperstepToAllIterationOutputs() throws IOException, InterruptedException {

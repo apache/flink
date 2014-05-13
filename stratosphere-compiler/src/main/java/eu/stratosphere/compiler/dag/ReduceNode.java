@@ -30,7 +30,7 @@ public class ReduceNode extends SingleInputNode {
 	private ReduceNode preReduceUtilityNode;
 	
 
-	public ReduceNode(ReduceOperatorBase<?> operator) {
+	public ReduceNode(ReduceOperatorBase<?, ?> operator) {
 		super(operator);
 		
 		if (this.keys == null) {
@@ -47,8 +47,8 @@ public class ReduceNode extends SingleInputNode {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public ReduceOperatorBase<?> getPactContract() {
-		return (ReduceOperatorBase<?>) super.getPactContract();
+	public ReduceOperatorBase<?, ?> getPactContract() {
+		return (ReduceOperatorBase<?, ?>) super.getPactContract();
 	}
 
 	@Override

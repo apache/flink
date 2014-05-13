@@ -36,7 +36,7 @@ public class MatchNode extends TwoInputNode {
 	 * 
 	 * @param pactContract The match contract object.
 	 */
-	public MatchNode(JoinOperatorBase<?> pactContract) {
+	public MatchNode(JoinOperatorBase<?, ?, ?, ?> pactContract) {
 		super(pactContract);
 	}
 
@@ -48,8 +48,8 @@ public class MatchNode extends TwoInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public JoinOperatorBase<?> getPactContract() {
-		return (JoinOperatorBase<?>) super.getPactContract();
+	public JoinOperatorBase<?, ?, ?, ?> getPactContract() {
+		return (JoinOperatorBase<?, ?, ?, ?>) super.getPactContract();
 	}
 
 	@Override

@@ -13,8 +13,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.functions;
 
-import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
-
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.RetentionPolicy;
@@ -23,16 +21,14 @@ import java.lang.annotation.Retention;
 import java.util.HashSet;
 import java.util.Set;
 
-
 /**
  * This class defines the semantic assertions that can be added to functions.
  * The assertions are realized as java annotations, to be added to the class declaration of
  * the class that implements the functions. For example, to declare the <i>ConstantFields</i>
  * annotation for a map-type function that simply copies some fields, use it the following way:
  *
- * <pre>
- * {@code
- * @ConstantFields({"0->0,1", "1->2"})
+ * <pre><blockquote>
+ * \@ConstantFields({"0->0,1", "1->2"})
  * public class MyMapper extends FlatMapFunction<Tuple3<String, Integer, Integer>, Tuple3<String, String, Integer>>
  * {
  *     public void flatMap(Tuple3<String, Integer, Integer> value, Collector<Tuple3<String, String, Integer>> out) {
@@ -41,8 +37,7 @@ import java.util.Set;
  *         out.collect(value);
  *     }
  * }
- * }
- * </pre>
+ * </blockquote></pre>
  * <p>
  * All annotations takes String arrays. The Strings represent the source and destination fields.
  * The transition is represented by the arrow "->".
@@ -72,17 +67,15 @@ public class FunctionAnnotation {
 	 * functions, like for example {@link MapFunction}, {@link ReduceFunction}, or {@link FlatMapFunction}.
 	 * <p>
 	 * The following example illustrates a function that keeps the tuple's field zero constant:
-	 * <pre>
-	 * {@code
-	 * @ConstantFields("0")
+	 * <pre><blockquote>
+	 * \@ConstantFields("0")
 	 * public class MyMapper extends MapFunction<Tuple3<String, Integer, Integer>, Tuple2<String, Double>>
 	 * {
 	 *     public Tuple2<String, Double> map(Tuple3<String, Integer, Integer> value) {
 	 *         return new Tuple2<String, Double>(value.f0, value.f1 * 0.5);
 	 *     }
 	 * }
-	 * }
-	 * </pre>
+	 * </blockquote></pre>
 	 * <p>
 	 * (Note that you could equivalently write {@code @ConstantFields("0 -> 0")}.
 	 * <p>
@@ -106,18 +99,16 @@ public class FunctionAnnotation {
 	 * <p>
 	 * The following example illustrates a join function that copies fields from the first and second input to the
 	 * return value:
-	 * <pre>
-	 * {@code
-	 * @ConstantFieldsFirst("1 -> 0")
-	 * @ConstantFieldsFirst("1 -> 1")
+	 * <pre><blockquote>
+	 * \@ConstantFieldsFirst("1 -> 0")
+	 * \@ConstantFieldsFirst("1 -> 1")
 	 * public class MyJoin extends JoinFunction<Tuple2<String, Integer>, Tuple2<String, String>, Tuple2<Integer, String>>
 	 * {
 	 *     public Tuple2<Integer, String> map(Tuple2<String, Integer> first, Tuple2<String, String> second) {
 	 *         return new Tuple2<String, Double>(first.f1, second.f1);
 	 *     }
 	 * }
-	 * }
-	 * </pre>
+	 * </blockquote></pre>
 	 * <p>
 	 * This annotation is mutually exclusive with the {@link ConstantFieldsFirstExcept} annotation.
 	 * <p>
@@ -140,18 +131,16 @@ public class FunctionAnnotation {
 	 * <p>
 	 * The following example illustrates a join function that copies fields from the first and second input to the
 	 * return value:
-	 * <pre>
-	 * {@code
-	 * @ConstantFieldsFirst("1 -> 0")
-	 * @ConstantFieldsFirst("1 -> 1")
+	 * <pre><blockquote>
+	 * \@ConstantFieldsFirst("1 -> 0")
+	 * \@ConstantFieldsFirst("1 -> 1")
 	 * public class MyJoin extends JoinFunction<Tuple2<String, Integer>, Tuple2<String, String>, Tuple2<Integer, String>>
 	 * {
 	 *     public Tuple2<Integer, String> map(Tuple2<String, Integer> first, Tuple2<String, String> second) {
 	 *         return new Tuple2<String, Double>(first.f1, second.f1);
 	 *     }
 	 * }
-	 * }
-	 * </pre>
+	 * </blockquote></pre>
 	 * <p>
 	 * This annotation is mutually exclusive with the {@link ConstantFieldsSecond} annotation.
 	 * <p>
@@ -172,18 +161,17 @@ public class FunctionAnnotation {
 	 * others unmodified and in place in the return value. The annotation is applicable to unary
 	 * functions, like for example {@link MapFunction}, {@link ReduceFunction}, or {@link FlatMapFunction}.
 	 * <p>
-	 * The following example illustrates that at the example of a Map function.
-	 * <pre>
-	 * {@code
-	 * @ConstantFieldsExcept("1")
+	 * The following example illustrates that at the example of a Map function:
+	 * 
+	 * <pre><blockquote>
+	 * \@ConstantFieldsExcept("1")
 	 * public class MyMapper extends MapFunction<Tuple3<String, Integer, Double>, Tuple3<String, Double, Double>>
 	 * {
 	 *     public Tuple3<String, String, Double> map(Tuple3<String, Integer, Double> value) {
 	 *         return new Tuple3<String, String, Double>(value.f0, value.f2 / 2, value.f2);
 	 *     }
 	 * }
-	 * }
-	 * </pre>
+	 * </blockquote></pre>
 	 * <p>
 	 * The annotation takes one String array specifying the positions of the input types that do not remain constant.
 	 * When this annotation is used, it is assumed that all other values remain at the same position in input and output.
@@ -209,17 +197,16 @@ public class FunctionAnnotation {
 	 * <p>
 	 * The following example illustrates a join function that copies fields from the first and second input to the
 	 * return value:
-	 * <pre>
-	 * {@code
-	 * @ConstantFieldsFirstExcept("1")
+	 * 
+	 * <pre><blockquote>
+	 * \@ConstantFieldsFirstExcept("1")
 	 * public class MyJoin extends JoinFunction<Tuple3<String, Integer, Double>, Tuple2<String, Double>, Tuple3<String, Double, Double>>
 	 * {
 	 *     public Tuple3<String, Double, Double> map(Tuple3<String, Integer, Double> first, Tuple2<String, Double> second) {
 	 *         return Tuple3<String, Double, Double>(first.f0, second.f1, first.f2);
 	 *     }
 	 * }
-	 * }
-	 * </pre>
+	 * </blockquote></pre>
 	 * <p>
 	 * The annotation takes one String array specifying the positions of the input types that do not remain constant.
 	 * When this annotation is used, it is assumed that all other values remain at the same position in input and output.
@@ -247,17 +234,16 @@ public class FunctionAnnotation {
 	 * <p>
 	 * The following example illustrates a join function that copies fields from the first and second input to the
 	 * return value:
-	 * <pre>
-	 * {@code
-	 * @ConstantFieldsSecondExcept("1")
+	 * 
+	 * <pre><blockquote>
+	 * \@ConstantFieldsSecondExcept("1")
 	 * public class MyJoin extends JoinFunction<Tuple2<String, Double>, Tuple3<String, Integer, Double>, Tuple3<String, Double, Double>>
 	 * {
 	 *     public Tuple3<String, Double, Double> map(Tuple2<String, Double> first, Tuple3<String, Integer, Double> second) {
 	 *         return Tuple3<String, Double, Double>(second.f0, first.f1, second.f2);
 	 *     }
 	 * }
-	 * }
-	 * </pre>
+	 * </blockquote></pre>
 	 * <p>
 	 * The annotation takes one String array specifying the positions of the input types that do not remain constant.
 	 * When this annotation is used, it is assumed that all other values remain at the same position in input and output.
@@ -320,13 +306,13 @@ public class FunctionAnnotation {
 	/**
 	 * Reads the annotations of a user defined function with one input and returns semantic properties according to the constant fields annotated.
 	 * 
-	 * @param udf	The user defined function.
+	 * @param udfClass The user defined function, represented by its class.
 	 * @return	The DualInputSemanticProperties containing the constant fields.
 	 */
-	public static Set<Annotation> readSingleConstantAnnotations(UserCodeWrapper<?> udf) {
-		ConstantFields constantSet = udf.getUserCodeAnnotation(ConstantFields.class);
-		ConstantFieldsExcept notConstantSet = udf.getUserCodeAnnotation(ConstantFieldsExcept.class);
-		ReadFields readfieldSet = udf.getUserCodeAnnotation(ReadFields.class);
+	public static Set<Annotation> readSingleConstantAnnotations(Class<?> udfClass) {
+		ConstantFields constantSet = udfClass.getAnnotation(ConstantFields.class);
+		ConstantFieldsExcept notConstantSet = udfClass.getAnnotation(ConstantFieldsExcept.class);
+		ReadFields readfieldSet = udfClass.getAnnotation(ReadFields.class);
 
 		Set<Annotation> result = null;
 
@@ -358,22 +344,22 @@ public class FunctionAnnotation {
 	// --------------------------------------------------------------------------------------------
 	/**
 	 * Reads the annotations of a user defined function with two inputs and returns semantic properties according to the constant fields annotated.
-	 * @param udf	The user defined function.
+	 * @param udfClass The user defined function, represented by its class.
 	 * @return	The DualInputSemanticProperties containing the constant fields.
 	 */
 
-	public static Set<Annotation> readDualConstantAnnotations(UserCodeWrapper<?> udf) {
+	public static Set<Annotation> readDualConstantAnnotations(Class<?> udfClass) {
 
 		// get readSet annotation from stub
-		ConstantFieldsFirst constantSet1 = udf.getUserCodeAnnotation(ConstantFieldsFirst.class);
-		ConstantFieldsSecond constantSet2= udf.getUserCodeAnnotation(ConstantFieldsSecond.class);
+		ConstantFieldsFirst constantSet1 = udfClass.getAnnotation(ConstantFieldsFirst.class);
+		ConstantFieldsSecond constantSet2= udfClass.getAnnotation(ConstantFieldsSecond.class);
 
 		// get readSet annotation from stub
-		ConstantFieldsFirstExcept notConstantSet1 = udf.getUserCodeAnnotation(ConstantFieldsFirstExcept.class);
-		ConstantFieldsSecondExcept notConstantSet2 = udf.getUserCodeAnnotation(ConstantFieldsSecondExcept.class);
+		ConstantFieldsFirstExcept notConstantSet1 = udfClass.getAnnotation(ConstantFieldsFirstExcept.class);
+		ConstantFieldsSecondExcept notConstantSet2 = udfClass.getAnnotation(ConstantFieldsSecondExcept.class);
 
-		ReadFieldsFirst readfieldSet1 = udf.getUserCodeAnnotation(ReadFieldsFirst.class);
-		ReadFieldsSecond readfieldSet2 = udf.getUserCodeAnnotation(ReadFieldsSecond.class);
+		ReadFieldsFirst readfieldSet1 = udfClass.getAnnotation(ReadFieldsFirst.class);
+		ReadFieldsSecond readfieldSet2 = udfClass.getAnnotation(ReadFieldsSecond.class);
 
 		if (notConstantSet1 != null && constantSet1 != null) {
 			throw new RuntimeException("Either ConstantFieldsFirst or ConstantFieldsFirstExcept can be specified, not both.");

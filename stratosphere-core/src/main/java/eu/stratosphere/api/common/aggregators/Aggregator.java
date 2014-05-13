@@ -19,7 +19,7 @@ import eu.stratosphere.types.Value;
  * Aggregators are a means of aggregating values across parallel instances of a function. Aggregators  
  * collect simple statistics (such as the number of processed elements) about the actual work performed in a function.
  * Aggregators are specific to iterations and are commonly used to check the convergence of an iteration by using a
- * {@link ConvergenceCriterion}. In contrast to the {@link Accumulator} (whose result is available at the end of a job,
+ * {@link ConvergenceCriterion}. In contrast to the {@link eu.stratosphere.api.common.accumulators.Accumulator} (whose result is available at the end of a job,
  * the aggregators are computed once per iteration superstep. Their value can be used to check for convergence (at the end
  * of the iteration superstep) and it can be accessed in the next iteration superstep.
  * <p>

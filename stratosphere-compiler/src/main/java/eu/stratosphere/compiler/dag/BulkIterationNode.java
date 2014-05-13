@@ -19,7 +19,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.api.common.operators.BulkIteration;
+import eu.stratosphere.api.common.operators.base.BulkIterationBase;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler.InterestingPropertyVisitor;
@@ -63,9 +63,9 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
 	 * 
-	 * @param pactContract The PACT that the node represents.
+	 * @param iteration The PACT that the node represents.
 	 */
-	public BulkIterationNode(BulkIteration iteration) {
+	public BulkIterationNode(BulkIterationBase<?> iteration) {
 		super(iteration);
 		
 		if (iteration.getMaximumNumberOfIterations() <= 0) {
@@ -80,8 +80,8 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 
 	// --------------------------------------------------------------------------------------------
 	
-	public BulkIteration getIterationContract() {
-		return (BulkIteration) getPactContract();
+	public BulkIterationBase<?> getIterationContract() {
+		return (BulkIterationBase<?>) getPactContract();
 	}
 	
 	/**

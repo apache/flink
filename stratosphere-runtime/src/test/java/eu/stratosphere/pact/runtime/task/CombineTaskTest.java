@@ -24,7 +24,7 @@ import org.junit.Test;
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;

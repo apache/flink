@@ -19,14 +19,14 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.common.operators.base.FlatMapOperatorBase;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.aggregation.Aggregations;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
-import eu.stratosphere.api.java.operators.translation.PlanFlatMapOperator;
-import eu.stratosphere.api.java.operators.translation.PlanGroupReduceOperator;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.compiler.plan.Channel;
@@ -47,7 +47,7 @@ import eu.stratosphere.util.Visitor;
 @SuppressWarnings("serial")
 public class UnionPropertyPropagationTest extends CompilerTestBase {
 
-	@SuppressWarnings("deprecation")
+	@SuppressWarnings({ "deprecation", "unchecked" })
 	@Test
 	public void testUnionPropertyOldApiPropagation() {
 		// construct the plan
@@ -135,7 +135,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 				/* Test on the union output connections
 				 * It must be under the GroupOperator and the strategy should be forward
 				 */
-				if (visitable instanceof SingleInputPlanNode && visitable.getPactContract() instanceof PlanGroupReduceOperator){
+				if (visitable instanceof SingleInputPlanNode && visitable.getPactContract() instanceof GroupReduceOperatorBase){
 					final Channel inConn = ((SingleInputPlanNode) visitable).getInput();
 					Assert.assertTrue("Union should just forward the Partitioning",
 							inConn.getShipStrategy() == ShipStrategyType.FORWARD ); 
@@ -152,7 +152,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 						final Channel inConn = inputs.next();
 						PlanNode inNode = inConn.getSource();
 						Assert.assertTrue("Input of Union should be FlatMapOperators",
-								inNode.getPactContract() instanceof PlanFlatMapOperator); 
+								inNode.getPactContract() instanceof FlatMapOperatorBase);
 						Assert.assertTrue("Shipment strategy under union should partition the data",
 								inConn.getShipStrategy() == ShipStrategyType.PARTITION_HASH); 
 					}

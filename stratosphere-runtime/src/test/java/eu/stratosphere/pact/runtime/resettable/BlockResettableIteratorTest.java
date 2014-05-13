@@ -27,7 +27,7 @@ import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;

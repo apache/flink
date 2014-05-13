@@ -51,9 +51,6 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
 import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
@@ -171,7 +168,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	/**
 	 * The serializers for the broadcast input data types.
 	 */
-	protected TypeSerializer<?>[] broadcastInputSerializers;
+	protected TypeSerializerFactory<?>[] broadcastInputSerializers;
 
 	/**
 	 * The comparators for the central driver.
@@ -454,7 +451,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		final MutableObjectIterator<X> reader =  (MutableObjectIterator<X>) this.broadcastInputIterators[inputNum];
 		
 		@SuppressWarnings("unchecked")
-		final TypeSerializer<X> serializer =  (TypeSerializer<X>) this.broadcastInputSerializers[inputNum];
+		final TypeSerializer<X> serializer =  (TypeSerializer<X>) this.broadcastInputSerializers[inputNum].getSerializer();
 
 		ArrayList<X> collection = new ArrayList<X>();
 		
@@ -557,8 +554,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	 * the task and the chained tasks. It merges them into a single map of
 	 * accumulators and sends them to the JobManager.
 	 * 
-	 * @param stub
-	 *          The task stub which usually holds several accumulators
+	 * @param env
+	 * @param accumulators
 	 * @param chainedTasks
 	 *          Each chained task might have accumulators which will be merged
 	 *          with the accumulators of the stub.
@@ -780,7 +777,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 				this.inputComparators[i] = comparatorFactory.createComparator();
 			}
 			
-			this.inputIterators[i] = createInputIterator(this.inputReaders[i], this.inputSerializers[i].getSerializer());
+			this.inputIterators[i] = createInputIterator(this.inputReaders[i], this.inputSerializers[i]);
 		}
 	}
 	
@@ -788,13 +785,13 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	 * Creates all the serializers and iterators for the broadcast inputs.
 	 */
 	protected void initBroadcastInputsSerializers(int numBroadcastInputs) throws Exception {
-		this.broadcastInputSerializers = new TypeSerializer[numBroadcastInputs];
+		this.broadcastInputSerializers = new TypeSerializerFactory[numBroadcastInputs];
 		this.broadcastInputIterators = new MutableObjectIterator[numBroadcastInputs];
 
 		for (int i = 0; i < numBroadcastInputs; i++) {
 			//  ---------------- create the serializer first ---------------------
 			final TypeSerializerFactory<?> serializerFactory = this.config.getBroadcastInputSerializer(i, this.userCodeClassLoader);
-			this.broadcastInputSerializers[i] = serializerFactory.getSerializer();
+			this.broadcastInputSerializers[i] = serializerFactory;
 
 			this.broadcastInputIterators[i] = createInputIterator(this.broadcastInputReaders[i], this.broadcastInputSerializers[i]);
 		}
@@ -1011,8 +1008,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		return compFact.createComparator();
 	}
 	
-	protected MutableObjectIterator<?> createInputIterator(MutableReader<?> inputReader, TypeSerializer<?> serializer) {
-		if (serializer.getClass() == RecordSerializer.class) {
+	protected MutableObjectIterator<?> createInputIterator(MutableReader<?> inputReader, TypeSerializerFactory<?> serializerFactory) {
+
+		if (serializerFactory.getDataType().equals(Record.class)) {
 			// record specific deserialization
 			@SuppressWarnings("unchecked")
 			MutableReader<Record> reader = (MutableReader<Record>) inputReader;
@@ -1022,9 +1020,15 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			@SuppressWarnings("unchecked")
 			MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
 			@SuppressWarnings({ "unchecked", "rawtypes" })
-			final MutableObjectIterator<?> iter = new ReaderIterator(reader, serializer);
+			final MutableObjectIterator<?> iter = new ReaderIterator(reader, serializerFactory.getSerializer());
 			return iter;
 		}
+//		// generic data type serialization
+//		@SuppressWarnings("unchecked")
+//		MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
+//		@SuppressWarnings({ "unchecked", "rawtypes" })
+//		final MutableObjectIterator<?> iter = new ReaderIterator(reader, serializer);
+//		return iter;
 	}
 	
 	protected int getNumTaskInputs() {
@@ -1254,13 +1258,13 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 				if (compFact == null) {
 					oe = new RecordOutputEmitter(strategy);
 				} else {
-					if (compFact instanceof RecordComparatorFactory) {
-						final RecordComparator comparator = ((RecordComparatorFactory) compFact).createComparator();
-						final DataDistribution distribution = config.getOutputDataDistribution(i, cl);
-						oe = new RecordOutputEmitter(strategy, comparator, distribution);
-					} else {
+					@SuppressWarnings("unchecked")
+					TypeComparator<Record> comparator = (TypeComparator<Record>) compFact.createComparator();
+					if (!comparator.supportsCompareAgainstReference()) {
 						throw new Exception("Incompatibe serializer-/comparator factories.");
 					}
+					final DataDistribution distribution = config.getOutputDataDistribution(i, cl);
+					oe = new RecordOutputEmitter(strategy, comparator, distribution);
 				}
 
 				if (strategy == ShipStrategyType.BROADCAST && USE_BROARDCAST_WRITERS) {

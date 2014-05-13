@@ -16,15 +16,17 @@ package eu.stratosphere.api.java.operators;
 
 import java.util.Arrays;
 
+import eu.stratosphere.api.common.functions.GenericCrosser;
+import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.CrossFunction;
-import eu.stratosphere.api.java.operators.translation.PlanCrossOperator;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import eu.stratosphere.api.java.tuple.*;
+import eu.stratosphere.types.TypeInformation;
 //CHECKSTYLE.ON: AvoidStarImport
 
 /**
@@ -36,8 +38,7 @@ import eu.stratosphere.api.java.tuple.*;
  *
  * @see DataSet
  */
-public class CrossOperator<I1, I2, OUT>
-	extends TwoInputUdfOperator<I1, I2, OUT, CrossOperator<I1, I2, OUT>> {
+public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT, CrossOperator<I1, I2, OUT>> {
 
 	private final CrossFunction<I1, I2, OUT> function;
 
@@ -48,14 +49,16 @@ public class CrossOperator<I1, I2, OUT>
 		super(input1, input2, returnType);
 
 		this.function = function;
+		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
-
+	
 	@Override
-	protected eu.stratosphere.api.common.operators.DualInputOperator<?> translateToDataFlow(Operator input1, Operator input2) {
-
+	protected eu.stratosphere.api.common.operators.base.CrossOperatorBase<I1, I2, OUT, GenericCrosser<I1,I2,OUT>> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
+		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator
-		PlanCrossOperator<I1, I2, OUT> po = new PlanCrossOperator<I1, I2, OUT>(function, name, getInput1Type(), getInput2Type(), getResultType());
+		CrossOperatorBase<I1, I2, OUT, GenericCrosser<I1, I2, OUT>> po =
+				new CrossOperatorBase<I1, I2, OUT, GenericCrosser<I1, I2, OUT>>(function, new BinaryOperatorInformation<I1, I2, OUT>(getInput1Type(), getInput2Type(), getResultType()), name);
 		// set inputs
 		po.setFirstInput(input1);
 		po.setSecondInput(input2);

@@ -15,13 +15,8 @@ package eu.stratosphere.examples.scala.graph;
 
 import eu.stratosphere.client.LocalExecutor
 import eu.stratosphere.api.common.Program
-import eu.stratosphere.api.common.ProgramDescription
-import eu.stratosphere.api.scala.analysis.GlobalSchemaPrinter
-import eu.stratosphere.api.common.operators.DeltaIteration
-import scala.math._
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
-import eu.stratosphere.api.common.Plan
 
 object RunConnectedComponents {
  def main(pArgs: Array[String]) {
@@ -73,7 +68,6 @@ class ConnectedComponents extends Program with Serializable {
     val output = components.write(componentsOutput, DelimitedOutputFormat(formatOutput.tupled))
 
     val plan = new ScalaPlan(Seq(output), "Connected Components")
-    GlobalSchemaPrinter.printSchema(plan)
     plan
   }
 

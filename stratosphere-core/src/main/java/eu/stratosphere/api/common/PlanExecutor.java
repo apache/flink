@@ -18,8 +18,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A PlanExecutor runs a plan. The specific implementation (such as the {@link eu.stratosphere.client.LocalExecutor}
- * and {@link eu.stratosphere.client.RemoteExecutor}) determines where and how to run the plan. 
+ * A PlanExecutor runs a plan. The specific implementation (such as the eu.stratosphere.client.LocalExecutor
+ * and eu.stratosphere.client.RemoteExecutor) determines where and how to run the plan. 
  */
 public abstract class PlanExecutor {
 

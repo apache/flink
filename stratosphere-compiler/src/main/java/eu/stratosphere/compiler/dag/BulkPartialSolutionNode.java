@@ -15,7 +15,7 @@ package eu.stratosphere.compiler.dag;
 
 import java.util.Collections;
 
-import eu.stratosphere.api.common.operators.BulkIteration.PartialSolutionPlaceHolder;
+import eu.stratosphere.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
@@ -30,7 +30,7 @@ public class BulkPartialSolutionNode extends AbstractPartialSolutionNode {
 	private final BulkIterationNode iterationNode;
 	
 	
-	public BulkPartialSolutionNode(PartialSolutionPlaceHolder psph, BulkIterationNode iterationNode) {
+	public BulkPartialSolutionNode(PartialSolutionPlaceHolder<?> psph, BulkIterationNode iterationNode) {
 		super(psph);
 		this.iterationNode = iterationNode;
 	}
@@ -70,8 +70,8 @@ public class BulkPartialSolutionNode extends AbstractPartialSolutionNode {
 	 * @return The contract.
 	 */
 	@Override
-	public PartialSolutionPlaceHolder getPactContract() {
-		return (PartialSolutionPlaceHolder) super.getPactContract();
+	public PartialSolutionPlaceHolder<?> getPactContract() {
+		return (PartialSolutionPlaceHolder<?>) super.getPactContract();
 	}
 
 	@Override

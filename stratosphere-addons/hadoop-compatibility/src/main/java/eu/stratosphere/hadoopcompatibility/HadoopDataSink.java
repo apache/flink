@@ -15,6 +15,7 @@ package eu.stratosphere.hadoopcompatibility;
 
 import java.util.List;
 
+import eu.stratosphere.types.Record;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputFormat;
@@ -22,7 +23,7 @@ import org.apache.hadoop.mapred.OutputFormat;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
-import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.java.record.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.compiler.contextcheck.Validatable;
 import eu.stratosphere.hadoopcompatibility.datatypes.DefaultStratosphereTypeConverter;
@@ -47,26 +48,26 @@ public class HadoopDataSink<K,V> extends GenericDataSink implements Validatable 
 
 	private JobConf jobConf;
 
-	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, Operator input, StratosphereTypeConverter<K,V> conv, Class<K> keyClass, Class<V> valueClass) {
-		this(hadoopFormat, jobConf, name, ImmutableList.of(input), conv, keyClass, valueClass);
+	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, Operator<Record> input, StratosphereTypeConverter<K,V> conv, Class<K> keyClass, Class<V> valueClass) {
+		this(hadoopFormat, jobConf, name, ImmutableList.<Operator<Record>>of(input), conv, keyClass, valueClass);
 	}
 
-	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, Operator input, Class<K> keyClass, Class<V> valueClass) {
+	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, Operator<Record> input, Class<K> keyClass, Class<V> valueClass) {
 		this(hadoopFormat, jobConf, name, input, new DefaultStratosphereTypeConverter<K, V>(keyClass, valueClass), keyClass, valueClass);
 	}
 
-	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, Operator input, Class<K> keyClass, Class<V> valueClass) {
+	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, Operator<Record> input, Class<K> keyClass, Class<V> valueClass) {
 		this(hadoopFormat, jobConf, DEFAULT_NAME, input, new DefaultStratosphereTypeConverter<K, V>(keyClass, valueClass), keyClass, valueClass);
 	}
 
-	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, Operator input, Class<K> keyClass, Class<V> valueClass) {
+	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, Operator<Record> input, Class<K> keyClass, Class<V> valueClass) {
 		this(hadoopFormat, new JobConf(), DEFAULT_NAME, input, new DefaultStratosphereTypeConverter<K, V>(keyClass, valueClass), keyClass, valueClass);
 	}
 
 
 
 	@SuppressWarnings("deprecation")
-	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, List<Operator> input, StratosphereTypeConverter<K,V> conv, Class<K> keyClass, Class<V> valueClass) {
+	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, List<Operator<Record>> input, StratosphereTypeConverter<K,V> conv, Class<K> keyClass, Class<V> valueClass) {
 		super(new HadoopOutputFormatWrapper<K,V>(hadoopFormat, jobConf, conv),input, name);
 		Preconditions.checkNotNull(hadoopFormat);
 		Preconditions.checkNotNull(jobConf);
@@ -76,15 +77,15 @@ public class HadoopDataSink<K,V> extends GenericDataSink implements Validatable 
 		jobConf.setOutputValueClass(valueClass);
 	}
 
-	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, List<Operator> input, Class<K> keyClass, Class<V> valueClass) {
+	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, List<Operator<Record>> input, Class<K> keyClass, Class<V> valueClass) {
 		this(hadoopFormat, jobConf, name, input, new DefaultStratosphereTypeConverter<K, V>(keyClass, valueClass), keyClass, valueClass);
 	}
 
-	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, List<Operator> input, Class<K> keyClass, Class<V> valueClass) {
+	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, List<Operator<Record>> input, Class<K> keyClass, Class<V> valueClass) {
 		this(hadoopFormat, jobConf, DEFAULT_NAME, input, new DefaultStratosphereTypeConverter<K, V>(keyClass, valueClass), keyClass, valueClass);
 	}
 
-	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, List<Operator> input, Class<K> keyClass, Class<V> valueClass) {
+	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, List<Operator<Record>> input, Class<K> keyClass, Class<V> valueClass) {
 		this(hadoopFormat, new JobConf(), DEFAULT_NAME, input, new DefaultStratosphereTypeConverter<K, V>(keyClass, valueClass), keyClass, valueClass);
 	}
 

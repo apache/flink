@@ -14,14 +14,17 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import java.lang.annotation.Annotation;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import eu.stratosphere.api.common.operators.DualInputSemanticProperties;
 import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.functions.FunctionAnnotation;
 import eu.stratosphere.api.java.functions.SemanticPropUtil;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.configuration.Configuration;
 
 /**
@@ -57,6 +60,15 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 */
 	protected TwoInputUdfOperator(DataSet<IN1> input1, DataSet<IN2> input2, TypeInformation<OUT> resultType) {
 		super(input1, input2, resultType);
+	}
+	
+	protected void extractSemanticAnnotationsFromUdf(Class<?> udfClass) {
+		Set<Annotation> annotations = FunctionAnnotation.readDualConstantAnnotations(udfClass);
+		
+		DualInputSemanticProperties dsp = SemanticPropUtil.getSemanticPropsDual(annotations,
+					getInput1Type(), getInput2Type(), getResultType());
+
+		setSemanticProperties(dsp);
 	}
 
 	// --------------------------------------------------------------------------------------------

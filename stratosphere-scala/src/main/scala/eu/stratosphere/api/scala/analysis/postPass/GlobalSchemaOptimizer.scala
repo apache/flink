@@ -53,7 +53,7 @@ trait GlobalSchemaOptimizer {
 
         node.getPactContract match {
 
-          case c: ScalaOperator[_] => c.persistConfiguration(Some(node))
+          case c: ScalaOperator[_, _] => c.persistConfiguration(Some(node))
           case _                    =>
         }
 

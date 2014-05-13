@@ -78,7 +78,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	 * @param pactContract
 	 *        The PACT that the node represents.
 	 */
-	public TwoInputNode(DualInputOperator<?> pactContract) {
+	public TwoInputNode(DualInputOperator<?, ?, ?, ?> pactContract) {
 		super(pactContract);
 
 		int[] k1 = pactContract.getKeyColumns(0);
@@ -105,8 +105,8 @@ public abstract class TwoInputNode extends OptimizerNode {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public DualInputOperator<?> getPactContract() {
-		return (DualInputOperator<?>) super.getPactContract();
+	public DualInputOperator<?, ?, ?, ?> getPactContract() {
+		return (DualInputOperator<?, ?, ?, ?>) super.getPactContract();
 	}
 
 	/**
@@ -153,7 +153,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 
 
 	@Override
-	public void setInput(Map<Operator, OptimizerNode> contractToNode) {
+	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode) {
 		// see if there is a hint that dictates which shipping strategy to use for BOTH inputs
 		final Configuration conf = getPactContract().getParameters();
 		ShipStrategyType preSet1 = null;
@@ -213,10 +213,10 @@ public abstract class TwoInputNode extends OptimizerNode {
 		}
 		
 		// get the predecessors
-		DualInputOperator<?> contr = (DualInputOperator<?>) getPactContract();
+		DualInputOperator<?, ?, ?, ?> contr = (DualInputOperator<?, ?, ?, ?>) getPactContract();
 		
-		Operator leftPred = contr.getFirstInput();
-		Operator rightPred = contr.getSecondInput();
+		Operator<?> leftPred = contr.getFirstInput();
+		Operator<?> rightPred = contr.getSecondInput();
 		
 		OptimizerNode pred1;
 		PactConnection conn1;
@@ -681,7 +681,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	
 	@Override
 	public boolean isFieldConstant(int input, int fieldNumber) {
-		DualInputOperator<?> c = getPactContract();
+		DualInputOperator<?, ?, ?, ?> c = getPactContract();
 		DualInputSemanticProperties semanticProperties = c.getSemanticProperties();
 		
 		switch(input) {

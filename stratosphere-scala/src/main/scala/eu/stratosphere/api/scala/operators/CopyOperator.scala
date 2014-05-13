@@ -27,7 +27,7 @@ import eu.stratosphere.configuration.Configuration
 import eu.stratosphere.api.scala.DataSet
 
 object CopyOperator {
-  def apply(source: Operator with ScalaOperator[_]): DataSet[_] = {
+  def apply(source: Operator[Record] with ScalaOperator[_, _]): DataSet[_] = {
     val generatedStub = new MapFunction with Serializable {
       val udf: UDF1[_, _] = new UDF1(source.getUDF.outputUDT, source.getUDF.outputUDT)
 

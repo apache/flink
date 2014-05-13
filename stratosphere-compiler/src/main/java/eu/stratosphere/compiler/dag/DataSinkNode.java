@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.api.common.distributions.DataDistribution;
-import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.compiler.CompilerException;
@@ -46,7 +46,7 @@ public class DataSinkNode extends OptimizerNode {
 	 * 
 	 * @param sink The data sink contract object.
 	 */
-	public DataSinkNode(GenericDataSink sink) {
+	public DataSinkNode(GenericDataSinkBase<?> sink) {
 		super(sink);
 	}
 
@@ -78,8 +78,8 @@ public class DataSinkNode extends OptimizerNode {
 	 * @return The contract.
 	 */
 	@Override
-	public GenericDataSink getPactContract() {
-		return (GenericDataSink) super.getPactContract();
+	public GenericDataSinkBase<?> getPactContract() {
+		return (GenericDataSinkBase<?>) super.getPactContract();
 	}
 
 	@Override
@@ -102,8 +102,8 @@ public class DataSinkNode extends OptimizerNode {
 	}
 
 	@Override
-	public void setInput(Map<Operator, OptimizerNode> contractToNode) {
-		Operator children = getPactContract().getInput();
+	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode) {
+		Operator<?> children = getPactContract().getInput();
 
 		final OptimizerNode pred;
 		final PactConnection conn;

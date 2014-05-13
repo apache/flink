@@ -14,22 +14,24 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import eu.stratosphere.api.common.functions.GenericFlatMap;
 import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.operators.SingleInputOperator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.operators.translation.PlanFilterOperator;
 
 /**
- *
- * @param <IN> The type of the data set filtered by the operator.
+ * This operator represents the application of a "filter" function on a data set, and the
+ * result data set produced by the function.
+ * 
+ * @param <T> The type of the data set filtered by the operator.
  */
-public class FilterOperator<IN> extends SingleInputUdfOperator<IN, IN, FilterOperator<IN>> {
+public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperator<T>> {
 	
-	protected final FilterFunction<IN> function;
+	protected final FilterFunction<T> function;
 	
 	
-	public FilterOperator(DataSet<IN> input, FilterFunction<IN> function) {
+	public FilterOperator(DataSet<T> input, FilterFunction<T> function) {
 		super(input, input.getType());
 		
 		if (function == null) {
@@ -37,14 +39,15 @@ public class FilterOperator<IN> extends SingleInputUdfOperator<IN, IN, FilterOpe
 		}
 		
 		this.function = function;
+		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
-
+	
 	@Override
-	protected SingleInputOperator<?> translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.base.FilterOperatorBase<T, GenericFlatMap<T,T>> translateToDataFlow(Operator<T> input) {
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator
-		PlanFilterOperator<IN> po = new PlanFilterOperator<IN>(function, name, getInputType());
+		PlanFilterOperator<T> po = new PlanFilterOperator<T>(function, name, getInputType());
 		// set input
 		po.setInput(input);
 		// set dop

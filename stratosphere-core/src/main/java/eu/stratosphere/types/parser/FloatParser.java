@@ -14,7 +14,7 @@
 package eu.stratosphere.types.parser;
 
 /**
- * Parses a text field into a {@link FloatValue}
+ * Parses a text field into a {@link Float}.
  */
 public class FloatParser extends FieldParser<Float> {
 	

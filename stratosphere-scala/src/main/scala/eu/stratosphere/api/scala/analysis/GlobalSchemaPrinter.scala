@@ -14,23 +14,15 @@
 package eu.stratosphere.api.scala.analysis
 
 
-import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.JavaConversions.collectionAsScalaIterable
-import Extractors.CoGroupNode
-import Extractors.CrossNode
-import Extractors.DataSinkNode
-import Extractors.DataSourceNode
-import Extractors.JoinNode
-import Extractors.MapNode
-import Extractors.ReduceNode
-import eu.stratosphere.api.common.operators.GenericDataSink
 import eu.stratosphere.api.common.Plan
 import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.common.operators.DualInputOperator
 import eu.stratosphere.api.common.operators.SingleInputOperator
-import eu.stratosphere.api.common.operators.BulkIteration
-import eu.stratosphere.api.common.operators.DeltaIteration
+import eu.stratosphere.api.common.operators.base.{BulkIterationBase => BulkIteration, DeltaIterationBase => DeltaIteration}
 import org.apache.commons.logging.{LogFactory, Log}
+import eu.stratosphere.types.Record
+import eu.stratosphere.api.java.record.operators.GenericDataSink
 
 object GlobalSchemaPrinter {
 
@@ -41,11 +33,11 @@ object GlobalSchemaPrinter {
   def printSchema(plan: Plan): Unit = {
 
     LOG.debug("### " + plan.getJobName + " ###")
-    plan.getDataSinks.foldLeft(Set[Operator]())(printSchema)
+    plan.getDataSinks.foldLeft(Set[Operator[_]]())(printSchema)
     LOG.debug("####" + ("#" * plan.getJobName.length) + "####")
   }
 
-  private def printSchema(visited: Set[Operator], node: Operator): Set[Operator] = {
+  private def printSchema(visited: Set[Operator[_]], node: Operator[_]): Set[Operator[_]] = {
 
     visited.contains(node) match {
 
@@ -54,10 +46,10 @@ object GlobalSchemaPrinter {
       case false => {
 
         val children = node match {
-          case bi: BulkIteration => List(bi.getInput()) :+ bi.getNextPartialSolution()
-          case wi: DeltaIteration => List(wi.getInitialSolutionSet()) :+ wi.getInitialWorkset() :+ wi.getSolutionSetDelta() :+ wi.getNextWorkset()
-          case si : SingleInputOperator[_] => List(si.getInput())
-          case di : DualInputOperator[_] => List(di.getFirstInput()) :+ di.getSecondInput()
+          case bi: BulkIteration[_] => List(bi.getInput()) :+ bi.getNextPartialSolution()
+          case wi: DeltaIteration[_, _] => List(wi.getInitialSolutionSet()) :+ wi.getInitialWorkset() :+ wi.getSolutionSetDelta() :+ wi.getNextWorkset()
+          case si : SingleInputOperator[_, _, _] => List(si.getInput())
+          case di : DualInputOperator[_, _, _, _] => List(di.getFirstInput()) :+ di.getSecondInput()
           case gds : GenericDataSink => List(gds.getInput())
           case _ => List()
         }
@@ -65,9 +57,9 @@ object GlobalSchemaPrinter {
 
         node match {
           
-          case _ : BulkIteration.PartialSolutionPlaceHolder =>
-          case _ : DeltaIteration.SolutionSetPlaceHolder => 
-          case _ : DeltaIteration.WorksetPlaceHolder =>
+          case _ : BulkIteration.PartialSolutionPlaceHolder[_] =>
+          case _ : DeltaIteration.SolutionSetPlaceHolder[_] =>
+          case _ : DeltaIteration.WorksetPlaceHolder[_] =>
 
           case DataSinkNode(udf, input) => {
             printInfo(node, "Sink",
@@ -186,7 +178,7 @@ object GlobalSchemaPrinter {
     }
   }
 
-  private def printInfo(node: Operator, kind: String, keys: Seq[(String, FieldSelector)], reads: Seq[(String, FieldSet[_])], forwards: Seq[(String, Array[Int])], discards: Seq[(String, Array[Int])], writes: FieldSet[_]): Unit = {
+  private def printInfo(node: Operator[_], kind: String, keys: Seq[(String, FieldSelector)], reads: Seq[(String, FieldSet[_])], forwards: Seq[(String, Array[Int])], discards: Seq[(String, Array[Int])], writes: FieldSet[_]): Unit = {
 
     def indexesToStrings(pre: String, indexes: Array[Int]) = indexes map {
       case -1 => "_"

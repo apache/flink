@@ -19,7 +19,7 @@ import org.apache.hadoop.mapred.JobConf;
 
 import com.google.common.base.Preconditions;
 
-import eu.stratosphere.api.common.operators.GenericDataSource;
+import eu.stratosphere.api.java.record.operators.GenericDataSource;
 import eu.stratosphere.hadoopcompatibility.datatypes.DefaultHadoopTypeConverter;
 import eu.stratosphere.hadoopcompatibility.datatypes.HadoopTypeConverter;
 

@@ -38,6 +38,7 @@ import eu.stratosphere.api.common.typeutils.base.ShortComparator;
 import eu.stratosphere.api.common.typeutils.base.ShortSerializer;
 import eu.stratosphere.api.common.typeutils.base.StringComparator;
 import eu.stratosphere.api.common.typeutils.base.StringSerializer;
+import eu.stratosphere.types.TypeInformation;
 
 
 /**

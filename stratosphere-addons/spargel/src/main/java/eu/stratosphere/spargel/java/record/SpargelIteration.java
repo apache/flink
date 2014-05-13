@@ -17,7 +17,7 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.operators.DeltaIteration;
+import eu.stratosphere.api.java.record.operators.DeltaIteration;
 import eu.stratosphere.api.java.record.functions.CoGroupFunction;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator;
@@ -108,16 +108,16 @@ public class SpargelIteration {
 	//  inputs and outputs
 	// ----------------------------------------------------------------------------------
 	
-	public void setVertexInput(Operator c) {
+	public void setVertexInput(Operator<Record> c) {
 		this.iteration.setInitialSolutionSet(c);
 		this.iteration.setInitialWorkset(c);
 	}
 	
-	public void setEdgesInput(Operator c) {
+	public void setEdgesInput(Operator<Record> c) {
 		this.messager.setFirstInput(c);
 	}
 	
-	public Operator getOutput() {
+	public Operator<?> getOutput() {
 		return this.iteration;
 	}
 	

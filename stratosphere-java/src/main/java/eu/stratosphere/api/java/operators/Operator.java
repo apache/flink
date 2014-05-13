@@ -17,9 +17,11 @@ package eu.stratosphere.api.java.operators;
 
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 
 /**
+ * Base class of all operators in the Java API.
+ * 
  * @param <OUT> The type of the data set produced by this operator.
  * @param <O> The type of the operator, so that we can return it.
  */
@@ -63,8 +65,8 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 
 	/**
 	 * Sets the name of this operator. This overrides the default name, which is either
-	 * a description of the (such as for example "Aggregate(1:SUM, 2:MIN)") or the name
-	 * the function or input/output format executeed by the operator.
+	 * a generated description of the operation (such as for example "Aggregate(1:SUM, 2:MIN)")
+	 * or the name the user-defined function or input/output format executed by the operator.
 	 * 
 	 * @param newName The name for this operator.
 	 * @return The operator with a new name.
@@ -84,7 +86,6 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	 * @return The operator with set degree of parallelism.
 	 */
 	public O setParallelism(int dop) {
-		
 		if(dop < 1) {
 			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
 		}

@@ -22,9 +22,9 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.BulkIteration;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.BulkIteration;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.operators.MapOperator;
@@ -80,6 +80,7 @@ public class IterationWithUnionITCase extends RecordAPITestBase {
 		iteration.setInput(initialInput);
 		iteration.setMaximumNumberOfIterations(2);
 
+		@SuppressWarnings("unchecked")
 		MapOperator map2 = MapOperator.builder(new IdentityMapper()).input(iteration.getPartialSolution(), iteration.getPartialSolution()).name("map").build();
 		
 		iteration.setNextPartialSolution(map2);

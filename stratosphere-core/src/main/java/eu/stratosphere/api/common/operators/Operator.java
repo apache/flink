@@ -17,13 +17,16 @@ import java.util.List;
 
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.util.Visitable;
 
 /**
 * Abstract base class for all operators. An operator is a source, sink, or it applies an operation to
 * one or more inputs, producing a result.
+ *
+ * @param <OUT> Output type of the records output by this operator
 */
-public abstract class Operator implements Visitable<Operator> {
+public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	
 	protected final Configuration parameters;			// the parameters to parameterize the UDF
 	
@@ -33,6 +36,11 @@ public abstract class Operator implements Visitable<Operator> {
 		
 	private int degreeOfParallelism = -1;				// the number of parallel instances to use. -1, if unknown
 
+	/**
+	 * The return type of the user function.
+	 */
+	protected final OperatorInformation<OUT> operatorInfo;
+
 	// --------------------------------------------------------------------------------------------	
 
 	/**
@@ -41,10 +49,18 @@ public abstract class Operator implements Visitable<Operator> {
 	 * 
 	 * @param name The name that is used to describe the contract.
 	 */
-	protected Operator(String name) {
+	protected Operator(OperatorInformation<OUT> operatorInfo, String name) {
 		this.name = (name == null) ? "(null)" : name;
 		this.parameters = new Configuration();
 		this.compilerHints = new CompilerHints();
+		this.operatorInfo = operatorInfo;
+	}
+
+	/**
+	 * Gets the information about the operators input/output types.
+	 */
+	public OperatorInformation<OUT> getOperatorInfo() {
+		return operatorInfo;
 	}
 
 	/**
@@ -177,8 +193,9 @@ public abstract class Operator implements Visitable<Operator> {
 	 * @param operators The operators.
 	 * @return The single operator or a cascade of unions of the operators.
 	 */
-	public static Operator createUnionCascade(List<Operator> operators) {
-		return createUnionCascade((Operator[]) operators.toArray(new Operator[operators.size()]));
+	@SuppressWarnings("unchecked")
+	public static <T> Operator<T> createUnionCascade(List<? extends Operator<T>> operators) {
+		return createUnionCascade((Operator<T>[]) operators.toArray(new Operator[operators.size()]));
 	}
 	
 	/**
@@ -188,7 +205,7 @@ public abstract class Operator implements Visitable<Operator> {
 	 * @param operators The operators.
 	 * @return The single operator or a cascade of unions of the operators.
 	 */
-	public static Operator createUnionCascade(Operator... operators) {
+	public static <T> Operator<T> createUnionCascade(Operator<T>... operators) {
 		return createUnionCascade(null, operators);
 	}
 	
@@ -201,15 +218,26 @@ public abstract class Operator implements Visitable<Operator> {
 	 * 
 	 * @return The single operator or a cascade of unions of the operators.
 	 */
-	public static Operator createUnionCascade(Operator input1, Operator... input2) {
+	public static <T> Operator<T> createUnionCascade(Operator<T> input1, Operator<T>... input2) {
 		// return cases where we don't need a union
 		if (input2 == null || input2.length == 0) {
 			return input1;
 		} else if (input2.length == 1 && input1 == null) {
 			return input2[0];
 		}
+
+		TypeInformation<T> type = null;
+		if (input1 != null) {
+			type = input1.getOperatorInfo().getOutputType();
+		} else if (input2.length > 0 && input2[0] != null) {
+			type = input2[0].getOperatorInfo().getOutputType();
+		} else {
+			throw new IllegalArgumentException("Could not determine type information from inputs.");
+		}
+
 		// Otherwise construct union cascade
-		Union lastUnion = new Union();
+		Union<T> lastUnion = new Union<T>(new BinaryOperatorInformation<T, T, T>(type, type, type));
+
 		int i;
 		if (input2[0] == null) {
 			throw new IllegalArgumentException("The input may not contain null elements.");
@@ -227,7 +255,7 @@ public abstract class Operator implements Visitable<Operator> {
 			i = 2;
 		}
 		for (; i < input2.length; i++) {
-			Union tmpUnion = new Union();
+			Union<T> tmpUnion = new Union<T>(new BinaryOperatorInformation<T, T, T>(type, type, type));
 			tmpUnion.setSecondInput(lastUnion);
 			if (input2[i] == null) {
 				throw new IllegalArgumentException("The input may not contain null elements.");

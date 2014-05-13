@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.api.common.operators;
+package eu.stratosphere.api.common.operators.base;
 
 import java.io.Serializable;
 
@@ -24,48 +24,55 @@ import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.functions.GenericCollectorMap;
-import eu.stratosphere.api.common.operators.base.MapOperatorBase;
+import eu.stratosphere.api.common.operators.IterationOperator;
+import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.OperatorInformation;
+import eu.stratosphere.api.common.operators.SingleInputOperator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Nothing;
+import eu.stratosphere.types.NothingTypeInfo;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.Visitor;
 
 /**
  * 
  */
-public class BulkIteration extends SingleInputOperator<AbstractFunction> implements IterationOperator {
+public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractFunction> implements IterationOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Bulk Iteration>";
 	
 	public static final String TERMINATION_CRITERION_AGGREGATOR_NAME = "terminationCriterion.aggregator";
 	
 	
-	private Operator iterationResult;
+	private Operator<T> iterationResult;
 	
-	private Operator inputPlaceHolder = new PartialSolutionPlaceHolder(this);
+	private final Operator<T> inputPlaceHolder;
 	
 	private final AggregatorRegistry aggregators = new AggregatorRegistry();
 	
 	private int numberOfIterations = -1;
 	
-	protected Operator terminationCriterion;
+	protected Operator<?> terminationCriterion;
 	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * 
 	 */
-	public BulkIteration() {
-		this(DEFAULT_NAME);
+	public BulkIterationBase(UnaryOperatorInformation<T, T> operatorInfo) {
+		this(operatorInfo, DEFAULT_NAME);
 	}
 	
 	/**
 	 * @param name
 	 */
-	public BulkIteration(String name) {
-		super(new UserCodeClassWrapper<AbstractFunction>(AbstractFunction.class), name);
+	public BulkIterationBase(UnaryOperatorInformation<T, T> operatorInfo, String name) {
+		super(new UserCodeClassWrapper<AbstractFunction>(AbstractFunction.class), operatorInfo, name);
+		inputPlaceHolder = new PartialSolutionPlaceHolder<T>(this, this.getOperatorInfo());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -73,14 +80,14 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 	/**
 	 * @return The operator representing the partial solution.
 	 */
-	public Operator getPartialSolution() {
+	public Operator<T> getPartialSolution() {
 		return this.inputPlaceHolder;
 	}
 	
 	/**
 	 * @param result
 	 */
-	public void setNextPartialSolution(Operator result) {
+	public void setNextPartialSolution(Operator<T> result) {
 		if (result == null) {
 			throw new NullPointerException("Operator producing the next partial solution must not be null.");
 		}
@@ -90,22 +97,26 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 	/**
 	 * @return The operator representing the next partial solution.
 	 */
-	public Operator getNextPartialSolution() {
+	public Operator<T> getNextPartialSolution() {
 		return this.iterationResult;
 	}
 	
 	/**
 	 * @return The operator representing the termination criterion.
 	 */
-	public Operator getTerminationCriterion() {
+	public Operator<?> getTerminationCriterion() {
 		return this.terminationCriterion;
 	}
 	
 	/**
 	 * @param criterion
 	 */
-	public void setTerminationCriterion(Operator criterion) {
-		MapOperatorBase<TerminationCriterionMapper> mapper = new MapOperatorBase<TerminationCriterionMapper>(TerminationCriterionMapper.class, "Termination Criterion Aggregation Wrapper");
+	public <X> void setTerminationCriterion(Operator<X> criterion) {
+		CollectorMapOperatorBase<X, Nothing, TerminationCriterionMapper<X>> mapper =
+				new CollectorMapOperatorBase<X, Nothing, TerminationCriterionMapper<X>>(
+						new TerminationCriterionMapper<X>(),
+						new UnaryOperatorInformation<X, Nothing>(criterion.getOperatorInfo().getOutputType(), new NothingTypeInfo()),
+						"Termination Criterion Aggregation Wrapper");
 		mapper.setInput(criterion);
 		
 		this.terminationCriterion = mapper;
@@ -154,21 +165,21 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 	 * Specialized operator to use as a recognizable place-holder for the input to the
 	 * step function when composing the nested data flow.
 	 */
-	public static class PartialSolutionPlaceHolder extends Operator {
+	public static class PartialSolutionPlaceHolder<OT> extends Operator<OT> {
 		
-		private final BulkIteration containingIteration;
+		private final BulkIterationBase<OT> containingIteration;
 		
-		public PartialSolutionPlaceHolder(BulkIteration container) {
-			super("Partial Solution");
+		public PartialSolutionPlaceHolder(BulkIterationBase<OT> container, OperatorInformation<OT> operatorInfo) {
+			super(operatorInfo, "Partial Solution");
 			this.containingIteration = container;
 		}
 		
-		public BulkIteration getContainingBulkIteration() {
+		public BulkIterationBase<OT> getContainingBulkIteration() {
 			return this.containingIteration;
 		}
 		
 		@Override
-		public void accept(Visitor<Operator> visitor) {
+		public void accept(Visitor<Operator<?>> visitor) {
 			visitor.preVisit(this);
 			visitor.postVisit(this);
 		}
@@ -182,7 +193,7 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 	/**
 	 * Special Mapper that is added before a termination criterion and is only a container for an special aggregator
 	 */
-	public static class TerminationCriterionMapper extends AbstractFunction implements Serializable, GenericCollectorMap<Object, Object> {
+	public static class TerminationCriterionMapper<X> extends AbstractFunction implements Serializable, GenericCollectorMap<X, Nothing> {
 		private static final long serialVersionUID = 1L;
 		
 		private TerminationCriterionAggregator aggregator;
@@ -193,7 +204,7 @@ public class BulkIteration extends SingleInputOperator<AbstractFunction> impleme
 		}
 		
 		@Override
-		public void map(Object record, Collector<Object> out) {
+		public void map(X in, Collector<Nothing> out) {
 			aggregator.aggregate(1L);
 		}
 	}

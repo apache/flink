@@ -13,7 +13,7 @@
 package eu.stratosphere.compiler.postpass;
 
 import eu.stratosphere.api.common.operators.DualInputOperator;
-import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.common.operators.RecordOperator;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
@@ -26,9 +26,9 @@ import eu.stratosphere.compiler.CompilerPostPassException;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plan.SinkPlanNode;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparatorFactory;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import eu.stratosphere.types.Key;
 
 /**
@@ -48,7 +48,7 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 	
 	@Override
 	protected void getSinkSchema(SinkPlanNode sinkPlanNode, SparseKeySchema schema) throws CompilerPostPassException {
-		GenericDataSink sink = sinkPlanNode.getSinkNode().getPactContract();
+		GenericDataSinkBase<?> sink = sinkPlanNode.getSinkNode().getPactContract();
 		Ordering partitioning = sink.getPartitionOrdering();
 		Ordering sorting = sink.getLocalOrder();
 		
@@ -70,7 +70,7 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 			throws CompilerPostPassException, ConflictingFieldTypeInfoException
 	{
 		// check that we got the right types
-		SingleInputOperator<?> contract = (SingleInputOperator<?>) node.getSingleInputNode().getPactContract();
+		SingleInputOperator<?, ?, ?> contract = (SingleInputOperator<?, ?, ?>) node.getSingleInputNode().getPactContract();
 		if (! (contract instanceof RecordOperator)) {
 			throw new CompilerPostPassException("Error: Operator is not a Record based contract. Wrong compiler invokation.");
 		}
@@ -85,7 +85,7 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 		
 		// this is a temporary fix, we should solve this more generic
 		if (contract instanceof GroupReduceOperatorBase) {
-			Ordering groupOrder = ((GroupReduceOperatorBase<?>) contract).getGroupOrder();
+			Ordering groupOrder = ((GroupReduceOperatorBase<?, ?, ?>) contract).getGroupOrder();
 			if (groupOrder != null) {
 				addOrderingToSchema(groupOrder, schema);
 			}
@@ -97,7 +97,7 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 			throws CompilerPostPassException, ConflictingFieldTypeInfoException
 	{
 		// add the nodes local information. this automatically consistency checks
-		DualInputOperator<?> contract = node.getTwoInputNode().getPactContract();
+		DualInputOperator<?, ?, ?, ?> contract = node.getTwoInputNode().getPactContract();
 		if (! (contract instanceof RecordOperator)) {
 			throw new CompilerPostPassException("Error: Operator is not a Pact Record based contract. Wrong compiler invokation.");
 		}
@@ -121,8 +121,8 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 		
 		// this is a temporary fix, we should solve this more generic
 		if (contract instanceof CoGroupOperatorBase) {
-			Ordering groupOrder1 = ((CoGroupOperatorBase<?>) contract).getGroupOrderForInputOne();
-			Ordering groupOrder2 = ((CoGroupOperatorBase<?>) contract).getGroupOrderForInputTwo();
+			Ordering groupOrder1 = ((CoGroupOperatorBase<?, ?, ?, ?>) contract).getGroupOrderForInputOne();
+			Ordering groupOrder2 = ((CoGroupOperatorBase<?, ?, ?, ?>) contract).getGroupOrderForInputTwo();
 			
 			if (groupOrder1 != null) {
 				addOrderingToSchema(groupOrder1, input1Schema);

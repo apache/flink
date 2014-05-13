@@ -21,19 +21,24 @@ import java.util.List;
 import org.apache.commons.lang3.Validate;
 
 import eu.stratosphere.api.common.InvalidProgramException;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.aggregation.AggregationFunction;
 import eu.stratosphere.api.java.aggregation.AggregationFunctionFactory;
 import eu.stratosphere.api.java.aggregation.Aggregations;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
-import eu.stratosphere.api.java.operators.translation.PlanGroupReduceOperator;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.Collector;
 
 /**
+ * This operator represents the application of a "aggregate" operation on a data set, and the
+ * result data set produced by the function.
+ * 
  * @param <IN> The type of the data set aggregated by the operator.
  */
 public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, AggregateOperator<IN>> {
@@ -126,7 +131,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	
 	@SuppressWarnings("unchecked")
 	@Override
-	protected eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>> translateToDataFlow(Operator<IN> input) {
 		
 		// sanity check
 		if (this.aggregationFunctions.isEmpty() || this.aggregationFunctions.size() != this.fields.size()) {
@@ -157,8 +162,9 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 		// distinguish between grouped reduce and non-grouped reduce
 		if (this.grouping == null) {
 			// non grouped aggregation
-			PlanGroupReduceOperator<IN, IN> po = 
-					new PlanGroupReduceOperator<IN, IN>(function, new int[0], name, getInputType(), getResultType());
+			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getResultType());
+			GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>> po =
+					new GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>>(function, operatorInfo, new int[0], name);
 			// set input
 			po.setInput(input);
 			// set dop
@@ -170,8 +176,9 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 		if (this.grouping.getKeys() instanceof Keys.FieldPositionKeys) {
 			// grouped aggregation
 			int[] logicalKeyPositions = this.grouping.getKeys().computeLogicalKeyPositions();
-			PlanGroupReduceOperator<IN, IN> po = 
-					new PlanGroupReduceOperator<IN, IN>(function, logicalKeyPositions, name, getInputType(), getResultType());
+			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getResultType());
+			GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>> po =
+					new GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>>(function, operatorInfo, logicalKeyPositions, name);
 			// set input
 			po.setInput(input);
 			// set dop
@@ -188,10 +195,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 		
 	}
 	
-	
 	// --------------------------------------------------------------------------------------------
-	// --------------------------------------------------------------------------------------------
-	
+		
 	public static final class AggregatingUdf<T extends Tuple> extends GroupReduceFunction<T, T> {
 		private static final long serialVersionUID = 1L;
 		

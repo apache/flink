@@ -40,7 +40,7 @@ public class GroupReduceNode extends SingleInputNode {
 	 * 
 	 * @param pactContract The reduce contract object.
 	 */
-	public GroupReduceNode(GroupReduceOperatorBase<?> pactContract) {
+	public GroupReduceNode(GroupReduceOperatorBase<?, ?, ?> pactContract) {
 		super(pactContract);
 		
 		if (this.keys == null) {
@@ -62,8 +62,8 @@ public class GroupReduceNode extends SingleInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public GroupReduceOperatorBase<?> getPactContract() {
-		return (GroupReduceOperatorBase<?>) super.getPactContract();
+	public GroupReduceOperatorBase<?, ?, ?> getPactContract() {
+		return (GroupReduceOperatorBase<?, ?, ?>) super.getPactContract();
 	}
 
 	/**
@@ -107,7 +107,7 @@ public class GroupReduceNode extends SingleInputNode {
 		// check if we can work with a grouping (simple reducer), or if we need ordering because of a group order
 		Ordering groupOrder = null;
 		if (getPactContract() instanceof GroupReduceOperatorBase) {
-			groupOrder = ((GroupReduceOperatorBase<?>) getPactContract()).getGroupOrder();
+			groupOrder = ((GroupReduceOperatorBase<?, ?, ?>) getPactContract()).getGroupOrder();
 			if (groupOrder != null && groupOrder.getNumberOfFields() == 0) {
 				groupOrder = null;
 			}

@@ -19,28 +19,24 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import eu.stratosphere.api.common.operators.BulkIteration;
-import eu.stratosphere.api.common.operators.DeltaIteration;
+import eu.stratosphere.api.common.operators.DualInputOperator;
+import eu.stratosphere.api.common.operators.base.BulkIterationBase;
+import eu.stratosphere.api.common.operators.base.DeltaIterationBase;
 import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.operators.Union;
+import eu.stratosphere.api.common.operators.SingleInputOperator;
+import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
-import eu.stratosphere.api.java.operators.translation.BinaryJavaPlanNode;
-import eu.stratosphere.api.java.operators.translation.JavaPlanNode;
-import eu.stratosphere.api.java.operators.translation.PlanBulkIterationOperator;
-import eu.stratosphere.api.java.operators.translation.PlanDataSource;
-import eu.stratosphere.api.java.operators.translation.PlanDeltaIterationOperator;
-import eu.stratosphere.api.java.operators.translation.PlanGroupReduceOperator;
 import eu.stratosphere.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
-import eu.stratosphere.api.java.operators.translation.UnaryJavaPlanNode;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.AtomicType;
 import eu.stratosphere.api.java.typeutils.CompositeType;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.api.java.typeutils.runtime.RuntimeComparatorFactory;
 import eu.stratosphere.api.java.typeutils.runtime.RuntimePairComparatorFactory;
 import eu.stratosphere.api.java.typeutils.runtime.RuntimeStatelessSerializerFactory;
@@ -110,10 +106,10 @@ public class JavaApiPostPass implements OptimizerPostPass {
 				traverseChannel(addMapper.getInput());
 			}
 
-			PlanBulkIterationOperator<?> operator = (PlanBulkIterationOperator<?>) iterationNode.getPactContract();
+			BulkIterationBase<?> operator = (BulkIterationBase<?>) iterationNode.getPactContract();
 
 			// set the serializer
-			iterationNode.setSerializerForIterationChannel(createSerializer(operator.getReturnType()));
+			iterationNode.setSerializerForIterationChannel(createSerializer(operator.getOperatorInfo().getOutputType()));
 
 			// done, we can now propagate our info down
 			traverseChannel(iterationNode.getInput());
@@ -129,12 +125,12 @@ public class JavaApiPostPass implements OptimizerPostPass {
 				throw new CompilerException("Optimizer cannot compile a workset iteration step function where the solution set delta is produced by a Union node.");
 			}
 			
-			PlanDeltaIterationOperator<?, ?> operator = (PlanDeltaIterationOperator<?, ?>) iterationNode.getPactContract();
+			DeltaIterationBase<?, ?> operator = (DeltaIterationBase<?, ?>) iterationNode.getPactContract();
 			
 			// set the serializers and comparators for the workset iteration
-			iterationNode.setSolutionSetSerializer(createSerializer(operator.getSolutionsetType()));
-			iterationNode.setWorksetSerializer(createSerializer(operator.getWorksetType()));
-			iterationNode.setSolutionSetComparator(createComparator(operator.getSolutionsetType(),
+			iterationNode.setSolutionSetSerializer(createSerializer(operator.getOperatorInfo().getFirstInputType()));
+			iterationNode.setWorksetSerializer(createSerializer(operator.getOperatorInfo().getSecondInputType()));
+			iterationNode.setSolutionSetComparator(createComparator(operator.getOperatorInfo().getFirstInputType(),
 					iterationNode.getSolutionSetKeyFields(), getSortOrders(iterationNode.getSolutionSetKeyFields(), null)));
 			
 			// traverse the inputs
@@ -148,7 +144,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		else if (node instanceof SingleInputPlanNode) {
 			SingleInputPlanNode sn = (SingleInputPlanNode) node;
 			
-			if (!(sn.getOptimizerNode().getPactContract() instanceof UnaryJavaPlanNode)) {
+			if (!(sn.getOptimizerNode().getPactContract() instanceof SingleInputOperator)) {
 				
 				// Special case for delta iterations
 				if(sn.getOptimizerNode().getPactContract() instanceof NoOpUnaryUdfOp) {
@@ -159,11 +155,11 @@ public class JavaApiPostPass implements OptimizerPostPass {
 				}
 			}
 			
-			UnaryJavaPlanNode<?, ?> javaNode = (UnaryJavaPlanNode<?, ?>) sn.getOptimizerNode().getPactContract();
+			SingleInputOperator<?, ?, ?> singleInputOperator = (SingleInputOperator<?, ?, ?>) sn.getOptimizerNode().getPactContract();
 			
 			// parameterize the node's driver strategy
 			if (sn.getDriverStrategy().requiresComparator()) {
-				sn.setComparator(createComparator(javaNode.getInputType(), sn.getKeys(), 
+				sn.setComparator(createComparator(singleInputOperator.getOperatorInfo().getInputType(), sn.getKeys(),
 					getSortOrders(sn.getKeys(), sn.getSortOrders())));
 			}
 			
@@ -178,20 +174,21 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		else if (node instanceof DualInputPlanNode) {
 			DualInputPlanNode dn = (DualInputPlanNode) node;
 			
-			if (!(dn.getOptimizerNode().getPactContract() instanceof BinaryJavaPlanNode)) {
+			if (!(dn.getOptimizerNode().getPactContract() instanceof DualInputOperator)) {
 				throw new RuntimeException("Wrong operator type found in post pass.");
 			}
 			
-			BinaryJavaPlanNode<?, ?, ?> javaNode = (BinaryJavaPlanNode<?, ?, ?>) dn.getOptimizerNode().getPactContract();
+			DualInputOperator<?, ?, ?, ?> dualInputOperator = (DualInputOperator<?, ?, ?, ?>) dn.getOptimizerNode().getPactContract();
 			
 			// parameterize the node's driver strategy
 			if (dn.getDriverStrategy().requiresComparator()) {
-				dn.setComparator1(createComparator(javaNode.getInputType1(), dn.getKeysForInput1(), 
+				dn.setComparator1(createComparator(dualInputOperator.getOperatorInfo().getFirstInputType(), dn.getKeysForInput1(),
 					getSortOrders(dn.getKeysForInput1(), dn.getSortOrders())));
-				dn.setComparator2(createComparator(javaNode.getInputType2(), dn.getKeysForInput2(), 
+				dn.setComparator2(createComparator(dualInputOperator.getOperatorInfo().getSecondInputType(), dn.getKeysForInput2(),
 						getSortOrders(dn.getKeysForInput2(), dn.getSortOrders())));
 
-				dn.setPairComparator(createPairComparator(javaNode.getInputType1(), javaNode.getInputType2()));
+				dn.setPairComparator(createPairComparator(dualInputOperator.getOperatorInfo().getFirstInputType(),
+						dualInputOperator.getOperatorInfo().getSecondInputType()));
 				
 			}
 						
@@ -225,56 +222,24 @@ public class JavaApiPostPass implements OptimizerPostPass {
 	private void traverseChannel(Channel channel) {
 		
 		PlanNode source = channel.getSource();
-		Operator javaOp = source.getPactContract();
+		Operator<?> javaOp = source.getPactContract();
 		
 //		if (!(javaOp instanceof BulkIteration) && !(javaOp instanceof JavaPlanNode)) {
 //			throw new RuntimeException("Wrong operator type found in post pass: " + javaOp);
 //		}
 
-		TypeInformation<?> type = null;
+		TypeInformation<?> type = javaOp.getOperatorInfo().getOutputType();
 
-		if (javaOp instanceof PlanGroupReduceOperator && 
-				(source.getDriverStrategy() == DriverStrategy.SORTED_GROUP_COMBINE || source.getDriverStrategy() == DriverStrategy.ALL_GROUP_COMBINE) ) {
-			PlanGroupReduceOperator<?, ?> groupNode = (PlanGroupReduceOperator<?, ?>) javaOp;
-			type = groupNode.getInputType();
+
+		if(javaOp instanceof GroupReduceOperatorBase &&
+				(source.getDriverStrategy() == DriverStrategy.SORTED_GROUP_COMBINE || source.getDriverStrategy() == DriverStrategy.ALL_GROUP_COMBINE)) {
+			GroupReduceOperatorBase<?, ?, ?> groupNode = (GroupReduceOperatorBase<?, ?, ?>) javaOp;
+			type = groupNode.getInput().getOperatorInfo().getOutputType();
 		}
-		else if(javaOp instanceof PlanUnwrappingReduceGroupOperator && source.getDriverStrategy().equals(DriverStrategy.SORTED_GROUP_COMBINE)) {
+		else if(javaOp instanceof PlanUnwrappingReduceGroupOperator &&
+				source.getDriverStrategy().equals(DriverStrategy.SORTED_GROUP_COMBINE)) {
 			PlanUnwrappingReduceGroupOperator<?, ?, ?> groupNode = (PlanUnwrappingReduceGroupOperator<?, ?, ?>) javaOp;
-			type = groupNode.getInputType();
-		}
-		else if (javaOp instanceof JavaPlanNode<?>) {
-			JavaPlanNode<?> javaNode = (JavaPlanNode<?>) javaOp;
-			type = javaNode.getReturnType();
-		}
-		else if (javaOp instanceof BulkIteration.PartialSolutionPlaceHolder) {
-			BulkIteration.PartialSolutionPlaceHolder partialSolutionPlaceHolder =
-					(BulkIteration.PartialSolutionPlaceHolder) javaOp;
-			type = ((PlanBulkIterationOperator<?>)partialSolutionPlaceHolder.getContainingBulkIteration()).getReturnType();
-		}
-		else if (javaOp instanceof DeltaIteration.SolutionSetPlaceHolder) {
-			DeltaIteration.SolutionSetPlaceHolder solutionSetPlaceHolder =
-					(DeltaIteration.SolutionSetPlaceHolder) javaOp;
-			type = ((PlanDeltaIterationOperator<?, ?>) solutionSetPlaceHolder.getContainingWorksetIteration()).getReturnType();
-		}
-		else if (javaOp instanceof DeltaIteration.WorksetPlaceHolder) {
-			DeltaIteration.WorksetPlaceHolder worksetPlaceHolder =
-					(DeltaIteration.WorksetPlaceHolder) javaOp;
-			type = ((PlanDeltaIterationOperator<?, ?>) worksetPlaceHolder.getContainingWorksetIteration()).getReturnType();
-		}
-		else if (javaOp instanceof NoOpUnaryUdfOp) {
-			NoOpUnaryUdfOp op = (NoOpUnaryUdfOp) javaOp;
-			if (op.getInput() instanceof JavaPlanNode<?>) { 
-				JavaPlanNode<?> javaNode = (JavaPlanNode<?>) op.getInput();
-				type = javaNode.getReturnType();
-			}
-		}
-		else if(javaOp instanceof Union){
-			// Union
-			Operator op = channel.getSource().getInputs().next().getSource().getPactContract();
-			if (op instanceof JavaPlanNode<?>){
-				JavaPlanNode<?> javaNode = (JavaPlanNode<?>) op;
-				type = javaNode.getReturnType();
-			}
+			type = groupNode.getInput().getOperatorInfo().getOutputType();
 		}
 		
 		// the serializer always exists
@@ -299,10 +264,10 @@ public class JavaApiPostPass implements OptimizerPostPass {
 	
 	@SuppressWarnings("unchecked")
 	private static <T> TypeInformation<T> getTypeInfoFromSource(SourcePlanNode node) {
-		Operator op = node.getOptimizerNode().getPactContract();
+		Operator<?> op = node.getOptimizerNode().getPactContract();
 		
-		if (op instanceof PlanDataSource) {
-			return ((PlanDataSource<T>) op).getReturnType();
+		if (op instanceof GenericDataSourceBase) {
+			return ((GenericDataSourceBase<T, ?>) op).getOperatorInfo().getOutputType();
 		} else {
 			throw new RuntimeException("Wrong operator type found in post pass.");
 		}
@@ -329,7 +294,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		}
 		else if (typeInfo instanceof AtomicType) {
 			// handle grouping of atomic types
-			throw new UnsupportedOperationException("Grouping on atomic types is currently not implemented.");
+			throw new UnsupportedOperationException("Grouping on atomic types is currently not implemented. " + typeInfo);
 		}
 		else {
 			throw new RuntimeException("Unrecognized type: " + typeInfo);
