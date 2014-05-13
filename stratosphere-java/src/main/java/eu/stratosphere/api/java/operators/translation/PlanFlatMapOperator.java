@@ -18,10 +18,12 @@ import java.lang.annotation.Annotation;
 import java.util.Set;
 
 import eu.stratosphere.api.common.functions.GenericFlatMap;
+import eu.stratosphere.api.common.operators.SingleInputSemanticProperties;
 import eu.stratosphere.api.common.operators.base.FlatMapOperatorBase;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.FunctionAnnotation;
 import eu.stratosphere.api.java.functions.FunctionAnnotation.ConstantFields;
+import eu.stratosphere.api.java.functions.SemanticPropUtil;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 
 
@@ -39,7 +41,8 @@ public class PlanFlatMapOperator<T, O> extends FlatMapOperatorBase<GenericFlatMa
 		this.outType = outType;
 		
 		Set<Annotation> annotations = FunctionAnnotation.readSingleConstantAnnotations(this.getUserCodeWrapper());
-		System.out.println(annotations);
+
+        SingleInputSemanticProperties sp = SemanticPropUtil.getSemanticPropsSingle(annotations, this.inType, this.outType);
 	}
 	
 	@Override
