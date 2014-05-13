@@ -83,7 +83,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 	/**
 	 * The minimum number of segments that are required for the sort to operate.
 	 */
-	protected static final int MIN_NUM_SORT_MEM_SEGMENTS = 32;
+	protected static final int MIN_NUM_SORT_MEM_SEGMENTS = 10;
 
 	// ------------------------------------------------------------------------
 	//                                  Threads
