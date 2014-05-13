@@ -15,6 +15,7 @@ package eu.stratosphere.api.common.typeutils;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Comparator;
 
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
@@ -145,9 +146,23 @@ public abstract class TypeComparator<T> implements Serializable {
 	 * <p>
 	 * This method may de-serialize the records or compare them directly based on their binary representation. 
 	 * 
+	 * @param first The first record.
+	 * @param second The second record.
+	 * @return An integer defining the oder among the objects in the same way as {@link Comparator#compare(Object, Object)}.
+	 * 
+	 *  @see java.util.Comparator#compare(Object, Object)
+	 */
+	public abstract int compare(T first, T second);
+	
+	/**
+	 * Compares two records in serialized from. The return value indicates the order of the two in the same way
+	 * as defined by {@link java.util.Comparator#compare(Object, Object)}.
+	 * <p>
+	 * This method may de-serialize the records or compare them directly based on their binary representation. 
+	 * 
 	 * @param firstSource The input view containing the first record.
 	 * @param secondSource The input view containing the second record.
-	 * @return An integer defining
+	 * @return An integer defining the oder among the objects in the same way as {@link Comparator#compare(Object, Object)}.
 	 * @throws IOException Thrown, if any of the input views raised an exception when reading the records.
 	 * 
 	 *  @see java.util.Comparator#compare(Object, Object)

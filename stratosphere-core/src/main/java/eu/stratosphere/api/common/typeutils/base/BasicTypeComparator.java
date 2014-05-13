@@ -55,13 +55,15 @@ public abstract class BasicTypeComparator<T extends Comparable<T>> extends TypeC
 		return ascendingComparison ? comp : -comp;
 	}
 
+	@Override
+	public int compare(T first, T second) {
+		return first.compareTo(second);
+	}
 
 	@Override
 	public boolean invertNormalizedKey() {
 		return !ascendingComparison;
 	}
-	
-	
 	
 	@Override
 	public boolean supportsSerializationWithKeyNormalization() {

@@ -44,9 +44,13 @@ public class StringPairComparator extends TypeComparator<StringPair> {
 	}
 
 	@Override
-	public int compareToReference(
-			TypeComparator<StringPair> referencedComparator) {
+	public int compareToReference(TypeComparator<StringPair> referencedComparator) {
 		return this.reference.compareTo(((StringPairComparator)referencedComparator).reference);
+	}
+	
+	@Override
+	public int compare(StringPair first, StringPair second) {
+		return first.getKey().compareTo(second.getKey());
 	}
 
 	@Override

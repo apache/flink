@@ -47,6 +47,12 @@ public final class VertexWithRankAndDanglingComparator extends TypeComparator<Ve
 		final long diff = comp.reference - this.reference;
 		return diff < 0 ? -1 : diff > 0 ? 1 : 0;
 	}
+	
+	@Override
+	public int compare(VertexWithRankAndDangling first, VertexWithRankAndDangling second) {
+		final long diff = first.getVertexID() - second.getVertexID();
+		return diff < 0 ? -1 : diff > 0 ? 1 : 0;
+	}
 
 	@Override
 	public int compare(DataInputView source1, DataInputView source2) throws IOException {

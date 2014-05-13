@@ -54,15 +54,15 @@ public class TuplePairComparator<T1 extends Tuple, T2 extends Tuple> extends Typ
 	
 	@Override
 	public void setReference(T1 reference) {
-		for(int i=0; i < this.comparators1.length; i++) {
+		for (int i = 0; i < this.comparators1.length; i++) {
 			this.comparators1[i].setReference(reference.getField(keyFields1[i]));
 		}
 	}
 
 	@Override
 	public boolean equalToReference(T2 candidate) {
-		for(int i=0; i < this.comparators1.length; i++) {
-			if(!this.comparators1[i].equalToReference(candidate.getField(keyFields2[i]))) {
+		for (int i = 0; i < this.comparators1.length; i++) {
+			if (!this.comparators1[i].equalToReference(candidate.getField(keyFields2[i]))) {
 				return false;
 			}
 		}
@@ -71,7 +71,7 @@ public class TuplePairComparator<T1 extends Tuple, T2 extends Tuple> extends Typ
 
 	@Override
 	public int compareToReference(T2 candidate) {
-		for(int i=0; i < this.comparators1.length; i++) {
+		for (int i = 0; i < this.comparators1.length; i++) {
 			this.comparators2[i].setReference(candidate.getField(keyFields2[i]));
 			int res = this.comparators1[i].compareToReference(this.comparators2[i]);
 			if(res != 0) {
@@ -80,7 +80,4 @@ public class TuplePairComparator<T1 extends Tuple, T2 extends Tuple> extends Typ
 		}
 		return 0;
 	}
-
-	
-	
 }

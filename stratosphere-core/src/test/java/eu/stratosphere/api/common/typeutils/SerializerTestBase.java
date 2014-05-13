@@ -300,7 +300,7 @@ public abstract class SerializerTestBase<T> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private void deepEquals(String message, T should, T is) {
+	protected void deepEquals(String message, T should, T is) {
 		if (should.getClass().isArray()) {
 			if (should instanceof boolean[]) {
 				Assert.assertTrue(message, Arrays.equals((boolean[]) should, (boolean[]) is));
@@ -326,7 +326,8 @@ public abstract class SerializerTestBase<T> {
 			else {
 				assertArrayEquals(message, (Object[]) should, (Object[]) is);
 			}
-		} else {
+		}
+		else {
 			assertEquals(message,  should, is);
 		}
 	}

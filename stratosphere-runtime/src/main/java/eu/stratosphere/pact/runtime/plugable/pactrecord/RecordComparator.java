@@ -241,6 +241,26 @@ public final class RecordComparator extends TypeComparator<Record> {
 		return 0;
 	}
 	
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Override
+	public int compare(Record first, Record second) {
+		int i = 0;
+		try {
+			for (; i < this.keyFields.length; i++) {
+				Key k1 = first.getField(this.keyFields[i], this.keyHolders[i]);
+				Key k2 = second.getField(this.keyFields[i], this.transientKeyHolders[i]);
+				int cmp = k1.compareTo(k2);
+				if (cmp != 0) {
+					return cmp;
+				}
+			}
+			return 0;
+		}
+		catch (NullPointerException e) {
+			throw new NullKeyFieldException(this.keyFields[i]);
+		}
+	}
+	
 	@Override
 	public int compare(DataInputView source1, DataInputView source2) throws IOException {
 		this.temp1.read(source1);

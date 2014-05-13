@@ -47,6 +47,12 @@ public final class VertexWithRankComparator extends TypeComparator<VertexWithRan
 		final long diff = comp.reference - this.reference;
 		return diff < 0 ? -1 : diff > 0 ? 1 : 0;
 	}
+	
+	@Override
+	public int compare(VertexWithRank first, VertexWithRank second) {
+		final long diff = first.getVertexID() - second.getVertexID();
+		return diff < 0 ? -1 : diff > 0 ? 1 : 0;
+	}
 
 	@Override
 	public int compare(DataInputView source1, DataInputView source2) throws IOException {

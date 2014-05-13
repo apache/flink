@@ -47,6 +47,12 @@ public final class VertexWithAdjacencyListComparator extends TypeComparator<Vert
 		final long diff = comp.reference - this.reference;
 		return diff < 0 ? -1 : diff > 0 ? 1 : 0;
 	}
+	
+	@Override
+	public int compare(VertexWithAdjacencyList first, VertexWithAdjacencyList second) {
+		final long diff = first.getVertexID() - second.getVertexID();
+		return diff < 0 ? -1 : diff > 0 ? 1 : 0;
+	}
 
 	@Override
 	public int compare(DataInputView source1, DataInputView source2) throws IOException {

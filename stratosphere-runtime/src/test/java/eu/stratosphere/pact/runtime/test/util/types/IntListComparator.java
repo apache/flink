@@ -47,6 +47,11 @@ public class IntListComparator extends TypeComparator<IntList> {
 		final IntListComparator comp = (IntListComparator) referencedComparator;
 		return comp.reference - this.reference;
 	}
+	
+	@Override
+	public int compare(IntList first, IntList second) {
+		return first.getKey() - second.getKey();
+	}
 
 	@Override
 	public int compare(DataInputView source1, DataInputView source2) throws IOException {

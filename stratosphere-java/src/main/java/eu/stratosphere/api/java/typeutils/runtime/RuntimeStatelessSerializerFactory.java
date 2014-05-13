@@ -18,7 +18,10 @@ import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.InstantiationUtil;
 
-public final class RuntimeStatelessSerializerFactory<T> implements TypeSerializerFactory<T> {
+public final class RuntimeStatelessSerializerFactory<T> implements TypeSerializerFactory<T>, java.io.Serializable {
+
+	private static final long serialVersionUID = 1L;
+	
 
 	private static final String CONFIG_KEY_SER = "SER_DATA";
 

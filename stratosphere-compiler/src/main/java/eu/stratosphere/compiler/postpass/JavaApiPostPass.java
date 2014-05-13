@@ -37,6 +37,7 @@ import eu.stratosphere.api.java.operators.translation.PlanDeltaIterationOperator
 import eu.stratosphere.api.java.operators.translation.PlanGroupReduceOperator;
 import eu.stratosphere.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
 import eu.stratosphere.api.java.operators.translation.UnaryJavaPlanNode;
+import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.AtomicType;
 import eu.stratosphere.api.java.typeutils.CompositeType;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
@@ -331,7 +332,16 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		return new RuntimeComparatorFactory<T>(comparator);
 	}
 	
-	private static <T1, T2> TypePairComparatorFactory<?,?> createPairComparator(TypeInformation<T1> typeInfo1, TypeInformation<T2> typeInfo2) {
+	private static <T1 extends Tuple, T2 extends Tuple> TypePairComparatorFactory<T1,T2> createPairComparator(TypeInformation<?> typeInfo1, TypeInformation<?> typeInfo2) {
+		if (!(typeInfo1.isTupleType() && typeInfo2.isTupleType())) {
+			throw new RuntimeException("The runtime currently supports only keyed binary operations on tuples.");
+		}
+		
+//		@SuppressWarnings("unchecked")
+//		TupleTypeInfo<T1> info1 = (TupleTypeInfo<T1>) typeInfo1;
+//		@SuppressWarnings("unchecked")
+//		TupleTypeInfo<T2> info2 = (TupleTypeInfo<T2>) typeInfo2;
+		
 		return new RuntimePairComparatorFactory<T1,T2>();
 	}
 	

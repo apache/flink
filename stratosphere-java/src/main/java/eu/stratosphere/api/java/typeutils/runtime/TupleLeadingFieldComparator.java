@@ -23,26 +23,17 @@ import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.core.memory.MemorySegment;
 
 
-public final class TupleSingleFieldComparator<T extends Tuple, K> extends TypeComparator<T>
+public final class TupleLeadingFieldComparator<T extends Tuple, K> extends TypeComparator<T>
 	implements java.io.Serializable
 {
-
 	private static final long serialVersionUID = 1L;
-
-
-	private final int keyPosition;
 	
 	private final TypeComparator<K> comparator;
 	
 	
 		
-	public TupleSingleFieldComparator(int keyPosition, TypeComparator<K> comparator) {
-		this.keyPosition = keyPosition;
+	public TupleLeadingFieldComparator(TypeComparator<K> comparator) {
 		this.comparator = comparator;
-	}
-
-	public int getKeyPosition() {
-		return this.keyPosition;
 	}
 	
 	public TypeComparator<K> getComparator() {
@@ -51,24 +42,29 @@ public final class TupleSingleFieldComparator<T extends Tuple, K> extends TypeCo
 	
 	@Override
 	public int hash(T value) {
-		return comparator.hash(value.<K>getField(keyPosition));
+		return comparator.hash(value.<K>getField(0));
 		
 	}
 
 	@Override
 	public void setReference(T toCompare) {
-		this.comparator.setReference(toCompare.<K>getField(keyPosition));
+		this.comparator.setReference(toCompare.<K>getField(0));
 	}
 
 	@Override
 	public boolean equalToReference(T candidate) {
-		return this.comparator.equalToReference(candidate.<K>getField(keyPosition));
+		return this.comparator.equalToReference(candidate.<K>getField(0));
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public int compareToReference(TypeComparator<T> referencedComparator) {
-		return this.comparator.compareToReference(((TupleSingleFieldComparator<T, K>) referencedComparator).comparator);
+		return this.comparator.compareToReference(((TupleLeadingFieldComparator<T, K>) referencedComparator).comparator);
+	}
+	
+	@Override
+	public int compare(T first, T second) {
+		return this.comparator.compare(first.<K>getField(0), second.<K>getField(0));
 	}
 
 	@Override
@@ -98,7 +94,7 @@ public final class TupleSingleFieldComparator<T extends Tuple, K> extends TypeCo
 
 	@Override
 	public void putNormalizedKey(T record, MemorySegment target, int offset, int numBytes) {
-		this.comparator.putNormalizedKey(record.<K>getField(keyPosition), target, offset, numBytes);
+		this.comparator.putNormalizedKey(record.<K>getField(0), target, offset, numBytes);
 	}
 
 	@Override
@@ -111,7 +107,6 @@ public final class TupleSingleFieldComparator<T extends Tuple, K> extends TypeCo
 		throw new UnsupportedOperationException();
 	}
 
-
 	@Override
 	public boolean invertNormalizedKey() {
 		return this.comparator.invertNormalizedKey();
@@ -119,6 +114,12 @@ public final class TupleSingleFieldComparator<T extends Tuple, K> extends TypeCo
 
 	@Override
 	public TypeComparator<T> duplicate() {
-		return new TupleSingleFieldComparator<T, K>(keyPosition, comparator);
+		return new TupleLeadingFieldComparator<T, K>(comparator);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	protected TypeComparator<K> getFieldComparator() {
+		return this.comparator;
 	}
 }

@@ -49,6 +49,11 @@ public class IntPairComparator extends TypeComparator<IntPair> {
 	}
 
 	@Override
+	public int compare(IntPair first, IntPair second) {
+		return first.getKey() - second.getKey();
+	}
+	
+	@Override
 	public int compare(DataInputView source1, DataInputView source2) throws IOException {
 		return source1.readInt() - source2.readInt();
 	}
