@@ -12,29 +12,27 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.api.java.typeutils.runtime;
+package eu.stratosphere.api.common.typeutils.base.array;
 
 import java.io.IOException;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
-import eu.stratosphere.types.StringValue;
-
 
 /**
- * A serializer for String arrays. Specialized for efficiency.
+ * A serializer for long arrays.
  */
-public class StringArraySerializer extends TypeSerializer<String[]>{
+public class BytePrimitiveArraySerializer extends TypeSerializer<byte[]>{
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final String[] EMPTY = new String[0];
+	private static final byte[] EMPTY = new byte[0];
 
 	
 	@Override
 	public boolean isImmutableType() {
-		return true;
+		return false;
 	}
 
 	@Override
@@ -43,15 +41,15 @@ public class StringArraySerializer extends TypeSerializer<String[]>{
 	}
 	
 	@Override
-	public String[] createInstance() {
+	public byte[] createInstance() {
 		return EMPTY;
 	}
 
 	@Override
-	public String[] copy(String[] from, String[] reuse) {
-		reuse = new String[from.length];
-		System.arraycopy(from, 0, reuse, 0, from.length);
-		return reuse;
+	public byte[] copy(byte[] from, byte[] reuse) {
+		byte[] copy = new byte[from.length];
+		System.arraycopy(from, 0, copy, 0, from.length);
+		return copy;
 	}
 
 	@Override
@@ -61,28 +59,22 @@ public class StringArraySerializer extends TypeSerializer<String[]>{
 
 
 	@Override
-	public void serialize(String[] record, DataOutputView target) throws IOException {
+	public void serialize(byte[] record, DataOutputView target) throws IOException {
 		if (record == null) {
 			throw new IllegalArgumentException("The record must not be null.");
 		}
 		
 		final int len = record.length;
 		target.writeInt(len);
-		for (int i = 0; i < len; i++) {
-			StringValue.writeString(record[i], target);
-		}
+		target.write(record);
 	}
 
 
 	@Override
-	public String[] deserialize(String[] reuse, DataInputView source) throws IOException {
+	public byte[] deserialize(byte[] reuse, DataInputView source) throws IOException {
 		final int len = source.readInt();
-		reuse = new String[len];
-		
-		for (int i = 0; i < len; i++) {
-			reuse[i] = StringValue.readString(source);
-		}
-		
+		reuse = new byte[len];
+		source.readFully(reuse);
 		return reuse;
 	}
 
@@ -90,9 +82,6 @@ public class StringArraySerializer extends TypeSerializer<String[]>{
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		final int len = source.readInt();
 		target.writeInt(len);
-		
-		for (int i = 0; i < len; i++) {
-			StringValue.copyString(source, target);
-		}
+		target.write(source, len);
 	}
 }

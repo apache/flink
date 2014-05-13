@@ -25,6 +25,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
+
+import junit.framework.Assert;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
@@ -299,9 +302,28 @@ public abstract class SerializerTestBase<T> {
 	
 	private void deepEquals(String message, T should, T is) {
 		if (should.getClass().isArray()) {
-			if (should instanceof long[]) {
+			if (should instanceof boolean[]) {
+				Assert.assertTrue(message, Arrays.equals((boolean[]) should, (boolean[]) is));
+			}
+			else if (should instanceof byte[]) {
+				assertArrayEquals(message, (byte[]) should, (byte[]) is);
+			}
+			else if (should instanceof short[]) {
+				assertArrayEquals(message, (short[]) should, (short[]) is);
+			}
+			else if (should instanceof int[]) {
+				assertArrayEquals(message, (int[]) should, (int[]) is);
+			}
+			else if (should instanceof long[]) {
 				assertArrayEquals(message, (long[]) should, (long[]) is);
-			} else {
+			}
+			else if (should instanceof float[]) {
+				assertArrayEquals(message, (float[]) should, (float[]) is, 0.0f);
+			}
+			else if (should instanceof double[]) {
+				assertArrayEquals(message, (double[]) should, (double[]) is, 0.0);
+			}
+			else {
 				assertArrayEquals(message, (Object[]) should, (Object[]) is);
 			}
 		} else {

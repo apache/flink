@@ -12,15 +12,16 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.api.java.typeutils.runtime;
+package eu.stratosphere.api.common.typeutils.base.array;
 
 import eu.stratosphere.api.common.typeutils.SerializerTestBase;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 
 /**
  * A test for the {@link LongPrimitiveArraySerializer}.
  */
-public class LongArraySerializerTest extends SerializerTestBase<long[]> {
+public class LongPrimitiveArraySerializerTest extends SerializerTestBase<long[]> {
 
 	@Override
 	protected TypeSerializer<long[]> createSerializer() {

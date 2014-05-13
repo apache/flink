@@ -12,22 +12,24 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.api.java.typeutils.runtime;
+package eu.stratosphere.api.common.typeutils.base.array;
 
 import java.io.IOException;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
+import eu.stratosphere.types.StringValue;
+
 
 /**
- * A serializer for long arrays.
+ * A serializer for String arrays. Specialized for efficiency.
  */
-public class LongPrimitiveArraySerializer extends TypeSerializer<long[]>{
+public class StringArraySerializer extends TypeSerializer<String[]>{
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final long[] EMPTY = new long[0];
+	private static final String[] EMPTY = new String[0];
 
 	
 	@Override
@@ -41,13 +43,13 @@ public class LongPrimitiveArraySerializer extends TypeSerializer<long[]>{
 	}
 	
 	@Override
-	public long[] createInstance() {
+	public String[] createInstance() {
 		return EMPTY;
 	}
 
 	@Override
-	public long[] copy(long[] from, long[] reuse) {
-		reuse = new long[from.length];
+	public String[] copy(String[] from, String[] reuse) {
+		reuse = new String[from.length];
 		System.arraycopy(from, 0, reuse, 0, from.length);
 		return reuse;
 	}
@@ -59,7 +61,7 @@ public class LongPrimitiveArraySerializer extends TypeSerializer<long[]>{
 
 
 	@Override
-	public void serialize(long[] record, DataOutputView target) throws IOException {
+	public void serialize(String[] record, DataOutputView target) throws IOException {
 		if (record == null) {
 			throw new IllegalArgumentException("The record must not be null.");
 		}
@@ -67,18 +69,18 @@ public class LongPrimitiveArraySerializer extends TypeSerializer<long[]>{
 		final int len = record.length;
 		target.writeInt(len);
 		for (int i = 0; i < len; i++) {
-			target.writeLong(record[i]);
+			StringValue.writeString(record[i], target);
 		}
 	}
 
 
 	@Override
-	public long[] deserialize(long[] reuse, DataInputView source) throws IOException {
+	public String[] deserialize(String[] reuse, DataInputView source) throws IOException {
 		final int len = source.readInt();
-		reuse = new long[len];
+		reuse = new String[len];
 		
 		for (int i = 0; i < len; i++) {
-			reuse[i] = source.readLong();
+			reuse[i] = StringValue.readString(source);
 		}
 		
 		return reuse;
@@ -88,6 +90,9 @@ public class LongPrimitiveArraySerializer extends TypeSerializer<long[]>{
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		final int len = source.readInt();
 		target.writeInt(len);
-		target.write(source, len * 8);
+		
+		for (int i = 0; i < len; i++) {
+			StringValue.copyString(source, target);
+		}
 	}
 }
