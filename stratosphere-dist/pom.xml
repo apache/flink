@@ -130,6 +130,8 @@
 									<archive>
 										<manifest>
 											<mainClass>eu.stratosphere.yarn.Client</mainClass>
+											<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>  
+											<addDefaultImplementationEntries>true</addDefaultImplementationEntries>  
 										</manifest>
 									</archive>
 									<descriptors>

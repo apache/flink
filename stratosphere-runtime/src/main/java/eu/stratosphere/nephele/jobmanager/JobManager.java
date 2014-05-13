@@ -313,23 +313,19 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 	private static void logVersionInformation() {
 		String version = JobManager.class.getPackage().getImplementationVersion();
-		
 		// if version == null, then the JobManager runs from inside the IDE (or somehow not from the maven build jar)
-		if (version != null) {
-			String revision = "<unknown>";
-			try {
-				Properties properties = new Properties();
-				InputStream propFile = JobManager.class.getClassLoader().getResourceAsStream(".version.properties");
-				if (propFile != null) {
-					properties.load(propFile);
-					revision = properties.getProperty("git.commit.id.abbrev");
-				}
-			} catch (IOException e) {
-				LOG.info("Cannot determine code revision. Unable ro read version property file.");
+		String revision = "<unknown>";
+		try {
+			Properties properties = new Properties();
+			InputStream propFile = JobManager.class.getClassLoader().getResourceAsStream(".version.properties");
+			if (propFile != null) {
+				properties.load(propFile);
+				revision = properties.getProperty("git.commit.id.abbrev");
 			}
-			
-			LOG.info("Starting Stratosphere JobManager (Version: " + version + ", Rev:" + revision + ")");
+		} catch (IOException e) {
+			LOG.info("Cannot determine code revision. Unable ro read version property file.");
 		}
+		LOG.info("Starting Stratosphere JobManager (Version: " + version + ", Rev:" + revision + ")");
 	}
 	
 	/**

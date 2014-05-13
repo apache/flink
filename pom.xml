@@ -318,6 +318,18 @@
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<archive>
+						<manifest>
+							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+							<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+						</manifest>
+					</archive>
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.apache.rat</groupId>
 				<artifactId>apache-rat-plugin</artifactId>
 				<version>0.10</version>
@@ -348,7 +360,7 @@
 						<exclude>CONTRIBUTORS</exclude>
 						<!-- Build fiels -->
 						<exclude>tools/maven/checkstyle.xml</exclude>
- 						<exclude>tools/maven/suppressions.xml</exclude>
+						<exclude>tools/maven/suppressions.xml</exclude>
 						<exclude>**/pom.xml</exclude>
 						<exclude>**/pom.hadoop2.xml</exclude>
 						<exclude>**/*.iml</exclude>
@@ -357,11 +369,11 @@
 					</excludes>
 				</configuration>
 			</plugin>
-		  	<plugin>
-	        	<groupId>org.apache.maven.plugins</groupId>
-	        	<artifactId>maven-checkstyle-plugin</artifactId>
-	        	<version>2.12.1</version>
-	        	<executions>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>2.12.1</version>
+				<executions>
 					<execution>
 						<id>validate</id>
 						<phase>validate</phase>
@@ -376,7 +388,7 @@
 					<configLocation>/tools/maven/checkstyle.xml</configLocation>
 					<logViolationsToConsole>true</logViolationsToConsole>
 				</configuration>
-	      	</plugin>
+			</plugin>
 			<plugin>
 				<!-- just define the Java version to be used for compiling and plugins -->
 				<groupId>org.apache.maven.plugins</groupId>
