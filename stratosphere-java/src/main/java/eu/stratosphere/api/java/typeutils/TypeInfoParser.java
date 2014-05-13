@@ -1,4 +1,4 @@
-/***********************************************************************************************************************
+ /***********************************************************************************************************************
  * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
@@ -10,10 +10,11 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
-
+                                           
 package eu.stratosphere.api.java.typeutils;
 
 import eu.stratosphere.types.Value;
+import eu.stratosphere.types.TypeInformation;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

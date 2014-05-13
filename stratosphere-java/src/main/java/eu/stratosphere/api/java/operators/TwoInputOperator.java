@@ -15,10 +15,11 @@
 package eu.stratosphere.api.java.operators;
 
 import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 
 /**
- *
+ * Base class for operations that operates on two input data sets.
+ * 
  * @param <IN1> The data type of the first input data set.
  * @param <IN2> The data type of the second input data set.
  * @param <OUT> The data type of the returned data set.
@@ -37,18 +38,40 @@ public abstract class TwoInputOperator<IN1, IN2, OUT, O extends TwoInputOperator
 		this.input2 = input2;
 	}
 	
+	/**
+	 * Gets the data set that this operation uses as its first input.
+	 * 
+	 * @return The data set that this operation uses as its first input.
+	 */
 	public DataSet<IN1> getInput1() {
 		return this.input1;
 	}
 	
+	/**
+	 * Gets the data set that this operation uses as its second input.
+	 * 
+	 * @return The data set that this operation uses as its second input.
+	 */
 	public DataSet<IN2> getInput2() {
 		return this.input2;
 	}
 	
+	/**
+	 * Gets the type information of the data type of the first input data set.
+	 * This method returns equivalent information as {@code getInput1().getType()}.
+	 * 
+	 * @return The first input data type.
+	 */
 	public TypeInformation<IN1> getInput1Type() {
 		return this.input1.getType();
 	}
 	
+	/**
+	 * Gets the type information of the data type of the second input data set.
+	 * This method returns equivalent information as {@code getInput2().getType()}.
+	 * 
+	 * @return The second input data type.
+	 */
 	public TypeInformation<IN2> getInput2Type() {
 		return this.input2.getType();
 	}
@@ -60,6 +83,6 @@ public abstract class TwoInputOperator<IN1, IN2, OUT, O extends TwoInputOperator
 	 * @param input2 The second input of the operation, as a common API operator.
 	 * @return The created common API operator.
 	 */
-	protected abstract eu.stratosphere.api.common.operators.DualInputOperator<?> translateToDataFlow(
-			eu.stratosphere.api.common.operators.Operator input1, eu.stratosphere.api.common.operators.Operator input2);
+	protected abstract eu.stratosphere.api.common.operators.DualInputOperator<?, ?, OUT, ?> translateToDataFlow(
+			eu.stratosphere.api.common.operators.Operator<IN1> input1, eu.stratosphere.api.common.operators.Operator<IN2> input2);
 }

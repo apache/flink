@@ -18,11 +18,12 @@ import eu.stratosphere.api.scala.UnionScalaOperator
 import eu.stratosphere.api.scala.DataSet
 import eu.stratosphere.api.scala.analysis.UDF2
 import eu.stratosphere.api.common.operators.Union
+import eu.stratosphere.types.Record
 
 object UnionOperator {
 
   def impl[In](firstInput: DataSet[In], secondInput: DataSet[In]): DataSet[In] = {
-    val union = new Union(firstInput.contract, secondInput.contract) with UnionScalaOperator[In] {
+    val union = new Union[Record](firstInput.contract, secondInput.contract) with UnionScalaOperator[In] {
       private val inputUDT = firstInput.contract.getUDF().outputUDT
       private val udf: UDF2[In, In, In] = new UDF2(inputUDT, inputUDT, inputUDT)
 

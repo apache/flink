@@ -21,6 +21,7 @@ import eu.stratosphere.api.common.operators.util.{ FieldSet => PactFieldSet }
 import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.scala.codegen.MacroContextHolder
 import scala.reflect.macros.Context
+import eu.stratosphere.types.Record
 
 case class KeyCardinality(key: FieldSelector, isUnique: Boolean, distinctCount: Option[Long], avgNumRecords: Option[Float]) {
 
@@ -32,12 +33,12 @@ case class KeyCardinality(key: FieldSelector, isUnique: Boolean, distinctCount: 
     }
   }
 
-  @transient private var pactFieldSets = collection.mutable.Map[Operator with ScalaOperator[_], RefreshableFieldSet]()
+  @transient private var pactFieldSets = collection.mutable.Map[Operator[Record] with ScalaOperator[_, _], RefreshableFieldSet]()
 
-  def getPactFieldSet(contract: Operator with ScalaOperator[_]): PactFieldSet = {
+  def getPactFieldSet(contract: Operator[Record] with ScalaOperator[_, _]): PactFieldSet = {
 
     if (pactFieldSets == null)
-      pactFieldSets = collection.mutable.Map[Operator with ScalaOperator[_], RefreshableFieldSet]()
+      pactFieldSets = collection.mutable.Map[Operator[Record] with ScalaOperator[_, _], RefreshableFieldSet]()
 
     val keyCopy = key.copy
     contract.getUDF.attachOutputsToInputs(keyCopy.inputFields)
@@ -78,7 +79,7 @@ trait OutputHintable[Out] { this: DataSet[Out] =>
 
   def uniqueKey[Key](fields: Out => Key) = macro OutputHintableMacros.uniqueKey[Out, Key]
 
-  def applyHints(contract: Operator with ScalaOperator[_]): Unit = {
+  def applyHints(contract: Operator[Record] with ScalaOperator[_, _]): Unit = {
     val hints = contract.getCompilerHints
 
     if (hints.getUniqueFields != null)

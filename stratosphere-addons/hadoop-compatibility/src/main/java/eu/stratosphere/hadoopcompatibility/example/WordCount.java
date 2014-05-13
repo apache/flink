@@ -26,7 +26,7 @@ import org.apache.hadoop.mapred.TextInputFormat;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
-import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;

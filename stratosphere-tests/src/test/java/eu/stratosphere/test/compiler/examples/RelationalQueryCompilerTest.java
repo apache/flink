@@ -18,7 +18,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.api.java.record.operators.MapOperator;
@@ -122,7 +122,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		Plan p = query.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
 		
 		// set compiler hints
-		ContractResolver cr = getContractResolver(p);
+		OperatorResolver cr = getContractResolver(p);
 		JoinOperator match = cr.getNode("JoinLiO");
 		match.getCompilerHints().setFilterFactor(100f);
 		
@@ -156,7 +156,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	{
 		try {
 			// set statistics
-			ContractResolver cr = getContractResolver(p);
+			OperatorResolver cr = getContractResolver(p);
 			FileDataSource ordersSource = cr.getNode(ORDERS);
 			FileDataSource lineItemSource = cr.getNode(LINEITEM);
 			MapOperator mapper = cr.getNode(MAPPER_NAME);

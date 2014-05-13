@@ -21,7 +21,7 @@ import java.io.Writer;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.Value;
@@ -100,9 +100,6 @@ public class CsvOutputFormat extends FileOutputFormat {
 	 * constructor. As the default value for separating records '\n' is used.
 	 * The default field delimiter is ','.
 	 * 
-	 * @param fieldDelimiter
-	 *            The delimiter that is used to separate the different fields in
-	 *            the record.
 	 * @param types
 	 *            The types of the fields that are in the record.
 	 */

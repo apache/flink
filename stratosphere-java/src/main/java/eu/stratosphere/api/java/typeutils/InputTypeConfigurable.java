@@ -14,6 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils;
 
+
+import eu.stratosphere.types.TypeInformation;
+
 /**
  * {@link eu.stratosphere.api.common.io.OutputFormat}s can implement this interface to be configured
  * with the data type they will operate on. The method {@link #setInputType(TypeInformation)} will be

@@ -18,7 +18,7 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.common.operators.FileDataSink;
+import eu.stratosphere.api.common.operators.base.FileDataSinkBase;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
@@ -397,7 +397,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	 * 
 	 * @return A config builder for setting parameters.
 	 */
-	public static ConfigBuilder configureFileFormat(FileDataSink target) {
+	public static ConfigBuilder configureFileFormat(FileDataSinkBase<?> target) {
 		return new ConfigBuilder(target.getParameters());
 	}
 	

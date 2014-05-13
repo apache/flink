@@ -15,37 +15,93 @@ package eu.stratosphere.api.common.operators.base;
 
 import eu.stratosphere.api.common.functions.GenericReduce;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 
 
 /**
+ * Base data flow operator for Reduce user-defined functions. Accepts reduce functions
+ * and key positions. The key positions are expected in the flattened common data model.
+ * 
  * @see GenericReduce
+ *
+ * @param <T> The type (parameters and return type) of the reduce function.
+ * @param <FT> The type of the reduce function.
  */
-public class ReduceOperatorBase<T extends GenericReduce<?>> extends SingleInputOperator<T> {
+public class ReduceOperatorBase<T, FT extends GenericReduce<T>> extends SingleInputOperator<T, T, FT> {
 
-	public ReduceOperatorBase(UserCodeWrapper<T> udf, int[] keyPositions, String name) {
-		super(udf, keyPositions, name);
+	/**
+	 * Creates a grouped reduce data flow operator.
+	 * 
+	 * @param udf The user-defined function, contained in the UserCodeWrapper.
+	 * @param operatorInfo The type information, describing input and output types of the reduce function.
+	 * @param keyPositions The positions of the key fields, in the common data model (flattened).
+	 * @param name The name of the operator (for logging and messages).
+	 */
+	public ReduceOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<T, T> operatorInfo, int[] keyPositions, String name) {
+		super(udf, operatorInfo, keyPositions, name);
 	}
 	
-	public ReduceOperatorBase(T udf, int[] keyPositions, String name) {
-		super(new UserCodeObjectWrapper<T>(udf), keyPositions, name);
+	/**
+	 * Creates a grouped reduce data flow operator.
+	 * 
+	 * @param udf The user-defined function, as a function object.
+	 * @param operatorInfo The type information, describing input and output types of the reduce function.
+	 * @param keyPositions The positions of the key fields, in the common data model (flattened).
+	 * @param name The name of the operator (for logging and messages).
+	 */
+	public ReduceOperatorBase(FT udf, UnaryOperatorInformation<T, T> operatorInfo, int[] keyPositions, String name) {
+		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, keyPositions, name);
 	}
 	
-	public ReduceOperatorBase(Class<? extends T> udf, int[] keyPositions, String name) {
-		super(new UserCodeClassWrapper<T>(udf), keyPositions, name);
+	/**
+	 * Creates a grouped reduce data flow operator.
+	 * 
+	 * @param udf The class representing the parameterless user-defined function.
+	 * @param operatorInfo The type information, describing input and output types of the reduce function.
+	 * @param keyPositions The positions of the key fields, in the common data model (flattened).
+	 * @param name The name of the operator (for logging and messages).
+	 */
+	public ReduceOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<T, T> operatorInfo, int[] keyPositions, String name) {
+		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, keyPositions, name);
 	}
 	
-	public ReduceOperatorBase(UserCodeWrapper<T> udf, String name) {
-		super(udf, name);
+	// --------------------------------------------------------------------------------------------
+	//  Non-grouped reduce operations
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Creates a non-grouped reduce data flow operator (all-reduce).
+	 * 
+	 * @param udf The user-defined function, contained in the UserCodeWrapper.
+	 * @param operatorInfo The type information, describing input and output types of the reduce function.
+	 * @param name The name of the operator (for logging and messages).
+	 */
+	public ReduceOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<T, T> operatorInfo, String name) {
+		super(udf, operatorInfo, name);
 	}
 	
-	public ReduceOperatorBase(T udf, String name) {
-		super(new UserCodeObjectWrapper<T>(udf), name);
+	/**
+	 * Creates a non-grouped reduce data flow operator (all-reduce).
+	 * 
+	 * @param udf The user-defined function, as a function object.
+	 * @param operatorInfo The type information, describing input and output types of the reduce function.
+	 * @param name The name of the operator (for logging and messages).
+	 */
+	public ReduceOperatorBase(FT udf, UnaryOperatorInformation<T, T> operatorInfo, String name) {
+		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
 	}
 	
-	public ReduceOperatorBase(Class<? extends T> udf, String name) {
-		super(new UserCodeClassWrapper<T>(udf), name);
+	/**
+	 * Creates a non-grouped reduce data flow operator (all-reduce).
+	 * 
+	 * @param udf The class representing the parameterless user-defined function.
+	 * @param operatorInfo The type information, describing input and output types of the reduce function.
+	 * @param name The name of the operator (for logging and messages).
+	 */
+	public ReduceOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<T, T> operatorInfo, String name) {
+		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
 	}
 }

@@ -27,10 +27,10 @@ import org.junit.BeforeClass;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.api.common.io.FileInputFormat.FileBaseStatistics;
-import eu.stratosphere.api.common.operators.BulkIteration;
-import eu.stratosphere.api.common.operators.DeltaIteration;
-import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
+import eu.stratosphere.api.java.record.operators.BulkIteration;
+import eu.stratosphere.api.java.record.operators.DeltaIteration;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.costs.DefaultCostEstimator;
@@ -110,19 +110,19 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 		return this.noStatsCompiler.compile(p, this.instanceType);
 	}
 	
-	public void setSourceStatistics(GenericDataSource<?> source, long size, float recordWidth) {
+	public void setSourceStatistics(GenericDataSourceBase<?, ?> source, long size, float recordWidth) {
 		setSourceStatistics(source, new FileBaseStatistics(Long.MAX_VALUE, size, recordWidth));
 	}
 	
-	public void setSourceStatistics(GenericDataSource<?> source, FileBaseStatistics stats) {
+	public void setSourceStatistics(GenericDataSourceBase<?, ?> source, FileBaseStatistics stats) {
 		final String key = CACHE_KEY + this.statCounter++;
 		this.dataStats.cacheBaseStatistics(stats, key);
 		source.setStatisticsKey(key);
 	}
 	
 	// ------------------------------------------------------------------------
-	public static ContractResolver getContractResolver(Plan plan) {
-		return new ContractResolver(plan);
+	public static OperatorResolver getContractResolver(Plan plan) {
+		return new OperatorResolver(plan);
 	}
 	
 	public static OptimizerPlanNodeResolver getOptimizerPlanNodeResolver(OptimizedPlan plan) {
@@ -139,7 +139,7 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 			HashMap<String, ArrayList<PlanNode>> map = new HashMap<String, ArrayList<PlanNode>>();
 			
 			for (PlanNode n : p.getAllNodes()) {
-				Operator c = n.getOriginalOptimizerNode().getPactContract();
+				Operator<?> c = n.getOriginalOptimizerNode().getPactContract();
 				String name = c.getName();
 				
 				ArrayList<PlanNode> list = map.get(name);
@@ -227,14 +227,14 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 	
 	// ------------------------------------------------------------------------
 	
-	public static final class ContractResolver implements Visitor<Operator> {
+	public static final class OperatorResolver implements Visitor<Operator<?>> {
 		
-		private final Map<String, List<Operator>> map;
-		private Set<Operator> seen;
+		private final Map<String, List<Operator<?>>> map;
+		private Set<Operator<?>> seen;
 		
-		ContractResolver(Plan p) {
-			this.map = new HashMap<String, List<Operator>>();
-			this.seen = new HashSet<Operator>();
+		OperatorResolver(Plan p) {
+			this.map = new HashMap<String, List<Operator<?>>>();
+			this.seen = new HashSet<Operator<?>>();
 			
 			p.accept(this);
 			this.seen = null;
@@ -242,8 +242,8 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 		
 		
 		@SuppressWarnings("unchecked")
-		public <T extends Operator> T getNode(String name) {
-			List<Operator> nodes = this.map.get(name);
+		public <T extends Operator<?>> T getNode(String name) {
+			List<Operator<?>> nodes = this.map.get(name);
 			if (nodes == null || nodes.isEmpty()) {
 				throw new RuntimeException("No nodes found with the given name.");
 			} else if (nodes.size() != 1) {
@@ -254,13 +254,13 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 		}
 		
 		@SuppressWarnings("unchecked")
-		public <T extends Operator> T getNode(String name, Class<? extends Function> stubClass) {
-			List<Operator> nodes = this.map.get(name);
+		public <T extends Operator<?>> T getNode(String name, Class<? extends Function> stubClass) {
+			List<Operator<?>> nodes = this.map.get(name);
 			if (nodes == null || nodes.isEmpty()) {
 				throw new RuntimeException("No node found with the given name and stub class.");
 			} else {
-				Operator found = null;
-				for (Operator node : nodes) {
+				Operator<?> found = null;
+				for (Operator<?> node : nodes) {
 					if (node.getClass() == stubClass) {
 						if (found == null) {
 							found = node;
@@ -277,23 +277,23 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 			}
 		}
 		
-		public List<Operator> getNodes(String name) {
-			List<Operator> nodes = this.map.get(name);
+		public List<Operator<?>> getNodes(String name) {
+			List<Operator<?>> nodes = this.map.get(name);
 			if (nodes == null || nodes.isEmpty()) {
 				throw new RuntimeException("No node found with the given name.");
 			} else {
-				return new ArrayList<Operator>(nodes);
+				return new ArrayList<Operator<?>>(nodes);
 			}
 		}
 
 		@Override
-		public boolean preVisit(Operator visitable) {
+		public boolean preVisit(Operator<?> visitable) {
 			if (this.seen.add(visitable)) {
 				// add to  the map
 				final String name = visitable.getName();
-				List<Operator> list = this.map.get(name);
+				List<Operator<?>> list = this.map.get(name);
 				if (list == null) {
-					list = new ArrayList<Operator>(2);
+					list = new ArrayList<Operator<?>>(2);
 					this.map.put(name, list);
 				}
 				list.add(visitable);
@@ -313,6 +313,6 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 		}
 
 		@Override
-		public void postVisit(Operator visitable) {}
+		public void postVisit(Operator<?> visitable) {}
 	}
 }

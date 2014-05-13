@@ -19,21 +19,22 @@ import java.util.Map;
 import org.apache.commons.lang3.Validate;
 
 import eu.stratosphere.api.common.aggregators.Aggregator;
-import eu.stratosphere.api.common.operators.DualInputOperator;
+import eu.stratosphere.api.common.functions.GenericCoGrouper;
+import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
 import eu.stratosphere.api.common.operators.DualInputSemanticProperties;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
 import eu.stratosphere.api.java.operators.CustomUnaryOperation;
 import eu.stratosphere.api.java.operators.TwoInputOperator;
-import eu.stratosphere.api.java.operators.translation.PlanCogroupOperator;
-import eu.stratosphere.api.java.operators.translation.PlanDeltaIterationOperator;
+import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
+import eu.stratosphere.api.common.operators.base.DeltaIterationBase;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.Collector;
 
@@ -244,9 +245,9 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * Creates a new vertex-centric iteration operator for graphs where the edges are associated with a value (such as
 	 * a weight or distance).
 	 * 
-	 * @param edgesWithoutValue The data set containing edges. Edges are represented as 2-tuples: (source-id, target-id)
-	 * @param vertexUpdateFunction The function that updates the state of the vertices from the incoming messages.
-	 * @param messagingFunction The function that turns changed vertex states into messages along the edges.
+	 * @param edgesWithValue The data set containing edges. Edges are represented as 2-tuples: (source-id, target-id)
+	 * @param uf The function that updates the state of the vertices from the incoming messages.
+	 * @param mf The function that turns changed vertex states into messages along the edges.
 	 * 
 	 * @param <VertexKey> The type of the vertex key (the vertex identifier).
 	 * @param <VertexValue> The type of the vertex value (the state of the vertex).
@@ -457,16 +458,17 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		}
 
 		@Override
-		protected DualInputOperator<?> translateToDataFlow(Operator input1, Operator input2) {
+		protected eu.stratosphere.api.common.operators.DualInputOperator<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>, ?> translateToDataFlow(Operator<Tuple2<VertexKey, VertexValue>> input1, Operator<EdgeType> input2) {
 			
 			final String name = (getName() != null) ? getName() :
 					"Vertex-centric iteration (" + updateFunction + " | " + messagingFunction + ")";
 			
 			final int[] zeroKeyPos = new int[] {0};
 			
-			final PlanDeltaIterationOperator<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>> iteration = 
-					new PlanDeltaIterationOperator<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>(
-							zeroKeyPos, name, getInput1Type(), getInput1Type());
+			final DeltaIterationBase<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>> iteration =
+					new DeltaIterationBase<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>(
+							new BinaryOperatorInformation<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>(getInput1Type(), getInput1Type(), getInput1Type()),
+							zeroKeyPos, name);
 			
 			iteration.setMaximumNumberOfIterations(maximumNumberOfIterations);
 			
@@ -474,15 +476,15 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 				iteration.getAggregators().registerAggregator(entry.getKey(), entry.getValue());
 			}
 			
-			final PlanCogroupOperator<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>> messenger =
-					new PlanCogroupOperator<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>(
-							messagingFunction, zeroKeyPos, zeroKeyPos, "Messaging", edges.getType(), getInput1Type(), messageType);
+			final CoGroupOperatorBase<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>, GenericCoGrouper<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>> messenger =
+					new CoGroupOperatorBase<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>, GenericCoGrouper<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>>(
+							messagingFunction, new BinaryOperatorInformation<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>(edges.getType(), getInput1Type(), messageType), zeroKeyPos, zeroKeyPos, "Messaging");
 			
 			messenger.setSecondInput(iteration.getWorkset());
 			
-			final PlanCogroupOperator<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>> updater =
-					new PlanCogroupOperator<Tuple2<VertexKey,Message>, Tuple2<VertexKey,VertexValue>, Tuple2<VertexKey,VertexValue>>(
-							updateFunction, zeroKeyPos, zeroKeyPos, "Vertex State Updates", messageType, getInput1Type(), getInput1Type());
+			final CoGroupOperatorBase<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>, GenericCoGrouper<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>> updater =
+					new CoGroupOperatorBase<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>, GenericCoGrouper<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>>(
+							updateFunction, new BinaryOperatorInformation<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>(messageType, getInput1Type(), getInput1Type()), zeroKeyPos, zeroKeyPos, "Vertex State Updates");
 			
 			updater.setFirstInput(messenger);
 			updater.setSecondInput(iteration.getSolutionSet());

@@ -19,10 +19,9 @@ import java.util.List;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
-import eu.stratosphere.api.common.operators.BulkIteration;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.java.record.operators.BulkIteration;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.operators.CrossOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.client.LocalExecutor;
@@ -100,7 +99,7 @@ public class KMeansCross implements Program, ProgramDescription {
 		// write assigned clusters
 		FileDataSink clusterAssignments = new FileDataSink(new PointOutFormat(), output+"/points", findNearestFinalCluster, "Cluster Assignments");
 		
-		List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+		List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 		sinks.add(finalClusters);
 		sinks.add(clusterAssignments);
 		

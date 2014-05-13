@@ -23,9 +23,10 @@ import eu.stratosphere.api.scala.analysis.GlobalSchemaGenerator
 import eu.stratosphere.api.scala.analysis.postPass.GlobalSchemaOptimizer
 import eu.stratosphere.api.common.Program
 import eu.stratosphere.api.common.ProgramDescription
+import eu.stratosphere.types.Record
 
 class ScalaPlan(scalaSinks: Seq[ScalaSink[_]], scalaJobName: String = "PACT SCALA Job at " + Calendar.getInstance().getTime()) extends Plan(asJavaCollection(scalaSinks map { _.sink }), scalaJobName) {
-  val pactSinks = scalaSinks map { _.sink.asInstanceOf[Operator with ScalaOperator[_]] }
+  val pactSinks = scalaSinks map { _.sink.asInstanceOf[Operator[Record] with ScalaOperator[_, _]] }
   new GlobalSchemaGenerator().initGlobalSchema(pactSinks)
   override def getPostPassClassName() = "eu.stratosphere.api.scala.ScalaPostPass";
 }

@@ -21,18 +21,23 @@ import eu.stratosphere.util.Visitor;
 
 /**
  * Abstract operator superclass for for all operators that have two inputs, like "Join", "CoGroup", or "Cross".
+ *
+ * @param <IN1> First input type of the user function
+ * @param <IN2> Second input type of the user function
+ * @param <OUT> Output type of the user function
+ * @param <FT> Type of the user function
  */
-public abstract class DualInputOperator<T extends Function> extends AbstractUdfOperator<T> {
+public abstract class DualInputOperator<IN1, IN2, OUT, FT extends Function> extends AbstractUdfOperator<OUT, FT> {
 	
 	/**
 	 * The operator producing the first input.
 	 */
-	protected Operator input1;
+	protected Operator<IN1> input1;
 	
 	/**
 	 * The operator producing the second input.
 	 */
-	protected Operator input2;
+	protected Operator<IN2> input2;
 
 	/**
 	 * The positions of the keys in the tuples of the first input.
@@ -57,10 +62,9 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @param stub The class containing the user function.
 	 * @param name The given name for the operator, used in plans, logs and progress messages.
 	 */
-	protected DualInputOperator(UserCodeWrapper<T> stub, String name) {
-		super(stub, name);
+	protected DualInputOperator(UserCodeWrapper<FT> stub, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, String name) {
+		super(stub, operatorInfo, name);
 		this.keyFields1 = this.keyFields2 = new int[0];
-		this.semanticProperties = new DualInputSemanticProperties();
 	}
 	
 	/**
@@ -72,21 +76,29 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @param keyPositions2 The positions of the fields in the second input that act as keys.
 	 * @param name The given name for the operator, used in plans, logs and progress messages.
 	 */
-	protected DualInputOperator(UserCodeWrapper<T> stub, int[] keyPositions1, int[] keyPositions2, String name) {
-		super(stub, name);
+	protected DualInputOperator(UserCodeWrapper<FT> stub, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
+		super(stub, operatorInfo, name);
 		this.keyFields1 = keyPositions1;
 		this.keyFields2 = keyPositions2;
-		this.semanticProperties = new DualInputSemanticProperties();
 	}
 
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Gets the information about the operators input/output types.
+	 */
+	@Override
+	@SuppressWarnings("unchecked")
+	public BinaryOperatorInformation<IN1, IN2, OUT> getOperatorInfo() {
+		return (BinaryOperatorInformation<IN1, IN2, OUT>) this.operatorInfo;
+	}
 
 	/**
 	 * Returns the first input, or null, if none is set.
 	 * 
 	 * @return The contract's first input.
 	 */
-	public Operator getFirstInput() {
+	public Operator<IN1> getFirstInput() {
 		return this.input1;
 	}
 	
@@ -95,7 +107,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * 
 	 * @return The contract's second input.
 	 */
-	public Operator getSecondInput() {
+	public Operator<IN2> getSecondInput() {
 		return this.input2;
 	}
 	
@@ -118,7 +130,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * 
 	 * @param input The contract that is connected as the first input.
 	 */
-	public void setFirstInput(Operator input) {
+	public void setFirstInput(Operator<IN1> input) {
 		this.input1 = input;
 	}
 
@@ -127,7 +139,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * 
 	 * @param input The contract that is connected as the second input.
 	 */
-	public void setSecondInput(Operator input) {
+	public void setSecondInput(Operator<IN2> input) {
 		this.input2 = input;
 	}
 	
@@ -138,7 +150,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
 	@Deprecated
-	public void setFirstInput(Operator ... inputs) {
+	public void setFirstInput(Operator<IN1>... inputs) {
 		this.input1 = Operator.createUnionCascade(inputs);
 	}
 
@@ -149,7 +161,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
 	@Deprecated
-	public void setSecondInput(Operator ... inputs) {
+	public void setSecondInput(Operator<IN2>... inputs) {
 		this.input2 = Operator.createUnionCascade(inputs);
 	}
 	
@@ -160,7 +172,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
 	@Deprecated
-	public void setFirstInputs(List<Operator> inputs) {
+	public void setFirstInputs(List<Operator<IN1>> inputs) {
 		this.input1 = Operator.createUnionCascade(inputs);
 	}
 
@@ -171,7 +183,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
 	@Deprecated
-	public void setSecondInputs(List<Operator> inputs) {
+	public void setSecondInputs(List<Operator<IN2>> inputs) {
 		this.input2 = Operator.createUnionCascade(inputs);
 	}
 
@@ -182,7 +194,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
 	@Deprecated
-	public void addFirstInput(Operator ... input) {
+	public void addFirstInput(Operator<IN1>... input) {
 		this.input1 = Operator.createUnionCascade(this.input1, input);
 	}
 	
@@ -193,7 +205,7 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
 	@Deprecated
-	public void addSecondInput(Operator ... input) {
+	public void addSecondInput(Operator<IN2>... input) {
 		this.input2 = Operator.createUnionCascade(this.input2, input);
 	}
 
@@ -204,7 +216,8 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
 	@Deprecated
-	public void addFirstInputs(List<Operator> inputs) {
+	@SuppressWarnings("unchecked")
+	public void addFirstInputs(List<Operator<IN1>> inputs) {
 		this.input1 = Operator.createUnionCascade(this.input1, inputs.toArray(new Operator[inputs.size()]));
 	}
 
@@ -215,7 +228,8 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
 	@Deprecated
-	public void addSecondInputs(List<Operator> inputs) {
+	@SuppressWarnings("unchecked")
+	public void addSecondInputs(List<Operator<IN2>> inputs) {
 		this.input2 = Operator.createUnionCascade(this.input2, inputs.toArray(new Operator[inputs.size()]));
 	}
 	
@@ -252,12 +266,12 @@ public abstract class DualInputOperator<T extends Function> extends AbstractUdfO
 	
 
 	@Override
-	public void accept(Visitor<Operator> visitor) {
+	public void accept(Visitor<Operator<?>> visitor) {
 		boolean descend = visitor.preVisit(this);
 		if (descend) {
 			this.input1.accept(visitor);
 			this.input2.accept(visitor);
-			for (Operator c : this.broadcastInputs.values()) {
+			for (Operator<?> c : this.broadcastInputs.values()) {
 				c.accept(visitor);
 			}
 			visitor.postVisit(this);

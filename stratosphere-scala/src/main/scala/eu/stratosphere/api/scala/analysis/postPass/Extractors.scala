@@ -15,8 +15,6 @@ package eu.stratosphere.api.scala.analysis.postPass
 
 import eu.stratosphere.api.java.record.operators.CoGroupOperator
 import eu.stratosphere.api.java.record.operators.CrossOperator
-import eu.stratosphere.api.common.operators.GenericDataSink
-import eu.stratosphere.api.common.operators.GenericDataSource
 import eu.stratosphere.api.java.record.operators.MapOperator
 import eu.stratosphere.api.java.record.operators.JoinOperator
 import eu.stratosphere.api.java.record.operators.ReduceOperator
@@ -33,22 +31,16 @@ import eu.stratosphere.compiler.dag.PactConnection
 import eu.stratosphere.compiler.dag.GroupReduceNode
 import eu.stratosphere.compiler.dag.SinkJoiner
 import eu.stratosphere.compiler.dag.WorksetIterationNode
-import eu.stratosphere.api.common.operators.DeltaIteration
-import eu.stratosphere.api.scala.ScalaOperator
-import eu.stratosphere.api.scala.OneInputScalaOperator
-import eu.stratosphere.api.scala.OneInputKeyedScalaOperator
-import eu.stratosphere.api.scala.TwoInputScalaOperator
-import eu.stratosphere.api.scala.TwoInputKeyedScalaOperator
-import eu.stratosphere.api.scala.DeltaIterationScalaOperator
+import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.analysis.FieldSelector
 import eu.stratosphere.api.scala.analysis.UDF
 import eu.stratosphere.api.scala.analysis.UDF0
 import eu.stratosphere.api.scala.analysis.UDF1
 import eu.stratosphere.api.scala.analysis.UDF2
-import eu.stratosphere.api.scala.BulkIterationScalaOperator
-import eu.stratosphere.api.common.operators.BulkIteration
-import eu.stratosphere.api.scala.UnionScalaOperator
 import eu.stratosphere.api.common.operators.Union
+import eu.stratosphere.api.common.operators.base.{BulkIterationBase => BulkIteration, DeltaIterationBase => DeltaIteration, GenericDataSinkBase, GenericDataSourceBase}
+import scala.Some
+
 
 object Extractors {
 
@@ -56,7 +48,7 @@ object Extractors {
     def getUDF: Option[UDF[_]] = node match {
       case _: SinkJoiner | _: BinaryUnionNode => None
       case _ => {
-        Some(node.getPactContract.asInstanceOf[ScalaOperator[_]].getUDF)
+        Some(node.getPactContract.asInstanceOf[ScalaOperator[_, _]].getUDF)
       }
     }
   }
@@ -64,7 +56,7 @@ object Extractors {
   object DataSinkNode {
     def unapply(node: OptimizerNode): Option[(UDF1[_, _], PactConnection)] = node match {
       case node: DataSinkNode => node.getPactContract match {
-        case contract: GenericDataSink with OneInputScalaOperator[_, _] => {
+        case contract: GenericDataSinkBase[_] with ScalaOutputOperator[_] => {
           Some((contract.getUDF, node.getInputConnection))
         }
         case _  => None
@@ -76,7 +68,7 @@ object Extractors {
   object DataSourceNode {
     def unapply(node: OptimizerNode): Option[(UDF0[_])] = node match {
       case node: DataSourceNode => node.getPactContract() match {
-        case contract: GenericDataSource[_] with ScalaOperator[_] => Some(contract.getUDF.asInstanceOf[UDF0[_]])
+        case contract: GenericDataSourceBase[_, _] with ScalaOperator[_, _] => Some(contract.getUDF.asInstanceOf[UDF0[_]])
         case _ => None
       }
       case _ => None
@@ -126,7 +118,7 @@ object Extractors {
   object UnionNode {
     def unapply(node: OptimizerNode): Option[(UDF2[_, _, _], PactConnection, PactConnection)] = node match {
       case node: BinaryUnionNode => node.getPactContract match {
-        case contract: Union with UnionScalaOperator[_] => Some((contract.getUDF, node.getFirstIncomingConnection(), node.getSecondIncomingConnection()))
+        case contract: Union[_] with UnionScalaOperator[_] => Some((contract.getUDF, node.getFirstIncomingConnection(), node.getSecondIncomingConnection()))
         case _ => None
       }
       case _ => None
@@ -146,7 +138,7 @@ object Extractors {
   object DeltaIterationNode {
     def unapply(node: OptimizerNode): Option[(UDF0[_], FieldSelector, PactConnection, PactConnection)] = node match {
       case node: WorksetIterationNode => node.getPactContract match {
-        case contract: DeltaIteration with DeltaIterationScalaOperator[_] => Some((contract.getUDF, contract.key, node.getFirstIncomingConnection(), node.getSecondIncomingConnection()))
+        case contract: DeltaIteration[_, _] with DeltaIterationScalaOperator[_] => Some((contract.getUDF, contract.key, node.getFirstIncomingConnection(), node.getSecondIncomingConnection()))
         case _                                  => None
       }
       case _ => None
@@ -156,7 +148,7 @@ object Extractors {
   object BulkIterationNode {
     def unapply(node: OptimizerNode): Option[(UDF0[_], PactConnection)] = node match {
       case node: BulkIterationNode => node.getPactContract match {
-        case contract: BulkIteration with BulkIterationScalaOperator[_] => Some((contract.getUDF, node.getIncomingConnection()))
+        case contract: BulkIteration[_] with BulkIterationScalaOperator[_] => Some((contract.getUDF, node.getIncomingConnection()))
         case _                                  => None
       }
       case _ => None

@@ -25,7 +25,6 @@ import eu.stratosphere.api.common.functions.GenericReduce;
 import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.pact.runtime.task.AllReduceDriver;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
@@ -33,6 +32,7 @@ import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.RegularToMutableObjectIterator;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.util.MutableObjectIterator;
 
 @SuppressWarnings("serial")

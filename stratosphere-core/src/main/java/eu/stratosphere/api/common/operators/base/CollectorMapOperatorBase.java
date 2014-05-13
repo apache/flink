@@ -13,24 +13,31 @@
 
 package eu.stratosphere.api.common.operators.base;
 
-import eu.stratosphere.api.common.functions.GenericMap;
+import eu.stratosphere.api.common.functions.GenericCollectorMap;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 
 
-public class PlainMapOperatorBase<T extends GenericMap<?, ?>> extends SingleInputOperator<T> {
+/**
+ * The CollectorMap is the old version of the Map operator. It is effectively a "flatMap", where the
+ * UDF is called "map".
+ * 
+ * @see GenericCollectorMap
+ */
+public class CollectorMapOperatorBase<IN, OUT, FT extends GenericCollectorMap<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 	
-	public PlainMapOperatorBase(UserCodeWrapper<T> udf, String name) {
-		super(udf, name);
+	public CollectorMapOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+		super(udf, operatorInfo, name);
 	}
 	
-	public PlainMapOperatorBase(T udf, String name) {
-		super(new UserCodeObjectWrapper<T>(udf), name);
+	public CollectorMapOperatorBase(FT udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
 	}
 	
-	public PlainMapOperatorBase(Class<? extends T> udf, String name) {
-		super(new UserCodeClassWrapper<T>(udf), name);
+	public CollectorMapOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
 	}
 }

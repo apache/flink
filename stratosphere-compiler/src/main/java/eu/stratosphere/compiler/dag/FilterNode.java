@@ -27,13 +27,13 @@ import eu.stratosphere.compiler.operators.OperatorDescriptorSingle;
 public class FilterNode extends SingleInputNode {
 	
 
-	public FilterNode(FilterOperatorBase<?> operator) {
+	public FilterNode(FilterOperatorBase<?, ?> operator) {
 		super(operator);
 	}
 
 	@Override
-	public FilterOperatorBase<?> getPactContract() {
-		return (FilterOperatorBase<?>) super.getPactContract();
+	public FilterOperatorBase<?, ?> getPactContract() {
+		return (FilterOperatorBase<?, ?>) super.getPactContract();
 	}
 
 	@Override

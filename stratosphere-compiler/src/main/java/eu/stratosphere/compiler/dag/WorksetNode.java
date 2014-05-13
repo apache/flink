@@ -15,7 +15,7 @@ package eu.stratosphere.compiler.dag;
 
 import java.util.Collections;
 
-import eu.stratosphere.api.common.operators.DeltaIteration.WorksetPlaceHolder;
+import eu.stratosphere.api.common.operators.base.DeltaIterationBase.WorksetPlaceHolder;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
@@ -30,7 +30,7 @@ public class WorksetNode extends AbstractPartialSolutionNode {
 	private final WorksetIterationNode iterationNode;
 	
 	
-	public WorksetNode(WorksetPlaceHolder psph, WorksetIterationNode iterationNode) {
+	public WorksetNode(WorksetPlaceHolder<?> psph, WorksetIterationNode iterationNode) {
 		super(psph);
 		this.iterationNode = iterationNode;
 	}
@@ -70,8 +70,8 @@ public class WorksetNode extends AbstractPartialSolutionNode {
 	 * @return The contract.
 	 */
 	@Override
-	public WorksetPlaceHolder getPactContract() {
-		return (WorksetPlaceHolder) super.getPactContract();
+	public WorksetPlaceHolder<?> getPactContract() {
+		return (WorksetPlaceHolder<?>) super.getPactContract();
 	}
 
 	@Override

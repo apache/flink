@@ -20,7 +20,7 @@ import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.java.functions.KeySelector;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 
 
 public abstract class Keys<T> {

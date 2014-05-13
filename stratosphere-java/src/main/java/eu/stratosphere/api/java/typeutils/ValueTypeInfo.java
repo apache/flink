@@ -23,6 +23,7 @@ import eu.stratosphere.api.java.typeutils.runtime.ValueComparator;
 import eu.stratosphere.api.java.typeutils.runtime.ValueSerializer;
 import eu.stratosphere.types.CopyableValue;
 import eu.stratosphere.types.Value;
+import eu.stratosphere.types.TypeInformation;
 
 
 public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implements AtomicType<T> {

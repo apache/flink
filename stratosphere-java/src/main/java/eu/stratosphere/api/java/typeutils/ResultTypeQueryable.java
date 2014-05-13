@@ -14,6 +14,8 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils;
 
+import eu.stratosphere.types.TypeInformation;
+
 /**
  * This interface can be implemented by functions and input formats to tell the framework
  * about their produced data type. This method acts as an alternative to the reflection analysis

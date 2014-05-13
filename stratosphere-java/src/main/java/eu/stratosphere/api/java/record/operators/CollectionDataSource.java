@@ -19,8 +19,9 @@ import java.util.Iterator;
 import java.util.List;
 
 import eu.stratosphere.api.common.io.GenericInputFormat;
-import eu.stratosphere.api.common.operators.GenericDataSource;
+import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
 import eu.stratosphere.api.java.record.io.CollectionInputFormat;
+import eu.stratosphere.types.Record;
 
 /**
  * Operator for input nodes which reads data from collection or iterator.
@@ -47,7 +48,7 @@ import eu.stratosphere.api.java.record.io.CollectionInputFormat;
  * 
  * The only limitation is that the elements need to have the same type.
  */
-public class CollectionDataSource extends GenericDataSource<GenericInputFormat<?>> {
+public class CollectionDataSource extends GenericDataSourceBase<Record, GenericInputFormat<Record>> {
 
 	private static String DEFAULT_NAME = "<Unnamed Collection Data Source>";
 
@@ -62,7 +63,7 @@ public class CollectionDataSource extends GenericDataSource<GenericInputFormat<?
 	 *        The given name for the Pact, used in plans, logs and progress messages.
 	 */
 	public CollectionDataSource(CollectionInputFormat f, String name, Object... data) {
-		super(f, name);
+		super(f, OperatorInfoHelper.source(), name);
 		Collection<Object> tmp = new ArrayList<Object>();
 		for (Object o : data) {
 			tmp.add(o);
@@ -72,7 +73,7 @@ public class CollectionDataSource extends GenericDataSource<GenericInputFormat<?
 	}
 
 	public CollectionDataSource(CollectionInputFormat f, String name, Object[][] data) {
-		super(f, name);
+		super(f, OperatorInfoHelper.source(), name);
 		Collection<Object> tmp = new ArrayList<Object>();
 		for (Object o : data) {
 			tmp.add(o);
@@ -82,13 +83,13 @@ public class CollectionDataSource extends GenericDataSource<GenericInputFormat<?
 	}
 
 	public CollectionDataSource(CollectionInputFormat f, Collection<?> data, String name) {
-		super(f, name);
+		super(f, OperatorInfoHelper.source(), name);
 		checkFormat(data);
 		f.setData(data);
 	}
 
 	public <T extends Iterator<?>, Serializable> CollectionDataSource(CollectionInputFormat f, T data, String name) {
-		super(f, name);
+		super(f, OperatorInfoHelper.source(), name);
 		f.setIter(data);
 	}
 
@@ -127,7 +128,7 @@ public class CollectionDataSource extends GenericDataSource<GenericInputFormat<?
 
 	@SuppressWarnings("unchecked")
 	public CollectionDataSource(CollectionInputFormat f, Object... data) {
-		super(f, DEFAULT_NAME);
+		super(f, OperatorInfoHelper.source(), DEFAULT_NAME);
 		if (data.length == 1 && data[0] instanceof Iterator) {
 			f.setIter((Iterator<Object>) data[0]);
 		}

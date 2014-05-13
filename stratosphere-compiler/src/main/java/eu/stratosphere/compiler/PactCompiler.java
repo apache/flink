@@ -29,23 +29,23 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.BulkIteration;
-import eu.stratosphere.api.common.operators.BulkIteration.PartialSolutionPlaceHolder;
-import eu.stratosphere.api.common.operators.DeltaIteration;
-import eu.stratosphere.api.common.operators.DeltaIteration.SolutionSetPlaceHolder;
-import eu.stratosphere.api.common.operators.DeltaIteration.WorksetPlaceHolder;
-import eu.stratosphere.api.common.operators.GenericDataSink;
-import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Union;
+import eu.stratosphere.api.common.operators.base.BulkIterationBase;
+import eu.stratosphere.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
+import eu.stratosphere.api.common.operators.base.CollectorMapOperatorBase;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
+import eu.stratosphere.api.common.operators.base.DeltaIterationBase;
+import eu.stratosphere.api.common.operators.base.DeltaIterationBase.SolutionSetPlaceHolder;
+import eu.stratosphere.api.common.operators.base.DeltaIterationBase.WorksetPlaceHolder;
 import eu.stratosphere.api.common.operators.base.FilterOperatorBase;
 import eu.stratosphere.api.common.operators.base.FlatMapOperatorBase;
+import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
+import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
 import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.common.operators.base.MapOperatorBase;
-import eu.stratosphere.api.common.operators.base.PlainMapOperatorBase;
 import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
 import eu.stratosphere.compiler.costs.CostEstimator;
 import eu.stratosphere.compiler.costs.DefaultCostEstimator;
@@ -774,9 +774,9 @@ public class PactCompiler {
 	 * estimation and the awareness for optimizer hints, the sizes will be properly estimated and the translated plan
 	 * already respects all optimizer hints.
 	 */
-	private static final class GraphCreatingVisitor implements Visitor<Operator> {
+	private static final class GraphCreatingVisitor implements Visitor<Operator<?>> {
 		
-		private final Map<Operator, OptimizerNode> con2node; // map from the operator objects to their
+		private final Map<Operator<?>, OptimizerNode> con2node; // map from the operator objects to their
 																// corresponding optimizer nodes
 
 		private final List<DataSourceNode> sources; // all data source nodes in the optimizer plan
@@ -799,9 +799,9 @@ public class PactCompiler {
 		}
 
 		private GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceDOP, int maxMachines,
-									int defaultParallelism, HashMap<Operator, OptimizerNode> closure) {
+									int defaultParallelism, HashMap<Operator<?>, OptimizerNode> closure) {
 			if (closure == null){
-				con2node = new HashMap<Operator, OptimizerNode>();
+				con2node = new HashMap<Operator<?>, OptimizerNode>();
 			} else {
 				con2node = closure;
 			}
@@ -814,7 +814,7 @@ public class PactCompiler {
 		}
 
 		@Override
-		public boolean preVisit(Operator c) {
+		public boolean preVisit(Operator<?> c) {
 			// check if we have been here before
 			if (this.con2node.containsKey(c)) {
 				return false;
@@ -823,55 +823,55 @@ public class PactCompiler {
 			final OptimizerNode n;
 
 			// create a node for the operator (or sink or source) if we have not been here before
-			if (c instanceof GenericDataSink) {
-				DataSinkNode dsn = new DataSinkNode((GenericDataSink) c);
+			if (c instanceof GenericDataSinkBase) {
+				DataSinkNode dsn = new DataSinkNode((GenericDataSinkBase<?>) c);
 				this.sinks.add(dsn);
 				n = dsn;
 			}
-			else if (c instanceof GenericDataSource) {
-				DataSourceNode dsn = new DataSourceNode((GenericDataSource<?>) c);
+			else if (c instanceof GenericDataSourceBase) {
+				DataSourceNode dsn = new DataSourceNode((GenericDataSourceBase<?, ?>) c);
 				this.sources.add(dsn);
 				n = dsn;
 			}
 			else if (c instanceof MapOperatorBase) {
-				n = new CollectorMapNode((MapOperatorBase<?>) c);
+				n = new MapNode((MapOperatorBase<?, ?, ?>) c);
 			}
-			else if (c instanceof PlainMapOperatorBase) {
-				n = new MapNode((PlainMapOperatorBase<?>) c);
+			else if (c instanceof CollectorMapOperatorBase) {
+				n = new CollectorMapNode((CollectorMapOperatorBase<?, ?, ?>) c);
 			}
 			else if (c instanceof FlatMapOperatorBase) {
-				n = new FlatMapNode((FlatMapOperatorBase<?>) c);
+				n = new FlatMapNode((FlatMapOperatorBase<?, ?, ?>) c);
 			}
 			else if (c instanceof FilterOperatorBase) {
-				n = new FilterNode((FilterOperatorBase<?>) c);
+				n = new FilterNode((FilterOperatorBase<?, ?>) c);
 			}
 			else if (c instanceof ReduceOperatorBase) {
-				n = new ReduceNode((ReduceOperatorBase<?>) c);
+				n = new ReduceNode((ReduceOperatorBase<?, ?>) c);
 			}
 			else if (c instanceof GroupReduceOperatorBase) {
-				n = new GroupReduceNode((GroupReduceOperatorBase<?>) c);
+				n = new GroupReduceNode((GroupReduceOperatorBase<?, ?, ?>) c);
 			}
 			else if (c instanceof JoinOperatorBase) {
-				n = new MatchNode((JoinOperatorBase<?>) c);
+				n = new MatchNode((JoinOperatorBase<?, ?, ?, ?>) c);
 			}
 			else if (c instanceof CoGroupOperatorBase) {
-				n = new CoGroupNode((CoGroupOperatorBase<?>) c);
+				n = new CoGroupNode((CoGroupOperatorBase<?, ?, ?, ?>) c);
 			}
 			else if (c instanceof CrossOperatorBase) {
-				n = new CrossNode((CrossOperatorBase<?>) c);
+				n = new CrossNode((CrossOperatorBase<?, ?, ?, ?>) c);
 			}
-			else if (c instanceof BulkIteration) {
-				n = new BulkIterationNode((BulkIteration) c);
+			else if (c instanceof BulkIterationBase) {
+				n = new BulkIterationNode((BulkIterationBase<?>) c);
 			}
-			else if (c instanceof DeltaIteration) {
-				n = new WorksetIterationNode((DeltaIteration) c);
+			else if (c instanceof DeltaIterationBase) {
+				n = new WorksetIterationNode((DeltaIterationBase<?, ?>) c);
 			}
 			else if (c instanceof Union){
-				n = new BinaryUnionNode((Union) c);
+				n = new BinaryUnionNode((Union<?>) c);
 			}
 			else if (c instanceof PartialSolutionPlaceHolder) {
-				final PartialSolutionPlaceHolder holder = (PartialSolutionPlaceHolder) c;
-				final BulkIteration enclosingIteration = holder.getContainingBulkIteration();
+				final PartialSolutionPlaceHolder<?> holder = (PartialSolutionPlaceHolder<?>) c;
+				final BulkIterationBase<?> enclosingIteration = holder.getContainingBulkIteration();
 				final BulkIterationNode containingIterationNode =
 							(BulkIterationNode) this.parent.con2node.get(enclosingIteration);
 				
@@ -882,8 +882,8 @@ public class PactCompiler {
 				n = p;
 			}
 			else if (c instanceof WorksetPlaceHolder) {
-				final WorksetPlaceHolder holder = (WorksetPlaceHolder) c;
-				final DeltaIteration enclosingIteration = holder.getContainingWorksetIteration();
+				final WorksetPlaceHolder<?> holder = (WorksetPlaceHolder<?>) c;
+				final DeltaIterationBase<?, ?> enclosingIteration = holder.getContainingWorksetIteration();
 				final WorksetIterationNode containingIterationNode =
 							(WorksetIterationNode) this.parent.con2node.get(enclosingIteration);
 				
@@ -894,8 +894,8 @@ public class PactCompiler {
 				n = p;
 			}
 			else if (c instanceof SolutionSetPlaceHolder) {
-				final SolutionSetPlaceHolder holder = (SolutionSetPlaceHolder) c;
-				final DeltaIteration enclosingIteration = holder.getContainingWorksetIteration();
+				final SolutionSetPlaceHolder<?> holder = (SolutionSetPlaceHolder<?>) c;
+				final DeltaIterationBase<?, ?> enclosingIteration = holder.getContainingWorksetIteration();
 				final WorksetIterationNode containingIterationNode =
 							(WorksetIterationNode) this.parent.con2node.get(enclosingIteration);
 				
@@ -906,7 +906,7 @@ public class PactCompiler {
 				n = p;
 			}
 			else {
-				throw new IllegalArgumentException("Unknown operator type: " + c);
+				throw new IllegalArgumentException("Unknown operator type: " + c.getClass() + " " + c);
 			}
 
 			this.con2node.put(c, n);
@@ -948,7 +948,7 @@ public class PactCompiler {
 		}
 
 		@Override
-		public void postVisit(Operator c) {
+		public void postVisit(Operator<?> c) {
 			
 			OptimizerNode n = this.con2node.get(c);
 
@@ -959,10 +959,10 @@ public class PactCompiler {
 			// if the node represents a bulk iteration, we recursively translate the data flow now
 			if (n instanceof BulkIterationNode) {
 				final BulkIterationNode iterNode = (BulkIterationNode) n;
-				final BulkIteration iter = iterNode.getIterationContract();
+				final BulkIterationBase<?> iter = iterNode.getIterationContract();
 
 				// calculate closure of the anonymous function
-				HashMap<Operator, OptimizerNode> closure = new HashMap<Operator, OptimizerNode>(con2node);
+				HashMap<Operator<?>, OptimizerNode> closure = new HashMap<Operator<?>, OptimizerNode>(con2node);
 
 				// first, recursively build the data flow for the step function
 				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,
@@ -1006,10 +1006,10 @@ public class PactCompiler {
 			}
 			else if (n instanceof WorksetIterationNode) {
 				final WorksetIterationNode iterNode = (WorksetIterationNode) n;
-				final DeltaIteration iter = iterNode.getIterationContract();
+				final DeltaIterationBase<?, ?> iter = iterNode.getIterationContract();
 
 				// calculate the closure of the anonymous function
-				HashMap<Operator, OptimizerNode> closure = new HashMap<Operator, OptimizerNode>(con2node);
+				HashMap<Operator<?>, OptimizerNode> closure = new HashMap<Operator<?>, OptimizerNode>(con2node);
 
 				// first, recursively build the data flow for the step function
 				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,

@@ -14,22 +14,33 @@ package eu.stratosphere.compiler.util;
 
 import eu.stratosphere.api.common.operators.RecordOperator;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.types.Key;
+import eu.stratosphere.types.TypeInformation;
 
 
-public class NoOpUnaryUdfOp extends SingleInputOperator<NoOpFunction> implements RecordOperator {
+public class NoOpUnaryUdfOp<OUT> extends SingleInputOperator<OUT, OUT, NoOpFunction> implements RecordOperator {
 	
+	@SuppressWarnings("rawtypes")
 	public static final NoOpUnaryUdfOp INSTANCE = new NoOpUnaryUdfOp();
 	
 	private NoOpUnaryUdfOp() {
-		super(new UserCodeClassWrapper<NoOpFunction>(NoOpFunction.class), "");
+		// pass null here because we override getOutputType to return type
+		// of input operator
+		super(new UserCodeClassWrapper<NoOpFunction>(NoOpFunction.class), null, "");
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public Class<? extends Key<?>>[] getKeyClasses() {
 		return (Class<? extends Key<?>>[]) new Class[0];
+	}
+
+	@Override
+	public UnaryOperatorInformation<OUT, OUT> getOperatorInfo() {
+		TypeInformation<OUT> previousOut = input.getOperatorInfo().getOutputType();
+		return new UnaryOperatorInformation<OUT, OUT>(previousOut, previousOut);
 	}
 }
 

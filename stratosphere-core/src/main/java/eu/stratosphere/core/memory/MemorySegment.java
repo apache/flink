@@ -874,7 +874,7 @@ public class MemorySegment {
 	 * {@code offset} to the target {@code ByteBuffer}. The bytes will be put into the target buffer
 	 * starting at the buffer's current position. If this method attempts to write more bytes than
 	 * the target byte buffer has remaining (with respect to {@link ByteBuffer#remaining()}),
-	 * this method will cause a {@link BufferOverflowException}.
+	 * this method will cause a {@link java.nio.BufferOverflowException}.
 	 * 
 	 * @param offset The position where the bytes are started to be read from in this memory segment.
 	 * @param target The ByteBuffer to copy the bytes to.
@@ -896,7 +896,7 @@ public class MemorySegment {
 	 * at {@code offset}.
 	 * If this method attempts to read more bytes than
 	 * the target byte buffer has remaining (with respect to {@link ByteBuffer#remaining()}),
-	 * this method will cause a {@link BufferUnderflowException}.
+	 * this method will cause a {@link java.nio.BufferUnderflowException}.
 	 * 
 	 * @param offset The position where the bytes are started to be written to in this memory segment.
 	 * @param source The ByteBuffer to copy the bytes from.

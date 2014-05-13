@@ -40,7 +40,7 @@ public class BinaryUnionNode extends TwoInputNode {
 	
 	private Set<RequestedGlobalProperties> channelProps;
 
-	public BinaryUnionNode(Union union){
+	public BinaryUnionNode(Union<?> union){
 		super(union);
 	}
 

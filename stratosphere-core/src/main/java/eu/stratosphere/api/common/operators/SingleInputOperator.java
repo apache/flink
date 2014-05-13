@@ -21,13 +21,17 @@ import eu.stratosphere.util.Visitor;
 
 /**
  * Abstract superclass for for all operators that have one input like "map" or "reduce".
+ *
+ * @param <IN> Input type of the user function
+ * @param <OUT> Output type of the user function
+ * @param <FT> Type of the user function
  */
-public abstract class SingleInputOperator<T extends Function> extends AbstractUdfOperator<T> {
+public abstract class SingleInputOperator<IN, OUT, FT extends Function> extends AbstractUdfOperator<OUT, FT> {
 	
 	/**
 	 * The input which produces the data consumed by this operator.
 	 */
-	protected Operator input;
+	protected Operator<IN> input;
 	
 	/**
 	 * The positions of the keys in the tuple.
@@ -48,8 +52,8 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 	 * @param keyPositions The field positions of the input records that act as keys.
 	 * @param name The given name for the operator, used in plans, logs and progress messages.
 	 */
-	protected SingleInputOperator(UserCodeWrapper<T> stub, int[] keyPositions, String name) {
-		super(stub, name);
+	protected SingleInputOperator(UserCodeWrapper<FT> stub, UnaryOperatorInformation<IN, OUT> operatorInfo, int[] keyPositions, String name) {
+		super(stub, operatorInfo, name);
 		this.keyFields = keyPositions;
 	}
 	
@@ -60,19 +64,28 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 	 * @param stub The object containing the user function.
 	 * @param name The given name for the operator, used in plans, logs and progress messages.
 	 */
-	protected SingleInputOperator(UserCodeWrapper<T> stub, String name) {
-		super(stub, name);
+	protected SingleInputOperator(UserCodeWrapper<FT> stub, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+		super(stub, operatorInfo, name);
 		this.keyFields = new int[0];
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	/**
+	 * Gets the information about the operators input/output types.
+	 */
+	@Override
+	@SuppressWarnings("unchecked")
+	public UnaryOperatorInformation<IN, OUT> getOperatorInfo() {
+		return (UnaryOperatorInformation<IN, OUT>) this.operatorInfo;
+	}
+
+	/**
 	 * Returns the input operator or data source, or null, if none is set.
 	 * 
 	 * @return This operator's input.
 	 */
-	public Operator getInput() {
+	public Operator<IN> getInput() {
 		return this.input;
 	}
 	
@@ -88,7 +101,7 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 	 * 
 	 * @param input The operator to use as the input.
 	 */
-	public void setInput(Operator input) {
+	public void setInput(Operator<IN> input) {
 		this.input = input;
 	}
 	
@@ -99,7 +112,7 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
 	@Deprecated
-	public void setInput(Operator ... input) {
+	public void setInput(Operator<IN>... input) {
 		this.input = Operator.createUnionCascade(null, input);
 	}
 	
@@ -110,7 +123,8 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
 	@Deprecated
-	public void setInputs(List<Operator> inputs) {
+	@SuppressWarnings("unchecked")
+	public void setInputs(List<Operator<IN>> inputs) {
 		this.input = Operator.createUnionCascade(null, inputs.toArray(new Operator[inputs.size()]));
 	}
 
@@ -121,7 +135,7 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
 	@Deprecated
-	public void addInput(Operator ... input) {
+	public void addInput(Operator<IN>... input) {
 		this.input = Operator.createUnionCascade(this.input, input);
 	}
 	
@@ -132,7 +146,8 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
 	 */
 	@Deprecated
-	public void addInput(List<Operator> inputs) {
+	@SuppressWarnings("unchecked")
+	public void addInput(List<Operator<IN>> inputs) {
 		this.input = Operator.createUnionCascade(this.input, inputs.toArray(new Operator[inputs.size()]));
 	}
 
@@ -175,10 +190,10 @@ public abstract class SingleInputOperator<T extends Function> extends AbstractUd
 	 * @see eu.stratosphere.util.Visitable#accept(eu.stratosphere.util.Visitor)
 	 */
 	@Override
-	public void accept(Visitor<Operator> visitor) {
+	public void accept(Visitor<Operator<?>> visitor) {
 		if (visitor.preVisit(this)) {
 			this.input.accept(visitor);
-			for (Operator c : this.broadcastInputs.values()) {
+			for (Operator<?> c : this.broadcastInputs.values()) {
 				c.accept(visitor);
 			}
 			visitor.postVisit(this);

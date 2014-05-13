@@ -22,8 +22,8 @@ import org.junit.Test;
 
 import eu.stratosphere.api.common.functions.GenericCoGrouper;
 import eu.stratosphere.api.java.record.functions.CoGroupFunction;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparatorFactory;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.task.CoGroupTaskExternalITCase.MockCoGroupStub;
 import eu.stratosphere.pact.runtime.test.util.DelayingInfinitiveInputIterator;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;

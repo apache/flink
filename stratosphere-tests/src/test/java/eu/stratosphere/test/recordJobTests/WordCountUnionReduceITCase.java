@@ -16,8 +16,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.io.TextInputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
@@ -109,6 +109,7 @@ public class WordCountUnionReduceITCase extends RecordAPITestBase {
 				.name("Words (Second Input)")
 				.build();
 
+			@SuppressWarnings("unchecked")
 			ReduceOperator counts = ReduceOperator.builder(CountWords.class, StringValue.class, 0)
 				.input(wordsFirstInput, wordsSecondInput)
 				.name("Word Counts")

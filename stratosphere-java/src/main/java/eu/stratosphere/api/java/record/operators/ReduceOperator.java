@@ -22,6 +22,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.Validate;
+
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.common.operators.RecordOperator;
@@ -32,13 +34,14 @@ import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.types.Key;
+import eu.stratosphere.types.Record;
 
 /**
  * ReduceOperator evaluating a {@link ReduceFunction} over each group of records that share the same key.
  * 
  * @see ReduceFunction
  */
-public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> implements RecordOperator {
+public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, ReduceFunction> implements RecordOperator {
 	
 	private static final String DEFAULT_NAME = "<Unnamed Reducer>";		// the default name for contracts
 	
@@ -94,7 +97,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 	 * @param builder
 	 */
 	protected ReduceOperator(Builder builder) {
-		super(builder.udf, builder.getKeyColumnsArray(), builder.name);
+		super(builder.udf, OperatorInfoHelper.unary(), builder.getKeyColumnsArray(), builder.name);
 		this.keyTypes = builder.getKeyClassesArray();
 		
 		if (builder.inputs != null && !builder.inputs.isEmpty()) {
@@ -176,8 +179,8 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 		
 		/* The optional parameters */
 		private Ordering secondaryOrder = null;
-		private List<Operator> inputs;
-		private Map<String, Operator> broadcastInputs;
+		private List<Operator<Record>> inputs;
+		private Map<String, Operator<Record>> broadcastInputs;
 		private String name = DEFAULT_NAME;
 		
 		/**
@@ -189,8 +192,8 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 			this.udf = udf;
 			this.keyClasses = new ArrayList<Class<? extends Key<?>>>();
 			this.keyColumns = new ArrayList<Integer>();
-			this.inputs = new ArrayList<Operator>();
-			this.broadcastInputs = new HashMap<String, Operator>();
+			this.inputs = new ArrayList<Operator<Record>>();
+			this.broadcastInputs = new HashMap<String, Operator<Record>>();
 		}
 		
 		/**
@@ -206,8 +209,8 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 			this.keyClasses.add(keyClass);
 			this.keyColumns = new ArrayList<Integer>();
 			this.keyColumns.add(keyColumn);
-			this.inputs = new ArrayList<Operator>();
-			this.broadcastInputs = new HashMap<String, Operator>();
+			this.inputs = new ArrayList<Operator<Record>>();
+			this.broadcastInputs = new HashMap<String, Operator<Record>>();
 		}
 		
 		private int[] getKeyColumnsArray() {
@@ -246,13 +249,26 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 		}
 		
 		/**
+		 * Sets the input.
+		 * 
+		 * @param input The input.
+		 */
+		public Builder input(Operator<Record> input) {
+			Validate.notNull(input, "The input must not be null");
+			
+			this.inputs.clear();
+			this.inputs.add(input);
+			return this;
+		}
+		
+		/**
 		 * Sets one or several inputs (union).
 		 * 
 		 * @param inputs
 		 */
-		public Builder input(Operator ...inputs) {
+		public Builder input(Operator<Record>...inputs) {
 			this.inputs.clear();
-			for (Operator c : inputs) {
+			for (Operator<Record> c : inputs) {
 				this.inputs.add(c);
 			}
 			return this;
@@ -263,7 +279,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 		 * 
 		 * @param inputs
 		 */
-		public Builder inputs(List<Operator> inputs) {
+		public Builder inputs(List<Operator<Record>> inputs) {
 			this.inputs = inputs;
 			return this;
 		}
@@ -272,7 +288,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 		 * Binds the result produced by a plan rooted at {@code root} to a 
 		 * variable used by the UDF wrapped in this operator.
 		 */
-		public Builder setBroadcastVariable(String name, Operator input) {
+		public Builder setBroadcastVariable(String name, Operator<Record> input) {
 			this.broadcastInputs.put(name, input);
 			return this;
 		}
@@ -280,7 +296,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<ReduceFunction> impl
 		/**
 		 * Binds multiple broadcast variables.
 		 */
-		public Builder setBroadcastVariables(Map<String, Operator> inputs) {
+		public Builder setBroadcastVariables(Map<String, Operator<Record>> inputs) {
 			this.broadcastInputs.clear();
 			this.broadcastInputs.putAll(inputs);
 			return this;

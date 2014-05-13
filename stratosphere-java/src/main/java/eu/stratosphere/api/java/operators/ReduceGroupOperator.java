@@ -15,23 +15,28 @@
 package eu.stratosphere.api.java.operators;
 
 import eu.stratosphere.api.common.functions.GenericCombine;
+import eu.stratosphere.api.common.functions.GenericGroupReduce;
+import eu.stratosphere.api.common.functions.GenericMap;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
+import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
+import eu.stratosphere.api.common.operators.base.MapOperatorBase;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.GroupReduceFunction.Combinable;
 import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
-import eu.stratosphere.api.java.operators.translation.PlanGroupReduceOperator;
-import eu.stratosphere.api.java.operators.translation.PlanMapOperator;
 import eu.stratosphere.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 
 /**
- *
+ * This operator represents the application of a "reduceGroup" function on a data set, and the
+ * result data set produced by the function.
+ * 
  * @param <IN> The type of the data set consumed by the operator.
  * @param <OUT> The type of the data set created by the operator.
  */
@@ -47,8 +52,8 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	/**
 	 * Constructor for a non-grouped reduce (all reduce).
 	 * 
-	 * @param input
-	 * @param function
+	 * @param input The input data set to the groupReduce function.
+	 * @param function The user-defined GroupReduce function.
 	 */
 	public ReduceGroupOperator(DataSet<IN> input, GroupReduceFunction<IN, OUT> function) {
 		super(input, TypeExtractor.getGroupReduceReturnTypes(function, input.getType()));
@@ -65,8 +70,8 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	/**
 	 * Constructor for a grouped reduce.
 	 * 
-	 * @param input
-	 * @param function
+	 * @param input The grouped input to be processed group-wise by the groupReduce function.
+	 * @param function The user-defined GroupReduce function.
 	 */
 	public ReduceGroupOperator(Grouping<IN> input, GroupReduceFunction<IN, OUT> function) {
 		super(input != null ? input.getDataSet() : null, TypeExtractor.getGroupReduceReturnTypes(function, input.getDataSet().getType()));
@@ -78,6 +83,8 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		this.function = function;
 		this.grouper = input;
 		checkCombinability();
+		
+		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 	
 	private void checkCombinability() {
@@ -104,17 +111,19 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	}
 	
 	@Override
-	protected eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase<?, OUT, ?> translateToDataFlow(Operator<IN> input) {
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		
 		// distinguish between grouped reduce and non-grouped reduce
 		if (grouper == null) {
 			// non grouped reduce
-			PlanGroupReduceOperator<IN, OUT> po = 
-					new PlanGroupReduceOperator<IN, OUT>(function, new int[0], name, getInputType(), getResultType());
+			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
+			GroupReduceOperatorBase<IN, OUT, GenericGroupReduce<IN, OUT>> po =
+					new GroupReduceOperatorBase<IN, OUT, GenericGroupReduce<IN, OUT>>(function, operatorInfo, new int[0], name);
+
 			po.setCombinable(combinable);
-			
+			// set input
 			po.setInput(input);
 			// the degree of parallelism for a non grouped reduce can only be 1
 			po.setDegreeOfParallelism(1);
@@ -128,9 +137,7 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			
 			PlanUnwrappingReduceGroupOperator<IN, OUT, ?> po = translateSelectorFunctionReducer(
 							selectorKeys, function, getInputType(), getResultType(), name, input, isCombinable());
-			po.setCombinable(combinable);
 			
-			// set dop
 			po.setDegreeOfParallelism(this.getParallelism());
 			
 			return po;
@@ -138,17 +145,16 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		else if (grouper.getKeys() instanceof Keys.FieldPositionKeys) {
 
 			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
-			PlanGroupReduceOperator<IN, OUT> po = 
-					new PlanGroupReduceOperator<IN, OUT>(function, logicalKeyPositions, name, getInputType(), getResultType());
+			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
+			GroupReduceOperatorBase<IN, OUT, GenericGroupReduce<IN, OUT>> po =
+					new GroupReduceOperatorBase<IN, OUT, GenericGroupReduce<IN, OUT>>(function, operatorInfo, logicalKeyPositions, name);
+
 			po.setCombinable(combinable);
-			
-			// set input
 			po.setInput(input);
-			// set dop
 			po.setDegreeOfParallelism(this.getParallelism());
 			
 			// set group order
-			if(grouper instanceof SortedGrouping) {
+			if (grouper instanceof SortedGrouping) {
 				SortedGrouping<IN> sortedGrouper = (SortedGrouping<IN>) grouper;
 								
 				int[] sortKeyPositions = sortedGrouper.getGroupSortKeyPositions();
@@ -174,7 +180,7 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	
 	private static <IN, OUT, K> PlanUnwrappingReduceGroupOperator<IN, OUT, K> translateSelectorFunctionReducer(
 			Keys.SelectorFunctionKeys<IN, ?> rawKeys, GroupReduceFunction<IN, OUT> function,
-			TypeInformation<IN> inputType, TypeInformation<OUT> outputType, String name, Operator input,
+			TypeInformation<IN> inputType, TypeInformation<OUT> outputType, String name, Operator<IN> input,
 			boolean combinable)
 	{
 		@SuppressWarnings("unchecked")
@@ -184,9 +190,9 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		
 		KeyExtractingMapper<IN, K> extractor = new KeyExtractingMapper<IN, K>(keys.getKeyExtractor());
 		
-		PlanUnwrappingReduceGroupOperator<IN, OUT, K> reducer = new PlanUnwrappingReduceGroupOperator<IN, OUT, K>(function, keys, name, inputType, outputType, typeInfoWithKey, combinable);
+		PlanUnwrappingReduceGroupOperator<IN, OUT, K> reducer = new PlanUnwrappingReduceGroupOperator<IN, OUT, K>(function, keys, name, outputType, typeInfoWithKey, combinable);
 		
-		PlanMapOperator<IN, Tuple2<K, IN>> mapper = new PlanMapOperator<IN, Tuple2<K, IN>>(extractor, "Key Extractor", inputType, typeInfoWithKey);
+		MapOperatorBase<IN, Tuple2<K, IN>, GenericMap<IN, Tuple2<K, IN>>> mapper = new MapOperatorBase<IN, Tuple2<K, IN>, GenericMap<IN, Tuple2<K, IN>>>(extractor, new UnaryOperatorInformation<IN, Tuple2<K, IN>>(inputType, typeInfoWithKey), "Key Extractor");
 
 		reducer.setInput(mapper);
 		mapper.setInput(input);

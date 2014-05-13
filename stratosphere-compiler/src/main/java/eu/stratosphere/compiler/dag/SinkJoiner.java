@@ -22,6 +22,8 @@ import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.operators.OperatorDescriptorDual;
 import eu.stratosphere.compiler.operators.UtilSinkJoinOpDescriptor;
 import eu.stratosphere.compiler.util.NoOpBinaryUdfOp;
+import eu.stratosphere.types.Nothing;
+import eu.stratosphere.types.NothingTypeInfo;
 
 /**
  * This class represents a utility node that is not part of the actual plan. It is used for plans with multiple data sinks to
@@ -31,7 +33,7 @@ import eu.stratosphere.compiler.util.NoOpBinaryUdfOp;
 public class SinkJoiner extends TwoInputNode {
 	
 	public SinkJoiner(OptimizerNode input1, OptimizerNode input2) {
-		super(NoOpBinaryUdfOp.INSTANCE);
+		super(new NoOpBinaryUdfOp<Nothing>(new NothingTypeInfo()));
 
 		PactConnection conn1 = new PactConnection(input1, this);
 		PactConnection conn2 = new PactConnection(input2, this);

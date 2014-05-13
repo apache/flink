@@ -24,6 +24,7 @@ import eu.stratosphere.api.java.tuple.*;
 import eu.stratosphere.api.java.typeutils.runtime.TupleComparator;
 import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
 import eu.stratosphere.api.java.typeutils.runtime.TupleLeadingFieldComparator;
+import eu.stratosphere.types.TypeInformation;
 
 
 public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implements CompositeType<T> {

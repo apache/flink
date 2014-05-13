@@ -11,13 +11,21 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.api.common.operators;
+package eu.stratosphere.api.java.record.operators;
 
 import java.util.List;
 
 import org.apache.commons.lang3.Validate;
 
 import eu.stratosphere.api.common.io.FileOutputFormat;
+import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
+import eu.stratosphere.api.common.operators.base.FileDataSinkBase;
+import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
+import eu.stratosphere.api.java.typeutils.RecordTypeInfo;
+import eu.stratosphere.types.Nothing;
+import eu.stratosphere.types.NothingTypeInfo;
+import eu.stratosphere.types.Record;
 
 /**
  * Operator for nodes which act as data sinks, storing the data they receive in a file instead of sending it to another
@@ -25,13 +33,9 @@ import eu.stratosphere.api.common.io.FileOutputFormat;
  * 
  * @see FileOutputFormat
  */
-public class FileDataSink extends GenericDataSink {
-	
+public class FileDataSink extends FileDataSinkBase<Record> {
+
 	private static String DEFAULT_NAME = "<Unnamed File Data Sink>";
-
-	protected final String filePath;
-
-	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Creates a FileDataSink with the provided {@link FileOutputFormat} implementation 
@@ -41,10 +45,8 @@ public class FileDataSink extends GenericDataSink {
 	 * @param filePath The path to the file to write the contents to.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public FileDataSink(FileOutputFormat<?> f, String filePath, String name) {
-		super(f, name);
-		this.filePath = filePath;
-		this.parameters.setString(FileOutputFormat.FILE_PARAMETER_KEY, filePath);
+	public FileDataSink(FileOutputFormat<Record> f, String filePath, String name) {
+		super(f,  new UnaryOperatorInformation<Record, Nothing>(new RecordTypeInfo(), new NothingTypeInfo()), filePath, name);
 	}
 
 	/**
@@ -54,7 +56,7 @@ public class FileDataSink extends GenericDataSink {
 	 * @param f The {@link FileOutputFormat} implementation used to encode the data.
 	 * @param filePath The path to the file to write the contents to.
 	 */
-	public FileDataSink(FileOutputFormat<?> f, String filePath) {
+	public FileDataSink(FileOutputFormat<Record> f, String filePath) {
 		this(f, filePath, DEFAULT_NAME);
 	}
 	
@@ -67,34 +69,36 @@ public class FileDataSink extends GenericDataSink {
 	 * @param filePath The path to the file to write the contents to.
 	 * @param input The contract to use as the input.
 	 */
-	public FileDataSink(FileOutputFormat<?> f, String filePath, Operator input) {
-		this(f, filePath, input, DEFAULT_NAME);
+	public FileDataSink(FileOutputFormat<Record> f, String filePath, Operator<Record> input) {
+		this(f, filePath);
+		setInput(input);
+
 	}
-	
+
 	/**
 	 * Creates a FileDataSink with the provided {@link FileOutputFormat} implementation the default name,
 	 * writing to the file indicated by the given path. It uses the given contracts as its input.
-	 * 
+	 *
 	 * @param f The {@link FileOutputFormat} implementation used to encode the data.
 	 * @param filePath The path to the file to write the contents to.
 	 * @param input The contracts to use as the input.
-	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 * @deprecated This method will be removed in future versions. Use the {@link eu.stratosphere.api.common.operators.Union} operator instead.
 	 */
 	@Deprecated
-	public FileDataSink(FileOutputFormat<?> f, String filePath, List<Operator> input) {
+	public FileDataSink(FileOutputFormat<Record> f, String filePath, List<Operator<Record>> input) {
 		this(f, filePath, input, DEFAULT_NAME);
 	}
 
 	/**
 	 * Creates a FileDataSink with the provided {@link FileOutputFormat} implementation and the given name,
 	 * writing to the file indicated by the given path. It uses the given contract as its input.
-	 * 
+	 *
 	 * @param f The {@link FileOutputFormat} implementation used to encode the data.
 	 * @param filePath The path to the file to write the contents to.
 	 * @param input The contract to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public FileDataSink(FileOutputFormat<?> f, String filePath, Operator input, String name) {
+	public FileDataSink(FileOutputFormat<Record> f, String filePath, Operator<Record> input, String name) {
 		this(f, filePath, name);
 		setInput(input);
 	}
@@ -102,81 +106,81 @@ public class FileDataSink extends GenericDataSink {
 	/**
 	 * Creates a FileDataSink with the provided {@link FileOutputFormat} implementation and the given name,
 	 * writing to the file indicated by the given path. It uses the given contracts as its input.
-	 * 
+	 *
 	 * @param f The {@link FileOutputFormat} implementation used to encode the data.
 	 * @param filePath The path to the file to write the contents to.
 	 * @param input The contracts to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
-	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 * @deprecated This method will be removed in future versions. Use the {@link eu.stratosphere.api.common.operators.Union} operator instead.
 	 */
 	@Deprecated
-	public FileDataSink(FileOutputFormat<?> f, String filePath, List<Operator> input, String name) {
+	public FileDataSink(FileOutputFormat<Record> f, String filePath, List<Operator<Record>> input, String name) {
 		this(f, filePath, name);
 		Validate.notNull(input, "The input must not be null.");
 		setInput(Operator.createUnionCascade(input));
 	}
-	
+
 	/**
-	 * Creates a FileDataSink with the provided {@link FileOutputFormat} implementation 
+	 * Creates a FileDataSink with the provided {@link FileOutputFormat} implementation
 	 * and the given name, writing to the file indicated by the given path.
-	 * 
+	 *
 	 * @param f The {@link FileOutputFormat} implementation used to encode the data.
 	 * @param filePath The path to the file to write the contents to.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath, String name) {
-		super(f, name);
-		this.filePath = filePath;
-		this.parameters.setString(FileOutputFormat.FILE_PARAMETER_KEY, filePath);
+	public FileDataSink(Class<? extends FileOutputFormat<Record>> f, String filePath, String name) {
+		super(new UserCodeClassWrapper<FileOutputFormat<Record>>(f),
+				new UnaryOperatorInformation<Record, Nothing>(new RecordTypeInfo(), new NothingTypeInfo()),
+				filePath, name);
 	}
-	
+
 	/**
 	 * Creates a FileDataSink with the provided {@link FileOutputFormat} implementation
 	 * and a default name, writing to the file indicated by the given path.
-	 * 
+	 *
 	 * @param f The {@link FileOutputFormat} implementation used to encode the data.
 	 * @param filePath The path to the file to write the contents to.
 	 */
-	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath) {
+	public FileDataSink(Class<? extends FileOutputFormat<Record>> f, String filePath) {
 		this(f, filePath, DEFAULT_NAME);
 	}
 
 	/**
 	 * Creates a FileDataSink with the provided {@link FileOutputFormat} implementation the default name,
 	 * writing to the file indicated by the given path. It uses the given contract as its input.
-	 * 
+	 *
 	 * @param f The {@link FileOutputFormat} implementation used to encode the data.
 	 * @param filePath The path to the file to write the contents to.
 	 * @param input The contract to use as the input.
 	 */
-	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath, Operator input) {
+	public FileDataSink(Class<? extends FileOutputFormat<Record>> f, String filePath, Operator<Record> input) {
 		this(f, filePath, input, DEFAULT_NAME);
 	}
-	
+
 	/**
 	 * Creates a FileDataSink with the provided {@link FileOutputFormat} implementation the default name,
 	 * writing to the file indicated by the given path. It uses the given contracts as its input.
-	 * 
+	 *
 	 * @param f The {@link FileOutputFormat} implementation used to encode the data.
 	 * @param filePath The path to the file to write the contents to.
 	 * @param input The contracts to use as the input.
-	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 * @deprecated This method will be removed in future versions. Use the {@link eu.stratosphere.api.common.operators.Union} operator instead.
 	 */
 	@Deprecated
-	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath, List<Operator> input) {
+	public FileDataSink(Class<? extends FileOutputFormat<Record>> f, String filePath, List<Operator<Record>> input) {
 		this(f, filePath, input, DEFAULT_NAME);
 	}
 
 	/**
 	 * Creates a FileDataSink with the provided {@link FileOutputFormat} implementation and the given name,
 	 * writing to the file indicated by the given path. It uses the given contract as its input.
-	 * 
+	 *
 	 * @param f The {@link FileOutputFormat} implementation used to encode the data.
 	 * @param filePath The path to the file to write the contents to.
 	 * @param input The contract to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
 	 */
-	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath, Operator input, String name) {
+	public FileDataSink(Class<? extends FileOutputFormat<Record>> f, String filePath, Operator<Record> input, String name) {
 		this(f, filePath, name);
 		setInput(input);
 	}
@@ -184,15 +188,15 @@ public class FileDataSink extends GenericDataSink {
 	/**
 	 * Creates a FileDataSink with the provided {@link FileOutputFormat} implementation and the given name,
 	 * writing to the file indicated by the given path. It uses the given contracts as its input.
-	 * 
+	 *
 	 * @param f The {@link FileOutputFormat} implementation used to encode the data.
 	 * @param filePath The path to the file to write the contents to.
 	 * @param input The contracts to use as the input.
 	 * @param name The given name for the sink, used in plans, logs and progress messages.
-	 * @deprecated This method will be removed in future versions. Use the {@link Union} operator instead.
+	 * @deprecated This method will be removed in future versions. Use the {@link eu.stratosphere.api.common.operators.Union} operator instead.
 	 */
 	@Deprecated
-	public FileDataSink(Class<? extends FileOutputFormat<?>> f, String filePath, List<Operator> input, String name) {
+	public FileDataSink(Class<? extends FileOutputFormat<Record>> f, String filePath, List<Operator<Record>> input, String name) {
 		this(f, filePath, name);
 		Validate.notNull(input, "The inputs must not be null.");
 		setInput(Operator.createUnionCascade(input));

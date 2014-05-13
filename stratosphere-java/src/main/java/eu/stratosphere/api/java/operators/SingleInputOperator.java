@@ -15,10 +15,11 @@
 package eu.stratosphere.api.java.operators;
 
 import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 
 /**
- *
+ * Base class for operations that operates on a single input data set.
+ * 
  * @param <IN> The data type of the input data set.
  * @param <OUT> The data type of the returned data set.
  */
@@ -32,15 +33,32 @@ public abstract class SingleInputOperator<IN, OUT, O extends SingleInputOperator
 		this.input = input;
 	}
 	
+	/**
+	 * Gets the data set that this operation uses as its input.
+	 * 
+	 * @return The data set that this operation uses as its input.
+	 */
 	public DataSet<IN> getInput() {
 		return this.input;
 	}
 	
+	/**
+	 * Gets the type information of the data type of the input data set.
+	 * This method returns equivalent information as {@code getInput().getType()}.
+	 * 
+	 * @return The input data type.
+	 */
 	public TypeInformation<IN> getInputType() {
 		return this.input.getType();
 	}
 	
-	protected abstract eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(
-			eu.stratosphere.api.common.operators.Operator input);
+	/**
+	 * Translates this operation to a data flow operator of the common data flow API.
+	 * 
+	 * @param input The data flow operator that produces this operation's input data.
+	 * @return The translated data flow operator.
+	 */
+	protected abstract eu.stratosphere.api.common.operators.SingleInputOperator<?, OUT, ?> translateToDataFlow(
+			eu.stratosphere.api.common.operators.Operator<IN> input);
 	
 }

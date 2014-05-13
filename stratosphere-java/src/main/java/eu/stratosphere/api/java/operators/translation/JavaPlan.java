@@ -17,13 +17,12 @@ package eu.stratosphere.api.java.operators.translation;
 import java.util.List;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
 
 
 public class JavaPlan extends Plan {
 
-	
-	public JavaPlan(List<GenericDataSink> sinks) {
+	public JavaPlan(List<GenericDataSinkBase<?>> sinks) {
 		super(sinks);
 	}
 

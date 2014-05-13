@@ -25,7 +25,7 @@ import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.InputTypeConfigurable;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.types.StringValue;
 

@@ -29,9 +29,9 @@ public class MapNode extends SingleInputNode {
 	/**
 	 * Creates a new MapNode for the given contract.
 	 * 
-	 * @param pactContract The map contract object.
+	 * @param operator The map contract object.
 	 */
-	public MapNode(SingleInputOperator<?> operator) {
+	public MapNode(SingleInputOperator<?, ?, ?> operator) {
 		super(operator);
 	}
 

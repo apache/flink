@@ -15,78 +15,45 @@
 package eu.stratosphere.api.java.operators.translation;
 
 import eu.stratosphere.api.common.functions.GenericJoiner;
+import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
 import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.util.Collector;
 
 public class PlanUnwrappingJoinOperator<I1, I2, OUT, K> 
-	extends JoinOperatorBase<GenericJoiner<Tuple2<K, I1>, Tuple2<K, I2>, OUT>>
-	implements BinaryJavaPlanNode<Tuple2<K, I1>, Tuple2<K, I2>, OUT>
+	extends JoinOperatorBase<Tuple2<K, I1>, Tuple2<K, I2>, OUT, GenericJoiner<Tuple2<K, I1>, Tuple2<K, I2>, OUT>>
 {
-
-	private final TypeInformation<Tuple2<K, I1>> inTypeWithKey1;
-	
-	private final TypeInformation<Tuple2<K, I2>> inTypeWithKey2;
-	
-	private final TypeInformation<OUT> outType;
 
 	public PlanUnwrappingJoinOperator(JoinFunction<I1, I2, OUT> udf, 
 			Keys.SelectorFunctionKeys<I1, K> key1, Keys.SelectorFunctionKeys<I2, K> key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
-		super(new TupleUnwrappingJoiner<I1, I2, OUT, K>(udf), key1.computeLogicalKeyPositions(), key2.computeLogicalKeyPositions(), name);
-		this.outType = type;
-		
-		this.inTypeWithKey1 = typeInfoWithKey1;
-		this.inTypeWithKey2 = typeInfoWithKey2;
+		super(new TupleUnwrappingJoiner<I1, I2, OUT, K>(udf),
+				new BinaryOperatorInformation<Tuple2<K, I1>, Tuple2<K, I2>, OUT>(typeInfoWithKey1, typeInfoWithKey2, type),
+				key1.computeLogicalKeyPositions(), key2.computeLogicalKeyPositions(), name);
 	}
 	
 	public PlanUnwrappingJoinOperator(JoinFunction<I1, I2, OUT> udf, 
 			int[] key1, Keys.SelectorFunctionKeys<I2, K> key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
-		super(new TupleUnwrappingJoiner<I1, I2, OUT, K>(udf), new int[]{0}, key2.computeLogicalKeyPositions(), name);
-		this.outType = type;
-		
-		this.inTypeWithKey1 = typeInfoWithKey1;
-		this.inTypeWithKey2 = typeInfoWithKey2;
+		super(new TupleUnwrappingJoiner<I1, I2, OUT, K>(udf),
+				new BinaryOperatorInformation<Tuple2<K, I1>, Tuple2<K, I2>, OUT>(typeInfoWithKey1, typeInfoWithKey2, type),
+				new int[]{0}, key2.computeLogicalKeyPositions(), name);
 	}
 	
 	public PlanUnwrappingJoinOperator(JoinFunction<I1, I2, OUT> udf, 
 			Keys.SelectorFunctionKeys<I1, K> key1, int[] key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
-		super(new TupleUnwrappingJoiner<I1, I2, OUT, K>(udf), key1.computeLogicalKeyPositions(), new int[]{0}, name);
-		this.outType = type;
-		
-		this.inTypeWithKey1 = typeInfoWithKey1;
-		this.inTypeWithKey2 = typeInfoWithKey2;
-	}
-	
-
-	@Override
-	public TypeInformation<OUT> getReturnType() {
-		return outType;
+		super(new TupleUnwrappingJoiner<I1, I2, OUT, K>(udf),
+				new BinaryOperatorInformation<Tuple2<K, I1>, Tuple2<K, I2>, OUT>(typeInfoWithKey1, typeInfoWithKey2, type),
+				key1.computeLogicalKeyPositions(), new int[]{0}, name);
 	}
 
-	@Override
-	public TypeInformation<Tuple2<K, I1>> getInputType1() {
-		return inTypeWithKey1;
-	}
-
-
-	@Override
-	public TypeInformation<Tuple2<K, I2>> getInputType2() {
-		return inTypeWithKey2;
-	}
-
-
-	
-	// --------------------------------------------------------------------------------------------
-	
 	public static final class TupleUnwrappingJoiner<I1, I2, OUT, K>
 		extends WrappingFunction<JoinFunction<I1, I2, OUT>>
 		implements GenericJoiner<Tuple2<K, I1>, Tuple2<K, I2>, OUT>

@@ -17,91 +17,68 @@ package eu.stratosphere.api.java.operators.translation;
 import java.util.Iterator;
 
 import eu.stratosphere.api.common.functions.GenericCoGrouper;
+import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
 import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.util.Collector;
 
 public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> 
-	extends CoGroupOperatorBase<GenericCoGrouper<Tuple2<K, I1>, Tuple2<K, I2>, OUT>>
-	implements BinaryJavaPlanNode<Tuple2<K, I1>, Tuple2<K, I2>, OUT>
+	extends CoGroupOperatorBase<Tuple2<K, I1>, Tuple2<K, I2>, OUT, GenericCoGrouper<Tuple2<K, I1>, Tuple2<K, I2>, OUT>>
 {
-
-	private final TypeInformation<Tuple2<K, I1>> inTypeWithKey1;
-	
-	private final TypeInformation<Tuple2<K, I2>> inTypeWithKey2;
-	
-	private final TypeInformation<OUT> outType;
 
 	public PlanUnwrappingCoGroupOperator(CoGroupFunction<I1, I2, OUT> udf, 
 			Keys.SelectorFunctionKeys<I1, K> key1, Keys.SelectorFunctionKeys<I2, K> key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
-		super(new TupleUnwrappingCoGrouper<I1, I2, OUT, K>(udf), key1.computeLogicalKeyPositions(), key2.computeLogicalKeyPositions(), name);
-		this.outType = type;
-		
-		this.inTypeWithKey1 = typeInfoWithKey1;
-		this.inTypeWithKey2 = typeInfoWithKey2;
+		super(new TupleUnwrappingCoGrouper<I1, I2, OUT, K>(udf),
+				new BinaryOperatorInformation<Tuple2<K, I1>, Tuple2<K, I2>, OUT>(typeInfoWithKey1, typeInfoWithKey2, type),
+				key1.computeLogicalKeyPositions(), key2.computeLogicalKeyPositions(), name);
 	}
 	
 	public PlanUnwrappingCoGroupOperator(CoGroupFunction<I1, I2, OUT> udf, 
 			int[] key1, Keys.SelectorFunctionKeys<I2, K> key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
-		super(new TupleUnwrappingCoGrouper<I1, I2, OUT, K>(udf), new int[]{0}, key2.computeLogicalKeyPositions(), name);
-		this.outType = type;
-		
-		this.inTypeWithKey1 = typeInfoWithKey1;
-		this.inTypeWithKey2 = typeInfoWithKey2;
+		super(new TupleUnwrappingCoGrouper<I1, I2, OUT, K>(udf),
+				new BinaryOperatorInformation<Tuple2<K, I1>, Tuple2<K, I2>, OUT>(typeInfoWithKey1,typeInfoWithKey2, type),
+				new int[]{0}, key2.computeLogicalKeyPositions(), name);
 	}
 	
 	public PlanUnwrappingCoGroupOperator(CoGroupFunction<I1, I2, OUT> udf, 
 			Keys.SelectorFunctionKeys<I1, K> key1, int[] key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
-		super(new TupleUnwrappingCoGrouper<I1, I2, OUT, K>(udf), key1.computeLogicalKeyPositions(), new int[]{0}, name);
-		this.outType = type;
-		
-		this.inTypeWithKey1 = typeInfoWithKey1;
-		this.inTypeWithKey2 = typeInfoWithKey2;
-	}
-	
-	@Override
-	public TypeInformation<OUT> getReturnType() {
-		return outType;
+		super(new TupleUnwrappingCoGrouper<I1, I2, OUT, K>(udf),
+				new BinaryOperatorInformation<Tuple2<K, I1>, Tuple2<K, I2>, OUT>(typeInfoWithKey1,typeInfoWithKey2, type),
+				key1.computeLogicalKeyPositions(), new int[]{0}, name);
 	}
 
-	@Override
-	public TypeInformation<Tuple2<K, I1>> getInputType1() {
-		return inTypeWithKey1;
-	}
-
-
-	@Override
-	public TypeInformation<Tuple2<K, I2>> getInputType2() {
-		return inTypeWithKey2;
-	}
-
-
-	
 	// --------------------------------------------------------------------------------------------
 	
 	public static final class TupleUnwrappingCoGrouper<I1, I2, OUT, K> extends WrappingFunction<CoGroupFunction<I1, I2, OUT>>
 		implements GenericCoGrouper<Tuple2<K, I1>, Tuple2<K, I2>, OUT>
 	{
-
 		private static final long serialVersionUID = 1L;
+		
+		private final TupleUnwrappingIterator<I1, K> iter1;
+		private final TupleUnwrappingIterator<I2, K> iter2;
 		
 		private TupleUnwrappingCoGrouper(CoGroupFunction<I1, I2, OUT> wrapped) {
 			super(wrapped);
+			
+			this.iter1 = new TupleUnwrappingIterator<I1, K>();
+			this.iter2 = new TupleUnwrappingIterator<I2, K>();
 		}
 
 
 		@Override
 		public void coGroup(Iterator<Tuple2<K, I1>> records1, Iterator<Tuple2<K, I2>> records2, Collector<OUT> out) throws Exception {
-			this.wrappedFunction.coGroup(new UnwrappingKeyIterator<K, I1>(records1), new UnwrappingKeyIterator<K, I2>(records2), out);
+			iter1.set(records1);
+			iter2.set(records2);
+			this.wrappedFunction.coGroup(iter1, iter2, out);
 		}
 		
 	}
@@ -140,27 +117,5 @@ public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>
 			throw new UnsupportedOperationException();
 		}
 		
-	}
-
-	
-	public static class UnwrappingKeyCollector<K, I1> implements Collector<I1> {
-		
-		Collector<Tuple2<K, I1>> outerCollector;
-		K key;
-
-		public UnwrappingKeyCollector(Collector<Tuple2<K, I1>> outerCollector, K key) {
-			this.outerCollector = outerCollector;
-			this.key = key;
-		}
-		
-		@Override
-		public void collect(I1 record) {
-			this.outerCollector.collect(new Tuple2<K, I1>(key, record));
-		}
-
-		@Override
-		public void close() {
-			this.outerCollector.close();
-		}
 	}
 }

@@ -29,7 +29,7 @@ import eu.stratosphere.compiler.operators.OperatorDescriptorDual;
  */
 public class CoGroupNode extends TwoInputNode {
 	
-	public CoGroupNode(CoGroupOperatorBase<?> pactContract) {
+	public CoGroupNode(CoGroupOperatorBase<?, ?, ?, ?> pactContract) {
 		super(pactContract);
 	}
 
@@ -41,8 +41,8 @@ public class CoGroupNode extends TwoInputNode {
 	 * @return The CoGroup operator.
 	 */
 	@Override
-	public CoGroupOperatorBase<?> getPactContract() {
-		return (CoGroupOperatorBase<?>) super.getPactContract();
+	public CoGroupOperatorBase<?, ?, ?, ?> getPactContract() {
+		return (CoGroupOperatorBase<?, ?, ?, ?>) super.getPactContract();
 	}
 
 	@Override
@@ -55,7 +55,7 @@ public class CoGroupNode extends TwoInputNode {
 		Ordering groupOrder1 = null;
 		Ordering groupOrder2 = null;
 		
-		CoGroupOperatorBase<?> cgc = getPactContract();
+		CoGroupOperatorBase<?, ?, ?, ?> cgc = getPactContract();
 		groupOrder1 = cgc.getGroupOrderForInputOne();
 		groupOrder2 = cgc.getGroupOrderForInputTwo();
 			

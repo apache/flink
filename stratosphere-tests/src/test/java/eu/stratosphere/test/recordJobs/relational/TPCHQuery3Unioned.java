@@ -16,8 +16,8 @@ package eu.stratosphere.test.recordJobs.relational;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
@@ -113,6 +113,7 @@ public class TPCHQuery3Unioned implements Program, ProgramDescription {
 		filterO2.setParameter(TPCHQuery3.PRIO_FILTER, "5");
 
 		// create JoinOperator for joining Orders and LineItems
+		@SuppressWarnings("unchecked")
 		JoinOperator joinLiO = JoinOperator.builder(new JoinLiO(), LongValue.class, 0, 0)
 			.input1(filterO2, filterO1)
 			.input2(lineitems)
@@ -137,6 +138,7 @@ public class TPCHQuery3Unioned implements Program, ProgramDescription {
 		
 		// create ReduceOperator for aggregating the result
 		// the reducer has a composite key, consisting of the fields 0 and 1
+		@SuppressWarnings("unchecked")
 		ReduceOperator aggLiO = ReduceOperator.builder(new AggLiO())
 			.keyField(LongValue.class, 0)
 			.keyField(StringValue.class, 1)

@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.plugable.pactrecord;
+package eu.stratosphere.api.java.typeutils.runtime.record;
 
 import java.io.IOException;
 
@@ -387,9 +387,15 @@ public final class RecordComparator extends TypeComparator<Record> {
 			throw new RuntimeException("Could not instantiate key classes when duplicating RecordComparator.", ex);
 		}
 	}
-	
+
+	@Override
+	public boolean supportsCompareAgainstReference() {
+		return true;
+	}
+
+	@Override
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public final int compareAgainstReference(Key[] keys) {
+	public final int compareAgainstReference(Comparable[] keys) {
 		for (int i = 0; i < this.keyFields.length; i++)
 		{
 			final int comp = keys[i].compareTo(this.keyHolders[i]);

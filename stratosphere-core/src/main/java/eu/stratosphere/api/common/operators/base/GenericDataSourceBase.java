@@ -11,9 +11,11 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.api.common.operators;
+package eu.stratosphere.api.common.operators.base;
 
 import eu.stratosphere.api.common.io.InputFormat;
+import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.OperatorInformation;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
@@ -21,71 +23,76 @@ import eu.stratosphere.util.Visitor;
 
 /**
  * Abstract superclass for data sources in a Pact plan.
- * 
- * @param T The type of input format invoked by instances of this data source.
+ *
+ * @param <OUT> The output type of the data source
+ * @param <T> The type of input format invoked by instances of this data source.
  */
-public class GenericDataSource<T extends InputFormat<?, ?>> extends Operator {
-	
+public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends Operator<OUT> {
+
 	private static final String DEFAULT_NAME = "<Unnamed Generic Data Source>";
-	
+
 	protected final UserCodeWrapper<? extends T> formatWrapper;
-	
+
 	protected String statisticsKey;
 
 	/**
 	 * Creates a new instance for the given file using the given input format.
-	 * 
-	 * @param format The {@link InputFormat} implementation used to read the data.
+	 *
+	 * @param format The {@link eu.stratosphere.api.common.io.InputFormat} implementation used to read the data.
+	 * @param operatorInfo The type information for the operator.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	public GenericDataSource(T format, String name) {
-		super(name);
-		
+	public GenericDataSourceBase(T format, OperatorInformation<OUT> operatorInfo, String name) {
+		super(operatorInfo, name);
+
 		if (format == null) {
 			throw new IllegalArgumentException("Input format may not be null.");
 		}
-		
+
 		this.formatWrapper = new UserCodeObjectWrapper<T>(format);
 	}
-	
+
 	/**
 	 * Creates a new instance for the given file using the given input format, using the default name.
-	 * 
-	 * @param format The {@link InputFormat} implementation used to read the data.
+	 *
+	 * @param format The {@link eu.stratosphere.api.common.io.InputFormat} implementation used to read the data.
+	 * @param operatorInfo The type information for the operator.
 	 */
-	public GenericDataSource(T format) {
-		super(DEFAULT_NAME);
-		
+	public GenericDataSourceBase(T format, OperatorInformation<OUT> operatorInfo) {
+		super(operatorInfo, DEFAULT_NAME);
+
 		if (format == null) {
 			throw new IllegalArgumentException("Input format may not be null.");
 		}
-		
+
 		this.formatWrapper = new UserCodeObjectWrapper<T>(format);
 	}
-	
+
 	/**
 	 * Creates a new instance for the given file using the given input format.
-	 * 
-	 * @param format The {@link InputFormat} implementation used to read the data.
+	 *
+	 * @param format The {@link eu.stratosphere.api.common.io.InputFormat} implementation used to read the data.
+	 * @param operatorInfo The type information for the operator.
 	 * @param name The given name for the Pact, used in plans, logs and progress messages.
 	 */
-	public GenericDataSource(Class<? extends T> format, String name) {
-		super(name);
-		
+	public GenericDataSourceBase(Class<? extends T> format, OperatorInformation<OUT> operatorInfo, String name) {
+		super(operatorInfo, name);
+
 		if (format == null) {
 			throw new IllegalArgumentException("Input format may not be null.");
 		}
-		
+
 		this.formatWrapper = new UserCodeClassWrapper<T>(format);
 	}
-	
+
 	/**
 	 * Creates a new instance for the given file using the given input format, using the default name.
-	 * 
-	 * @param format The {@link InputFormat} implementation used to read the data.
+	 *
+	 * @param format The {@link eu.stratosphere.api.common.io.InputFormat} implementation used to read the data.
+	 * @param operatorInfo The type information for the operator.
 	 */
-	public GenericDataSource(Class<? extends T> format) {
-		super(DEFAULT_NAME);
+	public GenericDataSourceBase(Class<? extends T> format, OperatorInformation<OUT> operatorInfo) {
+		super(operatorInfo, DEFAULT_NAME);
 		
 		if (format == null) {
 			throw new IllegalArgumentException("Input format may not be null.");
@@ -152,7 +159,7 @@ public class GenericDataSource<T extends InputFormat<?, ?>> extends Operator {
 	 * @see eu.stratosphere.util.Visitable#accept(eu.stratosphere.util.Visitor)
 	 */
 	@Override
-	public void accept(Visitor<Operator> visitor) {
+	public void accept(Visitor<Operator<?>> visitor) {
 		if (visitor.preVisit(this)) {
 			visitor.postVisit(this);
 		}

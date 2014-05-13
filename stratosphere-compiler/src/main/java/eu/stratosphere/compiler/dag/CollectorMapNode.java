@@ -27,7 +27,7 @@ import eu.stratosphere.compiler.operators.OperatorDescriptorSingle;
 public class CollectorMapNode extends SingleInputNode {
 	
 
-	public CollectorMapNode(SingleInputOperator<?> operator) {
+	public CollectorMapNode(SingleInputOperator<?, ?, ?> operator) {
 		super(operator);
 	}
 

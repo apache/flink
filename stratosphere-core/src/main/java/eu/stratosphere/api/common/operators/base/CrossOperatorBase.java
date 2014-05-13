@@ -14,6 +14,7 @@
 package eu.stratosphere.api.common.operators.base;
 
 import eu.stratosphere.api.common.functions.GenericCrosser;
+import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
 import eu.stratosphere.api.common.operators.DualInputOperator;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
@@ -23,18 +24,18 @@ import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 /**
  * @see GenericCrosser
  */
-public class CrossOperatorBase<T extends GenericCrosser<?, ?, ?>> extends DualInputOperator<T> {
+public class CrossOperatorBase<IN1, IN2, OUT, FT extends GenericCrosser<?, ?, ?>> extends DualInputOperator<IN1, IN2, OUT, FT> {
 	
-	public CrossOperatorBase(UserCodeWrapper<T> udf, String name) {
-		super(udf, name);
+	public CrossOperatorBase(UserCodeWrapper<FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, String name) {
+		super(udf, operatorInfo, name);
 	}
 	
-	public CrossOperatorBase(T udf, String name) {
-		this(new UserCodeObjectWrapper<T>(udf), name);
+	public CrossOperatorBase(FT udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, String name) {
+		this(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
 	}
 	
-	public CrossOperatorBase(Class<? extends T> udf, String name) {
-		this(new UserCodeClassWrapper<T>(udf), name);
+	public CrossOperatorBase(Class<? extends FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, String name) {
+		this(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
 	}
 	
 	// --------------------------------------------------------------------------------------------

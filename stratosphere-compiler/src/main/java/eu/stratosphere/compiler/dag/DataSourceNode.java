@@ -22,7 +22,7 @@ import eu.stratosphere.api.common.io.FileInputFormat;
 import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.common.io.NonParallelInput;
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
-import eu.stratosphere.api.common.operators.GenericDataSource;
+import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -46,7 +46,7 @@ public class DataSourceNode extends OptimizerNode {
 	 * @param pactContract
 	 *        The data source contract object.
 	 */
-	public DataSourceNode(GenericDataSource<?> pactContract) {
+	public DataSourceNode(GenericDataSourceBase<?, ?> pactContract) {
 		super(pactContract);
 		
 		if (pactContract.getUserCodeWrapper().getUserCodeClass() == null) {
@@ -68,8 +68,8 @@ public class DataSourceNode extends OptimizerNode {
 	 * @return The contract.
 	 */
 	@Override
-	public GenericDataSource<?> getPactContract() {
-		return (GenericDataSource<?>) super.getPactContract();
+	public GenericDataSourceBase<?, ?> getPactContract() {
+		return (GenericDataSourceBase<?, ?>) super.getPactContract();
 	}
 
 	@Override
@@ -106,7 +106,7 @@ public class DataSourceNode extends OptimizerNode {
 	}
 
 	@Override
-	public void setInput(Map<Operator, OptimizerNode> contractToNode) {}
+	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode) {}
 
 	@Override
 	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {

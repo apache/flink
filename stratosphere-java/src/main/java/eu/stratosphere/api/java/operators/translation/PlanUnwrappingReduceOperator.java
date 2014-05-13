@@ -15,42 +15,26 @@
 package eu.stratosphere.api.java.operators.translation;
 
 import eu.stratosphere.api.common.functions.GenericReduce;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
 import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
 import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 
 
-public class PlanUnwrappingReduceOperator<T, K> extends ReduceOperatorBase<GenericReduce<Tuple2<K, T>>>
-	implements UnaryJavaPlanNode<Tuple2<K, T>, Tuple2<K, T>>
-{
-	
-	private final TypeInformation<Tuple2<K, T>> typeInfoWithKey;
-
+/**
+ * A reduce operator that takes 2-tuples (key-value pairs), and applies the reduce operation only
+ * on the unwrapped values.
+ */
+public class PlanUnwrappingReduceOperator<T, K> extends ReduceOperatorBase<Tuple2<K, T>, GenericReduce<Tuple2<K, T>>> {
 
 	public PlanUnwrappingReduceOperator(ReduceFunction<T> udf, Keys.SelectorFunctionKeys<T, K> key, String name,
 			TypeInformation<T> type, TypeInformation<Tuple2<K, T>> typeInfoWithKey)
 	{
-		super(new ReduceWrapper<T, K>(udf), key.computeLogicalKeyPositions(), name);
-		
-		this.typeInfoWithKey = typeInfoWithKey;
-	}
-	
-	
-	@Override
-	public TypeInformation<Tuple2<K, T>> getReturnType() {
-		return this.typeInfoWithKey;
+		super(new ReduceWrapper<T, K>(udf), new UnaryOperatorInformation<Tuple2<K, T>, Tuple2<K, T>>(typeInfoWithKey, typeInfoWithKey), key.computeLogicalKeyPositions(), name);
 	}
 
-	@Override
-	public TypeInformation<Tuple2<K, T>> getInputType() {
-		return this.typeInfoWithKey;
-	}
-	
-	
-	// --------------------------------------------------------------------------------------------
-	
 	public static final class ReduceWrapper<T, K> extends WrappingFunction<ReduceFunction<T>>
 		implements GenericReduce<Tuple2<K, T>>
 	{

@@ -21,6 +21,7 @@ import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.base.array.StringArraySerializer;
 import eu.stratosphere.api.java.functions.InvalidTypesException;
 import eu.stratosphere.api.java.typeutils.runtime.GenericArraySerializer;
+import eu.stratosphere.types.TypeInformation;
 
 public class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 
