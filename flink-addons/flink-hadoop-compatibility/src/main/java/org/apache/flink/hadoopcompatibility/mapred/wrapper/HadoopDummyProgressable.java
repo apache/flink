@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.hadoopcompatibility.mapred.wrapper;
 
 import org.apache.hadoop.util.Progressable;
@@ -26,8 +25,9 @@ import org.apache.hadoop.util.Progressable;
  *
  */
 public class HadoopDummyProgressable implements Progressable {
+	
 	@Override
-	public void progress() {
-
+	public void progress() { 
+		// Nothing reported here.
 	}
 }

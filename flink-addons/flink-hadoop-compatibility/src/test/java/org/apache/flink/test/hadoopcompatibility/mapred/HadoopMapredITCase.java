@@ -18,22 +18,22 @@
 
 package org.apache.flink.test.hadoopcompatibility.mapred;
 
-import org.apache.flink.hadoopcompatibility.mapred.example.WordCount;
+import org.apache.flink.hadoopcompatibility.mapred.example.HadoopMapredCompatWordCount;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-public class HadoopInputOutputITCase extends JavaProgramTestBase {
+public class HadoopMapredITCase extends JavaProgramTestBase {
 	
 	protected String textPath;
 	protected String resultPath;
-	
-	
+
 	@Override
 	protected void preSubmit() throws Exception {
 		textPath = createTempFile("text.txt", WordCountData.TEXT);
 		resultPath = getTempDirPath("result");
+		this.setDegreeOfParallelism(1);
 	}
-	
+
 	@Override
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath + "/1");
@@ -41,6 +41,7 @@ public class HadoopInputOutputITCase extends JavaProgramTestBase {
 	
 	@Override
 	protected void testProgram() throws Exception {
-		WordCount.main(new String[] { textPath, resultPath });
+		HadoopMapredCompatWordCount.main(new String[] { textPath, resultPath });
 	}
+
 }
