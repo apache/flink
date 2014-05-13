@@ -21,13 +21,10 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
-import eu.stratosphere.example.java.graph.ConnectedComponents;
+import eu.stratosphere.test.recordJobs.graph.DeltaPageRankWithInitialDeltas;
 import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast;
 import eu.stratosphere.test.recordJobs.kmeans.KMeansSingleStep;
 import eu.stratosphere.test.recordJobs.relational.TPCHQuery3;
@@ -80,18 +77,9 @@ public class PreviewPlanDumpTest {
 	}
 	
 	@Test
-	public void dumpConnectedComponents() {
-		// take the core program and create dummy sources and sinks around it
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		
-		DataSet<Long> vertices = env.fromElements(1L);
-		@SuppressWarnings("unchecked")
-		DataSet<Tuple2<Long, Long>> edges = env.fromElements(new Tuple2<Long, Long>(1l, 2l));
-		
-		ConnectedComponents.doConnectedComponents(vertices, edges, 10).print();
-		
-		Plan p = env.createProgramPlan();
-		dump(p);
+	public void dumpDeltaPageRank() {
+		dump(new DeltaPageRankWithInitialDeltas().getPlan("4", IN_FILE, IN_FILE, IN_FILE, OUT_FILE, "10"));
+		dump(new DeltaPageRankWithInitialDeltas().getPlan(NO_ARGS));
 	}
 	
 	private void dump(Plan p) {

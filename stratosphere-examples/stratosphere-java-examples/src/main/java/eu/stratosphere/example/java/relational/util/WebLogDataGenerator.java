@@ -11,38 +11,48 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.example.java.relational.generator;
+package eu.stratosphere.example.java.relational.util;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.Random;
 
-public class WebLogGenerator {
+import eu.stratosphere.example.java.relational.WebLogAnalysis;
 
+/**
+ * Data generator for the {@link WebLogAnalysis} example program. 
+ *
+ */
+public class WebLogDataGenerator {
+
+	/**
+	 * Main method to generate data for the {@link WebLogAnalysis} example program.
+	 * <p>
+	 * The generator creates to files:
+	 * <ul>
+	 * <li><code>{tmp.dir}/documents</code> for the web documents
+	 * <li><code>{tmp.dir}/ranks</code> for the ranks of the web documents
+	 * <li><code>{tmp.dir}/visits</code> for the logged visits of web documents
+	 * </ul> 
+	 * 
+	 * @param args 
+	 * <ol>
+	 * <li>Int: Number of web documents
+	 * <li>Int: Number of visits
+	 * </ol>
+	 */
 	public static void main(String[] args) {
 
-		if (args.length != 4) {
-			if (args.length == 0 || args[0].equals("-h")
-					|| args[0].equals("--help")) {
-				// Show help
-				System.out.println("Usage:");
-				System.out.println("1:\tWith parameters");
-				System.out.println("\t<Generator> "
-						+ "[noDocuments] [noVisits] [outPath] [noFiles]");
-				System.out.println("2:\tDefault parameters");
-				System.out.println("\t<Generator> -d");
-				return;
-			} else if (args[0].equals("-d")) {
-				// Default values
-				args = new String[4];
-				args[0] = "1000"; // number of documents
-				args[1] = "10000"; // number of visits
-				args[2] = "/tmp/stratosphere/"; // path
-				args[3] = "1"; // number of files
-			}
+		// parse parameters
+		if (args.length < 2) {
+			System.out.println("WebLogDataGenerator <numberOfDocuments> <numberOfVisits>");
+			System.exit(1);
 		}
-
+		
+		int noDocs = Integer.parseInt(args[0]);
+		int noVisits = Integer.parseInt(args[1]);
+		
 		String[] filterKWs = { "editors", "oscillations", "convection" };
 
 		String[] words = { "Lorem", "ipsum", "dolor", "sit", "amet",
@@ -53,18 +63,15 @@ public class WebLogGenerator {
 				"ullamcorper", "suscipit", "lobortis", "nisl", "ut", "aliquip",
 				"ex", "ea", "commodo" };
 
-		int noDocs = Integer.parseInt(args[0]);
-		int noVisits = Integer.parseInt(args[1]);
-
-		String path = args[2];
-		int noFiles = Integer.parseInt(args[3]);
+		
+		final String outPath = System.getProperty("java.io.tmpdir");
 
 		System.out.println("Generating documents files...");
-		genDocs(noDocs, noFiles, filterKWs, words, path + "docs_");
+		genDocs(noDocs, filterKWs, words, outPath + "/documents");
 		System.out.println("Generating ranks files...");
-		genRanks(noDocs, noFiles, path + "ranks_");
+		genRanks(noDocs, outPath + "/ranks");
 		System.out.println("Generating visits files...");
-		genVisits(noVisits, noDocs, noFiles, path + "visits_");
+		genVisits(noVisits, noDocs, outPath + "/visits");
 
 		System.out.println("Done!");
 	}
@@ -76,8 +83,6 @@ public class WebLogGenerator {
 	 * 
 	 * @param noDocs
 	 *            Number of entries for the documents relation
-	 * @param noFiles
-	 *            Number of files for the documents relation
 	 * @param filterKeyWords
 	 *            A list of keywords that should be contained
 	 * @param words
@@ -85,16 +90,12 @@ public class WebLogGenerator {
 	 * @param path
 	 *            Output path for the documents relation
 	 */
-	public static void genDocs(int noDocs, int noFiles,
-			String[] filterKeyWords, String[] words, String path) {
+	private static void genDocs(int noDocs, String[] filterKeyWords, String[] words, String path) {
 
 		Random rand = new Random(Calendar.getInstance().getTimeInMillis());
-		int fileId = 0;
-		int docsPerFile = (noDocs / noFiles) + 1;
-		int docsInFile = 0;
 
 		try {
-			FileWriter fw = new FileWriter(path + (fileId++));
+			FileWriter fw = new FileWriter(path);
 
 			for (int i = 0; i < noDocs; i++) {
 
@@ -102,8 +103,8 @@ public class WebLogGenerator {
 				// URL
 				StringBuilder doc = new StringBuilder("url_" + i + "|");
 				for (int j = 0; j < wordsInDoc; j++) {
-					if (rand.nextDouble() > 0.98) {
-						// Approx. every 50th word is a keyword
+					if (rand.nextDouble() > 0.9) {
+						// Approx. every 10th word is a keyword
 						doc.append(filterKeyWords[rand
 								.nextInt(filterKeyWords.length)] + " ");
 					} else {
@@ -114,13 +115,6 @@ public class WebLogGenerator {
 				doc.append("|\n");
 
 				fw.write(doc.toString());
-
-				docsInFile++;
-				if (docsInFile == docsPerFile) {
-					fw.close();
-					fw = new FileWriter(path + (fileId++));
-					docsInFile = 0;
-				}
 			}
 			fw.close();
 
@@ -136,23 +130,17 @@ public class WebLogGenerator {
 	 * 
 	 * @param noDocs
 	 *            Number of entries in the documents relation
-	 * @param noFiles
-	 *            Number of files for the ranks relation
 	 * @param path
 	 *            Output path for the ranks relation
 	 */
-	public static void genRanks(int noDocs, int noFiles, String path) {
+	private static void genRanks(int noDocs, String path) {
 
 		Random rand = new Random(Calendar.getInstance().getTimeInMillis());
-		int fileId = 0;
-		int docsPerFile = (noDocs / noFiles) + 1;
-		int docsInFile = 0;
 
 		try {
-			FileWriter fw = new FileWriter(path + (fileId++));
+			FileWriter fw = new FileWriter(path);
 
 			for (int i = 0; i < noDocs; i++) {
-
 				// Rank
 				StringBuilder rank = new StringBuilder(rand.nextInt(100) + "|");
 				// URL
@@ -161,13 +149,6 @@ public class WebLogGenerator {
 				rank.append(rand.nextInt(10) + rand.nextInt(50) + "|\n");
 
 				fw.write(rank.toString());
-
-				docsInFile++;
-				if (docsInFile == docsPerFile) {
-					fw.close();
-					fw = new FileWriter(path + (fileId++));
-					docsInFile = 0;
-				}
 			}
 			fw.close();
 
@@ -185,20 +166,15 @@ public class WebLogGenerator {
 	 *            Number of entries for the visits relation
 	 * @param noDocs
 	 *            Number of entries in the documents relation
-	 * @param noFiles
-	 *            Number of files for the visits relation
 	 * @param path
 	 *            Output path for the visits relation
 	 */
-	public static void genVisits(int noVisits, int noDocs, int noFiles, String path) {
+	private static void genVisits(int noVisits, int noDocs, String path) {
 
 		Random rand = new Random(Calendar.getInstance().getTimeInMillis());
-		int fileId = 0;
-		int visitsPerFile = (noVisits / noFiles) + 1;
-		int visitsInFile = 0;
 
 		try {
-			FileWriter fw = new FileWriter(path + (fileId++));
+			FileWriter fw = new FileWriter(path);
 
 			for (int i = 0; i < noVisits; i++) {
 
@@ -218,13 +194,6 @@ public class WebLogGenerator {
 				visit.append("0.12|Mozilla Firefox 3.1|de|de|Nothing special|124|\n");
 
 				fw.write(visit.toString());
-
-				visitsInFile++;
-				if (visitsInFile == visitsPerFile) {
-					fw.close();
-					fw = new FileWriter(path + (fileId++));
-					visitsInFile = 0;
-				}
 			}
 			fw.close();
 

@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.example.java.clustering.generator;
+package eu.stratosphere.example.java.clustering.util;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -21,35 +21,48 @@ import java.text.DecimalFormat;
 import java.util.Locale;
 import java.util.Random;
 
-public class KMeansSampleDataGenerator {
+import eu.stratosphere.example.java.clustering.KMeans;
+
+/**
+ * Generates data for the {@link KMeans} example program.
+ */
+public class KMeansDataGenerator {
 	
 	static {
 		Locale.setDefault(Locale.US);
 	}
 	
 	private static final String CENTERS_FILE = "centers";
-	
 	private static final String POINTS_FILE = "points";
-	
 	private static final long DEFAULT_SEED = 4650285087650871364L;
-	
 	private static final double DEFAULT_VALUE_RANGE = 100.0;
-	
 	private static final double RELATIVE_STDDEV = 0.08;
-	
 	private static final int DIMENSIONALITY = 2;
-	
-	
 	private static final DecimalFormat FORMAT = new DecimalFormat("#0.00");
-	
-	private static final char DELIMITER = '|';
-	
+	private static final char DELIMITER = ' ';
 
-
+	/**
+	 * Main method to generate data for the {@link KMeans} example program.
+	 * <p>
+	 * The generator creates to files:
+	 * <ul>
+	 * <li><code>{tmp.dir}/points</code> for the data points
+	 * <li><code>{tmp.dir}/centers</code> for the cluster centers
+	 * </ul> 
+	 * 
+	 * @param args 
+	 * <ol>
+	 * <li>Int: Number of data points
+	 * <li>Int: Number of cluster centers
+	 * <li><b>Optional</b> Double: Standard deviation of data points
+	 * <li><b>Optional</b> Double: Value range of cluster centers
+	 * <li><b>Optional</b> Long: Random seed
+	 * </ol>
+	 */
 	public static void main(String[] args) throws IOException {
 
 		// check parameter count
-		if (args.length < 3) {
+		if (args.length < 2) {
 			System.out.println("KMeansDataGenerator <numberOfDataPoints> <numberOfClusterCenters> [<relative stddev>] [<centroid range>] [<seed>]");
 			System.exit(1);
 		}
@@ -57,23 +70,21 @@ public class KMeansSampleDataGenerator {
 		// parse parameters
 		final int numDataPoints = Integer.parseInt(args[0]);
 		final int k = Integer.parseInt(args[1]);
-		
 		final double stddev = args.length > 2 ? Double.parseDouble(args[2]) : RELATIVE_STDDEV;
 		final double range = args.length > 3 ? Double.parseDouble(args[4]) : DEFAULT_VALUE_RANGE;
 		final long firstSeed = args.length > 4 ? Long.parseLong(args[4]) : DEFAULT_SEED;
 		
-		// generate the centers first
 		final double absoluteStdDev = stddev * range;
 		final Random random = new Random(firstSeed);
+		final String tmpDir = System.getProperty("java.io.tmpdir");
 		
-		
-		// the means for our gaussian distributions
+		// the means around which data points are distributed
 		final double[][] means = uniformRandomCenters(random, k, DIMENSIONALITY, range);
 		
 		// write the points out
 		BufferedWriter pointsOut = null;
 		try {
-			pointsOut = new BufferedWriter(new FileWriter(new File(POINTS_FILE)));
+			pointsOut = new BufferedWriter(new FileWriter(new File(tmpDir+"/"+POINTS_FILE)));
 			StringBuilder buffer = new StringBuilder();
 			
 			double[] point = new double[DIMENSIONALITY];
@@ -85,7 +96,7 @@ public class KMeansSampleDataGenerator {
 				for (int d = 0; d < DIMENSIONALITY; d++) {
 					point[d] = (random.nextGaussian() * absoluteStdDev) + centroid[d];
 				}
-				write(i, point, buffer, pointsOut);
+				writePoint(point, buffer, pointsOut);
 				nextCentroid = (nextCentroid + 1) % k;
 			}
 		}
@@ -94,18 +105,17 @@ public class KMeansSampleDataGenerator {
 				pointsOut.close();
 			}
 		}
-
 		
 		// write the uniformly distributed centers to a file
 		BufferedWriter centersOut = null;
 		try {
-			centersOut = new BufferedWriter(new FileWriter(new File(CENTERS_FILE)));
+			centersOut = new BufferedWriter(new FileWriter(new File(tmpDir+"/"+CENTERS_FILE)));
 			StringBuilder buffer = new StringBuilder();
 			
 			double[][] centers = uniformRandomCenters(random, k, DIMENSIONALITY, range);
 			
 			for (int i = 0; i < k; i++) {
-				write(i + 1, centers[i], buffer, centersOut);
+				writeCenter(i + 1, centers[i], buffer, centersOut);
 			}
 		}
 		finally {
@@ -113,6 +123,9 @@ public class KMeansSampleDataGenerator {
 				centersOut.close();
 			}
 		}
+		
+		System.out.println("Wrote "+numDataPoints+" data points to "+tmpDir+"/"+POINTS_FILE);
+		System.out.println("Wrote "+k+" cluster centers to "+tmpDir+"/"+CENTERS_FILE);
 	}
 	
 	private static final double[][] uniformRandomCenters(Random rnd, int num, int dimensionality, double range) {
@@ -127,16 +140,34 @@ public class KMeansSampleDataGenerator {
 		return points;
 	}
 	
-	private static void write(long id, double[] coordinates, StringBuilder buffer, BufferedWriter out) throws IOException {
+	private static void writePoint(double[] coordinates, StringBuilder buffer, BufferedWriter out) throws IOException {
 		buffer.setLength(0);
 		
+		// write coordinates
+		for (int j = 0; j < coordinates.length; j++) {
+			buffer.append(FORMAT.format(coordinates[j]));
+			if(j < coordinates.length - 1) {
+				buffer.append(DELIMITER);
+			}
+		}
+		
+		out.write(buffer.toString());
+		out.newLine();
+	}
+	
+	private static void writeCenter(long id, double[] coordinates, StringBuilder buffer, BufferedWriter out) throws IOException {
+		buffer.setLength(0);
+		
+		// write id
 		buffer.append(id);
 		buffer.append(DELIMITER);
 
-		// append all coordinates
+		// write coordinates
 		for (int j = 0; j < coordinates.length; j++) {
 			buffer.append(FORMAT.format(coordinates[j]));
-			buffer.append('|');
+			if(j < coordinates.length - 1) {
+				buffer.append(DELIMITER);
+			}
 		}
 		
 		out.write(buffer.toString());

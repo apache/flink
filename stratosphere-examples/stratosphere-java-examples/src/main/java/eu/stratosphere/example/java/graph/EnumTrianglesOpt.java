@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.example.java.triangles;
+package eu.stratosphere.example.java.graph;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -26,46 +26,117 @@ import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.functions.ReduceFunction;
-import eu.stratosphere.example.java.triangles.util.EdgeData;
-import eu.stratosphere.example.java.triangles.util.EdgeDataTypes.Edge;
-import eu.stratosphere.example.java.triangles.util.EdgeDataTypes.EdgeWithDegrees;
-import eu.stratosphere.example.java.triangles.util.EdgeDataTypes.Triad;
-import eu.stratosphere.example.java.triangles.util.EdgeDataTypes.TupleEdgeConverter;
+import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.example.java.graph.util.EnumTrianglesData;
+import eu.stratosphere.example.java.graph.util.EnumTrianglesDataTypes.Edge;
+import eu.stratosphere.example.java.graph.util.EnumTrianglesDataTypes.EdgeWithDegrees;
+import eu.stratosphere.example.java.graph.util.EnumTrianglesDataTypes.Triad;
 import eu.stratosphere.util.Collector;
 
 /**
  * Triangle enumeration is a preprocessing step to find closely connected parts in graphs.
  * A triangle are three edges that connect three vertices with each other.
  * 
+ * <p>
  * The basic algorithm works as follows: 
  * It groups all edges that share a common vertex and builds triads, i.e., triples of vertices 
  * that are connected by two edges. Finally, all triads are filtered for which no third edge exists 
  * that closes the triangle.
  * 
- * For a group of n edges that share a common vertex, the number of built triads is quadratic ((n*(n-1))/2).
+ * <p>
+ * For a group of <i>n</i> edges that share a common vertex, the number of built triads is quadratic <i>((n*(n-1))/2)</i>.
  * Therefore, an optimization of the algorithm is to group edges on the vertex with the smaller output degree to 
  * reduce the number of triads. 
  * This implementation extends the basic algorithm by computing output degrees of edge vertices and 
  * grouping on edges on the vertex with the smaller degree.
- *  
- * This implementation assumes that edges are represented as pairs of vertices and 
- * vertices are represented as Integer IDs.
  * 
- * The lines of input files need to have the following format:
- * "<INT: vertexId1>,<INT: vertexId2>\n"
+ * <p>
+ * Input files are plain text files must be formatted as follows:
+ * <ul>
+ * <li>Edges are represented as pairs for vertex IDs which are separated by space 
+ * characters. Edges are separated by new-line characters.<br>
+ * For example <code>"1 2\n2 12\n1 12\n42 63\n"</code> gives four (undirected) edges (1)-(2), (2)-(12), (1)-(12), and (42)-(63)
+ * that include a triangle
+ * </ul>
+ * <pre>
+ *     (1)
+ *     /  \
+ *   (2)-(12)
+ * </pre>
  * 
- * For example the input: 
- * "10,20\n10,30\n20,30\n" 
- * defines three edges (10,20), (10,30), (20,30) which build a triangle.
+ * <p>
+ * This example shows how to use:
+ * <ul>
+ * <li>Custom Java objects which extend Tuple
+ * <li>Group Sorting
+ * </ul>
  * 
  */
+@SuppressWarnings("serial")
 public class EnumTrianglesOpt {
 
-	/**
-	 * Emits for an edge the original edge and its switched version.
-	 */
+	// *************************************************************************
+	//     PROGRAM
+	// *************************************************************************
+	
+	public static void main(String[] args) throws Exception {
+		
+		parseParameters(args);
+		
+		// set up execution environment
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		// read input data
+		DataSet<Edge> edges = getEdgeDataSet(env);
+		
+		// annotate edges with degrees
+		DataSet<EdgeWithDegrees> edgesWithDegrees = edges
+				.flatMap(new EdgeDuplicator())
+				.groupBy(Edge.V1).sortGroup(Edge.V2, Order.ASCENDING).reduceGroup(new DegreeCounter())
+				.groupBy(EdgeWithDegrees.V1,EdgeWithDegrees.V2).reduce(new DegreeJoiner());
+		
+		// project edges by degrees
+		DataSet<Edge> edgesByDegree = edgesWithDegrees
+				.map(new EdgeByDegreeProjector());
+		// project edges by vertex id
+		DataSet<Edge> edgesById = edgesByDegree
+				.map(new EdgeByIdProjector());
+		
+		DataSet<Triad> triangles = edgesByDegree
+				// build triads
+				.groupBy(Edge.V1).sortGroup(Edge.V2, Order.ASCENDING).reduceGroup(new TriadBuilder())
+				// filter triads
+				.join(edgesById).where(Triad.V2,Triad.V3).equalTo(Edge.V1,Edge.V2).with(new TriadFilter());
+
+		// emit result
+		if(fileOutput) {
+			triangles.writeAsCsv(outputPath, "\n", ",");
+		} else {
+			triangles.print();
+		}
+		
+		// execute program
+		env.execute("Triangle Enumeration Example");
+		
+	}
+	
+	// *************************************************************************
+	//     USER FUNCTIONS
+	// *************************************************************************
+	
+	/** Converts a Tuple2 into an Edge */
+	public static class TupleEdgeConverter extends MapFunction<Tuple2<Integer, Integer>, Edge> {
+		private final Edge outEdge = new Edge();
+		
+		@Override
+		public Edge map(Tuple2<Integer, Integer> t) throws Exception {
+			outEdge.copyVerticesFromTuple2(t);
+			return outEdge;
+		}
+	}
+	
+	/** Emits for an edge the original edge and its switched version. */
 	private static class EdgeDuplicator extends FlatMapFunction<Edge, Edge> {
-		private static final long serialVersionUID = 1L;
 		
 		@Override
 		public void flatMap(Edge edge, Collector<Edge> out) throws Exception {
@@ -81,7 +152,6 @@ public class EnumTrianglesOpt {
 	 * For each emitted edge, the first vertex is the vertex with the smaller id.
 	 */
 	private static class DegreeCounter extends GroupReduceFunction<Edge, EdgeWithDegrees> {
-		private static final long serialVersionUID = 1L;
 		
 		final ArrayList<Integer> otherVertices = new ArrayList<Integer>();
 		final EdgeWithDegrees outputEdge = new EdgeWithDegrees();
@@ -130,7 +200,6 @@ public class EnumTrianglesOpt {
 	 * degree annotation.
 	 */
 	private static class DegreeJoiner extends ReduceFunction<EdgeWithDegrees> {
-		private static final long serialVersionUID = 1L;
 		private final EdgeWithDegrees outEdge = new EdgeWithDegrees();
 		
 		@Override
@@ -149,11 +218,8 @@ public class EnumTrianglesOpt {
 		}
 	}
 		
-	/**
-	 *  Projects an edge (pair of vertices) such that the first vertex is the vertex with the smaller degree.
-	 */
+	/** Projects an edge (pair of vertices) such that the first vertex is the vertex with the smaller degree. */
 	private static class EdgeByDegreeProjector extends MapFunction<EdgeWithDegrees, Edge> {
-		private static final long serialVersionUID = 1L;
 		
 		private final Edge outEdge = new Edge();
 		
@@ -173,11 +239,8 @@ public class EnumTrianglesOpt {
 		}
 	}
 	
-	/**
-	 *  Projects an edge (pair of vertices) such that the id of the first is smaller than the id of the second. 
-	 */
+	/** Projects an edge (pair of vertices) such that the id of the first is smaller than the id of the second. */
 	private static class EdgeByIdProjector extends MapFunction<Edge, Edge> {
-		private static final long serialVersionUID = 1L;
 	
 		@Override
 		public Edge map(Edge inEdge) throws Exception {
@@ -197,7 +260,6 @@ public class EnumTrianglesOpt {
 	 *  Assumes that input edges share the first vertex and are in ascending order of the second vertex.
 	 */
 	private static class TriadBuilder extends GroupReduceFunction<Edge, Triad> {
-		private static final long serialVersionUID = 1L;
 		
 		private final List<Integer> vertices = new ArrayList<Integer>();
 		private final Triad outTriad = new Triad();
@@ -228,11 +290,8 @@ public class EnumTrianglesOpt {
 		}
 	}
 	
-	/**
-	 *  Filters triads (three vertices connected by two edges) without a closing third edge.
-	 */
+	/** Filters triads (three vertices connected by two edges) without a closing third edge. */
 	private static class TriadFilter extends JoinFunction<Triad, Edge, Triad> {
-		private static final long serialVersionUID = 1L;
 		
 		@Override
 		public Triad join(Triad triad, Edge edge) throws Exception {
@@ -240,60 +299,43 @@ public class EnumTrianglesOpt {
 		}
 	}
 	
-	public static void main(String[] args) throws Exception {
-		
-		String edgePath = "TESTDATA";
-		String outPath = "STDOUT";
-		
-		// parse input arguments
-		if(args.length > 0) {
-			edgePath = args[0];
-		}
-		if(args.length > 1) {
-			outPath = args[1];
-		}
-		
-		// set up execution environment
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+	// *************************************************************************
+	//     UTIL METHODS
+	// *************************************************************************
 	
-		// read input data
-		DataSet<Edge> edges;
-		if(edgePath.equals("TESTDATA")) {
-			edges = EdgeData.getDefaultEdgeDataSet(env);
+	private static boolean fileOutput = false;
+	private static String edgePath = null;
+	private static String outputPath = null;
+	
+	private static void parseParameters(String[] args) {
+		
+		if(args.length > 0) {
+			// parse input arguments
+			fileOutput = true;
+			if(args.length == 2) {
+				edgePath = args[0];
+				outputPath = args[1];
+			} else {
+				System.err.println("Usage: EnumTriangleBasic <edge path> <result path>");
+				System.exit(1);
+			}
 		} else {
-			edges = env.readCsvFile(edgePath)
-				.fieldDelimiter(',')
-				.includeFields(true, true)
-				.types(Integer.class, Integer.class)
-				.map(new TupleEdgeConverter());
+			System.out.println("Executing Enum Triangles Opt example with built-in default data.");
+			System.out.println("  Provide parameters to read input data from files.");
+			System.out.println("  Usage: EnumTriangleBasic <edge path> <result path>");
 		}
-		
-		// annotate edges with degrees
-		DataSet<EdgeWithDegrees> edgesWithDegrees = edges
-				.flatMap(new EdgeDuplicator())
-				.groupBy(Edge.V1).sortGroup(Edge.V2, Order.ASCENDING).reduceGroup(new DegreeCounter())
-				.groupBy(EdgeWithDegrees.V1,EdgeWithDegrees.V2).reduce(new DegreeJoiner());
-		
-		// project edges by degrees
-		DataSet<Edge> edgesByDegree = edgesWithDegrees
-				.map(new EdgeByDegreeProjector());
-		// project edges by vertex id
-		DataSet<Edge> edgesById = edgesByDegree
-				.map(new EdgeByIdProjector());
-		
-		// build and filter triads
-		DataSet<Triad> triangles = edgesByDegree
-				.groupBy(Edge.V1).sortGroup(Edge.V2, Order.ASCENDING).reduceGroup(new TriadBuilder())
-				.join(edgesById).where(Triad.V2,Triad.V3).equalTo(Edge.V1,Edge.V2).with(new TriadFilter());
-
-		// emit triangles
-		if(outPath.equals("STDOUT")) {
-			triangles.print();
-		} else {
-			triangles.writeAsCsv(outPath, "\n", ",");
-		}
-		
-		// execute program		
-		env.execute();
 	}
+	
+	private static DataSet<Edge> getEdgeDataSet(ExecutionEnvironment env) {
+		if(fileOutput) {
+			return env.readCsvFile(edgePath)
+						.fieldDelimiter(' ')
+						.includeFields(true, true)
+						.types(Integer.class, Integer.class)
+						.map(new TupleEdgeConverter());
+		} else {
+			return EnumTrianglesData.getDefaultEdgeDataSet(env);
+		}
+	}
+	
 }

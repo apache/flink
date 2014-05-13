@@ -12,14 +12,14 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.example.java.triangles.util;
 
-import eu.stratosphere.api.java.functions.MapFunction;
+package eu.stratosphere.example.java.graph.util;
+
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.api.java.tuple.Tuple4;
 
-public class EdgeDataTypes {
+public class EnumTrianglesDataTypes {
 
 	public static class Edge extends Tuple2<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
@@ -109,18 +109,5 @@ public class EdgeDataTypes {
 		}
 	}
 	
-	
-	public static class TupleEdgeConverter extends MapFunction<Tuple2<Integer, Integer>, Edge> {
-		private static final long serialVersionUID = 1L;
-
-		private final Edge outEdge = new Edge();
-		
-		@Override
-		public Edge map(Tuple2<Integer, Integer> t) throws Exception {
-			outEdge.copyVerticesFromTuple2(t);
-			return outEdge;
-		}
-		
-	}
 	
 }

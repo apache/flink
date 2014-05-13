@@ -19,48 +19,63 @@ import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.aggregation.Aggregations;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.example.java.wordcount.util.WordCountData;
 import eu.stratosphere.util.Collector;
 
 /**
  * Implements a the "WordCount" program that computes a simple word occurrence histogram
- * over text files. The histogram is written back to disk as '(word, count)' pairs.
+ * over text files. 
+ * 
+ * <p>
+ * The input are plain text files.
+ * 
+ * <p>
+ * This example shows how to:
+ * <ul>
+ * <li>write a simple Stratosphere program.
+ * <li>use Tuple data types.
+ * <li>write and use user-defined functions. 
+ * </ul>
+ * 
  */
 @SuppressWarnings("serial")
 public class WordCount {
 	
-	/**
-	 * Runs the WordCount program. Accepts parameters: <input file path> <result file path>.
-	 * Paths must be qualified URIs, i.e., start with "file://..." or "hdfs://...".
-	 * 
-	 * @param args Parameters defining the input and output path.
-	 */
+	// *************************************************************************
+	//     PROGRAM
+	// *************************************************************************
+	
 	public static void main(String[] args) throws Exception {
-		if (args.length < 2) {
-			System.err.println("Usage: WordCount <input path> <result path>");
-			return;
-		}
 		
-		final String inputPath = args[0];
-		final String outputPath = args[1];
+		parseParameters(args);
 		
-		// get the environment as starting point
+		// set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
-		// read the text file from given input path
-		DataSet<String> text = env.readTextFile(inputPath);
+		// get input data
+		DataSet<String> text = getTextDataSet(env);
 		
-		// split up the lines in pairs (2-tuples) containing: (word,1)
-		DataSet<Tuple2<String, Integer>> words = text.flatMap(new Tokenizer());
+		DataSet<Tuple2<String, Integer>> counts = 
+				// split up the lines in pairs (2-tuples) containing: (word,1)
+				text.flatMap(new Tokenizer())
+				// group by the tuple field "0" and sum up tuple field "1"
+				.groupBy(0)
+				.aggregate(Aggregations.SUM, 1);
+
+		// emit result
+		if(fileOutput) {
+			counts.writeAsCsv(outputPath, "\n", " ");
+		} else {
+			counts.print();
+		}
 		
-		// group by the tuple field "0" and sum up tuple field "1"
-		DataSet<Tuple2<String, Integer>> result = words.groupBy(0).aggregate(Aggregations.SUM, 1);
-		
-		// write out the result
-		result.writeAsText(outputPath);
-		
-		// execute the defined program
-		env.execute("Word Count");
+		// execute program
+		env.execute("WordCount Example");
 	}
+	
+	// *************************************************************************
+	//     USER FUNCTIONS
+	// *************************************************************************
 	
 	/**
 	 * Implements the string tokenizer that splits sentences into words as a user-defined
@@ -80,6 +95,43 @@ public class WordCount {
 					out.collect(new Tuple2<String, Integer>(token, 1));
 				}
 			}
+		}
+	}
+	
+	// *************************************************************************
+	//     UTIL METHODS
+	// *************************************************************************
+	
+	private static boolean fileOutput = false;
+	private static String textPath;
+	private static String outputPath;
+	
+	private static void parseParameters(String[] args) {
+		
+		if(args.length > 0) {
+			// parse input arguments
+			fileOutput = true;
+			if(args.length == 2) {
+				textPath = args[0];
+				outputPath = args[1];
+			} else {
+				System.err.println("Usage: WordCount <text path> <result path>");
+				System.exit(1);
+			}
+		} else {
+			System.out.println("Executing WordCount example with built-in default data.");
+			System.out.println("  Provide parameters to read input data from a file.");
+			System.out.println("  Usage: WordCount <text path> <result path>");
+		}
+	}
+	
+	private static DataSet<String> getTextDataSet(ExecutionEnvironment env) {
+		if(fileOutput) {
+			// read the text file from given input path
+			return env.readTextFile(textPath);
+		} else {
+			// get default test text data
+			return WordCountData.getDefaultTextLineDataSet(env);
 		}
 	}
 }
