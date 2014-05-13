@@ -144,6 +144,10 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			
 			// set input
 			po.setInput(input);
+			//set semantic properties
+			if (this.getSematicProperties() != null) {
+				po.setSemanticProperties(this.getSematicProperties());
+			}
 			// set dop
 			po.setDegreeOfParallelism(this.getParallelism());
 			

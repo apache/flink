@@ -74,6 +74,11 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		if (grouper == null) {
 			// non grouped reduce
 			PlanReduceOperator<IN> po = new PlanReduceOperator<IN>(function, new int[0], name, getInputType());
+			//set semantic properties
+			if (this.getSematicProperties() != null) {
+				po.setSemanticProperties(this.getSematicProperties());
+			}
+			// set input
 			po.setInput(input);
 			
 			// the degree of parallelism for a non grouped reduce can only be 1
