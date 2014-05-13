@@ -179,7 +179,7 @@ public class FunctionAnnotation {
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ConstantFieldsExcept {
-		String[] value();
+		String value();
 	}
 	
 	/**
@@ -211,7 +211,7 @@ public class FunctionAnnotation {
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ConstantFieldsFirstExcept {
-		String[] value();
+		String value();
 	}
 	
 	
@@ -244,7 +244,7 @@ public class FunctionAnnotation {
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ConstantFieldsSecondExcept {
-		String[] value();
+		String value();
 	}
 	
 	/**
@@ -255,7 +255,7 @@ public class FunctionAnnotation {
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ReadFields {
-		String[] value();
+		String value();
 	}
 	
 	/**
@@ -266,7 +266,7 @@ public class FunctionAnnotation {
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ReadFieldsSecond {
-		String[] value();
+		String value();
 	}
 	
 	/**
@@ -277,7 +277,7 @@ public class FunctionAnnotation {
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ReadFieldsFirst {
-		String[] value();
+		String value();
 	}
 	/**
 	 * Private constructor to prevent instantiation. This class is intended only as a container.
