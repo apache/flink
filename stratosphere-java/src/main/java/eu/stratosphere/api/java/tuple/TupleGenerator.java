@@ -385,7 +385,7 @@ class TupleGenerator {
 	private static void modifyTupleTypeInfo(File root) throws IOException {
 		// generate code
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tprivate static final Class<?>[] CLASSES = new Class<?>[] {\n\t");
+		sb.append("\tprivate static final Class<?>[] CLASSES = new Class<?>[] {\n\t\t");
 		for (int i = FIRST; i <= LAST; i++) {
 			if (i > FIRST) {
 				sb.append(", ");

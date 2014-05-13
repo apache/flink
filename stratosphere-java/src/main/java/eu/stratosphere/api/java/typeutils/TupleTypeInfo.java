@@ -23,13 +23,27 @@ import eu.stratosphere.api.java.tuple.*;
 //CHECKSTYLE.ON: AvoidStarImport
 import eu.stratosphere.api.java.typeutils.runtime.TupleComparator;
 import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
-import eu.stratosphere.api.java.typeutils.runtime.TupleSingleFieldComparator;
+import eu.stratosphere.api.java.typeutils.runtime.TupleLeadingFieldComparator;
 
 
 public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implements CompositeType<T> {
 	
 	private final TypeInformation<?>[] types;
+	
 	private final Class<T> tupleType;
+	
+	
+	public TupleTypeInfo(TypeInformation<?>... types) {
+		if (types == null || types.length == 0 || types.length > Tuple.MAX_ARITY) {
+			throw new IllegalArgumentException();
+		}
+
+		@SuppressWarnings("unchecked")
+		Class<T> typeClass = (Class<T>) CLASSES[types.length - 1];
+		
+		this.types = types;
+		this.tupleType = typeClass;
+	}
 	
 	public TupleTypeInfo(Class<T> tupleType, TypeInformation<?>... types) {
 		if (types == null || types.length == 0 || types.length > Tuple.MAX_ARITY) {
@@ -40,9 +54,6 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 		this.types = types;
 	}
 	
-	public TupleTypeInfo(TypeInformation<?>... types) {
-		this(null, types);
-	}
 	
 	@Override
 	public boolean isBasicType() {
@@ -61,14 +72,7 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 
 	@Override
 	public Class<T> getTypeClass() {
-		
-		if(tupleType != null) {
-			return tupleType;
-		} else {
-			@SuppressWarnings("unchecked")
-			Class<T> tc = (Class<T>) CLASSES[getArity() - 1];
-			return tc;
-		}
+		return tupleType;
 	}
 
 	
@@ -88,7 +92,7 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 	}
 	
 	@Override
-	public TypeSerializer<T> createSerializer() {
+	public TupleSerializer<T> createSerializer() {
 		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[getArity()];
 		for (int i = 0; i < types.length; i++) {
 			fieldSerializers[i] = types[i].createSerializer();
@@ -108,8 +112,8 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 			throw new IllegalArgumentException();
 		}
 		
-		if (logicalKeyFields.length == 1) {
-			return createSinglefieldComparator(logicalKeyFields[0], orders[0], types[logicalKeyFields[0]]);
+		if (logicalKeyFields.length == 1 && logicalKeyFields[0] == 0) {
+			return createLeadingFieldComparator(orders[0], types[0]);
 		}
 				
 		int maxKey = logicalKeyFields[0];
@@ -208,23 +212,23 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 	
 	// --------------------------------------------------------------------------------------------	
 	// The following lines are generated.
-	// --------------------------------------------------------------------------------------------	
+	// --------------------------------------------------------------------------------------------
+	
 	// BEGIN_OF_TUPLE_DEPENDENT_CODE	
 	// GENERATED FROM eu.stratosphere.api.java.tuple.TupleGenerator.
 	private static final Class<?>[] CLASSES = new Class<?>[] {
-	Tuple1.class, Tuple2.class, Tuple3.class, Tuple4.class, Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class, Tuple9.class, Tuple10.class, Tuple11.class, Tuple12.class, Tuple13.class, Tuple14.class, Tuple15.class, Tuple16.class, Tuple17.class, Tuple18.class, Tuple19.class, Tuple20.class, Tuple21.class, Tuple22.class, Tuple23.class, Tuple24.class, Tuple25.class
+		Tuple1.class, Tuple2.class, Tuple3.class, Tuple4.class, Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class, Tuple9.class, Tuple10.class, Tuple11.class, Tuple12.class, Tuple13.class, Tuple14.class, Tuple15.class, Tuple16.class, Tuple17.class, Tuple18.class, Tuple19.class, Tuple20.class, Tuple21.class, Tuple22.class, Tuple23.class, Tuple24.class, Tuple25.class
 	};
 	// END_OF_TUPLE_DEPENDENT_CODE
 	
 	
-	private static final <T extends Tuple, K> TypeComparator<T> createSinglefieldComparator(int pos, boolean ascending, TypeInformation<?> info) {
+	private static final <T extends Tuple, K> TypeComparator<T> createLeadingFieldComparator(boolean ascending, TypeInformation<?> info) {
 		if (!(info.isKeyType() && info instanceof AtomicType)) {
-			throw new IllegalArgumentException("The field at position " + pos + " (" + info + ") is no atomic key type.");
+			throw new IllegalArgumentException("The field at position 0 (" + info + ") is no atomic key type.");
 		}
-		
 		
 		@SuppressWarnings("unchecked")
 		AtomicType<K> typedInfo = (AtomicType<K>) info;
-		return new TupleSingleFieldComparator<T, K>(pos, typedInfo.createComparator(ascending));
+		return new TupleLeadingFieldComparator<T, K>(typedInfo.createComparator(ascending));
 	}
 }
