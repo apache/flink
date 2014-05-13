@@ -217,6 +217,10 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				// set inputs
 				po.setFirstInput(input1);
 				po.setSecondInput(input2);
+				//set semantic properties
+				if (this.getSematicProperties() != null) {
+					po.setSemanticProperties(this.getSematicProperties());
+				}
 				// set dop
 				po.setDegreeOfParallelism(this.getParallelism());
 				

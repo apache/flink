@@ -43,6 +43,42 @@ public class SemanticPropUtilTest {
         Assert.assertTrue(fs.contains(3));
     }
 
+	@Test
+    public void testSimpleCaseWildCard() {
+        String[] constantFields = {"*"};
+
+        TypeInformation<?> type = new TupleTypeInfo<Tuple3<Integer, Integer, Integer>>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
+        SingleInputSemanticProperties sp = SemanticPropUtil.getSemanticPropsSingleFromString(constantFields, null, null,type, type);
+
+        FieldSet fs = sp.getForwardedField(1);
+        Assert.assertTrue(fs.size() == 1);
+        Assert.assertTrue(fs.contains(1));
+
+        fs = sp.getForwardedField(2);
+        Assert.assertTrue(fs.size() == 1);
+        Assert.assertTrue(fs.contains(2));
+
+        fs = sp.getForwardedField(0);
+        Assert.assertTrue(fs.size() == 1);
+        Assert.assertTrue(fs.contains(0));
+    }
+
+	@Test
+	public void testSimpleCaseWildCard2() {
+		String[] constantFields = {"1->*"};
+
+		TypeInformation<?> type = new TupleTypeInfo<Tuple3<Integer, Integer, Integer>>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
+		SingleInputSemanticProperties sp = SemanticPropUtil.getSemanticPropsSingleFromString(constantFields, null, null,type, type);
+
+		FieldSet fs = sp.getForwardedField(1);
+		Assert.assertTrue(fs.size() == 3);
+		Assert.assertTrue(fs.contains(0));
+		Assert.assertTrue(fs.contains(1));
+		Assert.assertTrue(fs.contains(2));
+		Assert.assertTrue(sp.getForwardedField(0) == null);
+		Assert.assertTrue(sp.getForwardedField(2) == null);
+	}
+
     @Test
     public void testConstantFieldsExcept() {
         String constantFieldsExcept = "1";

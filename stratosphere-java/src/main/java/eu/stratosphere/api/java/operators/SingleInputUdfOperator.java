@@ -20,15 +20,16 @@ import java.util.Map;
 
 import eu.stratosphere.api.common.operators.SingleInputSemanticProperties;
 import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.functions.SemanticPropUtil;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.configuration.Configuration;
 
 /**
- * The <tt>SingleInputUdfOperator</tt> is the base class of all unary operators that execute 
+ * The <tt>SingleInputUdfOperator</tt> is the base class of all unary operators that execute
  * user-defined functions (UDFs). The UDFs encapsulated by this operator are naturally UDFs that
  * have one input (such as {@link MapFunction} or {@link ReduceFunction}).
  * <p>
- * This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization 
+ * This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization
  * through configuration objects, and semantic properties.
  * @param <IN> The data type of the input data set.
  * @param <OUT> The data type of the returned data set.
@@ -37,77 +38,83 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	extends SingleInputOperator<IN, OUT, O> implements UdfOperator<O>
 {
 	private Configuration parameters;
-	
+
 	private Map<String, DataSet<?>> broadcastVariables;
-	
+
 	private SingleInputSemanticProperties udfSemantics;
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Creates a new operators with the given data set as input. The given result type
-	 * describes the data type of the elements in the data set produced by the operator. 
-	 * 
+	 * describes the data type of the elements in the data set produced by the operator.
+	 *
 	 * @param input The data set that is the input to the operator.
 	 * @param resultType The type of the elements in the resulting data set.
 	 */
 	protected SingleInputUdfOperator(DataSet<IN> input, TypeInformation<OUT> resultType) {
 		super(input, resultType);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Fluent API methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public O withParameters(Configuration parameters) {
 		this.parameters = parameters;
-		
+
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;
 	}
-	
+
 	@Override
 	public O withBroadcastSet(DataSet<?> data, String name) {
 		if (this.broadcastVariables == null) {
 			this.broadcastVariables = new HashMap<String, DataSet<?>>();
 		}
-		
+
 		this.broadcastVariables.put(name, data);
-		
+
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;
 	}
-	
-	
+
+	public O withProperties(String[] constantSet, String constantSetExcept, String readSet) {
+		SingleInputSemanticProperties props = SemanticPropUtil.getSemanticPropsSingleFromString(constantSet, constantSetExcept, readSet, this.getInputType(), this.getResultType());
+		this.setSemanticProperties(props);
+		O returnType = (O) this;
+		return returnType;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Accessors
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public Map<String, DataSet<?>> getBroadcastSets() {
 		return this.broadcastVariables == null ?
 				Collections.<String, DataSet<?>>emptyMap() :
 				Collections.unmodifiableMap(this.broadcastVariables);
 	}
-	
+
 	@Override
 	public Configuration getParameters() {
 		return this.parameters;
 	}
-	
+
 	@Override
 	public SingleInputSemanticProperties getSematicProperties() {
 		return this.udfSemantics;
 	}
-	
+
 	/**
 	 * Sets the semantic properties for the user-defined function (UDF). The semantic properties
 	 * define how fields of tuples and other objects are modified or preserved through this UDF.
 	 * The configured properties can be retrieved via {@link UdfOperator#getSematicProperties()}.
-	 * 
+	 *
 	 * @param properties The semantic properties for the UDF.
 	 * @see UdfOperator#getSematicProperties()
 	 */
