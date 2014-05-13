@@ -29,7 +29,6 @@ import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.apache.hadoop.mapred.TaskAttemptID;
 
-
 public class HadoopUtils {
 	
 	/**

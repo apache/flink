@@ -24,6 +24,7 @@ import java.io.IOException;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.io.WritableFactories;
 import org.apache.hadoop.mapred.JobConf;
 
@@ -35,33 +36,31 @@ public class HadoopInputSplit implements InputSplit {
 	
 	private transient org.apache.hadoop.mapred.InputSplit hadoopInputSplit;
 	
-	@SuppressWarnings("unused")
 	private JobConf jobConf;
 	
 	private int splitNumber;
 	private String hadoopInputSplitTypeName;
-	
-	
+
+
 	public org.apache.hadoop.mapred.InputSplit getHadoopInputSplit() {
 		return hadoopInputSplit;
 	}
-	
-	
+
 	public HadoopInputSplit() {
 		super();
 	}
-	
-	
+
 	public HadoopInputSplit(org.apache.hadoop.mapred.InputSplit hInputSplit, JobConf jobconf) {
 		this.hadoopInputSplit = hInputSplit;
 		this.hadoopInputSplitTypeName = hInputSplit.getClass().getName();
 		this.jobConf = jobconf;
 	}
-	
+
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		out.writeInt(splitNumber);
 		out.writeUTF(hadoopInputSplitTypeName);
+		jobConf.write(out);
 		hadoopInputSplit.write(out);
 	}
 
@@ -71,7 +70,7 @@ public class HadoopInputSplit implements InputSplit {
 		this.hadoopInputSplitTypeName = in.readUTF();
 		if(hadoopInputSplit == null) {
 			try {
-				Class<? extends org.apache.hadoop.io.Writable> inputSplit = 
+				Class<? extends org.apache.hadoop.io.Writable> inputSplit =
 						Class.forName(hadoopInputSplitTypeName).asSubclass(org.apache.hadoop.io.Writable.class);
 				this.hadoopInputSplit = (org.apache.hadoop.mapred.InputSplit) WritableFactories.newInstance( inputSplit );
 			}
@@ -79,7 +78,13 @@ public class HadoopInputSplit implements InputSplit {
 				throw new RuntimeException("Unable to create InputSplit", e);
 			}
 		}
+		jobConf = new JobConf();
+		jobConf.readFields(in);
+		if (this.hadoopInputSplit instanceof Configurable) {
+			((Configurable) this.hadoopInputSplit).setConf(this.jobConf);
+		}
 		this.hadoopInputSplit.readFields(in);
+
 	}
 
 	@Override
@@ -90,7 +95,7 @@ public class HadoopInputSplit implements InputSplit {
 	public void setSplitNumber(int splitNumber) {
 		this.splitNumber = splitNumber;
 	}
-	
+
 	public void setHadoopInputSplit(
 			org.apache.hadoop.mapred.InputSplit hadoopInputSplit) {
 		this.hadoopInputSplit = hadoopInputSplit;
