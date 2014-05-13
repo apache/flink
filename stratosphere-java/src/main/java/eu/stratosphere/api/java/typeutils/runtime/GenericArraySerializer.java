@@ -33,6 +33,8 @@ public class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	
 	private final TypeSerializer<C> componentSerializer;
 	
+	private final C[] EMPTY;
+	
 	
 	
 	public GenericArraySerializer(Class<C> componentClass, TypeSerializer<C> componentSerializer) {
@@ -42,6 +44,7 @@ public class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 		
 		this.componentClass = componentClass;
 		this.componentSerializer = componentSerializer;
+		this.EMPTY = create(0);
 	}
 	
 	@Override
@@ -57,17 +60,18 @@ public class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	
 	@Override
 	public C[] createInstance() {
-		return create(0);
+		return EMPTY;
 	}
 
 	@Override
 	public C[] copy(C[] from, C[] reuse) {
-		if (reuse.length != from.length) {
-			reuse = create(from.length);
+		C[] copy = create(from.length);
+
+		for (int i = 0; i < copy.length; i++) {
+			copy[i] = this.componentSerializer.copy(from[i], this.componentSerializer.createInstance());
 		}
-		
-		System.arraycopy(from, 0, reuse, 0, from.length);
-		return reuse;
+
+		return copy;
 	}
 
 	@Override
