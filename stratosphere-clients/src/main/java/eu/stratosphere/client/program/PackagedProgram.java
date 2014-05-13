@@ -374,6 +374,8 @@ public class PackagedProgram {
 			Throwable exceptionInMethod = e.getTargetException();
 			if (exceptionInMethod instanceof Error) {
 				throw (Error) exceptionInMethod;
+			} else if (exceptionInMethod instanceof ProgramInvocationException) {
+				throw (ProgramInvocationException) exceptionInMethod;
 			} else {
 				throw new ProgramInvocationException("The main method caused an error.", exceptionInMethod);
 			}
