@@ -68,7 +68,7 @@ public class Client {
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator(), jobManagerAddress);
 		
 		//  Disable Local Execution when using a Client
-		ExecutionEnvironment.disableLocalExecution();
+		ContextEnvironment.disableLocalExecution();
 	}
 
 	/**
@@ -95,7 +95,7 @@ public class Client {
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator(), jobManagerAddress);
 		
 		//  Disable Local Execution when using a Client
-		ExecutionEnvironment.disableLocalExecution();
+		ContextEnvironment.disableLocalExecution();
 	}
 	
 	public void setPrintStatusDuringExecution(boolean print) {

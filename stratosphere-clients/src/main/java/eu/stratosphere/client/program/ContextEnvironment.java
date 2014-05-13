@@ -65,4 +65,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	public void setAsContext() {
 		initializeContextEnvironment(this);
 	}
+	
+	protected static void disableLocalExecution() {
+		ExecutionEnvironment.disableLocalExecution();
+	}
 }
