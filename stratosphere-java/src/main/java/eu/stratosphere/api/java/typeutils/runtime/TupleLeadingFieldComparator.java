@@ -114,7 +114,7 @@ public final class TupleLeadingFieldComparator<T extends Tuple, K> extends TypeC
 
 	@Override
 	public TypeComparator<T> duplicate() {
-		return new TupleLeadingFieldComparator<T, K>(comparator);
+		return new TupleLeadingFieldComparator<T, K>(comparator.duplicate());
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -45,9 +45,9 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
 
-public class UnilateralSortMergerITCase {
+public class ExternalSortITCase {
 	
-	private static final Log LOG = LogFactory.getLog(UnilateralSortMergerITCase.class);
+	private static final Log LOG = LogFactory.getLog(ExternalSortITCase.class);
 
 	private static final long SEED = 649180756312423613L;
 
@@ -238,7 +238,7 @@ public class UnilateralSortMergerITCase {
 		merger.close();
 	}
 
-//	@Test
+	@Test
 	public void testSpillingSortWithIntermediateMerge() throws Exception {
 		// amount of pairs
 		final int PAIRS = 10000000;
@@ -292,7 +292,7 @@ public class UnilateralSortMergerITCase {
 		merger.close();
 	}
 	
-//	@Test
+	@Test
 	public void testSpillingSortWithIntermediateMergeIntPair() throws Exception {
 		// amount of pairs
 		final int PAIRS = 50000000;
