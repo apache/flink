@@ -14,11 +14,12 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils.runtime.tuple.base;
 
+import eu.stratosphere.api.common.typeutils.TypePairComparator;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.api.java.typeutils.runtime.TuplePairComparator;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
 import org.junit.Test;
 
 /**
@@ -29,14 +30,14 @@ import org.junit.Test;
  */
 public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tuple> {
 
-	protected abstract TuplePairComparator<T, R> createComparator(boolean ascending);
+	protected abstract TypePairComparator<T, R> createComparator(boolean ascending);
 
 	protected abstract Tuple2<T[], R[]> getSortedTestData();
 
 	@Test
 	public void testEqualityWithReference() {
 		try {
-			TuplePairComparator<T, R> comparator = getComparator(true);
+			TypePairComparator<T, R> comparator = getComparator(true);
 			Tuple2<T[], R[]> data = getSortedData();
 			for (int x = 0; x < data.f0.length; x++) {
 				comparator.setReference(data.f0[x]);
@@ -60,7 +61,7 @@ public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tup
 		try {
 			Tuple2<T[], R[]> data = getSortedData();
 
-			TuplePairComparator<T, R> comparator = getComparator(ascending);
+			TypePairComparator<T, R> comparator = getComparator(ascending);
 
 			//compares every element in high with every element in low
 			for (int x = 0; x < data.f0.length - 1; x++) {
@@ -81,8 +82,8 @@ public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tup
 	}
 
 	// --------------------------------------------------------------------------------------------
-	protected TuplePairComparator<T, R> getComparator(boolean ascending) {
-		TuplePairComparator<T, R> comparator = createComparator(ascending);
+	protected TypePairComparator<T, R> getComparator(boolean ascending) {
+		TypePairComparator<T, R> comparator = createComparator(ascending);
 		if (comparator == null) {
 			throw new RuntimeException("Test case corrupt. Returns null as comparator.");
 		}

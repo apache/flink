@@ -14,55 +14,43 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils.runtime;
 
-import eu.stratosphere.api.common.typeutils.TypeComparator;
-import eu.stratosphere.api.common.typeutils.base.DoubleComparator;
+import eu.stratosphere.api.common.typeutils.TypePairComparator;
 import eu.stratosphere.api.common.typeutils.base.IntComparator;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.api.java.tuple.Tuple4;
 import eu.stratosphere.api.java.typeutils.runtime.tuple.base.TuplePairComparatorTestBase;
 
-public class TuplePairComparatorTest extends TuplePairComparatorTestBase<Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>> {
+public class TupleLeadingFieldPairComparatorTest extends TuplePairComparatorTestBase<Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>> {
 
 	@SuppressWarnings("unchecked")
 	private Tuple3<Integer, String, Double>[] dataISD = new Tuple3[]{
 		new Tuple3<Integer, String, Double>(4, "hello", 20.0),
-		new Tuple3<Integer, String, Double>(4, "world", 23.2),
-		new Tuple3<Integer, String, Double>(5, "hello", 18.0),
-		new Tuple3<Integer, String, Double>(5, "world", 19.2),
-		new Tuple3<Integer, String, Double>(6, "hello", 16.0),
-		new Tuple3<Integer, String, Double>(6, "world", 17.2),
-		new Tuple3<Integer, String, Double>(7, "hello", 14.0),
-		new Tuple3<Integer, String, Double>(7, "world", 15.2)
+		new Tuple3<Integer, String, Double>(5, "world", 23.2),
+		new Tuple3<Integer, String, Double>(6, "hello", 18.0),
+		new Tuple3<Integer, String, Double>(7, "world", 19.2),
+		new Tuple3<Integer, String, Double>(8, "hello", 16.0),
+		new Tuple3<Integer, String, Double>(9, "world", 17.2),
+		new Tuple3<Integer, String, Double>(10, "hello", 14.0),
+		new Tuple3<Integer, String, Double>(11, "world", 15.2)
 	};
 
 	@SuppressWarnings("unchecked")
 	private Tuple4<Integer, Float, Long, Double>[] dataIDL = new Tuple4[]{
 		new Tuple4<Integer, Float, Long, Double>(4, 0.11f, 14L, 20.0),
-		new Tuple4<Integer, Float, Long, Double>(4, 0.221f, 15L, 23.2),
-		new Tuple4<Integer, Float, Long, Double>(5, 0.33f, 15L, 18.0),
-		new Tuple4<Integer, Float, Long, Double>(5, 0.44f, 20L, 19.2),
-		new Tuple4<Integer, Float, Long, Double>(6, 0.55f, 20L, 16.0),
-		new Tuple4<Integer, Float, Long, Double>(6, 0.66f, 29L, 17.2),
-		new Tuple4<Integer, Float, Long, Double>(7, 0.77f, 29L, 14.0),
-		new Tuple4<Integer, Float, Long, Double>(7, 0.88f, 34L, 15.2)
+		new Tuple4<Integer, Float, Long, Double>(5, 0.221f, 15L, 23.2),
+		new Tuple4<Integer, Float, Long, Double>(6, 0.33f, 15L, 18.0),
+		new Tuple4<Integer, Float, Long, Double>(7, 0.44f, 20L, 19.2),
+		new Tuple4<Integer, Float, Long, Double>(8, 0.55f, 20L, 16.0),
+		new Tuple4<Integer, Float, Long, Double>(9, 0.66f, 29L, 17.2),
+		new Tuple4<Integer, Float, Long, Double>(10, 0.77f, 29L, 14.0),
+		new Tuple4<Integer, Float, Long, Double>(11, 0.88f, 34L, 15.2)
 	};
 
-	@SuppressWarnings("unchecked")
 	@Override
-	protected TuplePairComparator<Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>> createComparator(boolean ascending) {
-		return new TuplePairComparator<Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>>(
-				new int[]{0, 2},
-				new int[]{0, 3},
-				new TypeComparator[]{
-					new IntComparator(ascending),
-					new DoubleComparator(ascending)
-				},
-				new TypeComparator[]{
-					new IntComparator(ascending),
-					new DoubleComparator(ascending)
-				}
-		);
+	protected TypePairComparator<Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>> createComparator(boolean ascending) {
+		return new TupleLeadingFieldPairComparator<Integer, Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>>(
+				new IntComparator(ascending), new IntComparator(ascending));
 	}
 
 	@Override
