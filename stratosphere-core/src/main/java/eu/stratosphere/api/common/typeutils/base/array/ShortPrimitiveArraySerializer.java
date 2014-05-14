@@ -29,6 +29,8 @@ public class ShortPrimitiveArraySerializer extends TypeSerializer<short[]>{
 	
 	private static final short[] EMPTY = new short[0];
 
+	public static final ShortPrimitiveArraySerializer INSTANCE = new ShortPrimitiveArraySerializer();
+	
 	
 	@Override
 	public boolean isImmutableType() {

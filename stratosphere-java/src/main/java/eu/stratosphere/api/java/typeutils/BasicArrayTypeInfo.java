@@ -18,12 +18,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.api.common.typeutils.base.array.StringArraySerializer;
 import eu.stratosphere.api.java.functions.InvalidTypesException;
 import eu.stratosphere.api.java.typeutils.runtime.GenericArraySerializer;
 
 public class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 
 	public static final BasicArrayTypeInfo<String[], String> STRING_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<String[], String>(String[].class, BasicTypeInfo.STRING_TYPE_INFO);
+	
 	public static final BasicArrayTypeInfo<Boolean[], Boolean> BOOLEAN_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Boolean[], Boolean>(Boolean[].class, BasicTypeInfo.BOOLEAN_TYPE_INFO);
 	public static final BasicArrayTypeInfo<Byte[], Byte> BYTE_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Byte[], Byte>(Byte[].class, BasicTypeInfo.BYTE_TYPE_INFO);
 	public static final BasicArrayTypeInfo<Short[], Short> SHORT_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Short[], Short>(Short[].class, BasicTypeInfo.SHORT_TYPE_INFO);
@@ -32,7 +34,7 @@ public class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 	public static final BasicArrayTypeInfo<Float[], Float> FLOAT_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Float[], Float>(Float[].class, BasicTypeInfo.FLOAT_TYPE_INFO);
 	public static final BasicArrayTypeInfo<Double[], Double> DOUBLE_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Double[], Double>(Double[].class, BasicTypeInfo.DOUBLE_TYPE_INFO);
 	public static final BasicArrayTypeInfo<Character[], Character> CHAR_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Character[], Character>(Character[].class, BasicTypeInfo.CHAR_TYPE_INFO);
-
+	
 	// --------------------------------------------------------------------------------------------
 
 	private final Class<T> arrayClass;
@@ -84,7 +86,12 @@ public class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 	@Override
 	@SuppressWarnings("unchecked")
 	public TypeSerializer<T> createSerializer() {
-		return (TypeSerializer<T>) new GenericArraySerializer<C>(this.componentClass, this.componentInfo.createSerializer());
+		// special case the string array
+		if (componentClass.equals(String.class)) {
+			return (TypeSerializer<T>) StringArraySerializer.INSTANCE;
+		} else {
+			return (TypeSerializer<T>) new GenericArraySerializer<C>(this.componentClass, this.componentInfo.createSerializer());
+		}
 	}
 	
 	@Override
@@ -101,11 +108,7 @@ public class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 		}
 
 		// basic type arrays
-		BasicArrayTypeInfo<X, C> info = (BasicArrayTypeInfo<X, C>) TYPES.get(type);
-		if (info == null) {
-			throw new InvalidTypesException("The given array does not contain basic types.");
-		}
-		return info;
+		return (BasicArrayTypeInfo<X, C>) TYPES.get(type);
 	}
 
 	private static final Map<Class<?>, BasicArrayTypeInfo<?, ?>> TYPES = new HashMap<Class<?>, BasicArrayTypeInfo<?, ?>>();
@@ -120,13 +123,5 @@ public class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 		TYPES.put(Float[].class, FLOAT_ARRAY_TYPE_INFO);
 		TYPES.put(Double[].class, DOUBLE_ARRAY_TYPE_INFO);
 		TYPES.put(Character[].class, CHAR_ARRAY_TYPE_INFO);
-		TYPES.put(boolean[].class, BOOLEAN_ARRAY_TYPE_INFO);
-		TYPES.put(byte[].class, BYTE_ARRAY_TYPE_INFO);
-		TYPES.put(short[].class, SHORT_ARRAY_TYPE_INFO);
-		TYPES.put(int[].class, INT_ARRAY_TYPE_INFO);
-		TYPES.put(long[].class, LONG_ARRAY_TYPE_INFO);
-		TYPES.put(float[].class, FLOAT_ARRAY_TYPE_INFO);
-		TYPES.put(double[].class, DOUBLE_ARRAY_TYPE_INFO);
-		TYPES.put(char[].class, CHAR_ARRAY_TYPE_INFO);
 	}
 }

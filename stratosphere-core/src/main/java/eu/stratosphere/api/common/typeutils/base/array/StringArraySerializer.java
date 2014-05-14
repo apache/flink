@@ -30,7 +30,9 @@ public class StringArraySerializer extends TypeSerializer<String[]>{
 	private static final long serialVersionUID = 1L;
 	
 	private static final String[] EMPTY = new String[0];
-
+	
+	public static final StringArraySerializer INSTANCE = new StringArraySerializer();
+	
 	
 	@Override
 	public boolean isImmutableType() {

@@ -547,10 +547,19 @@ public class TypeExtractor {
 		
 		// check for arrays
 		if (clazz.isArray()) {
-			// basic arrays
-			if (BasicTypeInfo.getInfoFor(clazz.getComponentType()) != null) {
-				return BasicArrayTypeInfo.getInfoFor(clazz);
+
+			// primitive arrays: int[], byte[], ...
+			PrimitiveArrayTypeInfo<X> primitiveArrayInfo = PrimitiveArrayTypeInfo.getInfoFor(clazz);
+			if (primitiveArrayInfo != null) {
+				return primitiveArrayInfo;
 			}
+			
+			// basic type arrays: String[], Integer[], Double[]
+			BasicArrayTypeInfo<X, ?> basicArrayInfo = BasicArrayTypeInfo.getInfoFor(clazz);
+			if (basicArrayInfo != null) {
+				return basicArrayInfo;
+			}
+			
 			// object arrays
 			else {
 				return ObjectArrayTypeInfo.getInfoFor(clazz);

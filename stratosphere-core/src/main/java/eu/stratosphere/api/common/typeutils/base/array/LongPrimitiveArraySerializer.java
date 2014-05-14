@@ -29,6 +29,8 @@ public class LongPrimitiveArraySerializer extends TypeSerializer<long[]>{
 	
 	private static final long[] EMPTY = new long[0];
 
+	public static final LongPrimitiveArraySerializer INSTANCE = new LongPrimitiveArraySerializer();
+	
 	
 	@Override
 	public boolean isImmutableType() {

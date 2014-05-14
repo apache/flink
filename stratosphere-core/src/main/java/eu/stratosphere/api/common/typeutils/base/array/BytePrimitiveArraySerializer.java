@@ -29,6 +29,7 @@ public class BytePrimitiveArraySerializer extends TypeSerializer<byte[]>{
 	
 	private static final byte[] EMPTY = new byte[0];
 
+	public static final BytePrimitiveArraySerializer INSTANCE = new BytePrimitiveArraySerializer();
 	
 	@Override
 	public boolean isImmutableType() {

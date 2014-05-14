@@ -29,6 +29,8 @@ public class CharPrimitiveArraySerializer extends TypeSerializer<char[]>{
 	
 	private static final char[] EMPTY = new char[0];
 
+	public static final CharPrimitiveArraySerializer INSTANCE = new CharPrimitiveArraySerializer();
+	
 	
 	@Override
 	public boolean isImmutableType() {

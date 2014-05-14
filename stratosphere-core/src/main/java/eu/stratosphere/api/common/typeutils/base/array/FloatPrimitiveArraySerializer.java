@@ -29,6 +29,8 @@ public class FloatPrimitiveArraySerializer extends TypeSerializer<float[]>{
 	
 	private static final float[] EMPTY = new float[0];
 
+	public static final FloatPrimitiveArraySerializer INSTANCE = new FloatPrimitiveArraySerializer();
+	
 	
 	@Override
 	public boolean isImmutableType() {
