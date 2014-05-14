@@ -13,7 +13,7 @@
 
 package eu.stratosphere.test.cancelling;
 
-import org.junit.Test;
+//import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.GenericDataSink;
@@ -28,7 +28,7 @@ import eu.stratosphere.util.Collector;
 
 public class MapCancelingITCase extends CancellingTestBase {
 	
-	@Test
+//	@Test
 	public void testMapCancelling() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		new InfiniteIntegerInputFormat(), "Source");
@@ -45,7 +45,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		runAndCancelJob(p, 5 * 1000, 10 * 1000);
 	}
 	
-	@Test
+//	@Test
 	public void testSlowMapCancelling() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		new InfiniteIntegerInputFormat(), "Source");
@@ -62,7 +62,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		runAndCancelJob(p, 5 * 1000, 10 * 1000);
 	}
 	
-	@Test
+//	@Test
 	public void testMapWithLongCancellingResponse() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		new InfiniteIntegerInputFormat(), "Source");
@@ -79,7 +79,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		runAndCancelJob(p, 10 * 1000, 10 * 1000);
 	}
 	
-	@Test
+//	@Test
 	public void testMapPriorToFirstRecordReading() throws Exception {
 		GenericDataSource<InfiniteIntegerInputFormat> source = new GenericDataSource<InfiniteIntegerInputFormat>(
 																		new InfiniteIntegerInputFormat(), "Source");
