@@ -32,8 +32,132 @@
 				<version>2.4</version>
 				<executions>
 				
-					<!-- EXAMPLES FOR THE NEW JAVA API -->
+					<!-- KMeans -->
+					<execution>
+						<id>KMeans</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
 
+						<configuration>
+							<classifier>KMeans</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.example.java.clustering.KMeans</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/java/clustering/KMeans.class</include>
+								<include>**/java/clustering/KMeans$*.class</include>
+								<include>**/java/clustering/util/KMeansDataGenerator.class</include>
+								<include>**/java/clustering/util/KMeansData.class</include>
+							</includes>
+						</configuration>
+					</execution>
+					
+					<!-- Connected Components -->
+					<execution>
+						<id>ConnectedComponents</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>ConnectedComponents</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.example.java.graph.ConnectedComponents</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/java/graph/ConnectedComponents.class</include>
+								<include>**/java/graph/ConnectedComponents$*.class</include>
+								<include>**/java/graph/util/ConnectedComponentsData.class</include>
+							</includes>
+						</configuration>
+					</execution>
+					
+					<!-- EnumTriangles Basic -->
+					<execution>
+						<id>EnumTrianglesBasic</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>EnumTrianglesBasic</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.example.java.graph.EnumTrianglesBasic</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/java/graph/EnumTrianglesBasic.class</include>
+								<include>**/java/graph/EnumTrianglesBasic$*.class</include>
+								<include>**/java/graph/util/EnumTrianglesDataTypes.class</include>
+								<include>**/java/graph/util/EnumTrianglesDataTypes$*.class</include>
+								<include>**/java/graph/util/EnumTrianglesData.class</include>
+							</includes>
+						</configuration>
+					</execution>
+					
+					<!-- EnumTriangles Opt -->
+					<execution>
+						<id>EnumTrianglesOpt</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>EnumTrianglesOpt</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.example.java.graph.EnumTrianglesOpt</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/java/graph/EnumTrianglesOpt.class</include>
+								<include>**/java/graph/EnumTrianglesOpt$*.class</include>
+								<include>**/java/graph/util/EnumTrianglesDataTypes.class</include>
+								<include>**/java/graph/util/EnumTrianglesDataTypes$*.class</include>
+								<include>**/java/graph/util/EnumTrianglesData.class</include>
+							</includes>
+						</configuration>
+					</execution>
+					
+					<!-- PageRank Basic-->
+					<execution>
+						<id>PageRankBasic</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>PageRankBasic</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.example.java.graph.PageRankBasic</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/java/graph/PageRankBasic.class</include>
+								<include>**/java/graph/PageRankBasic$*.class</include>
+								<include>**/java/graph/util/PageRankData.class</include>
+							</includes>
+						</configuration>
+					</execution>
+					
 					<!-- TPC-H Query 10 -->
 					<execution>
 						<id>TPCHQuery10</id>
@@ -56,208 +180,7 @@
 						</configuration>
 					</execution>
 				
-				
-					<!-- EXAMPLES FOR THE JAVA RECORD API -->
-
-					<!-- Connected Components -->
-					<execution>
-						<id>ConnectedComponents</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>Record-ConnectedComponents</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.record.connectedcomponents.WorksetConnectedComponents</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>**/record/connectedcomponents/*.class</include>
-							</includes>
-						</configuration>
-					</execution>
-		
-					<!-- PageRank -->
-					<execution>
-						<id>DanglingPageRank</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>Record-DanglingPageRank</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.record.pagerank.DanglingPageRank</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>**/record/pagerank/*.class</include>
-								<include>**/record/util/ConfigUtils.class</include>
-							</includes>
-						</configuration>
-					</execution>
-					
-					<!-- KMeans -->
-					<execution>
-						<id>KMeans</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-
-						<configuration>
-							<classifier>Record-KMeans</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.record.kmeans.KMeans</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>**/record/kmeans/KMeans.class</include>
-								<include>**/record/kmeans/KMeans$*.class</include>
-								<include>**/record/kmeans/KMeansSampleDataGenerator.class</include>
-							</includes>
-						</configuration>
-					</execution>
-					
-					<!-- KMeans with tagged points for the demo -->
-					<execution>
-						<id>KMeansIterative</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-
-						<configuration>
-							<classifier>Record-KMeansIterative</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.record.kmeans.KMeansIterative</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>**/record/kmeans/KMeansIterative.class</include>
-								<include>**/record/kmeans/KMeansSampleDataGenerator.class</include>
-								<include>**/record/kmeans/KMeansIterative$*.class</include>
-								<include>**/record/kmeans/udfs/*.class</include>
-							</includes>
-						</configuration>
-					</execution>
-
-					<!-- Pairwise Shortest Paths -->
-					<execution>
-						<id>PairwiseSP</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>Record-PairwiseSP</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.record.shortestpaths.PairwiseSP</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>**/record/shortestpaths/PairwiseSP.class</include>
-								<include>**/record/shortestpaths/PairwiseSP$*.class</include>
-							</includes>
-						</configuration>
-					</execution>
-
-					<!-- EnumTriangles on pre-computed vertex degrees-->
-					<execution>
-						<id>EnumTrianglesOnEdgesWithDegrees</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>Record-EnumTrianglesOnEdgesWithDegrees</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.record.triangles.EnumTrianglesOnEdgesWithDegrees</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>**/record/triangles/EnumTrianglesWithDegrees.class</include>
-								<include>**/record/triangles/EnumTrianglesWithDegrees$*.class</include>
-								<include>**/record/triangles/ComputeEdgeDegrees.class</include>
-								<include>**/record/triangles/ComputeEdgeDegrees$*.class</include>
-								<include>**/record/triangles/EnumTrianglesOnEdgesWithDegrees.class</include>
-								<include>**/record/triangles/EnumTrianglesOnEdgesWithDegrees$*.class</include>
-								<include>**/record/triangles/io/*.class</include>
-							</includes>
-						</configuration>
-					</execution>
-					
-					<!-- EnumTriangles including Degree Computation-->
-					<execution>
-						<id>EnumTrianglesWithDegrees</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>Record-EnumTrianglesWithDegrees</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.record.triangles.EnumTrianglesWithDegrees</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>**/record/triangles/EnumTrianglesWithDegrees.class</include>
-								<include>**/record/triangles/EnumTrianglesWithDegrees$*.class</include>
-								<include>**/record/triangles/ComputeEdgeDegrees.class</include>
-								<include>**/record/triangles/ComputeEdgeDegrees$*.class</include>
-								<include>**/record/triangles/EnumTrianglesOnEdgesWithDegrees.class</include>
-								<include>**/record/triangles/EnumTrianglesOnEdgesWithDegrees$*.class</include>
-								<include>**/record/triangles/io/*.class</include>
-							</includes>
-						</configuration>
-					</execution>
-					
-					<!-- EnumTrianglesRdfFoaf-->
-					<execution>
-						<id>EnumTrianglesRdfFoaf</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>Record-EnumTrianglesRdfFoaf</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.record.triangles.EnumTrianglesRdfFoaf</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>**/record/triangles/EnumTrianglesRdfFoaf.class</include>
-								<include>**/record/triangles/EnumTrianglesRdfFoaf$*.class</include>
-							</includes>
-						</configuration>
-					</execution>
-
-					<!-- TPCHQuery3 -->
+					<!-- TPC-H Query 3 -->
 					<execution>
 						<id>TPCHQuery3</id>
 						<phase>package</phase>
@@ -265,21 +188,20 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>Record-TPCHQuery3</classifier>
+							<classifier>TPCHQuery3</classifier>
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.record.relational.TPCHQuery3</program-class>
+									<program-class>eu.stratosphere.example.java.relational.TPCHQuery3</program-class>
 								</manifestEntries>
 							</archive>
-
 							<includes>
-								<include>**/record/relational/TPCHQuery3.class</include>
-								<include>**/record/relational/TPCHQuery3$*.class</include>
+								<include>**/java/relational/TPCHQuery3.class</include>
+								<include>**/java/relational/TPCHQuery3$*.class</include>
 							</includes>
 						</configuration>
 					</execution>
-
+		
 					<!-- WebLogAnalysis -->
 					<execution>
 						<id>WebLogAnalysis</id>
@@ -288,17 +210,19 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>Record-WebLogAnalysis</classifier>
+							<classifier>WebLogAnalysis</classifier>
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.record.relational.WebLogAnalysis</program-class>
+									<program-class>eu.stratosphere.example.java.relational.WebLogAnalysis</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>**/record/relational/WebLogAnalysis.class</include>
-								<include>**/record/relational/WebLogAnalysis$*.class</include>
+								<include>**/java/relational/WebLogAnalysis.class</include>
+								<include>**/java/relational/WebLogAnalysis$*.class</include>
+								<include>**/java/relational/util/WebLogData.class</include>
+								<include>**/java/relational/util/WebLogDataGenerator.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -311,42 +235,22 @@
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>Record-WordCount</classifier>
+							<classifier>WordCount</classifier>
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.record.wordcount.WordCount</program-class>
+									<program-class>eu.stratosphere.example.java.wordcount.WordCount</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>**/record/wordcount/*.class</include>
+								<include>**/java/wordcount/WordCount.class</include>
+								<include>**/java/wordcount/WordCount$*.class</include>
+								<include>**/java/wordcount/util/WordCountData.class</include>
 							</includes>
 						</configuration>
 					</execution>
-
-					<!-- TeraSort -->
-					<execution>
-						<id>TeraSort</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>Record-TeraSort</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.record.sort.TeraSort</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>**/record/sort/TeraSort.class</include>
-								<include>**/record/sort/terasort/*.class</include>
-							</includes>
-						</configuration>
-					</execution>
+					
 				</executions>
 			</plugin>
 
