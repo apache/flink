@@ -34,17 +34,43 @@ public final class RuntimePairComparatorFactory<T1 extends Tuple, T2 extends Tup
 
 			return createLeadingFieldPairComp(comp1, comp2);
 		}
-		else if ((comparator1 instanceof TupleComparator) && (comparator2 instanceof TupleComparator)) {
-
-			TupleComparator<?> tupleComp1 = (TupleComparator<?>) comparator1;
-			TupleComparator<?> tupleComp2 = (TupleComparator<?>) comparator2;
-
-			return (TypePairComparator<T1, T2>) new TuplePairComparator<Tuple, Tuple>(
-					tupleComp1.getKeyPositions(), tupleComp2.getKeyPositions(),
-					tupleComp1.getComparators(), tupleComp2.getComparators());
-		}
 		else {
-			throw new IllegalArgumentException("Cannot instantiate pair comparator from the given comparators.");
+			int[] keyPos1;
+			int[] keyPos2;
+			TypeComparator<Object>[] comps1;
+			TypeComparator<Object>[] comps2;
+			
+			// get info from first comparator
+			if (comparator1 instanceof TupleComparator) {
+				TupleComparator<?> tupleComp1 = (TupleComparator<?>) comparator1;
+				keyPos1 = tupleComp1.getKeyPositions();
+				comps1 = tupleComp1.getComparators();
+			}
+			else if (comparator1 instanceof TupleLeadingFieldComparator) {
+				TupleLeadingFieldComparator<?, ?> tupleComp1 = (TupleLeadingFieldComparator<?, ?>) comparator1;
+				keyPos1 = new int[] {0};
+				comps1 = new TypeComparator[] { tupleComp1.getFieldComparator() };
+			}
+			else {
+				throw new IllegalArgumentException("Cannot instantiate pair comparator from the given comparator: " + comparator1);
+			}
+			
+			// get info from second comparator
+			if (comparator2 instanceof TupleComparator) {
+				TupleComparator<?> tupleComp2 = (TupleComparator<?>) comparator2;
+				keyPos2 = tupleComp2.getKeyPositions();
+				comps2 = tupleComp2.getComparators();
+			}
+			else if (comparator2 instanceof TupleLeadingFieldComparator) {
+				TupleLeadingFieldComparator<?, ?> tupleComp2 = (TupleLeadingFieldComparator<?, ?>) comparator2;
+				keyPos2 = new int[] {0};
+				comps2 = new TypeComparator[] { tupleComp2.getFieldComparator() };
+			}
+			else {
+				throw new IllegalArgumentException("Cannot instantiate pair comparator from the given comparator: " + comparator1);
+			}
+
+			return (TypePairComparator<T1, T2>) new TuplePairComparator<Tuple, Tuple>(keyPos1, keyPos2, comps1, comps2);
 		}
 	}
 
@@ -59,17 +85,43 @@ public final class RuntimePairComparatorFactory<T1 extends Tuple, T2 extends Tup
 
 			return createLeadingFieldPairComp(comp2, comp1);
 		}
-		else if ((comparator1 instanceof TupleComparator) && (comparator2 instanceof TupleComparator)) {
-
-			TupleComparator<?> tupleComp1 = ((TupleComparator<?>)comparator1);
-			TupleComparator<?> tupleComp2 = ((TupleComparator<?>)comparator2);
-
-			return (TypePairComparator<T2, T1>) new TuplePairComparator<Tuple, Tuple>(
-					tupleComp2.getKeyPositions(), tupleComp1.getKeyPositions(),
-					tupleComp2.getComparators(), tupleComp1.getComparators());
-		}
 		else {
-			throw new IllegalArgumentException("Cannot instantiate pair comparator from the given comparators.");
+			int[] keyPos1;
+			int[] keyPos2;
+			TypeComparator<Object>[] comps1;
+			TypeComparator<Object>[] comps2;
+			
+			// get info from first comparator
+			if (comparator1 instanceof TupleComparator) {
+				TupleComparator<?> tupleComp1 = (TupleComparator<?>) comparator1;
+				keyPos1 = tupleComp1.getKeyPositions();
+				comps1 = tupleComp1.getComparators();
+			}
+			else if (comparator1 instanceof TupleLeadingFieldComparator) {
+				TupleLeadingFieldComparator<?, ?> tupleComp1 = (TupleLeadingFieldComparator<?, ?>) comparator1;
+				keyPos1 = new int[] {0};
+				comps1 = new TypeComparator[] { tupleComp1.getFieldComparator() };
+			}
+			else {
+				throw new IllegalArgumentException("Cannot instantiate pair comparator from the given comparator: " + comparator1);
+			}
+			
+			// get info from second comparator
+			if (comparator2 instanceof TupleComparator) {
+				TupleComparator<?> tupleComp2 = (TupleComparator<?>) comparator2;
+				keyPos2 = tupleComp2.getKeyPositions();
+				comps2 = tupleComp2.getComparators();
+			}
+			else if (comparator2 instanceof TupleLeadingFieldComparator) {
+				TupleLeadingFieldComparator<?, ?> tupleComp2 = (TupleLeadingFieldComparator<?, ?>) comparator2;
+				keyPos2 = new int[] {0};
+				comps2 = new TypeComparator[] { tupleComp2.getFieldComparator() };
+			}
+			else {
+				throw new IllegalArgumentException("Cannot instantiate pair comparator from the given comparator: " + comparator1);
+			}
+
+			return (TypePairComparator<T2, T1>) new TuplePairComparator<Tuple, Tuple>(keyPos2, keyPos1, comps2, comps1);
 		}
 	}
 	

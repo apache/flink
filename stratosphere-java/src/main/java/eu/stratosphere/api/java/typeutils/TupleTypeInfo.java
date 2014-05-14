@@ -131,15 +131,16 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 		// create the comparators for the individual fields
 		TypeComparator<?>[] fieldComparators = new TypeComparator<?>[logicalKeyFields.length];
 		for (int i = 0; i < logicalKeyFields.length; i++) {
-			if (types[i].isKeyType() && types[i] instanceof AtomicType) {
-				fieldComparators[i] = ((AtomicType<?>) types[i]).createComparator(orders[i]);
+			int keyPos = logicalKeyFields[i];
+			if (types[keyPos].isKeyType() && types[keyPos] instanceof AtomicType) {
+				fieldComparators[i] = ((AtomicType<?>) types[keyPos]).createComparator(orders[i]);
 			} else {
-				throw new IllegalArgumentException("The field at position " + i + " (" + types[i] + ") is no atomic key type.");
+				throw new IllegalArgumentException("The field at position " + i + " (" + types[keyPos] + ") is no atomic key type.");
 			}
 		}
 		
 		// create the serializers for the prefix up to highest key position
-		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[maxKey];
+		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[maxKey + 1];
 		for (int i = 0; i <= maxKey; i++) {
 			fieldSerializers[i] = types[i].createSerializer();
 		}

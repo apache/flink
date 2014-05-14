@@ -149,16 +149,16 @@ public class JoinITCase extends JavaProgramTestBase {
 				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
 				DataSet<Tuple2<Tuple3<Integer, Long, String>,Tuple5<Integer, Long, Integer, String, Long>>> joinDs = 
 						ds1.join(ds2)
-						   .where(1)
-						   .equalTo(1);															
+						   .where(0)
+						   .equalTo(2);
 				
 				joinDs.writeAsCsv(resultPath);
 				env.execute();
 				
 				// return expected result
-				return "(1, 1, Hi),(1, 1, 0, Hallo, 1)\n" +
-						"(2, 2, Hello),(2, 2, 1, Hallo Welt, 2)\n" +
-						"(3, 2, Hello world),(2, 2, 1, Hallo Welt, 2)\n";
+				return "(1, 1, Hi),(2, 2, 1, Hallo Welt, 2)\n" +
+						"(2, 2, Hello),(2, 3, 2, Hallo Welt wie, 1)\n" +
+						"(3, 2, Hello world),(3, 4, 3, Hallo Welt wie gehts?, 2)\n";
 			
 			}
 			case 4: {
