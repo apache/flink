@@ -18,41 +18,42 @@ import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.base.DoubleComparator;
 import eu.stratosphere.api.common.typeutils.base.DoubleSerializer;
-import eu.stratosphere.api.common.typeutils.base.IntComparator;
 import eu.stratosphere.api.common.typeutils.base.IntSerializer;
 import eu.stratosphere.api.common.typeutils.base.LongComparator;
 import eu.stratosphere.api.common.typeutils.base.LongSerializer;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.api.java.typeutils.runtime.tuple.base.TupleComparatorTestBase;
 
-public class TupleComparatorILDXC2Test extends TupleComparatorTestBase<Tuple3> {
+public class TupleComparatorILDXC2Test extends TupleComparatorTestBase<Tuple3<Integer, Long, Double>> {
 
-	Tuple3[] dataISD = new Tuple3[]{
+	@SuppressWarnings("unchecked")
+	Tuple3<Integer, Long, Double>[] dataISD = new Tuple3[]{
 		new Tuple3<Integer, Long, Double>(4, new Long(4), 20.0),
 		new Tuple3<Integer, Long, Double>(4, new Long(5), 20.0),
-		new Tuple3<Integer, Long, Double>(4, new Long(9), 23.0),
-		new Tuple3<Integer, Long, Double>(4, new Long(10), 23.0),
-		new Tuple3<Integer, Long, Double>(4, new Long(19), 24.0),
-		new Tuple3<Integer, Long, Double>(4, new Long(20), 24.0),
+		new Tuple3<Integer, Long, Double>(4, new Long(3), 23.0),
+		new Tuple3<Integer, Long, Double>(4, new Long(19), 23.0),
+		new Tuple3<Integer, Long, Double>(4, new Long(17), 24.0),
+		new Tuple3<Integer, Long, Double>(4, new Long(18), 24.0),
 		new Tuple3<Integer, Long, Double>(4, new Long(24), 25.0),
 		new Tuple3<Integer, Long, Double>(4, new Long(25), 25.0)
 	};
 
 	@Override
-	protected TupleComparator<Tuple3> createComparator(boolean ascending) {
-		return new TupleComparator<Tuple3>(
+	protected TupleComparator<Tuple3<Integer, Long, Double>> createComparator(boolean ascending) {
+		return new TupleComparator<Tuple3<Integer, Long, Double>>(
 				new int[]{2, 1},
 				new TypeComparator[]{
 					new DoubleComparator(ascending),
 					new LongComparator(ascending)
 				},
-		new TypeSerializer[]{new IntSerializer()});
+		new TypeSerializer[]{ IntSerializer.INSTANCE, DoubleSerializer.INSTANCE, LongSerializer.INSTANCE });
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	protected TupleSerializer<Tuple3> createSerializer() {
-		return new TupleSerializer<Tuple3>(
-				Tuple3.class,
+	protected TupleSerializer<Tuple3<Integer, Long, Double>> createSerializer() {
+		return new TupleSerializer<Tuple3<Integer, Long, Double>>(
+				(Class<Tuple3<Integer, Long, Double>>) (Class<?>) Tuple3.class,
 				new TypeSerializer[]{
 					new IntSerializer(),
 					new LongSerializer(),
@@ -60,7 +61,7 @@ public class TupleComparatorILDXC2Test extends TupleComparatorTestBase<Tuple3> {
 	}
 
 	@Override
-	protected Tuple3[] getSortedTestData() {
+	protected Tuple3<Integer, Long, Double>[] getSortedTestData() {
 		return dataISD;
 	}
 

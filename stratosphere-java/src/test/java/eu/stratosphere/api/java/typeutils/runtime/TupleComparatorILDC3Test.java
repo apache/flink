@@ -25,9 +25,10 @@ import eu.stratosphere.api.common.typeutils.base.LongSerializer;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.api.java.typeutils.runtime.tuple.base.TupleComparatorTestBase;
 
-public class TupleComparatorILDC3Test extends TupleComparatorTestBase<Tuple3> {
+public class TupleComparatorILDC3Test extends TupleComparatorTestBase<Tuple3<Integer, Long, Double>> {
 
-	Tuple3[] dataISD = new Tuple3[]{
+	@SuppressWarnings("unchecked")
+	Tuple3<Integer, Long, Double>[] dataISD = new Tuple3[]{
 		new Tuple3<Integer, Long, Double>(4, new Long(4), 20.0),
 		new Tuple3<Integer, Long, Double>(5, new Long(1), 20.0),
 		new Tuple3<Integer, Long, Double>(5, new Long(2), 20.0),
@@ -39,21 +40,22 @@ public class TupleComparatorILDC3Test extends TupleComparatorTestBase<Tuple3> {
 	};
 
 	@Override
-	protected TupleComparator<Tuple3> createComparator(boolean ascending) {
-		return new TupleComparator<Tuple3>(
+	protected TupleComparator<Tuple3<Integer, Long, Double>> createComparator(boolean ascending) {
+		return new TupleComparator<Tuple3<Integer, Long, Double>>(
 				new int[]{2, 0, 1},
 				new TypeComparator[]{
 					new DoubleComparator(ascending),
 					new IntComparator(ascending),
 					new LongComparator(ascending)
 				},
-		new TypeSerializer[]{new IntSerializer()});
+		new TypeSerializer[]{ IntSerializer.INSTANCE, LongSerializer.INSTANCE, DoubleSerializer.INSTANCE });
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	protected TupleSerializer<Tuple3> createSerializer() {
-		return new TupleSerializer<Tuple3>(
-				Tuple3.class,
+	protected TupleSerializer<Tuple3<Integer, Long, Double>> createSerializer() {
+		return new TupleSerializer<Tuple3<Integer, Long, Double>>(
+				(Class<Tuple3<Integer, Long, Double>>) (Class<?>) Tuple3.class,
 				new TypeSerializer[]{
 					new IntSerializer(),
 					new LongSerializer(),
@@ -61,7 +63,7 @@ public class TupleComparatorILDC3Test extends TupleComparatorTestBase<Tuple3> {
 	}
 
 	@Override
-	protected Tuple3[] getSortedTestData() {
+	protected Tuple3<Integer, Long, Double>[] getSortedTestData() {
 		return dataISD;
 	}
 

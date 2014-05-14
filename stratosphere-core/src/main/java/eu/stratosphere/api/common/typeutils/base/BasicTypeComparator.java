@@ -57,7 +57,8 @@ public abstract class BasicTypeComparator<T extends Comparable<T>> extends TypeC
 
 	@Override
 	public int compare(T first, T second) {
-		return first.compareTo(second);
+		int cmp = first.compareTo(second);
+		return ascendingComparison ? cmp : -cmp;
 	}
 
 	@Override

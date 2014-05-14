@@ -17,6 +17,7 @@ package eu.stratosphere.api.common.typeutils;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.core.memory.MemorySegment;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -25,6 +26,7 @@ import java.io.IOException;
 
 import static org.junit.Assert.*;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 /**
@@ -43,7 +45,30 @@ public abstract class ComparatorTestBase<T> {
 
 	protected abstract T[] getSortedTestData();
 
-	// --------------------------------- equality tests ------------------------------------------
+	// -------------------------------- test duplication ------------------------------------------
+	
+	@Test
+	public void testDuplicate() {
+		try {
+			TypeComparator<T> comparator = getComparator(true);
+			TypeComparator<T> clone = comparator.duplicate();
+			
+			T[] data = getSortedData();
+			comparator.setReference(data[0]);
+			clone.setReference(data[1]);
+			
+			assertTrue("Comparator duplication does not work: Altering the reference in a duplicated comparator alters the original comparator's reference.", 
+					comparator.equalToReference(data[0]) && clone.equalToReference(data[1]));
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	// --------------------------------- equality tests -------------------------------------------
+	
 	@Test
 	public void testEquality() {
 		testEquals(true);
@@ -364,7 +389,7 @@ public abstract class ComparatorTestBase<T> {
 	// --------------------------------------------------------------------------------------------
 
 	protected void deepEquals(String message, T should, T is) {
-		assertEquals(should, is);
+		assertEquals(message, should, is);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -381,6 +406,10 @@ public abstract class ComparatorTestBase<T> {
 		if (data == null) {
 			throw new RuntimeException("Test case corrupt. Returns null as test data.");
 		}
+		if (data.length < 2) {
+			throw new RuntimeException("Test case does not provide enough sorted test data.");
+		}
+		
 		return data;
 	}
 

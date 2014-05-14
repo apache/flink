@@ -14,39 +14,32 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils.runtime;
 
-import eu.stratosphere.api.common.typeutils.TypeComparator;
+import static org.junit.Assert.assertEquals;
+import eu.stratosphere.api.common.typeutils.ComparatorTestBase;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.base.DoubleSerializer;
 import eu.stratosphere.api.common.typeutils.base.IntComparator;
 import eu.stratosphere.api.common.typeutils.base.IntSerializer;
-import eu.stratosphere.api.common.typeutils.base.StringComparator;
 import eu.stratosphere.api.common.typeutils.base.StringSerializer;
 import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.api.java.typeutils.runtime.tuple.base.TupleComparatorTestBase;
 
-public class TupleComparatorISD2Test extends TupleComparatorTestBase<Tuple3<Integer, String, Double>> {
+public class TupleLeadingFieldComparatorTest extends ComparatorTestBase<Tuple3<Integer, String, Double>> {
 
 	@SuppressWarnings("unchecked")
 	Tuple3<Integer, String, Double>[] dataISD = new Tuple3[]{
 		new Tuple3<Integer, String, Double>(4, "hello", 20.0),
-		new Tuple3<Integer, String, Double>(4, "world", 23.2),
-		new Tuple3<Integer, String, Double>(5, "hello", 20.0),
-		new Tuple3<Integer, String, Double>(5, "world", 20.0),
-		new Tuple3<Integer, String, Double>(6, "hello", 23.2),
+		new Tuple3<Integer, String, Double>(5, "hello", 23.2),
 		new Tuple3<Integer, String, Double>(6, "world", 20.0),
 		new Tuple3<Integer, String, Double>(7, "hello", 20.0),
-		new Tuple3<Integer, String, Double>(7, "world", 23.2)
+		new Tuple3<Integer, String, Double>(8, "hello", 23.2),
+		new Tuple3<Integer, String, Double>(9, "world", 20.0),
+		new Tuple3<Integer, String, Double>(10, "hello", 20.0),
+		new Tuple3<Integer, String, Double>(11, "hello", 23.2)
 	};
 
 	@Override
-	protected TupleComparator<Tuple3<Integer, String, Double>> createComparator(boolean ascending) {
-		return new TupleComparator<Tuple3<Integer, String, Double>>(
-				new int[]{0, 1},
-				new TypeComparator[]{
-					new IntComparator(ascending),
-					new StringComparator(ascending)
-				},
-		new TypeSerializer[]{ IntSerializer.INSTANCE, StringSerializer.INSTANCE, DoubleSerializer.INSTANCE });
+	protected TupleLeadingFieldComparator<Tuple3<Integer, String, Double>, Integer> createComparator(boolean ascending) {
+		return new TupleLeadingFieldComparator<Tuple3<Integer,String,Double>, Integer>(new IntComparator(ascending));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -65,4 +58,10 @@ public class TupleComparatorISD2Test extends TupleComparatorTestBase<Tuple3<Inte
 		return dataISD;
 	}
 
+	@Override
+	protected void deepEquals(String message, Tuple3<Integer, String, Double> should, Tuple3<Integer, String, Double> is) {
+		for (int x = 0; x < should.getArity(); x++) {
+			assertEquals(should.getField(x), is.getField(x));
+		}
+	}
 }
