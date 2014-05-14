@@ -323,6 +323,9 @@ public abstract class SerializerTestBase<T> {
 			else if (should instanceof double[]) {
 				assertArrayEquals(message, (double[]) should, (double[]) is, 0.0);
 			}
+			else if (should instanceof char[]) {
+				assertArrayEquals(message, (char[]) should, (char[]) is);
+			}
 			else {
 				assertArrayEquals(message, (Object[]) should, (Object[]) is);
 			}
