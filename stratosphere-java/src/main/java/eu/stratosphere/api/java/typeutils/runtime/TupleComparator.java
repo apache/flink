@@ -152,10 +152,11 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 	public int hash(T value) {
 		int i = 0;
 		try {
-			int code = 0;
-			for (; i < this.keyPositions.length; i++) {
-				code += this.comparators[i].hash(value.getField(keyPositions[i]));
+			int code = this.comparators[0].hash(value.getField(keyPositions[0]));
+			
+			for (i = 1; i < this.keyPositions.length; i++) {
 				code *= HASH_SALT[i & 0x1F]; // salt code with (i % HASH_SALT.length)-th salt component
+				code += this.comparators[i].hash(value.getField(keyPositions[i]));
 			}
 			return code;
 		}
