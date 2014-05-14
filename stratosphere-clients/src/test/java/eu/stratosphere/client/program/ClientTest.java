@@ -31,6 +31,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.java.LocalEnvironment;
 import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -134,15 +135,16 @@ public class ClientTest {
 		verify(this.jobClientMock).submitJob();
 	}
 	
-	/**
-	 * @throws Exception
-	 */
+
 	@Test(expected=InvalidProgramException.class)
-	public void tryLocalExecution() throws Exception
-	{
-		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.ERROR);
-		
-		Client out = new Client(configMock);
+	public void tryLocalExecution() throws Exception {
+		new Client(configMock);
 		LocalExecutor.execute(planMock);
+	}
+	
+	@Test(expected=InvalidProgramException.class)
+	public void tryLocalEnvironmentExecution() throws Exception {
+		new Client(configMock);
+		new LocalEnvironment();
 	}
 }
