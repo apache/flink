@@ -665,6 +665,42 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			Assert.fail(e.getMessage());
 		}
 	}
+	
+	@Test
+	public void testBranchBeforeIteration() {
+		FileDataSource source1 = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 1");
+		FileDataSource source2 = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 2");
+		
+		BulkIteration iteration = new BulkIteration("Loop");
+		iteration.setInput(source2);
+		iteration.setMaximumNumberOfIterations(10);
+		
+		MapOperator inMap = MapOperator.builder(new IdentityMap())
+				                       .input(source1)
+				                       .name("In Iteration Map")
+				                       .setBroadcastVariable("BC", iteration.getPartialSolution())
+				                       .build();
+		
+		iteration.setNextPartialSolution(inMap);
+		
+		MapOperator postMap = MapOperator.builder(new IdentityMap())
+										 .input(source1)
+										 .name("Post Iteration Map")
+										 .setBroadcastVariable("BC", iteration)
+										 .build();
+		
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, postMap, "Sink");
+		
+		Plan plan = new Plan(sink);
+		
+		try {
+			compileNoStats(plan);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
 
 	/**
 	 * Test to ensure that sourceA is inside as well as outside of the iteration the same

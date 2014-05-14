@@ -15,6 +15,9 @@ package eu.stratosphere.compiler.plan;
 
 import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
 import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
+
+import java.util.HashMap;
+
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.costs.Costs;
@@ -150,6 +153,10 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 		for(OptimizerNode.UnclosedBranchDescriptor desc: template.getOpenBranches()){
 			OptimizerNode brancher = desc.getBranchingNode();
 
+			if(branchPlan == null) {
+				branchPlan = new HashMap<OptimizerNode, PlanNode>(6);
+			}
+			
 			if(!branchPlan.containsKey(brancher)){
 				PlanNode selectedCandidate = null;
 
