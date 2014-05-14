@@ -112,41 +112,38 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 			throw new IllegalArgumentException();
 		}
 		
+		// special case for tuples where field zero is the key field
 		if (logicalKeyFields.length == 1 && logicalKeyFields[0] == 0) {
 			return createLeadingFieldComparator(orders[0], types[0]);
 		}
-				
-		int maxKey = logicalKeyFields[0];
-		for(int key : logicalKeyFields){
-			if (key > maxKey){
-				maxKey = key;
-			}
+		
+		// --- general case ---
+		
+		int maxKey = -1;
+		for (int key : logicalKeyFields){
+			maxKey = Math.max(key, maxKey);
 		}
 		
-		boolean[] isKey = new boolean[maxKey + 1];
-		for(int key:logicalKeyFields){
-			isKey[key]=true;
+		if (maxKey >= this.types.length) {
+			throw new IllegalArgumentException("The key position " + maxKey + " is out of range for Tuple" + types.length);
 		}
 		
 		// create the comparators for the individual fields
 		TypeComparator<?>[] fieldComparators = new TypeComparator<?>[logicalKeyFields.length];
-		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[maxKey + 1 -logicalKeyFields.length];
-		
-		int cIndex=0;
-		int sIndex=0;
-		for (int i = 0; i < maxKey + 1; i++) {
-			if(isKey[i]){
-				if (types[i].isKeyType() && types[i] instanceof AtomicType) {
-				fieldComparators[cIndex] = ((AtomicType<?>) types[i]).createComparator(orders[cIndex]);
-				cIndex++;
+		for (int i = 0; i < logicalKeyFields.length; i++) {
+			if (types[i].isKeyType() && types[i] instanceof AtomicType) {
+				fieldComparators[i] = ((AtomicType<?>) types[i]).createComparator(orders[i]);
 			} else {
 				throw new IllegalArgumentException("The field at position " + i + " (" + types[i] + ") is no atomic key type.");
 			}
-			}else{
-				fieldSerializers[sIndex] = types[i].createSerializer();
-				sIndex++;
-			}
-		}		
+		}
+		
+		// create the serializers for the prefix up to highest key position
+		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[maxKey];
+		for (int i = 0; i <= maxKey; i++) {
+			fieldSerializers[i] = types[i].createSerializer();
+		}
+		
 		return new TupleComparator<T>(logicalKeyFields, fieldComparators, fieldSerializers);
 	}
 	

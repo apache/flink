@@ -160,10 +160,10 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 			return code;
 		}
 		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(i);
+			throw new NullKeyFieldException(keyPositions[i]);
 		}
 		catch (IndexOutOfBoundsException iobex) {
-			throw new KeyFieldOutOfBoundsException(i);
+			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
 		}
 	}
 
@@ -176,10 +176,10 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 			}
 		}
 		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(i);
+			throw new NullKeyFieldException(keyPositions[i]);
 		}
 		catch (IndexOutOfBoundsException iobex) {
-			throw new KeyFieldOutOfBoundsException(i);
+			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
 		}
 	}
 
@@ -195,10 +195,10 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 			return true;
 		}
 		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(i);
+			throw new NullKeyFieldException(keyPositions[i]);
 		}
 		catch (IndexOutOfBoundsException iobex) {
-			throw new KeyFieldOutOfBoundsException(i);
+			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
 		}
 	}
 
@@ -217,10 +217,10 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 			return 0;
 		}
 		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(i);
+			throw new NullKeyFieldException(keyPositions[i]);
 		}
 		catch (IndexOutOfBoundsException iobex) {
-			throw new KeyFieldOutOfBoundsException(i);
+			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
 		}
 	}
 	
@@ -238,9 +238,9 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 			
 			return 0;
 		} catch (NullPointerException npex) {
-			throw new NullKeyFieldException(i);
+			throw new NullKeyFieldException(keyPositions[i]);
 		} catch (IndexOutOfBoundsException iobex) {
-			throw new KeyFieldOutOfBoundsException(i);
+			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
 		}
 	}
 
@@ -267,9 +267,9 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 			
 			return 0;
 		} catch (NullPointerException npex) {
-			throw new NullKeyFieldException(i);
+			throw new NullKeyFieldException(keyPositions[i]);
 		} catch (IndexOutOfBoundsException iobex) {
-			throw new KeyFieldOutOfBoundsException(i);
+			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
 		}
 	}
 	
