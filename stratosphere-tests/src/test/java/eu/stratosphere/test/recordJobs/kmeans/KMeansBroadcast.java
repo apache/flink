@@ -44,7 +44,7 @@ import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 
 
-public class KMeans implements Program, ProgramDescription {
+public class KMeansBroadcast implements Program, ProgramDescription {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -314,6 +314,6 @@ public class KMeans implements Program, ProgramDescription {
 	}
 	
 	public static void main(String[] args) throws Exception {
-		System.out.println(LocalExecutor.optimizerPlanAsJSON(new KMeans().getPlan("4", "/dev/random", "/dev/random", "/tmp", "20")));
+		System.out.println(LocalExecutor.optimizerPlanAsJSON(new KMeansBroadcast().getPlan("4", "/dev/random", "/dev/random", "/tmp", "20")));
 	}
 }

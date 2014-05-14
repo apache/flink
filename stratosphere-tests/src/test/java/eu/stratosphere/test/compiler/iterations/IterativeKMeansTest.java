@@ -34,7 +34,7 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.test.compiler.CompilerTestBase;
-import eu.stratosphere.test.recordJobs.kmeans.KMeans;
+import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast;
 
 
 public class IterativeKMeansTest extends CompilerTestBase {
@@ -58,7 +58,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 	@Test
 	public void testCompileKMeansSingleStepWithStats() {
 		
-		KMeans kmi = new KMeans();
+		KMeansBroadcast kmi = new KMeansBroadcast();
 		Plan p = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM), IN_FILE, IN_FILE, OUT_FILE, String.valueOf(20));
 		
 		// set the statistics
@@ -77,7 +77,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 	@Test
 	public void testCompileKMeansSingleStepWithOutStats() {
 		
-		KMeans kmi = new KMeans();
+		KMeansBroadcast kmi = new KMeansBroadcast();
 		Plan p = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM), IN_FILE, IN_FILE, OUT_FILE, String.valueOf(20));
 		
 		OptimizedPlan plan = compileNoStats(p);
