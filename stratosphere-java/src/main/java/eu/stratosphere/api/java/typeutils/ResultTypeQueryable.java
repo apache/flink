@@ -15,10 +15,17 @@
 package eu.stratosphere.api.java.typeutils;
 
 /**
- * Interface to be implemented by functions and input formats who be queries for the
- * {@link TypeInformation} of the result.
+ * This interface can be implemented by functions and input formats to tell the framework
+ * about their produced data type. This method acts as an alternative to the reflection analysis
+ * that is otherwise performed and is useful in situations where the produced data type may vary
+ * depending on parameterization.
  */
 public interface ResultTypeQueryable<T> {
 
+	/**
+	 * Gets the data type (as a {@link TypeInformation}) produced by this function or input format.
+	 * 
+	 * @return The data type produced by this function or input format.
+	 */
 	TypeInformation<T> getProducedType();
 }

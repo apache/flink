@@ -582,6 +582,13 @@ public abstract class DataSet<T> {
 	// -------------------------------------------------------------------------------------------
 	
 
+	/**
+	 * Runs a {@link CustomUnaryOperation} on the data set. Custom operations are typically complex
+	 * operators that are composed of multiple steps.
+	 * 
+	 * @param operation The operation to run.
+	 * @return The data set produced by the operation.
+	 */
 	public <X> DataSet<X> runOperation(CustomUnaryOperation<T, X> operation) {
 		Validate.notNull(operation, "The custom operator must not be null.");
 		operation.setInput(this);
@@ -684,6 +691,7 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Writes a DataSet using a {@link FileOutputFormat} to a specified location.
+	 * This method adds a data sink to the program.
 	 * 
 	 * @param outputFormat The FileOutputFormat to write the DataSet.
 	 * @param filePath The path to the location where the DataSet is written.
@@ -701,6 +709,7 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Writes a DataSet using a {@link FileOutputFormat} to a specified location.
+	 * This method adds a data sink to the program.
 	 * 
 	 * @param outputFormat The FileOutputFormat to write the DataSet.
 	 * @param filePath The path to the location where the DataSet is written.
@@ -720,10 +729,12 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Writes a DataSet using an {@link OutputFormat}.
+	 * Processes a DataSet using an {@link OutputFormat}. This method adds a data sink to the program.
+	 * Programs may have multiple data sinks. A DataSet may also have multiple consumers (data sinks
+	 * or transformations) at the same time.
 	 * 
-	 * @param outputFormat The OutputFormat to write the DataSet.
-	 * @return The DataSink that writes the DataSet.
+	 * @param outputFormat The OutputFormat to process the DataSet.
+	 * @return The DataSink that processes the DataSet.
 	 * 
 	 * @see OutputFormat
 	 * @see DataSink

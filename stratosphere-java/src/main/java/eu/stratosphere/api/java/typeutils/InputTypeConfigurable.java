@@ -14,11 +14,19 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils;
 
-
 /**
- *
+ * {@link eu.stratosphere.api.common.io.OutputFormat}s can implement this interface to be configured
+ * with the data type they will operate on. The method {@link #setInputType(TypeInformation)} will be
+ * called when the output format is used with an output method such as
+ * {@link eu.stratosphere.api.java.DataSet#output(eu.stratosphere.api.common.io.OutputFormat)}.
  */
 public interface InputTypeConfigurable {
 
+	/**
+	 * Method that is called on an {@link eu.stratosphere.api.common.io.OutputFormat} when it is passed to
+	 * the DataSet's output method. May be used to configures the output format based on the data type.
+	 * 
+	 * @param type The data type of the input.
+	 */
 	void setInputType(TypeInformation<?> type);
 }
