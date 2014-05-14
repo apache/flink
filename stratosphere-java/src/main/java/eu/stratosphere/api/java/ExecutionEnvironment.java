@@ -498,11 +498,11 @@ public abstract class ExecutionEnvironment {
 		return contextEnvironment != null;
 	}
 	
-	protected static boolean localExecutionIsAllowed() {
-		return allowLocalExecution;
-	}
-	
 	protected static void disableLocalExecution() {
 		allowLocalExecution = false;
+	}
+	
+	public static boolean localExecutionIsAllowed() {
+		return allowLocalExecution;
 	}
 }
