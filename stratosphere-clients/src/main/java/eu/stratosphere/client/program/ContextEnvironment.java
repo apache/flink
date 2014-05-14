@@ -62,11 +62,19 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		return gen.getOptimizerPlanAsJSON(op);
 	}
 	
+	
+	@Override
+	public String toString() {
+		return "Context Environment (DOP = " + (getDegreeOfParallelism() == -1 ? "default" : getDegreeOfParallelism())
+				+ ") : " + getIdString();
+	}
+	
+	
 	public void setAsContext() {
 		initializeContextEnvironment(this);
 	}
 	
-	protected static void disableLocalExecution() {
+	public static void disableLocalExecution() {
 		ExecutionEnvironment.disableLocalExecution();
 	}
 }
