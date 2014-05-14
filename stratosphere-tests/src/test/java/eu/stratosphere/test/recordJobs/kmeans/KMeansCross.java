@@ -34,7 +34,7 @@ import eu.stratosphere.test.recordJobs.kmeans.udfs.RecomputeClusterCenter;
 import eu.stratosphere.types.IntValue;
 
 
-public class KMeansIterative implements Program, ProgramDescription {
+public class KMeansCross implements Program, ProgramDescription {
 
 	private static final long serialVersionUID = 1L;
 
@@ -116,7 +116,7 @@ public class KMeansIterative implements Program, ProgramDescription {
 	}
 	
 	public static void main(String[] args) throws Exception {
-		KMeansIterative kmi = new KMeansIterative();
+		KMeansCross kmi = new KMeansCross();
 		
 		if (args.length < 5) {
 			System.err.println(kmi.getDescription());

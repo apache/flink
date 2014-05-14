@@ -11,22 +11,23 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.test.recordJobTests;
+package eu.stratosphere.test.iterative;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.test.recordJobs.kmeans.KMeansSingleStep;
+import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast;
 import eu.stratosphere.test.testdata.KMeansData;
 import eu.stratosphere.test.util.RecordAPITestBase;
 
-public class KMeansStepITCase extends RecordAPITestBase {
+
+public class KMeansITCase extends RecordAPITestBase {
 
 	protected String dataPath;
 	protected String clusterPath;
 	protected String resultPath;
-
+	
 	@Override
 	protected void preSubmit() throws Exception {
 		dataPath = createTempFile("datapoints.txt", KMeansData.DATAPOINTS);
@@ -36,8 +37,8 @@ public class KMeansStepITCase extends RecordAPITestBase {
 	
 	@Override
 	protected Plan getTestJob() {
-		KMeansSingleStep kmi = new KMeansSingleStep();
-		return kmi.getPlan("4", dataPath, clusterPath, resultPath);
+		KMeansBroadcast kmi = new KMeansBroadcast();
+		return kmi.getPlan("4", dataPath, clusterPath, resultPath, "20");
 	}
 
 
@@ -46,6 +47,6 @@ public class KMeansStepITCase extends RecordAPITestBase {
 		List<String> resultLines = new ArrayList<String>();
 		readAllResultLines(resultLines, resultPath);
 		
-		KMeansData.checkResultsWithDelta(KMeansData.CENTERS_AFTER_ONE_STEP_SINGLE_DIGIT, resultLines, 0.1);
+		KMeansData.checkResultsWithDelta(KMeansData.CENTERS_AFTER_20_ITERATIONS_SINGLE_DIGIT, resultLines, 0.1);
 	}
 }
