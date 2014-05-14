@@ -417,7 +417,7 @@ class TupleGenerator {
 			sb.append("\t *\n");
 			
 			for (int pos = 0; pos < numFields; pos++) {
-				sb.append("\t * @param ").append(GEN_TYPE_PREFIX).append(pos);
+				sb.append("\t * @param type").append(pos);
 				sb.append(" The type of CSV field ").append(pos).append(" and the type of field ");
 				sb.append(pos).append(" in the returned tuple type.\n");
 			}
