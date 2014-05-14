@@ -68,12 +68,14 @@ public class ValueComparator<T extends Value & Comparable<T>> extends TypeCompar
 	@Override
 	public int compareToReference(TypeComparator<T> referencedComparator) {
 		T otherRef = ((ValueComparator<T>) referencedComparator).reference;
-		return otherRef.compareTo(reference);
+		int comp = otherRef.compareTo(reference);
+		return ascendingComparison ? comp : -comp;
 	}
 	
 	@Override
 	public int compare(T first, T second) {
-		return first.compareTo(second);
+		int comp = first.compareTo(second);
+		return ascendingComparison ? comp : -comp;
 	}
 	
 	@Override
@@ -87,7 +89,8 @@ public class ValueComparator<T extends Value & Comparable<T>> extends TypeCompar
 		
 		reference.read(firstSource);
 		tempReference.read(secondSource);
-		return reference.compareTo(tempReference);
+		int comp = reference.compareTo(tempReference);
+		return ascendingComparison ? comp : -comp;
 	}
 
 	@Override
