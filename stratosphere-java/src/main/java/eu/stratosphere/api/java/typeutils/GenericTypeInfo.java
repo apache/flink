@@ -17,6 +17,7 @@ package eu.stratosphere.api.java.typeutils;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.java.typeutils.runtime.AvroSerializer;
+import eu.stratosphere.api.java.typeutils.runtime.GenericTypeComparator;
 
 
 /**
@@ -60,19 +61,26 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 	public TypeSerializer<T> createSerializer() {
 		return new AvroSerializer<T>(this.typeClass);
 	}
-	
+
 	@Override
 	public TypeComparator<T> createComparator(boolean sortOrderAscending) {
-		throw new UnsupportedOperationException("Generic type comparators are not yet implemented.");
+		if (isKeyType()) {
+			@SuppressWarnings("unchecked")
+			GenericTypeComparator comparator = new GenericTypeComparator(sortOrderAscending, createSerializer(), this.typeClass);
+
+			return comparator;
+		}
+
+		throw new UnsupportedOperationException("Generic types that don't implement java.lang.Comparable cannot be used as keys.");
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public int hashCode() {
 		return typeClass.hashCode() ^ 0x165667b1;
 	}
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj.getClass() == GenericTypeInfo.class) {
