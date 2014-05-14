@@ -47,7 +47,7 @@ out=$STRATOSPHERE_LOG_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-taskmanager-$H
 pid=$STRATOSPHERE_PID_DIR/stratosphere-$STRATOSPHERE_IDENT_STRING-taskmanager.pid
 log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$STRATOSPHERE_CONF_DIR"/log4j.properties)
 
-JVM_ARGS="$JVM_ARGS -XX:+UseParNewGC -XX:NewRatio=8 -XX:PretenureSizeThreshold=64m -Xms"$STRATOSPHERE_TM_HEAP"m -Xmx"$STRATOSPHERE_TM_HEAP"m"
+JVM_ARGS="$JVM_ARGS -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:MaxPermSize=256m -XX:NewRatio=6 -Xms"$STRATOSPHERE_TM_HEAP"m -Xmx"$STRATOSPHERE_TM_HEAP"m"
 
 case $STARTSTOP in
 
