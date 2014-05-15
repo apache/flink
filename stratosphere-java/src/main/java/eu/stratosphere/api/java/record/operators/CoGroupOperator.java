@@ -13,10 +13,6 @@
 
 package eu.stratosphere.api.java.record.operators;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -106,21 +102,13 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 	
 	@Override
 	public boolean isCombinableFirst() {
-		return super.isCombinableFirst() || getUserCodeWrapper().getUserCodeAnnotation(CombinableFirst.class) != null;
+		return false;
 	}
 	
 	@Override
 	public boolean isCombinableSecond() {
-		return super.isCombinableSecond() || getUserCodeWrapper().getUserCodeAnnotation(CombinableSecond.class) != null;
+		return false;
 	}
-	
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target(ElementType.TYPE)
-	public static @interface CombinableFirst {};
-	
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target(ElementType.TYPE)
-	public static @interface CombinableSecond {};
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -168,7 +156,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		}
 		
 		/**
-		 * Creates a Builder with the provided {@link JoinFunction} implementation. This method is intended 
+		 * Creates a Builder with the provided {@link CoGroupFunction} implementation. This method is intended 
 		 * for special case sub-types only.
 		 * 
 		 * @param udf The {@link CoGroupFunction} implementation for this CoGroup operator.

@@ -27,7 +27,6 @@ import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFiel
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator;
-import eu.stratosphere.api.java.record.operators.CoGroupOperator.CombinableFirst;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.DuplicateLongMap;
@@ -77,7 +76,6 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 	// --------------------------------------------------------------------------------------------
 	
 
-	@CombinableFirst
 	@ConstantFieldsFirst(0)
 	@ConstantFieldsSecond(0)
 	public static final class MinIdAndUpdate extends CoGroupFunction implements Serializable {
@@ -107,20 +105,6 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 				old.setField(1, newComponentId);
 				out.collect(old);
 			}
-		}
-		
-		@Override
-		public Record combineFirst(Iterator<Record> records) {
-			Record next = null;
-			long min = Long.MAX_VALUE;
-			while (records.hasNext()) {
-				next = records.next();
-				min = Math.min(min, next.getField(1, LongValue.class).getValue());
-			}
-			
-			newComponentId.setValue(min);
-			next.setField(1, newComponentId);
-			return next;
 		}
 	}
 	

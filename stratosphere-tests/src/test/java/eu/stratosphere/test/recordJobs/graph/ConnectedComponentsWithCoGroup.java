@@ -18,9 +18,9 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
+import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.FileDataSink;
 import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.DeltaIteration;
 import eu.stratosphere.api.java.record.functions.CoGroupFunction;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecond;
@@ -29,7 +29,6 @@ import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.api.java.record.operators.MapOperator;
-import eu.stratosphere.api.java.record.operators.CoGroupOperator.CombinableFirst;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.DuplicateLongMap;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.types.LongValue;
@@ -44,7 +43,6 @@ public class ConnectedComponentsWithCoGroup implements Program {
 	
 	private static final long serialVersionUID = 1L;
 
-	@CombinableFirst
 	@ConstantFieldsFirst(0)
 	@ConstantFieldsSecond(0)
 	public static final class MinIdAndUpdate extends CoGroupFunction implements Serializable {
@@ -76,19 +74,6 @@ public class ConnectedComponentsWithCoGroup implements Program {
 			}
 		}
 		
-		@Override
-		public Record combineFirst(Iterator<Record> records) {
-			Record next = null;
-			long min = Long.MAX_VALUE;
-			while (records.hasNext()) {
-				next = records.next();
-				min = Math.min(min, next.getField(1, LongValue.class).getValue());
-			}
-			
-			newComponentId.setValue(min);
-			next.setField(1, newComponentId);
-			return next;
-		}
 	}
 	
 	@SuppressWarnings("unchecked")

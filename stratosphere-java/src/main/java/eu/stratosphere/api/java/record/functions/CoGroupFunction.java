@@ -43,39 +43,4 @@ public abstract class CoGroupFunction extends AbstractFunction implements Generi
 	@Override
 	public abstract void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) throws Exception;
 	
-	/**
-	 * This method must be overridden by CoGoup UDFs that want to make use of the combining feature
-	 * on their first input. In addition, the extending class must be annotated as CombinableFirst.
-	 * <p>
-	 * The use of the combiner is typically a pre-reduction of the data.
-	 * 
-	 * @param records The records to be combined.
-	 * @param out The collector to write the result to.
-	 * 
-	 * @throws Exception Implementations may forward exceptions, which are caught by the runtime. When the
-	 *                   runtime catches an exception, it aborts the combine task and lets the fail-over logic
-	 *                   decide whether to retry the combiner execution.
-	 */
-	@Override
-	public Record combineFirst(Iterator<Record> records) throws Exception {
-		throw new UnsupportedOperationException();
-	}
-	
-	/**
-	 * This method must be overridden by CoGoup UDFs that want to make use of the combining feature
-	 * on their second input. In addition, the extending class must be annotated as CombinableSecond.
-	 * <p>
-	 * The use of the combiner is typically a pre-reduction of the data.
-	 * 
-	 * @param records The records to be combined.
-	 * @param out The collector to write the result to.
-	 * 
-	 * @throws Exception Implementations may forward exceptions, which are caught by the runtime. When the
-	 *                   runtime catches an exception, it aborts the combine task and lets the fail-over logic
-	 *                   decide whether to retry the combiner execution.
-	 */
-	@Override
-	public Record combineSecond(Iterator<Record> records) throws Exception {
-		throw new UnsupportedOperationException();
-	}
 }

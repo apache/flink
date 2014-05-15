@@ -119,10 +119,5 @@ public class CustomCompensatableDotProductCoGroup extends AbstractFunction imple
 			aggregator.reset();
 		}
 	}
-
-	@Override
-	public VertexWithRankAndDangling combineFirst(Iterator<VertexWithRankAndDangling> records) { throw new UnsupportedOperationException(); }
-
-	@Override
-	public VertexWithRank combineSecond(Iterator<VertexWithRank> records) { throw new UnsupportedOperationException(); }
+	
 }

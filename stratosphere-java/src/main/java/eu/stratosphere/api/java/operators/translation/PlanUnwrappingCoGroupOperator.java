@@ -103,17 +103,7 @@ public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>
 		public void coGroup(Iterator<Tuple2<K, I1>> records1, Iterator<Tuple2<K, I2>> records2, Collector<OUT> out) throws Exception {
 			this.wrappedFunction.coGroup(new UnwrappingKeyIterator<K, I1>(records1), new UnwrappingKeyIterator<K, I2>(records2), out);
 		}
-
-
-		@Override
-		public Tuple2<K, I1> combineFirst(Iterator<Tuple2<K, I1>> records) throws Exception {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public Tuple2<K, I2> combineSecond(Iterator<Tuple2<K, I2>> records) throws Exception {
-			throw new UnsupportedOperationException();
-		}
+		
 	}
 	
 	public static class UnwrappingKeyIterator<K, I1> implements Iterator<I1> {
