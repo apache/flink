@@ -233,7 +233,8 @@ public class JavaApiPostPass implements OptimizerPostPass {
 
 		TypeInformation<?> type = null;
 
-		if(javaOp instanceof PlanGroupReduceOperator && source.getDriverStrategy().equals(DriverStrategy.SORTED_GROUP_COMBINE)) {
+		if (javaOp instanceof PlanGroupReduceOperator && 
+				(source.getDriverStrategy() == DriverStrategy.SORTED_GROUP_COMBINE || source.getDriverStrategy() == DriverStrategy.ALL_GROUP_COMBINE) ) {
 			PlanGroupReduceOperator<?, ?> groupNode = (PlanGroupReduceOperator<?, ?>) javaOp;
 			type = groupNode.getInputType();
 		}
@@ -244,28 +245,33 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		else if (javaOp instanceof JavaPlanNode<?>) {
 			JavaPlanNode<?> javaNode = (JavaPlanNode<?>) javaOp;
 			type = javaNode.getReturnType();
-		} else if (javaOp instanceof BulkIteration.PartialSolutionPlaceHolder) {
+		}
+		else if (javaOp instanceof BulkIteration.PartialSolutionPlaceHolder) {
 			BulkIteration.PartialSolutionPlaceHolder partialSolutionPlaceHolder =
 					(BulkIteration.PartialSolutionPlaceHolder) javaOp;
 			type = ((PlanBulkIterationOperator<?>)partialSolutionPlaceHolder.getContainingBulkIteration()).getReturnType();
-		} else if (javaOp instanceof DeltaIteration.SolutionSetPlaceHolder) {
+		}
+		else if (javaOp instanceof DeltaIteration.SolutionSetPlaceHolder) {
 			DeltaIteration.SolutionSetPlaceHolder solutionSetPlaceHolder =
 					(DeltaIteration.SolutionSetPlaceHolder) javaOp;
 			type = ((PlanDeltaIterationOperator<?, ?>) solutionSetPlaceHolder.getContainingWorksetIteration()).getReturnType();
-		}  else if (javaOp instanceof DeltaIteration.WorksetPlaceHolder) {
+		}
+		else if (javaOp instanceof DeltaIteration.WorksetPlaceHolder) {
 			DeltaIteration.WorksetPlaceHolder worksetPlaceHolder =
 					(DeltaIteration.WorksetPlaceHolder) javaOp;
 			type = ((PlanDeltaIterationOperator<?, ?>) worksetPlaceHolder.getContainingWorksetIteration()).getReturnType();
-		}  else if (javaOp instanceof NoOpUnaryUdfOp) {
+		}
+		else if (javaOp instanceof NoOpUnaryUdfOp) {
 			NoOpUnaryUdfOp op = (NoOpUnaryUdfOp) javaOp;
-			if(op.getInput() instanceof JavaPlanNode<?>) { 
+			if (op.getInput() instanceof JavaPlanNode<?>) { 
 				JavaPlanNode<?> javaNode = (JavaPlanNode<?>) op.getInput();
 				type = javaNode.getReturnType();
 			}
-		}else if(javaOp instanceof Union){
+		}
+		else if(javaOp instanceof Union){
 			// Union
 			Operator op = channel.getSource().getInputs().next().getSource().getPactContract();
-			if(op instanceof JavaPlanNode<?>){
+			if (op instanceof JavaPlanNode<?>){
 				JavaPlanNode<?> javaNode = (JavaPlanNode<?>) op;
 				type = javaNode.getReturnType();
 			}
