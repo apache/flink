@@ -33,11 +33,8 @@ public abstract class ReduceFunction<T> extends AbstractFunction implements Gene
 	* The reduce function is consecutively applied to all values of a group until only a single value remains.
 	* In functional programming, this is known as a fold-style aggregation.
 	*
-	* Important: It is fine to return the second value object (value2) as result from this function.
-	* You must NOT return the first value object (value1) from this function.
-	*
-	* @param value1 The first value to combine. This object must NOT be returned as result.
-	* @param value2 The second value to combine. This object may be returned as result.
+	* @param value1 The first value to combine.
+	* @param value2 The second value to combine.
 	* @return The combined value of both input values.
 	*
 	* @throws Exception
