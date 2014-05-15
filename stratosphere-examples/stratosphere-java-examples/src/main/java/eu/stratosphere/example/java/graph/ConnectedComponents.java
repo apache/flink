@@ -19,6 +19,9 @@ import eu.stratosphere.api.java.DeltaIteration;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.aggregation.Aggregations;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
+import eu.stratosphere.api.java.functions.FunctionAnnotation.ConstantFields;
+import eu.stratosphere.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
+import eu.stratosphere.api.java.functions.FunctionAnnotation.ConstantFieldsSecond;
 import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
@@ -108,6 +111,7 @@ public class ConnectedComponents implements ProgramDescription {
 	/**
 	 * Function that turns a value into a 2-tuple where both fields are that value.
 	 */
+	@ConstantFields("0 -> 0,1") 
 	public static final class DuplicateValue<T> extends MapFunction<T, Tuple2<T, T>> {
 		
 		@Override
@@ -121,6 +125,8 @@ public class ConnectedComponents implements ProgramDescription {
 	 * a vertex is associated with, with a (Source-Vertex-ID, Target-VertexID) edge. The function
 	 * produces a (Target-vertex-ID, Component-ID) pair.
 	 */
+	@ConstantFieldsFirst("1 -> 0")
+	@ConstantFieldsSecond("1 -> 1")
 	public static final class NeighborWithComponentIDJoin extends JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		@Override

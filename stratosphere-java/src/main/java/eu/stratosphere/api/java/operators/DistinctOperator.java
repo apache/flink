@@ -36,8 +36,7 @@ public class DistinctOperator<IN> extends SingleInputOperator<IN, IN, DistinctOp
 	}
 
 	@Override
-	protected Operator translateToDataFlow(Operator input) {
-		
+	protected eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(Operator input) {
 		throw new UnsupportedOperationException("NOT IMPLEMENTED");
 	}
 }

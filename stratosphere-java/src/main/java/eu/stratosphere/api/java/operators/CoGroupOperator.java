@@ -68,7 +68,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	}
 
 	@Override
-	protected Operator translateToDataFlow(Operator input1, Operator input2) {
+	protected eu.stratosphere.api.common.operators.DualInputOperator<?> translateToDataFlow(Operator input1, Operator input2) {
 
 		String name = getName() != null ? getName() : function.getClass().getName();
 
@@ -106,10 +106,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			// set inputs
 			po.setFirstInput(input1);
 			po.setSecondInput(input2);
-			//set semantic properties
-			if (this.getSematicProperties() != null) {
-				po.setSemanticProperties(this.getSematicProperties());
-			}
+
 			// set dop
 			po.setDegreeOfParallelism(this.getParallelism());
 

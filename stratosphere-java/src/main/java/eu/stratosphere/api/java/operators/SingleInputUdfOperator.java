@@ -82,9 +82,10 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 		return returnType;
 	}
 
-	public O withProperties(String[] constantSet, String constantSetExcept, String readSet) {
-		SingleInputSemanticProperties props = SemanticPropUtil.getSemanticPropsSingleFromString(constantSet, constantSetExcept, readSet, this.getInputType(), this.getResultType());
+	public O withConstantSet(String... constantSet) {
+		SingleInputSemanticProperties props = SemanticPropUtil.getSemanticPropsSingleFromString(constantSet, null, null, this.getInputType(), this.getResultType());
 		this.setSemanticProperties(props);
+		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;
 	}

@@ -135,7 +135,7 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	protected Operator translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(Operator input) {
 		// All the translation magic happens when the iteration end is encountered.
 		throw new UnsupportedOperationException("This should never happen.");
 	}

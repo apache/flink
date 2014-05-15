@@ -51,7 +51,7 @@ public class CrossOperator<I1, I2, OUT>
 	}
 
 	@Override
-	protected Operator translateToDataFlow(Operator input1, Operator input2) {
+	protected eu.stratosphere.api.common.operators.DualInputOperator<?> translateToDataFlow(Operator input1, Operator input2) {
 
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator
@@ -59,10 +59,7 @@ public class CrossOperator<I1, I2, OUT>
 		// set inputs
 		po.setFirstInput(input1);
 		po.setSecondInput(input2);
-		//set semantic properties
-		if (this.getSematicProperties() != null) {
-			po.setSemanticProperties(this.getSematicProperties());
-		}
+
 		// set dop
 		po.setDegreeOfParallelism(this.getParallelism());
 

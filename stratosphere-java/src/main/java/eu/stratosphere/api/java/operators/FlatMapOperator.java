@@ -41,17 +41,14 @@ public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, Fl
 	}
 
 	@Override
-	protected Operator translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(Operator input) {
 
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator
 		PlanFlatMapOperator<IN, OUT> po = new PlanFlatMapOperator<IN, OUT>(function, name, getInputType(), getResultType());
 		// set input
 		po.setInput(input);
-		//set semantic properties
-		if (this.getSematicProperties() != null) {
-			po.setSemanticProperties(this.getSematicProperties());
-		}
+
 		// set dop
 		if(this.getParallelism() > 0) {
 			// use specified dop

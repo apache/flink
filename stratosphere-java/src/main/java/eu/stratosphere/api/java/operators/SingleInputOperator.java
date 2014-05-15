@@ -40,7 +40,7 @@ public abstract class SingleInputOperator<IN, OUT, O extends SingleInputOperator
 		return this.input.getType();
 	}
 	
-	protected abstract eu.stratosphere.api.common.operators.Operator translateToDataFlow(
+	protected abstract eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(
 			eu.stratosphere.api.common.operators.Operator input);
 	
 }

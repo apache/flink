@@ -36,7 +36,11 @@ import eu.stratosphere.api.java.typeutils.TypeInformation;
 
 public class SemanticPropUtil {
 
-	private final static String REGEX_ANNOTATION = "\\s*(\\d+)\\s*->((\\s*(\\d+\\s*,\\s*)*(\\d+\\s*))|(\\*))";
+	private static final Pattern PATTERN = Pattern.compile("\\s*(\\d+)\\s*->((\\s*(\\d+\\s*,\\s*)*(\\d+\\s*))|(\\*))");
+	
+	private static final Pattern FIELD_SET_CHECK_PATTERN = Pattern.compile("\\s*(\\d+\\s*,\\s*)*(\\d+\\s*)");
+	
+	private static final Pattern DIGIT_PATTERN = Pattern.compile("\\d+");
 
 	public static SingleInputSemanticProperties getSemanticPropsSingle(Set<Annotation> set, TypeInformation<?> inType, TypeInformation<?> outType) {
 		if (set == null) {
@@ -98,12 +102,11 @@ public class SemanticPropUtil {
 			return;
 		}
 
-		Pattern check = Pattern.compile(REGEX_ANNOTATION);
-		Matcher matcher = check.matcher(s);
+		Matcher matcher = PATTERN.matcher(s);
 		int sourceField = 0;
 
 		if (!matcher.matches()) {
-			throw new RuntimeException("Wrong annotation String format. Please read the documentation.");
+			throw new RuntimeException("Unrecognized annotation string format.");
 		}
 
 		sourceField = Integer.valueOf(matcher.group(1));
@@ -146,7 +149,6 @@ public class SemanticPropUtil {
 			return;
 		}
 
-		Pattern check = Pattern.compile(REGEX_ANNOTATION);
 		for (String s : cff) {
 			readConstantSet(dm, s, inType, outType, 0);
 		}
@@ -156,91 +158,95 @@ public class SemanticPropUtil {
 		if (cfs == null) {
 			return;
 		}
-		Pattern check = Pattern.compile(REGEX_ANNOTATION);
+		
 		for (String s : cfs) {
 			readConstantSet(dm, s, inType, outType, 1);
 		}
 	}
 
-	private static void parseConstantFieldsFirstExcept(String cffe, DualInputSemanticProperties dm, TypeInformation<?> inType, TypeInformation<?> outType) {
+	private static void parseConstantFieldsFirstExcept(String[] cffe, DualInputSemanticProperties dm, TypeInformation<?> inType, TypeInformation<?> outType) {
 		if (cffe == null) {
 			return;
 		}
 
-		FieldSet fs = readFieldSetFromString(cffe, inType, outType);
-
-		for (int i = 0; i < outType.getArity(); i++) {
-			if (!fs.contains(i)) {
-				dm.addForwardedField1(i, i);
+		for (String str : cffe) {
+			FieldSet fs = readFieldSetFromString(str, inType, outType);
+	
+			for (int i = 0; i < outType.getArity(); i++) {
+				if (!fs.contains(i)) {
+					dm.addForwardedField1(i, i);
+				}
 			}
 		}
 	}
 
-	private static void parseConstantFieldsSecondExcept(String cfse, DualInputSemanticProperties dm, TypeInformation<?> inType, TypeInformation<?> outType) {
+	private static void parseConstantFieldsSecondExcept(String[] cfse, DualInputSemanticProperties dm, TypeInformation<?> inType, TypeInformation<?> outType) {
 		if (cfse == null) {
 			return;
 		}
 
-		FieldSet fs = readFieldSetFromString(cfse, inType, outType);
-
-		for (int i = 0; i < outType.getArity(); i++) {
-			if (!fs.contains(i)) {
-				dm.addForwardedField2(i, i);
+		for (String str : cfse) {
+			FieldSet fs = readFieldSetFromString(str, inType, outType);
+	
+			for (int i = 0; i < outType.getArity(); i++) {
+				if (!fs.contains(i)) {
+					dm.addForwardedField2(i, i);
+				}
 			}
 		}
 	}
 
-	private static void parseReadFieldsFirst(String rf, DualInputSemanticProperties dm, TypeInformation<?> inType, TypeInformation<?> outType) {
+	private static void parseReadFieldsFirst(String[] rf, DualInputSemanticProperties dm, TypeInformation<?> inType, TypeInformation<?> outType) {
 		if (rf == null) {
 			return;
 		}
 
-		FieldSet fs = readFieldSetFromString(rf, inType, outType);
-		dm.addReadFields1(fs);
+		for (String str : rf) {
+			FieldSet fs = readFieldSetFromString(str, inType, outType);
+			dm.addReadFields1(fs);
+		}
 	}
 
-	private static void parseReadFieldsSecond(String rf, DualInputSemanticProperties dm, TypeInformation<?> inType, TypeInformation<?> outType) {
+	private static void parseReadFieldsSecond(String[] rf, DualInputSemanticProperties dm, TypeInformation<?> inType, TypeInformation<?> outType) {
 		if (rf == null) {
 			return;
 		}
 
-		FieldSet fs = readFieldSetFromString(rf, inType, outType);
-		dm.addReadFields2(fs);
+		for (String str : rf) {
+			FieldSet fs = readFieldSetFromString(str, inType, outType);
+			dm.addReadFields2(fs);
+		}
 	}
 
 
 	private static boolean isValidField(TypeInformation<?> type, int field) {
-		if (field > type.getArity() || field < 0) {
-			return false;
-		}
-		return true;
+		return field >= 0 && field < type.getArity();
 	}
 
-	private static void parseConstantFieldsExcept(String cfe, SingleInputSemanticProperties sm, TypeInformation<?> inType, TypeInformation<?> outType) {
+	private static void parseConstantFieldsExcept(String[] cfe, SingleInputSemanticProperties sm, TypeInformation<?> inType, TypeInformation<?> outType) {
 		if (cfe == null) {
 			return;
 		}
 
-		FieldSet fs = readFieldSetFromString(cfe, inType, outType);
-
-		for (int i = 0; i < outType.getArity(); i++) {
-			if (!fs.contains(i)) {
-				sm.addForwardedField(i, i);
+		for (String str : cfe) {
+			FieldSet fs = readFieldSetFromString(str, inType, outType);
+	
+			for (int i = 0; i < outType.getArity(); i++) {
+				if (!fs.contains(i)) {
+					sm.addForwardedField(i, i);
+				}
 			}
 		}
 	}
 
 	private static FieldSet readFieldSetFromString(String s, TypeInformation<?> inType, TypeInformation<?> outType) {
-		Pattern check = Pattern.compile("\\s*(\\d+\\s*,\\s*)*(\\d+\\s*)");
-		Pattern digit = Pattern.compile("\\d+");
-
-		Matcher matcher = check.matcher(s);
+		Matcher matcher = FIELD_SET_CHECK_PATTERN.matcher(s);
 
 		if (!matcher.matches()) {
-			throw new RuntimeException("Wrong annotation String format. Please read the documentation.");
+			throw new RuntimeException("Unrecognized annotation string format.");
 		}
 
-		matcher = digit.matcher(s);
+		matcher = DIGIT_PATTERN.matcher(s);
 		FieldSet fs = new FieldSet();
 
 		while (matcher.find()) {
@@ -253,16 +259,18 @@ public class SemanticPropUtil {
 		return fs;
 	}
 
-	private static void parseReadFields(String rf, SingleInputSemanticProperties sm, TypeInformation<?> inType, TypeInformation<?> outType) {
+	private static void parseReadFields(String[] rf, SingleInputSemanticProperties sm, TypeInformation<?> inType, TypeInformation<?> outType) {
 		if (rf == null) {
 			return;
 		}
 
-		FieldSet fs = readFieldSetFromString(rf, inType, outType);
-		sm.addReadFields(fs);
+		for (String str : rf) {
+			FieldSet fs = readFieldSetFromString(str, inType, outType);
+			sm.addReadFields(fs);
+		}
 	}
 
-	public static SingleInputSemanticProperties getSemanticPropsSingleFromString(String[] constantSet, String constantSetExcept, String readSet, TypeInformation<?> inType, TypeInformation<?> outType) {
+	public static SingleInputSemanticProperties getSemanticPropsSingleFromString(String[] constantSet, String[] constantSetExcept, String[] readSet, TypeInformation<?> inType, TypeInformation<?> outType) {
 		SingleInputSemanticProperties result = new SingleInputSemanticProperties();
 		parseConstantFields(constantSet, result, inType, outType);
 		parseConstantFieldsExcept(constantSetExcept, result, inType, outType);
@@ -270,8 +278,8 @@ public class SemanticPropUtil {
 		return result;
 	}
 
-	public static DualInputSemanticProperties getSemanticPropsDualFromString(String[] constantSetFirst, String[] constantSetSecond, String constantSetFirstExcept,
-	String constantSetSecondExcept, String readFieldsFirst, String readFieldsSecond, TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType) {
+	public static DualInputSemanticProperties getSemanticPropsDualFromString(String[] constantSetFirst, String[] constantSetSecond, String[] constantSetFirstExcept,
+	String[] constantSetSecondExcept, String[] readFieldsFirst, String[] readFieldsSecond, TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType) {
 		DualInputSemanticProperties result = new DualInputSemanticProperties();
 		parseConstantFieldsFirst(constantSetFirst, result, inType1, outType);
 		parseConstantFieldsSecond(constantSetSecond, result, inType2, outType);

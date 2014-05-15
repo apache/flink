@@ -15,6 +15,7 @@
 package eu.stratosphere.api.java.operators;
 
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.SingleInputOperator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.operators.translation.PlanFilterOperator;
@@ -39,7 +40,7 @@ public class FilterOperator<IN> extends SingleInputUdfOperator<IN, IN, FilterOpe
 	}
 
 	@Override
-	protected Operator translateToDataFlow(Operator input) {
+	protected SingleInputOperator<?> translateToDataFlow(Operator input) {
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator

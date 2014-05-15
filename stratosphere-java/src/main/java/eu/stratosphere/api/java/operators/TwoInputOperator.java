@@ -60,6 +60,6 @@ public abstract class TwoInputOperator<IN1, IN2, OUT, O extends TwoInputOperator
 	 * @param input2 The second input of the operation, as a common API operator.
 	 * @return The created common API operator.
 	 */
-	protected abstract eu.stratosphere.api.common.operators.Operator translateToDataFlow(
+	protected abstract eu.stratosphere.api.common.operators.DualInputOperator<?> translateToDataFlow(
 			eu.stratosphere.api.common.operators.Operator input1, eu.stratosphere.api.common.operators.Operator input2);
 }

@@ -404,6 +404,12 @@ public class TaskManager implements TaskOperationProtocol {
 		System.err.println("Configuration "+GlobalConfiguration.getConfiguration());
 		LOG.info("Current user "+UserGroupInformation.getCurrentUser().getShortUserName());
 		
+		{
+			// log the available JVM memory
+			long maxMemoryMiBytes = Runtime.getRuntime().maxMemory() >>> 20;
+			LOG.info("Starting TaskManager in a JVM with " + maxMemoryMiBytes + " MiBytes maximum heap size.");
+		}
+		
 		// Create a new task manager object
 		try {
 			new TaskManager();
