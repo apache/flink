@@ -34,12 +34,12 @@ public class CopyableValueComparatorTest extends ComparatorTestBase<StringValue>
 
 	@Override
 	protected TypeComparator<StringValue> createComparator(boolean ascending) {
-		return new CopyableValueComparator(ascending, StringValue.class);
+		return new CopyableValueComparator<StringValue>(ascending, StringValue.class);
 	}
 
 	@Override
 	protected TypeSerializer<StringValue> createSerializer() {
-		return new CopyableValueSerializer(StringValue.class);
+		return new CopyableValueSerializer<StringValue>(StringValue.class);
 	}
 
 	@Override

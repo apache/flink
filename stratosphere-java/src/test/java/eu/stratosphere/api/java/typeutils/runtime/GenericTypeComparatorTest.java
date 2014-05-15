@@ -113,6 +113,7 @@ public class GenericTypeComparatorTest {
 
 		private final Class<T> type;
 
+		@SuppressWarnings("unchecked")
 		public ComparatorTestInstance(T[] testData) {
 			if (testData == null || testData.length == 0) {
 				throw new IllegalArgumentException();
@@ -123,6 +124,7 @@ public class GenericTypeComparatorTest {
 		}
 
 		@Override
+		@SuppressWarnings({ "unchecked", "rawtypes" })
 		protected TypeComparator<T> createComparator(boolean ascending) {
 			return new GenericTypeComparator(ascending, GenericTypeComparatorTest.createSerializer(this.type), this.type);
 		}
