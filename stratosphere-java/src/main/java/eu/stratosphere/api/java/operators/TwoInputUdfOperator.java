@@ -85,12 +85,23 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 		return returnType;
 	}
 
-	/*
-	Allows to give specifications about constant sets directly in the code. Null values are allowed for not specified sets.
+	/**
+	 * Allows to give specifications about constant sets directly in the code. Null values are allowed for not specified sets.
 	 */
-	public O withProperties(String[] constantSetFirst, String[] constantSetSecond, String constExceptFirst, String constExceptSecond, String readSetFirst, String readSetSecond) {
-		DualInputSemanticProperties dsp = SemanticPropUtil.getSemanticPropsDualFromString(constantSetFirst, constantSetSecond,
-				constExceptFirst, constExceptSecond, readSetFirst, readSetSecond, this.getInput1Type(), this.getInput2Type(), this.getResultType());
+	@SuppressWarnings("unchecked")
+	public O withConstantSetFirst(String... constantSetFirst) {
+		DualInputSemanticProperties dsp = SemanticPropUtil.getSemanticPropsDualFromString(constantSetFirst, null,
+				null, null, null, null, this.getInput1Type(), this.getInput2Type(), this.getResultType());
+		this.setSemanticProperties(dsp);
+
+		O returnType = (O) this;
+		return returnType;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public O withConstantSetSecond(String... constantSetSecond) {
+		DualInputSemanticProperties dsp = SemanticPropUtil.getSemanticPropsDualFromString(null, constantSetSecond,
+				null, null, null, null, this.getInput1Type(), this.getInput2Type(), this.getResultType());
 		this.setSemanticProperties(dsp);
 
 		O returnType = (O) this;

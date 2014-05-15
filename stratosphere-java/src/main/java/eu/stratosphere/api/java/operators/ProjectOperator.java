@@ -42,7 +42,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 	}
 
 	@Override
-	protected Operator translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(Operator input) {
 		
 		String name = getName() != null ? getName() : "Projection "+Arrays.toString(fields);
 		// create operator

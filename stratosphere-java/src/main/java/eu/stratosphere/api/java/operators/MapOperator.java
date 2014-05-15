@@ -41,21 +41,18 @@ public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOpe
 	}
 
 	@Override
-	protected Operator translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(Operator input) {
 
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator
 		PlanMapOperator<IN, OUT> po = new PlanMapOperator<IN, OUT>(function, name, getInputType(), getResultType());
 		// set input
 		po.setInput(input);
-		//set semantic properties
-		if (this.getSematicProperties() != null) {
-			po.setSemanticProperties(this.getSematicProperties());
-		}
+
 		// set dop
-		if(this.getParallelism() > 0) {
+		if (getParallelism() > 0) {
 			// use specified dop
-			po.setDegreeOfParallelism(this.getParallelism());
+			po.setDegreeOfParallelism(getParallelism());
 		} else {
 			// if no dop has been specified, use dop of input operator to enable chaining
 			po.setDegreeOfParallelism(input.getDegreeOfParallelism());

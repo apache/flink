@@ -16,8 +16,10 @@ package eu.stratosphere.api.java.operators;
 
 import eu.stratosphere.api.common.operators.AbstractUdfOperator;
 import eu.stratosphere.api.common.operators.BulkIteration;
+import eu.stratosphere.api.common.operators.DualInputSemanticProperties;
 import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.SingleInputSemanticProperties;
 import eu.stratosphere.api.java.BulkIterationResultSet;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.DeltaIteration;
@@ -32,7 +34,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 
 /**
  * 
@@ -84,12 +85,22 @@ public class OperatorTranslation {
 			// translate the input
 			Operator input = translate(op.getInput());
 			// translate the operation itself and connect it to the input
-			dataFlowOp = op.translateToDataFlow(input);
+			eu.stratosphere.api.common.operators.SingleInputOperator<?> singleInDataFlowOp = op.translateToDataFlow(input);
+			dataFlowOp = singleInDataFlowOp;
 			
-			if(dataSet instanceof UdfOperator<?> ) {
-				Configuration opParams = ((UdfOperator<?>) op).getParameters();
-				if(opParams != null) {
-					dataFlowOp.getParameters().addAll(opParams);
+			if (dataSet instanceof UdfOperator<?> ) {
+				SingleInputUdfOperator<?, ?, ?> udfOp = (SingleInputUdfOperator<?, ?, ?>) op;
+				
+				// set configuration parameters
+				Configuration opParams = udfOp.getParameters();
+				if (opParams != null) {
+					singleInDataFlowOp.getParameters().addAll(opParams);
+				}
+				
+				// set the semantic properties
+				SingleInputSemanticProperties props = udfOp.getSematicProperties();
+				if (props != null) {
+					singleInDataFlowOp.setSemanticProperties(props);
 				}
 			}
 		}
@@ -101,13 +112,23 @@ public class OperatorTranslation {
 			Operator input2 = translate(op.getInput2());
 			
 			// translate the operation itself and connect it to the inputs
-			dataFlowOp = op.translateToDataFlow(input1, input2);
+			eu.stratosphere.api.common.operators.DualInputOperator<?> binaryDataFlowOp = op.translateToDataFlow(input1, input2);
+			dataFlowOp = binaryDataFlowOp;
 			
-			// set configuration params
-			if(dataSet instanceof UdfOperator<?> ) {
-				Configuration opParams = ((UdfOperator<?>) op).getParameters();
-				if(opParams != null) {
+			
+			if (dataSet instanceof UdfOperator<?> ) {
+				TwoInputUdfOperator<?, ?, ?, ?> udfOp = (TwoInputUdfOperator<?, ?, ?, ?>) op;
+				
+				// set configuration parameters
+				Configuration opParams = udfOp.getParameters();
+				if (opParams != null) {
 					dataFlowOp.getParameters().addAll(opParams);
+				}
+				
+				// set the semantic properties
+				DualInputSemanticProperties props = udfOp.getSematicProperties();
+				if (props != null) {
+					binaryDataFlowOp.setSemanticProperties(props);
 				}
 			}
 		}

@@ -15,7 +15,9 @@
 package eu.stratosphere.api.java.operators.translation;
 
 import eu.stratosphere.api.common.functions.GenericReduce;
+import eu.stratosphere.api.common.operators.SingleInputSemanticProperties;
 import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
+import eu.stratosphere.api.java.functions.FunctionAnnotation;
 import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.functions.SemanticPropUtil;
 import eu.stratosphere.api.java.typeutils.TypeInformation;

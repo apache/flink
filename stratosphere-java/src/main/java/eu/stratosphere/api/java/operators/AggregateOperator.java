@@ -126,7 +126,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	
 	@SuppressWarnings("unchecked")
 	@Override
-	protected Operator translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(Operator input) {
 		
 		// sanity check
 		if (this.aggregationFunctions.isEmpty() || this.aggregationFunctions.size() != this.fields.size()) {

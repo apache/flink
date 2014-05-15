@@ -104,7 +104,7 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	}
 	
 	@Override
-	protected Operator translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(Operator input) {
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		
@@ -144,10 +144,6 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			
 			// set input
 			po.setInput(input);
-			//set semantic properties
-			if (this.getSematicProperties() != null) {
-				po.setSemanticProperties(this.getSematicProperties());
-			}
 			// set dop
 			po.setDegreeOfParallelism(this.getParallelism());
 			

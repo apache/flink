@@ -19,6 +19,7 @@ import java.util.Map;
 import org.apache.commons.lang3.Validate;
 
 import eu.stratosphere.api.common.aggregators.Aggregator;
+import eu.stratosphere.api.common.operators.DualInputOperator;
 import eu.stratosphere.api.common.operators.DualInputSemanticProperties;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
@@ -456,7 +457,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		}
 
 		@Override
-		protected Operator translateToDataFlow(Operator input1, Operator input2) {
+		protected DualInputOperator<?> translateToDataFlow(Operator input1, Operator input2) {
 			
 			final String name = (getName() != null) ? getName() :
 					"Vertex-centric iteration (" + updateFunction + " | " + messagingFunction + ")";
@@ -486,7 +487,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 			updater.setFirstInput(messenger);
 			updater.setSecondInput(iteration.getSolutionSet());
 			
-			// let the opertor know that we preserve the key field
+			// let the operator know that we preserve the key field
 			DualInputSemanticProperties semanticProps = new DualInputSemanticProperties();
 			semanticProps.addForwardedField1(0, 0);
 			semanticProps.addForwardedField2(0, 0);
@@ -501,7 +502,6 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 			messenger.setFirstInput(input2);
 			
 			return iteration;
-			
 		}
 	}
 }

@@ -67,17 +67,13 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	}
 
 	@Override
-	protected Operator translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.SingleInputOperator<?> translateToDataFlow(Operator input) {
 		String name = getName() != null ? getName() : function.getClass().getName();
 		
 		// distinguish between grouped reduce and non-grouped reduce
 		if (grouper == null) {
 			// non grouped reduce
 			PlanReduceOperator<IN> po = new PlanReduceOperator<IN>(function, new int[0], name, getInputType());
-			//set semantic properties
-			if (this.getSematicProperties() != null) {
-				po.setSemanticProperties(this.getSematicProperties());
-			}
 			// set input
 			po.setInput(input);
 			

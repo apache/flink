@@ -179,7 +179,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 //		}
 		
 		@Override
-		protected Operator translateToDataFlow(Operator input1, Operator input2) {
+		protected eu.stratosphere.api.common.operators.DualInputOperator<?> translateToDataFlow(Operator input1, Operator input2) {
 			
 			String name = getName() != null ? getName() : function.getClass().getName();
 			
@@ -217,10 +217,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				// set inputs
 				po.setFirstInput(input1);
 				po.setSecondInput(input2);
-				//set semantic properties
-				if (this.getSematicProperties() != null) {
-					po.setSemanticProperties(this.getSematicProperties());
-				}
+
 				// set dop
 				po.setDegreeOfParallelism(this.getParallelism());
 				
@@ -505,7 +502,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 		@Override
-		protected Operator translateToDataFlow(Operator input1, Operator input2) {
+		protected eu.stratosphere.api.common.operators.DualInputOperator<?> translateToDataFlow(Operator input1, Operator input2) {
 			throw new UnsupportedOperationException("LeftAntiJoin operator currently not supported.");
 		}
 	}
@@ -518,7 +515,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 		@Override
-		protected Operator translateToDataFlow(Operator input1, Operator input2) {
+		protected eu.stratosphere.api.common.operators.DualInputOperator<?> translateToDataFlow(Operator input1, Operator input2) {
 			throw new UnsupportedOperationException("RightAntiJoin operator currently not supported.");
 		}
 	}
@@ -531,7 +528,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 		@Override
-		protected Operator translateToDataFlow(Operator input1, Operator input2) {
+		protected eu.stratosphere.api.common.operators.DualInputOperator<?> translateToDataFlow(Operator input1, Operator input2) {
 			// TODO: Runtime support required. Each left tuple may be returned only once.
 			// 	     Special exec strategy (runtime + optimizer) based on hash join required. 
 			// 		 Either no duplicates of right side in HT or left tuples removed from HT after first match.
@@ -547,7 +544,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 		@Override
-		protected Operator translateToDataFlow(Operator input1, Operator input2) {
+		protected eu.stratosphere.api.common.operators.DualInputOperator<?> translateToDataFlow(Operator input1, Operator input2) {
 			// TODO: Runtime support required. Each right tuple may be returned only once.
 			// 	     Special exec strategy (runtime + optimizer) based on hash join required. 
 			// 		 Either no duplicates of left side in HT or right tuples removed from HT after first match.
