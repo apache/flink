@@ -137,29 +137,7 @@ public class Grouping<T> {
 	 * @see Order
 	 */
 	public SortedGrouping<T> sortGroup(int field, Order order) {
-		
-		int pos;
-		int[] groupSortKeyPositions;
-		Order[] groupSortOrders ;
-		
-		if (!dataSet.getType().isTupleType()) {
-			throw new InvalidProgramException("Specifying order keys via field positions is only valid for tuple data types");
-		}
-		if (field >= dataSet.getType().getArity()) {
-			throw new IllegalArgumentException("Order key out of tuple bounds.");
-		}
-		
-		groupSortKeyPositions = new int[1];
-		groupSortOrders = new Order[1];
-		pos = 0;
-		
-		groupSortKeyPositions[pos] = field;
-		groupSortOrders[pos] = order;
-		return new SortedGrouping<T>(this.dataSet, this.keys, groupSortKeyPositions, groupSortOrders);
+		return new SortedGrouping<T>(this.dataSet, this.keys, field, order);
 	}
-	
-//	public <K extends Comparable<K>> Grouping<T> sortGroup(KeySelector<T, K> keyExtractor, Order order) {
-//		throw new UnsupportedOperationException("Group sorting not supported for KeyExtractor functions.");
-//	}
 
 }
