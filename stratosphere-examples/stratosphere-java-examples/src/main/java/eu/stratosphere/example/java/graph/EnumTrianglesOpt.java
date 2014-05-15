@@ -322,6 +322,7 @@ public class EnumTrianglesOpt {
 		} else {
 			System.out.println("Executing Enum Triangles Opt example with built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
+			System.out.println("  See the documentation for the correct format of input files.");
 			System.out.println("  Usage: EnumTriangleBasic <edge path> <result path>");
 		}
 	}
