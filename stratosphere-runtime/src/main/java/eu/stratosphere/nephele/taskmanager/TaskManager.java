@@ -556,8 +556,9 @@ public class TaskManager implements TaskOperationProtocol {
 			socket.bind(bindP);
 			socket.connect(toSocket, timeout);
 		} catch (Exception ex) {
+			LOG.info("Failed to determine own IP address from '" + fromAddress + "': " + ex.getMessage());
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Failed on this address: " + ex.getMessage());
+				LOG.debug("Failed with exception", ex);
 			}
 			connectable = false;
 		} finally {
