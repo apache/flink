@@ -43,7 +43,8 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 			return new WritableComparator(sortOrderAscending, typeClass);
 		}
 		else {
-			throw new UnsupportedOperationException("Writable does not implement Comparable interface.");
+			throw new UnsupportedOperationException("Cannot create Comparator for "+typeClass.getCanonicalName()+". " +
+													"Class does not implement Comparable interface.");
 		}
 	}
 
