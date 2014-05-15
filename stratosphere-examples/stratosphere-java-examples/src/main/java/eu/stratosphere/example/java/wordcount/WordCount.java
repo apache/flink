@@ -27,7 +27,7 @@ import eu.stratosphere.util.Collector;
  * over text files. 
  * 
  * <p>
- * The input is plain text files.
+ * The input is a plain text file with lines separated by newline characters.
  * 
  * <p>
  * This example shows how to:

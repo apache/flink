@@ -31,15 +31,18 @@ import eu.stratosphere.util.Collector;
 
 /**
  * An implementation of the connected components algorithm, using a delta iteration.
- * Initially, the algorithm assigns each vertex its own ID. After the algorithm has completed, all vertices in the
- * same component will have the same id. In each step, a vertex picks the minimum of its own ID and its
- * neighbors' IDs, as its new ID.
+ * 
  * <p>
- * A vertex whose component did not change needs not propagate its information in the next step. Because of that,
+ * Initially, the algorithm assigns each vertex an unique ID. In each step, a vertex picks the minimum of its own ID and its
+ * neighbors' IDs, as its new ID and tells its neighbors about its new ID. After the algorithm has completed, all vertices in the
+ * same component will have the same ID.
+ * 
+ * <p>
+ * A vertex whose component ID did not change needs not propagate its information in the next step. Because of that,
  * the algorithm is easily expressible via a delta iteration. We here model the solution set as the vertices with
  * their current component ids, and the workset as the changed vertices. Because we see all vertices initially as
  * changed, the initial workset and the initial solution set are identical. Also, the delta to the solution set
- * is consequently also the next workset.
+ * is consequently also the next workset.<br>
  * 
  * <p>
  * Input files are plain text files and must be formatted as follows:
@@ -180,6 +183,7 @@ public class ConnectedComponents implements ProgramDescription {
 		} else {
 			System.out.println("Executing Connected Components example with default parameters and built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
+			System.out.println("  See the documentation for the correct format of input files.");
 			System.out.println("  Usage: ConnectedComponents <vertices path> <edges path> <result path> <max number of iterations>");
 		}
 	}

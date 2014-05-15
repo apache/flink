@@ -275,6 +275,8 @@ public class WebLogAnalysis {
 		} else {
 			System.out.println("Executing WebLog Analysis example with built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
+			System.out.println("  See the documentation for the correct format of input files.");
+			System.out.println("  We provide a data generator to create synthetic input files for this program.");
 			System.out.println("  Usage: WebLogAnalysis <documents path> <ranks path> <visits path> <result path>");
 		}
 	}

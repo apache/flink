@@ -31,7 +31,7 @@ import eu.stratosphere.example.java.graph.util.PageRankData;
 import eu.stratosphere.util.Collector;
 
 /**
- * A basic implementation of the page rank algorithm using a bulk iteration.
+ * A basic implementation of the Page Rank algorithm using a bulk iteration.
  * 
  * <p>
  * This implementation requires a set of pages (vertices) with associated ranks and a set 
@@ -39,7 +39,8 @@ import eu.stratosphere.util.Collector;
  * In each iteration, the rank of every page is evenly distributed to all pages it points to.
  * Each page collects the partial ranks of all pages that point to it, sums them up, and applies a dampening factor to the sum.
  * The result is the new rank of the page. A new iteration is started with the new ranks of all pages.
- * This implementation terminates after a fixed number of iterations.
+ * This implementation terminates after a fixed number of iterations.<br>
+ * This is the Wikipedia entry for the <a href="http://en.wikipedia.org/wiki/Page_rank">Page Rank algorithm</a>. 
  * 
  * <p>
  * Input files are plain text files and must be formatted as follows:
@@ -216,6 +217,7 @@ public class PageRankBasic {
 		} else {
 			System.out.println("Executing PageRank Basic example with default parameters and built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
+			System.out.println("  See the documentation for the correct format of input files.");
 			System.out.println("  Usage: PageRankBasic <vertex with initial rank input> <edges path> <output path> <num vertices> <num iterations>");
 			
 			numVertices = PageRankData.getNumberOfPages();

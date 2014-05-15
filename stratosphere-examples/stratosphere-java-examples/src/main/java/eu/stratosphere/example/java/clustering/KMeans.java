@@ -38,7 +38,8 @@ import eu.stratosphere.example.java.clustering.util.KMeansData;
  * Subsequently, each cluster center is moved to the center (<i>mean</i>) of all points that have been assigned to it.
  * The moved cluster centers are fed into the next iteration. 
  * The algorithm terminates after a fixed number of iterations (as in this implementation) 
- * or if cluster centers do not (significantly) move in an iteration.
+ * or if cluster centers do not (significantly) move in an iteration.<br>
+ * This is the Wikipedia entry for the <a href="http://en.wikipedia.org/wiki/K-means_clustering">K-Means Clustering algorithm</a>.
  * 
  * <p>
  * This implementation works on two-dimensional data points. <br>
@@ -290,6 +291,8 @@ public class KMeans {
 		} else {
 			System.out.println("Executing K-Means example with default parameters and built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
+			System.out.println("  See the documentation for the correct format of input files.");
+			System.out.println("  We provide a data generator to create synthetic input files for this program.");
 			System.out.println("  Usage: KMeans <points path> <centers path> <result path> <num iterations>");
 		}
 	}
