@@ -35,15 +35,19 @@ public class SortedGrouping<T> extends Grouping<T> {
 	private int[] groupSortKeyPositions;
 	private Order[] groupSortOrders ;
 	
-	public SortedGrouping(DataSet<T> set, Keys<T> keys, int[] groupSortKeyPositions, Order[] groupSortOrders) {
+	public SortedGrouping(DataSet<T> set, Keys<T> keys, int field, Order order) {
 		super(set, keys);
 		
-		if (groupSortKeyPositions == null || groupSortKeyPositions.length == 0 || groupSortOrders == null || groupSortOrders.length == 0) {
-			throw new InvalidProgramException("Key positions and sort orders must be specified in order to create a SortedGrouping.");
+		if (!dataSet.getType().isTupleType()) {
+			throw new InvalidProgramException("Specifying order keys via field positions is only valid for tuple data types");
+		}
+		if (field >= dataSet.getType().getArity()) {
+			throw new IllegalArgumentException("Order key out of tuple bounds.");
 		}
 		
-		this.groupSortKeyPositions = groupSortKeyPositions;
-		this.groupSortOrders = groupSortOrders;
+		this.groupSortKeyPositions = new int[]{field};
+		this.groupSortOrders = new Order[]{order};
+		
 	}
 	
 	protected int[] getGroupSortKeyPositions() {
