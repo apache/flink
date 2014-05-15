@@ -37,12 +37,12 @@ import eu.stratosphere.util.Collector;
  * This implementation requires a set of pages (vertices) with associated ranks and a set 
  * of directed links (edges) as input and works as follows. <br> 
  * In each iteration, the rank of every page is evenly distributed to all pages it points to.
- * Each page collects the partial ranks of all pages that point to it, sums them up, and apply a dampening factor to the sum.
+ * Each page collects the partial ranks of all pages that point to it, sums them up, and applies a dampening factor to the sum.
  * The result is the new rank of the page. A new iteration is started with the new ranks of all pages.
  * This implementation terminates after a fixed number of iterations.
  * 
  * <p>
- * Input files are plain text files must be formatted as follows:
+ * Input files are plain text files and must be formatted as follows:
  * <ul>
  * <li>Pages represented as an (long) ID and a (double) rank separated by new-line characters.<br> 
  * For example <code>"1 0.4\n2 0.3\n12 0.15\n42 0.05\n63 0.1\n"</code> gives five pages with associated ranks 
