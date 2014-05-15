@@ -40,6 +40,11 @@ public class FilterNode extends SingleInputNode {
 	public String getName() {
 		return "Filter";
 	}
+	
+	@Override
+	public boolean isFieldConstant(int input, int fieldNumber) {
+		return true;
+	}
 
 	@Override
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
