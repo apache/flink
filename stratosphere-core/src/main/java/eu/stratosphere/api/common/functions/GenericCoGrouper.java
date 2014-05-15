@@ -31,27 +31,4 @@ public interface GenericCoGrouper<V1, V2, O> extends Function {
 	 */
 	void coGroup(Iterator<V1> records1, Iterator<V2> records2, Collector<O> out) throws Exception;
 	
-	/**
-	 * This method must be overridden by CoGoup UDFs that want to make use of the combining feature
-	 * on their first input. In addition, the extending class must be annotated as CombinableFirst.
-	 * 
-	 * The use of the combiner is typically a pre-reduction of the data.
-	 * 
-	 * @param records The records to be combined.
-	 * @param out The collector to write the result to.
-	 * 
-	 */
-	V1 combineFirst(Iterator<V1> records) throws Exception;
-	
-	/**
-	 * This method must be overridden by CoGoup UDFs that want to make use of the combining feature
-	 * on their second input. In addition, the extending class must be annotated as CombinableSecond.
-	 * 
-	 * The use of the combiner is typically a pre-reduction of the data.
-	 * 
-	 * @param records The records to be combined.
-	 * @param out The collector to write the result to.
-	 * 
-	 */
-	V2 combineSecond(Iterator<V2> records) throws Exception;
 }
