@@ -16,6 +16,8 @@ package eu.stratosphere.compiler.contextcheck;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.google.common.base.Preconditions;
+
 import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.BulkIteration;
@@ -52,9 +54,10 @@ public class ContextChecker implements Visitor<Operator> {
 	 * thrown.
 	 * 
 	 * @param plan
-	 *        The PACT plan to check.
+	 *        The plan to check.
 	 */
 	public void check(Plan plan) {
+		Preconditions.checkNotNull(plan, "The passed plan is null.");
 		this.visitedNodes.clear();
 		plan.accept(this);
 	}

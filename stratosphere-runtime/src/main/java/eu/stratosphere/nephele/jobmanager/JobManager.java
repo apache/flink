@@ -359,9 +359,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		
 		// Clean up is triggered through a shutdown hook
 		// freeze this thread to keep the JVM alive (the job manager threads are daemon threads)
-		try {
-			new Object().wait();
-		} catch (InterruptedException e) {}
+		Object w = new Object();
+		synchronized (w) {
+			try {
+				w.wait();
+			} catch (InterruptedException e) {}
+		}
 	}
 	
 	@SuppressWarnings("static-access")
