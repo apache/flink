@@ -456,7 +456,6 @@ public class MapITCase extends JavaProgramTestBase {
 				DataSet<Tuple3<Integer, Long, String>> bcMapDs = ds.
 						map(new MapFunction<Tuple3<Integer,Long,String>, Tuple3<Integer,Long,String>>() {
 							private static final long serialVersionUID = 1L;
-							private final Tuple3<Integer, Long, String> out = new Tuple3<Integer, Long, String>();
 							
 							@Override
 							public void open(Configuration config) {
@@ -465,8 +464,7 @@ public class MapITCase extends JavaProgramTestBase {
 							}
 							
 							@Override
-							public Tuple3<Integer, Long, String> map(Tuple3<Integer, Long, String> value) 
-									throws Exception {
+							public Tuple3<Integer, Long, String> map(Tuple3<Integer, Long, String> value) {
 								return value;
 							}
 						}).withParameters(conf);

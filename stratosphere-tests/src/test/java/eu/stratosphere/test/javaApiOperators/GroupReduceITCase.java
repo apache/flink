@@ -29,19 +29,22 @@ import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.KeySelector;
+import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.api.java.tuple.Tuple5;
+import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.javaApiOperators.util.CollectionDataSets;
 import eu.stratosphere.test.javaApiOperators.util.CollectionDataSets.CustomType;
 import eu.stratosphere.test.util.JavaProgramTestBase;
 import eu.stratosphere.util.Collector;
 
+@SuppressWarnings("serial")
 @RunWith(Parameterized.class)
 public class GroupReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 11;
+	private static int NUM_PROGRAMS = 13;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -352,50 +355,55 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 						"65,test5\n" +
 						"111,test6\n";
 			}
-			// TODO: all-groupreduce with combine
-//			case 12: {
-//				
-//				/*
-//				 * check correctness of all-groupreduce for tuples with combine
-//				 */
-//
-//				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-//				
-//				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-//				DataSet<Tuple2<Integer, String>> reduceDs = ds.reduceGroup(new Tuple3GroupReduceWithCombine());
-//				
-//				reduceDs.writeAsCsv(resultPath);
-//				env.execute();
-//				
-//				// return expected result
-//				return "231,91,Hello World\n";
-//			}
-			// TODO: descending sort not working
-//			case 10: {
-//				
-//				/*
-//				 * check correctness of groupReduce on tuples with key field selector and group sorting
-//				 */
-//				
-//				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-//				env.setDegreeOfParallelism(1);
-//				
-//				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-//				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
-//						groupBy(1).sortGroup(2,Order.DESCENDING).reduceGroup(new Tuple3SortedGroupReduce());
-//				
-//				reduceDs.writeAsCsv(resultPath);
-//				env.execute();
-//				
-//				// return expected result
-//				return "1,1,Hi\n" +
-//						"5,2,Hello world-Hello\n" +
-//						"15,3,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
-//						"34,4,Comment#4-Comment#3-Comment#2-Comment#1\n" +
-//						"65,5,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
-//						"111,6,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
-//				
-//			}
+			// all-groupreduce with combine
+			case 12: {
+				
+				/*
+				 * check correctness of all-groupreduce for tuples with combine
+				 */
+
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env)
+							.map(new IdentityMapper<Tuple3<Integer,Long,String>>()).setParallelism(4);
+				
+				Configuration cfg = new Configuration();
+				cfg.setString(PactCompiler.HINT_SHIP_STRATEGY, PactCompiler.HINT_SHIP_STRATEGY_REPARTITION);
+				DataSet<Tuple2<Integer, String>> reduceDs = ds.reduceGroup(new Tuple3AllGroupReduceWithCombine())
+						.withParameters(cfg);
+				
+				reduceDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "322,testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest\n";
+			}
+			// descending sort not working
+			case 13: {
+				
+				/*
+				 * check correctness of groupReduce on tuples with key field selector and group sorting
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				env.setDegreeOfParallelism(1);
+				
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
+						groupBy(1).sortGroup(2,Order.DESCENDING).reduceGroup(new Tuple3SortedGroupReduce());
+				
+				reduceDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1,1,Hi\n" +
+						"5,2,Hello world-Hello\n" +
+						"15,3,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
+						"34,4,Comment#4-Comment#3-Comment#2-Comment#1\n" +
+						"65,5,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
+						"111,6,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
+				
+			}
 			default: 
 			throw new IllegalArgumentException("Invalid program id");
 			}
@@ -605,33 +613,69 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 	@eu.stratosphere.api.java.functions.GroupReduceFunction.Combinable
 	public static class Tuple3GroupReduceWithCombine extends GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public void combine(Iterator<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) throws Exception {
-			
+
 			Tuple3<Integer, Long, String> o = new Tuple3<Integer, Long, String>(0, 0l, "");
-			
+
 			while(values.hasNext()) {
 				Tuple3<Integer, Long, String> t = values.next();
 				o.f0 += t.f0;
 				o.f1 = t.f1;
 				o.f2 = "test"+o.f1;
 			}
-			
+
 			out.collect(o);
 		}
 
 		@Override
 		public void reduce(Iterator<Tuple3<Integer, Long, String>> values,
 				Collector<Tuple2<Integer, String>> out) throws Exception {
+
+			int i = 0;
+			String s = "";
+
+			while(values.hasNext()) {
+				Tuple3<Integer, Long, String> t = values.next();
+				i += t.f0;
+				s = t.f2;
+			}
+
+			out.collect(new Tuple2<Integer, String>(i, s));
+
+		}
+	}
+	
+	@eu.stratosphere.api.java.functions.GroupReduceFunction.Combinable
+	public static class Tuple3AllGroupReduceWithCombine extends GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>> {
+		private static final long serialVersionUID = 1L;
+		
+		@Override
+		public void combine(Iterator<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
+			
+			Tuple3<Integer, Long, String> o = new Tuple3<Integer, Long, String>(0, 0l, "");
+			
+			while(values.hasNext()) {
+				Tuple3<Integer, Long, String> t = values.next();
+				o.f0 += t.f0;
+				o.f1 += t.f1;
+				o.f2 += "test";
+			}
+			
+			out.collect(o);
+		}
+
+		@Override
+		public void reduce(Iterator<Tuple3<Integer, Long, String>> values, Collector<Tuple2<Integer, String>> out) {
 			
 			int i = 0;
 			String s = "";
 			
 			while(values.hasNext()) {
 				Tuple3<Integer, Long, String> t = values.next();
-				i += t.f0;
-				s = t.f2;
+				i += t.f0 + t.f1;
+				s += t.f2;
 			}
 			
 			out.collect(new Tuple2<Integer, String>(i, s));
@@ -674,5 +718,12 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 			out.collect(o);
 			
 		}
+	}
+	
+	public static final class IdentityMapper<T> extends MapFunction<T, T> {
+
+		@Override
+		public T map(T value) { return value; }
+		
 	}
 }

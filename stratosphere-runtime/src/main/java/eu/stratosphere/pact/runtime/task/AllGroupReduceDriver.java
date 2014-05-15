@@ -16,6 +16,7 @@ package eu.stratosphere.pact.runtime.task;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.api.common.functions.GenericCombine;
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
@@ -42,6 +43,8 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GenericGroupRedu
 	private MutableObjectIterator<IT> input;
 
 	private TypeSerializer<IT> serializer;
+	
+	private DriverStrategy strategy;
 
 	// ------------------------------------------------------------------------
 
@@ -72,7 +75,14 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GenericGroupRedu
 	@Override
 	public void prepare() throws Exception {
 		final TaskConfig config = this.taskContext.getTaskConfig();
-		if (config.getDriverStrategy() != DriverStrategy.ALL_GROUP_REDUCE) {
+		this.strategy = config.getDriverStrategy();
+		
+		if (strategy == DriverStrategy.ALL_GROUP_COMBINE) {
+			if (!(this.taskContext.getStub() instanceof GenericCombine)) {
+				throw new Exception("Using combiner on a UDF that does not implement the combiner interface " + GenericCombine.class.getName());
+			}
+		}
+		else if (strategy != DriverStrategy.ALL_GROUP_REDUCE) {
 			throw new Exception("Unrecognized driver strategy for AllGroupReduce driver: " + config.getDriverStrategy().name());
 		}
 		this.serializer = this.taskContext.<IT>getInputSerializer(0).getSerializer();
@@ -85,13 +95,22 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GenericGroupRedu
 			LOG.debug(this.taskContext.formatLogString("AllGroupReduce preprocessing done. Running Reducer code."));
 		}
 
-		final GenericGroupReduce<IT, OT> stub = this.taskContext.getStub();
-		final Collector<OT> output = this.taskContext.getOutputCollector();
 		final MutableToRegularIteratorWrapper<IT> inIter = new MutableToRegularIteratorWrapper<IT>(this.input, this.serializer);
 
 		// single UDF call with the single group
 		if (inIter.hasNext()) {
-			stub.reduce(inIter, output);
+			if (strategy == DriverStrategy.ALL_GROUP_REDUCE) {
+				final GenericGroupReduce<IT, OT> reducer = this.taskContext.getStub();
+				final Collector<OT> output = this.taskContext.getOutputCollector();
+				reducer.reduce(inIter, output);
+			}
+			else {
+				@SuppressWarnings("unchecked")
+				final GenericCombine<IT> combiner = (GenericCombine<IT>) this.taskContext.getStub();
+				@SuppressWarnings("unchecked")
+				final Collector<IT> output = (Collector<IT>) this.taskContext.getOutputCollector();
+				combiner.combine(inIter, output);
+			}
 		}
 	}
 
