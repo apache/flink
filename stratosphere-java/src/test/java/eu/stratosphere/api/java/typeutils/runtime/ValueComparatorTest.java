@@ -17,12 +17,7 @@ package eu.stratosphere.api.java.typeutils.runtime;
 import eu.stratosphere.api.common.typeutils.ComparatorTestBase;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
-import eu.stratosphere.api.common.typeutils.base.StringValueSerializer;
 import eu.stratosphere.types.StringValue;
-import eu.stratosphere.types.Value;
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 
 public class ValueComparatorTest extends ComparatorTestBase<StringValue> {
 
@@ -39,12 +34,12 @@ public class ValueComparatorTest extends ComparatorTestBase<StringValue> {
 
 	@Override
 	protected TypeComparator<StringValue> createComparator(boolean ascending) {
-		return new ValueComparator(ascending, StringValue.class);
+		return new ValueComparator<StringValue>(ascending, StringValue.class);
 	}
 
 	@Override
 	protected TypeSerializer<StringValue> createSerializer() {
-		return new ValueSerializer(StringValue.class);
+		return new ValueSerializer<StringValue>(StringValue.class);
 	}
 
 	@Override
