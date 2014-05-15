@@ -157,7 +157,7 @@ public class TPCHQuery3 {
 								}
 							});
 		
-		// Join the last join result with Orders
+		// Join the last join result with LineItems
 		DataSet<ShippingPriorityItem> joined = 
 				customerWithOrders.join(li)
 									.where(4)

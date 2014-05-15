@@ -29,7 +29,8 @@ import eu.stratosphere.util.Collector;
 /**
  * An implementation of the connected components algorithm, using a delta iteration.
  * Initially, the algorithm assigns each vertex its own ID. After the algorithm has completed, all vertices in the
- * same component will have the same id. In each step, a vertex 
+ * same component will have the same id. In each step, a vertex picks the minimum of its own ID and its
+ * neighbors' IDs, as its new ID.
  * <p>
  * A vertex whose component did not change needs not propagate its information in the next step. Because of that,
  * the algorithm is easily expressible via a delta iteration. We here model the solution set as the vertices with
@@ -38,9 +39,9 @@ import eu.stratosphere.util.Collector;
  * is consequently also the next workset.
  * 
  * <p>
- * Input files are plain text files must be formatted as follows:
+ * Input files are plain text files and must be formatted as follows:
  * <ul>
- * <li>Vertexes represented as IDs and separated by new-line characters.<br> 
+ * <li>Vertices represented as IDs and separated by new-line characters.<br> 
  * For example <code>"1\n2\n12\n42\n63\n"</code> gives five vertices (1), (2), (12), (42), and (63). 
  * <li>Edges are represented as pairs for vertex IDs which are separated by space 
  * characters. Edges are separated by new-line characters.<br>
@@ -79,7 +80,7 @@ public class ConnectedComponents implements ProgramDescription {
 		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
 				verticesWithInitialId.iterateDelta(verticesWithInitialId, maxIterations, 0);
 		
-		// apply the step logic: join with the edges, select the minimum neighbor, update the component of the candidate is smaller
+		// apply the step logic: join with the edges, select the minimum neighbor, update if the component of the candidate is smaller
 		DataSet<Tuple2<Long, Long>> changes = iteration.getWorkset().join(edges).where(0).equalTo(0).with(new NeighborWithComponentIDJoin())
 				.groupBy(0).aggregate(Aggregations.MIN, 1)
 				.join(iteration.getSolutionSet()).where(0).equalTo(0)

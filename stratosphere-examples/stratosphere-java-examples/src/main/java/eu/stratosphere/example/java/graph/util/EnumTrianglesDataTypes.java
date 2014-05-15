@@ -52,7 +52,7 @@ public class EnumTrianglesDataTypes {
 			this.setSecondVertex(ewd.getSecondVertex());
 		}
 		
-		public void flipVertics() {
+		public void flipVertices() {
 			Integer tmp = this.getFirstVertex();
 			this.setFirstVertex(this.getSecondVertex());
 			this.setSecondVertex(tmp);

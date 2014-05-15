@@ -37,7 +37,7 @@ import eu.stratosphere.example.java.clustering.util.KMeansData;
  * Each point is assigned to the cluster center which is closest to it.
  * Subsequently, each cluster center is moved to the center (<i>mean</i>) of all points that have been assigned to it.
  * The moved cluster centers are fed into the next iteration. 
- * The algorithm terminates after a fixed number of iteration (as in this implementation) 
+ * The algorithm terminates after a fixed number of iterations (as in this implementation) 
  * or if cluster centers do not (significantly) move in an iteration.
  * 
  * <p>
@@ -46,7 +46,7 @@ import eu.stratosphere.example.java.clustering.util.KMeansData;
  * each data point is annotated with the id of the final cluster (center) it belongs to.
  * 
  * <p>
- * Input files are plain text files must be formatted as follows:
+ * Input files are plain text files and must be formatted as follows:
  * <ul>
  * <li>Data points are represented as two double values separated by a blank character.
  * Data points are separated by newline characters.<br>
@@ -84,7 +84,7 @@ public class KMeans {
 		// set number of bulk iterations for KMeans algorithm
 		IterativeDataSet<Centroid> loop = centroids.iterate(numIterations);
 		
-		DataSet<Centroid> newCentriods = points
+		DataSet<Centroid> newCentroids = points
 			// compute closest centroid for each point
 			.map(new SelectNearestCenter()).withBroadcastSet(loop, "centroids")
 			// count and sum point coordinates for each centroid
@@ -94,7 +94,7 @@ public class KMeans {
 			.map(new CentroidAverager());
 		
 		// feed new centroids back into next iteration
-		DataSet<Centroid> finalCentroids = loop.closeWith(newCentriods);
+		DataSet<Centroid> finalCentroids = loop.closeWith(newCentroids);
 		
 		DataSet<Tuple2<Integer, Point>> clusteredPoints = points
 				// assign points to final clusters

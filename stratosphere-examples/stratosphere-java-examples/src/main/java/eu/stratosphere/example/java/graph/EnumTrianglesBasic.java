@@ -32,7 +32,7 @@ import eu.stratosphere.util.Collector;
 
 /**
  * Triangle enumeration is a preprocessing step to find closely connected parts in graphs.
- * A triangle are three edges that connect three vertices with each other.
+ * A triangle consists of three edges that connect three vertices with each other.
  * 
  * <p>
  * The algorithm works as follows: 
@@ -41,7 +41,7 @@ import eu.stratosphere.util.Collector;
  * that closes the triangle.
  *  
  * <p>
- * Input files are plain text files must be formatted as follows:
+ * Input files are plain text files and must be formatted as follows:
  * <ul>
  * <li>Edges are represented as pairs for vertex IDs which are separated by space 
  * characters. Edges are separated by new-line characters.<br>
@@ -128,7 +128,7 @@ public class EnumTrianglesBasic {
 			
 			// flip vertices if necessary
 			if(inEdge.getFirstVertex() > inEdge.getSecondVertex()) {
-				inEdge.flipVertics();
+				inEdge.flipVertices();
 			}
 			
 			return inEdge;

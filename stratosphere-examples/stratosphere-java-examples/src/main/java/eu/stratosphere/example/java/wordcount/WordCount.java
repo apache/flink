@@ -23,11 +23,11 @@ import eu.stratosphere.example.java.wordcount.util.WordCountData;
 import eu.stratosphere.util.Collector;
 
 /**
- * Implements a the "WordCount" program that computes a simple word occurrence histogram
+ * Implements the "WordCount" program that computes a simple word occurrence histogram
  * over text files. 
  * 
  * <p>
- * The input are plain text files.
+ * The input is plain text files.
  * 
  * <p>
  * This example shows how to:
