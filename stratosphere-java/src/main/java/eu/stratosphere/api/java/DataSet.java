@@ -19,6 +19,7 @@ import org.apache.commons.lang3.Validate;
 import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.java.aggregation.Aggregations;
+import eu.stratosphere.api.java.functions.CoGroupFunction;
 import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
@@ -31,21 +32,26 @@ import eu.stratosphere.api.java.io.TextOutputFormat;
 import eu.stratosphere.api.java.operators.AggregateOperator;
 import eu.stratosphere.api.java.operators.CoGroupOperator;
 import eu.stratosphere.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
-import eu.stratosphere.api.java.operators.CrossOperator.DefaultCross;
 import eu.stratosphere.api.java.operators.CrossOperator;
+import eu.stratosphere.api.java.operators.CrossOperator.DefaultCross;
 import eu.stratosphere.api.java.operators.CustomUnaryOperation;
 import eu.stratosphere.api.java.operators.DataSink;
 import eu.stratosphere.api.java.operators.FilterOperator;
 import eu.stratosphere.api.java.operators.FlatMapOperator;
 import eu.stratosphere.api.java.operators.Grouping;
+import eu.stratosphere.api.java.operators.JoinOperator;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinHint;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinOperatorSets;
 import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.operators.MapOperator;
+import eu.stratosphere.api.java.operators.ProjectOperator;
 import eu.stratosphere.api.java.operators.ProjectOperator.Projection;
 import eu.stratosphere.api.java.operators.ReduceGroupOperator;
 import eu.stratosphere.api.java.operators.ReduceOperator;
+import eu.stratosphere.api.java.operators.SortedGrouping;
 import eu.stratosphere.api.java.operators.UnionOperator;
+import eu.stratosphere.api.java.operators.UnsortedGrouping;
+import eu.stratosphere.api.java.record.functions.CrossFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.InputTypeConfigurable;
@@ -251,10 +257,6 @@ public abstract class DataSet<T> {
 //		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
 //	}
 	
-//	public DistinctOperator<T> distinct(String fieldExpression) {
-//		return new DistinctOperator<T>(this, new Keys.ExpressionKeys<T>(fieldExpression, getType()));
-//	}
-	
 //	public DistinctOperator<T> distinct(int... fields) {
 //		return new DistinctOperator<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), true));
 //	}
@@ -267,42 +269,42 @@ public abstract class DataSet<T> {
 	 * Groups a {@link DataSet} using a {@link KeySelector} function. 
 	 * The KeySelector function is called for each element of the DataSet and extracts a single 
 	 *   key value on which the DataSet is grouped. </br>
-	 * This method returns a {@link Grouping} on which one of the following grouping transformation 
-	 *   needs to be applied to obtain a transformed DataSet. 
+	 * This method returns an {@link UnsortedGrouping} on which one of the following grouping transformation 
+	 *   can be applied. 
 	 * <ul>
-	 *   <li>{@link Grouping#aggregate(Aggregations, int)}
-	 *   <li>{@link Grouping#reduce(ReduceFunction)}
-	 *   <li>{@link Grouping#reduceGroup(GroupReduceFunction)}
+	 *   <li>{@link UnsortedGrouping#sortGroup(int, eu.stratosphere.api.common.operators.Order)} to get a {@link SortedGrouping}. 
+	 *   <li>{@link Grouping#aggregate(Aggregations, int)} to apply an Aggregate transformation.
+	 *   <li>{@link Grouping#reduce(ReduceFunction)} to apply a Reduce transformation.
+	 *   <li>{@link Grouping#reduceGroup(GroupReduceFunction)} to apply a GroupReduce transformation.
 	 * </ul>
 	 *  
 	 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet on which it is grouped. 
-	 * @return A Grouping on which a transformation needs to be applied to obtain a transformed DataSet.
+	 * @return An UnsortedGrouping on which a transformation needs to be applied to obtain a transformed DataSet.
 	 * 
 	 * @see KeySelector
 	 * @see Grouping
+	 * @see UnsortedGrouping
+	 * @see SortedGrouping
 	 * @see AggregateOperator
 	 * @see ReduceOperator
 	 * @see GroupReduceOperator
 	 * @see DataSet
 	 */
-	public <K extends Comparable<K>> Grouping<T> groupBy(KeySelector<T, K> keyExtractor) {
-		return new Grouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
+	public <K extends Comparable<K>> UnsortedGrouping<T> groupBy(KeySelector<T, K> keyExtractor) {
+		return new UnsortedGrouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
 	}
-	
-//	public Grouping<T> groupBy(String fieldExpression) {
-//		return new Grouping<T>(this, new Keys.ExpressionKeys<T>(fieldExpression, getType()));
-//	}
 	
 	/**
 	 * Groups a {@link Tuple} {@link DataSet} using field position keys.<br/> 
 	 * <b>Note: Field position keys only be specified for Tuple DataSets.</b></br>
 	 * The field position keys specify the fields of Tuples on which the DataSet is grouped.
-	 * This method returns a {@link Grouping} on which one of the following grouping transformation 
-	 *   needs to be applied to obtain a transformed DataSet. 
+	 * This method returns an {@link UnsortedGrouping} on which one of the following grouping transformation 
+	 *   can be applied. 
 	 * <ul>
-	 *   <li>{@link Grouping#aggregate(Aggregations, int)}
-	 *   <li>{@link Grouping#reduce(ReduceFunction)}
-	 *   <li>{@link Grouping#reduceGroup(GroupReduceFunction)}
+	 *   <li>{@link UnsortedGrouping#sortGroup(int, eu.stratosphere.api.common.operators.Order)} to get a {@link SortedGrouping}. 
+	 *   <li>{@link Grouping#aggregate(Aggregations, int)} to apply an Aggregate transformation.
+	 *   <li>{@link Grouping#reduce(ReduceFunction)} to apply a Reduce transformation.
+	 *   <li>{@link Grouping#reduceGroup(GroupReduceFunction)} to apply a GroupReduce transformation.
 	 * </ul> 
 	 * 
 	 * @param fields One or more field positions on which the DataSet will be grouped. 
@@ -310,13 +312,15 @@ public abstract class DataSet<T> {
 	 * 
 	 * @see Tuple
 	 * @see Grouping
+	 * @see UnsortedGrouping
+	 * @see SortedGrouping
 	 * @see AggregateOperator
 	 * @see ReduceOperator
 	 * @see GroupReduceOperator
 	 * @see DataSet
 	 */
-	public Grouping<T> groupBy(int... fields) {
-		return new Grouping<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), false));
+	public UnsortedGrouping<T> groupBy(int... fields) {
+		return new UnsortedGrouping<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), false));
 	}
 	
 	// --------------------------------------------------------------------------------------------
