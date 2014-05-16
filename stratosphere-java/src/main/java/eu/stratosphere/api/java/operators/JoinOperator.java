@@ -592,7 +592,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * 
 		 * @param fields The indexes of the Tuple fields of the first join DataSets that should be used as keys.
 		 * @return An incomplete Join transformation. 
-		 *           Call {@link JoinOperatorSetsPredicate#equalTo(int...)} to continue the Join. 
+		 *           Call {@link JoinOperatorSetsPredicate#equalTo(int...)} or {@link JoinOperatorSetsPredicate#equalTo(KeySelector)}
+		 *           to continue the Join. 
 		 * 
 		 * @see Tuple
 		 * @see DataSet
@@ -601,20 +602,29 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			return new JoinOperatorSetsPredicate(new Keys.FieldPositionKeys<I1>(fields, input1.getType()));
 		}
 		
-		public <K extends Comparable<K>> JoinOperatorSetsPredicate where(KeySelector<I1, K> keyExtractor) {
-			return new JoinOperatorSetsPredicate(new Keys.SelectorFunctionKeys<I1, K>(keyExtractor, input1.getType()));
+		/**
+		 * Continues a Join transformation and defines a {@link KeySelector} function for the first join {@link DataSet}.</br>
+		 * The KeySelector function is called for each element of the first DataSet and extracts a single 
+		 * key value on which the DataSet is joined. </br>
+		 * 
+		 * @param keySelector The KeySelector function which extracts the key values from the DataSet on which it is joined.
+		 * @return An incomplete Join transformation. 
+		 *           Call {@link JoinOperatorSetsPredicate#equalTo(int...)} or {@link JoinOperatorSetsPredicate#equalTo(KeySelector)}
+		 *           to continue the Join. 
+		 * 
+		 * @see KeySelector
+		 * @see DataSet
+		 */
+		public <K extends Comparable<K>> JoinOperatorSetsPredicate where(KeySelector<I1, K> keySelector) {
+			return new JoinOperatorSetsPredicate(new Keys.SelectorFunctionKeys<I1, K>(keySelector, input1.getType()));
 		}
 		
-//		public JoinOperatorSetsPredicate where(String keyExpression) {
-//			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(keyExpression, input1.getType()));
-//		}
-	
 		// ----------------------------------------------------------------------------------------
 		
 		/**
 		 * Intermediate step of a Join transformation. <br/>
 		 * To continue the Join transformation, select the join key of the second input {@link DataSet} by calling 
-		 * {@link JoinOperatorSetsPredicate#equalTo(int...)}.
+		 * {@link JoinOperatorSetsPredicate#equalTo(int...)} or {@link JoinOperatorSetsPredicate#equalTo(KeySelector)}.
 		 *
 		 */
 		public class JoinOperatorSetsPredicate {
@@ -642,7 +652,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			 * the element of the first input being the first field of the tuple and the element of the 
 			 * second input being the second field of the tuple. 
 			 * 
-			 * @param fields The indexes of the Tuple fields of the second join DataSets that should be used as keys.
+			 * @param fields The indexes of the Tuple fields of the second join DataSet that should be used as keys.
 			 * @return A DefaultJoin that represents the joined DataSet.
 			 */
 			public DefaultJoin<I1, I2> equalTo(int... fields) {
@@ -658,16 +668,12 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			 * the element of the first input being the first field of the tuple and the element of the 
 			 * second input being the second field of the tuple. 
 			 * 
-			 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet on which it is joined.
+			 * @param keySelector The KeySelector function which extracts the key values from the second DataSet on which it is joined.
 			 * @return A DefaultJoin that represents the joined DataSet.
 			 */
-			public <K> DefaultJoin<I1, I2> equalTo(KeySelector<I2, K> keyExtractor) {
-				return createJoinOperator(new Keys.SelectorFunctionKeys<I2, K>(keyExtractor, input2.getType()));
+			public <K> DefaultJoin<I1, I2> equalTo(KeySelector<I2, K> keySelector) {
+				return createJoinOperator(new Keys.SelectorFunctionKeys<I2, K>(keySelector, input2.getType()));
 			}
-			
-//			public DefaultJoin<I1, I2> equalTo(String keyExpression) {
-//				return createJoinOperator(new Keys.ExpressionKeys<I2>(keyExpression, input2.getType()));
-//			}
 			
 			protected DefaultJoin<I1, I2> createJoinOperator(Keys<I2> keys2) {
 				if (keys2 == null) {

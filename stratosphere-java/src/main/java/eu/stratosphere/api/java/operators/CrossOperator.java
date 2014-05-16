@@ -20,12 +20,12 @@ import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.CrossFunction;
 import eu.stratosphere.api.java.operators.translation.PlanCrossOperator;
-//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
-import eu.stratosphere.api.java.tuple.*;
-//CHECKSTYLE.ON: AvoidStarImport
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
+//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
+import eu.stratosphere.api.java.tuple.*;
+//CHECKSTYLE.ON: AvoidStarImport
 
 /**
  * A {@link DataSet} that is the result of a Cross transformation.
@@ -71,6 +71,17 @@ public class CrossOperator<I1, I2, OUT>
 	// Builder classes for incremental construction
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * A Cross transformation that wraps pairs of crossed elements into {@link Tuple2}.<br/>
+	 * It also represents the {@link DataSet} that is the result of a Cross transformation. 
+	 * 
+	 * @param <I1> The type of the first input DataSet of the Cross transformation.
+	 * @param <I2> The type of the second input DataSet of the Cross transformation.
+	 * @param <OUT> The type of the result of the Cross transformation.
+	 * 
+	 * @see Tuple2
+	 * @see DataSet
+	 */
 	public static final class DefaultCross<I1, I2> extends CrossOperator<I1, I2, Tuple2<I1, I2>>  {
 
 		private final DataSet<I1> input1;
@@ -88,6 +99,16 @@ public class CrossOperator<I1, I2, OUT>
 			this.input2 = input2;
 		}
 
+		/**
+		 * Finalizes a Cross transformation by applying a {@link CrossFunction} to each pair of crossed elements.<br/>
+		 * Each CrossFunction call returns exactly one element. 
+		 * 
+		 * @param function The CrossFunction that is called for each pair of crossed elements.
+		 * @return An CrossOperator that represents the crossed result DataSet
+		 * 
+		 * @see CrossFunction
+		 * @see DataSet
+		 */
 		public <R> CrossOperator<I1, I2, R> with(CrossFunction<I1, I2, R> function) {
 			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function, input1.getType(), input2.getType());
 			return new CrossOperator<I1, I2, R>(input1, input2, function, returnType);

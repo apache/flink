@@ -26,13 +26,20 @@ import eu.stratosphere.api.java.operators.translation.PlanCogroupOperator;
 import eu.stratosphere.api.java.operators.translation.PlanMapOperator;
 import eu.stratosphere.api.java.operators.translation.PlanUnwrappingCoGroupOperator;
 import eu.stratosphere.api.java.operators.translation.TupleKeyExtractingMapper;
+import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 
 /**
- *
+ * A {@link DataSet} that is the result of a CoGroup transformation. 
+ * 
+ * @param <I1> The type of the first input DataSet of the CoGroup transformation.
+ * @param <I2> The type of the second input DataSet of the CoGroup transformation.
+ * @param <OUT> The type of the result of the CoGroup transformation.
+ * 
+ * @see DataSet
  */
 public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT, CoGroupOperator<I1, I2, OUT>> {
 
@@ -266,6 +273,14 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	// Builder classes for incremental construction
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Intermediate step of a CoGroup transformation. <br/>
+	 * To continue the CoGroup transformation, select the grouping key of the first input {@link DataSet} by calling 
+	 * {@link CoGroupOperatorSets#where(int...)} or {@link CoGroupOperatorSets#where(KeySelector)}.
+	 *
+	 * @param <I1> The type of the first input DataSet of the CoGroup transformation.
+	 * @param <I2> The type of the second input DataSet of the CoGroup transformation.
+	 */
 	public static final class CoGroupOperatorSets<I1, I2> {
 
 		private final DataSet<I1> input1;
@@ -280,20 +295,46 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			this.input2 = input2;
 		}
 
+		/**
+		 * Continues a CoGroup transformation. <br/>
+		 * Defines the {@link Tuple} fields of the first co-grouped {@link DataSet} that should be used as grouping keys.<br/>
+		 * <b>Note: Fields can only be selected as grouping keys on Tuple DataSets.</b><br/>
+		 * 
+		 * @param fields The indexes of the Tuple fields of the first co-grouped DataSets that should be used as keys.
+		 * @return An incomplete CoGroup transformation. 
+		 *           Call {@link CoGroupOperatorSetsPredicate#equalTo()} to continue the CoGroup. 
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
 		public CoGroupOperatorSetsPredicate where(int... fields) {
 			return new CoGroupOperatorSetsPredicate(new Keys.FieldPositionKeys<I1>(fields, input1.getType()));
 		}
 
+		/**
+		 * Continues a CoGroup transformation and defines a {@link KeySelector} function for the first co-grouped {@link DataSet}.</br>
+		 * The KeySelector function is called for each element of the first DataSet and extracts a single 
+		 * key value on which the DataSet is grouped. </br>
+		 * 
+		 * @param keySelector The KeySelector function which extracts the key values from the DataSet on which it is grouped.
+		 * @return An incomplete CoGroup transformation. 
+		 *           Call {@link CoGroupOperatorSetsPredicate#equalTo()} to continue the CoGroup. 
+		 * 
+		 * @see KeySelector
+		 * @see DataSet
+		 */
 		public <K> CoGroupOperatorSetsPredicate where(KeySelector<I1, K> keyExtractor) {
 			return new CoGroupOperatorSetsPredicate(new Keys.SelectorFunctionKeys<I1, K>(keyExtractor, input1.getType()));
 		}
 
-		public CoGroupOperatorSetsPredicate where(String keyExpression) {
-			return new CoGroupOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(keyExpression, input1.getType()));
-		}
-
 		// ----------------------------------------------------------------------------------------
 
+		/**
+		 * Intermediate step of a CoGroup transformation. <br/>
+		 * To continue the CoGroup transformation, select the grouping key of the second input {@link DataSet} by calling 
+		 * {@link CoGroupOperatorSetsPredicate#equalTo(int...)} or {@link CoGroupOperatorSetsPredicate#equalTo(KeySelector)}.
+		 *
+		 */
 		public final class CoGroupOperatorSetsPredicate {
 
 			private final Keys<I1> keys1;
@@ -310,21 +351,39 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				this.keys1 = keys1;
 			}
 
-
+			/**
+			 * Continues a CoGroup transformation and defines the {@link Tuple} fields of the second co-grouped 
+			 * {@link DataSet} that should be used as grouping keys.<br/>
+			 * <b>Note: Fields can only be selected as grouping keys on Tuple DataSets.</b><br/>
+			 * 
+			 * @param fields The indexes of the Tuple fields of the second co-grouped DataSet that should be used as keys.
+			 * @return An incomplete CoGroup transformation. 
+			 *           Call {@link CoGroupOperatorWithoutFunction#with(CoGroupFunction))} to finalize the CoGroup transformation. 
+			 */
 			public CoGroupOperatorWithoutFunction equalTo(int... fields) {
 				return createCoGroupOperator(new Keys.FieldPositionKeys<I2>(fields, input2.getType()));
 
 			}
 
+			/**
+			 * Continues a CoGroup transformation and defines a {@link KeySelector} function for the second co-grouped {@link DataSet}.</br>
+			 * The KeySelector function is called for each element of the second DataSet and extracts a single 
+			 * key value on which the DataSet is grouped. </br>
+			 * 
+			 * @param keySelector The KeySelector function which extracts the key values from the second DataSet on which it is grouped.
+			 * @return An incomplete CoGroup transformation. 
+			 *           Call {@link CoGroupOperatorWithoutFunction#with(CoGroupFunction))} to finalize the CoGroup transformation. 
+			 */
 			public <K> CoGroupOperatorWithoutFunction equalTo(KeySelector<I2, K> keyExtractor) {
 				return createCoGroupOperator(new Keys.SelectorFunctionKeys<I2, K>(keyExtractor, input2.getType()));
 			}
 
-			public CoGroupOperatorWithoutFunction equalTo(String keyExpression) {
-				return createCoGroupOperator(new Keys.ExpressionKeys<I2>(keyExpression, input2.getType()));
-			}
-
-
+			/**
+			 * Intermediate step of a CoGroup transformation. <br/>
+			 * To continue the CoGroup transformation, provide a {@link CoGroupFunction} by calling 
+			 * {@link CoGroupOperatorWithoutFunction#with(CoGroupFunction))}.
+			 *
+			 */
 			private CoGroupOperatorWithoutFunction createCoGroupOperator(Keys<I2> keys2) {
 				if (keys2 == null) {
 					throw new NullPointerException();
@@ -356,6 +415,16 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 					this.keys2 = keys2;
 				}
 
+				/**
+				 * Finalizes a CoGroup transformation by applying a {@link CoGroupFunction} to groups of elements with identical keys.<br/>
+				 * Each CoGroupFunction call returns an arbitrary number of keys. 
+				 * 
+				 * @param function The CoGroupFunction that is called for all groups of elements with identical keys.
+				 * @return An CoGroupOperator that represents the co-grouped result DataSet.
+				 * 
+				 * @see CoGroupFunction
+				 * @see DataSet
+				 */
 				public <R> CoGroupOperator<I1, I2, R> with(CoGroupFunction<I1, I2, R> function) {
 					TypeInformation<R> returnType = TypeExtractor.getCoGroupReturnTypes(function, input1.getType(), input2.getType());
 					return new CoGroupOperator<I1, I2, R>(input1, input2, keys1, keys2, function, returnType);

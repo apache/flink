@@ -82,6 +82,24 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 		return returnType;
 	}
 
+	/**
+	 * Adds a constant-set annotation for the UDF.
+	 * 
+	 * <p>
+	 * Constant set annotations are used by the optimizer to infer the existence of data properties (sorted, partitioned, grouped).
+	 * In certain cases, these annotations allow the optimizer to generate a more efficient execution plan which can lead to improved performance.
+	 * Constant set annotations can only be specified if the second input and the output type of the UDF are of {@link Tuple} data types.
+	 * 
+	 * <p>
+	 * A constant-set annotation is a set of constant field specifications. The constant field specification String "4->3" specifies, that this UDF copies the fourth field of 
+	 * an input tuple to the third field of the output tuple. Field references are zero-indexed.
+	 * 
+	 * <p>
+	 * <b>NOTICE: Constant set annotations are optional, but if given need to be correct. Otherwise, the program might produce wrong results!</b>
+	 * 
+	 * @param constantSet A list of constant field specification Strings.
+	 * @return This operator with an annotated constant field set.
+	 */
 	public O withConstantSet(String... constantSet) {
 		SingleInputSemanticProperties props = SemanticPropUtil.getSemanticPropsSingleFromString(constantSet, null, null, this.getInputType(), this.getResultType());
 		this.setSemanticProperties(props);

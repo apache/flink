@@ -31,6 +31,7 @@ import eu.stratosphere.api.java.io.TextOutputFormat;
 import eu.stratosphere.api.java.operators.AggregateOperator;
 import eu.stratosphere.api.java.operators.CoGroupOperator;
 import eu.stratosphere.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
+import eu.stratosphere.api.java.operators.CrossOperator.DefaultCross;
 import eu.stratosphere.api.java.operators.CrossOperator;
 import eu.stratosphere.api.java.operators.CustomUnaryOperation;
 import eu.stratosphere.api.java.operators.DataSink;
@@ -46,6 +47,7 @@ import eu.stratosphere.api.java.operators.ReduceGroupOperator;
 import eu.stratosphere.api.java.operators.ReduceOperator;
 import eu.stratosphere.api.java.operators.UnionOperator;
 import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.InputTypeConfigurable;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.core.fs.FileSystem.WriteMode;
@@ -419,22 +421,40 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 
 	/**
+	 * Continues a Join transformation and defines the {@link Tuple} fields of the second join 
+	 * {@link DataSet} that should be used as join keys.<br/>
+	 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br/>
+	 * 
+	 * The resulting {@link DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with 
+	 * the element of the first input being the first field of the tuple and the element of the 
+	 * second input being the second field of the tuple. 
+	 * 
+	 * @param fields The indexes of the Tuple fields of the second join DataSet that should be used as keys.
+	 * @return A DefaultJoin that represents the joined DataSet.
+	 */
+	
+	/**
 	 * Initiates a Cross transformation.<br/>
 	 * A Cross transformation combines the elements of two 
 	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
-	 *   both DataSets, i.e., it builds a Cartesian product, and calls a {@link CrossFunction} for
-	 *   each pair of elements.</br>
-	 * The CrossFunction returns a exactly one element for each pair of input elements.</br>
-	 * This method returns a {@link CrossOperatorSets} on which 
-	 *   {@link CrossOperatorSets#with()} needs to be called to define the CrossFunction that 
-	 *   is applied.
+	 *   both DataSets, i.e., it builds a Cartesian product.
+	 * 
+	 * <p>
+	 * The resulting {@link DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
+	 * the element of the first input being the first field of the tuple and the element of the 
+	 * second input being the second field of the tuple.
+	 * 
+	 * <p>
+	 * Call {@link DefaultCross.with(CrossFunction)} to define a {@link CrossFunction} which is called for
+	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
-	 * @return A CrossOperatorSets to continue the definition of the Cross transformation.
+	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
 	 * 
+	 * @see DefaultCross
 	 * @see CrossFunction
-	 * @see CrossOperatorSets
 	 * @see DataSet
+	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> cross(DataSet<R> other) {
 		return new CrossOperator.DefaultCross<T, R>(this, other);
@@ -444,21 +464,26 @@ public abstract class DataSet<T> {
 	 * Initiates a Cross transformation.<br/>
 	 * A Cross transformation combines the elements of two 
 	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
-	 *   both DataSets, i.e., it builds a Cartesian product, and calls a {@link CrossFunction} for
-	 *   each pair of elements.</br>
-	 * The CrossFunction returns a exactly one element for each pair of input elements.</br>
+	 *   both DataSets, i.e., it builds a Cartesian product.
 	 * This method also gives the hint to the optimizer that the second DataSet to cross is much
-	 *   smaller than the first one.</br>
-	 * This method returns a {@link CrossOperatorSets CrossOperatorSet} on which 
-	 *   {@link CrossOperatorSets#with()} needs to be called to define the CrossFunction that 
-	 *   is applied.
+	 *   smaller than the first one.
+	 *   
+	 * <p>
+	 * The resulting {@link DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
+	 * the element of the first input being the first field of the tuple and the element of the 
+	 * second input being the second field of the tuple.
+	 *   
+	 * <p>
+	 * Call {@link DefaultCross.with(CrossFunction)} to define a {@link CrossFunction} which is called for
+	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
-	 * @return A CrossOperatorSets to continue the definition of the Cross transformation.
+	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
 	 * 
+	 * @see DefaultCross
 	 * @see CrossFunction
-	 * @see CrossOperatorSets
 	 * @see DataSet
+	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> crossWithTiny(DataSet<R> other) {
 		return new CrossOperator.DefaultCross<T, R>(this, other);
@@ -468,21 +493,26 @@ public abstract class DataSet<T> {
 	 * Initiates a Cross transformation.<br/>
 	 * A Cross transformation combines the elements of two 
 	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
-	 *   both DataSets, i.e., it builds a Cartesian product, and calls a {@link CrossFunction} for
-	 *   each pair of elements.</br>
-	 * The CrossFunction returns a exactly one element for each pair of input elements.</br>
+	 *   both DataSets, i.e., it builds a Cartesian product.
 	 * This method also gives the hint to the optimizer that the second DataSet to cross is much
-	 *   larger than the first one.</br>
-	 * This method returns a {@link CrossOperatorSets CrossOperatorSet} on which 
-	 *   {@link CrossOperatorSets#with()} needs to be called to define the CrossFunction that 
-	 *   is applied.
+	 *   larger than the first one.
+	 *   
+	 * <p>
+	 * The resulting {@link DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
+	 * the element of the first input being the first field of the tuple and the element of the 
+	 * second input being the second field of the tuple.
+	 *   
+	 * <p>
+	 * Call {@link DefaultCross.with(CrossFunction)} to define a {@link CrossFunction} which is called for
+	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
-	 * @return A CrossOperatorSets to continue the definition of the Cross transformation.
+	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
 	 * 
+	 * @see DefaultCross
 	 * @see CrossFunction
-	 * @see CrossOperatorSets
 	 * @see DataSet
+	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> crossWithHuge(DataSet<R> other) {
 		return new CrossOperator.DefaultCross<T, R>(this, other);
@@ -766,7 +796,7 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Processes a DataSet using an {@link OutputFormat}. This method adds a data sink to the program.
+	 * Emits a DataSet using an {@link OutputFormat}. This method adds a data sink to the program.
 	 * Programs may have multiple data sinks. A DataSet may also have multiple consumers (data sinks
 	 * or transformations) at the same time.
 	 * 

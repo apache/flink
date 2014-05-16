@@ -86,7 +86,22 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	}
 
 	/**
-	 * Allows to give specifications about constant sets directly in the code. Null values are allowed for not specified sets.
+	 * Adds a constant-set annotation for the first input of the UDF.
+	 * 
+	 * <p>
+	 * Constant set annotations are used by the optimizer to infer the existence of data properties (sorted, partitioned, grouped).
+	 * In certain cases, these annotations allow the optimizer to generate a more efficient execution plan which can lead to improved performance.
+	 * Constant set annotations can only be specified if the first input and the output type of the UDF are of {@link Tuple} data types.
+	 * 
+	 * <p>
+	 * A constant-set annotation is a set of constant field specifications. The constant field specification String "4->3" specifies, that this UDF copies the fourth field of 
+	 * an input tuple to the third field of the output tuple. Field references are zero-indexed.
+	 * 
+	 * <p>
+	 * <b>NOTICE: Constant set annotations are optional, but if given need to be correct. Otherwise, the program might produce wrong results!</b>
+	 * 
+	 * @param constantSetFirst A list of constant field specification Strings for the first input.
+	 * @return This operator with an annotated constant field set for the first input.
 	 */
 	@SuppressWarnings("unchecked")
 	public O withConstantSetFirst(String... constantSetFirst) {
@@ -98,6 +113,24 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 		return returnType;
 	}
 	
+	/**
+	 * Adds a constant-set annotation for the second input of the UDF.
+	 * 
+	 * <p>
+	 * Constant set annotations are used by the optimizer to infer the existence of data properties (sorted, partitioned, grouped).
+	 * In certain cases, these annotations allow the optimizer to generate a more efficient execution plan which can lead to improved performance.
+	 * Constant set annotations can only be specified if the second input and the output type of the UDF are of {@link Tuple} data types.
+	 * 
+	 * <p>
+	 * A constant-set annotation is a set of constant field specifications. The constant field specification String "4->3" specifies, that this UDF copies the fourth field of 
+	 * an input tuple to the third field of the output tuple. Field references are zero-indexed.
+	 * 
+	 * <p>
+	 * <b>NOTICE: Constant set annotations are optional, but if given need to be correct. Otherwise, the program might produce wrong results!</b>
+	 * 
+	 * @param constantSetSecond A list of constant field specification Strings for the second input.
+	 * @return This operator with an annotated constant field set for the second input.
+	 */
 	@SuppressWarnings("unchecked")
 	public O withConstantSetSecond(String... constantSetSecond) {
 		DualInputSemanticProperties dsp = SemanticPropUtil.getSemanticPropsDualFromString(null, constantSetSecond,
