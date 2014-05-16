@@ -145,9 +145,11 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		if (channels == null || channels.length != 1) {
 			channels = new int[1];
 		}
-		
+
 		int hash = this.comparator.hash(record);
-	
+
+		hash = murmurHash(hash);
+
 		if(hash < 0) {
 			if(hash == Integer.MIN_VALUE) {
 				this.channels[0] = Integer.MAX_VALUE % numberOfChannels;
@@ -159,7 +161,28 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		}
 		return this.channels;
 	}
-	
+
+	private final int murmurHash(int k) {
+		final int C1 = 0xcc9e2d51;
+		final int C2 = 0x1b873593;
+
+		k *= C1;
+		k = Integer.rotateLeft(k, 15);
+		k *= C2;
+		
+		k = Integer.rotateLeft(k, 13);
+		k *= 0xe6546b64;
+
+		k ^= 4;
+		k ^= k >>> 16;
+		k *= 0x85ebca6b;
+		k ^= k >>> 13;
+		k *= 0xc2b2ae35;
+		k ^= k >>> 16;
+
+		return k;
+	}
+
 	private final int[] rangePartition(T record, int numberOfChannels) {
 		throw new UnsupportedOperationException();
 	}
