@@ -80,7 +80,9 @@ public class SemanticPropUtil {
 			return;
 		}
 		for (String s : cf) {
-			readConstantSet(sm, s, inType, outType, 0);
+			if (s != null) {
+				readConstantSet(sm, s, inType, outType, 0);
+			}
 		}
 	}
 
@@ -150,7 +152,9 @@ public class SemanticPropUtil {
 		}
 
 		for (String s : cff) {
-			readConstantSet(dm, s, inType, outType, 0);
+			if (s != null) {
+				readConstantSet(dm, s, inType, outType, 0);
+			}
 		}
 	}
 
@@ -160,7 +164,9 @@ public class SemanticPropUtil {
 		}
 		
 		for (String s : cfs) {
-			readConstantSet(dm, s, inType, outType, 1);
+			if (s != null) {
+				readConstantSet(dm, s, inType, outType, 1);
+			}
 		}
 	}
 
@@ -170,6 +176,10 @@ public class SemanticPropUtil {
 		}
 
 		for (String str : cffe) {
+			if (str == null) {
+				continue;
+			}
+			
 			FieldSet fs = readFieldSetFromString(str, inType, outType);
 	
 			for (int i = 0; i < outType.getArity(); i++) {
@@ -186,6 +196,10 @@ public class SemanticPropUtil {
 		}
 
 		for (String str : cfse) {
+			if (str == null) {
+				continue;
+			}
+			
 			FieldSet fs = readFieldSetFromString(str, inType, outType);
 	
 			for (int i = 0; i < outType.getArity(); i++) {
@@ -202,8 +216,10 @@ public class SemanticPropUtil {
 		}
 
 		for (String str : rf) {
-			FieldSet fs = readFieldSetFromString(str, inType, outType);
-			dm.addReadFields1(fs);
+			if (str != null) {
+				FieldSet fs = readFieldSetFromString(str, inType, outType);
+				dm.addReadFields1(fs);
+			}
 		}
 	}
 
@@ -213,8 +229,10 @@ public class SemanticPropUtil {
 		}
 
 		for (String str : rf) {
-			FieldSet fs = readFieldSetFromString(str, inType, outType);
-			dm.addReadFields2(fs);
+			if (str != null) {
+				FieldSet fs = readFieldSetFromString(str, inType, outType);
+				dm.addReadFields2(fs);
+			}
 		}
 	}
 
@@ -229,11 +247,13 @@ public class SemanticPropUtil {
 		}
 
 		for (String str : cfe) {
-			FieldSet fs = readFieldSetFromString(str, inType, outType);
-	
-			for (int i = 0; i < outType.getArity(); i++) {
-				if (!fs.contains(i)) {
-					sm.addForwardedField(i, i);
+			if (str != null) {
+				FieldSet fs = readFieldSetFromString(str, inType, outType);
+		
+				for (int i = 0; i < outType.getArity(); i++) {
+					if (!fs.contains(i)) {
+						sm.addForwardedField(i, i);
+					}
 				}
 			}
 		}
@@ -265,8 +285,10 @@ public class SemanticPropUtil {
 		}
 
 		for (String str : rf) {
-			FieldSet fs = readFieldSetFromString(str, inType, outType);
-			sm.addReadFields(fs);
+			if (str != null) {
+				FieldSet fs = readFieldSetFromString(str, inType, outType);
+				sm.addReadFields(fs);
+			}
 		}
 	}
 
