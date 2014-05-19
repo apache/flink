@@ -32,7 +32,7 @@ public class FieldList extends FieldSet {
 		add(columnIndex);
 	}
 	
-	public FieldList(int[] columnIndexes) {
+	public FieldList(int... columnIndexes) {
 		this();
 		addAll(columnIndexes);
 	}

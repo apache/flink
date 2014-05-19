@@ -32,6 +32,7 @@ import eu.stratosphere.pact.compiler.util.IdentityReduce;
  * This test case has been created to validate a bug that occurred when
  * the ReduceOperator was used without a grouping key.
  */
+@SuppressWarnings("serial")
 public class ReduceAllTest extends CompilerTestBase {
 
 	@Test

@@ -50,7 +50,9 @@ import eu.stratosphere.util.Visitor;
 /**
  *
  */
-public abstract class CompilerTestBase {
+public abstract class CompilerTestBase implements java.io.Serializable {
+	
+	private static final long serialVersionUID = 1L;
 
 	protected static final String IN_FILE = OperatingSystem.isWindows() ? "file:/c:/" : "file:///dev/random";
 	
@@ -64,15 +66,15 @@ public abstract class CompilerTestBase {
 	
 	// ------------------------------------------------------------------------
 	
-	protected DataStatistics dataStats;
+	protected transient DataStatistics dataStats;
 	
-	protected PactCompiler withStatsCompiler;
+	protected transient PactCompiler withStatsCompiler;
 	
-	protected PactCompiler noStatsCompiler;
+	protected transient PactCompiler noStatsCompiler;
 	
-	protected InstanceTypeDescription instanceType;
+	protected transient InstanceTypeDescription instanceType;
 	
-	private int statCounter;
+	private transient int statCounter;
 	
 	// ------------------------------------------------------------------------	
 	

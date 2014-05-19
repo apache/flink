@@ -40,6 +40,7 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 * Tests that validate optimizer choices when using operators that are requesting certain specific execution
 * strategies.
 */
+@SuppressWarnings("serial")
 public class AdditionalOperatorsTest extends CompilerTestBase {
 
 	@Test

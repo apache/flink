@@ -47,6 +47,7 @@ import eu.stratosphere.util.Visitor;
  *       parallelism between tasks is increased or decreased.
  * </ul>
  */
+@SuppressWarnings("serial")
 public class DOPChangeTest extends CompilerTestBase {
 	
 	/**

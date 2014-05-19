@@ -48,8 +48,7 @@ import eu.stratosphere.pact.compiler.util.IdentityReduce;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.LongValue;
 
-/**
- */
+@SuppressWarnings("serial")
 public class BranchingPlansCompilerTest extends CompilerTestBase {
 	
 	

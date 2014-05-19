@@ -36,6 +36,7 @@ import eu.stratosphere.types.IntValue;
  *   <li> Ticket 158
  * </ul>
  */
+@SuppressWarnings("serial")
 public class HardPlansCompilationTest extends CompilerTestBase
 {
 	

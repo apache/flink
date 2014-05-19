@@ -395,34 +395,51 @@ public class PlanJSONDumpGenerator {
 		if (p.getDriverStrategy() != null) {
 			switch (p.getDriverStrategy()) {
 			case NONE:
-			case UNARY_NO_OP:
+			case BINARY_NO_OP:
 				break;
+				
+			case UNARY_NO_OP:
+				locString = "No-Op";
+				break;
+				
 			case COLLECTOR_MAP:
 			case MAP:
 			case FLAT_MAP:
 				locString = "Map";
 				break;
-			case SORTED_GROUP_COMBINE:
-				locString = "Sorted Combine";
+			
+			case ALL_REDUCE:
+				locString = "Reduce All";
 				break;
+			
+			case ALL_GROUP_REDUCE:
+			case ALL_GROUP_COMBINE:
+				locString = "Group Reduce All";
+				break;
+				
+			case SORTED_REDUCE:
+				locString = "Sorted Reduce";
+				break;
+				
+			case SORTED_PARTIAL_REDUCE:
+				locString = "Sorted Combine/Reduce";
+				break;
+
 			case SORTED_GROUP_REDUCE:
 				locString = "Sorted Group Reduce";
 				break;
-			case ALL_GROUP_REDUCE: 
-				locString = "Group Reduce All";
+				
+			case SORTED_GROUP_COMBINE:
+				locString = "Sorted Combine";
 				break;
-			case SORTED_REDUCE:
-				locString = "Sorted Incremental Reduce";
-				break;
-			case ALL_REDUCE:
-				locString = "Incremental Reduce All";
-				break;
+
 			case HYBRIDHASH_BUILD_FIRST:
 				locString = "Hybrid Hash (build: " + child1name + ")";
 				break;
 			case HYBRIDHASH_BUILD_SECOND:
 				locString = "Hybrid Hash (build: " + child2name + ")";
 				break;
+
 			case NESTEDLOOP_BLOCKED_OUTER_FIRST:
 				locString = "Nested Loops (Blocked Outer: " + child1name + ")";
 				break;
@@ -435,12 +452,15 @@ public class PlanJSONDumpGenerator {
 			case NESTEDLOOP_STREAMED_OUTER_SECOND:
 				locString = "Nested Loops (Streamed Outer: " + child2name + ")";
 				break;
+
 			case MERGE:
 				locString = "Merge";
 				break;
+
 			case CO_GROUP:
 				locString = "Co-Group";
 				break;
+
 			default:
 				throw new CompilerException("Unknown local strategy '" + p.getDriverStrategy().name()
 					+ "' in JSON generator.");
