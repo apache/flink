@@ -112,6 +112,7 @@
 					<dotGitDirectory>${project.basedir}/../../.git</dotGitDirectory>
 					<generateGitPropertiesFile>true</generateGitPropertiesFile>
 					<skipPoms>false</skipPoms>
+					<failOnNoGitDirectory>false</failOnNoGitDirectory>
 					<generateGitPropertiesFilename>src/main/resources/.version.properties</generateGitPropertiesFilename>
 				</configuration>
 			</plugin>

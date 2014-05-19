@@ -11,14 +11,12 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.examples.scala;
-
+package eu.stratosphere.quickstart;
 
 /**
- * This dummy class exists only to create an empty
- * javadoc.jar in the stratosphere-scala-examples project.
- * This is required for passing the maven central sync requirements.
- */
+ * This class solely exists to generate
+ * javadocs for the "quickstart-java" project.
+ **/
 public class Dummy {
-
+	//
 }
