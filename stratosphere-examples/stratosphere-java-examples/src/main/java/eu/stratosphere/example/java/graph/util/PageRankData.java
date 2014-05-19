@@ -22,6 +22,11 @@ import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.tuple.Tuple2;
 
+/**
+ * Provides the default data sets used for the PageRank example program.
+ * The default data sets are used, if no parameters are given to the program.
+ *
+ */
 public class PageRankData {
 
 	private static int numPages = 15;

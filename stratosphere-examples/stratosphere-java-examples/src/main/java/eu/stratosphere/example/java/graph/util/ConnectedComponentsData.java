@@ -20,6 +20,11 @@ import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.tuple.Tuple2;
 
+/**
+ * Provides the default data sets used for the Connected Components example program.
+ * The default data sets are used, if no parameters are given to the program.
+ *
+ */
 public class ConnectedComponentsData {
 
 	public static DataSet<Long> getDefaultVertexDataSet(ExecutionEnvironment env) {

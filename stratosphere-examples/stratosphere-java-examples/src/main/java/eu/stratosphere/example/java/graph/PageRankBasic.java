@@ -55,6 +55,10 @@ import eu.stratosphere.util.Collector;
  * </ul>
  * 
  * <p>
+ * Usage: <code>PageRankBasic &lt;vertices with initial ranks path&gt; &lt;edges path&gt; &lt;output path&gt; &lt;num vertices&gt; &lt;num iterations&gt;</code><br>
+ * If no parameters are provided, the program is run with default data from {@link PageRankData} and 10 iterations.
+ * 
+ * <p>
  * This example shows how to use:
  * <ul>
  * <li>Bulk Iterations
@@ -211,14 +215,14 @@ public class PageRankBasic {
 				numVertices = Integer.parseInt(args[3]);
 				maxIterations = Integer.parseInt(args[4]);
 			} else {
-				System.err.println("Usage: PageRankBasic <vertex with initial rank input> <edges path> <output path> <num vertices> <num iterations>");
+				System.err.println("Usage: PageRankBasic <vertices with initial ranks path> <edges path> <output path> <num vertices> <num iterations>");
 				System.exit(1);
 			}
 		} else {
 			System.out.println("Executing PageRank Basic example with default parameters and built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
 			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: PageRankBasic <vertex with initial rank input> <edges path> <output path> <num vertices> <num iterations>");
+			System.out.println("  Usage: PageRankBasic <vertices with initial ranks path> <edges path> <output path> <num vertices> <num iterations>");
 			
 			numVertices = PageRankData.getNumberOfPages();
 		}

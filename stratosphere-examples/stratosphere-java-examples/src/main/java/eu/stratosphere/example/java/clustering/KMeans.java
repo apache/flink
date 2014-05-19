@@ -57,6 +57,10 @@ import eu.stratosphere.example.java.clustering.util.KMeansData;
  * </ul>
  * 
  * <p>
+ * Usage: <code>KMeans &lt;points path&gt; &lt;centers path&gt; &lt;result path&gt; &lt;num iterations&gt;</code><br>
+ * If no parameters are provided, the program is run with default data from {@link KMeansData} and 10 iterations. 
+ * 
+ * <p>
  * This example shows how to use:
  * <ul>
  * <li>Bulk iterations
@@ -103,7 +107,7 @@ public class KMeans {
 		
 		// emit result
 		if(fileOutput) {
-			clusteredPoints.writeAsCsv(outputPath, "\n", ",");
+			clusteredPoints.writeAsCsv(outputPath, "\n", " ");
 		} else {
 			clusteredPoints.print();
 		}
@@ -153,7 +157,7 @@ public class KMeans {
 		
 		@Override
 		public String toString() {
-			return x + "," + y;
+			return x + " " + y;
 		}
 	}
 	
@@ -178,7 +182,7 @@ public class KMeans {
 		
 		@Override
 		public String toString() {
-			return id + "," + super.toString();
+			return id + " " + super.toString();
 		}
 	}
 	

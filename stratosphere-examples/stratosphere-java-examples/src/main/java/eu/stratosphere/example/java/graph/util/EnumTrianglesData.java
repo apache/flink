@@ -19,6 +19,11 @@ import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.example.java.graph.util.EnumTrianglesDataTypes.Edge;
 
+/**
+ * Provides the default data sets used for the Triangle Enumeration example programs.
+ * The default data sets are used, if no parameters are given to the program.
+ *
+ */
 public class EnumTrianglesData {
 
 	public static DataSet<Edge> getDefaultEdgeDataSet(ExecutionEnvironment env) {

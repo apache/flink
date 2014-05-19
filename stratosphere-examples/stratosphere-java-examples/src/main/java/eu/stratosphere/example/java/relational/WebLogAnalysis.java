@@ -74,6 +74,10 @@ import eu.stratosphere.util.Collector;
  * </pre></code>
  * 
  * <p>
+ * Usage: <code>WebLogAnalysis &lt;documents path&gt; &lt;ranks path&gt; &lt;visits path&gt; &lt;result path&gt;</code><br>
+ * If no parameters are provided, the program is run with default data from {@link WebLogData}.
+ * 
+ * <p>
  * This example shows how to use:
  * <ul>
  * <li> tuple data types
@@ -100,29 +104,28 @@ public class WebLogAnalysis {
 		DataSet<Tuple3<Integer, String, Integer>> ranks = getRanksDataSet(env);
 		DataSet<Tuple2<String, String>> visits = getVisitsDataSet(env);
 		
-		// Create DataSet for filtering the entries from the documents relation
+		// Retain documents with keywords
 		DataSet<Tuple1<String>> filterDocs = documents
-				.filter(new FilterDocs())
+				.filter(new FilterDocByKeyWords())
 				.project(0).types(String.class);
 
-		// Create DataSet for filtering the entries from the ranks relation
+		// Filter ranks by minimum rank
 		DataSet<Tuple3<Integer, String, Integer>> filterRanks = ranks
-				.filter(new FilterRanks());
+				.filter(new FilterByRank());
 
-		// Create DataSet for filtering the entries from the visits relation
+		// Filter visits by visit date
 		DataSet<Tuple1<String>> filterVisits = visits
-				.filter(new FilterVisits())
+				.filter(new FilterVisitsByDate())
 				.project(0).types(String.class);
 
-		// Create DataSet to join the filtered documents and ranks relation
+		// Join the filtered documents and ranks, i.e., get all URLs with min rank and keywords
 		DataSet<Tuple3<Integer, String, Integer>> joinDocsRanks = 
 				filterDocs.join(filterRanks)
 							.where(0).equalTo(1)
 							.projectSecond(0,1,2)
 							.types(Integer.class, String.class, Integer.class);
 
-		// Create DataSet to realize a anti join between the joined
-		// documents and ranks relation and the filtered visits relation
+		// Anti-join urls with visits, i.e., retain all URLs which have NOT been visited in a certain time
 		DataSet<Tuple3<Integer, String, Integer>> result = 
 				joinDocsRanks.coGroup(filterVisits)
 								.where(1).equalTo(0)
@@ -148,7 +151,7 @@ public class WebLogAnalysis {
 	 * MapFunction that filters for documents that contain a certain set of
 	 * keywords.
 	 */
-	public static class FilterDocs extends FilterFunction<Tuple2<String, String>> {
+	public static class FilterDocByKeyWords extends FilterFunction<Tuple2<String, String>> {
 
 		private static final String[] KEYWORDS = { " editors ", " oscillations " };
 
@@ -176,7 +179,7 @@ public class WebLogAnalysis {
 	/**
 	 * MapFunction that filters for records where the rank exceeds a certain threshold.
 	 */
-	public static class FilterRanks extends FilterFunction<Tuple3<Integer, String, Integer>> {
+	public static class FilterByRank extends FilterFunction<Tuple3<Integer, String, Integer>> {
 
 		private static final int RANKFILTER = 40;
 
@@ -199,7 +202,7 @@ public class WebLogAnalysis {
 	 * MapFunction that filters for records of the visits relation where the year
 	 * (from the date string) is equal to a certain value.
 	 */
-	public static class FilterVisits extends FilterFunction<Tuple2<String, String>> {
+	public static class FilterVisitsByDate extends FilterFunction<Tuple2<String, String>> {
 
 		private static final int YEARFILTER = 2007;
 
