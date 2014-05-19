@@ -141,13 +141,13 @@ public class DefaultCostEstimator extends CostEstimator {
 	}
 
 	@Override
-	public void addLocalMergeCost(EstimateProvider input1, EstimateProvider input2, long availableMemory, Costs costs) {
+	public void addLocalMergeCost(EstimateProvider input1, EstimateProvider input2, long availableMemory, Costs costs, int costWeight) {
 		// costs nothing. the very rarely incurred cost for a spilling block nested loops join in the
 		// presence of massively re-occurring duplicate keys is ignored, because not accessible.
 	}
 
 	@Override
-	public void addHybridHashCosts(EstimateProvider buildSideInput, EstimateProvider probeSideInput, long availableMemory, Costs costs) {
+	public void addHybridHashCosts(EstimateProvider buildSideInput, EstimateProvider probeSideInput, long availableMemory, Costs costs, int costWeight) {
 		long bs = buildSideInput.getEstimatedOutputSize();
 		long ps = probeSideInput.getEstimatedOutputSize();
 		
@@ -160,10 +160,32 @@ public class DefaultCostEstimator extends CostEstimator {
 		}
 		costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
 		costs.addHeuristicCpuCost((long) (HEURISTIC_COST_BASE * HASHING_CPU_FACTOR));
+		costs.multiplyWith(costWeight);
+	}
+	
+	/**
+	 * Calculates the costs for the cached variant of the hybrid hash join.
+	 * We are assuming by default that half of the cached hash table fit into memory.
+	 */
+	@Override
+	public void addCachedHybridHashCosts(EstimateProvider buildSideInput, EstimateProvider probeSideInput, long availableMemory, Costs costs, int costWeight) {
+		long bs = buildSideInput.getEstimatedOutputSize();
+		long ps = probeSideInput.getEstimatedOutputSize();
+		
+		if (bs > 0 && ps > 0) {
+			long overallSize = 2*bs + ps;
+			costs.addDiskCost(overallSize / 2 + (overallSize / 2) * costWeight);
+			costs.addCpuCost((long) ((2*bs + ps) * HASHING_CPU_FACTOR));
+		} else {
+			costs.setDiskCost(Costs.UNKNOWN);
+			costs.setCpuCost(Costs.UNKNOWN);
+		}
+		costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE * costWeight);
+		costs.addHeuristicCpuCost((long) (HEURISTIC_COST_BASE * HASHING_CPU_FACTOR * costWeight));
 	}
 
 	@Override
-	public void addStreamedNestedLoopsCosts(EstimateProvider outerSide, EstimateProvider innerSide, long bufferSize, Costs costs) {
+	public void addStreamedNestedLoopsCosts(EstimateProvider outerSide, EstimateProvider innerSide, long bufferSize, Costs costs, int costWeight) {
 		long is = innerSide.getEstimatedOutputSize(); 
 		long oc = outerSide.getEstimatedNumRecords();
 		
@@ -181,10 +203,11 @@ public class DefaultCostEstimator extends CostEstimator {
 		// hack: assume 100k loops (should be expensive enough)
 		costs.addHeuristicDiskCost(HEURISTIC_COST_BASE * 100000);
 		costs.addHeuristicCpuCost((long) (HEURISTIC_COST_BASE * 100000 * MATERIALIZATION_CPU_FACTOR));
+		costs.multiplyWith(costWeight);
 	}
 
 	@Override
-	public void addBlockNestedLoopsCosts(EstimateProvider outerSide, EstimateProvider innerSide, long blockSize, Costs costs) {
+	public void addBlockNestedLoopsCosts(EstimateProvider outerSide, EstimateProvider innerSide, long blockSize, Costs costs, int costWeight) {
 		long is = innerSide.getEstimatedOutputSize(); 
 		long os = outerSide.getEstimatedOutputSize();
 		
@@ -200,6 +223,7 @@ public class DefaultCostEstimator extends CostEstimator {
 		// hack: assume 1k loops (much cheaper than the streamed variant!)
 		costs.addHeuristicDiskCost(HEURISTIC_COST_BASE * 1000);
 		costs.addHeuristicCpuCost((long) (HEURISTIC_COST_BASE * 1000 * MATERIALIZATION_CPU_FACTOR));
+		costs.multiplyWith(costWeight);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -306,6 +306,10 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		return this.source.isOnDynamicPath();
 	}
 	
+	public boolean isInsideIteration() {
+		return this.source.isInsideIteration();
+	}
+	
 	public int getCostWeight() {
 		return this.source.getCostWeight();
 	}

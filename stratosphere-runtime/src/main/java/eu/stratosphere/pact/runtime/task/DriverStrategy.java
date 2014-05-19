@@ -67,6 +67,10 @@ public enum DriverStrategy {
 	HYBRIDHASH_BUILD_FIRST(MatchDriver.class, null, FULL_DAM, MATERIALIZING, true),
 	// the second input is build side, the first side is probe side of a hybrid hash table
 	HYBRIDHASH_BUILD_SECOND(MatchDriver.class, null, MATERIALIZING, FULL_DAM, true),
+	// a cached variant of HYBRIDHASH_BUILD_FIRST, that can only be used inside of iterations
+	HYBRIDHASH_BUILD_FIRST_CACHED(BuildFirstCachedMatchDriver.class, null, FULL_DAM, MATERIALIZING, true),
+	//  cached variant of HYBRIDHASH_BUILD_SECOND, that can only be used inside of iterations
+	HYBRIDHASH_BUILD_SECOND_CACHED(BuildSecondCachedMatchDriver.class, null, MATERIALIZING, FULL_DAM, true),
 	
 	// the second input is inner loop, the first input is outer loop and block-wise processed
 	NESTEDLOOP_BLOCKED_OUTER_FIRST(CrossDriver.class, null, MATERIALIZING, MATERIALIZING, false),
