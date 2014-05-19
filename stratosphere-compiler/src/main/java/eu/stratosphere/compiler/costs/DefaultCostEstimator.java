@@ -102,7 +102,7 @@ public class DefaultCostEstimator extends CostEstimator {
 		} else {
 			costs.addNetworkCost(replicationFactor * estOutShipSize);
 		}
-		costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE * replicationFactor);
+		costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE * replicationFactor * 100);
 	}
 	
 	// --------------------------------------------------------------------------------------------

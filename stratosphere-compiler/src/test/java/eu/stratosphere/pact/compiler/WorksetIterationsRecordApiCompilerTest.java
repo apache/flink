@@ -48,7 +48,9 @@ import eu.stratosphere.types.LongValue;
 * Tests that validate optimizer choices when using operators that are requesting certain specific execution
 * strategies.
 */
-public class WorksetIterationsCompilerTest extends CompilerTestBase {
+public class WorksetIterationsRecordApiCompilerTest extends CompilerTestBase {
+	
+	private static final long serialVersionUID = 1L;
 	
 	private static final String ITERATION_NAME = "Test Workset Iteration";
 	private static final String JOIN_WITH_INVARIANT_NAME = "Test Join Invariant";
@@ -59,8 +61,8 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 	private final FieldList list0 = new FieldList(0);
 
 	@Test
-	public void testWithDeferredSoltionSetUpdateWithMapper() {
-		Plan plan = getTestPlan(false, true);
+	public void testRecordApiWithDeferredSoltionSetUpdateWithMapper() {
+		Plan plan = getRecordTestPlan(false, true);
 		
 		OptimizedPlan oPlan;
 		try {
@@ -105,8 +107,8 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 	}
 	
 	@Test
-	public void testWithDeferredSoltionSetUpdateWithNonPreservingJoin() {
-		Plan plan = getTestPlan(false, false);
+	public void testRecordApiWithDeferredSoltionSetUpdateWithNonPreservingJoin() {
+		Plan plan = getRecordTestPlan(false, false);
 		
 		OptimizedPlan oPlan;
 		try {
@@ -149,8 +151,8 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 	}
 	
 	@Test
-	public void testWithDirectSoltionSetUpdate() {
-		Plan plan = getTestPlan(true, false);
+	public void testRecordApiWithDirectSoltionSetUpdate() {
+		Plan plan = getRecordTestPlan(true, false);
 		
 		OptimizedPlan oPlan;
 		try {
@@ -191,7 +193,7 @@ public class WorksetIterationsCompilerTest extends CompilerTestBase {
 		new NepheleJobGraphGenerator().compileJobGraph(oPlan);
 	}
 	
-	private Plan getTestPlan(boolean joinPreservesSolutionSet, boolean mapBeforeSolutionDelta) {
+	private Plan getRecordTestPlan(boolean joinPreservesSolutionSet, boolean mapBeforeSolutionDelta) {
 		FileDataSource solutionSetInput = new FileDataSource(new DummyInputFormat(), IN_FILE, "Solution Set");
 		FileDataSource worksetInput = new FileDataSource(new DummyInputFormat(), IN_FILE, "Workset");
 		

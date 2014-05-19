@@ -44,6 +44,7 @@ import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.Visitor;
 
 
+@SuppressWarnings("serial")
 public class UnionPropertyPropagationTest extends CompilerTestBase {
 
 	@SuppressWarnings("deprecation")

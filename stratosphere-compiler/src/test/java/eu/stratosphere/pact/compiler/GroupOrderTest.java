@@ -48,6 +48,7 @@ import eu.stratosphere.types.StringValue;
  * This test case has been created to validate that correct strategies are used if orders within groups are
  * requested.
  */
+@SuppressWarnings("serial")
 public class GroupOrderTest extends CompilerTestBase  {
 
 	@Test
