@@ -346,6 +346,7 @@
 				<configuration>
 					<dotGitDirectory>${project.basedir}/../.git</dotGitDirectory>
 					<generateGitPropertiesFile>true</generateGitPropertiesFile>
+					<failOnNoGitDirectory>false</failOnNoGitDirectory>
 					<skipPoms>false</skipPoms>
 					<generateGitPropertiesFilename>src/main/stratosphere-bin/.version.properties</generateGitPropertiesFilename>
 				</configuration>

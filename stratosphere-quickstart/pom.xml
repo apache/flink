@@ -1,0 +1,129 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>eu.stratosphere</groupId>
+		<artifactId>stratosphere</artifactId>
+		<version>0.5-SNAPSHOT</version>
+		<relativePath>..</relativePath>
+	</parent>
+	
+	<artifactId>stratosphere-quickstart</artifactId>
+	<packaging>pom</packaging>
+
+	<name>stratosphere-quickstart</name>
+	<url>http://github.com/stratosphere/stratosphere</url>
+	<description>Parent project for different quickstart archetypes for Stratosphere.eu</description>
+	<inceptionYear>2013</inceptionYear>
+	
+	<licenses>
+		<license>
+			<name>The Apache Software License, Version 2.0</name>
+			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<distribution>stratosphere</distribution>
+		</license>
+	</licenses>
+
+	<scm>
+		<url>https://github.com/stratosphere/stratosphere</url>
+		<connection>scm:git:git@github.com:stratosphere/stratosphere.git</connection>
+		<developerConnection>scm:git:git@github.com:stratosphere/stratosphere.git</developerConnection>
+	</scm>
+
+	<developers>
+			<developer>
+			 <id>stratosphere-team</id>
+			 <name>The Stratosphere Team</name>
+			 <email>stratosphere-dev@googlegroups.com</email>
+		 </developer>
+	</developers>
+
+
+	<!-- See http://www.imixs.org/jee/archetype/build.html -->
+	<!-- Distributen Management oss.sonatype.org -->
+	<distributionManagement>
+		<snapshotRepository>
+			<id>sonatype-nexus-snapshots</id>
+			<name>Sonatype Nexus Snapshots</name>
+			<url>http://oss.sonatype.org/content/repositories/snapshots</url>
+		</snapshotRepository>
+		<repository>
+			<id>sonatype-nexus-staging</id>
+			<name>Nexus Release Repository</name>
+			<url>http://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+		</repository>
+	</distributionManagement>
+
+		<modules>
+			<module>quickstart-java</module>
+			<module>quickstart-scala</module>
+		</modules>
+
+		<profiles>
+			<profile>
+				<id>release</id>
+					<build>
+						<plugins>
+							<!-- source attachment -->
+							<plugin>
+								<groupId>org.apache.maven.plugins</groupId>
+								<artifactId>maven-source-plugin</artifactId>
+								<version>2.2.1</version>
+								<executions>
+									<execution>
+										<id>attach-sources</id>
+										<goals>
+											<goal>jar</goal>
+										</goals>
+									</execution>
+								</executions>
+							</plugin>
+							<!-- Javadocs -->
+							<plugin>
+								<groupId>org.apache.maven.plugins</groupId>
+								<artifactId>maven-javadoc-plugin</artifactId>
+								<version>2.9.1</version>
+									<executions>
+									<execution>
+										<id>attach-javadocs</id>
+										<goals>
+											<goal>jar</goal>
+										</goals>
+									</execution>
+								</executions>
+							</plugin>
+							<!-- signing -->
+							<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-gpg-plugin</artifactId>
+							<version>1.4</version>
+							<executions>
+								<execution>
+								<id>sign-artifacts</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>sign</goal>
+								</goals>
+								</execution>
+							</executions>
+							</plugin>
+						</plugins>
+						<pluginManagement>
+							<plugins>
+								<plugin>
+									<groupId>org.apache.maven.plugins</groupId>
+									<artifactId>maven-release-plugin</artifactId>
+									<version>2.1</version>
+									<configuration>
+										<mavenExecutorId>forked-path</mavenExecutorId>
+										<useReleaseProfile>false</useReleaseProfile>
+										<arguments>${arguments} -Psonatype-oss-release</arguments>
+									</configuration>
+								</plugin>
+							</plugins>
+						</pluginManagement>
+					</build>
+			</profile>
+		</profiles>
+</project>

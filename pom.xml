@@ -47,6 +47,7 @@
 		<module>stratosphere-tests</module>
 		<module>stratosphere-test-utils</module>
 		<module>stratosphere-addons</module>
+		<module>stratosphere-quickstart</module>
 		<module>stratosphere-dist</module>
 	</modules>
 
@@ -354,7 +355,7 @@
 						<!-- Configuration Files. -->
 						<exclude>**/stratosphere-bin/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
-						<exclude>README.md</exclude>
+						<exclude>**/README.md</exclude>
 						<exclude>tools/checkstyle.xml</exclude>
 						<exclude>CHANGELOG</exclude>
 						<exclude>**/*.creole</exclude>
