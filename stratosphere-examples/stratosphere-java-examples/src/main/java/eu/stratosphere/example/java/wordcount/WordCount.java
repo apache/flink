@@ -30,6 +30,10 @@ import eu.stratosphere.util.Collector;
  * The input is a plain text file with lines separated by newline characters.
  * 
  * <p>
+ * Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
+ * If no parameters are provided, the program is run with default data from {@link WordCountData}.
+ * 
+ * <p>
  * This example shows how to:
  * <ul>
  * <li>write a simple Stratosphere program.

@@ -17,6 +17,11 @@ package eu.stratosphere.example.java.wordcount.util;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 
+/**
+ * Provides the default data sets used for the WordCount example program.
+ * The default data sets are used, if no parameters are given to the program.
+ *
+ */
 public class WordCountData {
 
 	public static DataSet<String> getDefaultTextLineDataSet(ExecutionEnvironment env) {

@@ -18,6 +18,11 @@ import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.example.java.clustering.KMeans.Centroid;
 import eu.stratosphere.example.java.clustering.KMeans.Point;
 
+/**
+ * Provides the default data sets used for the K-Means example program.
+ * The default data sets are used, if no parameters are given to the program.
+ *
+ */
 public class KMeansData {
 
 	public static DataSet<Centroid> getDefaultCentroidDataSet(ExecutionEnvironment env) {

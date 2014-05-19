@@ -23,6 +23,11 @@ import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
 
+/**
+ * Provides the default data sets used for the Weblog Analysis example program.
+ * The default data sets are used, if no parameters are given to the program.
+ *
+ */
 public class WebLogData {
 
 	public static DataSet<Tuple2<String, String>> getDocumentDataSet(ExecutionEnvironment env) {

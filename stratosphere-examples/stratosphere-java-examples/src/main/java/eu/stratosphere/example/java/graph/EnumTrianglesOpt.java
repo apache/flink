@@ -64,6 +64,9 @@ import eu.stratosphere.util.Collector;
  *   (2)-(12)
  * </pre>
  * 
+ * Usage: <code>EnumTriangleOpt &lt;edge path&gt; &lt;result path&gt;</code><br>
+ * If no parameters are provided, the program is run with default data from {@link EnumTrianglesData}.
+ * 
  * <p>
  * This example shows how to use:
  * <ul>

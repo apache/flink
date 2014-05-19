@@ -55,6 +55,10 @@ import eu.stratosphere.util.Collector;
  * </ul>
  * 
  * <p>
+ * Usage: <code>ConnectedComponents &lt;vertices path&gt; &lt;edges path&gt; &lt;result path&gt; &lt;max number of iterations&gt;</code><br>
+ * If no parameters are provided, the program is run with default data from {@link ConnectedComponentsData} and 10 iterations. 
+ * 
+ * <p>
  * This example shows how to use:
  * <ul>
  * <li>Delta Iterations
@@ -79,7 +83,7 @@ public class ConnectedComponents implements ProgramDescription {
 		DataSet<Long> vertices = getVertexDataSet(env);
 		DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env);
 		
-		// assign the initial components (equal to the vertex id.
+		// assign the initial components (equal to the vertex id)
 		DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices.map(new DuplicateValue<Long>());
 		
 		// open a delta iteration
