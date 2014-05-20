@@ -13,6 +13,8 @@
 
 package eu.stratosphere.api.scala.analysis.postPass
 
+import scala.language.implicitConversions
+
 import eu.stratosphere.api.java.record.operators.CoGroupOperator
 import eu.stratosphere.api.java.record.operators.CrossOperator
 import eu.stratosphere.api.java.record.operators.MapOperator

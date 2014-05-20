@@ -16,6 +16,7 @@ package eu.stratosphere.api.scala.operators
 import java.util.{ Iterator => JIterator }
 
 import language.experimental.macros
+import scala.language.reflectiveCalls
 import scala.reflect.macros.Context
 
 import eu.stratosphere.configuration.Configuration;

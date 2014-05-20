@@ -13,10 +13,11 @@
 
 package eu.stratosphere.api.scala.analysis.postPass
 
+import scala.language.reflectiveCalls
+
 import scala.collection.JavaConversions._
 
 import eu.stratosphere.api.scala.analysis._
-import eu.stratosphere.api.scala.operators.Annotations
 
 import eu.stratosphere.compiler.dag._
 import eu.stratosphere.compiler.plan.OptimizedPlan

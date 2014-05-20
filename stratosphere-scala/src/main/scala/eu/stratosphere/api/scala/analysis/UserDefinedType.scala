@@ -13,8 +13,8 @@
 
 package eu.stratosphere.api.scala.analysis
 
-import scala.collection.GenTraversableOnce
-import scala.collection.generic.CanBuildFrom
+import scala.language.postfixOps
+
 import scala.language.experimental.macros
 import eu.stratosphere.types.{Key => PactKey}
 import eu.stratosphere.types.Record

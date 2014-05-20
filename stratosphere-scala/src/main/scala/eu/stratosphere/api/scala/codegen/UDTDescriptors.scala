@@ -13,6 +13,8 @@
 
 package eu.stratosphere.api.scala.codegen
 
+import scala.language.postfixOps
+
 import scala.reflect.macros.Context
 import scala.reflect.classTag
 import scala.reflect.ClassTag
