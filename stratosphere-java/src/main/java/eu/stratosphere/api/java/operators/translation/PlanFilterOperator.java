@@ -21,10 +21,9 @@ import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.util.Collector;
 
-/**
- *
- */
+
 public class PlanFilterOperator<T> extends FilterOperatorBase<T, GenericFlatMap<T, T>> {
+	
 	public PlanFilterOperator(FilterFunction<T> udf, String name, TypeInformation<T> type) {
 		super(new FlatMapFilter<T>(udf), new UnaryOperatorInformation<T, T>(type, type), name);
 	}

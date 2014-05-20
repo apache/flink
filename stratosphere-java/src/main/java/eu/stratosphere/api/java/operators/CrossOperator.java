@@ -1357,6 +1357,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	public static final class DefaultCrossFunction<T1, T2> extends CrossFunction<T1, T2, Tuple2<T1, T2>> {
 
 		private static final long serialVersionUID = 1L;
+		
 		private final Tuple2<T1, T2> outTuple = new Tuple2<T1, T2>();
 
 		@Override

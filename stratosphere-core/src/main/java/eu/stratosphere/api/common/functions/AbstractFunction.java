@@ -18,9 +18,9 @@ import java.io.Serializable;
 import eu.stratosphere.configuration.Configuration;
 
 /**
- * An abstract stub implementation that does nothing when opened or closed.
- * 
- * Base class for user defined functions.
+ * An abstract stub implementation for user-defined functions. It offers default implementations
+ * for {@link #open(Configuration)} and {@link #close()}. It also offers access to the
+ * {@link RuntimeContext} and {@link IterationRuntimeContext}.
  */
 public abstract class AbstractFunction implements Function, Serializable {
 	
