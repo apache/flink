@@ -36,11 +36,16 @@ import eu.stratosphere.types.TypeInformation;
 
 public class SemanticPropUtil {
 
-	private static final Pattern PATTERN = Pattern.compile("\\s*(\\d+)\\s*->((\\s*(\\d+\\s*,\\s*)*(\\d+\\s*))|(\\*))");
-	
-	private static final Pattern FIELD_SET_CHECK_PATTERN = Pattern.compile("\\s*(\\d+\\s*,\\s*)*(\\d+\\s*)");
-	
-	private static final Pattern DIGIT_PATTERN = Pattern.compile("\\d+");
+	private final static String REGEX_LIST = "(\\s*(\\d+\\s*,\\s*)*(\\d+\\s*))";
+	private final static String REGEX_FORWARD = "(\\s*(\\d+)\\s*->(" + REGEX_LIST + "|(\\*)))";
+	private final static String REGEX_LIST_OR_FORWARD = "(" + REGEX_LIST + "|" + REGEX_FORWARD + ")";
+	private final static String REGEX_ANNOTATION = "(\\s*(" + REGEX_LIST_OR_FORWARD + "\\s*;\\s*)*(" + REGEX_LIST_OR_FORWARD + "\\s*))";
+
+	private static final Pattern PATTERN_FORWARD = Pattern.compile(REGEX_FORWARD);
+	private static final Pattern PATTERN_ANNOTATION = Pattern.compile(REGEX_ANNOTATION);
+	private static final Pattern PATTERN_LIST = Pattern.compile(REGEX_LIST);
+
+	private static final Pattern PATTERN_DIGIT = Pattern.compile("\\d+");
 
 	public static SingleInputSemanticProperties getSemanticPropsSingle(Set<Annotation> set, TypeInformation<?> inType, TypeInformation<?> outType) {
 		if (set == null) {
@@ -104,44 +109,65 @@ public class SemanticPropUtil {
 			return;
 		}
 
-		Matcher matcher = PATTERN.matcher(s);
-		int sourceField = 0;
+		Matcher matcher = PATTERN_ANNOTATION.matcher(s);
 
 		if (!matcher.matches()) {
 			throw new RuntimeException("Unrecognized annotation string format.");
 		}
 
-		sourceField = Integer.valueOf(matcher.group(1));
-		if (!isValidField(inType, sourceField)) {
-			throw new IndexOutOfBoundsException("Annotation: Field " + sourceField + " not available in the input tuple.");
-		}
+		Matcher forwardMatcher = PATTERN_FORWARD.matcher(s);
+		while (forwardMatcher.find()) {
+			int sourceField = Integer.valueOf(forwardMatcher.group(2));
+			if (!isValidField(inType, sourceField)) {
+				throw new IndexOutOfBoundsException("Annotation: Field " + sourceField + " not available in the input tuple.");
+			}
 
-		if (matcher.group(6) != null) {
-			if (sp instanceof SingleInputSemanticProperties) {
-				for (int i = 0; i < outType.getArity(); i++) {
-					((SingleInputSemanticProperties) sp).addForwardedField(sourceField, i);
-				}
-			} else if (sp instanceof DualInputSemanticProperties) {
-				for (int i = 0; i < outType.getArity(); i++) {
-					if (input == 0) {
-						((DualInputSemanticProperties) sp).addForwardedField1(sourceField, i);
-					} else if (input == 1) {
-						((DualInputSemanticProperties) sp).addForwardedField2(sourceField, i);
+			if (forwardMatcher.group(7) != null) {
+				if (sp instanceof SingleInputSemanticProperties) {
+					for (int i = 0; i < outType.getArity(); i++) {
+						((SingleInputSemanticProperties) sp).addForwardedField(sourceField, i);
+					}
+				} else if (sp instanceof DualInputSemanticProperties) {
+					for (int i = 0; i < outType.getArity(); i++) {
+						if (input == 0) {
+							((DualInputSemanticProperties) sp).addForwardedField1(sourceField, i);
+						} else if (input == 1) {
+							((DualInputSemanticProperties) sp).addForwardedField2(sourceField, i);
+						}
 					}
 				}
+				continue;
 			}
-			return;
+			String found = forwardMatcher.group(4);
+			FieldSet fs = readFieldSetFromString(found, inType, outType);
+
+			if (sp instanceof SingleInputSemanticProperties) {
+				((SingleInputSemanticProperties) sp).addForwardedField(sourceField, fs);
+			} else if (sp instanceof DualInputSemanticProperties) {
+				if (input == 0) {
+					((DualInputSemanticProperties) sp).addForwardedField1(sourceField, fs);
+				} else if (input == 1) {
+					((DualInputSemanticProperties) sp).addForwardedField2(sourceField, fs);
+				}
+			}
 		}
+		s = forwardMatcher.replaceAll("");
 
-		FieldSet fs = readFieldSetFromString(matcher.group(3), inType, outType);
+		Matcher listMatcher = PATTERN_LIST.matcher(s);
 
-		if (sp instanceof SingleInputSemanticProperties) {
-			((SingleInputSemanticProperties) sp).addForwardedField(sourceField, fs);
-		} else if (sp instanceof DualInputSemanticProperties) {
-			if (input == 0) {
-				((DualInputSemanticProperties) sp).addForwardedField1(sourceField, fs);
-			} else if (input == 1) {
-				((DualInputSemanticProperties) sp).addForwardedField2(sourceField, fs);
+		while (listMatcher.find()) {
+			String list = listMatcher.group();
+			FieldSet fs = readFieldSetFromString(list, inType, outType);
+			for (int i : fs) {
+				if (sp instanceof SingleInputSemanticProperties) {
+					((SingleInputSemanticProperties) sp).addForwardedField(i, i);
+				} else if (sp instanceof DualInputSemanticProperties) {
+					if (input == 0) {
+						((DualInputSemanticProperties) sp).addForwardedField1(i, i);
+					} else if (input == 1) {
+						((DualInputSemanticProperties) sp).addForwardedField2(i, i);
+					}
+				}
 			}
 		}
 	}
@@ -162,7 +188,7 @@ public class SemanticPropUtil {
 		if (cfs == null) {
 			return;
 		}
-		
+
 		for (String s : cfs) {
 			if (s != null) {
 				readConstantSet(dm, s, inType, outType, 1);
@@ -179,9 +205,9 @@ public class SemanticPropUtil {
 			if (str == null) {
 				continue;
 			}
-			
+
 			FieldSet fs = readFieldSetFromString(str, inType, outType);
-	
+
 			for (int i = 0; i < outType.getArity(); i++) {
 				if (!fs.contains(i)) {
 					dm.addForwardedField1(i, i);
@@ -199,9 +225,9 @@ public class SemanticPropUtil {
 			if (str == null) {
 				continue;
 			}
-			
+
 			FieldSet fs = readFieldSetFromString(str, inType, outType);
-	
+
 			for (int i = 0; i < outType.getArity(); i++) {
 				if (!fs.contains(i)) {
 					dm.addForwardedField2(i, i);
@@ -249,7 +275,7 @@ public class SemanticPropUtil {
 		for (String str : cfe) {
 			if (str != null) {
 				FieldSet fs = readFieldSetFromString(str, inType, outType);
-		
+
 				for (int i = 0; i < outType.getArity(); i++) {
 					if (!fs.contains(i)) {
 						sm.addForwardedField(i, i);
@@ -260,13 +286,13 @@ public class SemanticPropUtil {
 	}
 
 	private static FieldSet readFieldSetFromString(String s, TypeInformation<?> inType, TypeInformation<?> outType) {
-		Matcher matcher = FIELD_SET_CHECK_PATTERN.matcher(s);
+		Matcher matcher = PATTERN_LIST.matcher(s);
 
 		if (!matcher.matches()) {
 			throw new RuntimeException("Unrecognized annotation string format.");
 		}
 
-		matcher = DIGIT_PATTERN.matcher(s);
+		matcher = PATTERN_DIGIT.matcher(s);
 		FieldSet fs = new FieldSet();
 
 		while (matcher.find()) {
@@ -301,7 +327,7 @@ public class SemanticPropUtil {
 	}
 
 	public static DualInputSemanticProperties getSemanticPropsDualFromString(String[] constantSetFirst, String[] constantSetSecond, String[] constantSetFirstExcept,
-	String[] constantSetSecondExcept, String[] readFieldsFirst, String[] readFieldsSecond, TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType) {
+							String[] constantSetSecondExcept, String[] readFieldsFirst, String[] readFieldsSecond, TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType) {
 		DualInputSemanticProperties result = new DualInputSemanticProperties();
 		parseConstantFieldsFirst(constantSetFirst, result, inType1, outType);
 		parseConstantFieldsSecond(constantSetSecond, result, inType2, outType);
