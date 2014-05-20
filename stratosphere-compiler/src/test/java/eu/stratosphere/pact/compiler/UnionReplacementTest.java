@@ -16,13 +16,15 @@ package eu.stratosphere.pact.compiler;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.IterativeDataSet;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
+
 import org.junit.Test;
+
 import static org.junit.Assert.fail;
 
+@SuppressWarnings("serial")
 public class UnionReplacementTest extends CompilerTestBase {
 
 	@Test

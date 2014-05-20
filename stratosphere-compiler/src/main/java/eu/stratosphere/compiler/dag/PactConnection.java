@@ -76,10 +76,6 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 * 
 	 * @param source
 	 *        The source node.
-	 * @param target
-	 *        The target node.
-	 * @param shipStrategy
-	 *        The shipping strategy.
 	 */
 	public PactConnection(OptimizerNode source) {
 		if (source == null) {

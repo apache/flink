@@ -299,4 +299,34 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 		@Override
 		public void postVisit(Operator<?> visitable) {}
 	}
+
+	/**
+	 * Collects all DataSources of a plan to add statistics
+	 *
+	 */
+	public static class SourceCollectorVisitor implements Visitor<Operator<?>> {
+		
+		protected final List<GenericDataSourceBase<?, ?>> sources = new ArrayList<GenericDataSourceBase<?, ?>>(4);
+
+		@Override
+		public boolean preVisit(Operator<?> visitable) {
+			
+			if(visitable instanceof GenericDataSourceBase) {
+				sources.add((GenericDataSourceBase<?, ?>) visitable);
+			}
+			else if(visitable instanceof BulkIteration) {
+				((BulkIteration) visitable).getNextPartialSolution().accept(this);
+			}
+			
+			return true;
+		}
+
+		@Override
+		public void postVisit(Operator<?> visitable) {}
+		
+		public List<GenericDataSourceBase<?, ?>> getSources() {
+			return this.sources;
+		}
+		
+	}
 }

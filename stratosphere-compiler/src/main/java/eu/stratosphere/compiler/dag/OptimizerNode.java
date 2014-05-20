@@ -673,9 +673,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	/**
 	 * Returns the key columns for the specific input, if all keys are preserved
 	 * by this node. Null, otherwise.
-	 * 
-	 * @param input
-	 * @return
 	 */
 	protected int[] getConstantKeySet(int input) {
 		Operator<?> contract = getPactContract();
@@ -699,7 +696,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	/**
 	 * An optional method where nodes can describe which fields will be unique in their output.
-	 * @return
 	 */
 	public List<FieldSet> createUniqueFieldsForNode() {
 		return null;
@@ -707,8 +703,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	/**
 	 * Gets the FieldSets which are unique in the output of the node. 
-	 * 
-	 * @return
 	 */
 	public Set<FieldSet> getUniqueFields() {
 		return this.uniqueFields == null ? Collections.<FieldSet>emptySet() : this.uniqueFields;
@@ -921,10 +915,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		return this.openBranches;
 	}
 
-	/**
-	 * @param toParent
-	 * @return
-	 */
+
 	protected List<UnclosedBranchDescriptor> getBranchesForParent(PactConnection toParent) {
 		if (this.outgoingConnections.size() == 1) {
 			// return our own stack of open branches, because nothing is added
@@ -1005,8 +996,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * a) There is no branch in the sub-plan of this node
 	 * b) Both candidates have the same candidate as the child at the last open branch. 
 	 * 
-	 * @param subPlan1
-	 * @param subPlan2
+	 * @param plan1
+	 * @param plan2
 	 * @return True if the nodes are branch compatible in the inputs.
 	 */
 	protected boolean areBranchCompatible(PlanNode plan1, PlanNode plan2) {
