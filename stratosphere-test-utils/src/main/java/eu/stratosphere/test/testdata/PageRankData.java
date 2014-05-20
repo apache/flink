@@ -25,12 +25,6 @@ public class PageRankData {
 											"3\n" +
 											"4";
 	
-	public static final String VERTICES_WITH_INITIAL_RANK = "1 0.2\n" +
-															"2 0.2\n" +
-															"5 0.2\n" +
-															"3 0.2\n" +
-															"4 0.2";
-
 	public static final String EDGES = "2 1\n" +
 										"5 2\n" + 
 										"5 4\n" +

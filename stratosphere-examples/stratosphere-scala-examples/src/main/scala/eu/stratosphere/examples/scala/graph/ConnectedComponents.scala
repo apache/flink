@@ -20,12 +20,12 @@ import eu.stratosphere.api.scala.operators._
 
 object RunConnectedComponents {
  def main(pArgs: Array[String]) {
-    if (pArgs.size < 3) {
-      println("usage: -vertices <file> -edges <file> -output <file>")
+   
+    if (pArgs.size < 5) {
+      println("USAGE: <vertices input file> <edges input file> <output file> <max iterations> <degree of parallelism>")
       return
     }
-    val args = Args.parse(pArgs)
-    val plan = new ConnectedComponents().getPlan(args("vertices"), args("edges"), args("output"))
+    val plan = new ConnectedComponents().getPlan(pArgs(0), pArgs(1), pArgs(2), pArgs(3), pArgs(4))
     LocalExecutor.execute(plan)
     System.exit(0)
   }
@@ -34,12 +34,12 @@ object RunConnectedComponents {
 class ConnectedComponents extends Program with Serializable {
   
     override def getPlan(args: String*) = {
-      val plan = getScalaPlan(args(1), args(2), args(3), args(4).toInt)
-      plan.setDefaultParallelism(args(0).toInt)
+      val plan = getScalaPlan(args(0), args(1), args(2), args(3).toInt)
+      plan.setDefaultParallelism(args(4).toInt)
       plan
   }
   
-  def getScalaPlan(verticesInput: String, edgesInput: String, componentsOutput: String, maxIterations: Int = 10) = {
+  def getScalaPlan(verticesInput: String, edgesInput: String, componentsOutput: String, maxIterations: Int) = {
 
   val vertices = DataSource(verticesInput, DelimitedInputFormat(parseVertex))
   val directedEdges = DataSource(edgesInput, DelimitedInputFormat(parseEdge))

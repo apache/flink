@@ -81,11 +81,11 @@ public class ConnectedComponents implements ProgramDescription {
 		
 		// read vertex and edge data
 		DataSet<Long> vertices = getVertexDataSet(env);
-		DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env);
+		DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env).flatMap(new UndirectEdge());
 		
 		// assign the initial components (equal to the vertex id)
 		DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices.map(new DuplicateValue<Long>());
-		
+				
 		// open a delta iteration
 		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
 				verticesWithInitialId.iterateDelta(verticesWithInitialId, maxIterations, 0);
@@ -122,8 +122,23 @@ public class ConnectedComponents implements ProgramDescription {
 	public static final class DuplicateValue<T> extends MapFunction<T, Tuple2<T, T>> {
 		
 		@Override
-		public Tuple2<T, T> map(T value) {
-			return new Tuple2<T, T>(value, value);
+		public Tuple2<T, T> map(T vertex) {
+			return new Tuple2<T, T>(vertex, vertex);
+		}
+	}
+	
+	/**
+	 * Undirected edges by emitting for each input edge the input edges itself and an inverted version.
+	 */
+	public static final class UndirectEdge extends FlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+		Tuple2<Long, Long> invertedEdge = new Tuple2<Long, Long>();
+		
+		@Override
+		public void flatMap(Tuple2<Long, Long> edge, Collector<Tuple2<Long, Long>> out) {
+			invertedEdge.f0 = edge.f1;
+			invertedEdge.f1 = edge.f0;
+			out.collect(edge);
+			out.collect(invertedEdge);
 		}
 	}
 	

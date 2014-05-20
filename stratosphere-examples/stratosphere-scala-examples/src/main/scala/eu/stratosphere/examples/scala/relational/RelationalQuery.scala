@@ -74,10 +74,10 @@ class RelationalQuery extends Program with ProgramDescription with Serializable 
   }
 
   override def getDescription() = {
-    "Parameters: <numSubStasks>, <orders>, <lineitem>, <output>"
+    "Parameters: <orders>, <lineitem>, <output>, <degree-of-parallelism>"
   }
   override def getPlan(args: String*) = {
-    getScalaPlan(args(0).toInt, args(1), args(2), args(3))
+    getScalaPlan(args(3).toInt, args(0), args(1), args(2))
   }
 }
 

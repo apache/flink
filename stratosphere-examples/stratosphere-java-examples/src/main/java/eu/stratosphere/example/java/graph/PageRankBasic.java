@@ -26,6 +26,7 @@ import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
+import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.example.java.graph.util.PageRankData;
 import eu.stratosphere.util.Collector;
@@ -34,8 +35,7 @@ import eu.stratosphere.util.Collector;
  * A basic implementation of the Page Rank algorithm using a bulk iteration.
  * 
  * <p>
- * This implementation requires a set of pages (vertices) with associated ranks and a set 
- * of directed links (edges) as input and works as follows. <br> 
+ * This implementation requires a set of pages and a set of directed links as input and works as follows. <br> 
  * In each iteration, the rank of every page is evenly distributed to all pages it points to.
  * Each page collects the partial ranks of all pages that point to it, sums them up, and applies a dampening factor to the sum.
  * The result is the new rank of the page. A new iteration is started with the new ranks of all pages.
@@ -45,17 +45,16 @@ import eu.stratosphere.util.Collector;
  * <p>
  * Input files are plain text files and must be formatted as follows:
  * <ul>
- * <li>Pages represented as an (long) ID and a (double) rank separated by new-line characters.<br> 
- * For example <code>"1 0.4\n2 0.3\n12 0.15\n42 0.05\n63 0.1\n"</code> gives five pages with associated ranks 
- * (1, 0.4), (2, 0.3), (12, 0.15), (42, 0.05), and (63, 0.1). Ranks should sum up to 1.0.
- * <li>Page links are represented as pairs of page IDs which are separated by space 
- * characters. Edges are separated by new-line characters.<br>
- * For example <code>"1 2\n2 12\n1 12\n42 63\n"</code> gives four (directed) edges (1)-(2), (2)-(12), (1)-(12), and (42)-(63).
+ * <li>Pages represented as an (long) ID separated by new-line characters.<br> 
+ * For example <code>"1\n2\n12\n42\n63\n"</code> gives five pages with IDs 1, 2, 12, 42, and 63.
+ * <li>Links are represented as pairs of page IDs which are separated by space 
+ * characters. Links are separated by new-line characters.<br>
+ * For example <code>"1 2\n2 12\n1 12\n42 63\n"</code> gives four (directed) links (1)->(2), (2)->(12), (1)->(12), and (42)->(63).<br>
  * For this simple implementation it is required that each page has at least one incoming and one outgoing link (a page can point to itself).
  * </ul>
  * 
  * <p>
- * Usage: <code>PageRankBasic &lt;vertices with initial ranks path&gt; &lt;edges path&gt; &lt;output path&gt; &lt;num vertices&gt; &lt;num iterations&gt;</code><br>
+ * Usage: <code>PageRankBasic &lt;pages path&gt; &lt;links path&gt; &lt;output path&gt; &lt;num pages&gt; &lt;num iterations&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link PageRankData} and 10 iterations.
  * 
  * <p>
@@ -63,6 +62,7 @@ import eu.stratosphere.util.Collector;
  * <ul>
  * <li>Bulk Iterations
  * <li>Default Join
+ * <li>Configure user-defined functions using constructor parameters.
  * </ul> 
  * 
  *
@@ -85,15 +85,19 @@ public class PageRankBasic {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
 		// get input data
-		DataSet<Tuple2<Long, Double>> pageWithRankInput = getPageWithRankDataSet(env);
-		DataSet<Tuple2<Long, Long>> edgeInput = getEdgeDataSet(env);
+		DataSet<Tuple1<Long>> pagesInput = getPagesDataSet(env);
+		DataSet<Tuple2<Long, Long>> linksInput = getLinksDataSet(env);
 		
-		// build adjecency list from edge input
+		// assign initial rank to pages
+		DataSet<Tuple2<Long, Double>> pagesWithRanks = pagesInput.
+				map(new RankAssigner((1.0d / numPages)));
+		
+		// build adjecency list from link input
 		DataSet<Tuple2<Long, Long[]>> adjacencyListInput = 
-				edgeInput.groupBy(0).reduceGroup(new BuildOutgoingEdgeList());
+				linksInput.groupBy(0).reduceGroup(new BuildOutgoingEdgeList());
 		
 		// set iterative data set
-		IterativeDataSet<Tuple2<Long, Double>> iteration = pageWithRankInput.iterate(maxIterations);
+		IterativeDataSet<Tuple2<Long, Double>> iteration = pagesWithRanks.iterate(maxIterations);
 		
 		DataSet<Tuple2<Long, Double>> newRanks = iteration
 				// join pages with outgoing edges and distribute rank
@@ -101,13 +105,13 @@ public class PageRankBasic {
 				// collect and sum ranks
 				.groupBy(0).aggregate(SUM, 1)
 				// apply dampening factor
-				.map(new Dampener(numVertices));
+				.map(new Dampener(DAMPENING_FACTOR, numPages));
 		
 		DataSet<Tuple2<Long, Double>> finalPageRanks = iteration.closeWith(
 				newRanks, 
 				newRanks.join(iteration).where(0).equalTo(0)
 				// termination condition
-				.filter(new EpsilonFilter())); 
+				.filter(new EpsilonFilter()));
 
 		// emit result
 		if(fileOutput) {
@@ -124,6 +128,23 @@ public class PageRankBasic {
 	// *************************************************************************
 	//     USER FUNCTIONS
 	// *************************************************************************
+
+	/** 
+	 * A map function that assigns an initial rank to all pages. 
+	 */
+	public static final class RankAssigner extends MapFunction<Tuple1<Long>, Tuple2<Long, Double>> {
+		Tuple2<Long, Double> outPageWithRank;
+		
+		public RankAssigner(double rank) {
+			this.outPageWithRank = new Tuple2<Long, Double>(-1l, rank);
+		}
+		
+		@Override
+		public Tuple2<Long, Double> map(Tuple1<Long> page) {
+			outPageWithRank.f0 = page.f0;
+			return outPageWithRank;
+		}
+	}
 	
 	/**
 	 * A reduce function that takes a sequence of edges and builds the adjacency list for the vertex where the edges
@@ -168,16 +189,18 @@ public class PageRankBasic {
 	 * The function that applies the page rank dampening formula
 	 */
 	public static final class Dampener extends MapFunction<Tuple2<Long,Double>, Tuple2<Long,Double>> {
+
+		private final double dampening;
+		private final double randomJump;
 		
-		private final double numVertices;
-		
-		public Dampener(double numVertices) {
-			this.numVertices = numVertices;
+		public Dampener(double dampening, double numVertices) {
+			this.dampening = dampening;
+			this.randomJump = (1 - dampening) / numVertices;
 		}
 
 		@Override
 		public Tuple2<Long, Double> map(Tuple2<Long, Double> value) {
-			value.f1 = DAMPENING_FACTOR*value.f1 + (1-DAMPENING_FACTOR)/numVertices;
+			value.f1 = (value.f1 * dampening) + randomJump;
 			return value;
 		}
 	}
@@ -198,10 +221,10 @@ public class PageRankBasic {
 	// *************************************************************************
 	
 	private static boolean fileOutput = false;
-	private static String pageWithRankInputPath = null;
-	private static String edgeInputPath = null;
+	private static String pagesInputPath = null;
+	private static String linksInputPath = null;
 	private static String outputPath = null;
-	private static int numVertices = 0;
+	private static long numPages = 0;
 	private static int maxIterations = 10;
 	
 	private static void parseParameters(String[] args) {
@@ -209,39 +232,39 @@ public class PageRankBasic {
 		if(args.length > 0) {
 			if(args.length == 5) {
 				fileOutput = true;
-				pageWithRankInputPath = args[0];
-				edgeInputPath = args[1];
+				pagesInputPath = args[0];
+				linksInputPath = args[1];
 				outputPath = args[2];
-				numVertices = Integer.parseInt(args[3]);
+				numPages = Integer.parseInt(args[3]);
 				maxIterations = Integer.parseInt(args[4]);
 			} else {
-				System.err.println("Usage: PageRankBasic <vertices with initial ranks path> <edges path> <output path> <num vertices> <num iterations>");
+				System.err.println("Usage: PageRankBasic <pages path> <links path> <output path> <num pages> <num iterations>");
 				System.exit(1);
 			}
 		} else {
 			System.out.println("Executing PageRank Basic example with default parameters and built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
 			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: PageRankBasic <vertices with initial ranks path> <edges path> <output path> <num vertices> <num iterations>");
+			System.out.println("  Usage: PageRankBasic <pages path> <links path> <output path> <num pages> <num iterations>");
 			
-			numVertices = PageRankData.getNumberOfPages();
+			numPages = PageRankData.getNumberOfPages();
 		}
 	}
 	
-	private static DataSet<Tuple2<Long, Double>> getPageWithRankDataSet(ExecutionEnvironment env) {
+	private static DataSet<Tuple1<Long>> getPagesDataSet(ExecutionEnvironment env) {
 		if(fileOutput) {
-			return env.readCsvFile(pageWithRankInputPath)
+			return env.readCsvFile(pagesInputPath)
 						.fieldDelimiter(' ')
 						.lineDelimiter("\n")
-						.types(Long.class, Double.class);
+						.types(Long.class);
 		} else {
-			return PageRankData.getDefaultPageWithRankDataSet(env);
+			return PageRankData.getDefaultPagesDataSet(env);
 		}
 	}
 	
-	private static DataSet<Tuple2<Long, Long>> getEdgeDataSet(ExecutionEnvironment env) {
+	private static DataSet<Tuple2<Long, Long>> getLinksDataSet(ExecutionEnvironment env) {
 		if(fileOutput) {
-			return env.readCsvFile(edgeInputPath)
+			return env.readCsvFile(linksInputPath)
 						.fieldDelimiter(' ')
 						.lineDelimiter("\n")
 						.types(Long.class, Long.class);
