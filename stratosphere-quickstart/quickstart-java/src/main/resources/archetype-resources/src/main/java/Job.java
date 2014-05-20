@@ -1,19 +1,6 @@
 package ${package};
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.Program;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.GenericDataSink;
-import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.aggregation.Aggregations;
-import eu.stratosphere.api.java.functions.FlatMapFunction;
-import eu.stratosphere.api.java.record.io.DelimitedOutputFormat;
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.util.Collector;
-
-
 
 /**
  * Skeleton for a Stratosphere Job.
@@ -30,7 +17,6 @@ import eu.stratosphere.util.Collector;
  * 		target/stratosphere-quickstart-0.1-SNAPSHOT-Sample.jar
  * 
  */
-@SuppressWarnings("serial")
 public class Job {
 	
 	public static void main(String[] args) throws Exception {
@@ -51,12 +37,17 @@ public class Job {
 		 * 	.join()
 		 * 	.group()
 		 * and many more.
+		 * Have a look at the programming guide for the Java API:
 		 * 
-		 * Run it!
+		 * http://stratosphere.eu/docs/0.5/programming_guides/java.html
+		 * 
+		 * and the examples
+		 * 
+		 * http://stratosphere.eu/docs/0.5/programming_guides/examples.html
 		 * 
 		 */
 		
 		// execute program
-		env.execute(" Example");
+		env.execute("Stratosphere Java API Skeleton");
 	}
 }
