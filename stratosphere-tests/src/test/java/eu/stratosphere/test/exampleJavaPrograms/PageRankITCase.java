@@ -47,7 +47,7 @@ public class PageRankITCase extends JavaProgramTestBase {
 	@Override
 	protected void preSubmit() throws Exception {
 		resultPath = getTempDirPath("result");
-		verticesPath = createTempFile("vertices.txt", PageRankData.VERTICES_WITH_INITIAL_RANK);
+		verticesPath = createTempFile("vertices.txt", PageRankData.VERTICES);
 		edgesPath = createTempFile("edges.txt", PageRankData.EDGES);
 	}
 

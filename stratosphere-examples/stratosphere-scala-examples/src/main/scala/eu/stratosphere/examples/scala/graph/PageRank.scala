@@ -90,7 +90,7 @@ object RunPageRank {
 
   def main(args: Array[String]) {
     if (args.size < 5) {
-      println("PageRank <vertices> <edges> <result> <numVertices> <numIterations> [<parallelism=1>]")
+      println("PageRank <pages input path> <links input path> <result path> <num pages> <num iterations> [<parallelism=1>]")
       return
     }
 

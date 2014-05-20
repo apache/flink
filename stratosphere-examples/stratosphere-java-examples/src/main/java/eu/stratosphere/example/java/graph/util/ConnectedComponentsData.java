@@ -32,7 +32,7 @@ public class ConnectedComponentsData {
 		return env.fromElements(
 				1L, 2L, 3L, 4L, 5L, 
 				6L, 7L, 8L, 9L, 10L,
-				11L, 12L, 13L, 14L, 15L);
+				11L, 12L, 13L, 14L, 15L, 16L);
 	}
 	
 	public static DataSet<Tuple2<Long, Long>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
@@ -51,6 +51,7 @@ public class ConnectedComponentsData {
 		data.add(new Tuple2<Long, Long>(9L, 14L));
 		data.add(new Tuple2<Long, Long>(13L, 14L));
 		data.add(new Tuple2<Long, Long>(1L, 15L));
+		data.add(new Tuple2<Long, Long>(16L, 1L));
 		
 		return env.fromCollection(data);
 	}
