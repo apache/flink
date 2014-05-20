@@ -13,9 +13,9 @@
 
 package eu.stratosphere.api.scala
 
+import scala.language.implicitConversions
+
 import scala.collection.TraversableOnce
-import eu.stratosphere.api.scala.analysis._
-import eu.stratosphere.api.common.operators.Operator
 
 package object operators {
 

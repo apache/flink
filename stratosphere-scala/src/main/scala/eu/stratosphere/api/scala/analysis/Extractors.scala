@@ -33,7 +33,7 @@ import scala.Some
 object Extractors {
 
   object DataSinkNode {
-    def unapply(node: Operator[JavaNothing]): Option[(UDF1[_, _], Operator[Record])] = node match {
+    def unapply(node: Operator[_]): Option[(UDF1[_, _], Operator[Record])] = node match {
       case contract: GenericDataSinkBase[_] with ScalaOutputOperator[_] => {
         Some((contract.getUDF.asInstanceOf[UDF1[_, _]], node.asInstanceOf[GenericDataSinkBase[_]].getInput().asInstanceOf[Operator[Record]]))
       }
@@ -42,63 +42,63 @@ object Extractors {
   }
 
   object DataSourceNode {
-    def unapply(node: Operator[Record]): Option[(UDF0[_])] = node match {
+    def unapply(node: Operator[_]): Option[(UDF0[_])] = node match {
       case contract: GenericDataSourceBase[_, _] with ScalaOperator[_, _] => Some(contract.getUDF.asInstanceOf[UDF0[_]])
       case _                                 => None
     }
   }
 
   object CoGroupNode {
-    def unapply(node: Operator[Record]): Option[(UDF2[_, _, _], FieldSelector, FieldSelector, Operator[Record], Operator[Record])] = node match {
+    def unapply(node: Operator[_]): Option[(UDF2[_, _, _], FieldSelector, FieldSelector, Operator[Record], Operator[Record])] = node match {
       case contract: CoGroupOperator with TwoInputKeyedScalaOperator[_, _, _] => Some((contract.getUDF, contract.leftKey, contract.rightKey, contract.asInstanceOf[DualInputOperator[_, _, _, _]].getFirstInput().asInstanceOf[Operator[Record]], contract.asInstanceOf[DualInputOperator[_, _, _, _]].getSecondInput().asInstanceOf[Operator[Record]]))
       case _                                       => None
     }
   }
 
   object CrossNode {
-    def unapply(node: Operator[Record]): Option[(UDF2[_, _, _], Operator[Record], Operator[Record])] = node match {
+    def unapply(node: Operator[_]): Option[(UDF2[_, _, _], Operator[Record], Operator[Record])] = node match {
       case contract: CrossOperator with TwoInputScalaOperator[_, _, _] => Some((contract.getUDF, contract.asInstanceOf[DualInputOperator[_, _, _, _]].getFirstInput().asInstanceOf[Operator[Record]], contract.asInstanceOf[DualInputOperator[_, _, _, _]].getSecondInput().asInstanceOf[Operator[Record]]))
       case _                                  => None
     }
   }
 
   object JoinNode {
-    def unapply(node: Operator[Record]): Option[(UDF2[_, _, _], FieldSelector, FieldSelector, Operator[Record], Operator[Record])] = node match {
+    def unapply(node: Operator[_]): Option[(UDF2[_, _, _], FieldSelector, FieldSelector, Operator[Record], Operator[Record])] = node match {
       case contract: JoinOperator with TwoInputKeyedScalaOperator[ _, _, _] => Some((contract.getUDF, contract.leftKey, contract.rightKey, contract.asInstanceOf[DualInputOperator[_, _, _, _]].getFirstInput().asInstanceOf[Operator[Record]], contract.asInstanceOf[DualInputOperator[_, _, _, _]].getSecondInput().asInstanceOf[Operator[Record]]))
       case _                                    => None
     }
   }
 
   object MapNode {
-    def unapply(node: Operator[Record]): Option[(UDF1[_, _], Operator[Record])] = node match {
+    def unapply(node: Operator[_]): Option[(UDF1[_, _], Operator[Record])] = node match {
       case contract: MapOperator with OneInputScalaOperator[_, _] => Some((contract.getUDF, contract.asInstanceOf[SingleInputOperator[_, _, _]].getInput().asInstanceOf[Operator[Record]]))
       case _                             => None
     }
   }
   
   object UnionNode {
-    def unapply(node: Operator[Record]): Option[(UDF2[_, _, _], Operator[Record], Operator[Record])] = node match {
+    def unapply(node: Operator[_]): Option[(UDF2[_, _, _], Operator[Record], Operator[Record])] = node match {
       case contract: Union[_] with UnionScalaOperator[_] => Some((contract.getUDF, contract.asInstanceOf[DualInputOperator[_, _, _, _]].getFirstInput().asInstanceOf[Operator[Record]], contract.asInstanceOf[DualInputOperator[_, _, _, _]].getSecondInput().asInstanceOf[Operator[Record]]))
       case _                             => None
     }
   }
 
   object ReduceNode {
-    def unapply(node: Operator[Record]): Option[(UDF1[_, _], FieldSelector, Operator[Record])] = node match {
+    def unapply(node: Operator[_]): Option[(UDF1[_, _], FieldSelector, Operator[Record])] = node match {
       case contract: ReduceOperator with OneInputKeyedScalaOperator[_, _] => Some((contract.getUDF, contract.key, contract.asInstanceOf[SingleInputOperator[_, _, _]].getInput().asInstanceOf[Operator[Record]]))
       case contract: ReduceOperator with OneInputScalaOperator[_, _] => Some((contract.getUDF, new FieldSelector(contract.getUDF.inputUDT, Nil), contract.asInstanceOf[SingleInputOperator[_, _, _]].getInput().asInstanceOf[Operator[Record]]))
       case _                                   => None
     }
   }
  object DeltaIterationNode {
-    def unapply(node: Operator[Record]): Option[(UDF0[_], FieldSelector, Operator[Record], Operator[Record])] = node match {
+    def unapply(node: Operator[_]): Option[(UDF0[_], FieldSelector, Operator[Record], Operator[Record])] = node match {
         case contract: DeltaIteration[_, _] with DeltaIterationScalaOperator[_] => Some((contract.getUDF, contract.key, contract.asInstanceOf[DualInputOperator[_, _, _, _]].getFirstInput().asInstanceOf[Operator[Record]], contract.asInstanceOf[DualInputOperator[_, _, _, _]].getSecondInput().asInstanceOf[Operator[Record]]))
         case _                                  => None
       }
   }
   
   object BulkIterationNode {
-    def unapply(node: Operator[Record]): Option[(UDF0[_], Operator[Record])] = node match {
+    def unapply(node: Operator[_]): Option[(UDF0[_], Operator[Record])] = node match {
       case contract: BulkIteration[_] with BulkIterationScalaOperator[_] => Some((contract.getUDF, contract.asInstanceOf[SingleInputOperator[_, _, _]].getInput().asInstanceOf[Operator[Record]]))
       case _ => None
     }

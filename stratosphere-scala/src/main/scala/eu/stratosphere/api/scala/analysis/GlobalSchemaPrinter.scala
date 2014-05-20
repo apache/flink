@@ -13,6 +13,7 @@
 
 package eu.stratosphere.api.scala.analysis
 
+import scala.language.existentials
 
 import scala.collection.JavaConversions.collectionAsScalaIterable
 import eu.stratosphere.api.common.Plan
@@ -21,7 +22,6 @@ import eu.stratosphere.api.common.operators.DualInputOperator
 import eu.stratosphere.api.common.operators.SingleInputOperator
 import eu.stratosphere.api.common.operators.base.{BulkIterationBase => BulkIteration, DeltaIterationBase => DeltaIteration}
 import org.apache.commons.logging.{LogFactory, Log}
-import eu.stratosphere.types.Record
 import eu.stratosphere.api.java.record.operators.GenericDataSink
 
 object GlobalSchemaPrinter {

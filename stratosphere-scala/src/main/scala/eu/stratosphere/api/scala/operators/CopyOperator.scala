@@ -13,6 +13,8 @@
 
 package eu.stratosphere.api.scala.operators
 
+import scala.language.reflectiveCalls
+
 import eu.stratosphere.api.scala.ScalaOperator
 import eu.stratosphere.api.java.record.operators.MapOperator
 import eu.stratosphere.api.scala.analysis.UDT

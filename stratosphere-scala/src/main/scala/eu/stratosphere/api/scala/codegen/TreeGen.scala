@@ -13,6 +13,8 @@
 
 package eu.stratosphere.api.scala.codegen
 
+import scala.language.implicitConversions
+
 import scala.reflect.macros.Context
 
 trait TreeGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] with Loggers[C] =>

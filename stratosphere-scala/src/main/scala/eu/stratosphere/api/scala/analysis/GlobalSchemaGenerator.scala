@@ -22,7 +22,6 @@ import eu.stratosphere.api.common.operators.Union
 import eu.stratosphere.types.Record
 import scala.Some
 import scala.Some
-import eu.stratosphere.api.scala.analysis.InputField
 
 
 class GlobalSchemaGenerator {
