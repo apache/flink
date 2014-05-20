@@ -18,6 +18,7 @@ import eu.stratosphere.api.common.operators.SingleInputSemanticProperties;
 import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.api.java.tuple.Tuple4;
+import eu.stratosphere.api.java.tuple.Tuple5;
 import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.types.TypeInformation;
@@ -69,7 +70,6 @@ public class SemanticPropUtilTest {
 	@Test
 	public void testSimpleCaseWildCard2() {
 		String[] constantFields = { "1->*" };
-
 		TypeInformation<?> type = new TupleTypeInfo<Tuple3<Integer, Integer, Integer>>(BasicTypeInfo.INT_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 		SingleInputSemanticProperties sp = SemanticPropUtil.getSemanticPropsSingleFromString(constantFields, null, null, type, type);
@@ -81,6 +81,32 @@ public class SemanticPropUtilTest {
 		Assert.assertTrue(fs.contains(2));
 		Assert.assertTrue(sp.getForwardedField(0) == null);
 		Assert.assertTrue(sp.getForwardedField(2) == null);
+	}
+
+	@Test
+	public void testConstantFieldList() {
+		String[] constantFields = {"2,3;0->1,4;4->0"};
+
+		TypeInformation<?> type = new TupleTypeInfo<Tuple5<Integer, Integer, Integer, Integer, Integer>>(BasicTypeInfo.INT_TYPE_INFO,
+				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
+		SingleInputSemanticProperties sp = SemanticPropUtil.getSemanticPropsSingleFromString(constantFields, null, null, type, type);
+
+		FieldSet fs = sp.getForwardedField(0);
+		Assert.assertTrue(fs.size() == 2);
+		Assert.assertTrue(fs.contains(1));
+		Assert.assertTrue(fs.contains(4));
+
+		fs = sp.getForwardedField(2);
+		Assert.assertTrue(fs.size() == 1);
+		Assert.assertTrue(fs.contains(2));
+
+		fs = sp.getForwardedField(3);
+		Assert.assertTrue(fs.size() == 1);
+		Assert.assertTrue(fs.contains(3));
+
+		fs = sp.getForwardedField(4);
+		Assert.assertTrue(fs.size() == 1);
+		Assert.assertTrue(fs.contains(0));
 	}
 
 	@Test
