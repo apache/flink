@@ -40,7 +40,7 @@ public class CliFrontendInvalidConfigTest {
 		try {
 			// test run with invalid config
 			{
-				String[] parameters = {"-w", "-v", "-j", CliFrontendTest.getTestJarPath(), "-a", "some", "program", "arguments"};
+				String[] parameters = {"-v", "-j", CliFrontendTest.getTestJarPath(), "-a", "some", "program", "arguments"};
 				TestingCliFrontend testFrontend = new TestingCliFrontend(CliFrontendTest.getInvalidConfigDir());
 				assertTrue(0 != testFrontend.run(parameters));
 			}

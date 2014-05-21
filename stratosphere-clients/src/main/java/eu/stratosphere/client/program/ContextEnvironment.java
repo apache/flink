@@ -45,18 +45,16 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
-		p.setDefaultParallelism(getDegreeOfParallelism());
-		
 		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.userCodeClassLoader);
-		return this.client.run(toRun, true);
+		
+		return this.client.run(toRun, getDegreeOfParallelism(), true);
 	}
 
 	@Override
 	public String getExecutionPlan() throws Exception {
 		Plan p = createProgramPlan("unnamed job");
-		p.setDefaultParallelism(getDegreeOfParallelism());
 		
-		OptimizedPlan op = this.client.getOptimizedPlan(p);
+		OptimizedPlan op = this.client.getOptimizedPlan(p, getDegreeOfParallelism());
 		
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 		return gen.getOptimizerPlanAsJSON(op);

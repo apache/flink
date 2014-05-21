@@ -47,7 +47,7 @@ import eu.stratosphere.util.MutableObjectIterator;
  * DataSinkTask which is executed by a Nephele task manager.
  * The task hands the data to an output format.
  * 
- * @see eu.eu.stratosphere.pact.common.generic.io.OutputFormat
+ * @see OutputFormat
  */
 public class DataSinkTask<IT> extends AbstractOutputTask {
 	
@@ -186,7 +186,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 			// drop, if the task was canceled
 			if (!this.taskCanceled) {
 				if (LOG.isErrorEnabled()) {
-					LOG.error(getLogString("Error in Pact user code: " + ex.getMessage()), ex);
+					LOG.error(getLogString("Error in user code: " + ex.getMessage()), ex);
 				}
 				throw ex;
 			}
@@ -327,7 +327,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 		this.inputTypeSerializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
 		
 		if (this.inputTypeSerializerFactory.getDataType() == Record.class) {
-			// pact record specific deserialization
+			// record specific deserialization
 			MutableReader<Record> reader = (MutableReader<Record>) inputReader;
 			this.reader = (MutableObjectIterator<IT>)new RecordReaderIterator(reader);
 		} else {

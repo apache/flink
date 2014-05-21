@@ -18,6 +18,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.java.ExecutionEnvironment;
@@ -43,6 +46,9 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
  * Encapsulates the functionality necessary to submit a program to a remote cluster.
  */
 public class Client {
+	
+	private static final Log LOG = LogFactory.getLog(Client.class);
+	
 	
 	private final Configuration configuration;	// the configuration describing the job manager address
 	
@@ -121,7 +127,7 @@ public class Client {
 	
 	public OptimizedPlan getOptimizedPlan(PackagedProgram prog, int parallelism) throws CompilerException, ProgramInvocationException {
 		if (prog.isUsingProgramEntryPoint()) {
-			return getOptimizedPlan(prog.getPlanWithJars());
+			return getOptimizedPlan(prog.getPlanWithJars(), parallelism);
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			// temporary hack to support the optimizer plan preview
@@ -142,7 +148,11 @@ public class Client {
 		}
 	}
 	
-	public OptimizedPlan getOptimizedPlan(Plan p) throws CompilerException {
+	public OptimizedPlan getOptimizedPlan(Plan p, int parallelism) throws CompilerException {
+		if (parallelism > 0 && p.getDefaultParallelism() <= 0) {
+			p.setDefaultParallelism(parallelism);
+		}
+		
 		ContextChecker checker = new ContextChecker();
 		checker.check(p);
 		return this.compiler.compile(p);
@@ -157,8 +167,8 @@ public class Client {
 	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
 	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file.
 	 */
-	public OptimizedPlan getOptimizedPlan(JobWithJars prog) throws CompilerException, ProgramInvocationException {
-		return getOptimizedPlan(prog.getPlan());
+	public OptimizedPlan getOptimizedPlan(JobWithJars prog, int parallelism) throws CompilerException, ProgramInvocationException {
+		return getOptimizedPlan(prog.getPlan(), parallelism);
 	}
 	
 	public JobGraph getJobGraph(PackagedProgram prog, OptimizedPlan optPlan) throws ProgramInvocationException {
@@ -176,9 +186,9 @@ public class Client {
 		return job;
 	}
 	
-	public JobExecutionResult run(PackagedProgram prog, int parallelism, boolean wait) throws ProgramInvocationException {
+	public JobExecutionResult run(final PackagedProgram prog, int parallelism, boolean wait) throws ProgramInvocationException {
 		if (prog.isUsingProgramEntryPoint()) {
-			return run(prog.getPlanWithJars(), wait);
+			return run(prog.getPlanWithJars(), parallelism, wait);
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			ContextEnvironment env = new ContextEnvironment(this, prog.getAllLibraries(), prog.getUserCodeClassLoader());
@@ -186,9 +196,26 @@ public class Client {
 			if (parallelism > 0) {
 				env.setDegreeOfParallelism(parallelism);
 			}
-			
 			env.setAsContext();
-			prog.invokeInteractiveModeForExecution();
+			
+			if (wait) {
+				// invoke here
+				prog.invokeInteractiveModeForExecution();
+			}
+			else {
+				// invoke in the background
+				Thread backGroundRunner = new Thread("Program Runner") {
+					public void run() {
+						try {
+							prog.invokeInteractiveModeForExecution();
+						}
+						catch (Throwable t) {
+							LOG.error("The program execution failed.", t);
+						}
+					};
+				};
+				backGroundRunner.start();
+			}
 			return null;
 		}
 		else {
@@ -214,8 +241,8 @@ public class Client {
 	 *                                    on the nephele system failed.
 	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
 	 */
-	public JobExecutionResult run(JobWithJars prog, boolean wait) throws CompilerException, ProgramInvocationException {
-		return run(getOptimizedPlan(prog), prog.getJarFiles(), wait);
+	public JobExecutionResult run(JobWithJars prog, int parallelism, boolean wait) throws CompilerException, ProgramInvocationException {
+		return run(getOptimizedPlan(prog, parallelism), prog.getJarFiles(), wait);
 	}
 	
 
