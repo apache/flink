@@ -78,22 +78,22 @@ public class RemoteExecutor extends PlanExecutor {
 	@Override
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
 		JobWithJars p = new JobWithJars(plan, this.jarFiles);
-		return this.client.run(p, true);
+		return this.client.run(p, -1, true);
 	}
 	
 	public JobExecutionResult executePlanWithJars(JobWithJars p) throws Exception {
-		return this.client.run(p, true);
+		return this.client.run(p, -1, true);
 	}
 
 	public JobExecutionResult executeJar(String jarPath, String assemblerClass, String[] args) throws Exception {
 		File jarFile = new File(jarPath);
 		PackagedProgram program = new PackagedProgram(jarFile, assemblerClass, args);
-		return this.client.run(program.getPlanWithJars(), true);
+		return this.client.run(program.getPlanWithJars(), -1, true);
 	}
 
 	@Override
 	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
-		OptimizedPlan op = client.getOptimizedPlan(new JobWithJars(plan, this.jarFiles));
+		OptimizedPlan op = client.getOptimizedPlan(new JobWithJars(plan, this.jarFiles), -1);
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		return jsonGen.getOptimizerPlanAsJSON(op);
 	}

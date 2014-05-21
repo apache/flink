@@ -43,11 +43,10 @@ public class CliFrontendYarnFileTest {
 		try {
 			// test with yarn JM file
 			{
-				String[] parameters = {"-w", "-v", CliFrontendTest.getTestJarPath(), "some", "program", "arguments"};
+				String[] parameters = {"-v", CliFrontendTest.getTestJarPath(), "some", "program", "arguments"};
 				
 				TestingCliFrontend testFrontend = new TestingCliFrontend(CliFrontendTest.getConfigDirWithYarnFile());
 				testFrontend.expectedArguments = new String[] {"some", "program", "arguments"};
-				testFrontend.expectedWait = true;
 				testFrontend.expectedJobManagerAddress = TEST_YARN_JOB_MANAGER_ADDRESS;
 				testFrontend.expectedJobManagerPort = TEST_YARN_JOB_MANAGER_PORT;
 				
@@ -68,11 +67,10 @@ public class CliFrontendYarnFileTest {
 		try {
 			// test with yarn JM file
 			{
-				String[] parameters = {"-w", "-v", "-m", "10.221.130.22:7788", CliFrontendTest.getTestJarPath(), "some", "program", "arguments"};
+				String[] parameters = {"-v", "-m", "10.221.130.22:7788", CliFrontendTest.getTestJarPath(), "some", "program", "arguments"};
 				
 				TestingCliFrontend testFrontend = new TestingCliFrontend(CliFrontendTest.getConfigDirWithYarnFile());
 				testFrontend.expectedArguments = new String[] {"some", "program", "arguments"};
-				testFrontend.expectedWait = true;
 				testFrontend.expectedJobManagerAddress = "10.221.130.22";
 				testFrontend.expectedJobManagerPort = 7788;
 				

@@ -27,7 +27,6 @@ import org.junit.Test;
 
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.PackagedProgram;
-import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.GlobalConfiguration;
 
 
@@ -38,8 +37,6 @@ public class CliFrontendTest {
 	private static final String TEST_JOB_MANAGER_ADDRESS = "192.168.1.33";
 	
 	private static final int TEST_JOB_MANAGER_PORT = 55443;
-	
-	private static final String TEST_WEBFRONTEND_ADDRESS = "192.168.1.33:" + ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT;
 	
 	
 	@BeforeClass
@@ -54,7 +51,7 @@ public class CliFrontendTest {
 		try {
 			// test unrecognized option
 			{
-				String[] parameters = {"-w", "-v", "-l", "-a", "some", "program", "arguments"};
+				String[] parameters = {"-v", "-l", "-a", "some", "program", "arguments"};
 				TestingCliFrontend testFrontend = new TestingCliFrontend();
 				int retCode = testFrontend.run(parameters);
 				assertTrue(retCode == 2);
@@ -78,38 +75,33 @@ public class CliFrontendTest {
 			
 			// test variant with explicit jar and arguments option
 			{
-				String[] parameters = {"-w", "-v", "-j", getTestJarPath(), "-a", "some", "program", "arguments"};
+				String[] parameters = {"-v", "-j", getTestJarPath(), "-a", "some", "program", "arguments"};
 				
 				TestingCliFrontend testFrontend = new TestingCliFrontend();
 				testFrontend.expectedArguments = new String[] {"some", "program", "arguments"};
 				testFrontend.expectedMainClass = TEST_JAR_MAIN_CLASS;
-				testFrontend.expectedWait = true;
-				testFrontend.expectedWebFrontend = TEST_WEBFRONTEND_ADDRESS;
 				
 				assertEquals(0, testFrontend.run(parameters));
 			}
 			
 			// test valid variant with explicit jar and no arguments option
 			{
-				String[] parameters = {"-w", "-v", "-j", getTestJarPath(), "some", "program", "arguments"};
+				String[] parameters = {"-v", "-j", getTestJarPath(), "some", "program", "arguments"};
 				
 				TestingCliFrontend testFrontend = new TestingCliFrontend();
 				testFrontend.expectedArguments = new String[] {"some", "program", "arguments"};
 				testFrontend.expectedMainClass = TEST_JAR_MAIN_CLASS;
-				testFrontend.expectedWait = true;
 				
 				assertEquals(0, testFrontend.run(parameters));
 			}
 			
 			// test valid variant with no jar and no arguments option
 			{
-				String[] parameters = {"-w", "-v", getTestJarPath(), "some", "program", "arguments"};
+				String[] parameters = {"-v", getTestJarPath(), "some", "program", "arguments"};
 				
 				TestingCliFrontend testFrontend = new TestingCliFrontend();
 				testFrontend.expectedArguments = new String[] {"some", "program", "arguments"};
 				testFrontend.expectedMainClass = TEST_JAR_MAIN_CLASS;
-				testFrontend.expectedWait = true;
-				testFrontend.expectedWebFrontend = TEST_WEBFRONTEND_ADDRESS;
 				
 				assertEquals(0, testFrontend.run(parameters));
 			}
@@ -124,14 +116,14 @@ public class CliFrontendTest {
 			
 			// test non existing file without arguments
 			{
-				String[] parameters = {"-w", "-v", "/some/none/existing/path", "some", "program", "arguments"};
+				String[] parameters = {"-v", "/some/none/existing/path", "some", "program", "arguments"};
 				TestingCliFrontend testFrontend = new TestingCliFrontend();
 				assertTrue(0 != testFrontend.run(parameters));
 			}
 
 			// test non existing file without arguments
 			{
-				String[] parameters = {"-w", "-v", "/some/none/existing/path", "some", "program", "arguments"};
+				String[] parameters = {"-v", "/some/none/existing/path", "some", "program", "arguments"};
 				TestingCliFrontend testFrontend = new TestingCliFrontend();
 				assertTrue(0 != testFrontend.run(parameters));
 			}
@@ -143,7 +135,6 @@ public class CliFrontendTest {
 				TestingCliFrontend testFrontend = new TestingCliFrontend();
 				testFrontend.expectedArguments = new String[0];
 				testFrontend.expectedMainClass = TEST_JAR_MAIN_CLASS;
-				testFrontend.expectedWait = false;
 				testFrontend.expectedDop = 42;
 				
 				assertEquals(0, testFrontend.run(parameters));
@@ -273,10 +264,6 @@ public class CliFrontendTest {
 		
 		public int expectedDop;
 		
-		public String expectedWebFrontend;
-		
-		public boolean expectedWait;
-		
 		
 		public TestingCliFrontend() {
 			this(getConfigDir());
@@ -287,7 +274,7 @@ public class CliFrontendTest {
 		}
 		
 		@Override
-		protected int executeProgram(PackagedProgram program, Client client, int parallelism, boolean wait, String webFrontendAddress) {
+		protected int executeProgram(PackagedProgram program, Client client, int parallelism) {
 			if (expectedJobManagerAddress != null) {
 				assertEquals(expectedJobManagerAddress, client.getJobManagerAddress());
 			} else {
@@ -309,10 +296,6 @@ public class CliFrontendTest {
 			if (expectedDop > 0) {
 				assertEquals(expectedDop, parallelism);
 			}
-			if (expectedWebFrontend != null) {
-				assertEquals(expectedWebFrontend, webFrontendAddress);
-			}
-			assertEquals(expectedWait, wait);
 			
 			return 0;
 		}

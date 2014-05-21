@@ -75,9 +75,6 @@ public class CliFrontend {
 	private static final Option PARALLELISM_OPTION = new Option("p", "parallelism", true, "The parallelism with which to run the program.");
 	private static final Option ARGS_OPTION = new Option("a", "arguments", true, "Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
 	
-	// run specific options
-	private static final Option WAIT_OPTION = new Option("w", "wait", false, "Wait for program to finish");
-	
 	// info specific options
 	private static final Option DESCR_OPTION = new Option("d", "description", false, "Show description of expected program arguments");
 	private static final Option PLAN_OPTION = new Option("e", "executionplan", false, "Show optimized execution plan of the program (JSON)");
@@ -145,8 +142,6 @@ public class CliFrontend {
 		ARGS_OPTION.setArgName("programArgs");
 		ARGS_OPTION.setArgs(Option.UNLIMITED_VALUES);
 		
-		WAIT_OPTION.setRequired(false);
-		
 		PLAN_OPTION.setRequired(false);
 		DESCR_OPTION.setRequired(false);
 		
@@ -180,9 +175,7 @@ public class CliFrontend {
 	 * @return Command line options for the run action.
 	 */
 	private static Options getRunOptions(Options options) {
-		options = getProgramSpecificOptions(options);
-		options.addOption(WAIT_OPTION);
-		return options;
+		return getProgramSpecificOptions(options);
 	}
 	
 	/**
@@ -310,7 +303,6 @@ public class CliFrontend {
 		
 		// -------- build the client -------------
 		Client client;
-		String webFrontendAddress;
 		{
 			Configuration configuration = getConfiguration();
 			
@@ -328,9 +320,6 @@ public class CliFrontend {
 					printHelpForRun();
 					return 1;
 				}
-				
-				// cannot say something about remote web frontends
-				webFrontendAddress = null;
 			}
 			else {
 				// second, search for a .yarn-jobmanager file
@@ -353,9 +342,6 @@ public class CliFrontend {
 						printHelpForRun();
 						return 1;
 					}
-					
-					// cannot say something about remote web frontends
-					webFrontendAddress = null;
 				}
 				else {
 					// regular config file gives the address
@@ -374,19 +360,13 @@ public class CliFrontend {
 						printHelpForRun();
 						return 1;
 					}
-					
-					// configure the webFrontendAddress
-					webFrontendAddress = jobManagerAddress + ':' + 
-								configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
 				}
 			}
 			
 			client = new Client(configuration);
-			client.setPrintStatusDuringExecution(true);
 		}
 
 		// --------------- other flags and parameters ---------------------
-		boolean wait = line.hasOption(WAIT_OPTION.getOpt());
 		
 		int parallelism = -1;
 		if (line.hasOption(PARALLELISM_OPTION.getOpt())) {
@@ -406,15 +386,16 @@ public class CliFrontend {
 			}
 		}
 		
-		return executeProgram(program, client, parallelism, wait, webFrontendAddress);
+		return executeProgram(program, client, parallelism);
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	protected int executeProgram(PackagedProgram program, Client client, int parallelism, boolean wait, String webFrontendAddress) {
+	protected int executeProgram(PackagedProgram program, Client client, int parallelism) {
 		JobExecutionResult execResult;
 		try {
-			execResult = client.run(program, parallelism, wait);
+			client.setPrintStatusDuringExecution(true);
+			execResult = client.run(program, parallelism, true);
 		}
 		catch (ProgramInvocationException e) {
 			return handleError(e);
@@ -423,26 +404,16 @@ public class CliFrontend {
 			program.deleteExtractedLibraries();
 		}
 		
-		if (wait) {
-			// we come here after the job has finished
-			if (execResult != null) {
-				System.out.println("Job Runtime: " + execResult.getNetRuntime());
-				Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
-				if (accumulatorsResult.size() > 0) {
-					System.out.println("Accumulator Results: ");
-					System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
-				}
+		// we come here after the job has finished
+		if (execResult != null) {
+			System.out.println("Job Runtime: " + execResult.getNetRuntime());
+			Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
+			if (accumulatorsResult.size() > 0) {
+				System.out.println("Accumulator Results: ");
+				System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
 			}
-			return 0;
 		}
-		else {
-			// we are not waiting. we come here immediately after the job is submitted
-			System.out.println("Job successfully submitted. Use -w (or --wait) option to track the progress here.");
-			if (webFrontendAddress != null) {
-				System.out.println("JobManager web interface: http://" + webFrontendAddress);
-			}
-			return 0;
-		}
+		return 0;
 	}
 	
 	// --------------------------------------------------------------------------------------------
