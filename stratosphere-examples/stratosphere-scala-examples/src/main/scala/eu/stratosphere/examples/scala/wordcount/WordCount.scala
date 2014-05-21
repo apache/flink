@@ -46,7 +46,6 @@ class WordCount extends Program with ProgramDescription with Serializable {
   override def getPlan(args: String*) = {
     if (args.size < 3) {
       println(getDescription)
-      System.exit(1);
     }
     getScalaPlan(args(0).toInt, args(1), args(2))
   }
