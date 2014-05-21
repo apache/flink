@@ -55,7 +55,7 @@ public class AvroExternalJarProgramITCase {
 			PackagedProgram program = new PackagedProgram(new File(jarFile), new String[] { testData });
 						
 			Client c = new Client(new InetSocketAddress("localhost", TEST_JM_PORT), new Configuration());
-			c.run(program, true);
+			c.run(program, 4, true);
 		}
 		catch (Throwable t) {
 			System.err.println(t.getMessage());

@@ -156,7 +156,7 @@ public class JobSubmissionServlet extends HttpServlet {
 					program = new PackagedProgram(jarFile, assemblerClass, options);
 				}
 				
-				optPlan = client.getOptimizedPlan(program);
+				optPlan = client.getOptimizedPlan(program, -1);
 			}
 			catch (ProgramInvocationException e) {
 				// collect the stack trace
@@ -240,7 +240,7 @@ public class JobSubmissionServlet extends HttpServlet {
 				// don't show any plan. directly submit the job and redirect to the
 				// nephele runtime monitor
 				try {
-					client.run(program, false);
+					client.run(program, -1, false);
 				} catch (Exception ex) {
 					LOG.error("Error submitting job to the job-manager.", ex);
 					// HACK: Is necessary because Message contains whole stack trace
