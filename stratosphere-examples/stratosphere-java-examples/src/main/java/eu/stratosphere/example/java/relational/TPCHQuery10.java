@@ -91,7 +91,9 @@ public class TPCHQuery10 {
 	
 	public static void main(String[] args) throws Exception {
 		
-		parseParameters(args);
+		if(!parseParameters(args)) {
+			return;
+		}
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -186,7 +188,7 @@ public class TPCHQuery10 {
 	private static String nationPath;
 	private static String outputPath;
 	
-	private static void parseParameters(String[] programArguments) {
+	private static boolean parseParameters(String[] programArguments) {
 		
 		if(programArguments.length > 0) {
 			if(programArguments.length == 5) {
@@ -197,15 +199,16 @@ public class TPCHQuery10 {
 				outputPath = programArguments[4];
 			} else {
 				System.err.println("Usage: TPCHQuery10 <customer-csv path> <orders-csv path> <lineitem-csv path> <nation-csv path> <result path>");
-				System.exit(1);
+				return false;
 			}
 		} else {
 			System.err.println("This program expects data from the TPC-H benchmark as input data.\n" +
 								"  Due to legal restrictions, we can not ship generated data.\n" +
 								"  You can find the TPC-H data generator at http://www.tpc.org/tpch/.\n" + 
 								"  Usage: TPCHQuery10 <customer-csv path> <orders-csv path> <lineitem-csv path> <nation-csv path> <result path>");
-			System.exit(1);
+			return false;
 		}
+		return true;
 	}
 	
 	private static DataSet<Tuple5<Integer, String, String, Integer, Double>> getCustomerDataSet(ExecutionEnvironment env) {

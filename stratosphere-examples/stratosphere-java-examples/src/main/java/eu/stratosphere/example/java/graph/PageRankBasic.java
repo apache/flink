@@ -79,7 +79,9 @@ public class PageRankBasic {
 	
 	public static void main(String[] args) throws Exception {
 		
-		parseParameters(args);
+		if(!parseParameters(args)) {
+			return;
+		}
 		
 		// set up execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -227,7 +229,7 @@ public class PageRankBasic {
 	private static long numPages = 0;
 	private static int maxIterations = 10;
 	
-	private static void parseParameters(String[] args) {
+	private static boolean parseParameters(String[] args) {
 		
 		if(args.length > 0) {
 			if(args.length == 5) {
@@ -239,7 +241,7 @@ public class PageRankBasic {
 				maxIterations = Integer.parseInt(args[4]);
 			} else {
 				System.err.println("Usage: PageRankBasic <pages path> <links path> <output path> <num pages> <num iterations>");
-				System.exit(1);
+				return false;
 			}
 		} else {
 			System.out.println("Executing PageRank Basic example with default parameters and built-in default data.");
@@ -249,6 +251,7 @@ public class PageRankBasic {
 			
 			numPages = PageRankData.getNumberOfPages();
 		}
+		return true;
 	}
 	
 	private static DataSet<Tuple1<Long>> getPagesDataSet(ExecutionEnvironment env) {

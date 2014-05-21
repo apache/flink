@@ -95,7 +95,9 @@ public class WebLogAnalysis {
 	
 	public static void main(String[] args) throws Exception {
 		
-		parseParameters(args);
+		if(!parseParameters(args)) {
+			return;
+		}
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -262,7 +264,7 @@ public class WebLogAnalysis {
 	private static String visitsPath;
 	private static String outputPath;
 	
-	private static void parseParameters(String[] args) {
+	private static boolean parseParameters(String[] args) {
 		
 		if(args.length > 0) {
 			fileOutput = true;
@@ -273,7 +275,7 @@ public class WebLogAnalysis {
 				outputPath = args[3];
 			} else {
 				System.err.println("Usage: WebLogAnalysis <documents path> <ranks path> <visits path> <result path>");
-				System.exit(1);
+				return false;
 			}
 		} else {
 			System.out.println("Executing WebLog Analysis example with built-in default data.");
@@ -282,6 +284,7 @@ public class WebLogAnalysis {
 			System.out.println("  We provide a data generator to create synthetic input files for this program.");
 			System.out.println("  Usage: WebLogAnalysis <documents path> <ranks path> <visits path> <result path>");
 		}
+		return true;
 	}
 	
 	private static DataSet<Tuple2<String, String>> getDocumentsDataSet(ExecutionEnvironment env) {

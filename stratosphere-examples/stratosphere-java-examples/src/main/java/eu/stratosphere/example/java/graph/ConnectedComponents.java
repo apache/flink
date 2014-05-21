@@ -74,7 +74,9 @@ public class ConnectedComponents implements ProgramDescription {
 	
 	public static void main(String... args) throws Exception {
 		
-		parseParameters(args);
+		if(!parseParameters(args)) {
+			return;
+		}
 		
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -185,7 +187,7 @@ public class ConnectedComponents implements ProgramDescription {
 	private static String outputPath = null;
 	private static int maxIterations = 10;
 	
-	private static void parseParameters(String[] programArguments) {
+	private static boolean parseParameters(String[] programArguments) {
 		
 		if(programArguments.length > 0) {
 			// parse input arguments
@@ -197,7 +199,7 @@ public class ConnectedComponents implements ProgramDescription {
 				maxIterations = Integer.parseInt(programArguments[3]);
 			} else {
 				System.err.println("Usage: ConnectedComponents <vertices path> <edges path> <result path> <max number of iterations>");
-				System.exit(1);
+				return false;
 			}
 		} else {
 			System.out.println("Executing Connected Components example with default parameters and built-in default data.");
@@ -205,6 +207,7 @@ public class ConnectedComponents implements ProgramDescription {
 			System.out.println("  See the documentation for the correct format of input files.");
 			System.out.println("  Usage: ConnectedComponents <vertices path> <edges path> <result path> <max number of iterations>");
 		}
+		return true;
 	}
 	
 	private static DataSet<Long> getVertexDataSet(ExecutionEnvironment env) {
