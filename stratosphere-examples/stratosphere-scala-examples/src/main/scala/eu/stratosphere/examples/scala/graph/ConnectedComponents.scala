@@ -27,7 +27,6 @@ object RunConnectedComponents {
     }
     val plan = new ConnectedComponents().getPlan(pArgs(0), pArgs(1), pArgs(2), pArgs(3), pArgs(4))
     LocalExecutor.execute(plan)
-    System.exit(0)
   }
 }
 
