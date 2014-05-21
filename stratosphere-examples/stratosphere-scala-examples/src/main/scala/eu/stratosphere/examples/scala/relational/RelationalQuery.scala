@@ -94,7 +94,7 @@ object RunRelationalQuery {
       println(query.getDescription)
       return
     }
-    val plan = query.getScalaPlan(args(0).toInt, args(1), args(2), args(3))
+    val plan = query.getScalaPlan(args(3).toInt, args(0), args(1), args(2))
     LocalExecutor.execute(plan)
   }
 }
