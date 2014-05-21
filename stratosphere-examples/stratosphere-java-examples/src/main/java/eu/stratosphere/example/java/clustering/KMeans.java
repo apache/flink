@@ -77,7 +77,9 @@ public class KMeans {
 	
 	public static void main(String[] args) throws Exception {
 		
-		parseParameters(args);
+		if(!parseParameters(args)) {
+			return;
+		}
 	
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -278,7 +280,7 @@ public class KMeans {
 	private static String outputPath = null;
 	private static int numIterations = 10;
 	
-	private static void parseParameters(String[] programArguments) {
+	private static boolean parseParameters(String[] programArguments) {
 		
 		if(programArguments.length > 0) {
 			// parse input arguments
@@ -290,7 +292,7 @@ public class KMeans {
 				numIterations = Integer.parseInt(programArguments[3]);
 			} else {
 				System.err.println("Usage: KMeans <points path> <centers path> <result path> <num iterations>");
-				System.exit(1);
+				return false;
 			}
 		} else {
 			System.out.println("Executing K-Means example with default parameters and built-in default data.");
@@ -299,6 +301,7 @@ public class KMeans {
 			System.out.println("  We provide a data generator to create synthetic input files for this program.");
 			System.out.println("  Usage: KMeans <points path> <centers path> <result path> <num iterations>");
 		}
+		return true;
 	}
 	
 	private static DataSet<Point> getPointDataSet(ExecutionEnvironment env) {
