@@ -21,6 +21,8 @@ import java.lang.annotation.Retention;
 import java.util.HashSet;
 import java.util.Set;
 
+import eu.stratosphere.api.common.InvalidProgramException;
+
 /**
  * This class defines the semantic assertions that can be added to functions.
  * The assertions are realized as java annotations, to be added to the class declaration of
@@ -317,17 +319,16 @@ public class FunctionAnnotation {
 		Set<Annotation> result = null;
 
 		if (notConstantSet != null && constantSet != null) {
-			throw new RuntimeException("Either ConstantFields or ConstantFieldsExcept can be specified, not both.");
+			throw new InvalidProgramException("Either " + ConstantFields.class.getSimpleName() + " or " + 
+					ConstantFieldsExcept.class.getSimpleName() + " can be annotated to a function, not both.");
 		}
 
 		if (notConstantSet != null) {
-				result = new HashSet<Annotation>();
-
+			result = new HashSet<Annotation>();
 			result.add(notConstantSet);
 		}
 		if (constantSet != null) {
-				result = new HashSet<Annotation>();
-
+			result = new HashSet<Annotation>();
 			result.add(constantSet);
 		}
 
@@ -362,11 +363,13 @@ public class FunctionAnnotation {
 		ReadFieldsSecond readfieldSet2 = udfClass.getAnnotation(ReadFieldsSecond.class);
 
 		if (notConstantSet1 != null && constantSet1 != null) {
-			throw new RuntimeException("Either ConstantFieldsFirst or ConstantFieldsFirstExcept can be specified, not both.");
+			throw new InvalidProgramException("Either " + ConstantFieldsFirst.class.getSimpleName() + " or " + 
+					ConstantFieldsFirstExcept.class.getSimpleName() + " can be annotated to a function, not both.");
 		}
 
 		if (constantSet2 != null && notConstantSet2 != null) {
-			throw new RuntimeException("Either ConstantFieldsSecond or ConstantFieldsSecondExcept can be specified, not both.");
+			throw new InvalidProgramException("Either " + ConstantFieldsSecond.class.getSimpleName() + " or " + 
+					ConstantFieldsSecondExcept.class.getSimpleName() + " can be annotated to a function, not both.");
 		}
 
 		Set<Annotation> result = null;

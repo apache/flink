@@ -19,6 +19,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.operators.DualInputSemanticProperties;
 import eu.stratosphere.api.common.operators.SemanticProperties;
 import eu.stratosphere.api.common.operators.SingleInputSemanticProperties;
@@ -112,7 +113,7 @@ public class SemanticPropUtil {
 		Matcher matcher = PATTERN_ANNOTATION.matcher(s);
 
 		if (!matcher.matches()) {
-			throw new RuntimeException("Unrecognized annotation string format.");
+			throw new InvalidProgramException("Unrecognized annotation string format.");
 		}
 
 		Matcher forwardMatcher = PATTERN_FORWARD.matcher(s);
@@ -289,7 +290,7 @@ public class SemanticPropUtil {
 		Matcher matcher = PATTERN_LIST.matcher(s);
 
 		if (!matcher.matches()) {
-			throw new RuntimeException("Unrecognized annotation string format.");
+			throw new InvalidProgramException("Unrecognized annotation string format.");
 		}
 
 		matcher = PATTERN_DIGIT.matcher(s);
