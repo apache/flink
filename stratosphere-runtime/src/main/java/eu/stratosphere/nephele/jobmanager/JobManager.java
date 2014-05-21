@@ -422,127 +422,133 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	@Override
 	public JobSubmissionResult submitJob(JobGraph job) throws IOException {
-		// First check if job is null
-		if (job == null) {
-			JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
-				"Submitted job is null!");
-			return result;
-		}
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Submitted job " + job.getName() + " is not null");
-		}
-
-		// Check if any vertex of the graph has null edges
-		AbstractJobVertex jv = job.findVertexWithNullEdges();
-		if (jv != null) {
-			JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, "Vertex "
-				+ jv.getName() + " has at least one null edge");
-			return result;
-		}
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Submitted job " + job.getName() + " has no null edges");
-		}
-
-		// Next, check if the graph is weakly connected
-		if (!job.isWeaklyConnected()) {
-			JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
-				"Job graph is not weakly connected");
-			return result;
-		}
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("The graph of job " + job.getName() + " is weakly connected");
-		}
-
-		// Check if job graph has cycles
-		if (!job.isAcyclic()) {
-			JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
-				"Job graph is not a DAG");
-			return result;
-		}
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("The graph of job " + job.getName() + " is acyclic");
-		}
-
-		// Check constrains on degree
-		jv = job.areVertexDegreesCorrect();
-		if (jv != null) {
-			JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
-				"Degree of vertex " + jv.getName() + " is incorrect");
-			return result;
-		}
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("All vertices of job " + job.getName() + " have the correct degree");
-		}
-
-		if (!job.isInstanceDependencyChainAcyclic()) {
-			JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
-				"The dependency chain for instance sharing contains a cycle");
-
-			return result;
-		}
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("The dependency chain for instance sharing is acyclic");
-		}
-
-		// Check if the job will be executed with profiling enabled
-		boolean jobRunsWithProfiling = false;
-		if (this.profiler != null && job.getJobConfiguration().getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
-			jobRunsWithProfiling = true;
-		}
-
-		// Try to create initial execution graph from job graph
-		LOG.info("Creating initial execution graph from job graph " + job.getName());
-		ExecutionGraph eg;
-
 		try {
-			eg = new ExecutionGraph(job, this.instanceManager);
-		} catch (GraphConversionException gce) {
-			JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, gce.getMessage());
-			return result;
-		}
-
-		// Register job with the progress collector
-		if (this.eventCollector != null) {
-			this.eventCollector.registerJob(eg, jobRunsWithProfiling, System.currentTimeMillis());
-		}
-
-		// Check if profiling should be enabled for this job
-		if (jobRunsWithProfiling) {
-			this.profiler.registerProfilingJob(eg);
-
-			if (this.eventCollector != null) {
-				this.profiler.registerForProfilingData(eg.getJobID(), this.eventCollector);
+			// First check if job is null
+			if (job == null) {
+				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
+					"Submitted job is null!");
+				return result;
 			}
-
+	
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Submitted job " + job.getName() + " is not null");
+			}
+	
+			// Check if any vertex of the graph has null edges
+			AbstractJobVertex jv = job.findVertexWithNullEdges();
+			if (jv != null) {
+				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, "Vertex "
+					+ jv.getName() + " has at least one null edge");
+				return result;
+			}
+	
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Submitted job " + job.getName() + " has no null edges");
+			}
+	
+			// Next, check if the graph is weakly connected
+			if (!job.isWeaklyConnected()) {
+				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
+					"Job graph is not weakly connected");
+				return result;
+			}
+	
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("The graph of job " + job.getName() + " is weakly connected");
+			}
+	
+			// Check if job graph has cycles
+			if (!job.isAcyclic()) {
+				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
+					"Job graph is not a DAG");
+				return result;
+			}
+	
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("The graph of job " + job.getName() + " is acyclic");
+			}
+	
+			// Check constrains on degree
+			jv = job.areVertexDegreesCorrect();
+			if (jv != null) {
+				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
+					"Degree of vertex " + jv.getName() + " is incorrect");
+				return result;
+			}
+	
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("All vertices of job " + job.getName() + " have the correct degree");
+			}
+	
+			if (!job.isInstanceDependencyChainAcyclic()) {
+				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
+					"The dependency chain for instance sharing contains a cycle");
+	
+				return result;
+			}
+	
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("The dependency chain for instance sharing is acyclic");
+			}
+	
+			// Check if the job will be executed with profiling enabled
+			boolean jobRunsWithProfiling = false;
+			if (this.profiler != null && job.getJobConfiguration().getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
+				jobRunsWithProfiling = true;
+			}
+	
+			// Try to create initial execution graph from job graph
+			LOG.info("Creating initial execution graph from job graph " + job.getName());
+			ExecutionGraph eg;
+	
+			try {
+				eg = new ExecutionGraph(job, this.instanceManager);
+			} catch (GraphConversionException gce) {
+				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(gce));
+				return result;
+			}
+	
+			// Register job with the progress collector
+			if (this.eventCollector != null) {
+				this.eventCollector.registerJob(eg, jobRunsWithProfiling, System.currentTimeMillis());
+			}
+	
+			// Check if profiling should be enabled for this job
+			if (jobRunsWithProfiling) {
+				this.profiler.registerProfilingJob(eg);
+	
+				if (this.eventCollector != null) {
+					this.profiler.registerForProfilingData(eg.getJobID(), this.eventCollector);
+				}
+	
+			}
+	
+			// Register job with the dynamic input split assigner
+			this.inputSplitManager.registerJob(eg);
+	
+			// Register for updates on the job status
+			eg.registerJobStatusListener(this);
+	
+			// Schedule job
+			if (LOG.isInfoEnabled()) {
+				LOG.info("Scheduling job " + job.getName());
+			}
+	
+			try {
+				this.scheduler.schedulJob(eg);
+			} catch (SchedulingException e) {
+				unregisterJob(eg);
+				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(e));
+				return result;
+			}
+	
+			// Return on success
+			return new JobSubmissionResult(AbstractJobResult.ReturnCode.SUCCESS, null);
 		}
-
-		// Register job with the dynamic input split assigner
-		this.inputSplitManager.registerJob(eg);
-
-		// Register for updates on the job status
-		eg.registerJobStatusListener(this);
-
-		// Schedule job
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Scheduling job " + job.getName());
+		catch (Throwable t) {
+			LOG.error("Job submission failed.", t);
+			return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(t));
 		}
-
-		try {
-			this.scheduler.schedulJob(eg);
-		} catch (SchedulingException e) {
-			unregisterJob(eg);
-			JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, e.getMessage());
-			return result;
-		}
-
-		// Return on success
-		return new JobSubmissionResult(AbstractJobResult.ReturnCode.SUCCESS, null);
 	}
 	
 
