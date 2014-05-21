@@ -102,23 +102,33 @@ public class Client {
 		this.printStatusDuringExecution = print;
 	}
 
+	public String getJobManagerAddress() {
+		return this.configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+	}
+	
+	public int getJobManagerPort() {
+		return this.configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
+	}
 	
 	// ------------------------------------------------------------------------
 	//                      Compilation and Submission
 	// ------------------------------------------------------------------------
 	
-	public String getOptimizedPlanAsJson(PackagedProgram prog) throws CompilerException, ProgramInvocationException {
+	public String getOptimizedPlanAsJson(PackagedProgram prog, int parallelism) throws CompilerException, ProgramInvocationException {
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
-		return jsonGen.getOptimizerPlanAsJSON(getOptimizedPlan(prog));
+		return jsonGen.getOptimizerPlanAsJSON(getOptimizedPlan(prog, parallelism));
 	}
 	
-	public OptimizedPlan getOptimizedPlan(PackagedProgram prog) throws CompilerException, ProgramInvocationException {
+	public OptimizedPlan getOptimizedPlan(PackagedProgram prog, int parallelism) throws CompilerException, ProgramInvocationException {
 		if (prog.isUsingProgramEntryPoint()) {
 			return getOptimizedPlan(prog.getPlanWithJars());
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			// temporary hack to support the optimizer plan preview
 			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment(this.compiler);
+			if (parallelism > 0) {
+				env.setDegreeOfParallelism(parallelism);
+			}
 			env.setAsContext();
 			try {
 				prog.invokeInteractiveModeForExecution();
@@ -166,12 +176,17 @@ public class Client {
 		return job;
 	}
 	
-	public JobExecutionResult run(PackagedProgram prog, boolean wait) throws ProgramInvocationException {
+	public JobExecutionResult run(PackagedProgram prog, int parallelism, boolean wait) throws ProgramInvocationException {
 		if (prog.isUsingProgramEntryPoint()) {
 			return run(prog.getPlanWithJars(), wait);
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			ContextEnvironment env = new ContextEnvironment(this, prog.getAllLibraries(), prog.getUserCodeClassLoader());
+			
+			if (parallelism > 0) {
+				env.setDegreeOfParallelism(parallelism);
+			}
+			
 			env.setAsContext();
 			prog.invokeInteractiveModeForExecution();
 			return null;

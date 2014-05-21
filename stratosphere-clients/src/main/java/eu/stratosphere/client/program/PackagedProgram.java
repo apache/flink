@@ -160,6 +160,14 @@ public class PackagedProgram {
 		}
 	}
 	
+	public String[] getArguments() {
+		return this.args;
+	}
+	
+	public String getMainClassName() {
+		return this.mainClass.getName();
+	}
+	
 	public boolean isUsingInteractiveMode() {
 		return this.program == null;
 	}
