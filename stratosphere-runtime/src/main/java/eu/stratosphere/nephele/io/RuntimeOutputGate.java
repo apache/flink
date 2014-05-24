@@ -257,13 +257,13 @@ public class RuntimeOutputGate<T extends IOReadableWritable> extends AbstractGat
 			// Non-broadcast gate, use channel selector to select output channels
 			final int numberOfOutputChannels = this.outputChannels.size();
 			final int[] selectedOutputChannels = this.channelSelector.selectChannels(record, numberOfOutputChannels);
-
+			
 			if (selectedOutputChannels == null) {
 				return;
 			}
 
+			
 			for (int i = 0; i < selectedOutputChannels.length; ++i) {
-
 				if (selectedOutputChannels[i] < numberOfOutputChannels) {
 					final AbstractOutputChannel<T> outputChannel = this.outputChannels.get(selectedOutputChannels[i]);
 					outputChannel.writeRecord(record);
