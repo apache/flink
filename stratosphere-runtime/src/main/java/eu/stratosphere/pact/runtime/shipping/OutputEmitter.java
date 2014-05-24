@@ -148,7 +148,15 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		
 		int hash = this.comparator.hash(record);
 	
-		this.channels[0] = (hash < 0) ? -hash % numberOfChannels : hash % numberOfChannels;
+		if(hash < 0) {
+			if(hash == Integer.MIN_VALUE) {
+				this.channels[0] = Integer.MAX_VALUE % numberOfChannels;
+			} else {
+				this.channels[0] = -hash % numberOfChannels;
+			}
+		} else {
+			this.channels[0] = hash % numberOfChannels;
+		}
 		return this.channels;
 	}
 	
