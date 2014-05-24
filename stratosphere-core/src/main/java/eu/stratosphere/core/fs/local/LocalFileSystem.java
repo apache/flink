@@ -97,7 +97,8 @@ public class LocalFileSystem extends FileSystem {
 		if (path.exists()) {
 			return new LocalFileStatus(pathToFile(f), this);
 		} else {
-			throw new FileNotFoundException("File " + f + " does not exist.");
+			throw new FileNotFoundException("File " + f + " does not exist or the user running "
+					+ "Stratosphere ('"+System.getProperty("user.name")+"') has insufficient permissions to access it.");
 		}
 
 	}
@@ -105,14 +106,12 @@ public class LocalFileSystem extends FileSystem {
 
 	@Override
 	public URI getUri() {
-
 		return name;
 	}
 
 
 	@Override
 	public Path getWorkingDirectory() {
-
 		return workingDir;
 	}
 
@@ -129,15 +128,12 @@ public class LocalFileSystem extends FileSystem {
 
 	@Override
 	public FSDataInputStream open(final Path f) throws IOException {
-
 		final File file = pathToFile(f);
-
 		return new LocalDataInputStream(file);
 	}
 
 
 	private File pathToFile(Path path) {
-
 		if (!path.isAbsolute()) {
 			path = new Path(getWorkingDirectory(), path);
 		}
