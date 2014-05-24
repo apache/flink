@@ -24,8 +24,8 @@ import org.junit.Test;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
+import eu.stratosphere.api.common.cache.DistributedCache.DistributedCacheEntry;
 
-import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.fs.local.LocalFileSystem;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
@@ -67,13 +67,13 @@ public class FileCacheDeleteValidationTest {
 	public void testFileReuseForNextTask() {
 		JobID jobID = new JobID();
 		String filePath = f.toURI().toString();
-		fileCache.createTmpFile("test_file", filePath, jobID);
+		fileCache.createTmpFile("test_file", new DistributedCacheEntry(filePath, false), jobID);
 		try {
 			Thread.sleep(1000);
 		} catch (InterruptedException e) {
 			throw new RuntimeException("Interrupted error", e);
 		}
-		fileCache.deleteTmpFile("test_file", jobID);
+		fileCache.deleteTmpFile("test_file", new DistributedCacheEntry(filePath, false), jobID);
 		try {
 			Thread.sleep(1000);
 		} catch (InterruptedException e) {
@@ -81,17 +81,17 @@ public class FileCacheDeleteValidationTest {
 		}
 		//new task comes after 1 second
 		try {
-			Assert.assertTrue("Local cache file should not be deleted when another task comes in 5 seconds!", lfs.exists(fileCache.getTempDir(jobID, "test_file")));
+			Assert.assertTrue("Local cache file should not be deleted when another task comes in 5 seconds!", lfs.exists(fileCache.getTempDir(jobID, "cacheFile")));
 		} catch (IOException e) {
 			throw new RuntimeException("Interrupted error", e);
 		}
-		fileCache.createTmpFile("test_file", filePath, jobID);
+		fileCache.createTmpFile("test_file", new DistributedCacheEntry(filePath, false), jobID);
 		try {
 			Thread.sleep(1000);
 		} catch (InterruptedException e) {
 			throw new RuntimeException("Interrupted error", e);
 		}
-		fileCache.deleteTmpFile("test_file", jobID);
+		fileCache.deleteTmpFile("test_file", new DistributedCacheEntry(filePath, false), jobID);
 		try {
 			Thread.sleep(7000);
 		} catch (InterruptedException e) {
@@ -99,7 +99,7 @@ public class FileCacheDeleteValidationTest {
 		}
 		//no task comes in 7 seconds
 		try {
-			Assert.assertTrue("Local cache file should be deleted when no task comes in 5 seconds!", !lfs.exists(fileCache.getTempDir(jobID, "test_file")));
+			Assert.assertTrue("Local cache file should be deleted when no task comes in 5 seconds!", !lfs.exists(fileCache.getTempDir(jobID, "cacheFile")));
 		} catch (IOException e) {
 			throw new RuntimeException("Interrupted error", e);
 		}

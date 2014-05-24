@@ -15,6 +15,7 @@ package eu.stratosphere.api.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import eu.stratosphere.api.common.cache.DistributedCache.DistributedCacheEntry;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -66,7 +67,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 */
 	protected int maxNumberMachines;
 
-	protected HashMap<String, String> cacheFile = new HashMap<String, String>();
+	protected HashMap<String, DistributedCacheEntry> cacheFile = new HashMap();
 
 	// ------------------------------------------------------------------------
 
@@ -301,28 +302,28 @@ public class Plan implements Visitable<Operator<?>> {
 	
 	/**
 	 *  register cache files in program level
-	 * @param filePath The files must be stored in a place that can be accessed from all workers (most commonly HDFS)
+	 * @param entry contains all relevant information
 	 * @param name user defined name of that file
 	 * @throws java.io.IOException
 	 */
-	public void registerCachedFile(String filePath, String name) throws IOException {
+	public void registerCachedFile(String name, DistributedCacheEntry entry) throws IOException {
 		if (!this.cacheFile.containsKey(name)) {
 			try {
-				URI u = new URI(filePath);
+				URI u = new URI(entry.filePath);
 				if (!u.getPath().startsWith("/")) {
-					u = new URI(new File(filePath).getAbsolutePath());
+					u = new File(entry.filePath).toURI();
 				}
 				FileSystem fs = FileSystem.get(u);
 				if (fs.exists(new Path(u.getPath()))) {
-					this.cacheFile.put(name, u.toString());
+					this.cacheFile.put(name, new DistributedCacheEntry(u.toString(), entry.isExecutable));
 				} else {
-					throw new RuntimeException("File " + u.toString() + " doesn't exist.");
+					throw new IOException("File " + u.toString() + " doesn't exist.");
 				}
 			} catch (URISyntaxException ex) {
-				throw new RuntimeException("Invalid path: " + filePath, ex);
+				throw new IOException("Invalid path: " + entry.filePath, ex);
 			}
 		} else {
-			throw new RuntimeException("cache file " + name + "already exists!");
+			throw new IOException("cache file " + name + "already exists!");
 		}
 	}
 
@@ -330,7 +331,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * return the registered caches files
 	 * @return Set of (name, filePath) pairs
 	 */
-	public Set<Entry<String,String>> getCachedFiles() {
+	public Set<Entry<String,DistributedCacheEntry>> getCachedFiles() {
 		return this.cacheFile.entrySet();
 	}
 }

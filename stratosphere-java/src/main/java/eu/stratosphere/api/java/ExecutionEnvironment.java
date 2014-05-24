@@ -29,6 +29,7 @@ import org.apache.commons.lang3.Validate;
 import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.cache.DistributedCache.DistributedCacheEntry;
 import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.java.io.CollectionInputFormat;
 import eu.stratosphere.api.java.io.CsvReader;
@@ -87,7 +88,7 @@ public abstract class ExecutionEnvironment {
 	
 	private final List<DataSink<?>> sinks = new ArrayList<DataSink<?>>();
 	
-	private final List<Tuple2<String, String>> cacheFile = new ArrayList<Tuple2<String, String>>();
+	private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList();
 
 	private int degreeOfParallelism = -1;
 	
@@ -542,8 +543,8 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
 	 * from any user-defined function in the (distributed) runtime under a local path. Files
-	 * may be local files, or files in a distributed file system. The runtime will copy the files
-	 * temporarily to a local cache, if needed.
+	 * may be local files (as long as all relevant workers have access to it), or files in a distributed file system.
+	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 * <p>
 	 * The {@link eu.stratosphere.api.common.functions.RuntimeContext} can be obtained inside UDFs via
 	 * {@link eu.stratosphere.api.common.functions.Function#getRuntimeContext()} and provides access 
@@ -554,7 +555,26 @@ public abstract class ExecutionEnvironment {
 	 * @param name The name under which the file is registered.
 	 */
 	public void registerCachedFile(String filePath, String name){
-		this.cacheFile.add(new Tuple2<String, String>(filePath, name));
+		registerCachedFile(filePath, name, false);
+	}
+	
+	/**
+	 * Registers a file at the distributed cache under the given name. The file will be accessible
+	 * from any user-defined function in the (distributed) runtime under a local path. Files
+	 * may be local files (as long as all relevant workers have access to it), or files in a distributed file system. 
+	 * The runtime will copy the files temporarily to a local cache, if needed.
+	 * <p>
+	 * The {@link eu.stratosphere.api.common.functions.RuntimeContext} can be obtained inside UDFs via
+	 * {@link eu.stratosphere.api.common.functions.Function#getRuntimeContext()} and provides access 
+	 * {@link eu.stratosphere.api.common.cache.DistributedCache} via 
+	 * {@link eu.stratosphere.api.common.functions.RuntimeContext#getDistributedCache()}.
+	 * 
+	 * @param filePath The path of the file, as a URI (e.g. "file:///some/path" or "hdfs://host:port/and/path")
+	 * @param name The name under which the file is registered.
+	 * @param executable flag indicating whether the file should be executable
+	 */
+	public void registerCachedFile(String filePath, String name, boolean executable){
+		this.cacheFile.add(new Tuple2(name, new DistributedCacheEntry(filePath, executable)));
 	}
 	
 	/**
@@ -565,7 +585,7 @@ public abstract class ExecutionEnvironment {
 	 * @throws IOException Thrown if checks for existence and sanity fail.
 	 */
 	protected void registerCachedFilesWithPlan(Plan p) throws IOException {
-		for (Tuple2<String, String> entry : cacheFile) {
+		for (Tuple2<String, DistributedCacheEntry> entry : cacheFile) {
 			p.registerCachedFile(entry.f0, entry.f1);
 		}
 	}
