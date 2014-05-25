@@ -41,7 +41,6 @@ import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.PackagedProgram;
 import eu.stratosphere.client.program.ProgramInvocationException;
-import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
@@ -54,7 +53,7 @@ import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.util.StringUtils;
 
 /**
- * Implementation of a simple command line fronted for executing PACT programs.
+ * Implementation of a simple command line fronted for executing programs.
  */
 public class CliFrontend {
 
@@ -69,11 +68,12 @@ public class CliFrontend {
 	private static final Option VERBOSE_OPTION = new Option("v", "verbose", false, "Print more detailed error messages.");
 	
 	// program (jar file) specific options
-	private static final Option JAR_OPTION = new Option("j", "jarfile", true, "Stratosphere program JAR file");
-	private static final Option CLASS_OPTION = new Option("c", "class", true, "Program class");
-	private static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true, "JobManager (master) to which to connect.");
-	private static final Option PARALLELISM_OPTION = new Option("p", "parallelism", true, "The parallelism with which to run the program.");
+	private static final Option JAR_OPTION = new Option("j", "jarfile", true, "Stratosphere program JAR file.");
+	private static final Option CLASS_OPTION = new Option("c", "class", true, "Class with the program entry point (\"main\" method or \"getPlan()\" method. Only needed if the JAR file does not specify the class in its manifest.");
+	private static final Option PARALLELISM_OPTION = new Option("p", "parallelism", true, "The parallelism with which to run the program. Optional flag to override the default value specified in the configuration.");
 	private static final Option ARGS_OPTION = new Option("a", "arguments", true, "Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
+	
+	private static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true, "Address of the JobManager (master) to which to connect. Use this flag to connect to a different JobManager than the one specified in the configuration.");
 	
 	// info specific options
 	private static final Option DESCR_OPTION = new Option("d", "description", false, "Show description of expected program arguments");
@@ -103,6 +103,7 @@ public class CliFrontend {
 	private static final String ENV_CONFIG_DIRECTORY = "STRATOSPHERE_CONF_DIR";
 	private static final String CONFIG_DIRECTORY_FALLBACK_1 = "../conf";
 	private static final String CONFIG_DIRECTORY_FALLBACK_2 = "conf";
+	
 	public static final String JOBMANAGER_ADDRESS_FILE = ".yarn-jobmanager";
 	
 
@@ -110,6 +111,8 @@ public class CliFrontend {
 	
 	private boolean verbose;
 	private boolean printHelp;
+	
+	private boolean globalConfigurationLoaded;
 
 	/**
 	 * Initializes the class
@@ -136,7 +139,7 @@ public class CliFrontend {
 		ADDRESS_OPTION.setArgName("host:port");
 		
 		PARALLELISM_OPTION.setRequired(false);
-		PARALLELISM_OPTION.setArgName("degree-of-parallelism");
+		PARALLELISM_OPTION.setArgName("parallelism");
 		
 		ARGS_OPTION.setRequired(false);
 		ARGS_OPTION.setArgName("programArgs");
@@ -152,7 +155,7 @@ public class CliFrontend {
 		ID_OPTION.setArgName("jobID");
 	}
 	
-	private static Options createGeneralOptions() {
+	static Options createGeneralOptions() {
 		Options options = new Options();
 		options.addOption(HELP_OPTION);
 		options.addOption(VERBOSE_OPTION);
@@ -160,12 +163,19 @@ public class CliFrontend {
 		return options;
 	}
 	
-	private static Options getProgramSpecificOptions(Options options) {
+	// gets the program options with the old flags for jar file and arguments
+	static Options getProgramSpecificOptions(Options options) {
 		options.addOption(JAR_OPTION);
 		options.addOption(CLASS_OPTION);
-		options.addOption(ADDRESS_OPTION);
 		options.addOption(PARALLELISM_OPTION);
 		options.addOption(ARGS_OPTION);
+		return options;
+	}
+	
+	// gets the program options without the old flags for jar file and arguments
+	static Options getProgramSpecificOptionsWithoutDeprecatedOptions(Options options) {
+		options.addOption(CLASS_OPTION);
+		options.addOption(PARALLELISM_OPTION);
 		return options;
 	}
 	
@@ -174,8 +184,19 @@ public class CliFrontend {
 	 * 
 	 * @return Command line options for the run action.
 	 */
-	private static Options getRunOptions(Options options) {
-		return getProgramSpecificOptions(options);
+	static Options getRunOptions(Options options) {
+		Options o = getProgramSpecificOptions(options);
+		return getJobManagerAddressOption(o);
+	}
+	
+	static Options getRunOptionsWithoutDeprecatedOptions(Options options) {
+		Options o = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
+		return getJobManagerAddressOption(o);
+	}
+	
+	static Options getJobManagerAddressOption(Options options) {
+		options.addOption(ADDRESS_OPTION);
+		return options;
 	}
 	
 	/**
@@ -183,8 +204,17 @@ public class CliFrontend {
 	 * 
 	 * @return Command line options for the info action.
 	 */
-	private static Options getInfoOptions(Options options) {
+	static Options getInfoOptions(Options options) {
 		options = getProgramSpecificOptions(options);
+		options = getJobManagerAddressOption(options);
+		options.addOption(DESCR_OPTION);
+		options.addOption(PLAN_OPTION);
+		return options;
+	}
+	
+	static Options getInfoOptionsWithoutDeprecatedOptions(Options options) {
+		options = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
+		options = getJobManagerAddressOption(options);
 		options.addOption(DESCR_OPTION);
 		options.addOption(PLAN_OPTION);
 		return options;
@@ -195,10 +225,10 @@ public class CliFrontend {
 	 * 
 	 * @return Command line options for the list action.
 	 */
-	private static Options getListOptions(Options options) {
+	static Options getListOptions(Options options) {
 		options.addOption(RUNNING_OPTION);
 		options.addOption(SCHEDULED_OPTION);
-		options.addOption(ADDRESS_OPTION);
+		options = getJobManagerAddressOption(options);
 		return options;
 	}
 	
@@ -207,9 +237,9 @@ public class CliFrontend {
 	 * 
 	 * @return Command line options for the cancel action.
 	 */
-	private static Options getCancelOptions(Options options) {
+	static Options getCancelOptions(Options options) {
 		options.addOption(ID_OPTION);
-		options.addOption(ADDRESS_OPTION);
+		options = getJobManagerAddressOption(options);
 		return options;
 	}
 	
@@ -250,143 +280,42 @@ public class CliFrontend {
 			return 0;
 		}
 		
-		// -------- build the packaged program -------------
+		try {
+			PackagedProgram program = buildProgram(line);
+			if (program == null) {
+				printHelpForRun();
+				return 1;
+			}
+			
+			Client client = getClient(line);
+			if (client == null) {
+				printHelpForRun();
+				return 1;
+			}
 		
-		PackagedProgram program;
-		{
-			String[] programArgs = line.hasOption(ARGS_OPTION.getOpt()) ?
-						line.getOptionValues(ARGS_OPTION.getOpt()) :
-						line.getArgs();
-			
-			// take the jar file from the option, or as the first trailing parameter (if available)
-			String jarFilePath = null;
-			if (line.hasOption(JAR_OPTION.getOpt())) {
-				jarFilePath = line.getOptionValue(JAR_OPTION.getOpt());
-			}
-			else if (programArgs.length > 0) {
-				jarFilePath = programArgs[0];
-				programArgs = Arrays.copyOfRange(programArgs, 1, programArgs.length);
-			}
-			else {
-				System.out.println("Error: Jar file is not set.");
-				printHelpForRun();
-				return 1;
-			}
-			
-			File jarFile = new File(jarFilePath);
-			
-			// Check if JAR file exists
-			if (!jarFile.exists()) {
-				System.out.println("Error: Jar file does not exist.");
-				printHelpForRun();
-				return 1;
-			}
-			else if (!jarFile.isFile()) {
-				System.out.println("Error: Jar file is not a file.");
-				printHelpForRun();
-				return 1;
-			}
-			
-			// Get assembler class
-			String entryPointClass = line.hasOption(CLASS_OPTION.getOpt()) ?
-					line.getOptionValue(CLASS_OPTION.getOpt()) :
-					null;
-					
-			try {
-				program = entryPointClass == null ? 
-						new PackagedProgram(jarFile, programArgs) :
-						new PackagedProgram(jarFile, entryPointClass, programArgs);
-			} catch (ProgramInvocationException e) {
-				return handleError(e);
-			}
-		}
-		
-		// -------- build the client -------------
-		Client client;
-		{
-			Configuration configuration = getConfiguration();
-			
-			// first, check if the address comes from the command line option
-			if (line.hasOption(ADDRESS_OPTION.getOpt())) {
+			int parallelism = -1;
+			if (line.hasOption(PARALLELISM_OPTION.getOpt())) {
+				String parString = line.getOptionValue(PARALLELISM_OPTION.getOpt());
 				try {
-					String address = line.getOptionValue(ADDRESS_OPTION.getOpt());
-					InetSocketAddress jobManagerAddress = RemoteExecutor.getInetFromHostport(address);
-					
-					configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
-					configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());					
+					parallelism = Integer.parseInt(parString);
+				} catch (NumberFormatException e) {
+					System.out.println("The value " + parString + " is invalid for the degree of parallelism.");
+					printHelpForRun();
+					return 1;
 				}
-				catch (Exception e) {
-					System.out.println("Error: The JobManager address has an invalid format. " + e.getMessage());
+				
+				if (parallelism <= 0) {
+					System.out.println("Invalid value for the degree-of-parallelism. Parallelism must be greater than zero.");
 					printHelpForRun();
 					return 1;
 				}
 			}
-			else {
-				// second, search for a .yarn-jobmanager file
-				String loc = getConfigurationDirectory();
-				File jmAddressFile = new File(loc + '/' + JOBMANAGER_ADDRESS_FILE);
-				
-				if (jmAddressFile.exists()) {
-					try {
-						String address = FileUtils.readFileToString(jmAddressFile).trim();
-						System.out.println("Found a " + JOBMANAGER_ADDRESS_FILE + " file, using \""+address+"\" to connect to the JobManager");
-						
-						InetSocketAddress jobManagerAddress = RemoteExecutor.getInetFromHostport(address);
-						
-						configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
-						configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
-					}
-					catch (Exception e) {
-						System.out.println("Found a " + JOBMANAGER_ADDRESS_FILE + " file, but could not read the JobManager address from the file. " 
-									+ e.getMessage());
-						printHelpForRun();
-						return 1;
-					}
-				}
-				else {
-					// regular config file gives the address
-					String jobManagerAddress = configuration.getString( ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-					
-					// verify that there is a jobmanager address and port in the configuration
-					if (jobManagerAddress == null) {
-						System.out.println("Error: Found no configuration in the config directory '" + 
-								getConfigurationDirectory() + "' that specifies the JobManager address.");
-						printHelpForRun();
-						return 1;
-					}
-					if (configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1) == -1) {
-						System.out.println("Error: Found no configuration in the config directory '" + 
-								getConfigurationDirectory() + "' that specifies the JobManager port.");
-						printHelpForRun();
-						return 1;
-					}
-				}
-			}
-			
-			client = new Client(configuration);
-		}
-
-		// --------------- other flags and parameters ---------------------
 		
-		int parallelism = -1;
-		if (line.hasOption(PARALLELISM_OPTION.getOpt())) {
-			String parString = line.getOptionValue(PARALLELISM_OPTION.getOpt());
-			try {
-				parallelism = Integer.parseInt(parString);
-			} catch (NumberFormatException e) {
-				System.out.println("The value " + parString + " is invalid for the degree of parallelism.");
-				printHelpForRun();
-				return 1;
-			}
-			
-			if (parallelism <= 0) {
-				System.out.println("Invalid value for the degree-of-parallelism. Parallelism must be greater than zero.");
-				printHelpForRun();
-				return 1;
-			}
+			return executeProgram(program, client, parallelism);
 		}
-		
-		return executeProgram(program, client, parallelism);
+		catch (Throwable t) {
+			return handleError(t);
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -448,56 +377,28 @@ public class CliFrontend {
 			printHelpForInfo();
 			return 0;
 		}
+		
+		boolean description = line.hasOption(DESCR_OPTION.getOpt());
+		boolean plan = line.hasOption(PLAN_OPTION.getOpt());
+		
+		if (!description && !plan) {
+			System.out.println("ERROR: Specify the information to display.");
+			printHelpForInfo();
+			return 1;
+		}
 
 		// -------- build the packaged program -------------
 		
 		PackagedProgram program;
-		{
-			String[] programArgs = line.hasOption(ARGS_OPTION.getOpt()) ?
-						line.getOptionValues(ARGS_OPTION.getOpt()) :
-						line.getArgs();
-			
-			// take the jar file from the option, or as the first trailing parameter (if available)
-			String jarFilePath = null;
-			if (line.hasOption(JAR_OPTION.getOpt())) {
-				jarFilePath = line.getOptionValue(JAR_OPTION.getOpt());
-			}
-			else if (programArgs.length > 0) {
-				jarFilePath = programArgs[0];
-				programArgs = Arrays.copyOfRange(programArgs, 1, programArgs.length);
-			}
-			else {
-				System.out.println("Error: Jar file is not set.");
-				printHelpForRun();
-				return 1;
-			}
-			
-			File jarFile = new File(jarFilePath);
-			
-			// Check if JAR file exists
-			if (!jarFile.exists()) {
-				System.out.println("Error: Jar file does not exist.");
-				printHelpForRun();
-				return 1;
-			}
-			else if (!jarFile.isFile()) {
-				System.out.println("Error: Jar file is not a file.");
-				printHelpForRun();
-				return 1;
-			}
-			
-			// Get assembler class
-			String entryPointClass = line.hasOption(CLASS_OPTION.getOpt()) ?
-					line.getOptionValue(CLASS_OPTION.getOpt()) :
-					null;
-					
-			try {
-				program = entryPointClass == null ? 
-						new PackagedProgram(jarFile, programArgs) :
-						new PackagedProgram(jarFile, entryPointClass, programArgs);
-			} catch (ProgramInvocationException e) {
-				return handleError(e);
-			}
+		try {
+			program = buildProgram(line);
+		} catch (Throwable t) {
+			return handleError(t);
+		}
+		
+		if (program == null) {
+			printHelpForInfo();
+			return 1;
 		}
 		
 		int parallelism = -1;
@@ -518,49 +419,24 @@ public class CliFrontend {
 			}
 		}
 		
-		boolean description = line.hasOption(DESCR_OPTION.getOpt());
-		boolean plan = line.hasOption(PLAN_OPTION.getOpt());
-		
-		if (!description && !plan) {
-			System.out.println("ERROR: Specify the information to display.");
-			printHelpForInfo();
-			return 1;
-		}
-		
 		try {
 			// check for description request
 			if (description) {
-				String descr = null;
-				try {
-					descr = program.getDescription();
-				} catch (Exception e) {
-					return handleError(e);
-				}
+				String descr = program.getDescription();
 				
 				if (descr != null) {
 					System.out.println("-------------------- Program Description ---------------------");
 					System.out.println(descr);
 					System.out.println("--------------------------------------------------------------");
 				} else {
-					System.out.println("No description available for this plan.");
+					System.out.println("No description available for this program.");
 				}
 			}
 			
 			// check for json plan request
 			if (plan) {
-				String jsonPlan = null;
-				
-				Configuration configuration = getConfiguration();
-				Client client = new Client(configuration);
-				try {
-					jsonPlan = client.getOptimizedPlanAsJson(program, parallelism);
-				}
-				catch (ProgramInvocationException e) {
-					return handleError(e);
-				}
-				catch (CompilerException e) {
-					return handleError(e);
-				}
+				Client client = getClient(line);
+				String jsonPlan = client.getOptimizedPlanAsJson(program, parallelism);
 				
 				if (jsonPlan != null) {
 					System.out.println("----------------------- Execution Plan -----------------------");
@@ -572,6 +448,9 @@ public class CliFrontend {
 			}
 			
 			return 0;
+		}
+		catch (Throwable t) {
+			return handleError(t);
 		}
 		finally {
 			program.deleteExtractedLibraries();
@@ -620,25 +499,29 @@ public class CliFrontend {
 		
 		ExtendedManagementProtocol jmConn = null;
 		try {
+			jmConn = getJobManagerConnection(line);
+			if (jmConn == null) {
+				printHelpForList();
+				return 1;
+			}
 			
-			jmConn = getJMConnection();
 			List<RecentJobEvent> recentJobs = jmConn.getRecentJobs();
 			
 			ArrayList<RecentJobEvent> runningJobs = null;
 			ArrayList<RecentJobEvent> scheduledJobs = null;
-			if(running) {
+			if (running) {
 				runningJobs = new ArrayList<RecentJobEvent>();
 			}
-			if(scheduled) {
+			if (scheduled) {
 				scheduledJobs = new ArrayList<RecentJobEvent>();
 			}
 			
-			for(RecentJobEvent rje : recentJobs) {
+			for (RecentJobEvent rje : recentJobs) {
 				
-				if(running && rje.getJobStatus().equals(JobStatus.RUNNING)) {
+				if (running && rje.getJobStatus().equals(JobStatus.RUNNING)) {
 					runningJobs.add(rje);
 				}
-				if(scheduled && rje.getJobStatus().equals(JobStatus.SCHEDULED)) {
+				if (scheduled && rje.getJobStatus().equals(JobStatus.SCHEDULED)) {
 					scheduledJobs.add(rje);
 				}
 			}
@@ -726,21 +609,32 @@ public class CliFrontend {
 			return 0;
 		}
 		
-		String jobId = null;
+		JobID jobId;
 		
 		if (line.hasOption(ID_OPTION.getOpt())) {
-			jobId = line.getOptionValue(ID_OPTION.getOpt());
+			String jobIdString = line.getOptionValue(ID_OPTION.getOpt());
+			try {
+				jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
+			} catch (Exception e) {
+				System.out.println("Error: The value for the Job ID is not a valid ID.");
+				printHelpForCancel();
+				return 1;
+			}
 		} else {
-			System.out.println("Error: Specify a jobID to cancel a job.");
+			System.out.println("Error: Specify a Job ID to cancel a job.");
 			printHelpForCancel();
 			return 1;
 		}
 		
 		ExtendedManagementProtocol jmConn = null;
 		try {
+			jmConn = getJobManagerConnection(line);
+			if (jmConn == null) {
+				printHelpForCancel();
+				return 1;
+			}
 			
-			jmConn = getJMConnection();
-			jmConn.cancelJob(new JobID(StringUtils.hexStringToByte(jobId)));
+			jmConn.cancelJob(jobId);
 			return 0;
 		}
 		catch (Throwable t) {
@@ -751,35 +645,173 @@ public class CliFrontend {
 				try {
 					RPC.stopProxy(jmConn);
 				} catch (Throwable t) {
-					System.out.println("Could not cleanly shut down connection from compiler to job manager");
+					System.out.println("Warning: Could not cleanly shut down connection to the JobManager.");
 				}
 			}
 			jmConn = null;
 		}
 	}
-	
+
 	/**
-	 * Sets up a connection to the JobManager.
+	 * @param line
 	 * 
-	 * @return Connection to the JobManager.
-	 * @throws IOException
+	 * @return Either a PackagedProgram (upon success), or null;
 	 */
-	private ExtendedManagementProtocol getJMConnection() throws IOException {
-		Configuration config = getConfiguration();
-		String jmHost = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-		String jmPort = config.getString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, null);
-		
-		if(jmHost == null) {
-			handleError(new Exception("JobManager address could not be determined."));
+	protected PackagedProgram buildProgram(CommandLine line) {
+		String[] programArgs = line.hasOption(ARGS_OPTION.getOpt()) ?
+				line.getOptionValues(ARGS_OPTION.getOpt()) :
+				line.getArgs();
+	
+		// take the jar file from the option, or as the first trailing parameter (if available)
+		String jarFilePath = null;
+		if (line.hasOption(JAR_OPTION.getOpt())) {
+			jarFilePath = line.getOptionValue(JAR_OPTION.getOpt());
 		}
-		if(jmPort == null) {
-			handleError(new Exception("JobManager port could not be determined."));
+		else if (programArgs.length > 0) {
+			jarFilePath = programArgs[0];
+			programArgs = Arrays.copyOfRange(programArgs, 1, programArgs.length);
+		}
+		else {
+			System.out.println("Error: Jar file is not set.");
+			return null;
 		}
 		
-		return RPC.getProxy(ExtendedManagementProtocol.class, 
-			new InetSocketAddress(jmHost, Integer.parseInt(jmPort)), NetUtils.getSocketFactory());
+		File jarFile = new File(jarFilePath);
+		
+		// Check if JAR file exists
+		if (!jarFile.exists()) {
+			System.out.println("Error: Jar file does not exist.");
+			return null;
+		}
+		else if (!jarFile.isFile()) {
+			System.out.println("Error: Jar file is not a file.");
+			return null;
+		}
+		
+		// Get assembler class
+		String entryPointClass = line.hasOption(CLASS_OPTION.getOpt()) ?
+				line.getOptionValue(CLASS_OPTION.getOpt()) :
+				null;
+				
+		try {
+			return entryPointClass == null ? 
+					new PackagedProgram(jarFile, programArgs) :
+					new PackagedProgram(jarFile, entryPointClass, programArgs);
+		} catch (ProgramInvocationException e) {
+			handleError(e);
+			return null;
+		}
 	}
 	
+	protected InetSocketAddress getJobManagerAddress(CommandLine line) throws IOException {
+		Configuration configuration = getGlobalConfiguration();
+		
+		// first, check if the address comes from the command line option
+		if (line.hasOption(ADDRESS_OPTION.getOpt())) {
+			try {
+				String address = line.getOptionValue(ADDRESS_OPTION.getOpt());
+				return RemoteExecutor.getInetFromHostport(address);
+			}
+			catch (Exception e) {
+				System.out.println("Error: The JobManager address has an invalid format. " + e.getMessage());
+				return null;
+			}
+		}
+		else {
+			// second, search for a .yarn-jobmanager file
+			String loc = getConfigurationDirectory();
+			File jmAddressFile = new File(loc + '/' + JOBMANAGER_ADDRESS_FILE);
+			
+			if (jmAddressFile.exists()) {
+				try {
+					String address = FileUtils.readFileToString(jmAddressFile).trim();
+					System.out.println("Found a " + JOBMANAGER_ADDRESS_FILE + " file, using \""+address+"\" to connect to the JobManager");
+					
+					return RemoteExecutor.getInetFromHostport(address);
+				}
+				catch (Exception e) {
+					System.out.println("Found a " + JOBMANAGER_ADDRESS_FILE + " file, but could not read the JobManager address from the file. " 
+								+ e.getMessage());
+					return null;
+				}
+			}
+			else {
+				// regular config file gives the address
+				String jobManagerAddress = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+				
+				// verify that there is a jobmanager address and port in the configuration
+				if (jobManagerAddress == null) {
+					System.out.println("Error: Found no configuration in the config directory '" + 
+							getConfigurationDirectory() + "' that specifies the JobManager address.");
+					return null;
+				}
+				
+				int jobManagerPort;
+				try {
+					jobManagerPort = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
+				} catch (NumberFormatException e) {
+					System.out.println("Invalid value for the JobManager IPC port (" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
+							") in the configuration.");
+					return null;
+				}
+				
+				if (jobManagerPort == -1) {
+					System.out.println("Error: Found no configuration in the config directory '" + 
+							getConfigurationDirectory() + "' that specifies the JobManager port.");
+					return null;
+				}
+				
+				return new InetSocketAddress(jobManagerAddress, jobManagerPort);
+			}
+		}
+	}
+	
+	protected ExtendedManagementProtocol getJobManagerConnection(CommandLine line) throws IOException {
+		InetSocketAddress jobManagerAddress = getJobManagerAddress(line);
+		if (jobManagerAddress == null) {
+			return null;
+		}
+		
+		String address = jobManagerAddress.getAddress().getHostAddress();
+		int port = jobManagerAddress.getPort();
+		
+		return RPC.getProxy(ExtendedManagementProtocol.class, 
+				new InetSocketAddress(address, port), NetUtils.getSocketFactory());
+	}
+	
+	
+	protected String getConfigurationDirectory() {
+		String location = null;
+		if (System.getenv(ENV_CONFIG_DIRECTORY) != null) {
+			location = System.getenv(ENV_CONFIG_DIRECTORY);
+		} else if (new File(CONFIG_DIRECTORY_FALLBACK_1).exists()) {
+			location = CONFIG_DIRECTORY_FALLBACK_1;
+		} else if (new File(CONFIG_DIRECTORY_FALLBACK_2).exists()) {
+			location = CONFIG_DIRECTORY_FALLBACK_2;
+		} else {
+			throw new RuntimeException("The configuration directory was not found. Please configure the '" + 
+					ENV_CONFIG_DIRECTORY + "' environment variable properly.");
+		}
+		return location;
+	}
+	/**
+	 * Reads configuration settings. The default path can be overridden
+	 * by setting the ENV variable "STRATOSPHERE_CONF_DIR".
+	 * 
+	 * @return Stratosphere's global configuration
+	 */
+	protected Configuration getGlobalConfiguration() {
+		if (!globalConfigurationLoaded) {
+			String location = getConfigurationDirectory();
+			GlobalConfiguration.loadConfiguration(location);
+			globalConfigurationLoaded = true;
+		}
+		return GlobalConfiguration.getConfiguration();
+	}
+	
+	protected Client getClient(CommandLine line) throws IOException {
+		return new Client(getJobManagerAddress(line), getGlobalConfiguration());
+	}
 
 	/**
 	 * Prints the help for the client.
@@ -787,9 +819,10 @@ public class CliFrontend {
 	 * @param options A map with options for actions. 
 	 */
 	private void printHelp() {
-		System.out.println("./stratosphere [ACTION] [GENERAL_OPTIONS] [ACTION_ARGUMENTS]");
+		System.out.println("./stratosphere <ACTION> [GENERAL_OPTIONS] [ARGUMENTS]");
 		
 		HelpFormatter formatter = new HelpFormatter();
+		formatter.setWidth(80);
 		formatter.setLeftPadding(5);
 		formatter.setSyntaxPrefix("  general options:");
 		formatter.printHelp(" ", GENRAL_OPTIONS);
@@ -803,24 +836,28 @@ public class CliFrontend {
 	private void printHelpForRun() {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
+		formatter.setWidth(80);
 		
 		System.out.println("\nAction \"run\" compiles and runs a program.");
+		System.out.println("\n  Syntax: run [OPTIONS] <jar-file> <arguments>");
 		formatter.setSyntaxPrefix("  \"run\" action arguments:");
-		formatter.printHelp(" ", getRunOptions(new Options()));
+		formatter.printHelp(" ", getRunOptionsWithoutDeprecatedOptions(new Options()));
 	}
 	
 	private void printHelpForInfo() {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
+		formatter.setWidth(80);
 		
 		System.out.println("\nAction \"info\" displays information about a program.");
 		formatter.setSyntaxPrefix("  \"info\" action arguments:");
-		formatter.printHelp(" ", getInfoOptions(new Options()));
+		formatter.printHelp(" ", getInfoOptionsWithoutDeprecatedOptions(new Options()));
 	}
 	
 	private void printHelpForList() {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
+		formatter.setWidth(80);
 		
 		System.out.println("\nAction \"list\" lists running and finished programs.");
 		formatter.setSyntaxPrefix("  \"list\" action arguments:");
@@ -830,6 +867,7 @@ public class CliFrontend {
 	private void printHelpForCancel() {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
+		formatter.setWidth(80);
 		
 		System.out.println("\nAction \"cancel\" cancels a running program.");
 		formatter.setSyntaxPrefix("  \"cancel\" action arguments:");
@@ -852,33 +890,7 @@ public class CliFrontend {
 		return 1;
 	}
 
-	protected String getConfigurationDirectory() {
-		String location = null;
-		if (System.getenv(ENV_CONFIG_DIRECTORY) != null) {
-			location = System.getenv(ENV_CONFIG_DIRECTORY);
-		} else if (new File(CONFIG_DIRECTORY_FALLBACK_1).exists()) {
-			location = CONFIG_DIRECTORY_FALLBACK_1;
-		} else if (new File(CONFIG_DIRECTORY_FALLBACK_2).exists()) {
-			location = CONFIG_DIRECTORY_FALLBACK_2;
-		} else {
-			throw new RuntimeException("The configuration directory was not found. Please configure the '" + 
-					ENV_CONFIG_DIRECTORY + "' environment variable properly.");
-		}
-		return location;
-	}
-	/**
-	 * Reads configuration settings. The default path can be overridden
-	 * by setting the ENV variable "STRATOSPHERE_CONF_DIR".
-	 * 
-	 * @return Stratosphere's global configuration
-	 */
-	private Configuration getConfiguration() {
-		final String location = getConfigurationDirectory();
-		GlobalConfiguration.loadConfiguration(location);
-		Configuration config = GlobalConfiguration.getConfiguration();
 
-		return config;
-	}
 	
 
 	private void evaluateGeneralOptions(CommandLine line) {
