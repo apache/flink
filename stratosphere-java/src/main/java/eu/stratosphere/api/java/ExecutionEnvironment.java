@@ -274,12 +274,7 @@ public abstract class ExecutionEnvironment {
 		}
 		
 		try {
-			@SuppressWarnings("unchecked")
-			TypeInformation<X> producedType = (inputFormat instanceof ResultTypeQueryable) ?
-					((ResultTypeQueryable<X>) inputFormat).getProducedType() :
-					TypeExtractor.getInputFormatTypes(inputFormat);
-			
-			return createInput(inputFormat, producedType);
+			return createInput(inputFormat, TypeExtractor.getInputFormatTypes(inputFormat));
 		}
 		catch (Exception e) {
 			throw new InvalidProgramException("The type returned by the input format could not be automatically determined. " +
