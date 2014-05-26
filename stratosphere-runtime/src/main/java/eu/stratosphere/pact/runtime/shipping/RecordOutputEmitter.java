@@ -147,7 +147,16 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 		for (int i = 0; i < DEFAULT_SALT.length; i++) {
 			hash ^= ((hash << 5) + DEFAULT_SALT[i] + (hash >> 2));
 		}
-		this.channels[0] = (hash < 0) ? -hash % numberOfChannels : hash % numberOfChannels;
+		
+		if(hash < 0) {
+			if(hash == Integer.MIN_VALUE) {
+				this.channels[0] = Integer.MAX_VALUE % numberOfChannels;
+			} else {
+				this.channels[0] = -hash % numberOfChannels;
+			}
+		} else {
+			this.channels[0] = hash % numberOfChannels;
+		}
 		return this.channels;
 	}
 	
