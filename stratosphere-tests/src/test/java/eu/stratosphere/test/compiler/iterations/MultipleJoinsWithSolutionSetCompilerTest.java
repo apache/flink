@@ -94,7 +94,7 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 				.groupBy(0).aggregate(Aggregations.MIN, 1).map(new Expander())
 				.join(iteration.getSolutionSet()).where(0).equalTo(0).with(new SummingJoinProject()).name(JOIN_2);
 		
-		DataSet<Tuple2<Long, Double>> changes = delta.groupBy(0).aggregate(Aggregations.AVG, 1);
+		DataSet<Tuple2<Long, Double>> changes = delta.groupBy(0).aggregate(Aggregations.SUM, 1);
 		
 		DataSet<Tuple2<Long, Double>> result = iteration.closeWith(delta, changes);
 		

@@ -30,6 +30,7 @@ import eu.stratosphere.api.java.aggregation.AggregationFunction;
 import eu.stratosphere.api.java.aggregation.AggregationFunctionFactory;
 import eu.stratosphere.api.java.aggregation.Aggregations;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
+import eu.stratosphere.api.java.functions.GroupReduceFunction.Combinable;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.configuration.Configuration;
@@ -165,6 +166,9 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getResultType());
 			GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>> po =
 					new GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>>(function, operatorInfo, new int[0], name);
+			
+			po.setCombinable(true);
+			
 			// set input
 			po.setInput(input);
 			// set dop
@@ -179,12 +183,15 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getResultType());
 			GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>> po =
 					new GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>>(function, operatorInfo, logicalKeyPositions, name);
+			
+			po.setCombinable(true);
+			
 			// set input
 			po.setInput(input);
 			// set dop
 			po.setDegreeOfParallelism(this.getParallelism());
 			
-			return po;			
+			return po;
 		}
 		else if (this.grouping.getKeys() instanceof Keys.SelectorFunctionKeys) {
 			throw new UnsupportedOperationException("Aggregate does not support grouping with KeySelector functions, yet.");
@@ -196,7 +203,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	}
 	
 	// --------------------------------------------------------------------------------------------
-		
+	
+	@Combinable
 	public static final class AggregatingUdf<T extends Tuple> extends GroupReduceFunction<T, T> {
 		private static final long serialVersionUID = 1L;
 		
