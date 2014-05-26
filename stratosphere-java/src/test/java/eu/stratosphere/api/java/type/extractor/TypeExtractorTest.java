@@ -39,6 +39,7 @@ import eu.stratosphere.api.java.typeutils.BasicArrayTypeInfo;
 import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
 import eu.stratosphere.api.java.typeutils.GenericTypeInfo;
 import eu.stratosphere.api.java.typeutils.ObjectArrayTypeInfo;
+import eu.stratosphere.api.java.typeutils.ResultTypeQueryable;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.api.java.typeutils.TypeInfoParser;
@@ -1213,16 +1214,16 @@ public class TypeExtractorTest {
 	
 	@Test
 	public void testFunctionDependingOnInputWithTupleInputWithTypeMismatch() {
-	    IdentityMapper2<Boolean> function = new IdentityMapper2<Boolean>();
+		IdentityMapper2<Boolean> function = new IdentityMapper2<Boolean>();
 
-	    TypeInformation<Tuple2<Boolean, String>> inputType = new TupleTypeInfo<Tuple2<Boolean, String>>(BasicTypeInfo.BOOLEAN_TYPE_INFO,
-	            BasicTypeInfo.INT_TYPE_INFO);
-	    
-	    // input is: Tuple2<Boolean, Integer>
-	    // allowed: Tuple2<?, String>
+		TypeInformation<Tuple2<Boolean, String>> inputType = new TupleTypeInfo<Tuple2<Boolean, String>>(BasicTypeInfo.BOOLEAN_TYPE_INFO,
+				BasicTypeInfo.INT_TYPE_INFO);
+		
+		// input is: Tuple2<Boolean, Integer>
+		// allowed: Tuple2<?, String>
 
-	    try {
-	    	TypeExtractor.getMapReturnTypes(function, inputType);
+		try {
+			TypeExtractor.getMapReturnTypes(function, inputType);
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
@@ -1243,14 +1244,14 @@ public class TypeExtractorTest {
 		};
 		
 		try {
-	    	TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<Integer, String>"));
+			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<Integer, String>"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
 		}
 		
 		try {
-	    	TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple3<String, String, String>"));
+			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple3<String, String, String>"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
@@ -1266,7 +1267,7 @@ public class TypeExtractorTest {
 		};
 		
 		try {
-	    	TypeExtractor.getMapReturnTypes(function2, (TypeInformation) TypeInfoParser.parse("IntValue"));
+			TypeExtractor.getMapReturnTypes(function2, (TypeInformation) TypeInfoParser.parse("IntValue"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
@@ -1282,7 +1283,7 @@ public class TypeExtractorTest {
 		};
 		
 		try {
-	    	TypeExtractor.getMapReturnTypes(function3, (TypeInformation) TypeInfoParser.parse("Integer[]"));
+			TypeExtractor.getMapReturnTypes(function3, (TypeInformation) TypeInfoParser.parse("Integer[]"));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
@@ -1312,7 +1313,6 @@ public class TypeExtractorTest {
 		public void flatMap(Tuple2<A, B> value, Collector<Tuple2<C, D>> out) throws Exception {
 			
 		}
-		
 	}
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -1326,5 +1326,26 @@ public class TypeExtractorTest {
 		catch (InvalidTypesException e) {
 			// right
 		}
+	}
+
+	public static class MyQueryableMapper<A> extends MapFunction<String, A> implements ResultTypeQueryable<A> {
+		private static final long serialVersionUID = 1L;
+		
+		@SuppressWarnings("unchecked")
+		@Override
+		public TypeInformation<A> getProducedType() {
+			return (TypeInformation<A>) BasicTypeInfo.INT_TYPE_INFO;
+		}
+		
+		@Override
+		public A map(String value) throws Exception {
+			return null;
+		}
+	}
+	
+	@Test
+	public void testResultTypeQueryable() {
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(new MyQueryableMapper<Integer>(), BasicTypeInfo.STRING_TYPE_INFO);
+		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
 	}
 }
