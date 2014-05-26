@@ -1304,4 +1304,27 @@ public class TypeExtractorTest {
 			// right
 		}
 	}
+	
+	public static class DummyFlatMapFunction<A,B,C,D> extends FlatMapFunction<Tuple2<A,B>, Tuple2<C,D>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void flatMap(Tuple2<A, B> value, Collector<Tuple2<C, D>> out) throws Exception {
+			
+		}
+		
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testTypeErasureException() {
+		try {
+			TypeExtractor.getFlatMapReturnTypes(new DummyFlatMapFunction<String, Integer, String, Boolean>(), 
+					(TypeInformation) TypeInfoParser.parse("Tuple2<String, Integer>"));
+			Assert.fail("exception expected");
+		}
+		catch (InvalidTypesException e) {
+			// right
+		}
+	}
 }
