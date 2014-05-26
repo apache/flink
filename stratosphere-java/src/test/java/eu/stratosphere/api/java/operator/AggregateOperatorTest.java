@@ -58,14 +58,14 @@ public class AggregateOperatorTest {
 
 		// should work
 		try {
-			tupleDs.aggregate(Aggregations.AVG, 1);
+			tupleDs.aggregate(Aggregations.SUM, 1);
 		} catch(Exception e) {
 			Assert.fail();
 		}
 		
 		// should not work: index out of bounds
 		try {
-			tupleDs.aggregate(Aggregations.AVG, 10);
+			tupleDs.aggregate(Aggregations.SUM, 10);
 			Assert.fail();
 		} catch(IllegalArgumentException iae) {
 			// we're good here
@@ -93,14 +93,14 @@ public class AggregateOperatorTest {
 			DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 			
 			// should work: multiple aggregates
-			tupleDs.aggregate(Aggregations.AVG, 0).and(Aggregations.MIN, 4);
+			tupleDs.aggregate(Aggregations.SUM, 0).and(Aggregations.MIN, 4);
 
 			// should work: nested aggregates
 			tupleDs.aggregate(Aggregations.MIN, 2).aggregate(Aggregations.SUM, 1);
 			
 			// should not work: average on string
 			try {
-				tupleDs.aggregate(Aggregations.AVG, 2);
+				tupleDs.aggregate(Aggregations.SUM, 2);
 				Assert.fail();
 			} catch (UnsupportedAggregationTypeException iae) {
 				// we're good here
