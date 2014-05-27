@@ -114,7 +114,9 @@ public class JobSubmissionServlet extends HttpServlet {
 			// check that all parameters are set
 			if (checkParameterSet(resp, jobName, JOB_PARAM_NAME) || checkParameterSet(resp, args, ARGUMENTS_PARAM_NAME)
 				|| checkParameterSet(resp, showPlan, SHOW_PLAN_PARAM_NAME)
-				|| checkParameterSet(resp, suspendPlan, SUSPEND_PARAM_NAME)) {
+				|| checkParameterSet(resp, suspendPlan, SUSPEND_PARAM_NAME))
+			{
+				showErrorPage(resp, "Invalid request, missing parameters.");
 				return;
 			}
 
@@ -157,12 +159,21 @@ public class JobSubmissionServlet extends HttpServlet {
 				}
 				
 				optPlan = client.getOptimizedPlan(program, -1);
+				
+				if (optPlan == null) {
+					throw new Exception("The optimized plan could not be produced.");
+				}
 			}
 			catch (ProgramInvocationException e) {
 				// collect the stack trace
 				StringWriter sw = new StringWriter();
 				PrintWriter w = new PrintWriter(sw);
-				e.printStackTrace(w);
+				
+				if (e.getCause() == null) {
+					e.printStackTrace(w);
+				} else {
+					e.getCause().printStackTrace(w);
+				}
 
 				showErrorPage(resp, "An error occurred while invoking the program:<br/><br/>"
 					+ e.getMessage() + "<br/>"
