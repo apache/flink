@@ -23,6 +23,7 @@ import org.apache.commons.lang3.Validate;
 import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.SingleInputSemanticProperties;
 import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
 import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.java.DataSet;
@@ -190,6 +191,27 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			po.setInput(input);
 			// set dop
 			po.setDegreeOfParallelism(this.getParallelism());
+			
+			SingleInputSemanticProperties props = new SingleInputSemanticProperties();
+			
+			for (int i = 0; i < logicalKeyPositions.length; i++) {
+				int keyField = logicalKeyPositions[i];
+				boolean keyFieldUsedInAgg = false;
+				
+				for (int k = 0; k < fields.length; k++) {
+					int aggField = fields[k];
+					if (keyField == aggField) {
+						keyFieldUsedInAgg = true;
+						break;
+					}
+				}
+				
+				if (!keyFieldUsedInAgg) {
+					props.addForwardedField(keyField, keyField);
+				}
+			}
+			
+			po.setSemanticProperties(props);
 			
 			return po;
 		}
