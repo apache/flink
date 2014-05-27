@@ -113,7 +113,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @return A GroupReduceOperator that represents the reduced DataSet.
 	 * 
 	 * @see GroupReduceFunction
-	 * @see GroupReduceOperator
+	 * @see ReduceGroupOperator
 	 * @see DataSet
 	 */
 	public <R> ReduceGroupOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {

@@ -209,8 +209,10 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				return po;
 				
 			}
-			else if (super.keys1 instanceof Keys.FieldPositionKeys 
-						&& super.keys2 instanceof Keys.FieldPositionKeys)
+			else if ((super.keys1 instanceof Keys.FieldPositionKeys
+						&& super.keys2 instanceof Keys.FieldPositionKeys) ||
+					((super.keys1 instanceof Keys.ExpressionKeys
+							&& super.keys2 instanceof Keys.ExpressionKeys)))
 			{
 				if (!super.keys1.areCompatibale(super.keys2)) {
 					throw new InvalidProgramException("The types of the key fields do not match.");
@@ -607,8 +609,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * Continues a Join transformation. <br/>
 		 * Defines the {@link Tuple} fields of the first join {@link DataSet} that should be used as join keys.<br/>
 		 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br/>
-		 * 
-		 * @param fields The indexes of the Tuple fields of the first join DataSets that should be used as keys.
+		 *
+		 * @param field0 The first index of the Tuple fields of the first join DataSets that should be used as key
+		 * @param fields The indexes of the other Tuple fields of the first join DataSets that should be used as keys.
 		 * @return An incomplete Join transformation. 
 		 *           Call {@link JoinOperatorSetsPredicate#equalTo(int...)} or {@link JoinOperatorSetsPredicate#equalTo(KeySelector)}
 		 *           to continue the Join. 
@@ -616,8 +619,32 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see Tuple
 		 * @see DataSet
 		 */
-		public JoinOperatorSetsPredicate where(int... fields) {
-			return new JoinOperatorSetsPredicate(new Keys.FieldPositionKeys<I1>(fields, input1.getType()));
+		public JoinOperatorSetsPredicate where(int field0, int... fields) {
+			int[] actualFields = new int[fields.length + 1];
+			actualFields[0] = field0;
+			System.arraycopy(fields, 0, actualFields, 1, fields.length);
+			return new JoinOperatorSetsPredicate(new Keys.FieldPositionKeys<I1>(actualFields, input1.getType()));
+		}
+
+		/**
+		 * Continues a Join transformation. <br/>
+		 * Defines the fields of the first join {@link DataSet} that should be used as grouping keys. Fields
+		 * are the names of member fields of the underlying type of the data set.
+		 *
+		 * @param field0 The first field of the Tuple fields of the first join DataSets that should be used as key
+		 * @param fields The  fields of the first join DataSets that should be used as keys.
+		 * @return An incomplete Join transformation.
+		 *           Call {@link JoinOperatorSetsPredicate#equalTo(int...)} or {@link JoinOperatorSetsPredicate#equalTo(KeySelector)}
+		 *           to continue the Join.
+		 *
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public JoinOperatorSetsPredicate where(String field0, String... fields) {
+			String[] actualFields = new String[fields.length + 1];
+			actualFields[0] = field0;
+			System.arraycopy(fields, 0, actualFields, 1, fields.length);
+			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(actualFields, input1.getType()));
 		}
 		
 		/**
@@ -669,12 +696,35 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			 * The resulting {@link DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with 
 			 * the element of the first input being the first field of the tuple and the element of the 
 			 * second input being the second field of the tuple. 
-			 * 
+			 *
+			 * @param field0 The first field of the Tuple fields of the second join DataSets that should be used as key
 			 * @param fields The indexes of the Tuple fields of the second join DataSet that should be used as keys.
 			 * @return A DefaultJoin that represents the joined DataSet.
 			 */
-			public DefaultJoin<I1, I2> equalTo(int... fields) {
-				return createJoinOperator(new Keys.FieldPositionKeys<I2>(fields, input2.getType()));
+			public DefaultJoin<I1, I2> equalTo(int field0, int... fields) {
+				int[] actualFields = new int[fields.length + 1];
+				actualFields[0] = field0;
+				System.arraycopy(fields, 0, actualFields, 1, fields.length);
+				return createJoinOperator(new Keys.FieldPositionKeys<I2>(actualFields, input2.getType()));
+			}
+
+			/**
+			 * Continues a Join transformation and defines the  fields of the second join
+			 * {@link DataSet} that should be used as join keys.<br/>
+			 *
+			 * The resulting {@link DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with
+			 * the element of the first input being the first field of the tuple and the element of the
+			 * second input being the second field of the tuple.
+			 *
+			 * @param field0 The first field of the second join DataSets that should be used as key
+			 * @param fields The fields of the second join DataSet that should be used as keys.
+			 * @return A DefaultJoin that represents the joined DataSet.
+			 */
+			public DefaultJoin<I1, I2> equalTo(String field0, String... fields) {
+				String[] actualFields = new String[fields.length + 1];
+				actualFields[0] = field0;
+				System.arraycopy(fields, 0, actualFields, 1, fields.length);
+				return createJoinOperator(new Keys.ExpressionKeys<I2>(actualFields, input2.getType()));
 			}
 
 			/**

@@ -18,6 +18,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.api.java.typeutils.TypeExtractor;
+import eu.stratosphere.types.TypeInformation;
 import junit.framework.Assert;
 
 import org.junit.Test;
@@ -94,8 +96,8 @@ public class GroupingTest {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should not work, empty key group
-		tupleDs.groupBy();
+		// should not work, key out of tuple bounds
+		tupleDs.groupBy(5);
 	}
 	
 	@Test(expected = IllegalArgumentException.class)
@@ -104,19 +106,60 @@ public class GroupingTest {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should not work, key out of tuple bounds
-		tupleDs.groupBy(5);
-	}
-	
-	@Test(expected = IllegalArgumentException.class)
-	public void testGroupByKeyFields6() {
-		
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
-
 		// should not work, negative field position
 		tupleDs.groupBy(-1);
 	}
+
+	@Test
+	public void testGroupByKeyExpressions1() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		this.customTypeData.add(new CustomType());
+
+		DataSet<CustomType> ds = env.fromCollection(customTypeData);
+
+		// should work
+		try {
+			ds.groupBy("myInt");
+		} catch(Exception e) {
+			Assert.fail();
+		}
+	}
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testGroupByKeyExpressions2() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Long> longDs = env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
+		// should not work: groups on basic type
+		longDs.groupBy("myInt");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testGroupByKeyExpressions3() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		this.customTypeData.add(new CustomType());
+
+		DataSet<CustomType> customDs = env.fromCollection(customTypeData);
+		// should not work: groups on custom type
+		customDs.groupBy(0);
+
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testGroupByKeyExpressions4() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds = env.fromCollection(customTypeData);
+
+		// should not work, key out of tuple bounds
+		ds.groupBy("myNonExistent");
+	}
+
 	
 	@Test
 	@SuppressWarnings("serial")
@@ -222,5 +265,4 @@ public class GroupingTest {
 			return myInt+","+myLong+","+myString;
 		}
 	}
-	
 }

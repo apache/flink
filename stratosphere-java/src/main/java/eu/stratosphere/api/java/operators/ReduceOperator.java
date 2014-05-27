@@ -98,7 +98,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			MapOperatorBase<?, IN, ?> po = translateSelectorFunctionReducer(selectorKeys, function, getInputType(), name, input, this.getParallelism());
 			return po;
 		}
-		else if (grouper.getKeys() instanceof Keys.FieldPositionKeys) {
+		else if (grouper.getKeys() instanceof Keys.FieldPositionKeys ||
+				grouper.getKeys() instanceof Keys.ExpressionKeys) {
 			
 			// reduce with field positions
 			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();

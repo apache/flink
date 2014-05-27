@@ -274,6 +274,30 @@
 							</includes>
 						</configuration>
 					</execution>
+
+					<!-- WordCountPOJO -->
+					<execution>
+						<id>WordCountPOJO</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>WordCountPOJO</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>eu.stratosphere.example.java.wordcount.WordCountPOJO</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>**/java/wordcount/WordCountPOJO.class</include>
+								<include>**/java/wordcount/WordCountPOJO$*.class</include>
+								<include>**/java/wordcount/util/WordCountData.class</include>
+							</includes>
+						</configuration>
+					</execution>
 					
 				</executions>
 			</plugin>

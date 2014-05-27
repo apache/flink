@@ -106,10 +106,15 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			return po;
 
 		}
-		else if (keys1 instanceof Keys.FieldPositionKeys
-				&& keys2 instanceof Keys.FieldPositionKeys
-				&& keys1.areCompatibale(keys2)
-			) {
+		else if ((keys1 instanceof Keys.FieldPositionKeys
+				&& keys2 instanceof Keys.FieldPositionKeys) ||
+				((keys1 instanceof Keys.ExpressionKeys
+						&& keys2 instanceof Keys.ExpressionKeys)))
+			{
+
+				if (!keys1.areCompatibale(keys2)) {
+					throw new InvalidProgramException("The types of the key fields do not match.");
+				}
 
 			int[] logicalKeyPositions1 = keys1.computeLogicalKeyPositions();
 			int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
@@ -291,7 +296,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	/**
 	 * Intermediate step of a CoGroup transformation. <br/>
 	 * To continue the CoGroup transformation, select the grouping key of the first input {@link DataSet} by calling 
-	 * {@link CoGroupOperatorSets#where(int...)} or {@link CoGroupOperatorSets#where(KeySelector)}.
+	 * {@link CoGroupOperatorSets#where()} or {@link CoGroupOperatorSets#where(KeySelector)}.
 	 *
 	 * @param <I1> The type of the first input DataSet of the CoGroup transformation.
 	 * @param <I2> The type of the second input DataSet of the CoGroup transformation.
@@ -314,16 +319,40 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		 * Continues a CoGroup transformation. <br/>
 		 * Defines the {@link Tuple} fields of the first co-grouped {@link DataSet} that should be used as grouping keys.<br/>
 		 * <b>Note: Fields can only be selected as grouping keys on Tuple DataSets.</b><br/>
-		 * 
+		 *
+		 * @param field0 The first index of the Tuple fields of the first co-grouped DataSets that should be used as key
 		 * @param fields The indexes of the Tuple fields of the first co-grouped DataSets that should be used as keys.
 		 * @return An incomplete CoGroup transformation. 
-		 *           Call {@link CoGroupOperatorSetsPredicate#equalTo()} to continue the CoGroup. 
+		 *           Call {@link CoGroupOperatorSetsPredicate#equalTo()} to continue the CoGroup.
 		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
-		public CoGroupOperatorSetsPredicate where(int... fields) {
-			return new CoGroupOperatorSetsPredicate(new Keys.FieldPositionKeys<I1>(fields, input1.getType()));
+		public CoGroupOperatorSetsPredicate where(int field0, int... fields) {
+			int[] actualFields = new int[fields.length + 1];
+			actualFields[0] = field0;
+			System.arraycopy(fields, 0, actualFields, 1, fields.length);
+			return new CoGroupOperatorSetsPredicate(new Keys.FieldPositionKeys<I1>(actualFields, input1.getType()));
+		}
+
+		/**
+		 * Continues a CoGroup transformation. <br/>
+		 * Defines the fields of the first co-grouped {@link DataSet} that should be used as grouping keys. Fields
+		 * are the names of member fields of the underlying type of the data set.
+		 *
+		 * @param field0 The first field of the Tuple fields of the first co-grouped DataSets that should be used as key
+		 * @param fields The  fields of the first co-grouped DataSets that should be used as keys.
+		 * @return An incomplete CoGroup transformation.
+		 *           Call {@link CoGroupOperatorSetsPredicate#equalTo()} to continue the CoGroup.
+		 *
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public CoGroupOperatorSetsPredicate where(String field0, String... fields) {
+			String[] actualFields = new String[fields.length + 1];
+			actualFields[0] = field0;
+			System.arraycopy(fields, 0, actualFields, 1, fields.length);
+			return new CoGroupOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(actualFields, input1.getType()));
 		}
 
 		/**
@@ -360,7 +389,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				}
 
 				if (keys1.isEmpty()) {
-					throw new InvalidProgramException("The join keys must not be empty.");
+					throw new InvalidProgramException("The co-group keys must not be empty.");
 				}
 
 				this.keys1 = keys1;
@@ -370,14 +399,33 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			 * Continues a CoGroup transformation and defines the {@link Tuple} fields of the second co-grouped 
 			 * {@link DataSet} that should be used as grouping keys.<br/>
 			 * <b>Note: Fields can only be selected as grouping keys on Tuple DataSets.</b><br/>
-			 * 
+			 *
+			 * @param field0 The first index of the Tuple fields of the second co-grouped DataSets that should be used as key
 			 * @param fields The indexes of the Tuple fields of the second co-grouped DataSet that should be used as keys.
 			 * @return An incomplete CoGroup transformation. 
 			 *           Call {@link CoGroupOperatorWithoutFunction#with(CoGroupFunction))} to finalize the CoGroup transformation. 
 			 */
-			public CoGroupOperatorWithoutFunction equalTo(int... fields) {
-				return createCoGroupOperator(new Keys.FieldPositionKeys<I2>(fields, input2.getType()));
+			public CoGroupOperatorWithoutFunction equalTo(int field0, int... fields) {
+				int[] actualFields = new int[fields.length + 1];
+				actualFields[0] = field0;
+				System.arraycopy(fields, 0, actualFields, 1, fields.length);
+				return createCoGroupOperator(new Keys.FieldPositionKeys<I2>(actualFields, input2.getType()));
+			}
 
+			/**
+			 * Continues a CoGroup transformation and defines the fields of the second co-grouped
+			 * {@link DataSet} that should be used as grouping keys.<br/>
+			 *
+			 * @param field0 The first field of the second co-grouped DataSets that should be used as key
+			 * @param fields The  fields of the first co-grouped DataSets that should be used as keys.
+			 * @return An incomplete CoGroup transformation.
+			 *           Call {@link CoGroupOperatorWithoutFunction#with(CoGroupFunction))} to finalize the CoGroup transformation.
+			 */
+			public CoGroupOperatorWithoutFunction equalTo(String field0, String... fields) {
+				String[] actualFields = new String[fields.length + 1];
+				actualFields[0] = field0;
+				System.arraycopy(fields, 0, actualFields, 1, fields.length);
+				return createCoGroupOperator(new Keys.ExpressionKeys<I2>(actualFields, input2.getType()));
 			}
 
 			/**
@@ -405,11 +453,11 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				}
 
 				if (keys2.isEmpty()) {
-					throw new InvalidProgramException("The join keys must not be empty.");
+					throw new InvalidProgramException("The co-group keys must not be empty.");
 				}
 
 				if (!keys1.areCompatibale(keys2)) {
-					throw new InvalidProgramException("The pair of join keys are not compatible with each other.");
+					throw new InvalidProgramException("The pair of co-group keys are not compatible with each other.");
 				}
 				
 				// sanity check solution set key mismatches
@@ -442,7 +490,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 					}
 
 					if (keys2.isEmpty()) {
-						throw new InvalidProgramException("The join keys must not be empty.");
+						throw new InvalidProgramException("The co-group keys must not be empty.");
 					}
 
 					this.keys2 = keys2;

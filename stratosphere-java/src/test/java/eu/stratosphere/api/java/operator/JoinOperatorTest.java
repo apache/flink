@@ -14,10 +14,13 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operator;
 
+import java.beans.Expression;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.api.java.typeutils.TypeExtractor;
+import eu.stratosphere.types.TypeInformation;
 import junit.framework.Assert;
 
 import org.junit.BeforeClass;
@@ -46,7 +49,7 @@ public class JoinOperatorTest {
 					BasicTypeInfo.LONG_TYPE_INFO,
 					BasicTypeInfo.INT_TYPE_INFO
 			);
-	
+
 	private static List<CustomType> customTypeData = new ArrayList<CustomType>();
 	
 	@BeforeClass
@@ -109,23 +112,12 @@ public class JoinOperatorTest {
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should not work, empty join key
-		ds1.join(ds2).where().equalTo();
-	}
-	
-	@Test(expected = IllegalArgumentException.class)
-	public void testJoinKeyFields6() {
-		
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-
 		// should not work, negative key field position
 		ds1.join(ds2).where(-1).equalTo(-1);
 	}
 	
 	@Test(expected = IllegalArgumentException.class)
-	public void testJoinKeyFields7() {
+	public void testJoinKeyFields6() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -134,6 +126,55 @@ public class JoinOperatorTest {
 		// should not work, join key fields on custom type
 		ds1.join(ds2).where(5).equalTo(0);
 	}
+
+	@Test
+	public void testJoinKeyExpressions1() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should work
+		try {
+			ds1.join(ds2).where("myInt").equalTo("myInt");
+		} catch(Exception e) {
+			Assert.fail();
+		}
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyExpressions2() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, incompatible join key types
+		ds1.join(ds2).where("myInt").equalTo("myString");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyExpressions3() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, incompatible number of join keys
+		ds1.join(ds2).where("myInt", "myString").equalTo("myString");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testJoinKeyExpressions4() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, join key non-existent
+		ds1.join(ds2).where("myNonExistent").equalTo("myInt");
+	}
+
 	
 	@Test
 	public void testJoinKeySelectors1() {
@@ -384,6 +425,7 @@ public class JoinOperatorTest {
 				.projectSecond()
 				.types(CustomType.class, CustomType.class);
 		} catch(Exception e) {
+			System.out.println("FAILED: " + e);
 			Assert.fail();
 		}
 	}
@@ -525,5 +567,4 @@ public class JoinOperatorTest {
 			return myInt+","+myLong+","+myString;
 		}
 	}
-	
 }

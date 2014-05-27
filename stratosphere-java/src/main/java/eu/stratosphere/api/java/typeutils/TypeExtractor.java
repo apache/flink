@@ -14,13 +14,16 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.typeutils;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.types.TypeInformation;
@@ -143,7 +146,7 @@ public class TypeExtractor {
 	}
 
 	public static <IN1, IN2, OUT> TypeInformation<OUT> createTypeInfo(Class<?> baseClass, Class<?> clazz, int returnParamPos,
-	        TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
+			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		return new TypeExtractor().privateCreateTypeInfo(baseClass, clazz, returnParamPos, in1Type, in2Type);
 	}
 
@@ -668,8 +671,15 @@ public class TypeExtractor {
 		Validate.notNull(clazz);
 		
 		// check for abstract classes or interfaces
-		if (Modifier.isInterface(clazz.getModifiers()) || (Modifier.isAbstract(clazz.getModifiers()) && !clazz.isArray())) {
-			throw new InvalidTypesException("Interfaces and abstract classes are not valid types.");
+		if (!clazz.isPrimitive() && (Modifier.isInterface(clazz.getModifiers()) || (Modifier.isAbstract(clazz.getModifiers()) && !clazz.isArray()))) {
+			throw new InvalidTypesException("Interfaces and abstract classes are not valid types: " + clazz);
+		}
+
+		if (clazz.equals(Object.class)) {
+			// this will occur when trying to analyze POJOs that have generic, this
+			// exception will be caught and a GenericTypeInfo will be created for the type.
+			// at some point we might support this using Kryo
+			throw new InvalidTypesException("Object is not a valid type.");
 		}
 		
 		// check for arrays
@@ -714,10 +724,99 @@ public class TypeExtractor {
 		if (Tuple.class.isAssignableFrom(clazz)) {
 			throw new InvalidTypesException("Type information extraction for tuples cannot be done based on the class.");
 		}
-		
+
+
+		if (alreadySeen.contains(clazz)) {
+			return new GenericTypeInfo<X>(clazz);
+		}
+
+		alreadySeen.add(clazz);
+
+		if (clazz.equals(Class.class)) {
+			// special case handling for Class, this should not be handled by the POJO logic
+			return new GenericTypeInfo<X>(clazz);
+		}
+		TypeInformation<X> pojoType =  analyzePojo(clazz);
+		if (pojoType != null) {
+			return pojoType;
+		}
+
+
 		// return a generic type
 		return new GenericTypeInfo<X>(clazz);
 	}
+
+	private <X> TypeInformation<X> analyzePojo(Class<X> clazz) {
+		List<Field> fields = getAllDeclaredFields(clazz);
+		List<PojoField> pojoFields = new ArrayList<PojoField>();
+		for (Field field : fields) {
+			try {
+				if (!Modifier.isTransient(field.getModifiers()) && !Modifier.isStatic(field.getModifiers())) {
+					pojoFields.add(new PojoField(field, privateCreateTypeInfo(field.getType())));
+				}
+			} catch (InvalidTypesException e) {
+				// If some of the fields cannot be analyzed, just return a generic type info
+				// right now this happens when a field is an interface (collections are the prominent case here) or
+				// when the POJO is generic, in which case the fields will have type Object.
+				// We might fix that in the future when we use Kryo.
+				return new GenericTypeInfo<X>(clazz);
+			}
+		}
+
+		PojoTypeInfo<X> pojoType = new PojoTypeInfo<X>(clazz, pojoFields);
+
+		List<Method> methods = getAllDeclaredMethods(clazz);
+		boolean containsReadObjectOrWriteObject = false;
+		for (Method method : methods) {
+			if (method.getName().equals("readObject") || method.getName().equals("writeObject")) {
+				containsReadObjectOrWriteObject = true;
+				break;
+			}
+		}
+
+		// Try retrieving the default constructor, if it does not have one
+		// we cannot use this because the serializer uses it.
+		boolean hasDefaultCtor = true;
+		try {
+			clazz.getDeclaredConstructor();
+		} catch (NoSuchMethodException e) {
+			hasDefaultCtor = false;
+		}
+
+
+		if (!containsReadObjectOrWriteObject && hasDefaultCtor) {
+			return pojoType;
+		}
+
+		return null;
+	}
+
+	// recursively determine all declared fields
+	private static List<Field> getAllDeclaredFields(Class<?> clazz) {
+		List<Field> result = new ArrayList<Field>();
+		while (clazz != null) {
+			Field[] fields = clazz.getDeclaredFields();
+			for (Field field : fields) {
+				result.add(field);
+			}
+			clazz = clazz.getSuperclass();
+		}
+		return result;
+	}
+
+	// recursively determine all declared methods
+	private static List<Method> getAllDeclaredMethods(Class<?> clazz) {
+		List<Method> result = new ArrayList<Method>();
+		while (clazz != null) {
+			Method[] methods = clazz.getDeclaredMethods();
+			for (Method method : methods) {
+				result.add(method);
+			}
+			clazz = clazz.getSuperclass();
+		}
+		return result;
+	}
+
 
 	public static <X> TypeInformation<X> getForObject(X value) {
 		return new TypeExtractor().privateGetForObject(value);

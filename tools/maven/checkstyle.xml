@@ -12,7 +12,10 @@
     		<property name="checkFormat" value="$1"/>
 	</module>
 
-	<module name="FileLength" />
+    <module name="FileLength">
+        <property name="max" value="2500"/>
+    </module>
+
 	<module name="TreeWalker">
 		<module name="RegexpSinglelineJava">
 			<property name="format" value="^\t* +\t*\S" />

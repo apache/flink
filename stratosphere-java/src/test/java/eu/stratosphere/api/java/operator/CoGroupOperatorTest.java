@@ -18,6 +18,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.api.java.typeutils.TypeExtractor;
+import eu.stratosphere.types.TypeInformation;
 import junit.framework.Assert;
 
 import org.junit.BeforeClass;
@@ -109,8 +111,8 @@ public class CoGroupOperatorTest {
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should not work, empty cogroup key
-		ds1.coGroup(ds2).where().equalTo();
+		// should not work, negative key field position
+		ds1.coGroup(ds2).where(-1).equalTo(-1);
 	}
 	
 	@Test(expected = IllegalArgumentException.class)
@@ -118,21 +120,58 @@ public class CoGroupOperatorTest {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-
-		// should not work, negative key field position
-		ds1.coGroup(ds2).where(-1).equalTo(-1);
-	}
-	
-	@Test(expected = IllegalArgumentException.class)
-	public void testCoGroupKeyFields7() {
-		
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
 		// should not work, cogroup key fields on custom type
 		ds1.coGroup(ds2).where(5).equalTo(0);
+	}
+
+	@Test
+	public void testCoGroupKeyExpressions1() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should work
+		try {
+			ds1.coGroup(ds2).where("myInt").equalTo("myInt");
+		} catch(Exception e) {
+			Assert.fail();
+		}
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyExpressions2() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, incompatible cogroup key types
+		ds1.coGroup(ds2).where("myInt").equalTo("myString");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyExpressions3() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, incompatible number of cogroup keys
+		ds1.coGroup(ds2).where("myInt", "myString").equalTo("myString");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testCoGroupKeyExpressions4() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, cogroup key non-existent
+		ds1.coGroup(ds2).where("myNonExistent").equalTo("myInt");
 	}
 	
 	@Test
@@ -282,5 +321,4 @@ public class CoGroupOperatorTest {
 			return myInt+","+myLong+","+myString;
 		}
 	}
-	
 }
