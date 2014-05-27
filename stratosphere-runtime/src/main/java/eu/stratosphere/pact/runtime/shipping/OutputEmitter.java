@@ -150,25 +150,23 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 
 		hash = murmurHash(hash);
 
-		if(hash < 0) {
-			if(hash == Integer.MIN_VALUE) {
-				this.channels[0] = Integer.MAX_VALUE % numberOfChannels;
-			} else {
-				this.channels[0] = -hash % numberOfChannels;
-			}
-		} else {
+		if (hash >= 0) {
 			this.channels[0] = hash % numberOfChannels;
 		}
+		else if (hash != Integer.MIN_VALUE) {
+			this.channels[0] = -hash % numberOfChannels;
+		}
+		else {
+			this.channels[0] = 0;
+		}
+	
 		return this.channels;
 	}
 
 	private final int murmurHash(int k) {
-		final int C1 = 0xcc9e2d51;
-		final int C2 = 0x1b873593;
-
-		k *= C1;
+		k *= 0xcc9e2d51;
 		k = Integer.rotateLeft(k, 15);
-		k *= C2;
+		k *= 0x1b873593;
 		
 		k = Integer.rotateLeft(k, 13);
 		k *= 0xe6546b64;
