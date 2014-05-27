@@ -36,6 +36,7 @@ import eu.stratosphere.api.java.operators.CrossOperator;
 import eu.stratosphere.api.java.operators.CrossOperator.DefaultCross;
 import eu.stratosphere.api.java.operators.CustomUnaryOperation;
 import eu.stratosphere.api.java.operators.DataSink;
+import eu.stratosphere.api.java.operators.DistinctOperator;
 import eu.stratosphere.api.java.operators.FilterOperator;
 import eu.stratosphere.api.java.operators.FlatMapOperator;
 import eu.stratosphere.api.java.operators.Grouping;
@@ -301,13 +302,45 @@ public abstract class DataSet<T> {
 	//  distinct
 	// --------------------------------------------------------------------------------------------
 	
-//	public <K extends Comparable<K>> DistinctOperator<T> distinct(KeySelector<T, K> keyExtractor) {
-//		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
-//	}
+	/**
+	 * Returns a distinct set of a {@link DataSet} using a {@link KeySelector} function.
+	 * <p/>
+	 * The KeySelector function is called for each element of the DataSet and extracts a single key value on which the
+	 * decision is made if two items are distinct or not.
+	 *  
+	 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet on which the
+	 *                     distinction of the DataSet is decided.
+	 * @return A DistinctOperator that represents the distinct DataSet.
+	 */
+	public <K extends Comparable<K>> DistinctOperator<T> distinct(KeySelector<T, K> keyExtractor) {
+		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
+	}
 	
-//	public DistinctOperator<T> distinct(int... fields) {
-//		return new DistinctOperator<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), true));
-//	}
+	/**
+	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using field position keys.
+	 * <p/>
+	 * The field position keys specify the fields of Tuples on which the decision is made if two Tuples are distinct or
+	 * not.
+	 * <p/>
+	 * Note: Field position keys can only be specified for Tuple DataSets.
+	 *
+	 * @param fields One or more field positions on which the distinction of the DataSet is decided. 
+	 * @return A DistinctOperator that represents the distinct DataSet.
+	 */
+	public DistinctOperator<T> distinct(int... fields) {
+		return new DistinctOperator<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), true));
+	}
+	
+	/**
+	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using all fields of the tuple.
+	 * <p/>
+	 * Note: This operator can only be applied to Tuple DataSets.
+	 * 
+	 * @return A DistinctOperator that represents the distinct DataSet.
+	 */
+	public DistinctOperator<T> distinct() {
+		return new DistinctOperator<T>(this, null);
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	//  Grouping
