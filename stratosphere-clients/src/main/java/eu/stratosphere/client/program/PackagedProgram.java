@@ -39,7 +39,6 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.client.program.Client.ProgramAbortException;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
@@ -211,19 +210,30 @@ public class PackagedProgram {
 			previewPlan = PactCompiler.createPreOptimizedPlan(getPlan());
 		}
 		else if (isUsingInteractiveMode()) {
-			// temporary hack to support the webclient
+			// temporary hack to support the web client
 			PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 			env.setAsContext();
 			try {
 				invokeInteractiveModeForExecution();
-			} catch (ProgramAbortException e) {
-				// the invocation gets aborted with the preview plan
-			} catch (ProgramInvocationException e) {
-				throw e;
-			} catch (Throwable t) {
-				throw new ProgramInvocationException("Program invokation failed with " + t.getClass().getSimpleName() + ": " + t.getMessage(), t);
 			}
-			previewPlan =  env.previewPlan;
+			catch (ProgramInvocationException e) {
+				throw e;
+			}
+			catch (Throwable t) {
+				// the invocation gets aborted with the preview plan
+				if (env.previewPlan != null) {
+					previewPlan =  env.previewPlan;
+				} else {
+					throw new ProgramInvocationException("The program caused an error: ", t);
+				}
+			}
+			
+			if (env.previewPlan != null) {
+				previewPlan =  env.previewPlan;
+			} else {
+				throw new ProgramInvocationException(
+						"The program plan could not be fetched. The program silently swallowed the control flow exceptions.");
+			}
 		}
 		else {
 			throw new RuntimeException();

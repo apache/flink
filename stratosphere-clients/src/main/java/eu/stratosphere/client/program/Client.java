@@ -138,10 +138,21 @@ public class Client {
 			env.setAsContext();
 			try {
 				prog.invokeInteractiveModeForExecution();
-			} catch (Throwable t) {
-				// the invocation gets aborted with the preview plan
 			}
-			return env.optimizerPlan;
+			catch (ProgramInvocationException e) {
+				throw e;
+			}
+			catch (Throwable t) {
+				// the invocation gets aborted with the preview plan
+				if (env.optimizerPlan != null) {
+					return env.optimizerPlan;
+				} else {
+					throw new ProgramInvocationException("The program caused an error: ", t);
+				}
+			}
+			
+			throw new ProgramInvocationException(
+					"The program plan could not be fetched. The program silently swallowed the control flow exceptions.");
 		}
 		else {
 			throw new RuntimeException();
