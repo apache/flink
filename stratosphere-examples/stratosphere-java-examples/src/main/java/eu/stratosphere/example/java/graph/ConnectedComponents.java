@@ -96,7 +96,7 @@ public class ConnectedComponents implements ProgramDescription {
 		DataSet<Tuple2<Long, Long>> changes = iteration.getWorkset().join(edges).where(0).equalTo(0).with(new NeighborWithComponentIDJoin())
 				.groupBy(0).aggregate(Aggregations.MIN, 1)
 				.join(iteration.getSolutionSet()).where(0).equalTo(0)
-				.flatMap(new ComponentIdFilter());
+				.with(new ComponentIdFilter());
 
 		// close the delta iteration (delta and new workset are identical)
 		DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
@@ -162,14 +162,17 @@ public class ConnectedComponents implements ProgramDescription {
 	/**
 	 * The input is nested tuples ( (vertex-id, candidate-component) , (vertex-id, current-component) )
 	 */
-	public static final class ComponentIdFilter extends FlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
+	@ConstantFieldsFirst("0")
+	public static final class ComponentIdFilter extends JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		@Override
-		public void flatMap(Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>> value, Collector<Tuple2<Long, Long>> out) {
-			if (value.f0.f1 < value.f1.f1) {
-				out.collect(value.f0);
+		public void join(Tuple2<Long, Long> candidate, Tuple2<Long, Long> old, Collector<Tuple2<Long, Long>> out) {
+			if (candidate.f1 < old.f1) {
+				out.collect(candidate);
 			}
 		}
+		@Override
+		public Tuple2<Long, Long> join(Tuple2<Long, Long> first, Tuple2<Long, Long> second) { return null; }
 	}
 
 	@Override
