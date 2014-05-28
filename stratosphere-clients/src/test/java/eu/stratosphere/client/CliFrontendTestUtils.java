@@ -18,15 +18,20 @@ package eu.stratosphere.client;
 import static org.junit.Assert.fail;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
+import java.net.MalformedURLException;
 import java.util.Map;
 
 import eu.stratosphere.configuration.GlobalConfiguration;
 
 public class CliFrontendTestUtils {
 	
-	public static final String TEST_JAR_MAIN_CLASS = "eu.stratosphere.example.java.wordcount.WordCount";
+	public static final String TEST_JAR_MAIN_CLASS = "eu.stratosphere.client.testjar.WordCount";
+	
+	public static final String TEST_JAR_CLASSLOADERTEST_CLASS = "eu.stratosphere.client.testjar.JobWithExternalDependency";
+	
 	
 	public static final String TEST_JOB_MANAGER_ADDRESS = "192.168.1.33";
 	
@@ -37,8 +42,13 @@ public class CliFrontendTestUtils {
 	public static final int TEST_YARN_JOB_MANAGER_PORT = 6655;
 	
 	
-	public static String getTestJarPath() {
-		return CliFrontendRunTest.class.getResource("/test.jar").getFile();
+	public static String getTestJarPath() throws FileNotFoundException, MalformedURLException {
+		File f = new File("target/maven-test-jar.jar");
+		if(!f.exists()) {
+			throw new FileNotFoundException("Test jar not present. Invoke tests using maven "
+					+ "or build the jar using 'mvn process-test-classes' in stratosphere-clients");
+		}
+		return f.getAbsolutePath();
 	}
 	
 	public static String getNonJarFilePath() {

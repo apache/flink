@@ -14,7 +14,6 @@ package eu.stratosphere.test.localDistributed;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.net.URL;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import org.junit.Assert;
@@ -54,21 +53,20 @@ public class PackagedProgramEndToEndITCase {
 			fwClusters.write(KMeansData.INITIAL_CENTERS);
 			fwClusters.close();
 
-			URL jarFileURL = getClass().getResource("/KMeansForTest.jar");
-			String jarPath = jarFileURL.getFile();
+			String jarPath = "target/maven-test-jar.jar";
 
 			// run KMeans
 			cluster.setNumTaskManager(2);
 			cluster.start();
 			RemoteExecutor ex = new RemoteExecutor("localhost", 6498);
-
+			
 			ex.executeJar(jarPath,
-					"eu.stratosphere.examples.scala.testing.KMeansForTest",
-					new String[] {"4",
+					"eu.stratosphere.test.util.testjar.KMeansForTest",
+					new String[] {
 							points.toURI().toString(),
 							clusters.toURI().toString(),
 							outFile.toURI().toString(),
-							"1"});
+							"25"});
 
 			points.delete();
 			clusters.delete();

@@ -12,29 +12,19 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.client.program;
 
-import java.io.File;
+package eu.stratosphere.client.testjar;
 
-import org.junit.Assert;
-import org.junit.Test;
+/**
+ * Simulate a class that requires an external dependency
+ *
+ */
+public class JobWithExternalDependency {
+	
+	public static final String EXTERNAL_CLASS = "org.apache.hadoop.hive.ql.io.RCFileInputFormat";
 
-import eu.stratosphere.client.CliFrontendTestUtils;
-
-
-public class PackagedProgramTest {
-
-	@Test
-	public void testGetPreviewPlan() {
-		try {
-			
-			PackagedProgram prog = new PackagedProgram(new File(CliFrontendTestUtils.getTestJarPath()));
-			Assert.assertNotNull(prog.getPreviewPlan());
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Test is erroneous: " + e.getMessage());
-		}
+	public static void main(String[] args) throws ClassNotFoundException {
+		ClassLoader cl = Thread.currentThread().getContextClassLoader();
+		Class.forName(EXTERNAL_CLASS, false, cl);
 	}
 }
