@@ -31,7 +31,7 @@ public class AvroExternalJarProgramITCase {
 
 	private static final int TEST_JM_PORT = 43191;
 	
-	private static final String JAR_FILE = "/AvroTestProgram.jar";
+	private static final String JAR_FILE = "target/maven-test-jar.jar";
 	
 	private static final String TEST_DATA_FILE = "/testdata.avro";
 
@@ -49,7 +49,7 @@ public class AvroExternalJarProgramITCase {
 			testMiniCluster.setJobManagerRpcPort(TEST_JM_PORT);
 			testMiniCluster.start();
 			
-			String jarFile = getClass().getResource(JAR_FILE).getFile();
+			String jarFile = JAR_FILE;
 			String testData = getClass().getResource(TEST_DATA_FILE).toString();
 			
 			PackagedProgram program = new PackagedProgram(new File(jarFile), new String[] { testData });
