@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>eu.stratosphere</groupId>
 		<artifactId>stratosphere</artifactId>
-		<version>0.5-rc3</version>
+		<version>0.5</version>
 		<relativePath>..</relativePath>
 	</parent>
 	

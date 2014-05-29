@@ -7,7 +7,7 @@
 	<parent>
 		<artifactId>stratosphere-addons</artifactId>
 		<groupId>eu.stratosphere</groupId>
-		<version>0.5-rc3</version>
+		<version>0.5</version>
 		<relativePath>..</relativePath>
 	</parent>
 	
