@@ -12,4 +12,4 @@
 # specific language governing permissions and limitations under the License.
 ########################################################################################################################
 
-find .. -name 'pom.xml' -type f -exec sed -i 's#<version>0.5-rc3</version>#<version>0.5</version>#' {} \;
+find .. -name 'pom.xml' -type f -exec sed -i 's#<version>0.5</version>#<version>0.5.1-SNAPSHOT</version>#' {} \;
