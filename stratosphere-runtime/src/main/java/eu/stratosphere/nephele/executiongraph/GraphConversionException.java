@@ -35,4 +35,11 @@ public class GraphConversionException extends Exception {
 		super(msg);
 	}
 
+	public GraphConversionException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public GraphConversionException(Throwable cause) {
+		super(cause);
+	}
 }

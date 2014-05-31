@@ -172,6 +172,8 @@ public class ExecutionGraph implements ExecutionListener {
 		// Start constructing the new execution graph from given job graph
 		try {
 			constructExecutionGraph(job, instanceManager);
+		} catch (GraphConversionException e) {
+			throw e; // forward graph conversion exceptions
 		} catch (Exception e) {
 			throw new GraphConversionException(StringUtils.stringifyException(e));
 		}
@@ -552,8 +554,7 @@ public class ExecutionGraph implements ExecutionListener {
 					inputSplits = ((AbstractInputTask<?>) groupVertex.getEnvironment().getInvokable())
 						.computeInputSplits(jobVertex.getNumberOfSubtasks());
 				} catch (Exception e) {
-					throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName()
-						+ ": " + StringUtils.stringifyException(e));
+					throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName(), e);
 				}
 			} else {
 				throw new GraphConversionException("JobInputVertex contained a task class which was not an input task.");

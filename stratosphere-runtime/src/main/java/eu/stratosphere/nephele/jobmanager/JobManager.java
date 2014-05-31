@@ -503,9 +503,17 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	
 			try {
 				eg = new ExecutionGraph(job, this.instanceManager);
-			} catch (GraphConversionException gce) {
-				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(gce));
-				return result;
+			} catch (GraphConversionException e) {
+				if (e.getCause() == null) {
+					return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(e));
+				} else {
+					Throwable t = e.getCause();
+					if (t instanceof FileNotFoundException) {
+						return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, t.getMessage());
+					} else {
+						return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(t));
+					}
+				}
 			}
 	
 			// Register job with the progress collector
