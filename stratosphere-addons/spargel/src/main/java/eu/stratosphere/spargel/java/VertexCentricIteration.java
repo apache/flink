@@ -28,7 +28,9 @@ import eu.stratosphere.api.java.operators.CoGroupOperator;
 import eu.stratosphere.api.java.operators.CustomUnaryOperation;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
+import eu.stratosphere.api.java.typeutils.ResultTypeQueryable;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
+import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.util.Collector;
@@ -82,6 +84,8 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	
 	private final List<Tuple2<String, DataSet<?>>> bcVarsMessaging = new ArrayList<Tuple2<String,DataSet<?>>>(4);
 	
+	private final TypeInformation<Message> messageType;
+	
 	private DataSet<Tuple2<VertexKey, VertexValue>> initialVertices;
 	
 	private String name;
@@ -115,6 +119,8 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		this.edgesWithValue = null;
 		this.maximumNumberOfIterations = maximumNumberOfIterations;
 		this.aggregators = new HashMap<String, Class<? extends Aggregator<?>>>();
+		
+		this.messageType = getMessageType(mf);
 	}
 	
 	private VertexCentricIteration(VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
@@ -145,6 +151,12 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		this.edgesWithValue = edgesWithValue;
 		this.maximumNumberOfIterations = maximumNumberOfIterations;
 		this.aggregators = new HashMap<String, Class<? extends Aggregator<?>>>();
+		
+		this.messageType = getMessageType(mf);
+	}
+	
+	private TypeInformation<Message> getMessageType(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf) {
+		return TypeExtractor.createTypeInfo(MessagingFunction.class, mf.getClass(), 2, null, null);
 	}
 	
 	/**
@@ -258,6 +270,11 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 			throw new IllegalStateException("The input data set has not been set.");
 		}
 		
+		// prepare some type information
+		TypeInformation<Tuple2<VertexKey, VertexValue>> vertexTypes = initialVertices.getType();
+		TypeInformation<VertexKey> keyType = ((TupleTypeInfo<?>) initialVertices.getType()).getTypeAt(0);
+		TypeInformation<Tuple2<VertexKey, Message>> messageTypeInfo = new TupleTypeInfo<Tuple2<VertexKey,Message>>(keyType, messageType);		
+		
 		// set up the iteration operator
 		final String name = (this.name != null) ? this.name :
 			"Vertex-centric iteration (" + updateFunction + " | " + messagingFunction + ")";
@@ -276,11 +293,11 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		// build the messaging function (co group)
 		CoGroupOperator<?, ?, Tuple2<VertexKey, Message>> messages;
 		if (edgesWithoutValue != null) {
-			MessagingUdfNoEdgeValues<VertexKey, VertexValue, Message> messenger = new MessagingUdfNoEdgeValues<VertexKey, VertexValue, Message>(messagingFunction);
+			MessagingUdfNoEdgeValues<VertexKey, VertexValue, Message> messenger = new MessagingUdfNoEdgeValues<VertexKey, VertexValue, Message>(messagingFunction, messageTypeInfo);
 			messages = this.edgesWithoutValue.coGroup(iteration.getWorkset()).where(0).equalTo(0).with(messenger);
 		}
 		else {
-			MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue> messenger = new MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue>(messagingFunction);
+			MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue> messenger = new MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue>(messagingFunction, messageTypeInfo);
 			messages = this.edgesWithValue.coGroup(iteration.getWorkset()).where(0).equalTo(0).with(messenger);
 		}
 		
@@ -290,8 +307,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 			messages = messages.withBroadcastSet(e.f1, e.f0);
 		}
 		
-		
-		VertexUpdateUdf<VertexKey, VertexValue, Message> updateUdf = new VertexUpdateUdf<VertexKey, VertexValue, Message>(updateFunction);
+		VertexUpdateUdf<VertexKey, VertexValue, Message> updateUdf = new VertexUpdateUdf<VertexKey, VertexValue, Message>(updateFunction, vertexTypes);
 		
 		// build the update function (co group)
 		CoGroupOperator<?, ?, Tuple2<VertexKey, VertexValue>> updates =
@@ -372,6 +388,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	
 	private static final class VertexUpdateUdf<VertexKey extends Comparable<VertexKey>, VertexValue, Message> 
 		extends CoGroupFunction<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>
+		implements ResultTypeQueryable<Tuple2<VertexKey, VertexValue>>
 	{
 		private static final long serialVersionUID = 1L;
 		
@@ -379,9 +396,14 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 
 		private final MessageIterator<Message> messageIter = new MessageIterator<Message>();
 		
+		private transient TypeInformation<Tuple2<VertexKey, VertexValue>> resultType;
 		
-		private VertexUpdateUdf(VertexUpdateFunction<VertexKey, VertexValue, Message> vertexUpdateFunction) {
+		
+		private VertexUpdateUdf(VertexUpdateFunction<VertexKey, VertexValue, Message> vertexUpdateFunction,
+				TypeInformation<Tuple2<VertexKey, VertexValue>> resultType)
+		{
 			this.vertexUpdateFunction = vertexUpdateFunction;
+			this.resultType = resultType;
 		}
 
 		@Override
@@ -424,6 +446,11 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		public void close() throws Exception {
 			this.vertexUpdateFunction.postSuperstep();
 		}
+
+		@Override
+		public TypeInformation<Tuple2<VertexKey, VertexValue>> getProducedType() {
+			return this.resultType;
+		}
 	}
 	
 	/*
@@ -431,14 +458,20 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 */
 	private static final class MessagingUdfNoEdgeValues<VertexKey extends Comparable<VertexKey>, VertexValue, Message> 
 		extends CoGroupFunction<Tuple2<VertexKey, VertexKey>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>
+		implements ResultTypeQueryable<Tuple2<VertexKey, Message>>
 	{
 		private static final long serialVersionUID = 1L;
 		
 		private final MessagingFunction<VertexKey, VertexValue, Message, ?> messagingFunction;
 		
+		private transient TypeInformation<Tuple2<VertexKey, Message>> resultType;
 		
-		private MessagingUdfNoEdgeValues(MessagingFunction<VertexKey, VertexValue, Message, ?> messagingFunction) {
+		
+		private MessagingUdfNoEdgeValues(MessagingFunction<VertexKey, VertexValue, Message, ?> messagingFunction,
+				TypeInformation<Tuple2<VertexKey, Message>> resultType)
+		{
 			this.messagingFunction = messagingFunction;
+			this.resultType = resultType;
 		}
 		
 		@Override
@@ -466,6 +499,11 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		public void close() throws Exception {
 			this.messagingFunction.postSuperstep();
 		}
+
+		@Override
+		public TypeInformation<Tuple2<VertexKey, Message>> getProducedType() {
+			return this.resultType;
+		}
 	}
 	
 	/*
@@ -473,14 +511,20 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 */
 	private static final class MessagingUdfWithEdgeValues<VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue> 
 		extends CoGroupFunction<Tuple3<VertexKey, VertexKey, EdgeValue>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>
+		implements ResultTypeQueryable<Tuple2<VertexKey, Message>>
 	{
 		private static final long serialVersionUID = 1L;
 		
 		private final MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> messagingFunction;
 		
+		private transient TypeInformation<Tuple2<VertexKey, Message>> resultType;
 		
-		private MessagingUdfWithEdgeValues(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> messagingFunction) {
+		
+		private MessagingUdfWithEdgeValues(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> messagingFunction,
+				TypeInformation<Tuple2<VertexKey, Message>> resultType)
+		{
 			this.messagingFunction = messagingFunction;
+			this.resultType = resultType;
 		}
 
 		@Override
@@ -507,6 +551,11 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		@Override
 		public void close() throws Exception {
 			this.messagingFunction.postSuperstep();
+		}
+		
+		@Override
+		public TypeInformation<Tuple2<VertexKey, Message>> getProducedType() {
+			return this.resultType;
 		}
 	}
 }

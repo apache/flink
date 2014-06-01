@@ -21,7 +21,7 @@ import org.junit.Test;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
-import eu.stratosphere.test.compiler.CompilerTestBase;
+import eu.stratosphere.test.compiler.util.CompilerTestBase;
 import eu.stratosphere.test.recordJobs.graph.DeltaPageRankWithInitialDeltas;
 import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast;
 import eu.stratosphere.test.recordJobs.kmeans.KMeansSingleStep;

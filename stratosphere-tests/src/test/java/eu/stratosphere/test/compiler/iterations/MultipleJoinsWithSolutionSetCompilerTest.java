@@ -33,7 +33,7 @@ import eu.stratosphere.compiler.plan.SolutionSetPlanNode;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.test.compiler.CompilerTestBase;
+import eu.stratosphere.test.compiler.util.CompilerTestBase;
 import eu.stratosphere.util.Collector;
 
 @SuppressWarnings("serial")
