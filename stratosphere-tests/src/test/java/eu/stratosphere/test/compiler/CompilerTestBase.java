@@ -15,21 +15,17 @@ package eu.stratosphere.test.compiler;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
 import org.junit.Before;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.functions.Function;
-import eu.stratosphere.api.java.record.operators.BulkIteration;
-import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.java.record.operators.DeltaIteration;
 import eu.stratosphere.api.common.io.FileInputFormat.FileBaseStatistics;
+import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.costs.DefaultCostEstimator;
@@ -42,8 +38,8 @@ import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
+import eu.stratosphere.test.compiler.util.OperatorResolver;
 import eu.stratosphere.util.OperatingSystem;
-import eu.stratosphere.util.Visitor;
 
 /**
  *
@@ -213,96 +209,5 @@ public abstract class CompilerTestBase {
 				return new ArrayList<PlanNode>(nodes);
 			}
 		}
-	}
-	
-	// ------------------------------------------------------------------------
-	
-	public static final class OperatorResolver implements Visitor<Operator<?>> {
-		
-		private final Map<String, List<Operator<?>>> map;
-		private Set<Operator<?>> seen;
-		
-		OperatorResolver(Plan p) {
-			this.map = new HashMap<String, List<Operator<?>>>();
-			this.seen = new HashSet<Operator<?>>();
-			
-			p.accept(this);
-			this.seen = null;
-		}
-		
-		
-		@SuppressWarnings("unchecked")
-		public <T extends Operator<?>> T getNode(String name) {
-			List<Operator<?>> nodes = this.map.get(name);
-			if (nodes == null || nodes.isEmpty()) {
-				throw new RuntimeException("No nodes found with the given name.");
-			} else if (nodes.size() != 1) {
-				throw new RuntimeException("Multiple nodes found with the given name.");
-			} else {
-				return (T) nodes.get(0);
-			}
-		}
-		
-		@SuppressWarnings("unchecked")
-		public <T extends Operator<?>> T getNode(String name, Class<? extends Function> stubClass) {
-			List<Operator<?>> nodes = this.map.get(name);
-			if (nodes == null || nodes.isEmpty()) {
-				throw new RuntimeException("No node found with the given name and stub class.");
-			} else {
-				Operator<?> found = null;
-				for (Operator<?> node : nodes) {
-					if (node.getClass() == stubClass) {
-						if (found == null) {
-							found = node;
-						} else {
-							throw new RuntimeException("Multiple nodes found with the given name and stub class.");
-						}
-					}
-				}
-				if (found == null) {
-					throw new RuntimeException("No node found with the given name and stub class.");
-				} else {
-					return (T) found;
-				}
-			}
-		}
-		
-		public List<Operator<?>> getNodes(String name) {
-			List<Operator<?>> nodes = this.map.get(name);
-			if (nodes == null || nodes.isEmpty()) {
-				throw new RuntimeException("No node found with the given name.");
-			} else {
-				return new ArrayList<Operator<?>>(nodes);
-			}
-		}
-
-		@Override
-		public boolean preVisit(Operator<?> visitable) {
-			if (this.seen.add(visitable)) {
-				// add to  the map
-				final String name = visitable.getName();
-				List<Operator<?>> list = this.map.get(name);
-				if (list == null) {
-					list = new ArrayList<Operator<?>>(2);
-					this.map.put(name, list);
-				}
-				list.add(visitable);
-				
-				// recurse into bulk iterations
-				if (visitable instanceof BulkIteration) {
-					((BulkIteration) visitable).getNextPartialSolution().accept(this);
-				} else if (visitable instanceof DeltaIteration) {
-					((DeltaIteration) visitable).getSolutionSetDelta().accept(this);
-					((DeltaIteration) visitable).getNextWorkset().accept(this);
-				}
-				
-				return true;
-			} else {
-				return false;
-			}
-		}
-
-		@Override
-		public void postVisit(Operator<?> visitable) {}
 	}
 }

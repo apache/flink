@@ -163,7 +163,6 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 		
 		private OptimizedPlan compileProgram(String jobName) {
 			Plan p = createProgramPlan(jobName);
-			p.setDefaultParallelism(getDegreeOfParallelism());
 			
 			PactCompiler pc = new PactCompiler(new DataStatistics());
 			return pc.compile(p);

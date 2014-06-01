@@ -603,7 +603,19 @@ public abstract class ExecutionEnvironment {
 		}
 		
 		OperatorTranslation translator = new OperatorTranslation();
-		return translator.translateToPlan(this.sinks, jobName);
+		JavaPlan plan = translator.translateToPlan(this.sinks, jobName);
+		
+		if (getDegreeOfParallelism() > 0) {
+			plan.setDefaultParallelism(getDegreeOfParallelism());
+		}
+		
+		try {
+			registerCachedFilesWithPlan(plan);
+		} catch (Exception e) {
+			throw new RuntimeException("Error while registering cached files: " + e.getMessage(), e);
+		}
+		
+		return plan;
 	}
 	
 	/**

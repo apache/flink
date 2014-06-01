@@ -49,7 +49,9 @@ public class OperatorTranslation {
 			planSinks.add(translate(sink));
 		}
 		
-		return new JavaPlan(planSinks); 
+		JavaPlan p = new JavaPlan(planSinks); 
+		p.setJobName(jobName);
+		return p;
 	}
 	
 	
@@ -193,15 +195,20 @@ public class OperatorTranslation {
 	private <D, W> DeltaIterationBase<D, W> translateDeltaIteration(DeltaIterationResultSet<?, ?> untypedIterationEnd) {
 		@SuppressWarnings("unchecked")
 		DeltaIterationResultSet<D, W> iterationEnd = (DeltaIterationResultSet<D, W>) untypedIterationEnd;
+		DeltaIteration<D, W> iterationHead = iterationEnd.getIterationHead();
+		
+		String name = iterationHead.getName() == null ? "Unnamed Delta Iteration" : iterationHead.getName();
 		
 		DeltaIterationBase<D, W> iterationOperator = new DeltaIterationBase<D, W>(new BinaryOperatorInformation<D, W, D>(iterationEnd.getType(), iterationEnd.getWorksetType(), iterationEnd.getType()),
-				iterationEnd.getKeyPositions(), "Unnamed Java Delta Iteration");
+				iterationEnd.getKeyPositions(), name);
+		
 		iterationOperator.setMaximumNumberOfIterations(iterationEnd.getMaxIterations());
 		
-		DeltaIteration<D, W> iterationHead = iterationEnd.getIterationHead();
+		if (iterationHead.getParallelism() > 0) {
+			iterationOperator.setDegreeOfParallelism(iterationHead.getParallelism());
+		}
 
 		DeltaIteration.SolutionSetPlaceHolder<D> solutionSetPlaceHolder = iterationHead.getSolutionSet();
-
 		DeltaIteration.WorksetPlaceHolder<W> worksetPlaceHolder = iterationHead.getWorkset();
 
 		translated.put(solutionSetPlaceHolder, iterationOperator.getSolutionSet());
@@ -215,7 +222,10 @@ public class OperatorTranslation {
 
 		iterationOperator.setInitialSolutionSet(translate(iterationHead.getInitialSolutionSet()));
 		iterationOperator.setInitialWorkset(translate(iterationHead.getInitialWorkset()));
-
+		
+		// register all aggregators
+		iterationOperator.getAggregators().addAll(iterationHead.getAggregators());
+		
 		return iterationOperator;
 	}
 	

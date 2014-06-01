@@ -12,30 +12,25 @@
  **********************************************************************************************************************/
 package eu.stratosphere.spargel.java;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.Validate;
 
 import eu.stratosphere.api.common.aggregators.Aggregator;
-import eu.stratosphere.api.common.functions.GenericCoGrouper;
-import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
-import eu.stratosphere.api.common.operators.DualInputSemanticProperties;
-import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.DeltaIteration;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
+import eu.stratosphere.api.java.operators.CoGroupOperator;
 import eu.stratosphere.api.java.operators.CustomUnaryOperation;
-import eu.stratosphere.api.java.operators.TwoInputOperator;
-import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
-import eu.stratosphere.api.common.operators.base.DeltaIterationBase;
-import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
-import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -79,13 +74,19 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	
 	private final DataSet<Tuple3<VertexKey, VertexKey, EdgeValue>> edgesWithValue;
 	
-	private final TypeInformation<Message> messageType;
-	
 	private final Map<String, Class<? extends Aggregator<?>>> aggregators;
 	
 	private final int maximumNumberOfIterations;
 	
+	private final List<Tuple2<String, DataSet<?>>> bcVarsUpdate = new ArrayList<Tuple2<String,DataSet<?>>>(4);
+	
+	private final List<Tuple2<String, DataSet<?>>> bcVarsMessaging = new ArrayList<Tuple2<String,DataSet<?>>>(4);
+	
 	private DataSet<Tuple2<VertexKey, VertexValue>> initialVertices;
+	
+	private String name;
+	
+	private int parallelism = -1;
 		
 	// ----------------------------------------------------------------------------------
 	
@@ -94,6 +95,11 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 			DataSet<Tuple2<VertexKey, VertexKey>> edgesWithoutValue,
 			int maximumNumberOfIterations)
 	{
+		Validate.notNull(uf);
+		Validate.notNull(mf);
+		Validate.notNull(edgesWithoutValue);
+		Validate.isTrue(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
+		
 		// check that the edges are actually a valid tuple set of vertex key types
 		TypeInformation<Tuple2<VertexKey, VertexKey>> edgesType = edgesWithoutValue.getType();
 		Validate.isTrue(edgesType.isTupleType() && edgesType.getArity() == 2, "The edges data set (for edges without edge values) must consist of 2-tuples.");
@@ -109,8 +115,6 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		this.edgesWithValue = null;
 		this.maximumNumberOfIterations = maximumNumberOfIterations;
 		this.aggregators = new HashMap<String, Class<? extends Aggregator<?>>>();
-		
-		this.messageType = getMessageType(mf);
 	}
 	
 	private VertexCentricIteration(VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
@@ -119,6 +123,11 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 			int maximumNumberOfIterations,
 			boolean edgeHasValueMarker)
 	{
+		Validate.notNull(uf);
+		Validate.notNull(mf);
+		Validate.notNull(edgesWithValue);
+		Validate.isTrue(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
+		
 		// check that the edges are actually a valid tuple set of vertex key types
 		TypeInformation<Tuple3<VertexKey, VertexKey, EdgeValue>> edgesType = edgesWithValue.getType();
 		Validate.isTrue(edgesType.isTupleType() && edgesType.getArity() == 3, "The edges data set (for edges with edge values) must consist of 3-tuples.");
@@ -128,18 +137,14 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 			&& Comparable.class.isAssignableFrom(tupleInfo.getTypeAt(0).getTypeClass()),
 			"The first two tuple fields (source and target vertex id) must be of the data type that represents the vertex key and implement the java.lang.Comparable interface.");
 		
+		Validate.isTrue(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
+		
 		this.updateFunction = uf;
 		this.messagingFunction = mf;
 		this.edgesWithoutValue = null;
 		this.edgesWithValue = edgesWithValue;
 		this.maximumNumberOfIterations = maximumNumberOfIterations;
 		this.aggregators = new HashMap<String, Class<? extends Aggregator<?>>>();
-		
-		this.messageType = getMessageType(mf);
-	}
-	
-	private TypeInformation<Message> getMessageType(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf) {
-		return TypeExtractor.createTypeInfo(MessagingFunction.class, mf.getClass(), 2, null, null);
 	}
 	
 	/**
@@ -152,6 +157,63 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 */
 	public void registerAggregator(String name, Class<? extends Aggregator<?>> aggregator) {
 		this.aggregators.put(name, aggregator);
+	}
+	
+	/**
+	 * Adds a data set as a broadcast set to the messaging function.
+	 * 
+	 * @param name The name under which the broadcast data is available in the messaging function.
+	 * @param data The data set to be broadcasted.
+	 */
+	public void addBroadcastSetForMessagingFunction(String name, DataSet<?> data) {
+		this.bcVarsMessaging.add(new Tuple2<String, DataSet<?>>(name, data));
+	}
+
+	/**
+	 * Adds a data set as a broadcast set to the vertex update function.
+	 * 
+	 * @param name The name under which the broadcast data is available in the vertex update function.
+	 * @param data The data set to be broadcasted.
+	 */
+	public void addBroadcastSetForUpdateFunction(String name, DataSet<?> data) {
+		this.bcVarsUpdate.add(new Tuple2<String, DataSet<?>>(name, data));
+	}
+	
+	/**
+	 * Sets the name for the vertex-centric iteration. The name is displayed in logs and messages.
+	 * 
+	 * @param name The name for the iteration.
+	 */
+	public void setName(String name) {
+		this.name = name;
+	}
+	
+	/**
+	 * Gets the name from this vertex-centric iteration.
+	 * 
+	 * @return The name of the iteration.
+	 */
+	public String getName() {
+		return name;
+	}
+	
+	/**
+	 * Sets the degree of parallelism for the iteration.
+	 * 
+	 * @param parallelism The degree of parallelism.
+	 */
+	public void setParallelism(int parallelism) {
+		Validate.isTrue(parallelism > 0 || parallelism == -1, "The degree of parallelism must be positive, or -1 (use default).");
+		this.parallelism = parallelism;
+	}
+	
+	/**
+	 * Gets the iteration's degree of parallelism.
+	 * 
+	 * @return The iterations parallelism, or -1, if not set.
+	 */
+	public int getParallelism() {
+		return parallelism;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -191,23 +253,61 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * @return The operator that represents this vertex-centric graph computation.
 	 */
 	@Override
-	public GraphIterationOperator<VertexKey, VertexValue, Message, ?> createOperator() {
+	public DataSet<Tuple2<VertexKey, VertexValue>> createResult() {
+		if (this.initialVertices == null) {
+			throw new IllegalStateException("The input data set has not been set.");
+		}
+		
+		// set up the iteration operator
+		final String name = (this.name != null) ? this.name :
+			"Vertex-centric iteration (" + updateFunction + " | " + messagingFunction + ")";
+		final int[] zeroKeyPos = new int[] {0};
+	
+		final DeltaIteration<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>> iteration =
+			this.initialVertices.iterateDelta(this.initialVertices, this.maximumNumberOfIterations, zeroKeyPos);
+		iteration.name(name);
+		iteration.parallelism(parallelism);
+		
+		// register all aggregators
+		for (Map.Entry<String, Class<? extends Aggregator<?>>> entry : this.aggregators.entrySet()) {
+			iteration.registerAggregator(entry.getKey(), entry.getValue());
+		}
+		
+		// build the messaging function (co group)
+		CoGroupOperator<?, ?, Tuple2<VertexKey, Message>> messages;
+		if (edgesWithoutValue != null) {
+			MessagingUdfNoEdgeValues<VertexKey, VertexValue, Message> messenger = new MessagingUdfNoEdgeValues<VertexKey, VertexValue, Message>(messagingFunction);
+			messages = this.edgesWithoutValue.coGroup(iteration.getWorkset()).where(0).equalTo(0).with(messenger);
+		}
+		else {
+			MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue> messenger = new MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue>(messagingFunction);
+			messages = this.edgesWithValue.coGroup(iteration.getWorkset()).where(0).equalTo(0).with(messenger);
+		}
+		
+		// configure coGroup message function with name and broadcast variables
+		messages = messages.name("Messaging");
+		for (Tuple2<String, DataSet<?>> e : this.bcVarsMessaging) {
+			messages = messages.withBroadcastSet(e.f1, e.f0);
+		}
+		
 		
 		VertexUpdateUdf<VertexKey, VertexValue, Message> updateUdf = new VertexUpdateUdf<VertexKey, VertexValue, Message>(updateFunction);
 		
-		if (edgesWithoutValue != null) {
-			// edges have no values
-			MessagingUdfNoEdgeValues<VertexKey, VertexValue, Message> messenger = new MessagingUdfNoEdgeValues<VertexKey, VertexValue, Message>(messagingFunction);
-			return new GraphIterationOperator<VertexKey, VertexValue, Message, Tuple2<VertexKey, VertexKey>>(
-					initialVertices, edgesWithoutValue, updateUdf, messenger, messageType, aggregators, maximumNumberOfIterations);
+		// build the update function (co group)
+		CoGroupOperator<?, ?, Tuple2<VertexKey, VertexValue>> updates =
+				messages.coGroup(iteration.getSolutionSet()).where(0).equalTo(0).with(updateUdf);
+		
+		// configure coGroup update function with name and broadcast variables
+		updates = updates.name("Vertex State Updates");
+		for (Tuple2<String, DataSet<?>> e : this.bcVarsUpdate) {
+			updates = updates.withBroadcastSet(e.f1, e.f0);
 		}
-		else {
-			// edges have values
-			// edges have no values
-			MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue> messenger = new MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue>(messagingFunction);
-			return new GraphIterationOperator<VertexKey, VertexValue, Message, Tuple3<VertexKey, VertexKey, EdgeValue>>(
-					initialVertices, edgesWithValue, updateUdf, messenger, messageType, aggregators, maximumNumberOfIterations);
-		}
+
+		// let the operator know that we preserve the key field
+		updates.withConstantSetFirst("0").withConstantSetSecond("0");
+		
+		return iteration.closeWith(updates, updates);
+		
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -407,103 +507,6 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		@Override
 		public void close() throws Exception {
 			this.messagingFunction.postSuperstep();
-		}
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	//  The data flow operator
-	// --------------------------------------------------------------------------------------------
-	
-	/*
-	 * The data flow operator. It presents itself to the outside as a two-input operator with inputs vertices and edges.
-	 * Internally, it create a delta iteration node, which is also a two input operator. But the delta iteration
-	 * node uses the vertex input (the first) for both inputs (solution set and initial workset) and uses the
-	 * second input (edges) as a data source inside the iteration.
-	 */
-	private static final class GraphIterationOperator<VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeType extends Tuple> extends 
-		TwoInputOperator<Tuple2<VertexKey, VertexValue>, EdgeType, Tuple2<VertexKey, VertexValue>, GraphIterationOperator<VertexKey, VertexValue, Message, EdgeType>>
-	{
-	
-		private final DataSet<EdgeType> edges;
-		
-		private final CoGroupFunction<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>> updateFunction;
-		
-		private final CoGroupFunction<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>> messagingFunction;
-		
-		private final TypeInformation<Tuple2<VertexKey, Message>> messageType;
-		
-		private final Map<String, Class<? extends Aggregator<?>>> aggregators;
-		
-		private final int maximumNumberOfIterations;
-		
-		private GraphIterationOperator(DataSet<Tuple2<VertexKey, VertexValue>> initialVertices,
-													DataSet<EdgeType> edges,
-													VertexUpdateUdf<VertexKey, VertexValue, Message> updateFunction,
-													CoGroupFunction<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>> messagingFunction,
-													TypeInformation<Message> messageType,
-													Map<String, Class<? extends Aggregator<?>>> aggregators,
-													int maximumNumberOfIterations)
-		{
-			super(initialVertices, edges, initialVertices.getType());
-			
-			this.edges = edges;
-			this.updateFunction = updateFunction;
-			this.messagingFunction = messagingFunction;
-			this.aggregators = aggregators;
-			this.maximumNumberOfIterations = maximumNumberOfIterations;
-			
-			// construct the type for the messages between the messaging function and the vertex update function
-			TypeInformation<VertexKey> keyType = ((TupleTypeInfo<?>) initialVertices.getType()).getTypeAt(0);
-			this.messageType = new TupleTypeInfo<Tuple2<VertexKey,Message>>(keyType, messageType);
-		}
-
-		@Override
-		protected eu.stratosphere.api.common.operators.DualInputOperator<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>, ?> translateToDataFlow(Operator<Tuple2<VertexKey, VertexValue>> input1, Operator<EdgeType> input2) {
-			
-			final String name = (getName() != null) ? getName() :
-					"Vertex-centric iteration (" + updateFunction + " | " + messagingFunction + ")";
-			
-			final int[] zeroKeyPos = new int[] {0};
-			
-			final DeltaIterationBase<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>> iteration =
-					new DeltaIterationBase<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>(
-							new BinaryOperatorInformation<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>(getInput1Type(), getInput1Type(), getInput1Type()),
-							zeroKeyPos, name);
-			
-			iteration.setMaximumNumberOfIterations(maximumNumberOfIterations);
-			
-			for (Map.Entry<String, Class<? extends Aggregator<?>>> entry : aggregators.entrySet()) {
-				iteration.getAggregators().registerAggregator(entry.getKey(), entry.getValue());
-			}
-			
-			final CoGroupOperatorBase<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>, GenericCoGrouper<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>> messenger =
-					new CoGroupOperatorBase<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>, GenericCoGrouper<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>>(
-							messagingFunction, new BinaryOperatorInformation<EdgeType, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>(edges.getType(), getInput1Type(), messageType), zeroKeyPos, zeroKeyPos, "Messaging");
-			
-			messenger.setSecondInput(iteration.getWorkset());
-			
-			final CoGroupOperatorBase<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>, GenericCoGrouper<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>> updater =
-					new CoGroupOperatorBase<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>, GenericCoGrouper<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>>(
-							updateFunction, new BinaryOperatorInformation<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>(messageType, getInput1Type(), getInput1Type()), zeroKeyPos, zeroKeyPos, "Vertex State Updates");
-			
-			updater.setFirstInput(messenger);
-			updater.setSecondInput(iteration.getSolutionSet());
-			
-			// let the operator know that we preserve the key field
-			DualInputSemanticProperties semanticProps = new DualInputSemanticProperties();
-			semanticProps.addForwardedField1(0, 0);
-			semanticProps.addForwardedField2(0, 0);
-			updater.setSemanticProperties(semanticProps);
-			
-			iteration.setSolutionSetDelta(updater);
-			iteration.setNextWorkset(updater);
-			
-			// set inputs
-			iteration.setFirstInput(input1);
-			iteration.setSecondInput(input1);
-			messenger.setFirstInput(input2);
-			
-			return iteration;
 		}
 	}
 }
