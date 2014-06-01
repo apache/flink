@@ -72,7 +72,6 @@ public class CompensatableDanglingPageRank {
 	public static JobGraph getJobGraph(String[] args) throws Exception {
 
 		int degreeOfParallelism = 2;
-		int numSubTasksPerInstance = degreeOfParallelism;
 		String pageWithRankInputPath = ""; // "file://" + PlayConstants.PLAY_DIR + "test-inputs/danglingpagerank/pageWithRank";
 		String adjacencyListInputPath = ""; // "file://" + PlayConstants.PLAY_DIR +
 //			"test-inputs/danglingpagerank/adjacencylists";
@@ -91,21 +90,22 @@ public class CompensatableDanglingPageRank {
 
 		if (args.length >= 15) {
 			degreeOfParallelism = Integer.parseInt(args[0]);
-			numSubTasksPerInstance = Integer.parseInt(args[1]);
-			pageWithRankInputPath = args[2];
-			adjacencyListInputPath = args[3];
-			outputPath = args[4];
-//			confPath = args[5];
-			minorConsumer = Integer.parseInt(args[6]);
-			matchMemory = Integer.parseInt(args[7]);
-			coGroupSortMemory = Integer.parseInt(args[8]);
-			numIterations = Integer.parseInt(args[9]);
-			numVertices = Long.parseLong(args[10]);
-			numDanglingVertices = Long.parseLong(args[11]);
-			failingWorkers = args[12];
-			failingIteration = Integer.parseInt(args[13]);
-			messageLoss = Double.parseDouble(args[14]);
+			pageWithRankInputPath = args[1];
+			adjacencyListInputPath = args[2];
+			outputPath = args[3];
+//			confPath = args[4];
+			minorConsumer = Integer.parseInt(args[5]);
+			matchMemory = Integer.parseInt(args[6]);
+			coGroupSortMemory = Integer.parseInt(args[7]);
+			numIterations = Integer.parseInt(args[8]);
+			numVertices = Long.parseLong(args[9]);
+			numDanglingVertices = Long.parseLong(args[10]);
+			failingWorkers = args[11];
+			failingIteration = Integer.parseInt(args[12]);
+			messageLoss = Double.parseDouble(args[13]);
 		}
+
+		int totalMemoryConsumption = 3*minorConsumer + matchMemory + coGroupSortMemory;
 
 		JobGraph jobGraph = new JobGraph("CompensatableDanglingPageRank");
 		
@@ -113,7 +113,7 @@ public class CompensatableDanglingPageRank {
 
 		// page rank input
 		JobInputVertex pageWithRankInput = JobGraphUtils.createInput(new ImprovedDanglingPageRankInputFormat(),
-			pageWithRankInputPath, "DanglingPageWithRankInput", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
+			pageWithRankInputPath, "DanglingPageWithRankInput", jobGraph, degreeOfParallelism);
 		TaskConfig pageWithRankInputConfig = new TaskConfig(pageWithRankInput.getConfiguration());
 		pageWithRankInputConfig.addOutputShipStrategy(ShipStrategyType.PARTITION_HASH);
 		pageWithRankInputConfig.setOutputComparator(fieldZeroComparator, 0);
@@ -122,7 +122,7 @@ public class CompensatableDanglingPageRank {
 
 		// edges as adjacency list
 		JobInputVertex adjacencyListInput = JobGraphUtils.createInput(new ImprovedAdjacencyListInputFormat(),
-			adjacencyListInputPath, "AdjancencyListInput", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
+			adjacencyListInputPath, "AdjancencyListInput", jobGraph, degreeOfParallelism);
 		TaskConfig adjacencyListInputConfig = new TaskConfig(adjacencyListInput.getConfiguration());
 		adjacencyListInputConfig.addOutputShipStrategy(ShipStrategyType.PARTITION_HASH);
 		adjacencyListInputConfig.setOutputSerializer(recSerializer);
@@ -130,7 +130,7 @@ public class CompensatableDanglingPageRank {
 
 		// --------------- the head ---------------------
 		JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "IterationHead", jobGraph,
-			degreeOfParallelism, numSubTasksPerInstance);
+			degreeOfParallelism);
 		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
 		headConfig.setIterationId(ITERATION_ID);
 		
@@ -140,12 +140,12 @@ public class CompensatableDanglingPageRank {
 		headConfig.setInputSerializer(recSerializer, 0);
 		headConfig.setInputComparator(fieldZeroComparator, 0);
 		headConfig.setInputLocalStrategy(0, LocalStrategy.SORT);
-		headConfig.setMemoryInput(0, minorConsumer * JobGraphUtils.MEGABYTE);
+		headConfig.setRelativeMemoryInput(0, (double)minorConsumer/totalMemoryConsumption);
 		headConfig.setFilehandlesInput(0, NUM_FILE_HANDLES_PER_SORT);
 		headConfig.setSpillingThresholdInput(0, SORT_SPILL_THRESHOLD);
 		
 		// back channel / iterations
-		headConfig.setBackChannelMemory(minorConsumer * JobGraphUtils.MEGABYTE);
+		headConfig.setRelativeBackChannelMemory((double)minorConsumer/totalMemoryConsumption);
 		
 		// output into iteration
 		headConfig.setOutputSerializer(recSerializer);
@@ -175,13 +175,13 @@ public class CompensatableDanglingPageRank {
 		// --------------- the join ---------------------
 		
 		JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
-			"IterationIntermediate", jobGraph, degreeOfParallelism, numSubTasksPerInstance);
+			"IterationIntermediate", jobGraph, degreeOfParallelism);
 		TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
 		intermediateConfig.setIterationId(ITERATION_ID);
 //		intermediateConfig.setDriver(RepeatableHashjoinMatchDriverWithCachedBuildside.class);
 		intermediateConfig.setDriver(BuildSecondCachedMatchDriver.class);
 		intermediateConfig.setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
-		intermediateConfig.setMemoryDriver(matchMemory * JobGraphUtils.MEGABYTE);
+		intermediateConfig.setRelativeMemoryDriver((double)matchMemory/totalMemoryConsumption);
 		intermediateConfig.addInputToGroup(0);
 		intermediateConfig.addInputToGroup(1);
 		intermediateConfig.setInputSerializer(recSerializer, 0);
@@ -203,7 +203,7 @@ public class CompensatableDanglingPageRank {
 		// ---------------- the tail (co group) --------------------
 		
 		JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationTail", jobGraph,
-			degreeOfParallelism, numSubTasksPerInstance);
+			degreeOfParallelism);
 		TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
 		tailConfig.setIterationId(ITERATION_ID);
         tailConfig.setIsWorksetUpdate();
@@ -220,10 +220,10 @@ public class CompensatableDanglingPageRank {
 		tailConfig.setDriverComparator(fieldZeroComparator, 1);
 		tailConfig.setDriverPairComparator(pairComparatorFactory);
 		tailConfig.setInputAsynchronouslyMaterialized(0, true);
-		tailConfig.setInputMaterializationMemory(0, minorConsumer * JobGraphUtils.MEGABYTE);
+		tailConfig.setRelativeInputMaterializationMemory(0, (double)minorConsumer/totalMemoryConsumption);
 		tailConfig.setInputLocalStrategy(1, LocalStrategy.SORT);
 		tailConfig.setInputComparator(fieldZeroComparator, 1);
-		tailConfig.setMemoryInput(1, coGroupSortMemory * JobGraphUtils.MEGABYTE);
+		tailConfig.setRelativeMemoryInput(1, (double)coGroupSortMemory/totalMemoryConsumption);
 		tailConfig.setFilehandlesInput(1, NUM_FILE_HANDLES_PER_SORT);
 		tailConfig.setSpillingThresholdInput(1, SORT_SPILL_THRESHOLD);
 		
@@ -241,8 +241,7 @@ public class CompensatableDanglingPageRank {
 		
 		// --------------- the output ---------------------
 
-		JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism,
-			numSubTasksPerInstance);
+		JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
 		TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
 		outputConfig.addInputToGroup(0);
 		outputConfig.setInputSerializer(recSerializer, 0);
@@ -252,7 +251,7 @@ public class CompensatableDanglingPageRank {
 		// --------------- the auxiliaries ---------------------
 		
 		JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput",
-			degreeOfParallelism, numSubTasksPerInstance);
+			degreeOfParallelism);
 
 		JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
 		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());

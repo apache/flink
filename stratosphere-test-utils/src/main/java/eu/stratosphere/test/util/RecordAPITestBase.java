@@ -28,6 +28,8 @@ import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 
 public abstract class RecordAPITestBase extends AbstractTestBase {
+
+	protected static final int DOP = 4;
 	
 	protected JobExecutionResult jobExecutionResult;
 	
@@ -40,6 +42,7 @@ public abstract class RecordAPITestBase extends AbstractTestBase {
 	
 	public RecordAPITestBase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 	
 	

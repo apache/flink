@@ -75,6 +75,7 @@ public abstract class ChannelAccess<T, R extends IORequest>
 		this.requestQueue = requestQueue;
 		
 		try {
+			@SuppressWarnings("resource")
 			RandomAccessFile file = new RandomAccessFile(id.getPath(), writeEnabled ? "rw" : "r");
 			this.fileChannel = file.getChannel();
 		}

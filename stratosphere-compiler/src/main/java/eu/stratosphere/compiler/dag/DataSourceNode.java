@@ -55,7 +55,6 @@ public class DataSourceNode extends OptimizerNode {
 		
 		if (NonParallelInput.class.isAssignableFrom(pactContract.getUserCodeWrapper().getUserCodeClass())) {
 			setDegreeOfParallelism(1);
-			setSubtasksPerInstance(1);
 			this.sequentialInput = true;
 		} else {
 			this.sequentialInput = false;
@@ -78,25 +77,10 @@ public class DataSourceNode extends OptimizerNode {
 	}
 
 	@Override
-	public boolean isMemoryConsumer() {
-		return false;
-	}
-	
-
-	@Override
 	public void setDegreeOfParallelism(int degreeOfParallelism) {
 		// if unsplittable, DOP remains at 1
 		if (!this.sequentialInput) {
 			super.setDegreeOfParallelism(degreeOfParallelism);
-		}
-	}
-	
-
-	@Override
-	public void setSubtasksPerInstance(int instancesPerMachine) {
-		// if unsplittable, DOP remains at 1
-		if (!this.sequentialInput) {
-			super.setSubtasksPerInstance(instancesPerMachine);
 		}
 	}
 

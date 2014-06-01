@@ -75,6 +75,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 
 	public IterationWithChainingNepheleITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 
 	@Override
@@ -94,7 +95,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 	@Parameterized.Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("ChainedMapperNepheleITCase#NoSubtasks", 2);
+		config.setInteger("ChainedMapperNepheleITCase#NoSubtasks", DOP);
 		config.setInteger("ChainedMapperNepheleITCase#MaxIterations", 2);
 		return toParameterList(config);
 	}
@@ -118,8 +119,6 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		final TypeComparatorFactory<Record> comparator =
 			new RecordComparatorFactory(new int[] { 0 }, new Class[] { IntValue.class });
 
-		final long MEM_PER_CONSUMER = 2;
-
 		final int ITERATION_ID = 1;
 
 		// --------------------------------------------------------------------------------------------------------------
@@ -128,7 +127,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 
 		// - input -----------------------------------------------------------------------------------------------------
 		JobInputVertex input = JobGraphUtils.createInput(
-			new PointInFormat(), inputPath, "Input", jobGraph, numSubTasks, numSubTasks);
+			new PointInFormat(), inputPath, "Input", jobGraph, numSubTasks);
 		TaskConfig inputConfig = new TaskConfig(input.getConfiguration());
 		{
 			inputConfig.setOutputSerializer(serializer);
@@ -137,7 +136,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 
 		// - head ------------------------------------------------------------------------------------------------------
 		JobTaskVertex head = JobGraphUtils.createTask(
-			IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks, numSubTasks);
+			IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks);
 		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
 		{
 			headConfig.setIterationId(ITERATION_ID);
@@ -168,12 +167,12 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 			headConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
 
 			// back channel
-			headConfig.setBackChannelMemory(MEM_PER_CONSUMER * JobGraphUtils.MEGABYTE);
+			headConfig.setRelativeBackChannelMemory(1.0);
 		}
 
 		// - tail ------------------------------------------------------------------------------------------------------
 		JobTaskVertex tail = JobGraphUtils.createTask(
-			IterationTailPactTask.class, "Chained Iteration Tail", jobGraph, numSubTasks, numSubTasks);
+			IterationTailPactTask.class, "Chained Iteration Tail", jobGraph, numSubTasks);
 		TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
 		{
 			tailConfig.setIterationId(ITERATION_ID);
@@ -210,7 +209,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		}
 
 		// - output ----------------------------------------------------------------------------------------------------
-		JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "Output", numSubTasks, numSubTasks);
+		JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "Output", numSubTasks);
 		TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
 		{
 			outputConfig.addInputToGroup(0);
@@ -221,7 +220,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		}
 
 		// - fake tail -------------------------------------------------------------------------------------------------
-		JobOutputVertex fakeTail = JobGraphUtils.createFakeOutput(jobGraph, "Fake Tail", numSubTasks, numSubTasks);
+		JobOutputVertex fakeTail = JobGraphUtils.createFakeOutput(jobGraph, "Fake Tail", numSubTasks);
 
 		// - sync ------------------------------------------------------------------------------------------------------
 		JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, numSubTasks);

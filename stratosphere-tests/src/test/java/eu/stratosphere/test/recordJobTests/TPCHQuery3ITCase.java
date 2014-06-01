@@ -122,6 +122,7 @@ public class TPCHQuery3ITCase extends RecordAPITestBase {
 
 	public TPCHQuery3ITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 
 	@Override
@@ -150,7 +151,7 @@ public class TPCHQuery3ITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("dop", 4);
+		config.setInteger("dop", DOP);
 		return toParameterList(config);
 	}
 }

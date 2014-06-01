@@ -95,12 +95,11 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
 	 * @param serializerFactory The type serializer.
 	 * @param comparator The type comparator establishing the order relation.
-	 * @param totalMemory The total amount of memory dedicated to sorting, merging and I/O.
+	 * @param memoryFraction The fraction of memory dedicated to sorting, merging and I/O.
 	 * @param maxNumFileHandles The maximum number of files to be merged at once.
 	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
 	 *                              actually begins spilling data to disk.
-	 * @param combineLastMerge A flag indicating whether the last merge step applies the combiner as well.
-	 * 
+	 *
 	 * @throws IOException Thrown, if an error occurs initializing the resources for external sorting.
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
@@ -108,11 +107,11 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	public CombiningUnilateralSortMerger(GenericCombine<E> combineStub, MemoryManager memoryManager, IOManager ioManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
-			long totalMemory, int maxNumFileHandles, float startSpillingFraction)
+			double memoryFraction, int maxNumFileHandles, float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
 		this(combineStub, memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
-			totalMemory, -1, maxNumFileHandles, startSpillingFraction);
+			memoryFraction, -1, maxNumFileHandles, startSpillingFraction);
 	}
 	
 	/**
@@ -127,13 +126,12 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
 	 * @param serializerFactory The type serializer.
 	 * @param comparator The type comparator establishing the order relation.
-	 * @param totalMemory The total amount of memory dedicated to sorting, merging and I/O.
+	 * @param memoryFraction The fraction of memory dedicated to sorting, merging and I/O.
 	 * @param numSortBuffers The number of distinct buffers to use creation of the initial runs.
 	 * @param maxNumFileHandles The maximum number of files to be merged at once.
 	 * @param startSpillingFraction The faction of the buffers that have to be filled before the spilling thread
 	 *                              actually begins spilling data to disk.
-	 * @param combineLastMerge A flag indicating whether the last merge step applies the combiner as well.
-	 * 
+	 *
 	 * @throws IOException Thrown, if an error occurs initializing the resources for external sorting.
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
@@ -141,12 +139,12 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	public CombiningUnilateralSortMerger(GenericCombine<E> combineStub, MemoryManager memoryManager, IOManager ioManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
-			long totalMemory, int numSortBuffers, int maxNumFileHandles, 
+			double memoryFraction, int numSortBuffers, int maxNumFileHandles,
 			float startSpillingFraction)
 	throws IOException, MemoryAllocationException
 	{
 		super(memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
-			totalMemory, numSortBuffers, maxNumFileHandles, startSpillingFraction, false);
+			memoryFraction, numSortBuffers, maxNumFileHandles, startSpillingFraction, false);
 		
 		this.combineStub = combineStub;
 	}

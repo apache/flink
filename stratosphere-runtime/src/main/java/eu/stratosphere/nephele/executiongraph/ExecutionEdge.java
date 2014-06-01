@@ -19,7 +19,6 @@ import eu.stratosphere.runtime.io.channels.ChannelType;
 /**
  * Objects of this class represent a pair of {@link eu.stratosphere.runtime.io.serialization.io.channels.InputChannel} and {@link AbstractOutputChannel} objects
  * within an {@link ExecutionGraph}, Nephele's internal scheduling representation for jobs.
- * 
  */
 public final class ExecutionEdge {
 
@@ -51,42 +50,34 @@ public final class ExecutionEdge {
 	}
 
 	public ExecutionGate getInputGate() {
-
 		return this.inputGate;
 	}
 
 	public ExecutionGate getOutputGate() {
-
 		return this.outputGate;
 	}
 
 	public ChannelID getOutputChannelID() {
-
 		return this.outputChannelID;
 	}
 
 	public ChannelID getInputChannelID() {
-
 		return this.inputChannelID;
 	}
 
 	public int getOutputGateIndex() {
-
 		return this.outputGateIndex;
 	}
 
 	public int getInputGateIndex() {
-
 		return this.inputGateIndex;
 	}
 	
 	public ChannelType getChannelType() {
-		
 		return this.groupEdge.getChannelType();
 	}
 	
 	public int getConnectionID() {
-		
 		return this.groupEdge.getConnectionID();
 	}
 }

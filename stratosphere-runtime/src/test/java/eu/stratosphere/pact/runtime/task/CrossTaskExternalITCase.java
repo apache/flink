@@ -27,11 +27,14 @@ import eu.stratosphere.types.Record;
 public class CrossTaskExternalITCase extends DriverTestBase<GenericCrosser<Record, Record, Record>>
 {
 	private static final long CROSS_MEM = 1024 * 1024;
+
+	private final double cross_frac;
 	
 	private final CountingOutputCollector output = new CountingOutputCollector();
 
 	public CrossTaskExternalITCase() {
 		super(CROSS_MEM, 0);
+		cross_frac = (double)CROSS_MEM/this.getMemoryManager().getMemorySize();
 	}
 	
 	@Test
@@ -52,7 +55,7 @@ public class CrossTaskExternalITCase extends DriverTestBase<GenericCrosser<Recor
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
-		getTaskConfig().setMemoryDriver(CROSS_MEM);
+		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
 		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		
@@ -84,7 +87,7 @@ public class CrossTaskExternalITCase extends DriverTestBase<GenericCrosser<Recor
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
 				
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
-		getTaskConfig().setMemoryDriver(CROSS_MEM);
+		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
 		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
 		

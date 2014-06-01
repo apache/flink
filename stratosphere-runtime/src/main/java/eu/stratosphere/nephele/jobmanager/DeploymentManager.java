@@ -16,19 +16,19 @@ package eu.stratosphere.nephele.jobmanager;
 import java.util.List;
 
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.instance.Instance;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
  * A deployment manager is responsible for deploying a list of {@link ExecutionVertex} objects the given
- * {@link AbstractInstance}. It is called by a {@link AbstractScheduler} implementation whenever at least one
+ * {@link eu.stratosphere.nephele.instance.Instance}. It is called by a {@link eu.stratosphere.nephele.jobmanager.scheduler.DefaultScheduler} implementation whenever at least one
  * {@link ExecutionVertex} has become ready to be executed.
  * 
  */
 public interface DeploymentManager {
 
 	/**
-	 * Deploys the list of vertices on the given {@link AbstractInstance}.
+	 * Deploys the list of vertices on the given {@link eu.stratosphere.nephele.instance.Instance}.
 	 * 
 	 * @param jobID
 	 *        the ID of the job the vertices to be deployed belong to
@@ -37,5 +37,5 @@ public interface DeploymentManager {
 	 * @param verticesToBeDeployed
 	 *        the list of vertices to be deployed
 	 */
-	void deploy(JobID jobID, AbstractInstance instance, List<ExecutionVertex> verticesToBeDeployed);
+	void deploy(JobID jobID, Instance instance, List<ExecutionVertex> verticesToBeDeployed);
 }

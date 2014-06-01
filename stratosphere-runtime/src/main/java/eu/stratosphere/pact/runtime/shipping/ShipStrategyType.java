@@ -22,54 +22,47 @@ public enum ShipStrategyType {
 	/**
 	 * Constant used as an indicator for an unassigned ship strategy.
 	 */
-	NONE(false, false, false),
+	NONE(false, false),
 	
 	/**
-	 * Forwarding the data preserving all global properties.
+	 * Forwarding the data locally in memory.
 	 */
-	FORWARD(false, false, false),
+	FORWARD(false, false),
 	
 	/**
 	 * Repartitioning the data randomly, typically when the degree of parallelism between two nodes changes.
 	 */
-	PARTITION_RANDOM(true, true, false),
+	PARTITION_RANDOM(true, false),
 	
 	/**
 	 * Repartitioning the data deterministically through a hash function.
 	 */
-	PARTITION_HASH(true, true, true),
+	PARTITION_HASH(true, true),
 	
 	/**
 	 * Partitioning the data in ranges according to a total order.
 	 */
-	PARTITION_RANGE(true, true, true),
+	PARTITION_RANGE(true, true),
 	
 	/**
 	 * Replicating the data set to all instances.
 	 */
-	BROADCAST(true, true, false);
+	BROADCAST(true, false);
 	
 	// --------------------------------------------------------------------------------------------
 	
 	private final boolean isNetwork;
 	
-	private final boolean compensatesForLocalDOPChanges;
-	
 	private final boolean requiresComparator;
 	
 	
-	private ShipStrategyType(boolean network, boolean compensatesForLocalDOPChanges, boolean requiresComparator) {
+	private ShipStrategyType(boolean network, boolean requiresComparator) {
 		this.isNetwork = network;
-		this.compensatesForLocalDOPChanges = compensatesForLocalDOPChanges;
 		this.requiresComparator = requiresComparator;
 	}
 	
 	public boolean isNetworkStrategy() {
 		return this.isNetwork;
-	}
-	
-	public boolean compensatesForLocalDOPChanges() {
-		return this.compensatesForLocalDOPChanges;
 	}
 	
 	public boolean requiresComparator() {

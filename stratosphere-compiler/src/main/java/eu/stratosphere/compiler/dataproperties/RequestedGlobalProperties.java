@@ -53,8 +53,7 @@ public final class RequestedGlobalProperties implements Cloneable {
 	/**
 	 * Sets the partitioning property for the global properties.
 	 * 
-	 * @param partitioning The new partitioning to set.
-	 * @param partitionedFields 
+	 * @param partitionedFields
 	 */
 	public void setHashPartitioned(FieldSet partitionedFields) {
 		if (partitionedFields == null) {
@@ -218,7 +217,7 @@ public final class RequestedGlobalProperties implements Cloneable {
 	 * @param globalDopChange
 	 * @param localDopChange
 	 */
-	public void parameterizeChannel(Channel channel, boolean globalDopChange, boolean localDopChange) {
+	public void parameterizeChannel(Channel channel, boolean globalDopChange) {
 		// if we request nothing, then we need no special strategy. forward, if the number of instances remains
 		// the same, randomly repartition otherwise
 		if (isTrivial()) {
@@ -228,8 +227,7 @@ public final class RequestedGlobalProperties implements Cloneable {
 		
 		final GlobalProperties inGlobals = channel.getSource().getGlobalProperties();
 		// if we have no global parallelism change, check if we have already compatible global properties
-		if (!globalDopChange && !localDopChange && isMetBy(inGlobals)) {
-			// we meet already everything, so go forward
+		if (!globalDopChange && isMetBy(inGlobals)) {
 			channel.setShipStrategy(ShipStrategyType.FORWARD);
 			return;
 		}

@@ -28,7 +28,6 @@ import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.test.util.JavaProgramTestBase;
 import eu.stratosphere.util.Collector;
 
-
 /**
  * 
  * Iterative Connected Components test case which recomputes only the elements
@@ -46,6 +45,10 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 	protected static List<Tuple2<Long, Long>> edgesInput = new ArrayList<Tuple2<Long, Long>>();
 	private String resultPath;
 	private String expectedResult;
+
+	public DependencyConnectedComponentsITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
 	
 	
 	@Override

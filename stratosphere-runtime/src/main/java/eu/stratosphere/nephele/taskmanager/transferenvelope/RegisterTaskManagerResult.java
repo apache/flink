@@ -11,27 +11,40 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.instance.local;
+package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
-import eu.stratosphere.nephele.instance.AbstractInstance;
-import eu.stratosphere.nephele.instance.HardwareDescription;
-import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.topology.NetworkNode;
-import eu.stratosphere.nephele.topology.NetworkTopology;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.nephele.util.EnumUtils;
 
-public class LocalInstance extends AbstractInstance {
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
-	public LocalInstance(InstanceType instanceType, InstanceConnectionInfo instanceConnectionInfo,
-			NetworkNode parentNode, NetworkTopology networkTopology, HardwareDescription hardwareDescription) {
-		super(instanceType, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
+public class RegisterTaskManagerResult implements IOReadableWritable {
+	public enum ReturnCode{
+		SUCCESS, FAILURE
+	};
+
+	public RegisterTaskManagerResult(){
+		this.returnCode = ReturnCode.SUCCESS;
 	}
+
+	public RegisterTaskManagerResult(ReturnCode returnCode){
+		this.returnCode = returnCode;
+	}
+
+	private ReturnCode returnCode;
+
+	public ReturnCode getReturnCode() { return this.returnCode; }
 
 
 	@Override
-	public String toString() {
-
-		return this.getInstanceConnectionInfo().toString();
+	public void write(DataOutput out) throws IOException {
+		EnumUtils.writeEnum(out, this.returnCode);
 	}
 
+	@Override
+	public void read(DataInput in) throws IOException {
+		this.returnCode = EnumUtils.readEnum(in, ReturnCode.class);
+	}
 }

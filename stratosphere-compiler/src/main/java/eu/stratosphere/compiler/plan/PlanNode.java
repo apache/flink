@@ -65,11 +65,9 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 
 	protected Costs cumulativeCosts;					// the cumulative costs of all operators in the sub-tree
 	
-	private long memoryPerSubTask;					// the amount of memory dedicated to each task, in bytes
+	private double relativeMemoryPerSubTask;					// the amount of memory dedicated to each task, in bytes
 	
 	private int degreeOfParallelism;
-	
-	private int subtasksPerInstance;
 	
 	private boolean pFlag;							// flag for the internal pruning algorithm
 	
@@ -83,8 +81,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		this.driverStrategy = strategy;
 		
 		this.degreeOfParallelism = template.getDegreeOfParallelism();
-		this.subtasksPerInstance = template.getSubtasksPerInstance();
-		
+
 		// check, if there is branch at this node. if yes, this candidate must be associated with
 		// the branching template node.
 		if (template.isBranching()) {
@@ -166,17 +163,17 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	 * 
 	 * @return The memory per task, in bytes.
 	 */
-	public long getMemoryPerSubTask() {
-		return this.memoryPerSubTask;
+	public double getRelativeMemoryPerSubTask() {
+		return this.relativeMemoryPerSubTask;
 	}
 
 	/**
 	 * Sets the memory dedicated to each task for this node.
 	 * 
-	 * @param memoryPerTask The memory per sub-task, in bytes.
+	 * @param relativeMemoryPerSubtask The relative memory per sub-task
 	 */
-	public void setMemoryPerSubTask(long memoryPerTask) {
-		this.memoryPerSubTask = memoryPerTask;
+	public void setRelativeMemoryPerSubtask(double relativeMemoryPerSubtask) {
+		this.relativeMemoryPerSubTask = relativeMemoryPerSubtask;
 	}
 	
 	/**
@@ -303,16 +300,8 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		this.degreeOfParallelism = parallelism;
 	}
 	
-	public void setSubtasksPerInstance(int subTasksPerInstance) {
-		this.subtasksPerInstance = subTasksPerInstance;
-	}
-	
 	public int getDegreeOfParallelism() {
 		return this.degreeOfParallelism;
-	}
-	
-	public int getSubtasksPerInstance() {
-		return this.subtasksPerInstance;
 	}
 	
 	public long getGuaranteedAvailableMemory() {

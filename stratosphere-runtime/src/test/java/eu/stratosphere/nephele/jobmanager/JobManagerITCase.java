@@ -34,11 +34,8 @@ import eu.stratosphere.nephele.util.FileLineWriter;
 import eu.stratosphere.nephele.util.JarFileCreator;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 import eu.stratosphere.util.LogUtils;
-import eu.stratosphere.util.StringUtils;
-import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -166,19 +163,23 @@ public class JobManagerITCase {
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
 			i1.setFilePath(new Path(new File(testDirectory).toURI()));
+			i1.setNumberOfSubtasks(1);
 
 			// task vertex 1
 			final JobTaskVertex t1 = new JobTaskVertex("Task 1", jg);
 			t1.setTaskClass(ForwardTask.class);
+			t1.setNumberOfSubtasks(1);
 
 			// task vertex 2
 			final JobTaskVertex t2 = new JobTaskVertex("Task 2", jg);
 			t2.setTaskClass(ForwardTask.class);
+			t2.setNumberOfSubtasks(1);
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
 			o1.setFilePath(new Path(outputFile.toURI()));
+			o1.setNumberOfSubtasks(1);
 
 			t1.setVertexToShareInstancesWith(i1);
 			t2.setVertexToShareInstancesWith(i1);
@@ -473,19 +474,23 @@ public class JobManagerITCase {
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
 			i1.setFileInputClass(FileLineReader.class);
 			i1.setFilePath(new Path(inputFile.toURI()));
+			i1.setNumberOfSubtasks(1);
 
 			// task vertex 1
 			final JobTaskVertex t1 = new JobTaskVertex("Task 1", jg);
 			t1.setTaskClass(ForwardTask.class);
+			t1.setNumberOfSubtasks(1);
 
 			// task vertex 2
 			final JobTaskVertex t2 = new JobTaskVertex("Task 2", jg);
 			t2.setTaskClass(ForwardTask.class);
+			t2.setNumberOfSubtasks(1);
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
 			o1.setFilePath(new Path(outputFile.toURI()));
+			o1.setNumberOfSubtasks(1);
 
 			t1.setVertexToShareInstancesWith(i1);
 			t2.setVertexToShareInstancesWith(i1);
@@ -747,6 +752,7 @@ public class JobManagerITCase {
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
 			o1.setFilePath(new Path(outputFile.toURI()));
+			o1.setNumberOfSubtasks(1);
 
 			i1.setVertexToShareInstancesWith(o1);
 			i2.setVertexToShareInstancesWith(o1);
@@ -877,27 +883,23 @@ public class JobManagerITCase {
 			i1.setFileInputClass(FileLineReader.class);
 			i1.setFilePath(new Path(inputFile1.toURI()));
 			i1.setNumberOfSubtasks(numberOfSubtasks);
-			i1.setNumberOfSubtasksPerInstance(numberOfSubtasks);
 
 			// input vertex 2
 			final JobFileInputVertex i2 = new JobFileInputVertex("Input 2", jg);
 			i2.setFileInputClass(FileLineReader.class);
 			i2.setFilePath(new Path(inputFile2.toURI()));
 			i2.setNumberOfSubtasks(numberOfSubtasks);
-			i2.setNumberOfSubtasksPerInstance(numberOfSubtasks);
 
 			// union task
 			final JobTaskVertex f1 = new JobTaskVertex("Forward 1", jg);
 			f1.setTaskClass(DoubleTargetTask.class);
 			f1.setNumberOfSubtasks(numberOfSubtasks);
-			f1.setNumberOfSubtasksPerInstance(numberOfSubtasks);
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output", jg);
 			o1.setFileOutputClass(FileLineWriter.class);
 			o1.setFilePath(new Path(outputFile.toURI()));
 			o1.setNumberOfSubtasks(numberOfSubtasks);
-			o1.setNumberOfSubtasksPerInstance(numberOfSubtasks);
 
 			i1.setVertexToShareInstancesWith(o1);
 			i2.setVertexToShareInstancesWith(o1);

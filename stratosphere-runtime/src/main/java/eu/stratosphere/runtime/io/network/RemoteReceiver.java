@@ -18,10 +18,8 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.util.StringUtils;
 
 /**
  * Objects of this class uniquely identify a connection to a remote {@link TaskManager}.
@@ -48,11 +46,9 @@ public final class RemoteReceiver implements IOReadableWritable {
 	 *        the index of the connection to the remote {@link TaskManager}
 	 */
 	public RemoteReceiver(final InetSocketAddress connectionAddress, final int connectionIndex) {
-
 		if (connectionAddress == null) {
 			throw new IllegalArgumentException("Argument connectionAddress must not be null");
 		}
-
 		if (connectionIndex < 0) {
 			throw new IllegalArgumentException("Argument connectionIndex must be a non-negative integer number");
 		}
@@ -75,7 +71,6 @@ public final class RemoteReceiver implements IOReadableWritable {
 	 * @return the address of the connection to the remote {@link TaskManager}
 	 */
 	public InetSocketAddress getConnectionAddress() {
-
 		return this.connectionAddress;
 	}
 
@@ -85,14 +80,12 @@ public final class RemoteReceiver implements IOReadableWritable {
 	 * @return the index of the connection to the remote {@link TaskManager}
 	 */
 	public int getConnectionIndex() {
-
 		return this.connectionIndex;
 	}
 
 
 	@Override
 	public int hashCode() {
-
 		return this.connectionAddress.hashCode() + (31 * this.connectionIndex);
 	}
 
@@ -131,18 +124,12 @@ public final class RemoteReceiver implements IOReadableWritable {
 
 	@Override
 	public void read(final DataInput in) throws IOException {
-
 		final int addr_length = in.readInt();
 		final byte[] address = new byte[addr_length];
 		in.readFully(address);
 
-		InetAddress ia = null;
-		try {
-			ia = InetAddress.getByAddress(address);
-		} catch (UnknownHostException uhe) {
-			throw new IOException(StringUtils.stringifyException(uhe));
-		}
-		final int port = in.readInt();
+		InetAddress ia = InetAddress.getByAddress(address);
+		int port = in.readInt();
 		this.connectionAddress = new InetSocketAddress(ia, port);
 
 		this.connectionIndex = in.readInt();
@@ -151,7 +138,6 @@ public final class RemoteReceiver implements IOReadableWritable {
 
 	@Override
 	public String toString() {
-
 		return this.connectionAddress + " (" + this.connectionIndex + ")";
 	}
 }

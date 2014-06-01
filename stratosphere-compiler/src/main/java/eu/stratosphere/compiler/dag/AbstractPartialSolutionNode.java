@@ -42,11 +42,6 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode {
 	public abstract IterationNode getIterationNode();
 	
 	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public boolean isMemoryConsumer() {
-		return false;
-	}
 	
 	public boolean isOnDynamicPath() {
 		return true;

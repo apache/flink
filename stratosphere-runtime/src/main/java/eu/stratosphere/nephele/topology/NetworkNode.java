@@ -33,8 +33,6 @@ public class NetworkNode implements IOReadableWritable {
 
 	private final List<NetworkNode> childNodes = new ArrayList<NetworkNode>();
 
-	private Object attachment;
-
 	protected NetworkNode(final String name, final NetworkNode parentNode, final NetworkTopology networkTopology) {
 		this.name = name;
 		this.parentNode = parentNode;
@@ -117,14 +115,6 @@ public class NetworkNode implements IOReadableWritable {
 
 	public int getNumberOfChildNodes() {
 		return this.childNodes.size();
-	}
-
-	public void setAttachment(final Object attachment) {
-		this.attachment = attachment;
-	}
-
-	public Object getAttachment() {
-		return this.attachment;
 	}
 
 	public NetworkNode getChildNode(final int index) {

@@ -155,8 +155,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		UnaryOperatorNode solutionSetDeltaUpdateAux = new UnaryOperatorNode("Solution-Set Delta", getSolutionSetKeyFields(),
 				new SolutionSetDeltaOperator(getSolutionSetKeyFields()));
 		solutionSetDeltaUpdateAux.setDegreeOfParallelism(getDegreeOfParallelism());
-		solutionSetDeltaUpdateAux.setSubtasksPerInstance(getSubtasksPerInstance());
-		
+
 		PactConnection conn = new PactConnection(solutionSetDelta, solutionSetDeltaUpdateAux);
 		solutionSetDeltaUpdateAux.setIncomingConnection(conn);
 		solutionSetDelta.addOutgoingConnection(conn);
@@ -216,11 +215,6 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	// --------------------------------------------------------------------------------------------
 	//                             Properties and Optimization
 	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public boolean isMemoryConsumer() {
-		return true;
-	}
 	
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
@@ -331,13 +325,12 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 				else if (report == FeedbackPropertiesMeetRequirementsReport.NOT_MET) {
 					// attach a no-op node through which we create the properties of the original input
 					Channel toNoOp = new Channel(candidate);
-					globPropsReqWorkset.parameterizeChannel(toNoOp, false, false);
+					globPropsReqWorkset.parameterizeChannel(toNoOp, false);
 					locPropsReqWorkset.parameterizeChannel(toNoOp);
 					
 					UnaryOperatorNode rebuildWorksetPropertiesNode = new UnaryOperatorNode("Rebuild Workset Properties", FieldList.EMPTY_LIST);
 					
 					rebuildWorksetPropertiesNode.setDegreeOfParallelism(candidate.getDegreeOfParallelism());
-					rebuildWorksetPropertiesNode.setSubtasksPerInstance(candidate.getSubtasksPerInstance());
 					
 					SingleInputPlanNode rebuildWorksetPropertiesPlanNode = new SingleInputPlanNode(rebuildWorksetPropertiesNode, "Rebuild Workset Properties", toNoOp, DriverStrategy.UNARY_NO_OP);
 					rebuildWorksetPropertiesPlanNode.initProperties(toNoOp.getGlobalProperties(), toNoOp.getLocalProperties());
@@ -518,7 +511,6 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 			super(new NoOpBinaryUdfOp<Nothing>(new NothingTypeInfo()));
 			
 			setDegreeOfParallelism(1);
-			setSubtasksPerInstance(1);
 		}
 		
 		public void setInputs(PactConnection input1, PactConnection input2) {

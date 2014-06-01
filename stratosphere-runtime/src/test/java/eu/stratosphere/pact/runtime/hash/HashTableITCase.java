@@ -91,7 +91,7 @@ public class HashTableITCase {
 		this.pairProbeSideComparator = new IntPairComparator();
 		this.pairComparator = new IntPairPairComparator();
 		
-		this.memManager = new DefaultMemoryManager(32 * 1024 * 1024);
+		this.memManager = new DefaultMemoryManager(32 * 1024 * 1024,1);
 		this.ioManager = new IOManager();
 	}
 	

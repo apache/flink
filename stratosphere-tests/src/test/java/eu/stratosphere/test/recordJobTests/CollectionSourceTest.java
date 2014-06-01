@@ -36,7 +36,13 @@ import eu.stratosphere.util.Collector;
  */
 public class CollectionSourceTest extends RecordAPITestBase {
 
+	private static final int DOP = 4;
+
 	protected String resultPath;
+
+	public CollectionSourceTest(){
+		setTaskManagerNumSlots(DOP);
+	}
 
 	public static class Join extends JoinFunction {
 
@@ -110,7 +116,7 @@ public class CollectionSourceTest extends RecordAPITestBase {
 
 	@Override
 	protected Plan getTestJob() {
-		return getPlan(4, resultPath);
+		return getPlan(DOP, resultPath);
 	}
 
 	@Override

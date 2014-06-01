@@ -74,6 +74,7 @@ public enum InternalJobStatus {
 	 *        the internal job status to converted.
 	 * @return the corresponding job status or <code>null</code> if no corresponding job status exists
 	 */
+	@SuppressWarnings("incomplete-switch")
 	public static JobStatus toJobStatus(InternalJobStatus status) {
 
 		switch (status) {

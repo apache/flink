@@ -59,6 +59,7 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends RecordAPITestBa
 	
 	public ConnectedComponentsWithDeferredUpdateITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 	
 	@Override
@@ -71,7 +72,7 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends RecordAPITestBa
 	@Override
 	protected Plan getTestJob() {
 		boolean extraMapper = config.getBoolean("ExtraMapper", false);
-		return getPlan(4, verticesPath, edgesPath, resultPath, 100, extraMapper);
+		return getPlan(DOP, verticesPath, edgesPath, resultPath, 100, extraMapper);
 	}
 
 	@Override

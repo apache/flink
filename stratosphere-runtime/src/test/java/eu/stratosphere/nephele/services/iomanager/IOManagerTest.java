@@ -44,7 +44,7 @@ public class IOManagerTest
 	@Before
 	public void beforeTest()
 	{
-		this.memoryManager = new DefaultMemoryManager(32 * 1024 * 1024);
+		this.memoryManager = new DefaultMemoryManager(32 * 1024 * 1024, 1);
 		this.ioManager = new IOManager();
 	}
 

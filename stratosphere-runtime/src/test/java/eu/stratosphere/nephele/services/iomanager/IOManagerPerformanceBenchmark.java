@@ -69,7 +69,7 @@ public class IOManagerPerformanceBenchmark
 	@Before
 	public void startup()
 	{
-		memManager = new DefaultMemoryManager(MEMORY_SIZE);
+		memManager = new DefaultMemoryManager(MEMORY_SIZE,1);
 		ioManager = new IOManager();
 	}
 	

@@ -65,11 +65,6 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	private String instanceName;
 
 	/**
-	 * The type of the instance the vertex represented by this management vertex currently runs on.
-	 */
-	private String instanceType;
-
-	/**
 	 * The index of this vertex in the management group vertex it belongs to.
 	 */
 	private final int indexInGroup;
@@ -88,19 +83,14 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	 *        the ID of the new management vertex
 	 * @param instanceName
 	 *        the name of the instance the vertex represented by this new management vertex currently runs on
-	 * @param instanceType
-	 *        the type of the instance the vertex represented by this new management vertex currently runs on
-	 * @param checkpointState
-	 *        the state of the vertex's checkpoint
 	 * @param indexInGroup
 	 *        the index of this vertex in the management group vertex it belongs to
 	 */
 	public ManagementVertex(final ManagementGroupVertex groupVertex, final ManagementVertexID id,
-			final String instanceName, final String instanceType, final int indexInGroup) {
+			final String instanceName, final int indexInGroup) {
 		this.groupVertex = groupVertex;
 		this.id = id;
 		this.instanceName = instanceName;
-		this.instanceType = instanceType;
 
 		this.indexInGroup = indexInGroup;
 
@@ -129,15 +119,6 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	 */
 	public String getInstanceName() {
 		return this.instanceName;
-	}
-
-	/**
-	 * Returns the type of the instance the vertex represented by this management vertex currently runs on.
-	 * 
-	 * @return the type of the instance the vertex represented by this management vertex currently runs on
-	 */
-	public String getInstanceType() {
-		return this.instanceType;
 	}
 
 	/**
@@ -276,16 +257,6 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 		this.instanceName = instanceName;
 	}
 
-	/**
-	 * Sets the type of instance this vertex currently runs on.
-	 * 
-	 * @param instanceType
-	 *        the type of instance this vertex currently runs on
-	 */
-	public void setInstanceType(final String instanceType) {
-		this.instanceType = instanceType;
-	}
-
 	public void setOptMessage(final String optMessage) {
 		this.optMessage = optMessage;
 	}
@@ -293,7 +264,6 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	public String getOptMessage() {
 		return this.optMessage;
 	}
-
 
 	@Override
 	public void read(final DataInput in) throws IOException {
@@ -314,7 +284,6 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 		}
 
 		this.instanceName = StringRecord.readString(in);
-		this.instanceType = StringRecord.readString(in);
 	}
 
 
@@ -331,7 +300,6 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 		out.writeInt(this.outputGates.size());
 
 		StringRecord.writeString(out, this.instanceName);
-		StringRecord.writeString(out, this.instanceType);
 	}
 	
 	@Override
@@ -351,7 +319,6 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 		json.append("\"vertexname\": \"" + StringUtils.escapeHtml(this.toString()) + "\",");
 		json.append("\"vertexstatus\": \"" + this.getExecutionState() + "\",");
 		json.append("\"vertexinstancename\": \"" + this.getInstanceName() + "\",");
-		json.append("\"vertexinstancetype\": \"" + this.getInstanceType() + "\"");
 		json.append("}");
 		return json.toString();
 	}

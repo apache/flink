@@ -29,7 +29,10 @@ public class TeraSortITCase extends RecordAPITestBase {
 	private static final String INPUT_DATA_FILE = "/testdata/terainput.txt";
 	
 	private String resultPath;
-	
+
+	public TeraSortITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -41,7 +44,7 @@ public class TeraSortITCase extends RecordAPITestBase {
 		String testDataPath = getClass().getResource(INPUT_DATA_FILE).toString();
 		
 		TeraSort ts = new TeraSort();
-		return ts.getPlan("4", testDataPath, resultPath);
+		return ts.getPlan(new Integer(DOP).toString(), testDataPath, resultPath);
 	}
 
 	@Override

@@ -82,8 +82,6 @@ public class InputChannel<T extends IOReadableWritable> extends Channel implemen
 
 	private int lastReceivedEnvelope = -1;
 
-	private ChannelID lastSourceID = null;
-
 	private boolean destroyCalled = false;
 
 	// ----------------------
@@ -157,10 +155,6 @@ public class InputChannel<T extends IOReadableWritable> extends Channel implemen
 		return this.inputGate.getJobID();
 	}
 
-//	public abstract AbstractTaskEvent getCurrentEvent();
-
-	private DeserializationResult lastDeserializationResult;
-
 
 	public InputChannelResult readRecord(T target) throws IOException {
 		if (this.dataBuffer == null) {
@@ -207,7 +201,6 @@ public class InputChannel<T extends IOReadableWritable> extends Channel implemen
 		}
 
 		DeserializationResult deserializationResult = this.deserializer.getNextRecord(target);
-		this.lastDeserializationResult = deserializationResult;
 
 		if (deserializationResult.isBufferConsumed()) {
 			releasedConsumedReadBuffer(this.dataBuffer);
@@ -352,7 +345,6 @@ public class InputChannel<T extends IOReadableWritable> extends Channel implemen
 
 				this.queuedEnvelopes.add(envelope);
 				this.lastReceivedEnvelope = sequenceNumber;
-				this.lastSourceID = envelope.getSource();
 
 				// Notify the channel about the new data. notify as much as there is (buffer plus once per event)
 				if (envelope.getBuffer() != null) {
@@ -464,6 +456,7 @@ public class InputChannel<T extends IOReadableWritable> extends Channel implemen
 		}
 
 		// schedule events as pending, because events come always after the buffer!
+		@SuppressWarnings("unchecked")
 		List<AbstractEvent> events = (List<AbstractEvent>) nextEnvelope.deserializeEvents();
 		Iterator<AbstractEvent> eventsIt = events.iterator();
 		if (eventsIt.hasNext()) {

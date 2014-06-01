@@ -40,8 +40,14 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 	private static final long HASH_MEM = 6*1024*1024;
 	
 	private static final long SORT_MEM = 3*1024*1024;
+
+	private static final int NUM_SORTER = 2;
 	
 	private static final long BNLJN_MEM = 10 * PAGE_SIZE;
+
+	private final double bnljn_frac;
+
+	private final double hash_frac;
 	
 	@SuppressWarnings("unchecked")
 	private final RecordComparator comparator1 = new RecordComparator(
@@ -55,7 +61,9 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 	
 	
 	public MatchTaskTest() {
-		super(HASH_MEM, 2, SORT_MEM);
+		super(HASH_MEM, NUM_SORTER, SORT_MEM);
+		bnljn_frac = (double)BNLJN_MEM/this.getMemoryManager().getMemorySize();
+		hash_frac = (double)HASH_MEM/this.getMemoryManager().getMemorySize();
 	}
 	
 	
@@ -72,7 +80,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
@@ -106,7 +114,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
@@ -142,7 +150,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
@@ -178,7 +186,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
@@ -214,7 +222,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
@@ -250,7 +258,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
@@ -286,7 +294,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
@@ -321,7 +329,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
@@ -357,7 +365,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
@@ -386,7 +394,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
@@ -437,7 +445,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
@@ -488,7 +496,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		addInputComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
-		getTaskConfig().setMemoryDriver(BNLJN_MEM);
+		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
@@ -539,7 +547,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
-		getTaskConfig().setMemoryDriver(HASH_MEM);
+		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
 		MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
@@ -570,7 +578,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
-		getTaskConfig().setMemoryDriver(HASH_MEM);
+		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
 		MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
@@ -601,7 +609,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
-		getTaskConfig().setMemoryDriver(HASH_MEM);
+		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
 		MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
@@ -632,7 +640,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
-		getTaskConfig().setMemoryDriver(HASH_MEM);
+		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
 		MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
@@ -663,7 +671,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
-		getTaskConfig().setMemoryDriver(HASH_MEM);
+		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
 		MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
@@ -694,7 +702,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
-		getTaskConfig().setMemoryDriver(HASH_MEM);
+		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
 		MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
@@ -724,7 +732,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
-		getTaskConfig().setMemoryDriver(HASH_MEM);
+		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
 		MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
@@ -755,7 +763,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		setOutput(new NirvanaOutputList());
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
-		getTaskConfig().setMemoryDriver(HASH_MEM);
+		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
@@ -799,7 +807,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
-		getTaskConfig().setMemoryDriver(HASH_MEM);
+		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
@@ -843,7 +851,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
-		getTaskConfig().setMemoryDriver(HASH_MEM);
+		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		
@@ -887,7 +895,7 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
-		getTaskConfig().setMemoryDriver(HASH_MEM);
+		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
 		final MatchDriver<Record, Record, Record> testTask = new MatchDriver<Record, Record, Record>();
 		

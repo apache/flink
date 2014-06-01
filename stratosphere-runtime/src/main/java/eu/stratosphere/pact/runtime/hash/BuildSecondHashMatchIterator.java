@@ -60,7 +60,7 @@ public final class BuildSecondHashMatchIterator<V1, V2, O> implements JoinTaskIt
 			TypeSerializer<V1> serializer1, TypeComparator<V1> comparator1,
 			TypeSerializer<V2> serializer2, TypeComparator<V2> comparator2,
 			TypePairComparator<V1, V2> pairComparator,
-			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, long totalMemory)
+			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, double memoryFraction)
 	throws MemoryAllocationException
 	{		
 		this.memManager = memManager;
@@ -73,7 +73,7 @@ public final class BuildSecondHashMatchIterator<V1, V2, O> implements JoinTaskIt
 		this.probeCopy = serializer1.createInstance();
 		
 		this.hashJoin = getHashJoin(serializer2, comparator2, serializer1, comparator1, pairComparator,
-			memManager, ioManager, ownerTask, totalMemory);
+			memManager, ioManager, ownerTask, memoryFraction);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -149,10 +149,10 @@ public final class BuildSecondHashMatchIterator<V1, V2, O> implements JoinTaskIt
 	public <BT, PT> MutableHashTable<BT, PT> getHashJoin(TypeSerializer<BT> buildSideSerializer, TypeComparator<BT> buildSideComparator,
 			TypeSerializer<PT> probeSideSerializer, TypeComparator<PT> probeSideComparator,
 			TypePairComparator<PT, BT> pairComparator,
-			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, long totalMemory)
+			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, double memoryFraction)
 	throws MemoryAllocationException
 	{
-		final int numPages = memManager.computeNumberOfPages(totalMemory);
+		final int numPages = memManager.computeNumberOfPages(memoryFraction);
 		final List<MemorySegment> memorySegments = memManager.allocatePages(ownerTask, numPages);
 		return new MutableHashTable<BT, PT>(buildSideSerializer, probeSideSerializer, buildSideComparator, probeSideComparator, pairComparator, memorySegments, ioManager);
 	}

@@ -95,14 +95,20 @@ public class DefaultCostEstimator extends CostEstimator {
 
 	@Override
 	public void addBroadcastCost(EstimateProvider estimates, int replicationFactor, Costs costs) {
-		// assumption: we need ship the whole data over the network to each node.
-		final long estOutShipSize = estimates.getEstimatedOutputSize();
-		if (estOutShipSize <= 0) {
-			costs.setNetworkCost(Costs.UNKNOWN);
+		// if our replication factor is negative, we cannot calculate broadcast costs
+
+		if (replicationFactor > 0) {
+			// assumption: we need ship the whole data over the network to each node.
+			final long estOutShipSize = estimates.getEstimatedOutputSize();
+			if (estOutShipSize <= 0) {
+				costs.setNetworkCost(Costs.UNKNOWN);
+			} else {
+				costs.addNetworkCost(replicationFactor * estOutShipSize);
+			}
+			costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE * replicationFactor);
 		} else {
-			costs.addNetworkCost(replicationFactor * estOutShipSize);
+			costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE * 200);
 		}
-		costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE * replicationFactor * 100);
 	}
 	
 	// --------------------------------------------------------------------------------------------

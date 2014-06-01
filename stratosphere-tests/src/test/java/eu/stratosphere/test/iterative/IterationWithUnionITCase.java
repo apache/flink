@@ -46,6 +46,7 @@ public class IterationWithUnionITCase extends RecordAPITestBase {
 	
 	public IterationWithUnionITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 
 	@Override
@@ -67,7 +68,7 @@ public class IterationWithUnionITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config1 = new Configuration();
-		config1.setInteger("IterationWithUnionITCase#NumSubtasks", 4);
+		config1.setInteger("IterationWithUnionITCase#NumSubtasks", DOP);
 
 		return toParameterList(config1);
 	}

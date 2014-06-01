@@ -62,6 +62,10 @@ public class TPCHQueryAsterixITCase extends RecordAPITestBase {
 		"2|MACHINERY\n" +
 		"2|FURNITURE\n";
 
+	public TPCHQueryAsterixITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
+
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -73,7 +77,7 @@ public class TPCHQueryAsterixITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		TPCHQueryAsterix tpchBench = new TPCHQueryAsterix();
-		return tpchBench.getPlan("4", ordersPath, custPath, resultPath);
+		return tpchBench.getPlan(new Integer(DOP).toString(), ordersPath, custPath, resultPath);
 	}
 
 	@Override

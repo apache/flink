@@ -13,34 +13,53 @@
 
 package eu.stratosphere.nephele.instance;
 
+import eu.stratosphere.nephele.jobgraph.JobID;
+
 /**
- * This factory produces {@link InstanceTypeDescription} objects.
+ * An allocated slot is a part of an instance which is assigned to a job.
  * <p>
  * This class is thread-safe.
  * 
  */
-public class InstanceTypeDescriptionFactory {
+public class AllocatedSlot {
 
 	/**
-	 * Private constructor, so class cannot be instantiated.
+	 * The allocation ID which identifies the resources occupied by this slot.
 	 */
-	private InstanceTypeDescriptionFactory() {
+	private final AllocationID allocationID;
+
+	/**
+	 * The ID of the job this slice belongs to.
+	 */
+	private final JobID jobID;
+
+	/**
+	 * Creates a new allocated slice on the given hosting instance.
+	 * 
+	 * @param jobID
+	 *        the ID of the job this slice belongs to
+	 */
+	public AllocatedSlot(final JobID jobID) {
+
+		this.allocationID = new AllocationID();
+		this.jobID = jobID;
 	}
 
 	/**
-	 * Constructs a new {@link InstaceTypeDescription} object.
+	 * Returns the allocation ID of this slice.
 	 * 
-	 * @param instanceType
-	 *        the instance type
-	 * @param hardwareDescription
-	 *        the hardware description as created by the {@link InstanceManager}
-	 * @param numberOfAvailableInstances
-	 *        the number of available instances of this type
-	 * @return the instance type description
+	 * @return the allocation ID of this slice
 	 */
-	public static InstanceTypeDescription construct(InstanceType instanceType, HardwareDescription hardwareDescription,
-			int numberOfAvailableInstances) {
+	public AllocationID getAllocationID() {
+		return this.allocationID;
+	}
 
-		return new InstanceTypeDescription(instanceType, hardwareDescription, numberOfAvailableInstances);
+	/**
+	 * Returns the ID of the job this allocated slice belongs to.
+	 * 
+	 * @return the ID of the job this allocated slice belongs to
+	 */
+	public JobID getJobID() {
+		return this.jobID;
 	}
 }

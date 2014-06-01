@@ -60,6 +60,7 @@ public class GroupOrderReduceITCase extends RecordAPITestBase {
 	
 	public GroupOrderReduceITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 
 	
@@ -104,7 +105,7 @@ public class GroupOrderReduceITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("GroupOrderTest#NumSubtasks", 4);
+		config.setInteger("GroupOrderTest#NumSubtasks", DOP);
 		return toParameterList(config);
 	}
 	

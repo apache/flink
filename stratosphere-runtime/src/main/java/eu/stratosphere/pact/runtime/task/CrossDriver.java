@@ -116,8 +116,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		}
 		
 		this.memManager = this.taskContext.getMemoryManager();
-		final long totalAvailableMemory = config.getMemoryDriver();
-		final int numPages = this.memManager.computeNumberOfPages(totalAvailableMemory);
+		final int numPages = this.memManager.computeNumberOfPages(config.getRelativeMemoryDriver());
 		
 		if (numPages < 2) {
 			throw new RuntimeException(	"The Cross task was initialized with too little memory. " +

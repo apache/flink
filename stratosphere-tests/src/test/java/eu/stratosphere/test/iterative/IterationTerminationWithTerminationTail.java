@@ -40,6 +40,10 @@ public class IterationTerminationWithTerminationTail extends RecordAPITestBase {
 
 	protected String dataPath;
 	protected String resultPath;
+
+	public IterationTerminationWithTerminationTail(){
+		setTaskManagerNumSlots(DOP);
+	}
 	
 	@Override
 	protected void preSubmit() throws Exception {
@@ -54,7 +58,7 @@ public class IterationTerminationWithTerminationTail extends RecordAPITestBase {
 
 	@Override
 	protected Plan getTestJob() {
-		return getTestPlanPlan(4, dataPath, resultPath);
+		return getTestPlanPlan(DOP, dataPath, resultPath);
 	}
 	
 	private static Plan getTestPlanPlan(int numSubTasks, String input, String output) {

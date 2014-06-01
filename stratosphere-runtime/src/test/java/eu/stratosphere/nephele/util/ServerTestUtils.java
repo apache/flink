@@ -24,14 +24,11 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobmanager.JobManagerITCase;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 
@@ -54,6 +51,8 @@ public final class ServerTestUtils {
 	 * The directory the configuration directory is expected in when test are executed using Eclipse.
 	 */
 	private static final String ECLIPSE_PATH_EXTENSION = "/src/test/resources";
+
+	private static final String INTELLIJ_PATH_EXTENSION = "/stratosphere-runtime/src/test/resources";
 
 	/**
 	 * Private constructor.
@@ -201,6 +200,12 @@ public final class ServerTestUtils {
 			return configDir;
 		}
 
+		configDir = System.getProperty(USER_DIR_KEY) + INTELLIJ_PATH_EXTENSION + CORRECT_CONF_DIR;
+
+		if(new File(configDir).exists()){
+			return configDir;
+		}
+
 		return null;
 	}
 
@@ -217,12 +222,8 @@ public final class ServerTestUtils {
 	public static void waitForJobManagerToBecomeReady(final ExtendedManagementProtocol jobManager) throws IOException,
 			InterruptedException {
 
-		Map<InstanceType, InstanceTypeDescription> instanceMap = jobManager.getMapOfAvailableInstanceTypes();
-
-		while (instanceMap.isEmpty()) {
-
+		while (jobManager.getAvailableSlots() == 0) {
 			Thread.sleep(100);
-			instanceMap = jobManager.getMapOfAvailableInstanceTypes();
 		}
 	}
 

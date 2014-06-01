@@ -20,7 +20,8 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.util.List;
 
-import eu.stratosphere.runtime.io.api.RecordWriter;
+import eu.stratosphere.nephele.jobmanager.scheduler.DefaultScheduler;
+
 import org.junit.Test;
 
 import eu.stratosphere.core.io.StringRecord;
@@ -29,9 +30,6 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.executiongraph.GraphConversionException;
-import eu.stratosphere.nephele.instance.InstanceManager;
-import eu.stratosphere.runtime.io.api.RecordReader;
-import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
@@ -39,12 +37,15 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
 import eu.stratosphere.nephele.template.AbstractGenericInputTask;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.runtime.io.api.RecordReader;
+import eu.stratosphere.runtime.io.api.RecordWriter;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.util.StringUtils;
 
 /**
- *         This class checks the functionality of the {@link QueueScheduler} class
+ *         This class checks the functionality of the {@link eu.stratosphere.nephele.jobmanager.scheduler.DefaultScheduler} class
  */
-public class QueueSchedulerTest {
+public class DefaultSchedulerTest {
 
 	/**
 	 * Test input task.
@@ -99,11 +100,9 @@ public class QueueSchedulerTest {
 	 * 
 	 * @param channelType
 	 *        the channel type to connect the vertices with
-	 * @param instanceManager
-	 *        the instance manager that shall be used during the creation of the execution graph
 	 * @return a sample execution graph
 	 */
-	private ExecutionGraph createExecutionGraph(final ChannelType channelType, final InstanceManager instanceManager) {
+	private ExecutionGraph createExecutionGraph(ChannelType channelType) {
 
 		final JobGraph jobGraph = new JobGraph("Job Graph");
 
@@ -123,7 +122,7 @@ public class QueueSchedulerTest {
 
 		try {
 			LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
-			return new ExecutionGraph(jobGraph, instanceManager);
+			return new ExecutionGraph(jobGraph, 1);
 
 		} catch (GraphConversionException e) {
 			fail(StringUtils.stringifyException(e));
@@ -139,17 +138,17 @@ public class QueueSchedulerTest {
 	 * channel.
 	 */
 	@Test
-	public void testSchedulJobWithInMemoryChannel() {
+	public void testScheduleJobWithInMemoryChannel() {
 
 		final TestInstanceManager tim = new TestInstanceManager();
 		final TestDeploymentManager tdm = new TestDeploymentManager();
-		final QueueScheduler scheduler = new QueueScheduler(tdm, tim);
+		final DefaultScheduler scheduler = new DefaultScheduler(tdm, tim);
 
-		final ExecutionGraph executionGraph = createExecutionGraph(ChannelType.IN_MEMORY, tim);
+		final ExecutionGraph executionGraph = createExecutionGraph(ChannelType.IN_MEMORY);
 
 		try {
 			try {
-				scheduler.schedulJob(executionGraph);
+				scheduler.scheduleJob(executionGraph);
 			} catch (SchedulingException e) {
 				fail(StringUtils.stringifyException(e));
 			}

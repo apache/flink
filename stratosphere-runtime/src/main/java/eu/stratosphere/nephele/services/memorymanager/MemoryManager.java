@@ -69,16 +69,29 @@ public interface MemoryManager {
 	 * @return The size of the pages handled by the memory manager.
 	 */
 	int getPageSize();
+
+	/**
+	 * Returns the total size of memory.
+	 * @return
+	 */
+	long getMemorySize();
 	
 	/**
 	 * Computes to how many pages the given number of bytes corresponds. If the given number of bytes is not an
 	 * exact multiple of a page size, the result is rounded down, such that a portion of the memory (smaller
 	 * than the page size) is not included.
 	 * 
-	 * @param numBytes The number of bytes to convert to a page count.
+	 * @param fraction the fraction of the total memory per slot
 	 * @return The number of pages to which 
 	 */
-	int computeNumberOfPages(long numBytes);
+	int computeNumberOfPages(double fraction);
+
+	/**
+	 * Computes the memory size of the fraction per slot.
+	 * @param fraction
+	 * @return
+	 */
+	long computeMemorySize(double fraction);
 	
 	/**
 	 * Rounds the given value down to a multiple of the memory manager's page size.

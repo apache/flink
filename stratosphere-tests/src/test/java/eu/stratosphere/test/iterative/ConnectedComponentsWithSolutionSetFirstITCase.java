@@ -51,6 +51,10 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends RecordAPITest
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
+
+	public ConnectedComponentsWithSolutionSetFirstITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
 	
 	
 	@Override
@@ -62,7 +66,8 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends RecordAPITest
 	
 	@Override
 	protected Plan getTestJob() {
-		return getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(4, verticesPath, edgesPath, resultPath, 100);
+		return getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(DOP, verticesPath, edgesPath,
+				resultPath, 100);
 	}
 
 	@Override

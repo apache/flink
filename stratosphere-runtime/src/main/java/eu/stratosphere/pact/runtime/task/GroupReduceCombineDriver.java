@@ -79,8 +79,6 @@ public class GroupReduceCombineDriver<T> implements PactDriver<GenericCombine<T>
 		final TaskConfig config = this.taskContext.getTaskConfig();
 		final DriverStrategy ls = config.getDriverStrategy();
 
-		final long availableMemory = config.getMemoryDriver();
-
 		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
 
 		final MutableObjectIterator<T> in = this.taskContext.getInput(0);
@@ -90,7 +88,7 @@ public class GroupReduceCombineDriver<T> implements PactDriver<GenericCombine<T>
 		switch (ls) {
 		case SORTED_GROUP_COMBINE:
 			this.input = new AsynchronousPartialSorter<T>(memoryManager, in, this.taskContext.getOwningNepheleTask(),
-						this.serializerFactory, this.comparator.duplicate(), availableMemory);
+						this.serializerFactory, this.comparator.duplicate(), config.getRelativeMemoryDriver());
 			break;
 		// obtain and return a grouped iterator from the combining sort-merger
 		default:

@@ -13,8 +13,6 @@
 
 package eu.stratosphere.compiler;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -90,11 +88,6 @@ import eu.stratosphere.compiler.postpass.OptimizerPostPass;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.instance.InstanceTypeDescription;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.net.NetUtils;
-import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.util.InstantiationUtil;
@@ -340,24 +333,10 @@ public class PactCompiler {
 	private final CostEstimator costEstimator;
 
 	/**
-	 * The connection used to connect to the job-manager.
-	 */
-	private final InetSocketAddress jobManagerAddress;
-
-	/**
-	 * The maximum number of machines (instances) to use, per the configuration.
-	 */
-	private int maxMachines;
-
-	/**
 	 * The default degree of parallelism for jobs compiled by this compiler.
 	 */
 	private int defaultDegreeOfParallelism;
 
-	/**
-	 * The maximum number of subtasks that should share an instance.
-	 */
-	private int maxIntraNodeParallelism;
 
 	// ------------------------------------------------------------------------
 	// Constructor & Setup
@@ -420,106 +399,29 @@ public class PactCompiler {
 	 *        The <tt>CostEstimator</tt> to use to cost the individual operations.
 	 */
 	public PactCompiler(DataStatistics stats, CostEstimator estimator) {
-		this(stats, estimator, null);
-	}
-
-	/**
-	 * Creates a new compiler instance that uses the statistics object to determine properties about the input.
-	 * Given those statistics, the compiler can make better choices for the execution strategies.
-	 * as if no filesystem was given. It uses the given cost estimator to compute the costs of the individual
-	 * operations.
-	 * <p>
-	 * The given socket-address is used to connect to the job manager to obtain system characteristics, like available
-	 * memory. If that parameter is null, then the address is obtained from the global configuration.
-	 * 
-	 * @param stats
-	 *        The statistics to be used to determine the input properties.
-	 * @param estimator
-	 *        The <tt>CostEstimator</tt> to use to cost the individual operations.
-	 * @param jobManagerConnection
-	 *        The address of the job manager that is queried for system characteristics.
-	 */
-	public PactCompiler(DataStatistics stats, CostEstimator estimator, InetSocketAddress jobManagerConnection) {
 		this.statistics = stats;
 		this.costEstimator = estimator;
 
 		Configuration config = GlobalConfiguration.getConfiguration();
 
-		// determine the maximum number of instances to use
-		this.maxMachines = -1;
-
 		// determine the default parallelization degree
 		this.defaultDegreeOfParallelism = config.getInteger(ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
 			ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE);
-
-		// determine the default intra-node parallelism
-		int maxInNodePar = config.getInteger(ConfigConstants.PARALLELIZATION_MAX_INTRA_NODE_DEGREE_KEY,
-			ConfigConstants.DEFAULT_MAX_INTRA_NODE_PARALLELIZATION_DEGREE);
-		if (maxInNodePar == 0 || maxInNodePar < -1) {
-			LOG.error("Invalid maximum degree of intra-node parallelism: " + maxInNodePar +
-				". Ignoring parameter.");
-			maxInNodePar = ConfigConstants.DEFAULT_MAX_INTRA_NODE_PARALLELIZATION_DEGREE;
-		}
-		this.maxIntraNodeParallelism = maxInNodePar;
-
-		// assign the connection to the job-manager
-		if (jobManagerConnection != null) {
-			this.jobManagerAddress = jobManagerConnection;
-		} else {
-			final String address = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-			if (address == null) {
-				throw new CompilerException(
-					"Cannot find address to job manager's RPC service in the global configuration.");
-			}
-
-			final int port = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-				ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-			if (port < 0) {
-				throw new CompilerException(
-					"Cannot find port to job manager's RPC service in the global configuration.");
-			}
-
-			this.jobManagerAddress = new InetSocketAddress(address, port);
-		}
 	}
 	
 	// ------------------------------------------------------------------------
 	//                             Getters / Setters
 	// ------------------------------------------------------------------------
 	
-	public int getMaxMachines() {
-		return maxMachines;
-	}
-	
-	public void setMaxMachines(int maxMachines) {
-		if (maxMachines == -1 || maxMachines > 0) {
-			this.maxMachines = maxMachines;
-		} else {
-			throw new IllegalArgumentException();
-		}
-	}
-	
 	public int getDefaultDegreeOfParallelism() {
 		return defaultDegreeOfParallelism;
 	}
 	
 	public void setDefaultDegreeOfParallelism(int defaultDegreeOfParallelism) {
-		if (defaultDegreeOfParallelism == -1 || defaultDegreeOfParallelism > 0) {
+		if (defaultDegreeOfParallelism > 0) {
 			this.defaultDegreeOfParallelism = defaultDegreeOfParallelism;
 		} else {
-			throw new IllegalArgumentException();
-		}
-	}
-	
-	public int getMaxIntraNodeParallelism() {
-		return maxIntraNodeParallelism;
-	}
-	
-	public void setMaxIntraNodeParallelism(int maxIntraNodeParallelism) {
-		if (maxIntraNodeParallelism == -1 || maxIntraNodeParallelism > 0) {
-			this.maxIntraNodeParallelism = maxIntraNodeParallelism;
-		} else {
-			throw new IllegalArgumentException();
+			throw new IllegalArgumentException("Default parallelism cannot be zero or negative.");
 		}
 	}
 	
@@ -550,14 +452,9 @@ public class PactCompiler {
 		// -------------------- try to get the connection to the job manager ----------------------
 		// --------------------------to obtain instance information --------------------------------
 		final OptimizerPostPass postPasser = getPostPassFromPlan(program);
-		return compile(program, getInstanceTypeInfo(), postPasser);
+		return compile(program, postPasser);
 	}
-	
-	public OptimizedPlan compile(Plan program, InstanceTypeDescription type) throws CompilerException {
-		final OptimizerPostPass postPasser = getPostPassFromPlan(program);
-		return compile(program, type, postPasser);
-	}
-	
+
 	/**
 	 * Translates the given pact plan in to an OptimizedPlan, where all nodes have their local strategy assigned
 	 * and all channels have a shipping strategy assigned. The process goes through several phases:
@@ -569,8 +466,6 @@ public class PactCompiler {
 	 * </ol>
 	 * 
 	 * @param program The program to be translated.
-	 * @param type The instance type to schedule the execution on. Used also to determine the amount of memory
-	 *             available to the tasks.
 	 * @param postPasser The function to be used for post passing the optimizer's plan and setting the
 	 *                   data type specific serialization routines.
 	 * @return The optimized plan.
@@ -579,8 +474,8 @@ public class PactCompiler {
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
-	private OptimizedPlan compile(Plan program, InstanceTypeDescription type, OptimizerPostPass postPasser) throws CompilerException {
-		if (program == null || type == null || postPasser == null) {
+	private OptimizedPlan compile(Plan program, OptimizerPostPass postPasser) throws CompilerException {
+		if (program == null || postPasser == null) {
 			throw new NullPointerException();
 		}
 		
@@ -588,73 +483,14 @@ public class PactCompiler {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Beginning compilation of program '" + program.getJobName() + '\'');
 		}
-		
-		final String instanceName = type.getInstanceType().getIdentifier();
-		
-		// we subtract some percentage of the memory to accommodate for rounding errors
-		final long memoryPerInstance = (long) (type.getHardwareDescription().getSizeOfFreeMemory() * 0.96f);
-		final int numInstances = type.getMaximumNumberOfAvailableInstances();
-		
-		// determine the maximum number of machines to use
-		int maxMachinesJob = program.getMaxNumberMachines();
-
-		if (maxMachinesJob < 1) {
-			maxMachinesJob = this.maxMachines;
-		} else if (this.maxMachines >= 1) {
-			// check if the program requested more than the global config allowed
-			if (maxMachinesJob > this.maxMachines && LOG.isWarnEnabled()) {
-				LOG.warn("Maximal number of machines specified in program (" + maxMachinesJob
-					+ ") exceeds the maximum number in the global configuration (" + this.maxMachines
-					+ "). Using the global configuration value.");
-			}
-
-			maxMachinesJob = Math.min(maxMachinesJob, this.maxMachines);
-		}
-
-		// adjust the maximum number of machines the the number of available instances
-		if (maxMachinesJob < 1) {
-			maxMachinesJob = numInstances;
-		} else if (maxMachinesJob > numInstances) {
-			maxMachinesJob = numInstances;
-			if (LOG.isInfoEnabled()) {
-				LOG.info("Maximal number of machines decreased to " + maxMachinesJob +
-					" because no more instances are available.");
-			}
-		}
 
 		// set the default degree of parallelism
 		int defaultParallelism = program.getDefaultParallelism() > 0 ?
 			program.getDefaultParallelism() : this.defaultDegreeOfParallelism;
-		
-		if (this.maxIntraNodeParallelism > 0) {
-			if (defaultParallelism < 1) {
-				defaultParallelism = maxMachinesJob * this.maxIntraNodeParallelism;
-			}
-			else if (defaultParallelism > maxMachinesJob * this.maxIntraNodeParallelism) {
-				int oldParallelism = defaultParallelism;
-				defaultParallelism = maxMachinesJob * this.maxIntraNodeParallelism;
-
-				if (LOG.isInfoEnabled()) {
-					LOG.info("Decreasing default degree of parallelism from " + oldParallelism +
-						" to " + defaultParallelism + " to fit a maximum number of " + maxMachinesJob +
-						" instances with a intra-parallelism of " + this.maxIntraNodeParallelism);
-				}
-			}
-		} else if (defaultParallelism < 1) {
-			defaultParallelism = maxMachinesJob;
-			if (LOG.isInfoEnabled()) {
-				LOG.info("No default parallelism specified. Using default parallelism of " + defaultParallelism + " (One task per instance)");
-			}
-		}
 
 		// log the output
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Using a default degree of parallelism of " + defaultParallelism +
-				", a maximum intra-node parallelism of " + this.maxIntraNodeParallelism + '.');
-			if (this.maxMachines > 0) {
-				LOG.debug("The execution is limited to a maximum number of " + maxMachinesJob + " machines.");
-			}
-
+			LOG.debug("Using a default degree of parallelism of " + defaultParallelism + '.');
 		}
 
 		// the first step in the compilation is to create the optimizer plan representation
@@ -666,7 +502,7 @@ public class PactCompiler {
 		// 4) It makes estimates about the data volume of the data sources and
 		// propagates those estimates through the plan
 
-		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(maxMachinesJob, defaultParallelism);
+		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(defaultParallelism);
 		program.accept(graphCreator);
 
 		// if we have a plan with multiple data sinks, add logical optimizer nodes that have two data-sinks as children
@@ -689,8 +525,7 @@ public class PactCompiler {
 		// now that we have all nodes created and recorded which ones consume memory, tell the nodes their minimal
 		// guaranteed memory, for further cost estimations. we assume an equal distribution of memory among consumer tasks
 		
-		rootNode.accept(new IdAndMemoryAndEstimatesVisitor(this.statistics,
-			graphCreator.getMemoryConsumerCount() == 0 ? 0 : memoryPerInstance / graphCreator.getMemoryConsumerCount()));
+		rootNode.accept(new IdAndEstimatesVisitor(this.statistics));
 		
 		// Now that the previous step is done, the next step is to traverse the graph again for the two
 		// steps that cannot directly be performed during the plan enumeration, because we are dealing with DAGs
@@ -733,9 +568,8 @@ public class PactCompiler {
 		dp.resolveDeadlocks(bestPlanSinks);
 
 		// finalize the plan
-		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, program.getJobName(), program, memoryPerInstance);
-		plan.setInstanceTypeName(instanceName);
-		
+		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, program.getJobName(), program);
+
 		// swap the binary unions for n-ary unions. this changes no strategies or memory consumers whatsoever, so
 		// we can do this after the plan finalization
 		plan.accept(new BinaryUnionReplacer());
@@ -755,7 +589,7 @@ public class PactCompiler {
 	 *         from the plan can be traversed.
 	 */
 	public static List<DataSinkNode> createPreOptimizedPlan(Plan program) {
-		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(-1, 1);
+		GraphCreatingVisitor graphCreator = new GraphCreatingVisitor(1);
 		program.accept(graphCreator);
 		return graphCreator.sinks;
 	}
@@ -783,22 +617,18 @@ public class PactCompiler {
 
 		private final List<DataSinkNode> sinks; // all data sink nodes in the optimizer plan
 
-		private final int maxMachines; // the maximum number of machines to use
-
 		private final int defaultParallelism; // the default degree of parallelism
-		
-		private int numMemoryConsumers;
 		
 		private final GraphCreatingVisitor parent;	// reference to enclosing creator, in case of a recursive translation
 		
 		private final boolean forceDOP;
 
 		
-		private GraphCreatingVisitor(int maxMachines, int defaultParallelism) {
-			this(null, false, maxMachines, defaultParallelism, null);
+		private GraphCreatingVisitor(int defaultParallelism) {
+			this(null, false, defaultParallelism, null);
 		}
 
-		private GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceDOP, int maxMachines,
+		private GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceDOP,
 									int defaultParallelism, HashMap<Operator<?>, OptimizerNode> closure) {
 			if (closure == null){
 				con2node = new HashMap<Operator<?>, OptimizerNode>();
@@ -807,7 +637,6 @@ public class PactCompiler {
 			}
 			this.sources = new ArrayList<DataSourceNode>(4);
 			this.sinks = new ArrayList<DataSinkNode>(2);
-			this.maxMachines = maxMachines;
 			this.defaultParallelism = defaultParallelism;
 			this.parent = parent;
 			this.forceDOP = forceDOP;
@@ -878,7 +707,6 @@ public class PactCompiler {
 				// catch this for the recursive translation of step functions
 				BulkPartialSolutionNode p = new BulkPartialSolutionNode(holder, containingIterationNode);
 				p.setDegreeOfParallelism(containingIterationNode.getDegreeOfParallelism());
-				p.setSubtasksPerInstance(containingIterationNode.getSubtasksPerInstance());
 				n = p;
 			}
 			else if (c instanceof WorksetPlaceHolder) {
@@ -890,7 +718,6 @@ public class PactCompiler {
 				// catch this for the recursive translation of step functions
 				WorksetNode p = new WorksetNode(holder, containingIterationNode);
 				p.setDegreeOfParallelism(containingIterationNode.getDegreeOfParallelism());
-				p.setSubtasksPerInstance(containingIterationNode.getSubtasksPerInstance());
 				n = p;
 			}
 			else if (c instanceof SolutionSetPlaceHolder) {
@@ -902,18 +729,14 @@ public class PactCompiler {
 				// catch this for the recursive translation of step functions
 				SolutionSetNode p = new SolutionSetNode(holder, containingIterationNode);
 				p.setDegreeOfParallelism(containingIterationNode.getDegreeOfParallelism());
-				p.setSubtasksPerInstance(containingIterationNode.getSubtasksPerInstance());
 				n = p;
 			}
 			else {
-				throw new IllegalArgumentException("Unknown operator type: " + c.getClass() + " " + c);
+				throw new IllegalArgumentException("Unknown operator type: " + c);
 			}
 
 			this.con2node.put(c, n);
 			
-			// record the potential memory consumption
-			this.numMemoryConsumers += n.isMemoryConsumer() ? 1 : 0;
-
 			// set the parallelism only if it has not been set before. some nodes have a fixed DOP, such as the
 			// key-less reducer (all-reduce)
 			if (n.getDegreeOfParallelism() < 1) {
@@ -931,19 +754,6 @@ public class PactCompiler {
 				n.setDegreeOfParallelism(par);
 			}
 
-			// check if we need to set the instance sharing accordingly such that
-			// the maximum number of machines is not exceeded
-			if (n.getSubtasksPerInstance() < 1) {
-				int tasksPerInstance = 1;
-				if (this.maxMachines > 0) {
-					int p = n.getDegreeOfParallelism();
-					tasksPerInstance = (p / this.maxMachines) + (p % this.maxMachines == 0 ? 0 : 1);
-				}
-	
-				// we group together n tasks per machine, depending on config and the above computed
-				// value required to obey the maximum number of machines
-				n.setSubtasksPerInstance(tasksPerInstance);
-			}
 			return true;
 		}
 
@@ -966,7 +776,7 @@ public class PactCompiler {
 
 				// first, recursively build the data flow for the step function
 				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,
-					this.maxMachines, iterNode.getDegreeOfParallelism(), closure);
+					iterNode.getDegreeOfParallelism(), closure);
 				
 				BulkPartialSolutionNode partialSolution = null;
 				
@@ -994,9 +804,6 @@ public class PactCompiler {
 				iterNode.setNextPartialSolution(rootOfStepFunction, terminationCriterion);
 				iterNode.setPartialSolution(partialSolution);
 				
-				// account for the nested memory consumers
-				this.numMemoryConsumers += recursiveCreator.numMemoryConsumers;
-				
 				// go over the contained data flow and mark the dynamic path nodes
 				StaticDynamicPathIdentifier identifier = new StaticDynamicPathIdentifier(iterNode.getCostWeight());
 				rootOfStepFunction.accept(identifier);
@@ -1013,7 +820,7 @@ public class PactCompiler {
 
 				// first, recursively build the data flow for the step function
 				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,
-					this.maxMachines, iterNode.getDegreeOfParallelism(), closure);
+					iterNode.getDegreeOfParallelism(), closure);
 				// descend from the solution set delta. check that it depends on both the workset
 				// and the solution set. If it does depend on both, this descend should create both nodes
 				iter.getSolutionSetDelta().accept(recursiveCreator);
@@ -1067,18 +874,11 @@ public class PactCompiler {
 				iterNode.setPartialSolution(solutionSetNode, worksetNode);
 				iterNode.setNextPartialSolution(solutionSetDeltaNode, nextWorksetNode);
 				
-				// account for the nested memory consumers
-				this.numMemoryConsumers += recursiveCreator.numMemoryConsumers;
-				
 				// go over the contained data flow and mark the dynamic path nodes
 				StaticDynamicPathIdentifier pathIdentifier = new StaticDynamicPathIdentifier(iterNode.getCostWeight());
 				nextWorksetNode.accept(pathIdentifier);
 				iterNode.getSolutionSetDelta().accept(pathIdentifier);
 			}
-		}
-		
-		int getMemoryConsumerCount() {
-			return this.numMemoryConsumers;
 		}
 	};
 	
@@ -1107,17 +907,14 @@ public class PactCompiler {
 	 * Simple visitor that sets the minimal guaranteed memory per task based on the amount of available memory,
 	 * the number of memory consumers, and on the task's degree of parallelism.
 	 */
-	private static final class IdAndMemoryAndEstimatesVisitor implements Visitor<OptimizerNode> {
+	private static final class IdAndEstimatesVisitor implements Visitor<OptimizerNode> {
 		
 		private final DataStatistics statistics;
-		
-		private final long memoryPerTaskPerInstance;
-		
+
 		private int id = 1;
 		
-		private IdAndMemoryAndEstimatesVisitor(DataStatistics statistics, long memoryPerTaskPerInstance) {
+		private IdAndEstimatesVisitor(DataStatistics statistics) {
 			this.statistics = statistics;
-			this.memoryPerTaskPerInstance = memoryPerTaskPerInstance;
 		}
 
 
@@ -1127,11 +924,6 @@ public class PactCompiler {
 				// been here before
 				return false;
 			}
-			
-			// assign minimum memory share, for lower bound estimates
-			final long mem = visitable.isMemoryConsumer() ? 
-					this.memoryPerTaskPerInstance / visitable.getSubtasksPerInstance() : 0;
-			visitable.setMinimalMemoryPerSubTask(mem);
 			
 			return true;
 		}
@@ -1234,8 +1026,6 @@ public class PactCompiler {
 		
 		private final Deque<IterationPlanNode> stackOfIterationNodes;
 
-		private long memoryPerInstance; // the amount of memory per instance
-		
 		private int memoryConsumerWeights; // a counter of all memory consumers
 
 		/**
@@ -1248,12 +1038,7 @@ public class PactCompiler {
 			this.stackOfIterationNodes = new ArrayDeque<IterationPlanNode>();
 		}
 
-		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, Plan originalPlan, long memPerInstance) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Available memory per instance: " + memPerInstance);
-			}
-			
-			this.memoryPerInstance = memPerInstance;
+		private OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, Plan originalPlan) {
 			this.memoryConsumerWeights = 0;
 			
 			// traverse the graph
@@ -1263,44 +1048,36 @@ public class PactCompiler {
 
 			// assign the memory to each node
 			if (this.memoryConsumerWeights > 0) {
-				final long memoryPerInstanceAndWeight = this.memoryPerInstance / this.memoryConsumerWeights;
-				
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Memory per consumer weight: " + memoryPerInstanceAndWeight);
-				}
-				
 				for (PlanNode node : this.allNodes) {
 					// assign memory to the driver strategy of the node
 					final int consumerWeight = node.getMemoryConsumerWeight();
 					if (consumerWeight > 0) {
-						final long mem = memoryPerInstanceAndWeight * consumerWeight / node.getSubtasksPerInstance();
-						node.setMemoryPerSubTask(mem);
+						final double relativeMem = (double)consumerWeight / this.memoryConsumerWeights;
+						node.setRelativeMemoryPerSubtask(relativeMem);
 						if (LOG.isDebugEnabled()) {
-							final long mib = mem >> 20;
-							LOG.debug("Assigned " + mib + " MiBytes memory to each subtask of " + 
-								node.getPactContract().getName() + " (" + mib * node.getDegreeOfParallelism() +
-								" MiBytes total.)"); 
+							LOG.debug("Assigned " + relativeMem + " of total memory to each subtask of " +
+								node.getPactContract().getName() + ".");
 						}
 					}
 					
 					// assign memory to the local and global strategies of the channels
 					for (Channel c : node.getInputs()) {
 						if (c.getLocalStrategy().dams()) {
-							final long mem = memoryPerInstanceAndWeight / node.getSubtasksPerInstance();
-							c.setMemoryLocalStrategy(mem);
+							final double relativeMem = 1.0 / this.memoryConsumerWeights;
+							c.setRelativeMemoryLocalStrategy(relativeMem);
 							if (LOG.isDebugEnabled()) {
-								final long mib = mem >> 20;
-								LOG.debug("Assigned " + mib + " MiBytes memory to each local strategy instance of " + 
-									c + " (" + mib * node.getDegreeOfParallelism() + " MiBytes total.)"); 
+								LOG.debug("Assigned " + relativeMem + " of total memory to each local strategy " +
+										"instance of " + c + ".");
 							}
 						}
 						if (c.getTempMode() != TempMode.NONE) {
-							final long mem = memoryPerInstanceAndWeight / node.getSubtasksPerInstance();
-							c.setTempMemory(mem);
+							final double relativeMem = 1.0/ this.memoryConsumerWeights;
+							c.setRelativeTempMemory(relativeMem);
 							if (LOG.isDebugEnabled()) {
-								final long mib = mem >> 20;
-								LOG.debug("Assigned " + mib + " MiBytes memory to each instance of the temp table for " + 
-									c + " (" + mib * node.getDegreeOfParallelism() + " MiBytes total.)"); 
+								LOG.debug("Assigned " + relativeMem + " of total memory to each instance of the temp " +
+										"table" +
+										" " +
+										"for " + c + ".");
 							}
 						}
 					}
@@ -1523,184 +1300,6 @@ public class PactCompiler {
 			throw new CompilerException("Cannot load Optimizer post-pass class '" + className + "'.", cnfex);
 		} catch (ClassCastException ccex) {
 			throw new CompilerException("Class '" + className + "' is not an optimizer post passer.", ccex);
-		}
-	}
-
-	private InstanceTypeDescription getInstanceTypeInfo() {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Connecting compiler to JobManager to dertermine instance information.");
-		}
-		
-		// create the connection in a separate thread, such that this thread
-		// can abort, if an unsuccessful connection occurs.
-		Map<InstanceType, InstanceTypeDescription> instances = null;
-		
-		JobManagerConnector jmc = new JobManagerConnector(this.jobManagerAddress);
-		Thread connectorThread = new Thread(jmc, "Compiler - JobManager connector.");
-		connectorThread.setDaemon(true);
-		connectorThread.start();
-
-		// connect and get the result
-		try {
-			jmc.waitForCompletion();
-			instances = jmc.instances;
-			if (instances == null) {
-				throw new NullPointerException("Returned instance map is <null>");
-			}
-		}
-		catch (IOException e) {
-			throw new CompilerException(e.getMessage());
-		}
-		catch (Throwable t) {
-			throw new CompilerException("Cannot connect to the JobManager to determine the available TaskManagers. "
-					+ "Check if the JobManager is running (using the web interface or log files). Reason: " + 
-				t.getMessage(), t);
-		}
-
-		// determine which type to run on
-		return getType(instances);
-	}
-	
-	/**
-	 * This utility method picks the instance type to be used for executing programs.
-	 * <p>
-	 * 
-	 * @param types The available types.
-	 * @return The type to be used for scheduling.
-	 * 
-	 * @throws CompilerException
-	 * @throws IllegalArgumentException
-	 */
-	private InstanceTypeDescription getType(Map<InstanceType, InstanceTypeDescription> types)
-	throws CompilerException
-	{
-		if (types == null || types.size() < 1) {
-			throw new IllegalArgumentException("No instance type found.");
-		}
-		
-		InstanceTypeDescription retValue = null;
-		long totalMemory = 0;
-		int numInstances = 0;
-		
-		final Iterator<InstanceTypeDescription> it = types.values().iterator();
-		while(it.hasNext())
-		{
-			final InstanceTypeDescription descr = it.next();
-			
-			// skip instances for which no hardware description is available
-			// this means typically that no 
-			if (descr.getHardwareDescription() == null || descr.getInstanceType() == null) {
-				continue;
-			}
-			
-			final int curInstances = descr.getMaximumNumberOfAvailableInstances();
-			final long curMemory = curInstances * descr.getHardwareDescription().getSizeOfFreeMemory();
-			
-			// get, if first, or if it has more instances and not less memory, or if it has significantly more memory
-			// and the same number of cores still
-			if ( (retValue == null) ||
-				(curInstances > numInstances && (int) (curMemory * 1.2f) > totalMemory) ||
-				(curInstances * retValue.getInstanceType().getNumberOfCores() >= numInstances && 
-							(int) (curMemory * 1.5f) > totalMemory)
-				)
-			{
-				retValue = descr;
-				numInstances = curInstances;
-				totalMemory = curMemory;
-			}
-		}
-		
-		if (retValue == null) {
-			throw new CompilerException("No instance currently registered at the job-manager. Retry later.\n" +
-				"If the system has recently started, it may take a few seconds until the instances register.");
-		}
-		
-		return retValue;
-	}
-	
-	/**
-	 * Utility class for an asynchronous connection to the job manager to determine the available instances.
-	 */
-	private static final class JobManagerConnector implements Runnable {
-		
-		private static final long MAX_MILLIS_TO_WAIT = 10000;
-		
-		private final InetSocketAddress jobManagerAddress;
-		
-		private final Object lock = new Object();
-		
-		private volatile Map<InstanceType, InstanceTypeDescription> instances;
-		
-		private volatile Throwable error;
-		
-		
-		private JobManagerConnector(InetSocketAddress jobManagerAddress) {
-			this.jobManagerAddress = jobManagerAddress;
-		}
-		
-		
-		public Map<InstanceType, InstanceTypeDescription> waitForCompletion() throws Throwable {
-			long start = System.currentTimeMillis();
-			long remaining = MAX_MILLIS_TO_WAIT;
-			
-			if (this.error != null) {
-				throw this.error;
-			}
-			if (this.instances != null) {
-				return this.instances;
-			}
-			
-			do {
-				try {
-					synchronized (this.lock) {
-						this.lock.wait(remaining);
-					}
-				} catch (InterruptedException iex) {}
-			}
-			while (this.error == null && this.instances == null &&
-					(remaining = MAX_MILLIS_TO_WAIT + start - System.currentTimeMillis()) > 0);
-			
-			if (this.error != null) {
-				throw this.error;
-			}
-			if (this.instances != null) {
-				return this.instances;
-			}
-			
-			throw new IOException("Could not connect to the JobManager at " + jobManagerAddress + 
-				". Please make sure that the Job Manager is started properly.");
-		}
-		
-
-		@Override
-		public void run() {
-			ExtendedManagementProtocol jobManagerConnection = null;
-
-			try {
-				jobManagerConnection = RPC.getProxy(ExtendedManagementProtocol.class,
-					this.jobManagerAddress, NetUtils.getSocketFactory());
-
-				this.instances = jobManagerConnection.getMapOfAvailableInstanceTypes();
-				if (this.instances == null) {
-					throw new IOException("Returned instance map was <null>");
-				}
-			} catch (Throwable t) {
-				this.error = t;
-			} finally {
-				// first of all, signal completion
-				synchronized (this.lock) {
-					this.lock.notifyAll();
-				}
-				
-				if (jobManagerConnection != null) {
-					try {
-						RPC.stopProxy(jobManagerConnection);
-					} catch (Throwable t) {
-						LOG.error("Could not cleanly shut down connection from compiler to job manager,", t);
-					}
-				}
-				jobManagerConnection = null;
-			}
 		}
 	}
 }

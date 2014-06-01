@@ -130,7 +130,8 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	private BlockingBackChannel initBackChannel() throws Exception {
 
 		/* get the size of the memory available to the backchannel */
-		int backChannelMemoryPages = getMemoryManager().computeNumberOfPages(this.config.getBackChannelMemory());
+		int backChannelMemoryPages = getMemoryManager().computeNumberOfPages(this.config.getRelativeBackChannelMemory
+				());
 
 		/* allocate the memory available to the backchannel */
 		List<MemorySegment> segments = new ArrayList<MemorySegment>();
@@ -150,7 +151,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	
 	private <BT> CompactingHashTable<BT> initCompactingHashTable() throws Exception {
 		// get some memory
-		long hashjoinMemorySize = config.getSolutionSetMemory();
+		double hashjoinMemorySize = config.getRelativeSolutionSetMemory();
 
 		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
 		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator(userCodeClassLoader);

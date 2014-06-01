@@ -50,6 +50,10 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
+
+	public CoGroupConnectedComponentsITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
 	
 	
 	@Override
@@ -61,7 +65,7 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 	
 	@Override
 	protected Plan getTestJob() {
-		return getPlan(4, verticesPath, edgesPath, resultPath, 100);
+		return getPlan(DOP, verticesPath, edgesPath, resultPath, 100);
 	}
 
 	@Override

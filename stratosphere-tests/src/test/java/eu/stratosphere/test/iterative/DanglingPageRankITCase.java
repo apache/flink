@@ -35,6 +35,7 @@ public class DanglingPageRankITCase extends RecordAPITestBase {
 	
 	public DanglingPageRankITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 	
 	
@@ -63,7 +64,7 @@ public class DanglingPageRankITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config1 = new Configuration();
-		config1.setInteger("PageRankITCase#NoSubtasks", 4);
+		config1.setInteger("PageRankITCase#NoSubtasks", DOP);
 		config1.setString("PageRankITCase#NumIterations", "25");
 		return toParameterList(config1);
 	}

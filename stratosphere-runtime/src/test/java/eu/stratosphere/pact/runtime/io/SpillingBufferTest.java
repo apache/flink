@@ -64,7 +64,7 @@ public class SpillingBufferTest {
 
 	@Before
 	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
 		ioManager = new IOManager();
 	}
 

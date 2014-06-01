@@ -38,11 +38,6 @@ public final class VertexAssignmentEvent extends AbstractEvent implements Manage
 	private String instanceName;
 
 	/**
-	 * The type of the instance the vertex is now assigned to.
-	 */
-	private String instanceType;
-
-	/**
 	 * Constructs a new event.
 	 * 
 	 * @param timestamp
@@ -51,16 +46,13 @@ public final class VertexAssignmentEvent extends AbstractEvent implements Manage
 	 *        identifies the vertex this event refers to
 	 * @param instanceName
 	 *        the name of the instance the vertex is now assigned to
-	 * @param instanceType
-	 *        the type of the instance the vertex is now assigned to
 	 */
 	public VertexAssignmentEvent(final long timestamp, final ManagementVertexID managementVertexID,
-			final String instanceName, final String instanceType) {
+			final String instanceName) {
 		super(timestamp);
 
 		this.managementVertexID = managementVertexID;
 		this.instanceName = instanceName;
-		this.instanceType = instanceType;
 	}
 
 	/**
@@ -90,16 +82,6 @@ public final class VertexAssignmentEvent extends AbstractEvent implements Manage
 		return this.instanceName;
 	}
 
-	/**
-	 * Returns the type of the instance the vertex is now assigned to.
-	 * 
-	 * @return the type of the instance the vertex is now assigned to
-	 */
-	public String getInstanceType() {
-		return this.instanceType;
-	}
-
-
 	@Override
 	public void read(final DataInput in) throws IOException {
 
@@ -107,7 +89,6 @@ public final class VertexAssignmentEvent extends AbstractEvent implements Manage
 
 		this.managementVertexID.read(in);
 		this.instanceName = StringRecord.readString(in);
-		this.instanceType = StringRecord.readString(in);
 	}
 
 
@@ -118,7 +99,6 @@ public final class VertexAssignmentEvent extends AbstractEvent implements Manage
 
 		this.managementVertexID.write(out);
 		StringRecord.writeString(out, this.instanceName);
-		StringRecord.writeString(out, this.instanceType);
 	}
 
 
@@ -145,16 +125,6 @@ public final class VertexAssignmentEvent extends AbstractEvent implements Manage
 			}
 		} else {
 			if (!this.instanceName.equals(vae.getInstanceName())) {
-				return false;
-			}
-		}
-
-		if (this.instanceType == null) {
-			if (vae.getInstanceType() != null) {
-				return false;
-			}
-		} else {
-			if (!this.instanceType.equals(vae.getInstanceType())) {
 				return false;
 			}
 		}

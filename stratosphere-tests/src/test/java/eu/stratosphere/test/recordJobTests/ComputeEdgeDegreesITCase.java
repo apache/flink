@@ -35,6 +35,7 @@ public class ComputeEdgeDegreesITCase extends RecordAPITestBase {
 	
 	public ComputeEdgeDegreesITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 
 	@Override
@@ -58,7 +59,7 @@ public class ComputeEdgeDegreesITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("ComputeEdgeDegreesTest#NumSubtasks", 4);
+		config.setInteger("ComputeEdgeDegreesTest#NumSubtasks", DOP);
 		return toParameterList(config);
 	}
 }

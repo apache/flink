@@ -39,6 +39,8 @@ import eu.stratosphere.util.Collector;
 public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?>>
 {
 	private static final long COMBINE_MEM = 3 * 1024 * 1024;
+
+	private final double combine_frac;
 	
 	private final ArrayList<Record> outList = new ArrayList<Record>();
 	
@@ -48,6 +50,8 @@ public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?
 
 	public CombineTaskTest() {
 		super(COMBINE_MEM, 0);
+
+		combine_frac = (double)COMBINE_MEM/this.getMemoryManager().getMemorySize();
 	}
 	
 	@Test
@@ -60,7 +64,7 @@ public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?
 		setOutput(this.outList);
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
-		getTaskConfig().setMemoryDriver(COMBINE_MEM);
+		getTaskConfig().setRelativeMemoryDriver(combine_frac);
 		getTaskConfig().setFilehandlesDriver(2);
 		
 		final GroupReduceCombineDriver<Record> testTask = new GroupReduceCombineDriver<Record>();
@@ -96,7 +100,7 @@ public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?
 		setOutput(new DiscardingOutputCollector<Record>());
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
-		getTaskConfig().setMemoryDriver(COMBINE_MEM);
+		getTaskConfig().setRelativeMemoryDriver(combine_frac);
 		getTaskConfig().setFilehandlesDriver(2);
 		
 		final GroupReduceCombineDriver<Record> testTask = new GroupReduceCombineDriver<Record>();
@@ -120,7 +124,7 @@ public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?
 		setOutput(new DiscardingOutputCollector<Record>());
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
-		getTaskConfig().setMemoryDriver(COMBINE_MEM);
+		getTaskConfig().setRelativeMemoryDriver(combine_frac);
 		getTaskConfig().setFilehandlesDriver(2);
 		
 		final GroupReduceCombineDriver<Record> testTask = new GroupReduceCombineDriver<Record>();

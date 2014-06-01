@@ -27,7 +27,11 @@ public class KMeansITCase extends RecordAPITestBase {
 	protected String dataPath;
 	protected String clusterPath;
 	protected String resultPath;
-	
+
+	public KMeansITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
+
 	@Override
 	protected void preSubmit() throws Exception {
 		dataPath = createTempFile("datapoints.txt", KMeansData.DATAPOINTS);
@@ -38,7 +42,7 @@ public class KMeansITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		KMeansBroadcast kmi = new KMeansBroadcast();
-		return kmi.getPlan("4", dataPath, clusterPath, resultPath, "20");
+		return kmi.getPlan(String.valueOf(DOP), dataPath, clusterPath, resultPath, "20");
 	}
 
 

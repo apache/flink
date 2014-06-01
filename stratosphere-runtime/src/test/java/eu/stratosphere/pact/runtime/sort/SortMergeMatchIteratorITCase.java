@@ -88,7 +88,7 @@ public class SortMergeMatchIteratorITCase
 		this.comparator2 = new RecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
 		this.pairComparator = new RecordPairComparator(new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class});
 		
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
 		this.ioManager = new IOManager();
 	}
 

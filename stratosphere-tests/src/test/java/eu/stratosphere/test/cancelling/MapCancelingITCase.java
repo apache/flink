@@ -27,6 +27,11 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 public class MapCancelingITCase extends CancellingTestBase {
+	private static final int DOP = 4;
+
+	public MapCancelingITCase() {
+		setTaskManagerNumSlots(DOP);
+	}
 	
 //	@Test
 	public void testMapCancelling() throws Exception {
@@ -40,7 +45,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(4);
+		p.setDefaultParallelism(DOP);
 		
 		runAndCancelJob(p, 5 * 1000, 10 * 1000);
 	}
@@ -57,7 +62,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(4);
+		p.setDefaultParallelism(DOP);
 		
 		runAndCancelJob(p, 5 * 1000, 10 * 1000);
 	}
@@ -74,7 +79,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(4);
+		p.setDefaultParallelism(DOP);
 		
 		runAndCancelJob(p, 10 * 1000, 10 * 1000);
 	}
@@ -91,7 +96,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(4);
+		p.setDefaultParallelism(DOP);
 		
 		runAndCancelJob(p, 10 * 1000, 10 * 1000);
 	}

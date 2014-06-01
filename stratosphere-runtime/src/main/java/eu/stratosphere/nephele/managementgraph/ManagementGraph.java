@@ -445,9 +445,8 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 			groupVertexID.read(in);
 			final ManagementGroupVertex groupVertex = this.getGroupVertexByID(groupVertexID);
 			final String instanceName = StringRecord.readString(in);
-			final String instanceType = StringRecord.readString(in);
 			final int indexInGroup = in.readInt();
-			final ManagementVertex vertex = new ManagementVertex(groupVertex, vertexID, instanceName, instanceType, indexInGroup);
+			final ManagementVertex vertex = new ManagementVertex(groupVertex, vertexID, instanceName, indexInGroup);
 			vertex.read(in);
 		}
 
@@ -523,7 +522,6 @@ public final class ManagementGraph extends ManagementAttachment implements IORea
 			managementVertex.getID().write(out);
 			managementVertex.getGroupVertex().getID().write(out);
 			StringRecord.writeString(out, managementVertex.getInstanceName());
-			StringRecord.writeString(out, managementVertex.getInstanceType());
 			out.writeInt(managementVertex.getIndexInGroup());
 			managementVertex.write(out);
 		}

@@ -46,7 +46,6 @@ public class GroupReduceNode extends SingleInputNode {
 		if (this.keys == null) {
 			// case of a key-less reducer. force a parallelism of 1
 			setDegreeOfParallelism(1);
-			setSubtasksPerInstance(1);
 		}
 	}
 	

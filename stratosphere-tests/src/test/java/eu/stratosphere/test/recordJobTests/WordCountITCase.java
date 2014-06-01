@@ -23,6 +23,10 @@ public class WordCountITCase extends RecordAPITestBase {
 	protected String textPath;
 	protected String resultPath;
 
+	public WordCountITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
+
 	
 	@Override
 	protected void preSubmit() throws Exception {
@@ -33,7 +37,7 @@ public class WordCountITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		WordCount wc = new WordCount();
-		return wc.getPlan("4", textPath, resultPath);
+		return wc.getPlan(new Integer(DOP).toString(), textPath, resultPath);
 	}
 
 	@Override

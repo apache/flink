@@ -65,9 +65,9 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Creates a new node with a single input for the optimizer plan.
+	 * Creates a new node for the bulk iteration.
 	 * 
-	 * @param iteration The PACT that the node represents.
+	 * @param iteration The bulk iteration the node represents.
 	 */
 	public BulkIterationNode(BulkIterationBase<?> iteration) {
 		super(iteration);
@@ -124,14 +124,12 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	public void setNextPartialSolution(OptimizerNode nextPartialSolution, OptimizerNode terminationCriterion) {
 		
 		// check if the root of the step function has the same DOP as the iteration
-		if (nextPartialSolution.getDegreeOfParallelism() != getDegreeOfParallelism() ||
-			nextPartialSolution.getSubtasksPerInstance() != getSubtasksPerInstance() )
+		if (nextPartialSolution.getDegreeOfParallelism() != getDegreeOfParallelism())
 		{
 			// add a no-op to the root to express the re-partitioning
 			NoOpNode noop = new NoOpNode();
 			noop.setDegreeOfParallelism(getDegreeOfParallelism());
-			noop.setSubtasksPerInstance(getSubtasksPerInstance());
-			
+
 			PactConnection noOpConn = new PactConnection(nextPartialSolution, noop);
 			noop.setIncomingConnection(noOpConn);
 			nextPartialSolution.addOutgoingConnection(noOpConn);
@@ -198,12 +196,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
 		return Collections.<OperatorDescriptorSingle>singletonList(new NoOpDescriptor());
 	}
-	
-	@Override
-	public boolean isMemoryConsumer() {
-		return true;
-	}
-	
+
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		final InterestingProperties intProps = getInterestingProperties().clone();
@@ -306,12 +299,11 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 				else if (report == FeedbackPropertiesMeetRequirementsReport.NOT_MET) {
 					// attach a no-op node through which we create the properties of the original input
 					Channel toNoOp = new Channel(candidate);
-					globPropsReq.parameterizeChannel(toNoOp, false, false);
+					globPropsReq.parameterizeChannel(toNoOp, false);
 					locPropsReq.parameterizeChannel(toNoOp);
 					
 					UnaryOperatorNode rebuildPropertiesNode = new UnaryOperatorNode("Rebuild Partial Solution Properties", FieldList.EMPTY_LIST);
 					rebuildPropertiesNode.setDegreeOfParallelism(candidate.getDegreeOfParallelism());
-					rebuildPropertiesNode.setSubtasksPerInstance(candidate.getSubtasksPerInstance());
 					
 					SingleInputPlanNode rebuildPropertiesPlanNode = new SingleInputPlanNode(rebuildPropertiesNode, "Rebuild Partial Solution Properties", toNoOp, DriverStrategy.UNARY_NO_OP);
 					rebuildPropertiesPlanNode.initProperties(toNoOp.getGlobalProperties(), toNoOp.getLocalProperties());

@@ -85,14 +85,12 @@ public class ManagementEventTest {
 	@Test
 	public void testVertexAssignmentEvent() {
 
-		final VertexAssignmentEvent orig = new VertexAssignmentEvent(TIMESTAMP, new ManagementVertexID(), "test",
-			"standard");
+		final VertexAssignmentEvent orig = new VertexAssignmentEvent(TIMESTAMP, new ManagementVertexID(), "test");
 		final VertexAssignmentEvent copy = (VertexAssignmentEvent) ManagementTestUtils.createCopy(orig);
 
 		assertEquals(orig.getVertexID(), copy.getVertexID());
 		assertEquals(orig.getTimestamp(), copy.getTimestamp());
 		assertEquals(orig.getInstanceName(), copy.getInstanceName());
-		assertEquals(orig.getInstanceType(), copy.getInstanceType());
 		assertEquals(orig.hashCode(), copy.hashCode());
 		assertTrue(orig.equals(copy));
 	}

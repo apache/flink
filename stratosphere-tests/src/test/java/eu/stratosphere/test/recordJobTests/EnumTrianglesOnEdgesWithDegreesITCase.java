@@ -35,6 +35,7 @@ public class EnumTrianglesOnEdgesWithDegreesITCase extends RecordAPITestBase {
 	
 	public EnumTrianglesOnEdgesWithDegreesITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 
 	@Override
@@ -60,7 +61,7 @@ public class EnumTrianglesOnEdgesWithDegreesITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("EnumTrianglesTest#NumSubtasks", 4);
+		config.setInteger("EnumTrianglesTest#NumSubtasks", DOP);
 		return toParameterList(config);
 	}
 }

@@ -51,14 +51,14 @@ public class JobGraphUtils {
 	}
 	
 	public static <T extends FileInputFormat<?>> JobInputVertex createInput(T stub, String path, String name, JobGraph graph,
-			int degreeOfParallelism, int numSubTasksPerInstance)
+			int degreeOfParallelism)
 	{
 		stub.setFilePath(path);
-		return createInput(new UserCodeObjectWrapper<T>(stub), name, graph, degreeOfParallelism, numSubTasksPerInstance);
+		return createInput(new UserCodeObjectWrapper<T>(stub), name, graph, degreeOfParallelism);
 	}
 
 	private static <T extends InputFormat<?,?>> JobInputVertex createInput(UserCodeWrapper<T> stub, String name, JobGraph graph,
-			int degreeOfParallelism, int numSubTasksPerInstance)
+			int degreeOfParallelism)
 	{
 		JobInputVertex inputVertex = new JobInputVertex(name, graph);
 		
@@ -67,8 +67,7 @@ public class JobGraphUtils {
 		inputVertex.setInputClass(clazz);
 		
 		inputVertex.setNumberOfSubtasks(degreeOfParallelism);
-		inputVertex.setNumberOfSubtasksPerInstance(numSubTasksPerInstance);
-		
+
 		TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
 		inputConfig.setStubWrapper(stub);
 		
@@ -89,12 +88,11 @@ public class JobGraphUtils {
 	}
 
 	public static JobTaskVertex createTask(@SuppressWarnings("rawtypes") Class<? extends RegularPactTask> task, String name, JobGraph graph,
-			int degreeOfParallelism, int numSubtasksPerInstance)
+			int degreeOfParallelism)
 	{
 		JobTaskVertex taskVertex = new JobTaskVertex(name, graph);
 		taskVertex.setTaskClass(task);
 		taskVertex.setNumberOfSubtasks(degreeOfParallelism);
-		taskVertex.setNumberOfSubtasksPerInstance(numSubtasksPerInstance);
 		return taskVertex;
 	}
 
@@ -107,23 +105,19 @@ public class JobGraphUtils {
 		return sync;
 	}
 
-	public static JobOutputVertex createFakeOutput(JobGraph jobGraph, String name, int degreeOfParallelism,
-			int numSubTasksPerInstance)
+	public static JobOutputVertex createFakeOutput(JobGraph jobGraph, String name, int degreeOfParallelism)
 	{
 		JobOutputVertex outputVertex = new JobOutputVertex(name, jobGraph);
 		outputVertex.setOutputClass(FakeOutputTask.class);
 		outputVertex.setNumberOfSubtasks(degreeOfParallelism);
-		outputVertex.setNumberOfSubtasksPerInstance(numSubTasksPerInstance);
 		return outputVertex;
 	}
 
-	public static JobOutputVertex createFileOutput(JobGraph jobGraph, String name, int degreeOfParallelism,
-			int numSubTasksPerInstance)
+	public static JobOutputVertex createFileOutput(JobGraph jobGraph, String name, int degreeOfParallelism)
 	{
 		JobOutputVertex sinkVertex = new JobOutputVertex(name, jobGraph);
 		sinkVertex.setOutputClass(DataSinkTask.class);
 		sinkVertex.setNumberOfSubtasks(degreeOfParallelism);
-		sinkVertex.setNumberOfSubtasksPerInstance(numSubTasksPerInstance);
 		return sinkVertex;
 	}
 }

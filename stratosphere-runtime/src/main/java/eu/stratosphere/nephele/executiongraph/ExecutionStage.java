@@ -15,18 +15,10 @@ package eu.stratosphere.nephele.executiongraph;
 
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.instance.AbstractInstance;
-import eu.stratosphere.nephele.instance.DummyInstance;
-import eu.stratosphere.nephele.instance.InstanceRequestMap;
-import eu.stratosphere.nephele.instance.InstanceType;
+import eu.stratosphere.nephele.instance.Instance;
 import eu.stratosphere.runtime.io.channels.ChannelType;
 
 /**
@@ -35,14 +27,8 @@ import eu.stratosphere.runtime.io.channels.ChannelType;
  * job can only start to execute if the execution of its preceding stage is complete.
  * <p>
  * This class is thread-safe.
- * 
  */
 public final class ExecutionStage {
-
-	/**
-	 * The log object used for debugging.
-	 */
-	private static final Log LOG = LogFactory.getLog(ExecutionStage.class);
 
 	/**
 	 * The execution graph that this stage belongs to.
@@ -242,69 +228,6 @@ public final class ExecutionStage {
 	}
 
 	/**
-	 * Checks which instance types and how many instances of these types are required to execute this stage
-	 * of the job graph. The required instance types and the number of instances are collected in the given map. Note
-	 * that this method does not clear the map before collecting the instances.
-	 * 
-	 * @param instanceRequestMap
-	 *        the map containing the instances types and the required number of instances of the respective type
-	 * @param executionState
-	 *        the execution state the considered vertices must be in
-	 */
-	public void collectRequiredInstanceTypes(final InstanceRequestMap instanceRequestMap,
-			final ExecutionState executionState) {
-
-		final Set<AbstractInstance> collectedInstances = new HashSet<AbstractInstance>();
-		final ExecutionGroupVertexIterator groupIt = new ExecutionGroupVertexIterator(this.getExecutionGraph(), true,
-			this.stageNum);
-
-		while (groupIt.hasNext()) {
-
-			final ExecutionGroupVertex groupVertex = groupIt.next();
-			final Iterator<ExecutionVertex> vertexIt = groupVertex.iterator();
-			while (vertexIt.hasNext()) {
-
-				// Get the instance type from the execution vertex if it
-				final ExecutionVertex vertex = vertexIt.next();
-				if (vertex.getExecutionState() == executionState) {
-					final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
-
-					if (collectedInstances.contains(instance)) {
-						continue;
-					} else {
-						collectedInstances.add(instance);
-					}
-
-					if (instance instanceof DummyInstance) {
-
-						final InstanceType instanceType = instance.getType();
-						int num = instanceRequestMap.getMaximumNumberOfInstances(instanceType);
-						++num;
-						instanceRequestMap.setMaximumNumberOfInstances(instanceType, num);
-						if (groupVertex.isInputVertex()) {
-							num = instanceRequestMap.getMinimumNumberOfInstances(instanceType);
-							++num;
-							instanceRequestMap.setMinimumNumberOfInstances(instanceType, num);
-						}
-					} else {
-						LOG.debug("Execution Vertex " + vertex.getName() + " (" + vertex.getID()
-							+ ") is already assigned to non-dummy instance, skipping...");
-					}
-				}
-			}
-		}
-
-		final Iterator<Map.Entry<InstanceType, Integer>> it = instanceRequestMap.getMaximumIterator();
-		while (it.hasNext()) {
-
-			final Map.Entry<InstanceType, Integer> entry = it.next();
-			if (instanceRequestMap.getMinimumNumberOfInstances(entry.getKey()) == 0) {
-				instanceRequestMap.setMinimumNumberOfInstances(entry.getKey(), entry.getValue());
-			}
-		}
-	}
-
-	/**
 	 * Returns the execution graph that this stage belongs to.
 	 * 
 	 * @return the execution graph that this stage belongs to
@@ -445,5 +368,38 @@ public final class ExecutionStage {
 				}
 			}
 		}
+	}
+
+	public int getMaxNumberSubtasks(){
+		int maxDegree = 0;
+
+		for(int i =0; i < this.getNumberOfStageMembers(); i++){
+			final ExecutionGroupVertex groupVertex = this.getStageMember(i);
+
+			if(groupVertex.getCurrentNumberOfGroupMembers() > maxDegree){
+				maxDegree = groupVertex.getCurrentNumberOfGroupMembers();
+			}
+		}
+
+		return maxDegree;
+	}
+
+	public int getRequiredSlots(){
+		Set<Instance> instanceSet = new HashSet<Instance>();
+
+		for(int i=0; i< this.getNumberOfStageMembers(); i++){
+			final ExecutionGroupVertex groupVertex = this.getStageMember(i);
+
+			final Iterator<ExecutionVertex> vertexIterator = groupVertex.iterator();
+
+			while(vertexIterator.hasNext()){
+				final ExecutionVertex vertex = vertexIterator.next();
+
+				instanceSet.add(vertex.getAllocatedResource().getInstance());
+			}
+
+		}
+
+		return instanceSet.size();
 	}
 }

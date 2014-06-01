@@ -47,6 +47,7 @@ public class AvroExternalJarProgramITCase {
 		try {
 			testMiniCluster = new NepheleMiniCluster();
 			testMiniCluster.setJobManagerRpcPort(TEST_JM_PORT);
+			testMiniCluster.setTaskManagerNumSlots(4);
 			testMiniCluster.start();
 			
 			String jarFile = JAR_FILE;

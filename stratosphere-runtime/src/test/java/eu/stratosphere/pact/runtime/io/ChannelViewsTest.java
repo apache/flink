@@ -73,7 +73,7 @@ public class ChannelViewsTest
 
 	@Before
 	public void beforeTest() {
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, MEMORY_PAGE_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1, MEMORY_PAGE_SIZE);
 		this.ioManager = new IOManager();
 	}
 
@@ -189,7 +189,7 @@ public class ChannelViewsTest
 		List<MemorySegment> memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
 		final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
 		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_PAGE_SIZE);
-		
+
 		// write a number of pairs
 		final Record rec = new Record();
 		for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
@@ -197,13 +197,13 @@ public class ChannelViewsTest
 			rec.write(outView);
 		}
 		this.memoryManager.release(outView.close());
-		
+
 		// create the reader input view
 		memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
 		final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel);
 		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount(), true);
 		generator.reset();
-		
+
 		// read and re-generate all records and compare them
 		try {
 			final Record readRec = new Record();

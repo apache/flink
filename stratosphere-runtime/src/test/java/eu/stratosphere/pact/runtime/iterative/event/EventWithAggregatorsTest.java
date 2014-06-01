@@ -117,6 +117,8 @@ public class EventWithAggregatorsTest {
 	
 	private static class TestAggregator<T extends Value> implements Aggregator<T> {
 
+		private static final long serialVersionUID = 1L;
+		
 		private final T val;
 		
 		

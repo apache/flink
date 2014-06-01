@@ -76,7 +76,7 @@ public class ExternalSortITCase {
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
 		this.ioManager = new IOManager();
 		
 		this.pactRecordSerializer = RecordSerializerFactory.get();
@@ -113,7 +113,7 @@ public class ExternalSortITCase {
 		
 		Sorter<Record> merger = new UnilateralSortMerger<Record>(this.memoryManager, this.ioManager, 
 			source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-			64 * 1024 * 1024, 2, 0.9f);
+				(double)64/78, 2, 0.9f);
 
 		// emit data
 		LOG.debug("Reading and sorting data...");
@@ -159,7 +159,7 @@ public class ExternalSortITCase {
 		
 		Sorter<Record> merger = new UnilateralSortMerger<Record>(this.memoryManager, this.ioManager, 
 				source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-				64 * 1024 * 1024, 10, 2, 0.9f);
+				(double)64/78, 10, 2, 0.9f);
 
 		// emit data
 		LOG.debug("Reading and sorting data...");
@@ -205,7 +205,7 @@ public class ExternalSortITCase {
 		
 		Sorter<Record> merger = new UnilateralSortMerger<Record>(this.memoryManager, this.ioManager, 
 				source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-				16 * 1024 * 1024, 64, 0.7f);
+				(double)16/78, 64, 0.7f);
 
 		// emit data
 		LOG.debug("Reading and sorting data...");
@@ -254,7 +254,7 @@ public class ExternalSortITCase {
 		
 		Sorter<Record> merger = new UnilateralSortMerger<Record>(this.memoryManager, this.ioManager, 
 				source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-				64 * 1024 * 1024, 16, 0.7f);
+				(double)64/78, 16, 0.7f);
 		
 		// emit data
 		LOG.debug("Emitting data...");
@@ -307,7 +307,7 @@ public class ExternalSortITCase {
 		LOG.debug("Initializing sortmerger...");
 		
 		Sorter<IntPair> merger = new UnilateralSortMerger<IntPair>(this.memoryManager, this.ioManager, 
-				generator, this.parentTask, serializerFactory, comparator, 64 * 1024 * 1024, 4, 0.7f);
+				generator, this.parentTask, serializerFactory, comparator, (double)64/78, 4, 0.7f);
 
 		// emit data
 		LOG.debug("Emitting data...");

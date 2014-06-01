@@ -39,7 +39,7 @@ public class TransitiveClosureNaiveITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		TransitiveClosureNaive transitiveClosureNaive = new TransitiveClosureNaive();
 		// "2" is the number of iterations here
-		return transitiveClosureNaive.getScalaPlan(4, 2, verticesPath, edgesPath, resultPath);
+		return transitiveClosureNaive.getScalaPlan(DOP, 2, verticesPath, edgesPath, resultPath);
 	}
 
 	@Override

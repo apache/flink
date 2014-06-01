@@ -12,7 +12,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.compiler;
 
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,12 +36,6 @@ import eu.stratosphere.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
-import eu.stratosphere.nephele.instance.HardwareDescription;
-import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
-import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.instance.InstanceTypeDescription;
-import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
-import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.util.LogUtils;
 import eu.stratosphere.util.OperatingSystem;
 import eu.stratosphere.util.Visitor;
@@ -72,8 +65,6 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 	
 	protected transient PactCompiler noStatsCompiler;
 	
-	protected transient InstanceTypeDescription instanceType;
-	
 	private transient int statCounter;
 	
 	// ------------------------------------------------------------------------	
@@ -85,29 +76,22 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 	
 	@Before
 	public void setup() {
-		InetSocketAddress dummyAddr = new InetSocketAddress("localhost", 12345);
-		
 		this.dataStats = new DataStatistics();
-		this.withStatsCompiler = new PactCompiler(this.dataStats, new DefaultCostEstimator(), dummyAddr);
+		this.withStatsCompiler = new PactCompiler(this.dataStats, new DefaultCostEstimator());
 		this.withStatsCompiler.setDefaultDegreeOfParallelism(DEFAULT_PARALLELISM);
 		
-		this.noStatsCompiler = new PactCompiler(null, new DefaultCostEstimator(), dummyAddr);
+		this.noStatsCompiler = new PactCompiler(null, new DefaultCostEstimator());
 		this.noStatsCompiler.setDefaultDegreeOfParallelism(DEFAULT_PARALLELISM);
-		
-		// create the instance type description
-		InstanceType iType = InstanceTypeFactory.construct("standard", 6, 2, 4096, 100, 0);
-		HardwareDescription hDesc = HardwareDescriptionFactory.construct(2, 4096 * 1024 * 1024, 2000 * 1024 * 1024);
-		this.instanceType = InstanceTypeDescriptionFactory.construct(iType, hDesc, DEFAULT_PARALLELISM * 2);
 	}
 	
 	// ------------------------------------------------------------------------
 	
 	public OptimizedPlan compileWithStats(Plan p) {
-		return this.withStatsCompiler.compile(p, this.instanceType);
+		return this.withStatsCompiler.compile(p);
 	}
 	
 	public OptimizedPlan compileNoStats(Plan p) {
-		return this.noStatsCompiler.compile(p, this.instanceType);
+		return this.noStatsCompiler.compile(p);
 	}
 	
 	public void setSourceStatistics(GenericDataSourceBase<?, ?> source, long size, float recordWidth) {

@@ -310,6 +310,7 @@ public class InMemoryPartition<T> {
 			return posInArray;
 		}
 		
+		@SuppressWarnings("unused")
 		public void setSegmentNumberOffset(int offset) {
 			this.segmentNumberOffset = offset;
 		}
@@ -364,6 +365,7 @@ public class InMemoryPartition<T> {
 			seekInput(this.segments.get(bufferNum), offset, this.segmentSizeMask + 1);
 		}
 		
+		@SuppressWarnings("unused")
 		public void setSegmentNumberOffset(int offset) {
 			this.segmentNumberOffset = offset;
 		}

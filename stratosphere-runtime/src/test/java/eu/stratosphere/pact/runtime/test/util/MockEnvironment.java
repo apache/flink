@@ -74,7 +74,7 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 		this.inputs = new LinkedList<InputGate<Record>>();
 		this.outputs = new LinkedList<OutputGate>();
 
-		this.memManager = new DefaultMemoryManager(memorySize);
+		this.memManager = new DefaultMemoryManager(memorySize, 1);
 		this.ioManager = new IOManager(System.getProperty("java.io.tmpdir"));
 		this.inputSplitProvider = inputSplitProvider;
 		this.mockBuffer = new Buffer(new MemorySegment(new byte[bufferSize]), bufferSize, null);
@@ -309,14 +309,13 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	}
 
 	@Override
-	public OutputGate createAndRegisterOutputGate()
-	{
+	public OutputGate createAndRegisterOutputGate() {
 		return this.outputs.remove(0);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public <T extends IOReadableWritable> InputGate<T> createAndRegisterInputGate()
-	{
+	public <T extends IOReadableWritable> InputGate<T> createAndRegisterInputGate() {
 		return (InputGate<T>) this.inputs.remove(0);
 	}
 

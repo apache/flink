@@ -855,7 +855,6 @@ public final class ExecutionVertex {
 	 *         <code>false/<code> otherwise
 	 */
 	public boolean decrementRetriesLeftAndCheck() {
-
 		return (this.retriesLeft.decrementAndGet() > 0);
 	}
 

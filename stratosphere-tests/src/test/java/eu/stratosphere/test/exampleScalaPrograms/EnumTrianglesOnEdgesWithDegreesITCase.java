@@ -27,7 +27,7 @@ public class EnumTrianglesOnEdgesWithDegreesITCase extends eu.stratosphere.test.
 	protected Plan getTestJob() {
 		EnumTrianglesOnEdgesWithDegrees enumTriangles = new EnumTrianglesOnEdgesWithDegrees();
 		return enumTriangles.getScalaPlan(
-				config.getInteger("EnumTrianglesTest#NumSubtasks", 4),
+				config.getInteger("EnumTrianglesTest#NumSubtasks", DOP),
 				edgesPath, resultPath);
 	}
 }

@@ -54,6 +54,7 @@ public class LineRankITCase extends RecordAPITestBase {
 	
 	public LineRankITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 	
 	@Override
@@ -68,7 +69,7 @@ public class LineRankITCase extends RecordAPITestBase {
 		LineRank lr = new LineRank();
 		
 		Plan plan = lr.getScalaPlan(
-			config.getInteger("NumSubtasks", 1), 
+			config.getInteger("NumSubtasks", 1),
 			sourcesPath,
 			targetsPath,
 			9,
@@ -79,7 +80,7 @@ public class LineRankITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config1 = new Configuration();
-		config1.setInteger("NumSubtasks", 4);
+		config1.setInteger("NumSubtasks", DOP);
 		config1.setInteger("NumIterations", 5);
 		return toParameterList(config1);
 	}

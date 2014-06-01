@@ -121,6 +121,10 @@ public class TPCHQuery3WithUnionITCase extends RecordAPITestBase {
 	
 	private static final String EXPECTED_RESULT = "5|0|147828.97\n" + "66|0|99188.09\n";
 
+	public TPCHQuery3WithUnionITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
+
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -136,7 +140,7 @@ public class TPCHQuery3WithUnionITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		TPCHQuery3Unioned tpch3 = new TPCHQuery3Unioned();
 		return tpch3.getPlan(
-				"4",
+				new Integer(DOP).toString(),
 				orders1Path,
 				orders2Path,
 				partJoin1Path,

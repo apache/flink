@@ -30,6 +30,7 @@ import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.util.LogUtils;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.After;
@@ -53,9 +54,9 @@ public class NetworkStackThroughput extends RecordAPITestBase {
 
 	private static final String USE_FORWARDER_CONFIG_KEY = "use.forwarder";
 
-	private static final String NUM_SUBTASKS_CONFIG_KEY = "num.subtasks";
+	private static final String PARALLELISM_CONFIG_KEY = "num.subtasks";
 
-	private static final String NUM_SUBTASKS_PER_INSTANCE_CONFIG_KEY = "num.subtasks.instance";
+	private static final String NUM_SLOTS_PER_TM_CONFIG_KEY = "num.slots.per.tm";
 
 	private static final String IS_SLOW_SENDER_CONFIG_KEY = "is.slow.sender";
 
@@ -64,13 +65,35 @@ public class NetworkStackThroughput extends RecordAPITestBase {
 	private static final int IS_SLOW_SLEEP_MS = 10;
 
 	private static final int IS_SLOW_EVERY_NUM_RECORDS = (2 * 32 * 1024) / SpeedTestRecord.RECORD_SIZE;
+	
+	// ------------------------------------------------------------------------
+	
+	private int dataVolumeGb;
+	private boolean useForwarder;
+	private boolean isSlowSender;
+	private boolean isSlowReceiver;
+	private int parallelism;
 
 	// ------------------------------------------------------------------------
 
 	public NetworkStackThroughput(Configuration config) {
 		super(config);
-
-		setNumTaskManager(2);
+		
+		dataVolumeGb = this.config.getInteger(DATA_VOLUME_GB_CONFIG_KEY, 1);
+		useForwarder = this.config.getBoolean(USE_FORWARDER_CONFIG_KEY, true);
+		isSlowSender = this.config.getBoolean(IS_SLOW_SENDER_CONFIG_KEY, false);
+		isSlowReceiver = this.config.getBoolean(IS_SLOW_RECEIVER_CONFIG_KEY, false);
+		parallelism = config.getInteger(PARALLELISM_CONFIG_KEY, 1);
+		
+		int numSlots = config.getInteger(NUM_SLOTS_PER_TM_CONFIG_KEY, 1);
+		
+		if (parallelism % numSlots != 0) {
+			throw new RuntimeException("The test case defines a parallelism that is not a multiple of the slots per task manager.");
+		}
+		
+		setNumTaskTracker(parallelism / numSlots);
+		setTaskManagerNumSlots(numSlots);
+		
 		LogUtils.initializeDefaultConsoleLogger();
 	}
 
@@ -94,8 +117,8 @@ public class NetworkStackThroughput extends RecordAPITestBase {
 			config.setBoolean(USE_FORWARDER_CONFIG_KEY, (Boolean) p[1]);
 			config.setBoolean(IS_SLOW_SENDER_CONFIG_KEY, (Boolean) p[2]);
 			config.setBoolean(IS_SLOW_RECEIVER_CONFIG_KEY, (Boolean) p[3]);
-			config.setInteger(NUM_SUBTASKS_CONFIG_KEY, (Integer) p[4]);
-			config.setInteger(NUM_SUBTASKS_PER_INSTANCE_CONFIG_KEY, (Integer) p[5]);
+			config.setInteger(PARALLELISM_CONFIG_KEY, (Integer) p[4]);
+			config.setInteger(NUM_SLOTS_PER_TM_CONFIG_KEY, (Integer) p[5]);
 
 			configs.add(config);
 		}
@@ -107,14 +130,7 @@ public class NetworkStackThroughput extends RecordAPITestBase {
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
-		int dataVolumeGb = this.config.getInteger(DATA_VOLUME_GB_CONFIG_KEY, 1);
-		boolean useForwarder = this.config.getBoolean(USE_FORWARDER_CONFIG_KEY, true);
-		boolean isSlowSender = this.config.getBoolean(IS_SLOW_SENDER_CONFIG_KEY, false);
-		boolean isSlowReceiver = this.config.getBoolean(IS_SLOW_RECEIVER_CONFIG_KEY, false);
-		int numSubtasks = this.config.getInteger(NUM_SUBTASKS_CONFIG_KEY, 1);
-		int numSubtasksPerInstance = this.config.getInteger(NUM_SUBTASKS_PER_INSTANCE_CONFIG_KEY, 1);
-
-		return createJobGraph(dataVolumeGb, useForwarder, isSlowSender, isSlowReceiver, numSubtasks, numSubtasksPerInstance);
+		return createJobGraph(dataVolumeGb, useForwarder, isSlowSender, isSlowReceiver, parallelism);
 	}
 
 	@After
@@ -133,14 +149,13 @@ public class NetworkStackThroughput extends RecordAPITestBase {
 	}
 
 	private JobGraph createJobGraph(int dataVolumeGb, boolean useForwarder, boolean isSlowSender, boolean isSlowReceiver,
-									int numSubtasks, int numSubtasksPerInstance) throws JobGraphDefinitionException {
+									int numSubtasks) throws JobGraphDefinitionException {
 
 		JobGraph jobGraph = new JobGraph("Speed Test");
 
 		JobInputVertex producer = new JobGenericInputVertex("Speed Test Producer", jobGraph);
 		producer.setInputClass(SpeedTestProducer.class);
 		producer.setNumberOfSubtasks(numSubtasks);
-		producer.setNumberOfSubtasksPerInstance(numSubtasksPerInstance);
 		producer.getConfiguration().setInteger(DATA_VOLUME_GB_CONFIG_KEY, dataVolumeGb);
 		producer.getConfiguration().setBoolean(IS_SLOW_SENDER_CONFIG_KEY, isSlowSender);
 
@@ -149,13 +164,11 @@ public class NetworkStackThroughput extends RecordAPITestBase {
 			forwarder = new JobTaskVertex("Speed Test Forwarder", jobGraph);
 			forwarder.setTaskClass(SpeedTestForwarder.class);
 			forwarder.setNumberOfSubtasks(numSubtasks);
-			forwarder.setNumberOfSubtasksPerInstance(numSubtasksPerInstance);
 		}
 
 		JobOutputVertex consumer = new JobOutputVertex("Speed Test Consumer", jobGraph);
 		consumer.setOutputClass(SpeedTestConsumer.class);
 		consumer.setNumberOfSubtasks(numSubtasks);
-		consumer.setNumberOfSubtasksPerInstance(numSubtasksPerInstance);
 		consumer.getConfiguration().setBoolean(IS_SLOW_RECEIVER_CONFIG_KEY, isSlowReceiver);
 
 		if (useForwarder) {

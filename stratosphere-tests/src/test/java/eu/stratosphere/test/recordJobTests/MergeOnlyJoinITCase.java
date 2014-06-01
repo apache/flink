@@ -62,6 +62,7 @@ public class MergeOnlyJoinITCase extends RecordAPITestBase {
 
 	public MergeOnlyJoinITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(4);
 	}
 
 	@Override

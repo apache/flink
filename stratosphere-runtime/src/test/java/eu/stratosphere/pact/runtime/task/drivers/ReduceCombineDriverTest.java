@@ -43,7 +43,7 @@ public class ReduceCombineDriverTest {
 		try {
 			TestTaskContext<GenericReduce<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
 					new TestTaskContext<GenericReduce<Tuple2<String,Integer>>, Tuple2<String,Integer>>(1024 * 1024);
-			context.getTaskConfig().setMemoryDriver(512 * 1024);
+			context.getTaskConfig().setRelativeMemoryDriver(0.5);
 			
 			List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
 			Collections.shuffle(data);
@@ -80,7 +80,7 @@ public class ReduceCombineDriverTest {
 			{
 				TestTaskContext<GenericReduce<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
 						new TestTaskContext<GenericReduce<Tuple2<String,Integer>>, Tuple2<String,Integer>>(1024 * 1024);
-				context.getTaskConfig().setMemoryDriver(512 * 1024);
+				context.getTaskConfig().setRelativeMemoryDriver(0.5);
 				
 				List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
 				Collections.shuffle(data);
@@ -111,7 +111,7 @@ public class ReduceCombineDriverTest {
 			{
 				TestTaskContext<GenericReduce<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
 						new TestTaskContext<GenericReduce<Tuple2<String,Integer>>, Tuple2<String,Integer>>(1024 * 1024);
-				context.getTaskConfig().setMemoryDriver(512 * 1024);
+				context.getTaskConfig().setRelativeMemoryDriver(0.5);
 				
 				List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
 				Collections.shuffle(data);
@@ -152,7 +152,7 @@ public class ReduceCombineDriverTest {
 			{
 				TestTaskContext<GenericReduce<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
 						new TestTaskContext<GenericReduce<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>(1024 * 1024);
-				context.getTaskConfig().setMemoryDriver(512 * 1024);
+				context.getTaskConfig().setRelativeMemoryDriver(0.5);
 				
 				List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
 				TupleTypeInfo<Tuple2<StringValue, IntValue>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, IntValue>>) TypeExtractor.getForObject(data.get(0));
@@ -180,7 +180,7 @@ public class ReduceCombineDriverTest {
 			{
 				TestTaskContext<GenericReduce<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
 						new TestTaskContext<GenericReduce<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>(1024 * 1024);
-				context.getTaskConfig().setMemoryDriver(512 * 1024);
+				context.getTaskConfig().setRelativeMemoryDriver(0.5);
 				
 				List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
 				TupleTypeInfo<Tuple2<StringValue, IntValue>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, IntValue>>) TypeExtractor.getForObject(data.get(0));
