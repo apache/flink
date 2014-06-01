@@ -626,7 +626,7 @@ public abstract class DataSet<T> {
 	public <X> DataSet<X> runOperation(CustomUnaryOperation<T, X> operation) {
 		Validate.notNull(operation, "The custom operator must not be null.");
 		operation.setInput(this);
-		return operation.createOperator();
+		return operation.createResult();
 	}
 	
 	// --------------------------------------------------------------------------------------------

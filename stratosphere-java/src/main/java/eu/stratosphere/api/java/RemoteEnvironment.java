@@ -67,8 +67,6 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
-		p.setDefaultParallelism(getDegreeOfParallelism());
-		registerCachedFilesWithPlan(p);
 		
 		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFiles);
 		return executor.executePlan(p);
