@@ -316,9 +316,6 @@ public class Client {
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {
 			Plan plan = createProgramPlan(jobName);
-			if (getDegreeOfParallelism() > 0) {
-				plan.setDefaultParallelism(getDegreeOfParallelism());
-			}
 			this.optimizerPlan = compiler.compile(plan);
 			
 			// do not go on with anything now!
@@ -327,11 +324,7 @@ public class Client {
 
 		@Override
 		public String getExecutionPlan() throws Exception {
-			Plan plan = createProgramPlan("unused");
-			if (getDegreeOfParallelism() > 0) {
-				plan.setDefaultParallelism(getDegreeOfParallelism());
-			}
-			
+			Plan plan = createProgramPlan();
 			this.optimizerPlan = compiler.compile(plan);
 			
 			// do not go on with anything now!

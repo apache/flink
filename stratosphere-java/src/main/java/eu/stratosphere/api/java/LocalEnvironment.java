@@ -49,8 +49,6 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
-		p.setDefaultParallelism(getDegreeOfParallelism());
-		registerCachedFilesWithPlan(p);
 		
 		PlanExecutor executor = PlanExecutor.createLocalExecutor();
 		initLogging();
@@ -59,9 +57,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	
 	@Override
 	public String getExecutionPlan() throws Exception {
-		Plan p = createProgramPlan("unnamed job");
-		p.setDefaultParallelism(getDegreeOfParallelism());
-		registerCachedFilesWithPlan(p);
+		Plan p = createProgramPlan();
 		
 		PlanExecutor executor = PlanExecutor.createLocalExecutor();
 		initLogging();

@@ -305,7 +305,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param name user defined name of that file
 	 * @throws java.io.IOException
 	 */
-	public void registerCachedFile(String filePath, String name) throws RuntimeException, IOException {
+	public void registerCachedFile(String filePath, String name) throws IOException {
 		if (!this.cacheFile.containsKey(name)) {
 			try {
 				URI u = new URI(filePath);
