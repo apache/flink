@@ -31,7 +31,7 @@ public class FSDataInputStreamWrapper implements Closeable, SeekableInput {
 	private final long len;
 	private long pos;
 
-	public FSDataInputStreamWrapper(final FSDataInputStream stream, final int len) {
+	public FSDataInputStreamWrapper(FSDataInputStream stream, long len) {
 		this.stream = stream;
 		this.len = len;
 		this.pos = 0;
