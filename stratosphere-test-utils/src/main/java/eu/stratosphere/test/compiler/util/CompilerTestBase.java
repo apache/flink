@@ -10,7 +10,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
-package eu.stratosphere.test.compiler;
+package eu.stratosphere.test.compiler.util;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -38,7 +38,6 @@ import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
 import eu.stratosphere.nephele.instance.InstanceTypeFactory;
-import eu.stratosphere.test.compiler.util.OperatorResolver;
 import eu.stratosphere.util.OperatingSystem;
 
 /**

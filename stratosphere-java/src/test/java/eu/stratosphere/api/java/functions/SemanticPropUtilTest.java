@@ -624,7 +624,11 @@ public class SemanticPropUtilTest {
 
 		TypeInformation<?> type = new TupleTypeInfo<Tuple4<Integer, Integer, Integer, Integer>>(BasicTypeInfo.INT_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
-		DualInputSemanticProperties dsp = SemanticPropUtil.getSemanticPropsDualFromString(constantFieldsFirst, constantFieldsSecond, null,
+		
+		
+		DualInputSemanticProperties dsp = new DualInputSemanticProperties();
+		
+		SemanticPropUtil.getSemanticPropsDualFromString(dsp, constantFieldsFirst, constantFieldsSecond, null,
 				null, null, null, type, type, type);
 
 		FieldSet fs = dsp.getForwardedField1(1);
@@ -642,9 +646,11 @@ public class SemanticPropUtilTest {
 		String[] constantFieldsFirstExcept = { "1,2" };
 		String[] constantFieldsSecond = { "0->1" };
 
+		DualInputSemanticProperties dsp = new DualInputSemanticProperties();
+		
 		TypeInformation<?> type = new TupleTypeInfo<Tuple3<Integer, Integer, Integer>>(BasicTypeInfo.INT_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
-		DualInputSemanticProperties dsp = SemanticPropUtil.getSemanticPropsDualFromString(null, constantFieldsSecond,
+		SemanticPropUtil.getSemanticPropsDualFromString(dsp, null, constantFieldsSecond,
 				constantFieldsFirstExcept, null, null, null, type, type, type);
 
 		FieldSet fs = dsp.getForwardedField1(0);

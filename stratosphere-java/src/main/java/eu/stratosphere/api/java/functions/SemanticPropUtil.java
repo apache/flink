@@ -327,16 +327,15 @@ public class SemanticPropUtil {
 		return result;
 	}
 
-	public static DualInputSemanticProperties getSemanticPropsDualFromString(String[] constantSetFirst, String[] constantSetSecond, String[] constantSetFirstExcept,
-							String[] constantSetSecondExcept, String[] readFieldsFirst, String[] readFieldsSecond, TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType) {
-		DualInputSemanticProperties result = new DualInputSemanticProperties();
-		parseConstantFieldsFirst(constantSetFirst, result, inType1, outType);
-		parseConstantFieldsSecond(constantSetSecond, result, inType2, outType);
-		parseConstantFieldsFirstExcept(constantSetFirstExcept, result, inType1, outType);
-		parseConstantFieldsSecondExcept(constantSetSecondExcept, result, inType2, outType);
-		parseReadFieldsFirst(readFieldsFirst, result, inType1, outType);
-		parseReadFieldsSecond(readFieldsSecond, result, inType2, outType);
-		return result;
+	public static void getSemanticPropsDualFromString(DualInputSemanticProperties target, String[] constantSetFirst, String[] constantSetSecond, String[] constantSetFirstExcept,
+							String[] constantSetSecondExcept, String[] readFieldsFirst, String[] readFieldsSecond, TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType)
+	{
+		parseConstantFieldsFirst(constantSetFirst, target, inType1, outType);
+		parseConstantFieldsSecond(constantSetSecond, target, inType2, outType);
+		parseConstantFieldsFirstExcept(constantSetFirstExcept, target, inType1, outType);
+		parseConstantFieldsSecondExcept(constantSetSecondExcept, target, inType2, outType);
+		parseReadFieldsFirst(readFieldsFirst, target, inType1, outType);
+		parseReadFieldsSecond(readFieldsSecond, target, inType2, outType);
 	}
 
 	public static DualInputSemanticProperties getSemanticPropsDual(Set<Annotation> set, TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType) {
