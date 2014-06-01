@@ -72,7 +72,7 @@ public class AsynchonousPartialSorterITCase
 	@Before
 	public void beforeTest()
 	{
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE,1);
 		this.ioManager = new IOManager();
 		this.serializer = RecordSerializerFactory.get();
 		this.comparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
@@ -107,7 +107,7 @@ public class AsynchonousPartialSorterITCase
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
 			Sorter<Record> sorter = new AsynchronousPartialSorter<Record>(this.memoryManager, source,
-				this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
+				this.parentTask, this.serializer, this.comparator, 1.0);
 	
 			runPartialSorter(sorter, NUM_RECORDS, 0);
 		}
@@ -130,7 +130,7 @@ public class AsynchonousPartialSorterITCase
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
 			Sorter<Record> sorter = new AsynchronousPartialSorter<Record>(this.memoryManager, source,
-				this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
+				this.parentTask, this.serializer, this.comparator, 1.0);
 	
 			runPartialSorter(sorter, NUM_RECORDS, 2);
 		}
@@ -153,7 +153,7 @@ public class AsynchonousPartialSorterITCase
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
 			Sorter<Record> sorter = new AsynchronousPartialSorter<Record>(this.memoryManager, source,
-				this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
+				this.parentTask, this.serializer, this.comparator, 1.0);
 	
 			runPartialSorter(sorter, NUM_RECORDS, 28);
 		}
@@ -178,7 +178,7 @@ public class AsynchonousPartialSorterITCase
 				// merge iterator
 				LOG.debug("Initializing sortmerger...");
 				sorter = new ExceptionThrowingAsynchronousPartialSorter<Record>(this.memoryManager, source,
-						this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
+						this.parentTask, this.serializer, this.comparator, 1.0);
 		
 				runPartialSorter(sorter, NUM_RECORDS, 0);
 				
@@ -283,10 +283,10 @@ public class AsynchonousPartialSorterITCase
 		public ExceptionThrowingAsynchronousPartialSorter(MemoryManager memoryManager,
 				MutableObjectIterator<E> input, AbstractInvokable parentTask, 
 				TypeSerializerFactory<E> serializer, TypeComparator<E> comparator,
-				long totalMemory)
+				double memoryFraction)
 		throws IOException, MemoryAllocationException
 		{
-			super(memoryManager, input, parentTask, serializer, comparator, totalMemory);
+			super(memoryManager, input, parentTask, serializer, comparator, memoryFraction);
 		}
 
 

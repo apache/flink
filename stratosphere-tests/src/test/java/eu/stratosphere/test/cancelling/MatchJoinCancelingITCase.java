@@ -30,6 +30,11 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 public class MatchJoinCancelingITCase extends CancellingTestBase {
+	private static final int DOP = 4;
+
+	public MatchJoinCancelingITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
 	
 	// --------------- Test Sort Matches that are canceled while still reading / sorting -----------------
 //	@Test
@@ -48,7 +53,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(4);
+		p.setDefaultParallelism(DOP);
 		
 		runAndCancelJob(p, 3000, 10*1000);
 	}
@@ -69,7 +74,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(4);
+		p.setDefaultParallelism(DOP);
 		
 		runAndCancelJob(p, 5000, 10*1000);
 	}
@@ -90,7 +95,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(4);
+		p.setDefaultParallelism(DOP);
 		
 		runAndCancelJob(p, 5000);
 		
@@ -117,7 +122,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(4);
+		p.setDefaultParallelism(DOP);
 		
 		runAndCancelJob(p, 30 * 1000, 30 * 1000);
 	}
@@ -145,7 +150,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(4);
+		p.setDefaultParallelism(DOP);
 		
 		runAndCancelJob(p, 10 * 1000, 20 * 1000);
 	}
@@ -171,7 +176,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(4);
+		p.setDefaultParallelism(DOP);
 		
 		runAndCancelJob(p, 10 * 1000, 10 * 1000);
 	}

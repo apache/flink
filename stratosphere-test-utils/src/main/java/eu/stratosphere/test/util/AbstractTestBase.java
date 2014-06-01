@@ -45,26 +45,29 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.util.LogUtils;
 
 public abstract class AbstractTestBase {
-	private static final int DEFAULT_NUM_TASK_MANAGER = 1;
+	protected static final int MINIMUM_HEAP_SIZE_MB = 192;
 	
-	private static final int MINIMUM_HEAP_SIZE_MB = 192;
-	
-	private static final long MEMORY_SIZE = 80;
+	protected static final long TASK_MANAGER_MEMORY_SIZE = 80;
 
-	private int numTaskManager = DEFAULT_NUM_TASK_MANAGER;
-	
+	protected static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = 1;
+
+	protected static final int DEFAULT_NUM_TASK_TRACKER = 1;
+
 	protected final Configuration config;
 	
 	protected NepheleMiniCluster executor;
 	
 	private final List<File> tempFiles;
-	
-		
+
+	protected int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
+
+	protected int numTaskTracker = DEFAULT_NUM_TASK_TRACKER;
+
 	public AbstractTestBase(Configuration config) {
 		verifyJvmOptions();
 		this.config = config;
 		this.tempFiles = new ArrayList<File>();
-		
+
 		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
 	}
 
@@ -73,15 +76,6 @@ public abstract class AbstractTestBase {
 		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
 				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
 	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Getter/Setter
-	// --------------------------------------------------------------------------------------------
-
-	public int getNumTaskManager() { return numTaskManager; }
-
-	public void setNumTaskManager(int numTaskManager) { this.numTaskManager = numTaskManager; }
-
 	// --------------------------------------------------------------------------------------------
 	//  Local Test Cluster Life Cycle
 	// --------------------------------------------------------------------------------------------
@@ -91,8 +85,9 @@ public abstract class AbstractTestBase {
 		this.executor = new NepheleMiniCluster();
 		this.executor.setDefaultOverwriteFiles(true);
 		this.executor.setLazyMemoryAllocation(true);
-		this.executor.setMemorySize(MEMORY_SIZE);
-		this.executor.setNumTaskManager(this.numTaskManager);
+		this.executor.setMemorySize(TASK_MANAGER_MEMORY_SIZE);
+		this.executor.setTaskManagerNumSlots(taskManagerNumSlots);
+		this.executor.setNumTaskTracker(this.numTaskTracker);
 		this.executor.start();
 	}
 
@@ -109,6 +104,19 @@ public abstract class AbstractTestBase {
 			deleteAllTempFiles();
 		}
 	}
+
+	//------------------
+	// Accessors
+	//------------------
+
+	public int getTaskManagerNumSlots() { return taskManagerNumSlots; }
+
+	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
+
+	public int getNumTaskTracker() { return numTaskTracker; }
+
+	public void setNumTaskTracker(int numTaskTracker) { this.numTaskTracker = numTaskTracker; }
+
 	
 	// --------------------------------------------------------------------------------------------
 	//  Temporary File Utilities

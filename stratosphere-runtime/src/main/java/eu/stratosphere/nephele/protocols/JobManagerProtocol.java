@@ -19,6 +19,8 @@ import eu.stratosphere.core.protocols.VersionedProtocol;
 import eu.stratosphere.nephele.instance.HardwareDescription;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
+import eu.stratosphere.nephele.taskmanager.transferenvelope.RegisterTaskManagerResult;
+import eu.stratosphere.nephele.types.IntegerRecord;
 
 /**
  * The job manager protocol is implemented by the job manager and offers functionality
@@ -33,12 +35,23 @@ public interface JobManagerProtocol extends VersionedProtocol {
 	 * 
 	 * @param instanceConnectionInfo
 	 *        the information the job manager requires to connect to the instance's task manager
-	 * @param hardwareDescription
-	 *        a hardware description with details on the instance's compute resources.
 	 * @throws IOException
 	 *         thrown if an error occurs during this remote procedure call
 	 */
-	void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription)
+	void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo)
+			throws IOException;
+
+	/**
+	 * Registers a task manager at the JobManager.
+	 *
+	 * @param instanceConnectionInfo the information the job manager requires to connect to the instance's task manager
+	 * @param hardwareDescription a hardware description with details on the instance's compute resources.
+	 * @throws IOException
+	 *
+	 * @return whether the task manager was successfully registered
+	 */
+	RegisterTaskManagerResult registerTaskManager(InstanceConnectionInfo instanceConnectionInfo,
+						HardwareDescription hardwareDescription,IntegerRecord numberOfSlots)
 			throws IOException;
 
 	/**

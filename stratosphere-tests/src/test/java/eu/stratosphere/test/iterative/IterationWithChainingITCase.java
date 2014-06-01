@@ -46,6 +46,7 @@ public class IterationWithChainingITCase extends RecordAPITestBase {
 
     public IterationWithChainingITCase(Configuration config) {
         super(config);
+		setTaskManagerNumSlots(DOP);
     }
 
     @Override
@@ -69,7 +70,7 @@ public class IterationWithChainingITCase extends RecordAPITestBase {
     @Parameters
     public static Collection<Object[]> getConfigurations() {
         Configuration config1 = new Configuration();
-        config1.setInteger("ChainedMapperITCase#NoSubtasks", 4);
+        config1.setInteger("ChainedMapperITCase#NoSubtasks", DOP);
         return toParameterList(config1);
     }
 

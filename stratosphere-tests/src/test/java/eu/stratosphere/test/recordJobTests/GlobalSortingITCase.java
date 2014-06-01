@@ -38,6 +38,9 @@ public class GlobalSortingITCase extends RecordAPITestBase {
 
 	private String sortedRecords;
 
+	public GlobalSortingITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -77,7 +80,7 @@ public class GlobalSortingITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		GlobalSort globalSort = new GlobalSort();
-		return globalSort.getPlan("4", recordsPath, resultPath);
+		return globalSort.getPlan(new Integer(DOP).toString(), recordsPath, resultPath);
 	}
 
 	@Override

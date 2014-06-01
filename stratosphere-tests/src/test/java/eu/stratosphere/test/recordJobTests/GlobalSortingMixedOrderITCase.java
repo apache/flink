@@ -36,42 +36,44 @@ import eu.stratosphere.types.Key;
 public class GlobalSortingMixedOrderITCase extends RecordAPITestBase {
 	
 	private static final int NUM_RECORDS = 100000;
-	
+
 	private static final int RANGE_I1 = 100;
 	private static final int RANGE_I2 = 20;
 	private static final int RANGE_I3 = 20;
-	
+
 	private String recordsPath;
 	private String resultPath;
 
 	private String sortedRecords;
 
-
+	public GlobalSortingMixedOrderITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
 
 	@Override
 	protected void preSubmit() throws Exception {
-		
+
 		ArrayList<TripleInt> records = new ArrayList<TripleInt>();
-		
+
 		//Generate records
 		final Random rnd = new Random(1988);
 		final StringBuilder sb = new StringBuilder(NUM_RECORDS * 7);
-		
-		
+
+
 		for (int j = 0; j < NUM_RECORDS; j++) {
 			TripleInt val = new TripleInt(rnd.nextInt(RANGE_I1), rnd.nextInt(RANGE_I2), rnd.nextInt(RANGE_I3));
 			records.add(val);
 			sb.append(val);
 			sb.append('\n');
 		}
-		
-		
+
+
 		this.recordsPath = createTempFile("records", sb.toString());
 		this.resultPath = getTempDirPath("result");
 
 		// create the sorted result;
 		Collections.sort(records);
-		
+
 		sb.setLength(0);
 		for (TripleInt val : records) {
 			sb.append(val);
@@ -83,7 +85,7 @@ public class GlobalSortingMixedOrderITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		GlobalSort globalSort = new GlobalSort();
-		return globalSort.getPlan("4", recordsPath, resultPath);
+		return globalSort.getPlan(new Integer(DOP).toString(), recordsPath, resultPath);
 	}
 
 	@Override
@@ -91,22 +93,22 @@ public class GlobalSortingMixedOrderITCase extends RecordAPITestBase {
 		// Test results
 		compareResultsByLinesInMemoryWithStrictOrder(this.sortedRecords, this.resultPath);
 	}
-	
-	
+
+
 	public static class TripleIntDistribution implements DataDistribution {
-		
+
 		private static final long serialVersionUID = 1L;
-		
+
 		private boolean ascendingI1, ascendingI2, ascendingI3;
-		
+
 		public TripleIntDistribution(Order orderI1, Order orderI2, Order orderI3) {
 			this.ascendingI1 = orderI1 != Order.DESCENDING;
 			this.ascendingI2 = orderI2 != Order.DESCENDING;
 			this.ascendingI3 = orderI3 != Order.DESCENDING;
 		}
-		
+
 		public TripleIntDistribution() {}
-		
+
 		@Override
 		public void write(DataOutput out) throws IOException {
 			out.writeBoolean(this.ascendingI1);
@@ -129,7 +131,7 @@ public class GlobalSortingMixedOrderITCase extends RecordAPITestBase {
 			if (!this.ascendingI1) {
 				boundVal = RANGE_I1 - boundVal;
 			}
-			
+
 			return new Key[] { new IntValue(boundVal), new IntValue(RANGE_I2), new IntValue(RANGE_I3) };
 		}
 
@@ -137,11 +139,11 @@ public class GlobalSortingMixedOrderITCase extends RecordAPITestBase {
 		public int getNumberOfFields() {
 			return 3;
 		}
-		
+
 	}
-	
+
 	private static class GlobalSort implements Program {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -150,10 +152,10 @@ public class GlobalSortingMixedOrderITCase extends RecordAPITestBase {
 			final int numSubtasks     = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 			final String recordsPath = (args.length > 1 ? args[1] : "");
 			final String output      = (args.length > 2 ? args[2] : "");
-			
+
 			@SuppressWarnings("unchecked")
 			FileDataSource source = new FileDataSource(new CsvInputFormat(',', IntValue.class, IntValue.class, IntValue.class), recordsPath);
-			
+
 			FileDataSink sink = new FileDataSink(CsvOutputFormat.class, output);
 			CsvOutputFormat.configureRecordFormat(sink)
 				.recordDelimiter('\n')
@@ -162,34 +164,34 @@ public class GlobalSortingMixedOrderITCase extends RecordAPITestBase {
 				.field(IntValue.class, 0)
 				.field(IntValue.class, 1)
 				.field(IntValue.class, 2);
-			
+
 			sink.setGlobalOrder(
 				new Ordering(0, IntValue.class, Order.DESCENDING)
 					.appendOrdering(1, IntValue.class, Order.ASCENDING)
 					.appendOrdering(2, IntValue.class, Order.DESCENDING),
 				new TripleIntDistribution(Order.DESCENDING, Order.ASCENDING, Order.DESCENDING));
 			sink.setInput(source);
-			
+
 			Plan p = new Plan(sink);
 			p.setDefaultParallelism(numSubtasks);
 			return p;
 		}
 	}
-	
+
 	/**
 	 * Three integers sorting descending, ascending, descending.
 	 */
 	private static final class TripleInt implements Comparable<TripleInt> {
-		
+
 		private final int i1, i2, i3;
 
-		
+
 		private TripleInt(int i1, int i2, int i3) {
 			this.i1 = i1;
 			this.i2 = i2;
 			this.i3 = i3;
 		}
-		
+
 		@Override
 		public String toString() {
 			StringBuilder bld = new StringBuilder(32);

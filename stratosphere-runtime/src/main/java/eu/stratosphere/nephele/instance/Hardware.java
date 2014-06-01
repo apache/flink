@@ -11,30 +11,14 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.jobmanager.scheduler.queue;
-
-import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.jobmanager.scheduler.AbstractExecutionListener;
+package eu.stratosphere.nephele.instance;
 
 /**
- * This is a wrapper class for the {@link QueueScheduler} to receive
- * notifications about state changes of vertices belonging
- * to scheduled jobs.
- * <p>
- * This class is thread-safe.
- * 
+ * Convenience class to extract hardware specifics of the computer executing this class
  */
-public final class QueueExecutionListener extends AbstractExecutionListener {
+public class Hardware {
 
-	/**
-	 * Constructs a new queue execution listener.
-	 * 
-	 * @param scheduler
-	 *        the scheduler this listener is connected with
-	 * @param executionVertex
-	 *        the execution vertex this listener is created for
-	 */
-	public QueueExecutionListener(final QueueScheduler scheduler, final ExecutionVertex executionVertex) {
-		super(scheduler, executionVertex);
+	public static int getNumberCPUCores() {
+		return Runtime.getRuntime().availableProcessors();
 	}
 }

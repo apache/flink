@@ -98,7 +98,7 @@ public class HashMatchIteratorITCase {
 		this.pairRecordPairComparator = new IntPairRecordPairComparator();
 		this.recordPairPairComparator = new RecordIntPairPairComparator();
 		
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
 		this.ioManager = new IOManager();
 	}
 
@@ -150,7 +150,7 @@ public class HashMatchIteratorITCase {
 					new BuildFirstHashMatchIterator<Record, Record, Record>(
 						input1, input2, this.recordSerializer, this.record1Comparator, 
 						this.recordSerializer, this.record2Comparator, this.recordPairComparator,
-						this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
+						this.memoryManager, ioManager, this.parentTask, 1.0);
 			
 			iterator.open();
 			
@@ -237,7 +237,7 @@ public class HashMatchIteratorITCase {
 					new BuildFirstHashMatchIterator<Record, Record, Record>(
 						input1, input2, this.recordSerializer, this.record1Comparator, 
 						this.recordSerializer, this.record2Comparator, this.recordPairComparator,
-						this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
+						this.memoryManager, ioManager, this.parentTask, 1.0);
 
 			iterator.open();
 			
@@ -286,7 +286,7 @@ public class HashMatchIteratorITCase {
 				new BuildSecondHashMatchIterator<Record, Record, Record>(
 					input1, input2, this.recordSerializer, this.record1Comparator, 
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
-					this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
+					this.memoryManager, ioManager, this.parentTask, 1.0);
 
 			iterator.open();
 			
@@ -373,7 +373,7 @@ public class HashMatchIteratorITCase {
 				new BuildSecondHashMatchIterator<Record, Record, Record>(
 					input1, input2, this.recordSerializer, this.record1Comparator, 
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
-					this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
+					this.memoryManager, ioManager, this.parentTask, 1.0);
 			
 			iterator.open();
 			
@@ -420,7 +420,7 @@ public class HashMatchIteratorITCase {
 					new BuildSecondHashMatchIterator<IntPair, Record, Record>(
 						input1, input2, this.pairSerializer, this.pairComparator, 
 						this.recordSerializer, this.record2Comparator, this.pairRecordPairComparator,
-						this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
+						this.memoryManager, this.ioManager, this.parentTask, 1.0);
 			
 			iterator.open();
 			
@@ -467,7 +467,7 @@ public class HashMatchIteratorITCase {
 					new BuildFirstHashMatchIterator<IntPair, Record, Record>(
 						input1, input2, this.pairSerializer, this.pairComparator, 
 						this.recordSerializer, this.record2Comparator, this.recordPairPairComparator,
-						this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
+						this.memoryManager, this.ioManager, this.parentTask, 1.0);
 			
 			iterator.open();
 			

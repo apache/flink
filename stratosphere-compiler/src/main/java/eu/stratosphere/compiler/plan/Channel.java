@@ -68,11 +68,11 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	
 	private TempMode tempMode;
 	
-	private long tempMemory;
+	private double relativeTempMemory;
 	
-	private long memoryGlobalStrategy;
+	private double relativeMemoryGlobalStrategy;
 	
-	private long memoryLocalStrategy;
+	private double relativeMemoryLocalStrategy;
 	
 	private int replicationFactor = 1;
 	
@@ -200,17 +200,17 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	 *
 	 * @return The temp memory.
 	 */
-	public long getTempMemory() {
-		return this.tempMemory;
+	public double getRelativeTempMemory() {
+		return this.relativeTempMemory;
 	}
 	
 	/**
 	 * Sets the memory for materializing the channel's result from this Channel.
 	 *
-	 * @param tempMemory The memory for materialization.
+	 * @param relativeTempMemory The memory for materialization.
 	 */
-	public void setTempMemory(long tempMemory) {
-		this.tempMemory = tempMemory;
+	public void setRelativeTempMemory(double relativeTempMemory) {
+		this.relativeTempMemory = relativeTempMemory;
 	}
 	
 	/**
@@ -286,20 +286,20 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		this.localStrategyComparator = localStrategyComparator;
 	}
 	
-	public long getMemoryGlobalStrategy() {
-		return memoryGlobalStrategy;
+	public double getRelativeMemoryGlobalStrategy() {
+		return relativeMemoryGlobalStrategy;
 	}
 	
-	public void setMemoryGlobalStrategy(long memoryGlobalStrategy) {
-		this.memoryGlobalStrategy = memoryGlobalStrategy;
+	public void setRelativeMemoryGlobalStrategy(double relativeMemoryGlobalStrategy) {
+		this.relativeMemoryGlobalStrategy = relativeMemoryGlobalStrategy;
 	}
 	
-	public long getMemoryLocalStrategy() {
-		return memoryLocalStrategy;
+	public double getRelativeMemoryLocalStrategy() {
+		return relativeMemoryLocalStrategy;
 	}
 	
-	public void setMemoryLocalStrategy(long memoryLocalStrategy) {
-		this.memoryLocalStrategy = memoryLocalStrategy;
+	public void setRelativeMemoryLocalStrategy(double relativeMemoryLocalStrategy) {
+		this.relativeMemoryLocalStrategy = relativeMemoryLocalStrategy;
 	}
 	
 	public boolean isOnDynamicPath() {
@@ -435,33 +435,6 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		case PARTITION_RANDOM:
 			return;
 		}
-		throw new CompilerException("Unrecognized Ship Strategy Type: " + this.shipStrategy);
-	}
-	
-	public void adjustGlobalPropertiesForLocalParallelismChange() {
-		if (this.shipStrategy == null || this.shipStrategy == ShipStrategyType.NONE) {
-			throw new IllegalStateException("Cannot adjust channel for degree of parallelism " +
-					"change before the ship strategy is set.");
-		}
-		
-		// make sure the properties are acquired
-		if (this.globalProps == null) {
-			getGlobalProperties();
-		}
-		
-		// some strategies globally reestablish properties
-		switch (this.shipStrategy) {
-		case FORWARD:
-			this.globalProps.reset();
-			return;
-		case NONE: // excluded by sanity check. just here to silence compiler warnings check completion
-		case BROADCAST:
-		case PARTITION_HASH:
-		case PARTITION_RANGE:
-		case PARTITION_RANDOM:
-			return;
-		}
-		
 		throw new CompilerException("Unrecognized Ship Strategy Type: " + this.shipStrategy);
 	}
 

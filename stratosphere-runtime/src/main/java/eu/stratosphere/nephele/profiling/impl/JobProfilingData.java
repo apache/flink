@@ -23,7 +23,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertexIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.instance.AbstractInstance;
+import eu.stratosphere.nephele.instance.Instance;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.profiling.impl.types.InternalInstanceProfilingData;
@@ -75,7 +75,7 @@ public class JobProfilingData {
 
 	public InstanceSummaryProfilingEvent getInstanceSummaryProfilingData(long timestamp) {
 
-		final Set<AbstractInstance> tempSet = new HashSet<AbstractInstance>();
+		final Set<Instance> tempSet = new HashSet<Instance>();
 		// First determine the number of allocated instances in the current stage
 		final ExecutionGroupVertexIterator it = new ExecutionGroupVertexIterator(this.executionGraph, true,
 			this.executionGraph.getIndexOfCurrentExecutionStage());
@@ -84,7 +84,7 @@ public class JobProfilingData {
 			final ExecutionGroupVertex groupVertex = it.next();
 			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); i++) {
 				final ExecutionVertex executionVertex = groupVertex.getGroupMember(i);
-				final AbstractInstance instance = executionVertex.getAllocatedResource().getInstance();
+				final Instance instance = executionVertex.getAllocatedResource().getInstance();
 				if(!(instance instanceof DummyInstance)) {
 					tempSet.add(instance);
 				}

@@ -22,6 +22,6 @@ public class WordCountITCase extends eu.stratosphere.test.recordJobTests.WordCou
 	@Override
 	protected Plan getTestJob() {
 		WordCount wc = new WordCount();
-		return wc.getScalaPlan(4, textPath, resultPath);
+		return wc.getScalaPlan(DOP, textPath, resultPath);
 	}
 }

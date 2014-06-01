@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.instance.cluster;
+package eu.stratosphere.nephele.instance;
 
 import java.util.List;
 
@@ -21,14 +21,14 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
  * This class is an auxiliary class to send the notification
- * about the availability of an {@link AbstractInstance} to the given {@link InstanceListener} object. The notification
- * must be sent from
+ * about the availability of an {@link eu.stratosphere.nephele.instance.Instance} to the given {@link
+ * InstanceListener} object. The notification must be sent from
  * a separate thread, otherwise the atomic operation of requesting an instance
- * for a vertex and switching to the state ASSINING could not be guaranteed.
+ * for a vertex and switching to the state ASSIGNING could not be guaranteed.
  * This class is thread-safe.
  * 
  */
-public class ClusterInstanceNotifier extends Thread {
+public class InstanceNotifier extends Thread {
 
 	/**
 	 * The {@link InstanceListener} object to send the notification to.
@@ -55,8 +55,8 @@ public class ClusterInstanceNotifier extends Thread {
 	 * @param allocatedResources
 	 *        the resources with has been allocated for the job
 	 */
-	public ClusterInstanceNotifier(final InstanceListener instanceListener, final JobID jobID,
-			final List<AllocatedResource> allocatedResources) {
+	public InstanceNotifier(final InstanceListener instanceListener, final JobID jobID,
+							final List<AllocatedResource> allocatedResources) {
 		this.instanceListener = instanceListener;
 		this.jobID = jobID;
 		this.allocatedResources = allocatedResources;

@@ -354,7 +354,7 @@ public class InboundEnvelopeDecoderTest {
 		buf.readerIndex(0);
 		ByteBuf[] slices = randomSlices(buf);
 
-		ch.writeInbound(slices);
+		ch.writeInbound((Object) slices);
 
 		for (ByteBuf slice : slices) {
 			Assert.assertEquals(1, slice.refCnt());

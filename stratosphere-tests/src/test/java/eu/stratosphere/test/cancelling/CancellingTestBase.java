@@ -60,9 +60,13 @@ public abstract class CancellingTestBase {
 	 */
 	private static final int DEFAULT_CANCEL_FINISHED_INTERVAL = 10 * 1000;
 
+	private static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = 1;
+
 	// --------------------------------------------------------------------------------------------
 	
 	protected NepheleMiniCluster executor;
+
+	protected int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -83,7 +87,7 @@ public abstract class CancellingTestBase {
 		verifyJvmOptions();
 		this.executor = new NepheleMiniCluster();
 		this.executor.setDefaultOverwriteFiles(true);
-		
+		this.executor.setTaskManagerNumSlots(taskManagerNumSlots);
 		this.executor.start();
 	}
 
@@ -231,4 +235,8 @@ public abstract class CancellingTestBase {
 		final NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 		return jgg.compileJobGraph(op);
 	}
+
+	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
+
+	public int getTaskManagerNumSlots() { return this.taskManagerNumSlots; }
 }

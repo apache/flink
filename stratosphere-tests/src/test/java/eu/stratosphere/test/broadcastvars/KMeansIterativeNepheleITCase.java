@@ -59,7 +59,11 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 	private static final int ITERATION_ID = 42;
 	
 	private static final int MEMORY_PER_CONSUMER = 2;
-	
+
+	private static final int DOP = 4;
+
+	private static final double MEMORY_FRACTION_PER_CONSUMER = (double)MEMORY_PER_CONSUMER/TASK_MANAGER_MEMORY_SIZE*DOP;
+
 	protected String dataPath;
 	protected String clusterPath;
 	protected String resultPath;
@@ -67,6 +71,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 	
 	public KMeansIterativeNepheleITCase() {
 		LogUtils.initializeDefaultConsoleLogger(Level.ERROR);
+		setTaskManagerNumSlots(DOP);
 	}
 	
 	@Override
@@ -83,7 +88,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
-		return createJobGraph(dataPath, clusterPath, this.resultPath, 4, 20);
+		return createJobGraph(dataPath, clusterPath, this.resultPath, DOP, 20);
 	}
 
 	// -------------------------------------------------------------------------------------------------------------
@@ -93,7 +98,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 	private static JobInputVertex createPointsInput(JobGraph jobGraph, String pointsPath, int numSubTasks, TypeSerializerFactory<?> serializer) {
 		@SuppressWarnings("unchecked")
 		CsvInputFormat pointsInFormat = new CsvInputFormat('|', IntValue.class, DoubleValue.class, DoubleValue.class, DoubleValue.class);
-		JobInputVertex pointsInput = JobGraphUtils.createInput(pointsInFormat, pointsPath, "[Points]", jobGraph, numSubTasks, numSubTasks);
+		JobInputVertex pointsInput = JobGraphUtils.createInput(pointsInFormat, pointsPath, "[Points]", jobGraph, numSubTasks);
 		{
 			TaskConfig taskConfig = new TaskConfig(pointsInput.getConfiguration());
 			taskConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
@@ -114,7 +119,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 	private static JobInputVertex createCentersInput(JobGraph jobGraph, String centersPath, int numSubTasks, TypeSerializerFactory<?> serializer) {
 		@SuppressWarnings("unchecked")
 		CsvInputFormat modelsInFormat = new CsvInputFormat('|', IntValue.class, DoubleValue.class, DoubleValue.class, DoubleValue.class);
-		JobInputVertex modelsInput = JobGraphUtils.createInput(modelsInFormat, centersPath, "[Models]", jobGraph, numSubTasks, numSubTasks);
+		JobInputVertex modelsInput = JobGraphUtils.createInput(modelsInFormat, centersPath, "[Models]", jobGraph, numSubTasks);
 
 		{
 			TaskConfig taskConfig = new TaskConfig(modelsInput.getConfiguration());
@@ -135,7 +140,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 
 	private static JobOutputVertex createOutput(JobGraph jobGraph, String resultPath, int numSubTasks, TypeSerializerFactory<?> serializer) {
 		
-		JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "Output", numSubTasks, numSubTasks);
+		JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "Output", numSubTasks);
 
 		{
 			TaskConfig taskConfig = new TaskConfig(output.getConfiguration());
@@ -152,7 +157,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 	}
 	
 	private static JobTaskVertex createIterationHead(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> serializer) {
-		JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks, numSubTasks);
+		JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks);
 
 		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
 		headConfig.setIterationId(ITERATION_ID);
@@ -163,7 +168,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		headConfig.setInputSerializer(serializer, 0);
 		
 		// back channel / iterations
-		headConfig.setBackChannelMemory(MEMORY_PER_CONSUMER * JobGraphUtils.MEGABYTE);
+		headConfig.setRelativeBackChannelMemory(MEMORY_FRACTION_PER_CONSUMER);
 		
 		// output into iteration. broadcasting the centers
 		headConfig.setOutputSerializer(serializer);
@@ -190,7 +195,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 			TypeComparatorFactory<?> outputComparator)
 	{
 		JobTaskVertex mapper = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
-			"Map (Select nearest center)", jobGraph, numSubTasks, numSubTasks);
+			"Map (Select nearest center)", jobGraph, numSubTasks);
 		
 		TaskConfig intermediateConfig = new TaskConfig(mapper.getConfiguration());
 		intermediateConfig.setIterationId(ITERATION_ID);
@@ -220,7 +225,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		// ---------------- the tail (co group) --------------------
 		
 		JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "Reduce / Iteration Tail", jobGraph,
-			numSubTasks, numSubTasks);
+			numSubTasks);
 		
 		TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
 		tailConfig.setIterationId(ITERATION_ID);
@@ -235,7 +240,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 
 		tailConfig.setInputLocalStrategy(0, LocalStrategy.SORT);
 		tailConfig.setInputComparator(inputComparator, 0);
-		tailConfig.setMemoryInput(0, MEMORY_PER_CONSUMER * JobGraphUtils.MEGABYTE);
+		tailConfig.setRelativeMemoryInput(0, MEMORY_FRACTION_PER_CONSUMER);
 		tailConfig.setFilehandlesInput(0, 128);
 		tailConfig.setSpillingThresholdInput(0, 0.9f);
 		
@@ -279,7 +284,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		
 		JobTaskVertex reducer = createReducer(jobGraph, numSubTasks, serializer, int0Comparator, serializer);
 		
-		JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", numSubTasks, numSubTasks);
+		JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", numSubTasks);
 		
 		JobOutputVertex sync = createSync(jobGraph, numIterations, numSubTasks);
 		
@@ -293,7 +298,8 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		JobGraphUtils.connect(head, mapper, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
 		new TaskConfig(mapper.getConfiguration()).setBroadcastGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 		new TaskConfig(mapper.getConfiguration()).setInputCached(0, true);
-		new TaskConfig(mapper.getConfiguration()).setInputMaterializationMemory(0, MEMORY_PER_CONSUMER * JobGraphUtils.MEGABYTE);
+		new TaskConfig(mapper.getConfiguration()).setRelativeInputMaterializationMemory(0,
+				MEMORY_FRACTION_PER_CONSUMER);
 
 		JobGraphUtils.connect(mapper, reducer, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
 		new TaskConfig(reducer.getConfiguration()).setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);

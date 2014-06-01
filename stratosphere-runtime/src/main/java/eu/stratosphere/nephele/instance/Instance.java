@@ -15,8 +15,12 @@ package eu.stratosphere.nephele.instance;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Set;
+import java.util.Collection;
 
 import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
@@ -24,28 +28,22 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.taskmanager.TaskKillResult;
-import eu.stratosphere.runtime.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
+import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
+import eu.stratosphere.runtime.io.channels.ChannelID;
 
 /**
- * An abstract instance represents a resource a {@link eu.stratosphere.nephele.taskmanager.TaskManager} runs on.
+ * An instance represents a resource a {@link eu.stratosphere.nephele.taskmanager.TaskManager} runs on.
  * 
  */
-public abstract class AbstractInstance extends NetworkNode {
-
-	/**
-	 * The type of the instance.
-	 */
-	private final InstanceType instanceType;
-
+public class Instance extends NetworkNode {
 	/**
 	 * The connection info identifying the instance.
 	 */
@@ -57,15 +55,28 @@ public abstract class AbstractInstance extends NetworkNode {
 	private final HardwareDescription hardwareDescription;
 
 	/**
+	 * Number of slots available on the node
+	 */
+	private final int numberOfSlots;
+
+	/**
+	 * Allocated slots on this instance
+	 */
+	private final Map<AllocationID, AllocatedSlot> allocatedSlots = new HashMap<AllocationID, AllocatedSlot>();
+
+	/**
 	 * Stores the RPC stub object for the instance's task manager.
 	 */
 	private TaskOperationProtocol taskManager = null;
 
 	/**
+	 * Time when last heat beat has been received from the task manager running on this instance.
+	 */
+	private long lastReceivedHeartBeat = System.currentTimeMillis();
+
+	/**
 	 * Constructs an abstract instance object.
 	 * 
-	 * @param instanceType
-	 *        the type of the instance
 	 * @param instanceConnectionInfo
 	 *        the connection info identifying the instance
 	 * @param parentNode
@@ -75,13 +86,13 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * @param hardwareDescription
 	 *        the hardware description provided by the instance itself
 	 */
-	public AbstractInstance(final InstanceType instanceType, final InstanceConnectionInfo instanceConnectionInfo,
-			final NetworkNode parentNode, final NetworkTopology networkTopology,
-			final HardwareDescription hardwareDescription) {
+	public Instance(final InstanceConnectionInfo instanceConnectionInfo,
+					final NetworkNode parentNode, final NetworkTopology networkTopology,
+					final HardwareDescription hardwareDescription, int numberOfSlots) {
 		super((instanceConnectionInfo == null) ? null : instanceConnectionInfo.toString(), parentNode, networkTopology);
-		this.instanceType = instanceType;
 		this.instanceConnectionInfo = instanceConnectionInfo;
 		this.hardwareDescription = hardwareDescription;
+		this.numberOfSlots = numberOfSlots;
 	}
 
 	/**
@@ -112,15 +123,6 @@ public abstract class AbstractInstance extends NetworkNode {
 			RPC.stopProxy(this.taskManager);
 			this.taskManager = null;
 		}
-	}
-
-	/**
-	 * Returns the type of the instance.
-	 * 
-	 * @return the type of the instance
-	 */
-	public final InstanceType getType() {
-		return this.instanceType;
 	}
 
 	/**
@@ -209,7 +211,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	/**
 	 * Kills the task identified by the given ID at the instance's
 	 * {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
-	 *
+	 * 
 	 * @param id
 	 *        the ID identifying the task to be killed
 	 * @throws IOException
@@ -221,6 +223,31 @@ public abstract class AbstractInstance extends NetworkNode {
 		return getTaskManagerProxy().killTask(id);
 	}
 
+	/**
+	 * Updates the time of last received heart beat to the current system time.
+	 */
+	public synchronized void reportHeartBeat() {
+		this.lastReceivedHeartBeat = System.currentTimeMillis();
+	}
+
+	/**
+	 * Returns whether the host is still alive.
+	 *
+	 * @param cleanUpInterval
+	 *        duration (in milliseconds) after which a host is
+	 *        considered dead if it has no received heat-beats.
+	 * @return <code>true</code> if the host has received a heat-beat before the <code>cleanUpInterval</code> duration
+	 *         has expired, <code>false</code> otherwise
+	 */
+	public synchronized boolean isStillAlive(final long cleanUpInterval) {
+
+		if (this.lastReceivedHeartBeat + cleanUpInterval < System.currentTimeMillis()) {
+			return false;
+		}
+		return true;
+	}
+
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -229,11 +256,11 @@ public abstract class AbstractInstance extends NetworkNode {
 			return super.equals(obj);
 		}
 
-		if (!(obj instanceof AbstractInstance)) {
+		if (!(obj instanceof Instance)) {
 			return false;
 		}
 
-		final AbstractInstance abstractInstance = (AbstractInstance) obj;
+		final Instance abstractInstance = (Instance) obj;
 
 		return this.instanceConnectionInfo.equals(abstractInstance.getInstanceConnectionInfo());
 	}
@@ -282,7 +309,6 @@ public abstract class AbstractInstance extends NetworkNode {
 	 *         thrown if an error occurs during this remote procedure call
 	 */
 	public synchronized void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException {
-
 		getTaskManagerProxy().invalidateLookupCacheEntries(channelIDs);
 	}
 
@@ -293,5 +319,44 @@ public abstract class AbstractInstance extends NetworkNode {
 
 		destroyTaskManagerProxy();
 
+	}
+
+	public int getNumberOfSlots() {
+		return numberOfSlots;
+	}
+
+	public int getNumberOfAvailableSlots() { return numberOfSlots - allocatedSlots.size(); }
+
+	public synchronized AllocatedResource allocateSlot(JobID jobID) throws InstanceException{
+		if(allocatedSlots.size() < numberOfSlots){
+			AllocatedSlot slot = new AllocatedSlot(jobID);
+
+			allocatedSlots.put(slot.getAllocationID(), slot);
+			return new AllocatedResource(this,slot.getAllocationID());
+		}else{
+			throw new InstanceException("Overbooking instance " + instanceConnectionInfo + ".");
+		}
+	}
+
+	public synchronized void releaseSlot(AllocationID allocationID) {
+		if(allocatedSlots.containsKey(allocationID)){
+			allocatedSlots.remove(allocationID);
+		}else{
+			throw new RuntimeException("There is no slot registered with allocation ID " + allocationID + ".");
+		}
+	}
+
+	public Collection<AllocatedSlot> getAllocatedSlots() {
+		return allocatedSlots.values();
+	}
+
+	public Collection<AllocatedSlot> removeAllocatedSlots() {
+		Collection<AllocatedSlot> slots = new ArrayList<AllocatedSlot>(this.allocatedSlots.values());
+
+		for(AllocatedSlot slot : slots){
+			releaseSlot(slot.getAllocationID());
+		}
+
+		return slots;
 	}
 }

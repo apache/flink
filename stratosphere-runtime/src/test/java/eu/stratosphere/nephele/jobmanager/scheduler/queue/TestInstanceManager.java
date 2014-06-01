@@ -16,47 +16,23 @@ package eu.stratosphere.nephele.jobmanager.scheduler.queue;
 import java.net.Inet4Address;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.instance.AbstractInstance;
-import eu.stratosphere.nephele.instance.AllocatedResource;
-import eu.stratosphere.nephele.instance.AllocationID;
-import eu.stratosphere.nephele.instance.HardwareDescription;
-import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
-import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.instance.InstanceException;
-import eu.stratosphere.nephele.instance.InstanceListener;
-import eu.stratosphere.nephele.instance.InstanceManager;
-import eu.stratosphere.nephele.instance.InstanceRequestMap;
-import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.instance.InstanceTypeDescription;
-import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
-import eu.stratosphere.nephele.instance.InstanceTypeFactory;
+import eu.stratosphere.nephele.instance.*;
+import eu.stratosphere.nephele.instance.Instance;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.util.StringUtils;
 
 /**
- * A dummy implementation of an {@link InstanceManager} used for the {@link QueueScheduler} unit tests.
+ * A dummy implementation of an {@link eu.stratosphere.nephele.instance.InstanceManager} used for the {@link QueueScheduler} unit tests.
  * <p>
  * This class is thread-safe.
  * 
  */
 public final class TestInstanceManager implements InstanceManager {
-
-	/**
-	 * The default instance type to be used during the tests.
-	 */
-	private static final InstanceType INSTANCE_TYPE = InstanceTypeFactory.construct("test", 1, 1, 1024, 1024, 10);
-
-	/**
-	 * The instances this instance manager is responsible of.
-	 */
-	private final Map<InstanceType, InstanceTypeDescription> instanceMap = new HashMap<InstanceType, InstanceTypeDescription>();
 
 	/**
 	 * Counts the number of times the method releaseAllocatedResource is called.
@@ -74,16 +50,19 @@ public final class TestInstanceManager implements InstanceManager {
 	private final List<AllocatedResource> allocatedResources;
 
 	/**
-	 * Test implementation of {@link AbstractInstance}.
+	 * The test instance
+	 */
+	private final TestInstance testInstance;
+
+	/**
+	 * Test implementation of {@link eu.stratosphere.nephele.instance.Instance}.
 	 * 
 	 */
-	private static final class TestInstance extends AbstractInstance {
+	private static final class TestInstance extends Instance {
 
 		/**
 		 * Constructs a new test instance.
 		 * 
-		 * @param instanceType
-		 *        the instance type
 		 * @param instanceConnectionInfo
 		 *        the instance connection information
 		 * @param parentNode
@@ -92,11 +71,13 @@ public final class TestInstanceManager implements InstanceManager {
 		 *        the network topology
 		 * @param hardwareDescription
 		 *        the hardware description
+		 * @param numberSlots
+		 * 		  the number of slots available on the instance
 		 */
-		public TestInstance(final InstanceType instanceType, final InstanceConnectionInfo instanceConnectionInfo,
+		public TestInstance(final InstanceConnectionInfo instanceConnectionInfo,
 				final NetworkNode parentNode, final NetworkTopology networkTopology,
-				final HardwareDescription hardwareDescription) {
-			super(instanceType, instanceConnectionInfo, parentNode, networkTopology, hardwareDescription);
+				final HardwareDescription hardwareDescription, int numberSlots) {
+			super(instanceConnectionInfo, parentNode, networkTopology, hardwareDescription, numberSlots);
 		}
 	}
 
@@ -106,15 +87,13 @@ public final class TestInstanceManager implements InstanceManager {
 	public TestInstanceManager() {
 
 		final HardwareDescription hd = HardwareDescriptionFactory.construct(1, 1L, 1L);
-		final InstanceTypeDescription itd = InstanceTypeDescriptionFactory.construct(INSTANCE_TYPE, hd, 1);
-		instanceMap.put(INSTANCE_TYPE, itd);
 
 		this.allocatedResources = new ArrayList<AllocatedResource>();
 		try {
 			final InstanceConnectionInfo ici = new InstanceConnectionInfo(Inet4Address.getLocalHost(), 1, 1);
 			final NetworkTopology nt = new NetworkTopology();
-			final TestInstance ti = new TestInstance(INSTANCE_TYPE, ici, nt.getRootNode(), nt, hd);
-			this.allocatedResources.add(new AllocatedResource(ti, INSTANCE_TYPE, new AllocationID()));
+			this.testInstance = new TestInstance(ici, nt.getRootNode(), nt, hd, 1);
+			this.allocatedResources.add(new AllocatedResource(testInstance, new AllocationID()));
 		} catch (UnknownHostException e) {
 			throw new RuntimeException(StringUtils.stringifyException(e));
 		}
@@ -123,18 +102,7 @@ public final class TestInstanceManager implements InstanceManager {
 
 	@Override
 	public void requestInstance(final JobID jobID, final Configuration conf,
-			final InstanceRequestMap instanceRequestMap, final List<String> splitAffinityList) throws InstanceException {
-
-		if (instanceRequestMap.size() != 1) {
-			throw new InstanceException(
-				"requestInstance of TestInstanceManager expected to receive request for a single instance type");
-		}
-
-		if (instanceRequestMap.getMinimumNumberOfInstances(INSTANCE_TYPE) != 1) {
-			throw new InstanceException(
-				"requestInstance of TestInstanceManager expected to receive request for one instance of type "
-					+ INSTANCE_TYPE.getIdentifier());
-		}
+								int requiredSlots) throws InstanceException {
 
 		if (this.instanceListener == null) {
 			throw new InstanceException("instanceListener not registered with TestInstanceManager");
@@ -158,8 +126,7 @@ public final class TestInstanceManager implements InstanceManager {
 
 
 	@Override
-	public void releaseAllocatedResource(final JobID jobID, final Configuration conf,
-			final AllocatedResource allocatedResource) throws InstanceException {
+	public void releaseAllocatedResource(final AllocatedResource allocatedResource) throws InstanceException {
 
 		++this.numberOfReleaseCalls;
 	}
@@ -176,31 +143,15 @@ public final class TestInstanceManager implements InstanceManager {
 
 
 	@Override
-	public InstanceType getSuitableInstanceType(final int minNumComputeUnits, final int minNumCPUCores,
-			final int minMemorySize, final int minDiskCapacity, final int maxPricePerHour) {
-		throw new IllegalStateException("getSuitableInstanceType called on TestInstanceManager");
-	}
-
-
-	@Override
-	public void reportHeartBeat(final InstanceConnectionInfo instanceConnectionInfo,
-			final HardwareDescription hardwareDescription) {
+	public void reportHeartBeat(final InstanceConnectionInfo instanceConnectionInfo) {
 		throw new IllegalStateException("reportHeartBeat called on TestInstanceManager");
 	}
 
-
 	@Override
-	public InstanceType getInstanceTypeByName(final String instanceTypeName) {
-		throw new IllegalStateException("getInstanceTypeByName called on TestInstanceManager");
+	public void registerTaskManager(final InstanceConnectionInfo instanceConnectionInfo,
+									final HardwareDescription hardwareDescription, int numberSlots){
+		throw new IllegalStateException("registerTaskManager called on TestInstanceManager.");
 	}
-
-
-	@Override
-	public InstanceType getDefaultInstanceType() {
-
-		return INSTANCE_TYPE;
-	}
-
 
 	@Override
 	public NetworkTopology getNetworkTopology(final JobID jobID) {
@@ -214,26 +165,10 @@ public final class TestInstanceManager implements InstanceManager {
 		this.instanceListener = instanceListener;
 	}
 
-
 	@Override
-	public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() {
-
-		return this.instanceMap;
-	}
-
-
-	@Override
-	public AbstractInstance getInstanceByName(final String name) {
+	public Instance getInstanceByName(final String name) {
 		throw new IllegalStateException("getInstanceByName called on TestInstanceManager");
 	}
-
-
-	@Override
-	public void cancelPendingRequests(final JobID jobID) {
-		throw new IllegalStateException("cancelPendingRequests called on TestInstanceManager");
-
-	}
-
 
 	@Override
 	public void shutdown() {
@@ -243,5 +178,10 @@ public final class TestInstanceManager implements InstanceManager {
 	@Override
 	public int getNumberOfTaskTrackers() {
 		throw new IllegalStateException("getNumberOfTaskTrackers called on TestInstanceManager");
+	}
+
+	@Override
+	public int getNumberOfSlots() {
+		return this.testInstance.getNumberOfSlots();
 	}
 }

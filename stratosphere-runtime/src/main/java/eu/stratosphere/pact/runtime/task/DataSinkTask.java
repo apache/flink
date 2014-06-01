@@ -138,7 +138,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 							getEnvironment().getMemoryManager(), 
 							getEnvironment().getIOManager(),
 							this.reader, this, this.inputTypeSerializerFactory, compFact.createComparator(),
-							this.config.getMemoryInput(0), this.config.getFilehandlesInput(0),
+							this.config.getRelativeMemoryInput(0), this.config.getFilehandlesInput(0),
 							this.config.getSpillingThresholdInput(0));
 					
 					this.localStrategy = sorter;

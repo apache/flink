@@ -262,13 +262,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 */
 	@Override
 	public abstract void accept(Visitor<OptimizerNode> visitor);
-
-	/**
-	 * Checks, whether this node requires memory for its tasks or not.
-	 * 
-	 * @return True, if this node contains logic that requires memory usage, false otherwise.
-	 */
-	public abstract boolean isMemoryConsumer();
 	
 	/**
 	 * Checks whether a field is modified by the user code or whether it is kept unchanged.
@@ -408,55 +401,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @param degreeOfParallelism
 	 *        The degree of parallelism to set.
 	 * @throws IllegalArgumentException
-	 *         If the degree of parallelism is smaller than one.
+	 *         If the degree of parallelism is smaller than one and not -1.
 	 */
 	public void setDegreeOfParallelism(int degreeOfParallelism) {
 		if (degreeOfParallelism < 1) {
 			throw new IllegalArgumentException();
 		}
 		this.degreeOfParallelism = degreeOfParallelism;
-	}
-
-	/**
-	 * Gets the number of parallel instances of the contract that are
-	 * to be executed on the same compute instance (logical machine).
-	 * 
-	 * @return The number of subtask instances per machine.
-	 */
-	public int getSubtasksPerInstance() {
-		return this.subtasksPerInstance;
-	}
-
-	/**
-	 * Sets the number of parallel task instances of the contract that are
-	 * to be executed on the same computing instance (logical machine).
-	 * 
-	 * @param instancesPerMachine The instances per machine.
-	 * @throws IllegalArgumentException If the number of instances per machine is smaller than one.
-	 */
-	public void setSubtasksPerInstance(int instancesPerMachine) {
-		if (instancesPerMachine < 1) {
-			throw new IllegalArgumentException();
-		}
-		this.subtasksPerInstance = instancesPerMachine;
-	}
-	
-	/**
-	 * Gets the minimal guaranteed memory per subtask for tasks represented by this OptimizerNode.
-	 *
-	 * @return The minimal guaranteed memory per subtask, in bytes.
-	 */
-	public long getMinimalMemoryPerSubTask() {
-		return this.minimalMemoryPerSubTask;
-	}
-	
-	/**
-	 * Sets the minimal guaranteed memory per subtask for tasks represented by this OptimizerNode.
-	 *
-	 * @param minimalGuaranteedMemory The minimal guaranteed memory per subtask, in bytes.
-	 */
-	public void setMinimalMemoryPerSubTask(long minimalGuaranteedMemory) {
-		this.minimalMemoryPerSubTask = minimalGuaranteedMemory;
 	}
 	
 	/**

@@ -15,13 +15,10 @@ package eu.stratosphere.nephele.protocols;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
-import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
@@ -104,19 +101,6 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	void killInstance(StringRecord instanceName) throws IOException;
 
 	/**
-	 * Returns a map of all instance types which are currently available to Nephele. The map contains a description of
-	 * the hardware characteristics for each instance type as provided in the configuration file. Moreover, it contains
-	 * the actual hardware description as reported by task managers running on the individual instances. If available,
-	 * the map also contains the maximum number instances Nephele can allocate of each instance type (i.e. if no other
-	 * job occupies instances).
-	 * 
-	 * @return a list of all instance types available to Nephele
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the list
-	 */
-	Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() throws IOException;
-
-	/**
 	 * Triggers all task managers involved in processing the job with the given job ID to write the utilization of
 	 * their read and write buffers to their log files. This method is primarily for debugging purposes.
 	 * 
@@ -126,4 +110,11 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 *         throws if an error occurs while transmitting the request
 	 */
 	void logBufferUtilization(JobID jobID) throws IOException;
+
+	/**
+	 * Returns the number of available slots among the registered task managers
+	 * @return number of available slots
+	 * @throws IOException
+	 */
+	int getAvailableSlots() throws IOException;
 }

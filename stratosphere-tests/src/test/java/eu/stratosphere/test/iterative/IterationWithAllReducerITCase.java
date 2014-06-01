@@ -40,7 +40,9 @@ public class IterationWithAllReducerITCase extends RecordAPITestBase {
 	protected String dataPath;
 	protected String resultPath;
 
-	
+	public IterationWithAllReducerITCase(){
+		setTaskManagerNumSlots(4);
+	}
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -55,7 +57,7 @@ public class IterationWithAllReducerITCase extends RecordAPITestBase {
 
 	@Override
 	protected Plan getTestJob() {
-		Plan plan = getTestPlanPlan(4, dataPath, resultPath);
+		Plan plan = getTestPlanPlan(DOP, dataPath, resultPath);
 		return plan;
 	}
 

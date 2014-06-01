@@ -17,10 +17,10 @@ import eu.stratosphere.nephele.instance.InstanceListener;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
 /**
- * This class contains utility methods used during the tests of the {@link ClusterManager} implementation.
+ * This class contains utility methods used during the tests of the {@link eu.stratosphere.nephele.instance.DefaultInstanceManager} implementation.
  * 
  */
-public class ClusterManagerTestUtils {
+public class DefaultInstanceManagerTestUtils {
 
 	/**
 	 * Granularity of the sleep time.
@@ -30,7 +30,7 @@ public class ClusterManagerTestUtils {
 	/**
 	 * Private constructor so the class cannot be instantiated.
 	 */
-	private ClusterManagerTestUtils() {
+	private DefaultInstanceManagerTestUtils() {
 	}
 
 	/**

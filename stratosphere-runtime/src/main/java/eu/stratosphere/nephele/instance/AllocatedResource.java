@@ -23,7 +23,7 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 /**
  * An allocated resource object unambiguously defines the
  * hardware resources which have been assigned to an {@link eu.stratosphere.nephele.executiongraph.ExecutionVertex} for
- * executing a task. The allocated resource is comprised of an {@link eu.stratosphere.nephele.instance.AbstractInstance}
+ * executing a task. The allocated resource is comprised of an {@link Instance}
  * which identifies the node the task is scheduled to run on as well as an
  * {@link eu.stratosphere.nephele.instance.AllocationID} which determines the resources the task is scheduled to
  * allocate within the node.
@@ -36,12 +36,7 @@ public final class AllocatedResource {
 	/**
 	 * The instance a task is scheduled to run on.
 	 */
-	private final AbstractInstance instance;
-
-	/**
-	 * The instance type this allocated resource represents.
-	 */
-	private final InstanceType instanceType;
+	private final Instance instance;
 
 	/**
 	 * The allocation ID identifying the resources within the instance
@@ -60,24 +55,20 @@ public final class AllocatedResource {
 	 * 
 	 * @param instance
 	 *        the instance a task is scheduled to run on.
-	 * @param instanceType
-	 *        the instance type this allocated resource represents
 	 * @param allocationID
 	 *        the allocation ID identifying the allocated resources within the instance
 	 */
-	public AllocatedResource(final AbstractInstance instance, final InstanceType instanceType,
-			final AllocationID allocationID) {
+	public AllocatedResource(final Instance instance, final AllocationID allocationID) {
 		this.instance = instance;
-		this.instanceType = instanceType;
 		this.allocationID = allocationID;
 	}
 
 	/**
 	 * Returns the instance a task is scheduled to run on.
-	 * 
+	 *
 	 * @return the instance a task is scheduled to run on
 	 */
-	public AbstractInstance getInstance() {
+	public Instance getInstance() {
 		return this.instance;
 	}
 
@@ -88,15 +79,6 @@ public final class AllocatedResource {
 	 */
 	public AllocationID getAllocationID() {
 		return this.allocationID;
-	}
-
-	/**
-	 * Returns the instance type this allocated resource represents.
-	 * 
-	 * @return the instance type this allocated resource represents
-	 */
-	public InstanceType getInstanceType() {
-		return this.instanceType;
 	}
 
 
@@ -116,16 +98,6 @@ public final class AllocatedResource {
 				}
 			} else {
 				if (!this.allocationID.equals(allocatedResource.getAllocationID())) {
-					return false;
-				}
-			}
-
-			if (this.instanceType == null) {
-				if (allocatedResource.instance != null) {
-					return false;
-				}
-			} else {
-				if (!this.instanceType.equals(allocatedResource.getInstanceType())) {
 					return false;
 				}
 			}

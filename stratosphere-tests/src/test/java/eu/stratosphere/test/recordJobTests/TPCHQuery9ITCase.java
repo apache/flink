@@ -335,6 +335,10 @@ public class TPCHQuery9ITCase extends RecordAPITestBase {
 		+ "IRAN|1992|37970.953\n"
 		+ "IRAN|1993|83140.0\n"
 		+ "IRAN|1996|9672.556\n";
+
+	public TPCHQuery9ITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
 		
 
 	@Override
@@ -352,7 +356,7 @@ public class TPCHQuery9ITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		TPCHQuery9 tpch9 = new TPCHQuery9();
 		return tpch9.getPlan(
-				"4",
+				new Integer(DOP).toString(),
 				partInputPath,
 				partSuppInputPath,
 				ordersInputPath,

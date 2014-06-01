@@ -13,16 +13,15 @@
 
 package eu.stratosphere.nephele.instance.local;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import eu.stratosphere.nephele.ExecutionMode;
+import eu.stratosphere.nephele.instance.InstanceManager;
 import junit.framework.Assert;
 
 import org.junit.Test;
 
+import eu.stratosphere.nephele.ExecutionMode;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.jobmanager.JobManager;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 
@@ -53,17 +52,9 @@ public class LocalInstanceManagerTest {
 
 			final TestInstanceListener testInstanceListener = new TestInstanceListener();
 	
-			LocalInstanceManager lm = (LocalInstanceManager) jm.getInstanceManager(); // this is for sure, because I chose the local strategy
+			InstanceManager im = jm.getInstanceManager();
 			try {
-				lm.setInstanceListener(testInstanceListener);
-	
-				final InstanceType defaultInstanceType = lm.getDefaultInstanceType();
-				assertEquals("test", defaultInstanceType.getIdentifier());
-				assertEquals(4, defaultInstanceType.getNumberOfComputeUnits());
-				assertEquals(4, defaultInstanceType.getNumberOfCores());
-				assertEquals(1024, defaultInstanceType.getMemorySize());
-				assertEquals(160, defaultInstanceType.getDiskCapacity());
-				assertEquals(0, defaultInstanceType.getPricePerHour());
+				im.setInstanceListener(testInstanceListener);
 	
 			} catch (Exception e) {
 				e.printStackTrace();

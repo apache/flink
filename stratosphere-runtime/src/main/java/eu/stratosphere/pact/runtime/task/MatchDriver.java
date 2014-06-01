@@ -83,8 +83,8 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericJoiner<IT1, 
 		final IOManager ioManager = this.taskContext.getIOManager();
 		
 		// set up memory and I/O parameters
-		final long availableMemory = config.getMemoryDriver();
-		final int numPages = memoryManager.computeNumberOfPages(availableMemory);
+		final double fractionAvailableMemory = config.getRelativeMemoryDriver();
+		final int numPages = memoryManager.computeNumberOfPages(fractionAvailableMemory);
 		
 		// test minimum memory requirements
 		final DriverStrategy ls = config.getDriverStrategy();
@@ -106,23 +106,23 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericJoiner<IT1, 
 
 		// create and return MatchTaskIterator according to provided local strategy.
 		switch (ls) {
-			case MERGE:
-				this.matchIterator = new MergeMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
-						serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2),
-						memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
-				break;
-			case HYBRIDHASH_BUILD_FIRST:
-				this.matchIterator = new BuildFirstHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
-					serializer2, comparator2, pairComparatorFactory.createComparator21(comparator1, comparator2),
-					memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), availableMemory);
-				break;
-			case HYBRIDHASH_BUILD_SECOND:
-				this.matchIterator = new BuildSecondHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
-						serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2),
-						memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), availableMemory);
-				break;
-			default:
-				throw new Exception("Unsupported driver strategy for Match driver: " + ls.name());
+		case MERGE:
+			this.matchIterator = new MergeMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
+					serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2),
+					memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
+			break;
+		case HYBRIDHASH_BUILD_FIRST:
+			this.matchIterator = new BuildFirstHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
+				serializer2, comparator2, pairComparatorFactory.createComparator21(comparator1, comparator2),
+				memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
+			break;
+		case HYBRIDHASH_BUILD_SECOND:
+			this.matchIterator = new BuildSecondHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
+					serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2),
+					memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
+			break;
+		default:
+			throw new Exception("Unsupported driver strategy for Match driver: " + ls.name());
 		}
 		
 		// open MatchTaskIterator - this triggers the sorting or hash-table building

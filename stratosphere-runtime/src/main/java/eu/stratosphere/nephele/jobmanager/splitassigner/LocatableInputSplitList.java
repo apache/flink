@@ -21,16 +21,16 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
+import eu.stratosphere.nephele.instance.Instance;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.core.io.LocatableInputSplit;
-import eu.stratosphere.nephele.instance.AbstractInstance;
 
 /**
  * The locatable input split list stores the locatable input splits for an input vertex that are still expected to be
  * consumed. Besides simply storing the splits, the locatable input split list also computes the distance all
- * {@link AbstractInstance} objects which request an input split and its nearest storage location with respect to the
+ * {@link eu.stratosphere.nephele.instance.Instance} objects which request an input split and its nearest storage location with respect to the
  * underlying network topology. That way input splits are always given to consuming vertices in a way that data locality
  * is preserved as well as possible.
  * <p>
@@ -50,13 +50,13 @@ public final class LocatableInputSplitList {
 	private Set<LocatableInputSplit> masterSet = new HashSet<LocatableInputSplit>();
 
 	/**
-	 * The map caching the specific file input split lists for each {@link AbstractInstance}.
+	 * The map caching the specific file input split lists for each {@link eu.stratosphere.nephele.instance.Instance}.
 	 */
-	private Map<AbstractInstance, Queue<QueueElem>> instanceMap = new HashMap<AbstractInstance, Queue<QueueElem>>();
+	private Map<Instance, Queue<QueueElem>> instanceMap = new HashMap<Instance, Queue<QueueElem>>();
 
 	/**
 	 * This is an auxiliary class to store the minimum distance between a file input split's storage locations and an
-	 * {@link AbstractInstance}.
+	 * {@link eu.stratosphere.nephele.instance.Instance}.
 	 * 
 	 */
 	private final class QueueElem implements Comparable<QueueElem> {
@@ -120,7 +120,7 @@ public final class LocatableInputSplitList {
 	/**
 	 * Returns the next locatable input split to be consumed by the given instance. The returned input split is selected
 	 * in a
-	 * way that the distance between the split's storage location and the requesting {@link AbstractInstance} is as
+	 * way that the distance between the split's storage location and the requesting {@link eu.stratosphere.nephele.instance.Instance} is as
 	 * short as possible.
 	 * 
 	 * @param instance
@@ -128,7 +128,7 @@ public final class LocatableInputSplitList {
 	 * @return the next input split to be consumed by the given instance or <code>null</code> if all input splits have
 	 *         already been consumed.
 	 */
-	synchronized LocatableInputSplit getNextInputSplit(final AbstractInstance instance) {
+	synchronized LocatableInputSplit getNextInputSplit(final Instance instance) {
 
 		final Queue<QueueElem> instanceSplitList = getInstanceSplitList(instance);
 
@@ -157,16 +157,16 @@ public final class LocatableInputSplitList {
 	}
 
 	/**
-	 * Returns a list of locatable input splits specifically ordered for the given {@link AbstractInstance}. When the
+	 * Returns a list of locatable input splits specifically ordered for the given {@link eu.stratosphere.nephele.instance.Instance}. When the
 	 * list is initially created, it contains all the unconsumed located input splits at that point in time, ascendingly
 	 * ordered
-	 * by the minimum distance between the input splits' storage locations and the given {@link AbstractInstance}.
+	 * by the minimum distance between the input splits' storage locations and the given {@link eu.stratosphere.nephele.instance.Instance}.
 	 * 
 	 * @param instance
 	 *        the instance for which the locatable input split list has been computed
 	 * @return the list of file input splits ordered specifically for the given instance
 	 */
-	private Queue<QueueElem> getInstanceSplitList(final AbstractInstance instance) {
+	private Queue<QueueElem> getInstanceSplitList(final Instance instance) {
 
 		Queue<QueueElem> instanceSplitList = this.instanceMap.get(instance);
 		if (instanceSplitList == null) {

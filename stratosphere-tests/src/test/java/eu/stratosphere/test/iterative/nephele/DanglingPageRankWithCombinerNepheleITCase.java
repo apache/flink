@@ -22,6 +22,10 @@ public class DanglingPageRankWithCombinerNepheleITCase extends RecordAPITestBase
 	protected String pagesWithRankPath;
 	protected String edgesPath;
 	protected String resultPath;
+
+	public DanglingPageRankWithCombinerNepheleITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
 	
 	@Override
 	protected void preSubmit() throws Exception {
@@ -33,8 +37,7 @@ public class DanglingPageRankWithCombinerNepheleITCase extends RecordAPITestBase
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 		String[] parameters = new String[] {
-			"4",
-			"4",
+			new Integer(DOP).toString(),
 			pagesWithRankPath,
 			edgesPath,
 			resultPath,

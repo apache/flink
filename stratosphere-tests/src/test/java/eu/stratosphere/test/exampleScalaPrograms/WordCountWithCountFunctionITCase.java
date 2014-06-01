@@ -20,6 +20,6 @@ public class WordCountWithCountFunctionITCase extends eu.stratosphere.test.recor
 
 	@Override
 	protected Plan getTestJob() {
-		return new WordCountWithCount().getScalaPlan(4, textPath, resultPath);
+		return new WordCountWithCount().getScalaPlan(DOP, textPath, resultPath);
 	}
 }

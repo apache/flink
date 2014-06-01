@@ -21,7 +21,6 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.junit.Assert;
@@ -34,8 +33,6 @@ import eu.stratosphere.nephele.client.JobProgressResult;
 import eu.stratosphere.nephele.client.JobSubmissionResult;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.event.job.RecentJobEvent;
-import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
@@ -202,11 +199,6 @@ public class CliFrontendListCancelTest {
 		}
 
 		@Override
-		public Map<InstanceType, InstanceTypeDescription> getMapOfAvailableInstanceTypes() throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
 		public void logBufferUtilization(JobID jobID) throws IOException {
 			throw new UnsupportedOperationException();
 		}
@@ -214,6 +206,11 @@ public class CliFrontendListCancelTest {
 		@Override
 		public NetworkTopology getNetworkTopology(JobID jobID) throws IOException {
 			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public int getAvailableSlots() {
+			return 1;
 		}
 	}
 }

@@ -206,22 +206,6 @@ public abstract class SingleInputNode extends OptimizerNode {
 	
 	protected abstract List<OperatorDescriptorSingle> getPossibleProperties();
 	
-
-	@Override
-	public boolean isMemoryConsumer() {
-		for (OperatorDescriptorSingle dps : getPossibleProperties()) {
-			if (dps.getStrategy().firstDam().isMaterializing()) {
-				return true;
-			}
-			for (RequestedLocalProperties rlp : dps.getPossibleLocalProperties()) {
-				if (!rlp.isTrivial()) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		// get what we inherit and what is preserved by our user code 
@@ -284,30 +268,21 @@ public abstract class SingleInputNode extends OptimizerNode {
 		final ArrayList<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
 		final int dop = getDegreeOfParallelism();
-		final int subPerInstance = getSubtasksPerInstance();
 		final int inDop = getPredecessorNode().getDegreeOfParallelism();
-		final int inSubPerInstance = getPredecessorNode().getSubtasksPerInstance();
-		final int numInstances = dop / subPerInstance + (dop % subPerInstance == 0 ? 0 : 1);
-		final int inNumInstances = inDop / inSubPerInstance + (inDop % inSubPerInstance == 0 ? 0 : 1);
-		
-		final boolean globalDopChange = numInstances != inNumInstances;
-		final boolean localDopChange = numInstances == inNumInstances & subPerInstance != inSubPerInstance;
-		
+
+		final boolean dopChange = inDop != dop;
+
 		// create all candidates
 		for (PlanNode child : subPlans) {
 			if (this.inConn.getShipStrategy() == null) {
 				// pick the strategy ourselves
 				for (RequestedGlobalProperties igps: intGlobal) {
 					final Channel c = new Channel(child, this.inConn.getMaterializationMode());
-					igps.parameterizeChannel(c, globalDopChange, localDopChange);
+					igps.parameterizeChannel(c, dopChange);
 					
 					// if the DOP changed, make sure that we cancel out properties, unless the
 					// ship strategy preserves/establishes them even under changing DOPs
-					if (globalDopChange && !c.getShipStrategy().isNetworkStrategy()) {
-						c.getGlobalProperties().reset();
-					}
-					if (localDopChange && !(c.getShipStrategy().isNetworkStrategy() || 
-								c.getShipStrategy().compensatesForLocalDOPChanges())) {
+					if (dopChange && !c.getShipStrategy().isNetworkStrategy()) {
 						c.getGlobalProperties().reset();
 					}
 					
@@ -332,12 +307,10 @@ public abstract class SingleInputNode extends OptimizerNode {
 					c.setShipStrategy(this.inConn.getShipStrategy());
 				}
 				
-				if (globalDopChange) {
+				if (dopChange) {
 					c.adjustGlobalPropertiesForFullParallelismChange();
-				} else if (localDopChange) {
-					c.adjustGlobalPropertiesForLocalParallelismChange();
 				}
-				
+
 				// check whether we meet any of the accepted properties
 				for (RequestedGlobalProperties rgps: allValidGlobals) {
 					if (rgps.isMetBy(c.getGlobalProperties())) {

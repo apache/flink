@@ -17,8 +17,8 @@ import eu.stratosphere.nephele.AbstractID;
 
 /**
  * An allocation ID unambiguously identifies the allocated resources
- * within an {@link AbstractInstance}. The ID is necessary if an {@link InstanceManager} decides to partition
- * {@link AbstractInstance}s
+ * within an {@link Instance}. The ID is necessary if an {@link InstanceManager} decides to partition
+ * {@link Instance}s
  * without the knowledge of Nephele's scheduler.
  * 
  */

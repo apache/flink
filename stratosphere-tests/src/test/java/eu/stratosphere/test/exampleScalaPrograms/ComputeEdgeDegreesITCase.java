@@ -27,7 +27,7 @@ public class ComputeEdgeDegreesITCase extends eu.stratosphere.test.recordJobTest
 	protected Plan getTestJob() {
 		ComputeEdgeDegrees computeDegrees = new ComputeEdgeDegrees();
 		return computeDegrees.getScalaPlan(
-				config.getInteger("ComputeEdgeDegreesTest#NumSubtasks", 4),
+				config.getInteger("ComputeEdgeDegreesTest#NumSubtasks", DOP),
 				edgesPath, resultPath);
 	}
 }

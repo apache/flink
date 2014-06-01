@@ -14,7 +14,6 @@
 package eu.stratosphere.pact.runtime.cache;
 
 import eu.stratosphere.api.common.cache.DistributedCache;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -138,14 +137,12 @@ public class FileCache {
 	 * Asynchronous file copy process
 	 */
 	private class CopyProcess implements Callable<Path> {
+		
 		private JobID jobID;
-		@SuppressWarnings("unused")
-		private String name;
 		private String filePath;
 		private Boolean executable;
 
 		public CopyProcess(String name, DistributedCacheEntry e, JobID jobID) {
-			this.name = name;
 			this.filePath = e.filePath;
 			this.executable = e.isExecutable;
 			this.jobID = jobID;
@@ -168,15 +165,13 @@ public class FileCache {
 	 * If no task is using this file after 5 seconds, clear it.
 	 */
 	private class DeleteProcess implements Runnable {
+		
 		private String name;
-		@SuppressWarnings("unused")
-		private String filePath;
 		private JobID jobID;
 		private int oldCount;
 
 		public DeleteProcess(String name, DistributedCacheEntry e, JobID jobID, int c) {
 			this.name = name;
-			this.filePath = e.filePath;
 			this.jobID = jobID;
 			this.oldCount = c;
 		}

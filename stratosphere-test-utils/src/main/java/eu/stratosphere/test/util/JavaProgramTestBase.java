@@ -45,11 +45,13 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	
 	public JavaProgramTestBase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(degreeOfParallelism);
 	}
 	
 	
 	public void setDegreeOfParallelism(int degreeOfParallelism) {
 		this.degreeOfParallelism = degreeOfParallelism;
+		setTaskManagerNumSlots(degreeOfParallelism);
 	}
 	
 	public JobExecutionResult getLatestExecutionResult() {

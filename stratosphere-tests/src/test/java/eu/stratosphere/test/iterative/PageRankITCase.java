@@ -38,6 +38,7 @@ public class PageRankITCase extends RecordAPITestBase {
 	
 	public PageRankITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 	
 	@Override
@@ -64,7 +65,7 @@ public class PageRankITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config1 = new Configuration();
-		config1.setInteger("NumSubtasks", 4);
+		config1.setInteger("NumSubtasks", DOP);
 		config1.setString("NumIterations", "5");
 		return toParameterList(config1);
 	}

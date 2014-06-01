@@ -99,7 +99,8 @@ public class ReduceCombineDriver<T> implements PactDriver<GenericReduce<T>, T> {
 		}
 		
 		this.memManager = this.taskContext.getMemoryManager();
-		final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig().getMemoryDriver());
+		final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig()
+				.getRelativeMemoryDriver());
 		
 		// instantiate the serializer / comparator
 		final TypeSerializerFactory<T> serializerFactory = this.taskContext.getInputSerializer(0);

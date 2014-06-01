@@ -16,6 +16,7 @@ package eu.stratosphere.nephele.jobmanager.splitassigner.file;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import eu.stratosphere.nephele.instance.Instance;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -23,7 +24,6 @@ import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitAssigner;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
@@ -117,7 +117,7 @@ public final class FileInputSplitAssigner implements InputSplitAssigner {
 			return null;
 		}
 
-		final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+		final Instance instance = vertex.getAllocatedResource().getInstance();
 		if (instance == null) {
 			LOG.error("Instance is null, returning random split");
 			return null;

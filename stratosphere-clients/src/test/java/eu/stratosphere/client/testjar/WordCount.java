@@ -70,8 +70,9 @@ public class WordCount {
 	 * FlatMapFunction. The function takes a line (String) and splits it into 
 	 * multiple pairs in the form of "(word,1)" (Tuple2<String, Integer>).
 	 */
-	@SuppressWarnings("serial")
 	public static final class Tokenizer extends FlatMapFunction<String, Tuple2<String, Integer>> {
+
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {

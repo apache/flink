@@ -99,6 +99,11 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY = "taskmanager.network.bufferSizeInBytes";
 
 	/**
+	 * The config parameter defining the number of task slots of a task manager.
+	 */
+	public static final String TASK_MANAGER_NUM_TASK_SLOTS = "taskmanager.numberOfTaskSlots";
+
+	/**
 	 * The number of incoming network IO threads (e.g. incoming connection threads used in NettyConnectionManager
 	 * for the ServerBootstrap.)
 	 */
@@ -290,12 +295,7 @@ public final class ConfigConstants {
 	/**
 	 * The default degree of parallelism for operations.
 	 */
-	public static final int DEFAULT_PARALLELIZATION_DEGREE = -1;
-
-	/**
-	 * The default intra-node parallelism.
-	 */
-	public static final int DEFAULT_MAX_INTRA_NODE_PARALLELIZATION_DEGREE = -1;
+	public static final int DEFAULT_PARALLELIZATION_DEGREE = 1;
 	
 	// ------------------------------ Runtime ---------------------------------
 	

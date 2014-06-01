@@ -36,6 +36,8 @@ import eu.stratosphere.util.Collector;
  */
 public class TaskFailureITCase extends FailingTestBase {
 
+	private static final int DOP = 4;
+
 	// input for map tasks
 	private static final String MAP_IN = "1 1\n2 2\n2 8\n4 4\n4 4\n6 6\n7 7\n8 8\n" +
 											"1 1\n2 2\n2 2\n4 4\n4 4\n6 3\n5 9\n8 8\n" +
@@ -47,6 +49,10 @@ public class TaskFailureITCase extends FailingTestBase {
 
 	private String inputPath;
 	private String resultPath;
+
+	public TaskFailureITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
 	
 	@Override
 	protected void preSubmit() throws Exception {
@@ -73,7 +79,7 @@ public class TaskFailureITCase extends FailingTestBase {
 
 		// generate plan
 		Plan plan = new Plan(output);
-		plan.setDefaultParallelism(4);
+		plan.setDefaultParallelism(DOP);
 
 		// optimize and compile plan 
 		PactCompiler pc = new PactCompiler(new DataStatistics());

@@ -36,6 +36,7 @@ public class DeltaPageRankITCase extends RecordAPITestBase {
 	
 	public DeltaPageRankITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 	
 	@Override
@@ -66,7 +67,7 @@ public class DeltaPageRankITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config1 = new Configuration();
-		config1.setInteger("NumSubtasks", 4);
+		config1.setInteger("NumSubtasks", DOP);
 		config1.setInteger("NumIterations", 3);
 		return toParameterList(config1);
 	}

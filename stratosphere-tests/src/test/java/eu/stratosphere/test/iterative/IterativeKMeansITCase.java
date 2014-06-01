@@ -27,6 +27,10 @@ public class IterativeKMeansITCase extends RecordAPITestBase {
 	protected String dataPath;
 	protected String clusterPath;
 	protected String resultPath;
+
+	public IterativeKMeansITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
 	
 	@Override
 	protected void preSubmit() throws Exception {
@@ -38,7 +42,7 @@ public class IterativeKMeansITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		KMeansBroadcast kmi = new KMeansBroadcast();
-		return kmi.getPlan("4", dataPath, clusterPath, resultPath, "20");
+		return kmi.getPlan(String.valueOf(DOP), dataPath, clusterPath, resultPath, "20");
 	}
 
 

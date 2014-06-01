@@ -131,7 +131,6 @@ public class ManagementGraphTest {
 		assertEquals(origVertex.getExecutionState(), copyVertex.getExecutionState());
 		assertEquals(origVertex.getIndexInGroup(), copyVertex.getIndexInGroup());
 		assertEquals(origVertex.getInstanceName(), copyVertex.getInstanceName());
-		assertEquals(origVertex.getInstanceType(), copyVertex.getInstanceType());
 		assertEquals(origVertex.getNumberOfInputGates(), copyVertex.getNumberOfInputGates());
 		assertEquals(origVertex.getNumberOfOutputGates(), copyVertex.getNumberOfOutputGates());
 
@@ -248,15 +247,15 @@ public class ManagementGraphTest {
 
 		// Vertices
 		final ManagementVertex vertex1_1 = new ManagementVertex(groupVertex1, new ManagementVertexID(), "Host 1",
-			"small", 0);
+			0);
 		final ManagementVertex vertex2_1 = new ManagementVertex(groupVertex2, new ManagementVertexID(), "Host 2",
-			"medium", 0);
+			0);
 		final ManagementVertex vertex2_2 = new ManagementVertex(groupVertex2, new ManagementVertexID(), "Host 2",
-			"medium", 1);
+			1);
 		final ManagementVertex vertex3_1 = new ManagementVertex(groupVertex3, new ManagementVertexID(), "Host 2",
-			"medium", 0);
+			0);
 		final ManagementVertex vertex4_1 = new ManagementVertex(groupVertex4, new ManagementVertexID(), "Host 2",
-			"medium", 0);
+			0);
 
 		// Input/output gates
 		final ManagementGate outputGate1_1 = new ManagementGate(vertex1_1, new ManagementGateID(), 0, false);

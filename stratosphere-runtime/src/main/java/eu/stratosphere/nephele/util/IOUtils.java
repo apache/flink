@@ -56,6 +56,7 @@ public final class IOUtils {
 	public static void copyBytes(final InputStream in, final OutputStream out, final int buffSize, final boolean close)
 			throws IOException {
 
+		@SuppressWarnings("resource")
 		final PrintStream ps = out instanceof PrintStream ? (PrintStream) out : null;
 		final byte[] buf = new byte[buffSize];
 		try {

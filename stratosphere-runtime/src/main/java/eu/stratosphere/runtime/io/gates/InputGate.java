@@ -26,6 +26,7 @@ import eu.stratosphere.runtime.io.network.bufferprovider.BufferProvider;
 import eu.stratosphere.runtime.io.network.bufferprovider.GlobalBufferPool;
 import eu.stratosphere.runtime.io.network.bufferprovider.LocalBufferPool;
 import eu.stratosphere.runtime.io.network.bufferprovider.LocalBufferPoolOwner;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -95,6 +96,7 @@ public class InputGate<T extends IOReadableWritable> extends Gate<T> implements 
 		super(jobID, gateID, index);
 	}
 
+	@SuppressWarnings("unchecked")
 	public void initializeChannels(GateDeploymentDescriptor inputGateDescriptor){
 		channels = new InputChannel[inputGateDescriptor.getNumberOfChannelDescriptors()];
 

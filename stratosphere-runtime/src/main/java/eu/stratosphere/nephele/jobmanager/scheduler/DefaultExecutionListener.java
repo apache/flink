@@ -13,10 +13,6 @@
 
 package eu.stratosphere.nephele.jobmanager.scheduler;
 
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
-
 import eu.stratosphere.nephele.execution.ExecutionListener;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
@@ -27,12 +23,12 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.executiongraph.InternalJobStatus;
 import eu.stratosphere.nephele.jobgraph.JobID;
 
-public abstract class AbstractExecutionListener implements ExecutionListener {
+public class DefaultExecutionListener implements ExecutionListener {
 
 	/**
-	 * The instance of the {@link LocalScheduler}.
+	 * The instance of the {@link eu.stratosphere.nephele.jobmanager.scheduler.DefaultScheduler}.
 	 */
-	private final AbstractScheduler scheduler;
+	private final DefaultScheduler scheduler;
 
 	/**
 	 * The {@link ExecutionVertex} this wrapper object belongs to.
@@ -42,12 +38,12 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 	/**
 	 * Constructs a new wrapper object for the given {@link ExecutionVertex}.
 	 * 
-	 * @param AbstractScheduler
-	 *        the instance of the {@link AbstractScheduler}
+	 * @param scheduler
+	 *        the instance of the {@link DefaultScheduler}
 	 * @param executionVertex
 	 *        the {@link ExecutionVertex} the received notification refer to
 	 */
-	public AbstractExecutionListener(final AbstractScheduler scheduler, final ExecutionVertex executionVertex) {
+	public DefaultExecutionListener(final DefaultScheduler scheduler, final ExecutionVertex executionVertex) {
 		this.scheduler = scheduler;
 		this.executionVertex = executionVertex;
 	}
@@ -108,41 +104,6 @@ public abstract class AbstractExecutionListener implements ExecutionListener {
 			// Check if instance can be released
 			this.scheduler.checkAndReleaseAllocatedResource(eg, this.executionVertex.getAllocatedResource());
 		}
-
-		// In case of an error, check if the vertex shall be recovered
-		if (newExecutionState == ExecutionState.FAILED) {
-			if (this.executionVertex.decrementRetriesLeftAndCheck()) {
-
-				final Set<ExecutionVertex> assignedVertices = new HashSet<ExecutionVertex>();
-
-				if (RecoveryLogic.recover(this.executionVertex, this.scheduler.getVerticesToBeRestarted(),
-					assignedVertices)) {
-
-					if (RecoveryLogic.hasInstanceAssigned(this.executionVertex)) {
-						// Run through the deployment procedure
-						this.scheduler.deployAssignedVertices(assignedVertices);
-					}
-
-				} else {
-
-					// Make sure the map with the vertices to be restarted is cleaned up properly
-					synchronized (eg) {
-
-						final Iterator<ExecutionVertex> it = this.scheduler.getVerticesToBeRestarted().values()
-							.iterator();
-
-						while (it.hasNext()) {
-							if (eg.equals(it.next().getExecutionGraph())) {
-								it.remove();
-							}
-						}
-					}
-
-					// Actual cancellation of job is performed by job manager
-				}
-			}
-		}
-
 	}
 
 

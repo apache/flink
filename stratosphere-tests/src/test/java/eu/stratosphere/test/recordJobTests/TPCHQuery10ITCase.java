@@ -200,7 +200,7 @@ public class TPCHQuery10ITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("TPCHQuery10Test#NoSubtasks", 4);
+		config.setInteger("TPCHQuery10Test#NoSubtasks", DOP);
 		return toParameterList(config);
 	}
 }

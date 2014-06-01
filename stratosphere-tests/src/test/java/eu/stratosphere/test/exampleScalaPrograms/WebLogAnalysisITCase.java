@@ -21,6 +21,6 @@ public class WebLogAnalysisITCase extends eu.stratosphere.test.recordJobTests.We
 	@Override
 	protected Plan getTestJob() {
 		WebLogAnalysis webLogAnalysis = new WebLogAnalysis();
-		return webLogAnalysis.getScalaPlan(4, docsPath, ranksPath, visitsPath, resultPath);
+		return webLogAnalysis.getScalaPlan(DOP, docsPath, ranksPath, visitsPath, resultPath);
 	}
 }

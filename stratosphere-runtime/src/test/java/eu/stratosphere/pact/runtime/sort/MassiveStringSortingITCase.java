@@ -80,7 +80,7 @@ public class MassiveStringSortingITCase {
 			BufferedReader verifyReader = null;
 			
 			try {
-				MemoryManager mm = new DefaultMemoryManager(1024 * 1024);
+				MemoryManager mm = new DefaultMemoryManager(1024 * 1024, 1);
 				IOManager ioMan = new IOManager();
 					
 				TypeSerializer<String> serializer = StringSerializer.INSTANCE;
@@ -170,7 +170,7 @@ public class MassiveStringSortingITCase {
 			BufferedReader verifyReader = null;
 			
 			try {
-				MemoryManager mm = new DefaultMemoryManager(1024 * 1024);
+				MemoryManager mm = new DefaultMemoryManager(1024 * 1024, 1);
 				IOManager ioMan = new IOManager();
 					
 				TupleTypeInfo<Tuple2<String, String[]>> typeInfo = (TupleTypeInfo<Tuple2<String, String[]>>) (TupleTypeInfo<?>) TypeInfoParser.parse("Tuple2<String, String[]>");

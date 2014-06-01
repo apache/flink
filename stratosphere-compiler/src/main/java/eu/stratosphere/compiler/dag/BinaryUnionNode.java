@@ -122,20 +122,12 @@ public class BinaryUnionNode extends TwoInputNode {
 		final RequestedLocalProperties noLocalProps = new RequestedLocalProperties();
 		
 		final int dop = getDegreeOfParallelism();
-		final int subPerInstance = getSubtasksPerInstance();
-		final int numInstances = dop / subPerInstance + (dop % subPerInstance == 0 ? 0 : 1);
 		final int inDop1 = getFirstPredecessorNode().getDegreeOfParallelism();
-		final int inSubPerInstance1 = getFirstPredecessorNode().getSubtasksPerInstance();
-		final int inNumInstances1 = inDop1 / inSubPerInstance1 + (inDop1 % inSubPerInstance1 == 0 ? 0 : 1);
 		final int inDop2 = getSecondPredecessorNode().getDegreeOfParallelism();
-		final int inSubPerInstance2 = getSecondPredecessorNode().getSubtasksPerInstance();
-		final int inNumInstances2 = inDop2 / inSubPerInstance2 + (inDop2 % inSubPerInstance2 == 0 ? 0 : 1);
-		
-		final boolean globalDopChange1 = numInstances != inNumInstances1;
-		final boolean globalDopChange2 = numInstances != inNumInstances2;
-		final boolean localDopChange1 = numInstances == inNumInstances1 & subPerInstance != inSubPerInstance1;
-		final boolean localDopChange2 = numInstances == inNumInstances2 & subPerInstance != inSubPerInstance2;
-		
+
+		final boolean dopChange1 = dop != inDop1;
+		final boolean dopChange2 = dop != inDop2;
+
 		// enumerate all pairwise combination of the children's plans together with
 		// all possible operator strategy combination
 		
@@ -154,15 +146,11 @@ public class BinaryUnionNode extends TwoInputNode {
 					Channel c1 = new Channel(child1, this.input1.getMaterializationMode());
 					if (this.input1.getShipStrategy() == null) {
 						// free to choose the ship strategy
-						igps.parameterizeChannel(c1, globalDopChange1, localDopChange1);
+						igps.parameterizeChannel(c1, dopChange1);
 						
 						// if the DOP changed, make sure that we cancel out properties, unless the
 						// ship strategy preserves/establishes them even under changing DOPs
-						if (globalDopChange1 && !c1.getShipStrategy().isNetworkStrategy()) {
-							c1.getGlobalProperties().reset();
-						}
-						if (localDopChange1 && !(c1.getShipStrategy().isNetworkStrategy() || 
-									c1.getShipStrategy().compensatesForLocalDOPChanges())) {
+						if (dopChange1 && !c1.getShipStrategy().isNetworkStrategy()) {
 							c1.getGlobalProperties().reset();
 						}
 					} else {
@@ -173,10 +161,8 @@ public class BinaryUnionNode extends TwoInputNode {
 							c1.setShipStrategy(this.input1.getShipStrategy());
 						}
 						
-						if (globalDopChange1) {
+						if (dopChange1) {
 							c1.adjustGlobalPropertiesForFullParallelismChange();
-						} else if (localDopChange1) {
-							c1.adjustGlobalPropertiesForLocalParallelismChange();
 						}
 					}
 					
@@ -184,15 +170,11 @@ public class BinaryUnionNode extends TwoInputNode {
 					Channel c2 = new Channel(child2, this.input2.getMaterializationMode());
 					if (this.input2.getShipStrategy() == null) {
 						// free to choose the ship strategy
-						igps.parameterizeChannel(c2, globalDopChange2, localDopChange2);
+						igps.parameterizeChannel(c2, dopChange2);
 						
 						// if the DOP changed, make sure that we cancel out properties, unless the
 						// ship strategy preserves/establishes them even under changing DOPs
-						if (globalDopChange2 && !c2.getShipStrategy().isNetworkStrategy()) {
-							c2.getGlobalProperties().reset();
-						}
-						if (localDopChange2 && !(c2.getShipStrategy().isNetworkStrategy() || 
-									c2.getShipStrategy().compensatesForLocalDOPChanges())) {
+						if (dopChange2 && !c2.getShipStrategy().isNetworkStrategy()) {
 							c2.getGlobalProperties().reset();
 						}
 					} else {
@@ -203,10 +185,8 @@ public class BinaryUnionNode extends TwoInputNode {
 							c2.setShipStrategy(this.input2.getShipStrategy());
 						}
 						
-						if (globalDopChange2) {
+						if (dopChange2) {
 							c2.adjustGlobalPropertiesForFullParallelismChange();
-						} else if (localDopChange2) {
-							c2.adjustGlobalPropertiesForLocalParallelismChange();
 						}
 					}
 					
@@ -224,20 +204,20 @@ public class BinaryUnionNode extends TwoInputNode {
 						if (c1.getShipStrategy() == ShipStrategyType.FORWARD && c2.getShipStrategy() != ShipStrategyType.FORWARD) {
 							// adjust c2 to c1
 							c2 = c2.clone();
-							p1.parameterizeChannel(c2,globalDopChange2);
+							p1.parameterizeChannel(c2,dopChange2);
 						} else if (c2.getShipStrategy() == ShipStrategyType.FORWARD && c1.getShipStrategy() != ShipStrategyType.FORWARD) {
 							// adjust c1 to c2
 							c1 = c1.clone();
-							p2.parameterizeChannel(c1,globalDopChange1);
+							p2.parameterizeChannel(c1,dopChange1);
 						} else if (c1.getShipStrategy() == ShipStrategyType.FORWARD && c2.getShipStrategy() == ShipStrategyType.FORWARD) {
 							boolean adjustC1 = c1.getEstimatedOutputSize() <= 0 || c2.getEstimatedOutputSize() <= 0 ||
 									c1.getEstimatedOutputSize() <= c2.getEstimatedOutputSize();
 							if (adjustC1) {
 								c2 = c2.clone();
-								p1.parameterizeChannel(c2, globalDopChange2);
+								p1.parameterizeChannel(c2, dopChange2);
 							} else {
 								c1 = c1.clone();
-								p2.parameterizeChannel(c1, globalDopChange1);
+								p2.parameterizeChannel(c1, dopChange1);
 							}
 						} else {
 							// this should never happen, as it implies both realize a different strategy, which is
