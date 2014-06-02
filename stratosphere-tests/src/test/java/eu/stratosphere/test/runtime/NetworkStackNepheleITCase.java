@@ -162,8 +162,8 @@ public class NetworkStackNepheleITCase extends RecordAPITestBase {
 			producer.connectTo(forwarder, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
 			forwarder.connectTo(consumer, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
 
-			producer.setVertexToShareInstancesWith(forwarder);
-			forwarder.setVertexToShareInstancesWith(consumer);
+			forwarder.setVertexToShareInstancesWith(producer);
+			consumer.setVertexToShareInstancesWith(producer);
 		}
 		else {
 			producer.connectTo(consumer, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
@@ -196,7 +196,7 @@ public class NetworkStackNepheleITCase extends RecordAPITestBase {
 
 			LOG.info(String.format("%d/%d: Producing %d records (each record: %d bytes, total: %.2f GB)",
 					getIndexInSubtaskGroup() + 1, getCurrentNumberOfSubtasks(), numRecordsToEmit,
-					SpeedTestRecord.RECORD_SIZE, dataMbPerSubtask/1024.0));
+					SpeedTestRecord.RECORD_SIZE, dataMbPerSubtask / 1024.0));
 
 			boolean isSlow = getTaskConfiguration().getBoolean(IS_SLOW_SENDER_CONFIG_KEY, false);
 
