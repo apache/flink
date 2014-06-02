@@ -113,6 +113,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @see DataSet
 		 */
 		public <R> CrossOperator<I1, I2, R> with(CrossFunction<I1, I2, R> function) {
+			if (function == null) {
+				throw new NullPointerException("Cross function must not be null.");
+			}
 			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function, input1.getType(), input2.getType());
 			return new CrossOperator<I1, I2, R>(input1, input2, function, returnType);
 		}
