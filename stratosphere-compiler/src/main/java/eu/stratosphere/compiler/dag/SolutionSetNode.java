@@ -14,11 +14,13 @@
 package eu.stratosphere.compiler.dag;
 
 import java.util.Collections;
+import java.util.List;
 
 import eu.stratosphere.api.common.operators.base.DeltaIterationBase.SolutionSetPlaceHolder;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
+import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.SolutionSetPlanNode;
 
@@ -37,11 +39,11 @@ public class SolutionSetNode extends AbstractPartialSolutionNode {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public void setCandidateProperties(GlobalProperties gProps, LocalProperties lProps) {
+	public void setCandidateProperties(GlobalProperties gProps, LocalProperties lProps, Channel initialInput) {
 		if (this.cachedPlans != null) {
 			throw new IllegalStateException();
 		} else {
-			this.cachedPlans = Collections.<PlanNode>singletonList(new SolutionSetPlanNode(this, "SolutionSet("+this.getPactContract().getName()+")", gProps, lProps));
+			this.cachedPlans = Collections.<PlanNode>singletonList(new SolutionSetPlanNode(this, "SolutionSet("+this.getPactContract().getName()+")", gProps, lProps, initialInput));
 		}
 	}
 	
@@ -77,5 +79,19 @@ public class SolutionSetNode extends AbstractPartialSolutionNode {
 	@Override
 	public String getName() {
 		return "Solution Set";
+	}
+	
+	@Override
+	public void computeUnclosedBranchStack() {
+		if (this.openBranches != null) {
+			return;
+		}
+
+		PactConnection solutionSetInput = this.iterationNode.getFirstIncomingConnection();
+		OptimizerNode solutionSetSource = solutionSetInput.getSource();
+		
+		addClosedBranches(solutionSetSource.closedBranchingNodes);
+		List<UnclosedBranchDescriptor> fromInput = solutionSetSource.getBranchesForParent(solutionSetInput);
+		this.openBranches = (fromInput == null || fromInput.isEmpty()) ? Collections.<UnclosedBranchDescriptor>emptyList() : fromInput;
 	}
 }

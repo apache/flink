@@ -167,6 +167,8 @@ public class DataSinkNode extends OptimizerNode {
 			return;
 		}
 
+		// we need to track open branches even in the sinks, because they get "closed" when
+		// we build a single "roor" for the data flow plan
 		addClosedBranches(getPredecessorNode().closedBranchingNodes);
 		this.openBranches = getPredecessorNode().getBranchesForParent(this.input);
 	}

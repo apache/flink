@@ -23,6 +23,10 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.ExecutionEnvironment;
+import eu.stratosphere.api.java.IterativeDataSet;
+import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.record.operators.BulkIteration;
 import eu.stratosphere.api.java.record.operators.DeltaIteration;
 import eu.stratosphere.api.java.record.operators.FileDataSink;
@@ -36,6 +40,10 @@ import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.SinkPlanNode;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
+import eu.stratosphere.pact.compiler.testfunctions.IdentityGroupReducer;
+import eu.stratosphere.pact.compiler.testfunctions.IdentityKeyExtractor;
+import eu.stratosphere.pact.compiler.testfunctions.IdentityMapper;
+import eu.stratosphere.pact.compiler.testfunctions.Top1GroupReducer;
 import eu.stratosphere.pact.compiler.util.DummyCoGroupStub;
 import eu.stratosphere.pact.compiler.util.DummyCrossStub;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
@@ -874,7 +882,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 
 	/**
 	 * <prev>
-	 *             +----Delta Iteration------+
+	 *             +---------Iteration-------+
 	 *             |                         |
 	 *    /--map--< >----\                   |
 	 *   /         |      \         /-------< >---sink
@@ -918,6 +926,130 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 
 		Plan plan = new Plan(sinks);
 
+		try{
+			compileNoStats(plan);
+		}catch(Exception e){
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testBranchingBroadcastVariable() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		DataSet<String> input1 = env.readTextFile(IN_FILE).name("source1");
+		DataSet<String> input2 = env.readTextFile(IN_FILE).name("source2");
+		DataSet<String> input3 = env.readTextFile(IN_FILE).name("source3");
+		
+		DataSet<String> result1 = input1
+				.map(new IdentityMapper<String>())
+				.reduceGroup(new Top1GroupReducer<String>())
+					.withBroadcastSet(input3, "bc");
+		
+		DataSet<String> result2 = input2
+				.map(new IdentityMapper<String>())
+				.reduceGroup(new Top1GroupReducer<String>())
+					.withBroadcastSet(input3, "bc");
+		
+		result1.join(result2)
+				.where(new IdentityKeyExtractor<String>())
+				.equalTo(new IdentityKeyExtractor<String>())
+				.with(new JoinFunction<String, String, String>() {
+					@Override
+					public String join(String first, String second) {
+						return null;
+					}
+				})
+				.withBroadcastSet(input3, "bc1")
+				.withBroadcastSet(input1, "bc2")
+				.withBroadcastSet(result1, "bc3")
+			.print();
+		
+		Plan plan = env.createProgramPlan();
+		
+		try{
+			compileNoStats(plan);
+		}catch(Exception e){
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testBCVariableClosure() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		DataSet<String> input = env.readTextFile(IN_FILE).name("source1");
+		
+		DataSet<String> reduced = input
+				.map(new IdentityMapper<String>())
+				.reduceGroup(new Top1GroupReducer<String>());
+		
+		
+		DataSet<String> initialSolution = input.map(new IdentityMapper<String>()).withBroadcastSet(reduced, "bc");
+		
+		
+		IterativeDataSet<String> iteration = initialSolution.iterate(100);
+		
+		iteration.closeWith(iteration.map(new IdentityMapper<String>()).withBroadcastSet(reduced, "red"))
+				.print();
+		
+		Plan plan = env.createProgramPlan();
+		
+		try{
+			compileNoStats(plan);
+		}catch(Exception e){
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testMultipleIterations() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		DataSet<String> input = env.readTextFile(IN_FILE).name("source1");
+		
+		DataSet<String> reduced = input
+				.map(new IdentityMapper<String>())
+				.reduceGroup(new Top1GroupReducer<String>());
+			
+		IterativeDataSet<String> iteration1 = input.iterate(100);
+		IterativeDataSet<String> iteration2 = input.iterate(20);
+		IterativeDataSet<String> iteration3 = input.iterate(17);
+		
+		iteration1.closeWith(iteration1.map(new IdentityMapper<String>()).withBroadcastSet(reduced, "bc1")).print();
+		iteration2.closeWith(iteration2.reduceGroup(new Top1GroupReducer<String>()).withBroadcastSet(reduced, "bc2")).print();
+		iteration3.closeWith(iteration3.reduceGroup(new IdentityGroupReducer<String>()).withBroadcastSet(reduced, "bc3")).print();
+		
+		Plan plan = env.createProgramPlan();
+		
+		try{
+			compileNoStats(plan);
+		}catch(Exception e){
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testMultipleIterationsWithClosueBCVars() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		DataSet<String> input = env.readTextFile(IN_FILE).name("source1");
+			
+		IterativeDataSet<String> iteration1 = input.iterate(100);
+		IterativeDataSet<String> iteration2 = input.iterate(20);
+		IterativeDataSet<String> iteration3 = input.iterate(17);
+		
+		
+		iteration1.closeWith(iteration1.map(new IdentityMapper<String>())).print();
+		iteration2.closeWith(iteration2.reduceGroup(new Top1GroupReducer<String>())).print();
+		iteration3.closeWith(iteration3.reduceGroup(new IdentityGroupReducer<String>())).print();
+		
+		Plan plan = env.createProgramPlan();
+		
 		try{
 			compileNoStats(plan);
 		}catch(Exception e){

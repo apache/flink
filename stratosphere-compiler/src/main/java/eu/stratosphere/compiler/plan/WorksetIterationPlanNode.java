@@ -25,7 +25,6 @@ import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.OptimizerNode;
-import eu.stratosphere.compiler.dag.TwoInputNode;
 import eu.stratosphere.compiler.dag.WorksetIterationNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.util.Visitor;
@@ -66,7 +65,7 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 		this.worksetPlanNode = worksetPlanNode;
 		this.solutionSetDeltaPlanNode = solutionSetDeltaPlanNode;
 		this.nextWorkSetPlanNode = nextWorkSetPlanNode;
-
+		
 		mergeBranchPlanMaps();
 
 	}
@@ -149,12 +148,6 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 		// add the costs from the step function
 		nodeCosts.addCosts(this.solutionSetDeltaPlanNode.getCumulativeCostsShare());
 		nodeCosts.addCosts(this.nextWorkSetPlanNode.getCumulativeCostsShare());
-		
-		// we have to subtract that which is double. sanity check that there are branches
-		TwoInputNode auxJoiner = getIterationNode().getSingleRootOfStepFunction();
-		if (auxJoiner.getJoinedBranchers() == null || auxJoiner.getJoinedBranchers().isEmpty()) {
-			throw new CompilerException("Error: No branch in step function between Solution Set Delta and Next Workset.");
-		}
 
 		super.setCosts(nodeCosts);
 	}

@@ -538,16 +538,36 @@ public abstract class TwoInputNode extends OptimizerNode {
 			RequestedGlobalProperties globPropsReq1, RequestedGlobalProperties globPropsReq2,
 			RequestedLocalProperties locPropsReq1, RequestedLocalProperties locPropsReq2)
 	{
+		final PlanNode inputSource1 = in1.getSource();
+		final PlanNode inputSource2 = in2.getSource();
+		
 		for (List<NamedChannel> broadcastChannelsCombination: Sets.cartesianProduct(broadcastPlanChannels)) {
+			
+			boolean validCombination = true;
+			
 			// check whether the broadcast inputs use the same plan candidate at the branching point
-			for (NamedChannel nc : broadcastChannelsCombination) {
+			for (int i = 0; i < broadcastChannelsCombination.size(); i++) {
+				NamedChannel nc = broadcastChannelsCombination.get(i);
 				PlanNode bcSource = nc.getSource();
-				PlanNode inputSource1 = in1.getSource();
-				PlanNode inputSource2 = in2.getSource();
 				
 				if (!(areBranchCompatible(bcSource, inputSource1) || areBranchCompatible(bcSource, inputSource2))) {
-					return;
+					validCombination = false;
+					break;
 				}
+				
+				// check branch compatibility against all other broadcast variables
+				for (int k = 0; k < i; k++) {
+					PlanNode otherBcSource = broadcastChannelsCombination.get(k).getSource();
+					
+					if (!areBranchCompatible(bcSource, otherBcSource)) {
+						validCombination = false;
+						break;
+					}
+				}
+			}
+			
+			if (!validCombination) {
+				continue;
 			}
 			
 			placePipelineBreakersIfNecessary(operator.getStrategy(), in1, in2);
@@ -572,7 +592,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	protected void placePipelineBreakersIfNecessary(DriverStrategy strategy, Channel in1, Channel in2) {
 		// before we instantiate, check for deadlocks by tracing back to the open branches and checking
 		// whether either no input, or all of them have a dam
-		if (this.hereJoinedBranchers != null && this.hereJoinedBranchers.size() > 0) {
+		if (this.hereJoinedBranches != null && this.hereJoinedBranches.size() > 0) {
 			boolean someDamOnLeftPaths = false;
 			boolean damOnAllLeftPaths = true;
 			boolean someDamOnRightPaths = false;
@@ -581,8 +601,14 @@ public abstract class TwoInputNode extends OptimizerNode {
 			if (strategy.firstDam() == DamBehavior.FULL_DAM || in1.getLocalStrategy().dams() || in1.getTempMode().breaksPipeline()) {
 				someDamOnLeftPaths = true;
 			} else {
-				for (OptimizerNode brancher : this.hereJoinedBranchers) {
+				for (OptimizerNode brancher : this.hereJoinedBranches) {
 					PlanNode candAtBrancher = in1.getSource().getCandidateAtBranchPoint(brancher);
+					
+					// not all candidates are found, because this list includes joined branched from both regular inputs and broadcast vars
+					if (candAtBrancher == null) {
+						continue;
+					}
+					
 					SourceAndDamReport res = in1.getSource().hasDamOnPathDownTo(candAtBrancher);
 					if (res == NOT_FOUND) {
 						throw new CompilerException("Bug: Tracing dams for deadlock detection is broken.");
@@ -599,8 +625,14 @@ public abstract class TwoInputNode extends OptimizerNode {
 			if (strategy.secondDam() == DamBehavior.FULL_DAM || in2.getLocalStrategy().dams() || in2.getTempMode().breaksPipeline()) {
 				someDamOnRightPaths = true;
 			} else {
-				for (OptimizerNode brancher : this.hereJoinedBranchers) {
+				for (OptimizerNode brancher : this.hereJoinedBranches) {
 					PlanNode candAtBrancher = in2.getSource().getCandidateAtBranchPoint(brancher);
+					
+					// not all candidates are found, because this list includes joined branched from both regular inputs and broadcast vars
+					if (candAtBrancher == null) {
+						continue;
+					}
+					
 					SourceAndDamReport res = in2.getSource().hasDamOnPathDownTo(candAtBrancher);
 					if (res == NOT_FOUND) {
 						throw new CompilerException("Bug: Tracing dams for deadlock detection is broken.");

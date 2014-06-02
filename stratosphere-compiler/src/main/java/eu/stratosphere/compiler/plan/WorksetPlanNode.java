@@ -14,15 +14,19 @@
 package eu.stratosphere.compiler.plan;
 
 import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
 import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 
 import eu.stratosphere.compiler.costs.Costs;
+import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.dag.WorksetNode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
+import eu.stratosphere.pact.runtime.task.DamBehavior;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.util.Visitor;
 
@@ -35,18 +39,32 @@ public class WorksetPlanNode extends PlanNode {
 	
 	private WorksetIterationPlanNode containingIterationNode;
 	
+	private final Channel initialInput;
+	
 	public Object postPassHelper;
 	
 	
-	public WorksetPlanNode(WorksetNode template, String nodeName, GlobalProperties gProps, LocalProperties lProps) {
+	public WorksetPlanNode(WorksetNode template, String nodeName,
+			GlobalProperties gProps, LocalProperties lProps,
+			Channel initialInput)
+	{
 		super(template, nodeName, DriverStrategy.NONE);
 		
 		this.globalProps = gProps;
 		this.localProps = lProps;
+		this.initialInput = initialInput;
 		
 		// the node incurs no cost
 		this.nodeCosts = NO_COSTS;
 		this.cumulativeCosts = NO_COSTS;
+		
+		if (initialInput.getSource().branchPlan != null && initialInput.getSource().branchPlan.size() > 0) {
+			if (this.branchPlan == null) {
+				this.branchPlan = new HashMap<OptimizerNode, PlanNode>();
+			}
+			
+			this.branchPlan.putAll(initialInput.getSource().branchPlan);
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -90,7 +108,18 @@ public class WorksetPlanNode extends PlanNode {
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
 		if (source == this) {
 			return FOUND_SOURCE;
-		} else {
+		}
+		SourceAndDamReport res = this.initialInput.getSource().hasDamOnPathDownTo(source);
+		if (res == FOUND_SOURCE_AND_DAM) {
+			return FOUND_SOURCE_AND_DAM;
+		}
+		else if (res == FOUND_SOURCE) {
+			return (this.initialInput.getLocalStrategy().dams() || 
+					this.initialInput.getTempMode().breaksPipeline() ||
+					getDriverStrategy().firstDam() == DamBehavior.FULL_DAM) ?
+				FOUND_SOURCE_AND_DAM : FOUND_SOURCE;
+		}
+		else {
 			return NOT_FOUND;
 		}
 	}
