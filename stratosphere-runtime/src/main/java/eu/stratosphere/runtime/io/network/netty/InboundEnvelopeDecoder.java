@@ -23,12 +23,16 @@ import eu.stratosphere.runtime.io.network.Envelope;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class InboundEnvelopeDecoder extends ChannelInboundHandlerAdapter implements BufferAvailabilityListener {
+
+	private static final Log LOG = LogFactory.getLog(InboundEnvelopeDecoder.class);
 
 	private final BufferProviderBroker bufferProviderBroker;
 
@@ -123,6 +127,10 @@ public class InboundEnvelopeDecoder extends ChannelInboundHandlerAdapter impleme
 					case REGISTERED:
 						if (ctx.channel().config().isAutoRead()) {
 							ctx.channel().config().setAutoRead(false);
+
+							if (LOG.isDebugEnabled()) {
+								LOG.debug(String.format("Set channel %s auto read to false.", ctx.channel()));
+							}
 						}
 
 						this.stagedBuffer = in;
@@ -194,6 +202,9 @@ public class InboundEnvelopeDecoder extends ChannelInboundHandlerAdapter impleme
 				if (decodeBuffer(stagedBuffer, channelHandlerContext)) {
 					stagedBuffer = null;
 					channelHandlerContext.channel().config().setAutoRead(true);
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(String.format("Set channel %s auto read to true.", channelHandlerContext.channel()));
+					}
 				}
 			} catch (IOException e) {
 				availableBuffer.recycleBuffer();
