@@ -67,8 +67,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	protected Set<OptimizerNode> closedBranchingNodes; 	// stack of branching nodes which have already been closed
 	
-	protected List<OptimizerNode> hereJoinedBranchers;	// the branching nodes (node with multiple outputs)
-														// that at least two children share and that are at least partially joined
+	protected List<OptimizerNode> hereJoinedBranches;	// the branching nodes (node with multiple outputs)
+	// 										that are partially joined (through multiple inputs or broadcast vars)
 
 	// ---------------------------- Estimates and Annotations -------------------------------------
 	
@@ -189,7 +189,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		AbstractUdfOperator<?, ?> operator = ((AbstractUdfOperator<?, ?>) getPactContract());
 
 		// create connections and add them
-		for (Map.Entry<String, Operator<?>> input: operator.getBroadcastInputs().entrySet()) {
+		for (Map.Entry<String, Operator<?>> input : operator.getBroadcastInputs().entrySet()) {
 			OptimizerNode predecessor = operatorToNode.get(input.getValue());
 			PactConnection connection = new PactConnection(predecessor, this, ShipStrategyType.BROADCAST);
 			addBroadcastConnection(input.getKey(), connection);
@@ -944,10 +944,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public boolean hasUnclosedBranches() {
 		return this.openBranches != null && !this.openBranches.isEmpty();
 	}
-	
-	public List<OptimizerNode> getJoinedBranchers() {
-		return this.hereJoinedBranchers;
-	}
 
 	public Set<OptimizerNode> getClosedBranchingNodes() {
 		return this.closedBranchingNodes;
@@ -955,38 +951,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	public List<UnclosedBranchDescriptor> getOpenBranches() {
 		return this.openBranches;
-	}
-	
-	/**
-	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
-	 * alternative plans are comparable, if
-	 * 
-	 * a) There is no branch in the sub-plan of this node
-	 * b) Both candidates have the same candidate as the child at the last open branch. 
-	 * 
-	 * @param subPlan1
-	 * @param subPlan2
-	 * @return
-	 */
-	protected boolean areBranchCompatible(PlanNode plan1, PlanNode plan2) {
-		if (plan1 == null || plan2 == null) {
-			throw new NullPointerException();
-		}
-		
-		// if there is no open branch, the children are always compatible.
-		// in most plans, that will be the dominant case
-		if (this.hereJoinedBranchers == null || this.hereJoinedBranchers.isEmpty()) {
-			return true;
-		}
-
-		for (OptimizerNode joinedBrancher : hereJoinedBranchers) {
-			final PlanNode branch1Cand = plan1.getCandidateAtBranchPoint(joinedBrancher);
-			final PlanNode branch2Cand = plan2.getCandidateAtBranchPoint(joinedBrancher);
-			if (branch1Cand != branch2Cand) {
-				return false;
-			}
-		}
-		return true;
 	}
 
 	/**
@@ -1028,7 +992,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		}
 		else {
 			throw new CompilerException(
-				"Error in compiler: Cannot get branch info for parent in a node with no parents.");
+				"Error in compiler: Cannot get branch info for successor in a node with no successors.");
 		}
 	}
 
@@ -1064,6 +1028,39 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			this.closedBranchingNodes = new HashSet<OptimizerNode>();
 		}
 		this.closedBranchingNodes.add(alreadyClosed);
+	}
+	
+	/**
+	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
+	 * alternative plans are comparable, if
+	 * 
+	 * a) There is no branch in the sub-plan of this node
+	 * b) Both candidates have the same candidate as the child at the last open branch. 
+	 * 
+	 * @param subPlan1
+	 * @param subPlan2
+	 * @return True if the nodes are branch compatible in the inputs.
+	 */
+	protected boolean areBranchCompatible(PlanNode plan1, PlanNode plan2) {
+		if (plan1 == null || plan2 == null) {
+			throw new NullPointerException();
+		}
+		
+		// if there is no open branch, the children are always compatible.
+		// in most plans, that will be the dominant case
+		if (this.hereJoinedBranches == null || this.hereJoinedBranches.isEmpty()) {
+			return true;
+		}
+
+		for (OptimizerNode joinedBrancher : hereJoinedBranches) {
+			final PlanNode branch1Cand = plan1.getCandidateAtBranchPoint(joinedBrancher);
+			final PlanNode branch2Cand = plan2.getCandidateAtBranchPoint(joinedBrancher);
+			
+			if (branch1Cand != null && branch2Cand != null && branch1Cand != branch2Cand) {
+				return false;
+			}
+		}
+		return true;
 	}
 	
 	/**
@@ -1130,10 +1127,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 				if (vector1 == vector2) {
 					result.add(child1open.get(index1));
 				} else {
-					if (this.hereJoinedBranchers == null) {
-						this.hereJoinedBranchers = new ArrayList<OptimizerNode>(2);
+					if (this.hereJoinedBranches == null) {
+						this.hereJoinedBranches = new ArrayList<OptimizerNode>(2);
 					}
-					this.hereJoinedBranchers.add(currBanchingNode);
+					this.hereJoinedBranches.add(currBanchingNode);
 
 					// see, if this node closes the branch
 					long joinedInputs = vector1 | vector2;

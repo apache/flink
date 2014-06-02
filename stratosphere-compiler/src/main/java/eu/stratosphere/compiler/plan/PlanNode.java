@@ -116,13 +116,11 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 					// predecessor 2 has branching children, see if it got the branch we are looking for
 					selectedCandidate = branchPlan2.get(brancher);
 				}
-	
-				if (selectedCandidate == null) {
-					throw new CompilerException(
-						"Candidates for a node with open branches are missing information about the selected candidate ");
-				}
 				
-				this.branchPlan.put(brancher, selectedCandidate);
+				// it may be that the branch candidate is only found once the broadcast variables are set
+				if (selectedCandidate != null) {
+					this.branchPlan.put(brancher, selectedCandidate);
+				}
 			}
 		}
 	}
@@ -246,13 +244,13 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	}
 
 	public Costs getCumulativeCostsShare() {
-		if(this.cumulativeCosts == null){
+		if (this.cumulativeCosts == null){
 			return null;
-		}else{
+		} else {
 			Costs result = cumulativeCosts.clone();
-			if(this.template != null && this.template.getOutgoingConnections() != null){
+			if (this.template != null && this.template.getOutgoingConnections() != null) {
 				int outDegree = this.template.getOutgoingConnections().size();
-				if(outDegree > 0) {
+				if (outDegree > 0) {
 					result.divideBy(outDegree);
 				}
 			}
@@ -263,22 +261,38 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 
 	
 	/**
-	 * Sets the basic cost for this {@code OptimizerNode}
+	 * Sets the basic cost for this node to the given value, and sets the cumulative costs
+	 * to those costs plus the cost shares of all inputs (regular and broadcast).
 	 * 
-	 * @param nodeCosts		The already knows costs for this node
+	 * @param nodeCosts	 The already knows costs for this node
 	 * 						(this cost a produces by a concrete {@code OptimizerNode} subclass.
 	 */
 	public void setCosts(Costs nodeCosts) {
 		// set the node costs
 		this.nodeCosts = nodeCosts;
+		
 		// the cumulative costs are the node costs plus the costs of all inputs
 		this.cumulativeCosts = nodeCosts.clone();
+		
+		// add all the normal inputs
 		for (Iterator<PlanNode> preds = getPredecessors(); preds.hasNext();) {
 			Costs parentCosts = preds.next().getCumulativeCostsShare();
 			if (parentCosts != null) {
 				this.cumulativeCosts.addCosts(parentCosts);
 			} else {
-				throw new CompilerException();
+				throw new CompilerException("Trying to set the costs of an operator before the predecessor costs are computed.");
+			}
+		}
+		
+		// add all broadcast variable inputs
+		if (this.broadcastInputs != null) {
+			for (NamedChannel nc : this.broadcastInputs) {
+				Costs bcInputCost = nc.getSource().getCumulativeCostsShare();
+				if (bcInputCost != null) {
+					this.cumulativeCosts.addCosts(bcInputCost);
+				} else {
+					throw new CompilerException("Trying to set the costs of an operator before the broadcast input costs are computed.");
+				}
 			}
 		}
 	}
@@ -303,6 +317,10 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		return this.template.getMinimalMemoryAcrossAllSubTasks();
 	}
 
+	public Map<OptimizerNode, PlanNode> getBranchPlan() {
+		return branchPlan;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//                               Input, Predecessors, Successors
 	// --------------------------------------------------------------------------------------------
@@ -316,16 +334,29 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	 * Sets a list of all broadcast inputs attached to this node.
 	 */
 	public void setBroadcastInputs(List<NamedChannel> broadcastInputs) {
-		if (broadcastInputs == null) {
-			return;
-		}
-		this.broadcastInputs = broadcastInputs;
-		
-		// update the branch map
-		for (NamedChannel nc : broadcastInputs) {
-			PlanNode source = nc.getSource();
+		if (broadcastInputs != null) {
+			this.broadcastInputs = broadcastInputs;
 			
-			mergeBranchPlanMaps(branchPlan, source.branchPlan);
+			// update the branch map
+			for (NamedChannel nc : broadcastInputs) {
+				PlanNode source = nc.getSource();
+				
+				mergeBranchPlanMaps(branchPlan, source.branchPlan);
+			}
+		}
+		
+		// do a sanity check that if we are branching, we have now candidates for each branch point
+		if (this.template.hasUnclosedBranches()) {
+			if (this.branchPlan == null) {
+				throw new CompilerException("Branching and rejoining logic did not find a candidate for the branching point.");
+			}
+	
+			for (UnclosedBranchDescriptor uc : this.template.getOpenBranches()) {
+				OptimizerNode brancher = uc.getBranchingNode();
+				if (this.branchPlan.get(brancher) == null) {
+					throw new CompilerException("Branching and rejoining logic did not find a candidate for the branching point.");
+				}
+			}
 		}
 	}
 	
