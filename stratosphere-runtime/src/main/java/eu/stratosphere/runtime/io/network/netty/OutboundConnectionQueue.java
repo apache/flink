@@ -23,6 +23,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.util.ArrayDeque;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter implements ChannelFutureListener {
 
@@ -30,11 +31,12 @@ public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter implem
 
 	private final Channel channel;
 
-	private final ArrayDeque<Envelope> queuedEnvelopes;
+	private final ArrayDeque<Envelope> queuedEnvelopes = new ArrayDeque<Envelope>();
+
+	private final AtomicInteger numQueued = new AtomicInteger(0);
 
 	public OutboundConnectionQueue(Channel channel) {
 		this.channel = channel;
-		this.queuedEnvelopes = new ArrayDeque<Envelope>();
 
 		channel.pipeline().addFirst(this);
 	}
@@ -56,6 +58,7 @@ public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter implem
 		boolean triggerWrite = this.queuedEnvelopes.isEmpty();
 
 		this.queuedEnvelopes.addLast((Envelope) envelopeToEnqueue);
+		this.numQueued.incrementAndGet();
 
 		if (triggerWrite) {
 			writeAndFlushNextEnvelopeIfPossible();
@@ -80,9 +83,19 @@ public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter implem
 		}
 	}
 
+	public int getNumQueuedEnvelopes() {
+		return this.numQueued.intValue();
+	}
+
+	public Channel getChannel() {
+		return this.channel;
+	}
+
 	private void writeAndFlushNextEnvelopeIfPossible() {
 		if (this.channel.isWritable() && !this.queuedEnvelopes.isEmpty()) {
 			Envelope nextEnvelope = this.queuedEnvelopes.pollFirst();
+			this.numQueued.decrementAndGet();
+
 			this.channel.writeAndFlush(nextEnvelope).addListener(this);
 		}
 	}

@@ -34,12 +34,16 @@ import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.Date;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class NettyConnectionManager {
 
 	private static final Log LOG = LogFactory.getLog(NettyConnectionManager.class);
+
+	private static final int DEBUG_PRINT_QUEUED_ENVELOPES_EVERY_MS = 10000;
 
 	private final ChannelManager channelManager;
 
@@ -108,6 +112,30 @@ public class NettyConnectionManager {
 		} catch (InterruptedException e) {
 			throw new RuntimeException("Could not bind server socket for incoming connections.");
 		}
+
+		if (LOG.isDebugEnabled()) {
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+					Date date = new Date();
+
+
+					while (true) {
+						try {
+							Thread.sleep(DEBUG_PRINT_QUEUED_ENVELOPES_EVERY_MS);
+
+							date.setTime(System.currentTimeMillis());
+							System.out.println(date);
+
+							System.out.println(getNonZeroNumQueuedEnvelopes());
+
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+			}).start();
+		}
 	}
 
 	public void shutdown() {
@@ -168,6 +196,30 @@ public class NettyConnectionManager {
 		}
 
 		channel.enqueue(envelope);
+	}
+
+	private String getNonZeroNumQueuedEnvelopes() {
+		StringBuilder str = new StringBuilder();
+
+		str.append(String.format("==== %d outgoing connections ===\n", this.outConnections.size()));
+
+		for (Map.Entry<RemoteReceiver, Object> entry : this.outConnections.entrySet()) {
+			RemoteReceiver receiver = entry.getKey();
+
+			Object value = entry.getValue();
+			if (value instanceof OutboundConnectionQueue) {
+				OutboundConnectionQueue queue = (OutboundConnectionQueue) value;
+				if (queue.getNumQueuedEnvelopes() > 0) {
+					str.append(String.format("%s> Number of queued envelopes for %s with channel %s: %d\n",
+							Thread.currentThread().getId(), receiver, queue.getChannel(), queue.getNumQueuedEnvelopes()));
+				}
+			} else if (value instanceof ChannelInBuildup) {
+				str.append(String.format("%s> Connection to %s is still in buildup\n",
+						Thread.currentThread().getId(), receiver));
+			}
+		}
+
+		return str.toString();
 	}
 
 	// ------------------------------------------------------------------------
