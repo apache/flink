@@ -294,6 +294,15 @@ public final class LocalBufferPool implements BufferProvider {
 				this.globalBufferPool.returnBuffer(buffer);
 				this.numRequestedBuffers--;
 			} else {
+				// if the number of designated buffers changed in the meantime, make sure
+				// to return the buffer to the global buffer pool
+				if (this.numRequestedBuffers > this.numDesignatedBuffers) {
+					this.globalBufferPool.returnBuffer(buffer);
+					this.numRequestedBuffers--;
+
+					return;
+				}
+
 				if (!this.listeners.isEmpty()) {
 					Buffer availableBuffer = new Buffer(buffer, buffer.size(), this.recycler);
 					try {
