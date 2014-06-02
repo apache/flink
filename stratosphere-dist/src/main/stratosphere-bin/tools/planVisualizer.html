@@ -17,42 +17,51 @@
   <title>Stratosphere Plan Visualizer</title>
   <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
   <link rel="stylesheet" type="text/css" href="../resources/web-docs/css/nephelefrontend.css" />
-  <link rel="stylesheet" type="text/css" href="../resources/web-docs/css/js-graph-it.css" />
   <link rel="stylesheet" type="text/css" href="../resources/web-docs/css/pactgraphs.css" />
-  <script type="text/javascript" src="../resources/web-docs/js/jquery.js"></script>
-  <script type="text/javascript" src="../resources/web-docs/js/js-graph-it.js"></script>
-  <script type="text/javascript" src="../resources/web-docs/js/pactgraph.js"></script>
+  <link rel="stylesheet" type="text/css" href="../resources/web-docs/css/graph.css" />
+  <link rel="stylesheet" type="text/css" href="../resources/web-docs/css/overlay.css" />
+  <link rel="stylesheet" type="text/css" href="../resources/web-docs/css/bootstrap.css" /> <!-- Changed stuff -->
+  <script type="text/javascript" src="../resources/web-docs/js/jquery-2.1.0.js"></script>
+  <script type="text/javascript" src="../resources/web-docs/js/graphCreator.js"></script>
+  <script type="text/javascript" src="../resources/web-docs/js/d3.js" charset="utf-8"></script>
+  <script type="text/javascript" src="../resources/web-docs/js/dagre-d3.js"></script>
+  <script type="text/javascript" src="../resources/web-docs/js/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../resources/web-docs/js/jquery.tools.min.js"></script>
+
 <body>
   <div class="mainHeading">
-    <h1><img src="../resources/web-docs/img/StratosphereLogo.png" width="326" height="100" alt="Stratosphere Logo" align="middle"/>Stratosphere Plan Visualizer</h1>
+    <h1 style="margin-top:0"><img src="../resources/web-docs/img/StratosphereLogo.png" width="326" height="100" alt="Stratosphere Logo" align="middle"/>Stratosphere Plan Visualizer</h1>
   </div>
     <div>
-      <div id="mainCanvas" class="canvas boxed" style="height: 500px;">
+      <div id="mainCanvas" class="canvas boxed">
         <div><h3>Paste the plan data here</h3></div>
         <div align="center"><textarea id="plantext" style="width: 600px; height: 400px;"></textarea></div>
         <div align="center"; style="float: bottom;"> 
           <input id="draw_button" type="button" value="Draw"/> 
-        </div> 
+        </div>
       </div>
     </div>
-    <div id="propertyCanvas" class="propertyCanvas">
-      <p class="fadedPropertiesText">Click a node to show the properties...</p>
-    </div>
+    <div class="simple_overlay" id="propertyO">
+	  <div id="propertyCanvas" class="propertyCanvas">
+	  </div>
+	</div>
     <script type="text/javascript">
-    <!--
-      var maxColumnWidth = 350;
-      var minColumnWidth = 150;
 
       $(document).ready(function() {
+		
+	  	//change height of mainCanvas to maximum
+	  	$("#mainCanvas").css("height", $(document).height() - 15 - 105);
 
         $('#draw_button').click(function () {
           var planData = $("textarea#plantext").val();
+          $("#mainCanvas").empty();
+          var svgElement = "<div id=\"attach\"><svg id=\"svg-main\" width=500 height=500><g transform=\"translate(20, 20)\"/></svg></div>";
+          $("#mainCanvas").append(svgElement);
           var asObject = eval('(' + planData + ')');
-          drawPactPlan(asObject, true, "../../../resources/web-docs/img/arrows/arr.gif");
+          drawGraph(asObject, "#svg-main");
         });
 
       });
-    //-->
     </script>
 </body>
 </html>
