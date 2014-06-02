@@ -14,12 +14,15 @@
 package eu.stratosphere.compiler.plan;
 
 import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
 import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 
 import eu.stratosphere.compiler.costs.Costs;
+import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.dag.SolutionSetNode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
@@ -35,18 +38,32 @@ public class SolutionSetPlanNode extends PlanNode {
 	
 	private WorksetIterationPlanNode containingIterationNode;
 	
+	private final Channel initialInput;
+	
 	public Object postPassHelper;
 	
 	
-	public SolutionSetPlanNode(SolutionSetNode template, String nodeName, GlobalProperties gProps, LocalProperties lProps) {
+	public SolutionSetPlanNode(SolutionSetNode template, String nodeName,
+			GlobalProperties gProps, LocalProperties lProps,
+			Channel initialInput)
+	{
 		super(template, nodeName, DriverStrategy.NONE);
 		
 		this.globalProps = gProps;
 		this.localProps = lProps;
+		this.initialInput = initialInput;
 		
 		// the node incurs no cost
 		this.nodeCosts = NO_COSTS;
 		this.cumulativeCosts = NO_COSTS;
+		
+		if (initialInput.getSource().branchPlan != null && initialInput.getSource().branchPlan.size() > 0) {
+			if (this.branchPlan == null) {
+				this.branchPlan = new HashMap<OptimizerNode, PlanNode>();
+			}
+			
+			this.branchPlan.putAll(initialInput.getSource().branchPlan);
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -89,7 +106,12 @@ public class SolutionSetPlanNode extends PlanNode {
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
 		if (source == this) {
-			return FOUND_SOURCE;
+			return FOUND_SOURCE_AND_DAM;
+		}
+		
+		SourceAndDamReport res = this.initialInput.getSource().hasDamOnPathDownTo(source);
+		if (res == FOUND_SOURCE_AND_DAM || res == FOUND_SOURCE) {
+			return FOUND_SOURCE_AND_DAM;
 		} else {
 			return NOT_FOUND;
 		}

@@ -76,11 +76,6 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode {
 	}
 
 	@Override
-	public void computeUnclosedBranchStack() {
-		// because there are no inputs, there are no unclosed branches.
-	}
-
-	@Override
 	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {
 		if (this.cachedPlans != null) {
 			return this.cachedPlans;

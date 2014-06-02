@@ -1199,11 +1199,9 @@ public class PactCompiler {
 	}
 
 	/**
-	 * Visitor that computes the interesting properties for each node in the plan. On its recursive
-	 * depth-first descend, it propagates all interesting properties top-down. On its re-ascend,
-	 * it computes auxiliary maps that are needed to support plans that are not a minimally connected
-	 * DAG (Such plans are not trees, but at least one node feeds its output into more than one other
-	 * node).
+	 * On its re-ascend (post visit) this visitor, computes auxiliary maps that are needed to support plans
+	 * that are not a minimally connected DAG (Such plans are not trees, but at least one node feeds its
+	 * output into more than one other node).
 	 */
 	private static final class BranchesVisitor implements Visitor<OptimizerNode> {
 		
