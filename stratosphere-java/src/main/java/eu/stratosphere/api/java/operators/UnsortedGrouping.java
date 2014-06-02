@@ -64,6 +64,9 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see DataSet
 	 */
 	public ReduceOperator<T> reduce(ReduceFunction<T> reducer) {
+		if (reducer == null) {
+			throw new NullPointerException("Reduce function must not be null.");
+		}
 		return new ReduceOperator<T>(this, reducer);
 	}
 	
@@ -81,6 +84,9 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see DataSet
 	 */
 	public <R> ReduceGroupOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
+		if (reducer == null) {
+			throw new NullPointerException("GroupReduce function must not be null.");
+		}
 		return new ReduceGroupOperator<T, R>(this, reducer);
 	}
 
