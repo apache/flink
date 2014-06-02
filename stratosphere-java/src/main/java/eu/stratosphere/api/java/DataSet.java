@@ -130,6 +130,9 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> MapOperator<T, R> map(MapFunction<T, R> mapper) {
+		if (mapper == null) {
+			throw new NullPointerException("Map function must not be null.");
+		}
 		return new MapOperator<T, R>(this, mapper);
 	}
 	
@@ -146,6 +149,9 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> FlatMapOperator<T, R> flatMap(FlatMapFunction<T, R> flatMapper) {
+		if (flatMapper == null) {
+			throw new NullPointerException("FlatMap function must not be null.");
+		}
 		return new FlatMapOperator<T, R>(this, flatMapper);
 	}
 	
@@ -163,6 +169,9 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public FilterOperator<T> filter(FilterFunction<T> filter) {
+		if (filter == null) {
+			throw new NullPointerException("Filter function must not be null.");
+		}
 		return new FilterOperator<T>(this, filter);
 	}
 	
@@ -229,6 +238,9 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public ReduceOperator<T> reduce(ReduceFunction<T> reducer) {
+		if (reducer == null) {
+			throw new NullPointerException("Reduce function must not be null.");
+		}
 		return new ReduceOperator<T>(this, reducer);
 	}
 	
@@ -246,6 +258,9 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> ReduceGroupOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
+		if (reducer == null) {
+			throw new NullPointerException("GroupReduce function must not be null.");
+		}
 		return new ReduceGroupOperator<T, R>(this, reducer);
 	}
 	
