@@ -187,17 +187,17 @@ public final class LocalBufferPool implements BufferProvider {
 	public BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
 		synchronized (this.buffers) {
 			if (!this.buffers.isEmpty()) {
-				return BufferAvailabilityRegistration.NOT_REGISTERED_BUFFER_AVAILABLE;
+				return BufferAvailabilityRegistration.FAILED_BUFFER_AVAILABLE;
 			}
 
 			if (this.isDestroyed) {
-				return BufferAvailabilityRegistration.NOT_REGISTERED_BUFFER_POOL_DESTROYED;
+				return BufferAvailabilityRegistration.FAILED_BUFFER_POOL_DESTROYED;
 			}
 
 			this.listeners.add(listener);
 		}
 
-		return BufferAvailabilityRegistration.REGISTERED;
+		return BufferAvailabilityRegistration.SUCCEEDED_REGISTERED;
 	}
 
 	/**
@@ -300,10 +300,7 @@ public final class LocalBufferPool implements BufferProvider {
 					this.globalBufferPool.returnBuffer(buffer);
 					this.numRequestedBuffers--;
 
-					return;
-				}
-
-				if (!this.listeners.isEmpty()) {
+				} else if (!this.listeners.isEmpty()) {
 					Buffer availableBuffer = new Buffer(buffer, buffer.size(), this.recycler);
 					try {
 						this.listeners.poll().bufferAvailable(availableBuffer);
@@ -311,6 +308,7 @@ public final class LocalBufferPool implements BufferProvider {
 						this.buffers.add(buffer);
 						this.buffers.notify();
 					}
+
 				} else {
 					this.buffers.add(buffer);
 					this.buffers.notify();
