@@ -83,7 +83,7 @@ public class InboundEnvelopeDecoderTest {
 		ByteBuf buf = encode(ch, envelopes);
 
 		when(this.bufferProvider.registerBufferAvailabilityListener(Matchers.<BufferAvailabilityListener>anyObject()))
-				.thenReturn(BufferAvailabilityRegistration.REGISTERED);
+				.thenReturn(BufferAvailabilityRegistration.SUCCEEDED_REGISTERED);
 
 		Buffer buffer = allocBuffer(envelopes[2].getBuffer().size());
 
@@ -161,7 +161,7 @@ public class InboundEnvelopeDecoderTest {
 				.thenReturn(null);
 
 		when(this.bufferProvider.registerBufferAvailabilityListener(Matchers.<BufferAvailabilityListener>anyObject()))
-				.thenReturn(BufferAvailabilityRegistration.REGISTERED);
+				.thenReturn(BufferAvailabilityRegistration.SUCCEEDED_REGISTERED);
 
 		// --------------------------------------------------------------------
 
@@ -196,7 +196,7 @@ public class InboundEnvelopeDecoderTest {
 		Envelope[] envelopes = new Envelope[]{nextEnvelope(true), nextEnvelope()};
 
 		when(this.bufferProvider.registerBufferAvailabilityListener(Matchers.<BufferAvailabilityListener>anyObject()))
-				.thenReturn(BufferAvailabilityRegistration.NOT_REGISTERED_BUFFER_AVAILABLE);
+				.thenReturn(BufferAvailabilityRegistration.FAILED_BUFFER_AVAILABLE);
 
 		when(this.bufferProvider.requestBuffer(anyInt()))
 				.thenReturn(null)
@@ -223,7 +223,7 @@ public class InboundEnvelopeDecoderTest {
 				.thenReturn(null);
 
 		when(this.bufferProvider.registerBufferAvailabilityListener(Matchers.<BufferAvailabilityListener>anyObject()))
-				.thenReturn(BufferAvailabilityRegistration.NOT_REGISTERED_BUFFER_POOL_DESTROYED);
+				.thenReturn(BufferAvailabilityRegistration.FAILED_BUFFER_POOL_DESTROYED);
 
 		// --------------------------------------------------------------------
 
@@ -738,15 +738,15 @@ public class InboundEnvelopeDecoderTest {
 		public BufferAvailabilityRegistration answer(InvocationOnMock invocation) throws Throwable {
 			if (this.random.nextBoolean()) {
 				this.isRegistered = true;
-				return BufferAvailabilityRegistration.REGISTERED;
+				return BufferAvailabilityRegistration.SUCCEEDED_REGISTERED;
 			}
 			else if (this.random.nextBoolean()) {
 				this.bufferRequestAnswer.forceBufferAvailable();
-				return BufferAvailabilityRegistration.NOT_REGISTERED_BUFFER_AVAILABLE;
+				return BufferAvailabilityRegistration.FAILED_BUFFER_AVAILABLE;
 			}
 			else {
 				this.numSkipped++;
-				return BufferAvailabilityRegistration.NOT_REGISTERED_BUFFER_POOL_DESTROYED;
+				return BufferAvailabilityRegistration.FAILED_BUFFER_POOL_DESTROYED;
 			}
 		}
 
@@ -757,7 +757,7 @@ public class InboundEnvelopeDecoderTest {
 
 			for (Envelope env : envelopes) {
 				if (env.getBuffer() != null) {
-					// skip envelope if returned NOT_REGISTERED_BUFFER_POOL_DESTROYED
+					// skip envelope if returned FAILED_BUFFER_POOL_DESTROYED
 					if (!this.random.nextBoolean() && !this.random.nextBoolean() && !this.random.nextBoolean()) {
 						continue;
 					}
