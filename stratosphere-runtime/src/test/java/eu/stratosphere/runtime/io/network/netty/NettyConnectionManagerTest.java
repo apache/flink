@@ -19,7 +19,6 @@ import eu.stratosphere.runtime.io.network.ChannelManager;
 import eu.stratosphere.runtime.io.network.Envelope;
 import eu.stratosphere.runtime.io.network.RemoteReceiver;
 import junit.framework.Assert;
-import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.mockito.Matchers;
@@ -69,9 +68,9 @@ public class NettyConnectionManagerTest {
 	}
 
 	@Parameterized.Parameters
-	public static Collection configure() {
+	public static Collection<Integer[]> configure() {
 		return Arrays.asList(
-				new Object[][]{
+				new Integer[][]{
 						{64, 4096, 1, 1, 1},
 						{128, 2048, 1, 1, 1},
 						{256, 1024, 1, 1, 1},
@@ -88,7 +87,6 @@ public class NettyConnectionManagerTest {
 		);
 	}
 
-	@Test
 	public void testEnqueueRaceAndDeadlockFreeMultipleChannels() throws Exception {
 		final InetAddress localhost = InetAddress.getLocalHost();
 		final CountDownLatch latch = new CountDownLatch(this.numSubtasks);
@@ -191,6 +189,26 @@ public class NettyConnectionManagerTest {
 					throw new RuntimeException("Unexpected exception while enqueing envelope");
 				}
 			}
+		}
+	}
+
+	private void runAllTests() throws Exception {
+		System.out.println(String.format("Running tests with config: %d sub tasks, %d envelopes to send per subtasks, "
+				+ "%d num channels, %d num in threads, %d num out threads.",
+				this.numSubtasks, this.numToSendPerSubtask, this.numChannels, this.numInThreads, this.numOutThreads));
+
+		testEnqueueRaceAndDeadlockFreeMultipleChannels();
+
+		System.out.println("Done.");
+	}
+
+	public static void main(String[] args) throws Exception {
+		Collection<Integer[]> configs = configure();
+
+		for (Integer[] params : configs) {
+
+			NettyConnectionManagerTest test = new NettyConnectionManagerTest(params[0], params[1], params[2], params[3], params[4]);
+			test.runAllTests();
 		}
 	}
 }
