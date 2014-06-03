@@ -124,7 +124,7 @@ public class InboundEnvelopeDecoder extends ChannelInboundHandlerAdapter impleme
 			}
 			else if (decoderState == DecoderState.NO_BUFFER_AVAILABLE) {
 				switch (this.currentBufferProvider.registerBufferAvailabilityListener(this)) {
-					case REGISTERED:
+					case SUCCEEDED_REGISTERED:
 						if (ctx.channel().config().isAutoRead()) {
 							ctx.channel().config().setAutoRead(false);
 
@@ -137,10 +137,10 @@ public class InboundEnvelopeDecoder extends ChannelInboundHandlerAdapter impleme
 						this.stagedBuffer.retain();
 						return false;
 
-					case NOT_REGISTERED_BUFFER_AVAILABLE:
+					case FAILED_BUFFER_AVAILABLE:
 						continue;
 
-					case NOT_REGISTERED_BUFFER_POOL_DESTROYED:
+					case FAILED_BUFFER_POOL_DESTROYED:
 						this.bytesToSkip = skipBytes(in, this.currentBufferRequestSize);
 
 						this.currentBufferRequestSize = 0;

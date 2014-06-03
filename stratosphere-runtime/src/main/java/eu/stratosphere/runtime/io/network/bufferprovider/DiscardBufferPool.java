@@ -41,7 +41,7 @@ public final class DiscardBufferPool implements BufferProvider, BufferRecycler {
 
 	@Override
 	public BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
-		return BufferAvailabilityRegistration.NOT_REGISTERED_BUFFER_POOL_DESTROYED;
+		return BufferAvailabilityRegistration.FAILED_BUFFER_POOL_DESTROYED;
 	}
 
 	@Override

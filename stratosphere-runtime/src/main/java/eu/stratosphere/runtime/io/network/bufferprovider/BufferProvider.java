@@ -68,18 +68,8 @@ public interface BufferProvider {
 	BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener);
 
 	public enum BufferAvailabilityRegistration {
-		NOT_REGISTERED_BUFFER_AVAILABLE(false),
-		NOT_REGISTERED_BUFFER_POOL_DESTROYED(false),
-		REGISTERED(true);
-
-		private final boolean isSuccessful;
-
-		private BufferAvailabilityRegistration(boolean isSuccessful) {
-			this.isSuccessful = isSuccessful;
-		}
-
-		public boolean isSuccessful() {
-			return isSuccessful;
-		}
+		SUCCEEDED_REGISTERED(),
+		FAILED_BUFFER_AVAILABLE(),
+		FAILED_BUFFER_POOL_DESTROYED()
 	}
 }
