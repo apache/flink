@@ -201,7 +201,6 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	 * @param inputSplitProvider the input split provider for this environment
 	 * @throws Exception thrown if an error occurs while instantiating the invokable class
 	 */
-	@SuppressWarnings({"unchecked", "rawtypes"})
 	public RuntimeEnvironment(final TaskDeploymentDescriptor tdd,
 							final MemoryManager memoryManager, final IOManager ioManager,
 							final InputSplitProvider inputSplitProvider,
