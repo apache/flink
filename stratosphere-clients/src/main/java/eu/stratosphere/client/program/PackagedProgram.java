@@ -314,12 +314,6 @@ public class PackagedProgram {
 		return this.userCodeClassLoader;
 	}
 
-	public void setUserCodeClassLoader(ClassLoader cl) {
-		this.userCodeClassLoader = cl;
-	}
-	
-	
-	
 	public List<File> getAllLibraries() {
 		List<File> libs = new ArrayList<File>(this.extractedTempLibraries.size() + 1);
 		libs.add(jarFile);
