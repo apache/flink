@@ -70,7 +70,7 @@ public final class Record implements Value, CopyableValue<Record> {
 	
 	private Value[] writeFields;		// the cache for objects into which the binary representations are read
 	
-	public int binaryLen;				// the length of the contents in the binary buffer that is valid
+	private int binaryLen;				// the length of the contents in the binary buffer that is valid
 	
 	private int numFields;				// the number of fields in the record
 	
