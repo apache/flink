@@ -22,6 +22,8 @@ import static eu.stratosphere.client.CliFrontendTestUtils.getTestJarPath;
 import static eu.stratosphere.client.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
@@ -236,19 +238,21 @@ public class CliFrontendPackageProgramTest {
 			Object result = frontend.buildProgram(line);
 			assertTrue(result instanceof PackagedProgram);
 			
-			PackagedProgram prog = (PackagedProgram) result;
-			
-			Assert.assertArrayEquals(new String[] {"some", "program"}, prog.getArguments());
-			Assert.assertEquals(TEST_JAR_CLASSLOADERTEST_CLASS, prog.getMainClassName());
-			prog.setUserCodeClassLoader(new ClassLoader(prog.getUserCodeClassLoader()) {
+			PackagedProgram prog = spy((PackagedProgram) result);
+
+			ClassLoader testClassLoader = new ClassLoader(prog.getUserCodeClassLoader()) {
 				@Override
 				public Class<?> loadClass(String name) throws ClassNotFoundException {
 					assertTrue(name.equals("org.apache.hadoop.hive.ql.io.RCFileInputFormat"));
 					callme[0] = true;
 					return String.class; // Intentionally return the wrong class.
 				}
-			});
-			
+			};
+			when(prog.getUserCodeClassLoader()).thenReturn(testClassLoader);
+
+			Assert.assertArrayEquals(new String[]{"some", "program"}, prog.getArguments());
+			Assert.assertEquals(TEST_JAR_CLASSLOADERTEST_CLASS, prog.getMainClassName());
+
 			Configuration c = new Configuration();
 			c.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "devil");
 			Client cli = new Client(c);
