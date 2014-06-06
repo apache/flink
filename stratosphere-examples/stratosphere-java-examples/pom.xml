@@ -57,7 +57,31 @@
 							</includes>
 						</configuration>
 					</execution>
-					
+
+                    <!-- Transitive Closure -->
+                    <execution>
+                        <id>TransitiveClosure</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>TransitiveClosure</classifier>
+
+                            <archive>
+                                <manifestEntries>
+                                    <program-class>eu.stratosphere.example.java.graph.TransitiveClosureNaive</program-class>
+                                </manifestEntries>
+                            </archive>
+
+                            <includes>
+                                <include>**/java/graph/TransitiveClosureNaive.class</include>
+                                <include>**/java/graph/TransitiveClosureNaive$*.class</include>
+                                <include>**/java/graph/util/ConnectedComponentsData.class</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+
 					<!-- Connected Components -->
 					<execution>
 						<id>ConnectedComponents</id>
