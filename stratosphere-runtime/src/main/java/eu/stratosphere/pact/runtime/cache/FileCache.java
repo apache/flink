@@ -49,6 +49,8 @@ public class FileCache {
 
 	private LocalFileSystem lfs = new LocalFileSystem();
 
+	private static final Object lock = new Object();
+
 	private Map<Pair<JobID, String>, Integer> count = new HashMap<Pair<JobID,String>, Integer>();
 
 	private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(10, ExecutorThreadFactory.INSTANCE);
@@ -102,6 +104,35 @@ public class FileCache {
 		}
 	}
 
+	public static void copy(Path sourcePath, Path targetPath, boolean executable) throws IOException {
+		FileSystem sFS = sourcePath.getFileSystem();
+		FileSystem tFS = targetPath.getFileSystem();
+		if (!tFS.exists(targetPath)) {
+			if (sFS.getFileStatus(sourcePath).isDir()) {
+				tFS.mkdirs(targetPath);
+				FileStatus[] contents = sFS.listStatus(sourcePath);
+				for (FileStatus content : contents) {
+					String distPath = content.getPath().toString();
+					if (content.isDir()) {
+						if (distPath.endsWith("/")) {
+							distPath = distPath.substring(0, distPath.length() - 1);
+						}
+					}
+					String localPath = targetPath.toString() + distPath.substring(distPath.lastIndexOf("/"));
+					copy(content.getPath(), new Path(localPath), executable);
+				}
+			} else {
+				try {
+					FSDataOutputStream lfsOutput = tFS.create(targetPath, false);
+					FSDataInputStream fsInput = sFS.open(sourcePath);
+					IOUtils.copyBytes(fsInput, lfsOutput);
+					new File(targetPath.toString()).setExecutable(executable);
+				} catch (IOException ioe) {
+				}
+			}
+		}
+	}
+
 	/**
 	 * Asynchronous file copy process
 	 */
@@ -121,34 +152,13 @@ public class FileCache {
 		public Path call()  {
 			Path tmp = getTempDir(jobID, filePath.substring(filePath.lastIndexOf("/") + 1));
 			try {
-				create(new Path(filePath), tmp);
+				synchronized (lock) {
+					copy(new Path(filePath), tmp, this.executable);
+				}
 			} catch (IOException e1) {
 				throw new RuntimeException("Error copying a file from hdfs to the local fs", e1);
 			}
 			return tmp;
-		}
-		
-		private void create(Path distributedFilePath, Path localFilePath) throws IOException {
-			if (!lfs.exists(localFilePath)) {
-				FileSystem dfs = distributedFilePath.getFileSystem();
-				if (dfs.getFileStatus(distributedFilePath).isDir()) {
-					lfs.mkdirs(localFilePath);
-					FileStatus[] contents = dfs.listStatus(distributedFilePath);
-					for (FileStatus content : contents) {
-						String distPath = content.getPath().toString();
-						if (content.isDir()){
-							distPath = distPath.substring(0,distPath.length() - 1);
-						}
-						String localPath = localFilePath.toString() + distPath.substring(distPath.lastIndexOf("/"));
-						create(content.getPath(), new Path(localPath));
-					}
-				} else {
-					FSDataOutputStream lfsOutput = lfs.create(localFilePath, false);
-					FSDataInputStream fsInput = dfs.open(distributedFilePath);
-					IOUtils.copyBytes(fsInput, lfsOutput);
-					new File(localFilePath.toString()).setExecutable(executable);
-				}
-			}
 		}
 	}
 
