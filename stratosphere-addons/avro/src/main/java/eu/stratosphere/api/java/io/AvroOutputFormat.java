@@ -32,6 +32,8 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> {
 
 	private final Class<E> avroValueType;
 
+	private Schema userDefinedSchema = null;
+
 	private transient DataFileWriter<E> dataFileWriter;
 
 
@@ -42,6 +44,10 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> {
 
 	public AvroOutputFormat(Class<E> type) {
 		this.avroValueType = type;
+	}
+
+	public void setSchema(Schema schema) {
+		this.userDefinedSchema = schema;
 	}
 
 	@Override
@@ -68,7 +74,11 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> {
 			schema = ReflectData.get().getSchema(avroValueType);
 		}
 		dataFileWriter = new DataFileWriter<E>(datumWriter);
-		dataFileWriter.create(schema, this.stream);
+		if (userDefinedSchema == null) {
+			dataFileWriter.create(schema, stream);
+		} else {
+			dataFileWriter.create(userDefinedSchema, stream);
+		}
 	}
 
 	@Override
