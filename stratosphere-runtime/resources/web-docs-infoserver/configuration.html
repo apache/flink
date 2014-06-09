@@ -17,7 +17,6 @@
     
     <!-- Page Specific CSS -->
     <link rel="stylesheet" type="text/css" href="css/nephelefrontend.css" />
-    <link rel="stylesheet" type="text/css" href="css/timeline.css">
     
     <!-- Scripts from Bootstrap -->
     <script src="js/jquery-1.10.2.js"></script>
@@ -26,11 +25,8 @@
     <!-- Scripts from Stratosphere -->
 	<script type="text/javascript" src="js/jquery.flot.min.js"></script>
 	<script type="text/javascript" src="js/helpers.js"></script>
+	<script type="text/javascript" src="js/configuration.js"></script>
 	<script type="text/javascript" src="js/jcanvas.min.js"></script>
-	<script type="text/javascript" src="js/googlejsapi.js"></script>
-    <script type="text/javascript" src="js/timeline.js"></script>
-    <script type="text/javascript" src="js/helpers.js"></script>
-    <script type="text/javascript" src="js/analyzer.js"></script>
   </head>
 
   <body>
@@ -55,7 +51,7 @@
           <ul class="nav navbar-nav side-nav">
             <li><a href="index.html"><i class="fa fa-dashboard"></i> Dashboard</a></li>
             <li><a href="history.html"><i class="fa fa-bar-chart-o"></i> History</a></li>
-            <li><a href="configuration.html"><i class="fa fa-keyboard-o"></i> Configuration</a></li>
+            <li class="active"><a href="configuration.html"><i class="fa fa-keyboard-o"></i> Configuration</a></li>
           </ul>
 
           <ul class="nav navbar-nav navbar-right navbar-user">
@@ -70,50 +66,28 @@
         </div><!-- /.navbar-collapse -->
       </nav>
 
-     <div id="page-wrapper">
-		<div class="panel panel-primary">
-		   	<div class="panel-heading">
-           		<h3 id="jobtitle" class="panel-title"> Running Jobs</h3>
-			</div>
-			<div id="jobs" class="panel-body">
-				<div id="started">
-				   Scheduled: <span id="time"></span>
-				</div>
-				<div id="runtime">
-				   Runtime: <span id="run"></span>
-				</div>
-				<div id="endstatus">
-				   Status: <span id="status"></span>
-				</div>
-				<div id="control">
-				   <!--  <span id="flow" class="btn">Flow Layout</span><span id="stack" class="btn">Stack Layout</span>  -->
-				   <div class="btn-toolbar">
-				   	<button id="flow" type="button" class="btn btn-info">Flow Layout</button>
-				   	<button id="stack" type="button" class="btn btn-info">Stack Layout</button>
-				   </div>
-				</div>
-				<div id="job_timeline"></div>
-		   </div>
-		</div>
-		<div class="panel panel-primary">
-		   <div class="panel-heading">
-		      <h3 class="panel-title"> Tasks</h3> 
-		   </div>
-		   <div id="vertices" class="panel-body">
-		   	Select a task by clicking on the corresponding bar in the Job Overview section.
-		   </div>
-		</div>
-		
-		<div class="panel panel-primary">
-		   <div class="panel-heading">
-		      <div class="panel-title">Accumulator Results</div>
-		   </div>
-		   <div id="accumulators" class="panel-body">
-		   	The job does not have any accumulators
-		   </div>
-		</div>
+      <div id="page-wrapper">
 
-    </div><!-- /#page-wrapper -->
+        <div class="row">
+          <div class="col-lg-12">
+            <h1>Configuration <small>Overview about the configuration settings of stratosphere</small></h1>
+            <ol class="breadcrumb">
+              <li><a href="index.html"><i class="icon-dashboard"></i> Dashboard</a></li>
+              <li class="active"><i class="icon-file-alt"></i> Configuration</li>
+            </ol>
+          </div>
+          <div class="col-lg-12"><h3>Global Configuration</h2></div>
+		  <div class="col-lg-12">
+	          <div class="table-responsive" id="confTable">
+	          
+	          
+	          
+	          
+	          </div>
+	       </div>
+        </div><!-- /.row -->
+
+      </div><!-- /#page-wrapper -->
 
     </div><!-- /#wrapper -->
 
