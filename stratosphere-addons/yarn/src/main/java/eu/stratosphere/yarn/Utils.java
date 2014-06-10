@@ -42,13 +42,13 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.Shell;
+import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
 import eu.stratosphere.configuration.ConfigConstants;
@@ -57,6 +57,7 @@ import eu.stratosphere.configuration.GlobalConfiguration;
 public class Utils {
 	
 	private static final Log LOG = LogFactory.getLog(Utils.class);
+	private static final int HEAP_LIMIT_CAP = 500;
 	
 
 	public static void copyJarContents(String prefix, String pathToJar) throws IOException {
@@ -90,6 +91,23 @@ public class Utils {
 		jar.close();
 	}
 	
+	/**
+	 * Calculate the heap size for the JVMs to start in the containers.
+	 * Since JVMs are allocating more than just the heap space, and YARN is very
+	 * fast at killing processes that use memory beyond their limit, we have to come
+	 * up with a good heapsize.
+	 * This code takes 85% of the given amount of memory (in MB). If the amount we removed by these 85%
+	 * more than 500MB (the current HEAP_LIMIT_CAP), we'll just subtract 500 MB.
+	 * 
+	 */
+	public static int calculateHeapSize(int memory) {
+		int heapLimit = (int)((float)memory*0.85);
+		if( (memory - heapLimit) > HEAP_LIMIT_CAP) {
+			heapLimit = memory-HEAP_LIMIT_CAP;
+		}
+		return heapLimit;
+	}
+	
 	public static void getStratosphereConfiguration(String confDir) {
 		GlobalConfiguration.loadConfiguration(confDir);
 	}
@@ -106,6 +124,7 @@ public class Utils {
 		ClassLoader cl = new URLClassLoader(urls, conf.getClassLoader());
 		conf.setClassLoader(cl);
 	}
+	
 	private static void setDefaultConfValues(Configuration conf) {
 		if(conf.get("fs.hdfs.impl",null) == null) {
 			conf.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
@@ -114,6 +133,7 @@ public class Utils {
 			conf.set("fs.file.impl", "org.apache.hadoop.fs.LocalFileSystem");
 		}
 	}
+	
 	public static Configuration initializeYarnConfiguration() {
 		Configuration conf = new YarnConfiguration();
 		String configuredHadoopConfig = GlobalConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
@@ -157,9 +177,9 @@ public class Utils {
 	
 	public static void setupEnv(Configuration conf, Map<String, String> appMasterEnv) {
 		for (String c : conf.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH,YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
-			Apps.addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), c.trim());
+			addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), c.trim());
 		}
-		Apps.addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), Environment.PWD.$() + File.separator + "*");
+		addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), Environment.PWD.$() + File.separator + "*");
 	}
 	
 	
@@ -220,5 +240,22 @@ public class Utils {
 				return true;
 			}
 		});
+	}
+	
+	/**
+	 * Copied method from org.apache.hadoop.yarn.util.Apps
+	 * It was broken by YARN-1824 (2.4.0) and fixed for 2.4.1
+	 * by https://issues.apache.org/jira/browse/YARN-1931
+	 */
+	public static void addToEnvironment(Map<String, String> environment,
+			String variable, String value) {
+		String val = environment.get(variable);
+		if (val == null) {
+			val = value;
+		} else {
+			val = val + File.pathSeparator + value;
+		}
+		environment.put(StringInterner.weakIntern(variable),
+				StringInterner.weakIntern(val));
 	}
 }
