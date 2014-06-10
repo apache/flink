@@ -13,6 +13,8 @@
 
 package eu.stratosphere.pact.runtime.cache;
 
+import eu.stratosphere.api.common.cache.DistributedCache;
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,11 +27,12 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
-import eu.stratosphere.api.common.cache.DistributedCache;
+import eu.stratosphere.api.common.cache.DistributedCache.DistributedCacheEntry;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.core.fs.FSDataInputStream;
 import eu.stratosphere.core.fs.FSDataOutputStream;
+import eu.stratosphere.core.fs.FileStatus;
 import eu.stratosphere.core.fs.FileSystem;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.fs.local.LocalFileSystem;
@@ -38,13 +41,15 @@ import eu.stratosphere.nephele.taskmanager.runtime.ExecutorThreadFactory;
 import eu.stratosphere.nephele.util.IOUtils;
 
 /**
- * FileCache is used to create the local tmp file for the registered cache file when a task is deployed. Also when the
- * task is unregistered, it will remove the local tmp file. Given that another task from the same job may be registered
- * shortly after, there exists a 5 second delay	before clearing the local tmp file.
+ * The FileCache is used to create the local files for the registered cache files when a task is deployed. 
+ * The files will be removed when the task is unregistered after a 5 second delay.
+ * A given file x will be placed in "<system-tmp-dir>/tmp_<jobID>/".
  */
 public class FileCache {
 
 	private LocalFileSystem lfs = new LocalFileSystem();
+
+	private static final Object lock = new Object();
 
 	private Map<Pair<JobID, String>, Integer> count = new HashMap<Pair<JobID,String>, Integer>();
 
@@ -52,34 +57,40 @@ public class FileCache {
 
 	/**
 	 * If the file doesn't exists locally, it will copy the file to the temp directory.
+	 * @param name file identifier
+	 * @param entry entry containing all relevant information
+	 * @param jobID
+	 * @return copy task
 	 */
-	public FutureTask<Path> createTmpFile(String name, String filePath, JobID jobID) {
-
+	public FutureTask<Path> createTmpFile(String name, DistributedCacheEntry entry, JobID jobID) {
 		synchronized (count) {
-			Pair<JobID, String> key = new ImmutablePair(jobID,name);
+			Pair<JobID, String> key = new ImmutablePair(jobID, name);
 			if (count.containsKey(key)) {
 				count.put(key, count.get(key) + 1);
 			} else {
 				count.put(key, 1);
 			}
 		}
-		CopyProcess cp = new CopyProcess(name, filePath, jobID);
+		CopyProcess cp = new CopyProcess(name, entry, jobID);
 		FutureTask<Path> copyTask = new FutureTask<Path>(cp);
 		executorService.submit(copyTask);
 		return copyTask;
 	}
 
 	/**
-	 * Leave a 5 seconds delay to clear the local file.
+	 * Deletes the local file after a 5 second delay.
+	 * @param name file identifier
+	 * @param entry entry containing all relevant information
+	 * @param jobID
 	 */
-	public void deleteTmpFile(String name, JobID jobID) {
-		DeleteProcess dp = new DeleteProcess(name, jobID, count.get(new ImmutablePair(jobID,name)));
+	public void deleteTmpFile(String name, DistributedCacheEntry entry, JobID jobID) {
+		DeleteProcess dp = new DeleteProcess(name, entry, jobID, count.get(new ImmutablePair(jobID,name)));
 		executorService.schedule(dp, 5000L, TimeUnit.MILLISECONDS);
 	}
 
-	public Path getTempDir(JobID jobID, String name) {
+	public Path getTempDir(JobID jobID, String childPath) {
 		return new Path(GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH), DistributedCache.TMP_PREFIX + jobID.toString() + "_" +  name);
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH), DistributedCache.TMP_PREFIX + jobID.toString() + "/" + childPath);
 	}
 
 	public void shutdown() {
@@ -93,6 +104,35 @@ public class FileCache {
 		}
 	}
 
+	public static void copy(Path sourcePath, Path targetPath, boolean executable) throws IOException {
+		FileSystem sFS = sourcePath.getFileSystem();
+		FileSystem tFS = targetPath.getFileSystem();
+		if (!tFS.exists(targetPath)) {
+			if (sFS.getFileStatus(sourcePath).isDir()) {
+				tFS.mkdirs(targetPath);
+				FileStatus[] contents = sFS.listStatus(sourcePath);
+				for (FileStatus content : contents) {
+					String distPath = content.getPath().toString();
+					if (content.isDir()) {
+						if (distPath.endsWith("/")) {
+							distPath = distPath.substring(0, distPath.length() - 1);
+						}
+					}
+					String localPath = targetPath.toString() + distPath.substring(distPath.lastIndexOf("/"));
+					copy(content.getPath(), new Path(localPath), executable);
+				}
+			} else {
+				try {
+					FSDataOutputStream lfsOutput = tFS.create(targetPath, false);
+					FSDataInputStream fsInput = sFS.open(sourcePath);
+					IOUtils.copyBytes(fsInput, lfsOutput);
+					new File(targetPath.toString()).setExecutable(executable);
+				} catch (IOException ioe) {
+				}
+			}
+		}
+	}
+
 	/**
 	 * Asynchronous file copy process
 	 */
@@ -100,21 +140,20 @@ public class FileCache {
 		private JobID jobID;
 		private String name;
 		private String filePath;
+		private Boolean executable;
 
-		public CopyProcess(String name, String filePath, JobID jobID) {
+		public CopyProcess(String name, DistributedCacheEntry e, JobID jobID) {
 			this.name = name;
-			this.filePath = filePath;
+			this.filePath = e.filePath;
+			this.executable = e.isExecutable;
 			this.jobID = jobID;
 		}
+		@Override
 		public Path call()  {
-			Path tmp = getTempDir(jobID, name);
+			Path tmp = getTempDir(jobID, filePath.substring(filePath.lastIndexOf("/") + 1));
 			try {
-				if (!lfs.exists(tmp)) {
-					FSDataOutputStream lfsOutput = lfs.create(tmp, false);
-					Path distributedPath = new Path(filePath);
-					FileSystem fs = distributedPath.getFileSystem();
-					FSDataInputStream fsInput = fs.open(distributedPath);
-					IOUtils.copyBytes(fsInput, lfsOutput);
+				synchronized (lock) {
+					copy(new Path(filePath), tmp, this.executable);
 				}
 			} catch (IOException e1) {
 				throw new RuntimeException("Error copying a file from hdfs to the local fs", e1);
@@ -122,27 +161,30 @@ public class FileCache {
 			return tmp;
 		}
 	}
+
 	/**
 	 * If no task is using this file after 5 seconds, clear it.
 	 */
 	private class DeleteProcess implements Runnable {
 		private String name;
+		private String filePath;
 		private JobID jobID;
 		private int oldCount;
 
-		public DeleteProcess(String name, JobID jobID, int c) {
+		public DeleteProcess(String name, DistributedCacheEntry e, JobID jobID, int c) {
 			this.name = name;
+			this.filePath = e.filePath;
 			this.jobID = jobID;
 			this.oldCount = c;
 		}
-
+		@Override
 		public void run() {
 			synchronized (count) {
 				if (count.get(new ImmutablePair(jobID, name)) != oldCount) {
 					return;
 				}
 			}
-			Path tmp = getTempDir(jobID, name);
+			Path tmp = getTempDir(jobID, "");
 			try {
 				if (lfs.exists(tmp)) {
 					lfs.delete(tmp, true);

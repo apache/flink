@@ -30,6 +30,7 @@ import eu.stratosphere.api.common.aggregators.AggregatorWithName;
 import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
 import eu.stratosphere.api.common.aggregators.LongSumAggregator;
 import eu.stratosphere.api.common.cache.DistributedCache;
+import eu.stratosphere.api.common.cache.DistributedCache.DistributedCacheEntry;
 import eu.stratosphere.api.common.distributions.DataDistribution;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.compiler.CompilerException;
@@ -206,8 +207,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		}
 
 		// add registered cache file into job configuration
-		for (Entry<String, String> e: program.getOriginalPactPlan().getCachedFiles()) {
-			DistributedCache.addCachedFile(e.getKey(), e.getValue(), this.jobGraph.getJobConfiguration());
+		for (Entry<String, DistributedCacheEntry> e : program.getOriginalPactPlan().getCachedFiles()) {
+			DistributedCache.writeFileInfoToConfig(e.getKey(), e.getValue(), this.jobGraph.getJobConfiguration());
 		}
 		JobGraph graph = this.jobGraph;
 
