@@ -347,7 +347,7 @@ public class Client {
 				.newRecord(ContainerLaunchContext.class);
 		
 		String amCommand = "$JAVA_HOME/bin/java"
-					+ " -Xmx"+jmMemory+"M " +javaOpts;
+					+ " -Xmx"+Utils.calculateHeapSize(jmMemory)+"M " +javaOpts;
 		if(hasLog4j) {
 			amCommand 	+= " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/jobmanager-log4j.log\" -Dlog4j.configuration=file:log4j.properties";
 		}
