@@ -62,7 +62,6 @@ import eu.stratosphere.nephele.jobmanager.JobManager;
 public class ApplicationMaster {
 
 	private static final Log LOG = LogFactory.getLog(ApplicationMaster.class);
-	private static final int HEAP_LIMIT_CAP = 500;
 	
 	private void run() throws Exception  {
 		//Utils.logFilesInCurrentDirectory(LOG);
@@ -83,10 +82,7 @@ public class ApplicationMaster {
 		final int memoryPerTaskManager = Integer.valueOf(envs.get(Client.ENV_TM_MEMORY));
 		final int coresPerTaskManager = Integer.valueOf(envs.get(Client.ENV_TM_CORES));
 		
-		int heapLimit = (int)((float)memoryPerTaskManager*0.85);
-		if( (memoryPerTaskManager - heapLimit) > HEAP_LIMIT_CAP) {
-			heapLimit = memoryPerTaskManager-HEAP_LIMIT_CAP;
-		}
+		int heapLimit = Utils.calculateHeapSize(memoryPerTaskManager);
 		
 		if(currDir == null) {
 			throw new RuntimeException("Current directory unknown");
