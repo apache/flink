@@ -49,6 +49,39 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	public AggregateOperator<T> aggregate(Aggregations agg, int field) {
 		return new AggregateOperator<T>(this, agg, field);
 	}
+
+	/**
+	 * Syntactic sugar for aggregate (SUM, field)
+	 * @param field The index of the Tuple field on which the aggregation function is applied.
+	 * @return An AggregateOperator that represents the summed DataSet.
+	 *
+	 * @see eu.stratosphere.api.java.operators.AggregateOperator
+	 */
+	public AggregateOperator<T> sum (int field) {
+		return this.aggregate (Aggregations.SUM, field);
+	}
+
+	/**
+	 * Syntactic sugar for aggregate (MAX, field)
+	 * @param field The index of the Tuple field on which the aggregation function is applied.
+	 * @return An AggregateOperator that represents the max'ed DataSet.
+	 *
+	 * @see eu.stratosphere.api.java.operators.AggregateOperator
+	 */
+	public AggregateOperator<T> max (int field) {
+		return this.aggregate (Aggregations.MAX, field);
+	}
+
+	/**
+	 * Syntactic sugar for aggregate (MIN, field)
+	 * @param field The index of the Tuple field on which the aggregation function is applied.
+	 * @return An AggregateOperator that represents the min'ed DataSet.
+	 *
+	 * @see eu.stratosphere.api.java.operators.AggregateOperator
+	 */
+	public AggregateOperator<T> min (int field) {
+		return this.aggregate (Aggregations.MIN, field);
+	}
 	
 	/**
 	 * Applies a Reduce transformation on a grouped {@link DataSet}.<br/>
