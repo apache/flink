@@ -16,6 +16,8 @@ package eu.stratosphere.api.common.typeutils.base;
 
 import eu.stratosphere.api.common.typeutils.SerializerTestBase;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import eu.stratosphere.util.StringUtils;
+import java.util.Random;
 
 /**
  * A test for the {@link StringSerializer}.
@@ -39,6 +41,8 @@ public class StringSerializerTest extends SerializerTestBase<String> {
 	
 	@Override
 	protected String[] getTestData() {
-		return new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
+		Random rnd = new Random(289347567856686223L);
+		return new String[] {StringUtils.getRandomString(rnd, 300, 350), new String(Character.toChars(127315)), 
+			"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
 	}
 }

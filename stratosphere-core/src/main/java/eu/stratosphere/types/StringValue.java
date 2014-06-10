@@ -50,7 +50,6 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	
 	private static final int HIGH_BIT2_MASK = 0x3 << 6;
 	
-	
 	private char[] value;		// character value of the string value, not necessarily completely filled
 	
 	private int len;			// length of the string value
@@ -834,5 +833,195 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 				out.writeByte(c);
 			}
 		}
+	}
+	
+	/**
+	 Writes a CharSequence as a variable-length encoded Unicode String.
+	 @param cs CharSequence to write
+	 @param out output channel
+	 @throws IOException 
+	 */
+	public static final void writeUnicode(CharSequence cs, DataOutput out) throws IOException {
+		if (cs == null) {
+			writeLength(0, out);
+		} else {
+			writeLength(Character.codePointCount(cs, 0, cs.length()) + 1, out);
+			for (int i = 0; i < Character.codePointCount(cs, 0, cs.length()); i++) {
+				int c = Character.codePointAt(cs, i);
+				if (c >= 65536) {
+					//Non-BMP Unicode character, two characters are treated as one
+					i++;
+				}
+
+				int shift = 0;
+				int count = 0;
+				//determine number of bytes needed
+				while (c >= (HIGH_BIT << (shift - count))) {
+					shift += 8;
+					count++;
+				}
+				//write bytes
+				while (shift >= 0) {
+					if (shift == 0) {
+						out.write(c & 0x7F);
+					} else {
+						out.write((c >>> (shift - count)) | 0x80);
+					}
+					shift -= 8;
+					count--;
+				}
+			}
+		}
+
+	}
+
+	private static void writeLength(int lenToWrite, DataOutput out) throws IOException {
+		// the length we write is offset by one, because a length of zero indicates a null value
+		if (lenToWrite < 0) {
+			throw new IllegalArgumentException("CharSequence is too long.");
+		}
+
+		// write the length, variable-length encoded
+		while (lenToWrite >= HIGH_BIT) {
+			out.write(lenToWrite | HIGH_BIT);
+			lenToWrite >>>= 7;
+		}
+		out.write(lenToWrite);
+	}
+
+	/**
+	 Reads and returns a variable-length encoded Unicode String.
+	 @param in input channel
+	 @return Unicode String
+	 @throws IOException 
+	 */
+	public static final String readUnicode(DataInput in) throws IOException {
+		int len = readLength(in);
+		
+		if(len==0){
+			return "";
+		}
+		
+		final int[] data = new int[len];
+		
+		for (int i = 0; i < len; i++) {
+			int r = 0;
+			int c;
+			while ((c = in.readUnsignedByte()) >= HIGH_BIT) {
+				c &= 0x7F;
+				r |= c;
+				r <<= 7;
+			}
+			r |= c;
+
+			data[i] = r;
+		}
+		return new String(data, 0, len);
+	}
+
+	private static int readLength(DataInput in) throws IOException {
+		// the length we read is offset by one, because a length of zero indicates a null value
+		int len = in.readUnsignedByte();
+
+		if (len == 0) {
+			return 0;
+		}
+
+		if (len >= HIGH_BIT) {
+			int shift = 7;
+			int curr;
+			len = len & 0x7f;
+			while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
+				len |= (curr & 0x7f) << shift;
+				shift += 7;
+			}
+			len |= curr << shift;
+		}
+
+		// subtract one for the null length
+		len -= 1;
+
+		return len;
+	}
+
+	/**
+	 Copies a serialized variable-length encoded Unicode String.
+	 @param in input channel
+	 @param out output channel
+	 @throws IOException 
+	 */
+	public static final void copyUnicode(DataInput in, DataOutput out) throws IOException {
+		//copy length
+		int length = readLength(in);
+		// the length we write is offset by one, because a length of zero indicates a null value
+		writeLength(length + 1, out);
+
+		//copy data
+		for (int i = 0; i < length; i++) {
+			int c;
+			while ((c = in.readUnsignedByte()) >= HIGH_BIT) {
+				out.writeByte(c);
+			}
+			out.writeByte(c);
+		}
+	}
+
+	/**
+	 Compares two serialized variable-length encoded Unicode String.
+	 @param firstSource input channel
+	 @param secondSource input channel
+	 @return A negative value if the first String is less than the second, 0 if equal, a positive value if greater.
+	 @throws IOException 
+	 */
+	public static final int compareUnicode(DataInputView firstSource, DataInputView secondSource) throws IOException {
+		int lengthFirst = readLength(firstSource);
+		int lengthSecond = readLength(secondSource);
+
+		for (int i = 0; i < Math.min(lengthFirst, lengthSecond); i++) {
+			int byteCountFirst = 0;			//# of bytes read for the first character
+			int byteCountSecond = 0;		//# of bytes read for the second character
+			int cmp = 0;					//comparison result in case both chars have the same # of bytes
+			boolean byteIncoming = false;	//another byte can be read for one character 
+
+			int charByteFirst = firstSource.readUnsignedByte();
+			int charByteSecond = secondSource.readUnsignedByte();
+
+			if (charByteFirst >= HIGH_BIT) {
+				byteCountFirst++;
+				byteIncoming = true;
+			}
+			if (charByteSecond >= HIGH_BIT) {
+				byteCountSecond++;
+				byteIncoming = true;
+			}
+			cmp = (charByteFirst & 0x7F) - (charByteSecond & 0x7F);
+
+			while (byteIncoming) {//another byte can be read for at least one character
+				byteIncoming = false;
+				if (byteCountFirst == byteCountSecond) { //both chars have the same length so far
+					charByteFirst = firstSource.readUnsignedByte();
+					charByteSecond = secondSource.readUnsignedByte();
+
+					if (charByteFirst >= HIGH_BIT) {
+						byteCountFirst++;
+						byteIncoming = true;
+					}
+					if (charByteSecond >= HIGH_BIT) {
+						byteCountSecond++;
+						byteIncoming = true;
+					}
+					if (cmp == 0) {
+						cmp = (charByteFirst & 0x7F) - (charByteSecond & 0x7F);
+					}
+				} else { //one character has a bigger # of bytes => is greater than the other
+					return byteCountFirst - byteCountSecond;
+				}
+			} //both chars reached their end and have the same length
+			if (cmp != 0) {
+				return cmp;
+			}
+		}
+		//the first min(lengthFirst, lengthSecond) characterss are equal, longer String > shorter String
+		return lengthFirst - lengthSecond;
 	}
 }
