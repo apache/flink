@@ -50,6 +50,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import eu.stratosphere.api.common.cache.DistributedCache;
+import eu.stratosphere.api.common.cache.DistributedCache.DistributedCacheEntry;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
@@ -666,7 +667,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 			// retrieve the registered cache files from job configuration and create the local tmp file.
 			Map<String, FutureTask<Path>> cpTasks = new HashMap<String, FutureTask<Path>>();
-			for (Entry<String, String> e: DistributedCache.getCachedFile(tdd.getJobConfiguration())) {
+			for (Entry<String, DistributedCacheEntry> e : DistributedCache.readFileInfoFromConfig(tdd.getJobConfiguration())) {
 				FutureTask<Path> cp = this.fileCache.createTmpFile(e.getKey(), e.getValue(), jobID);
 				cpTasks.put(e.getKey(), cp);
 			}
@@ -801,8 +802,9 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 
 			// remove the local tmp file for unregistered tasks.
-			for (Entry<String, String> e: DistributedCache.getCachedFile(task.getEnvironment().getJobConfiguration())) {
-				this.fileCache.deleteTmpFile(e.getKey(), task.getJobID());
+			for (Entry<String, DistributedCacheEntry> e: DistributedCache
+					.readFileInfoFromConfig(task.getEnvironment().getJobConfiguration())) {
+				this.fileCache.deleteTmpFile(e.getKey(), e.getValue(), task.getJobID());
 			}
 			// Unregister task from the byte buffered channel manager
 			this.channelManager.unregister(id, task);

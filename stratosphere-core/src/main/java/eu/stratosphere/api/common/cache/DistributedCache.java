@@ -25,35 +25,49 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
 
 /**
- * DistributedCache provides static method to write the registered cache files into job configuration or decode
+ * DistributedCache provides static methods to write the registered cache files into job configuration or decode
  * them from job configuration. It also provides user access to the file locally.
  */
 public class DistributedCache {
+	
+	public static class DistributedCacheEntry {
+		public String filePath;
+		public Boolean isExecutable;
+		
+		public DistributedCacheEntry(String filePath, Boolean isExecutable){
+			this.filePath=filePath;
+			this.isExecutable=isExecutable;
+		}
+	}
 
 	final static String CACHE_FILE_NUM = "DISTRIBUTED_CACHE_FILE_NUM";
 
 	final static String CACHE_FILE_NAME = "DISTRIBUTED_CACHE_FILE_NAME_";
 
 	final static String CACHE_FILE_PATH = "DISTRIBUTED_CACHE_FILE_PATH_";
+	
+	final static String CACHE_FILE_EXE = "DISTRIBUTED_CACHE_FILE_EXE_";
 
 	public final static String TMP_PREFIX = "tmp_";
 
 	private Map<String, FutureTask<Path>> cacheCopyTasks = new HashMap<String, FutureTask<Path>>();
 
-	public static void addCachedFile(String name, String filePath, Configuration conf) {
+	public static void writeFileInfoToConfig(String name, DistributedCacheEntry e, Configuration conf) {
 		int num = conf.getInteger(CACHE_FILE_NUM,0) + 1;
 		conf.setInteger(CACHE_FILE_NUM, num);
 		conf.setString(CACHE_FILE_NAME + num, name);
-		conf.setString(CACHE_FILE_PATH + num, filePath);
+		conf.setString(CACHE_FILE_PATH + num, e.filePath);
+		conf.setBoolean(CACHE_FILE_EXE + num, e.isExecutable || new File(e.filePath).canExecute());
 	}
 
-	public static Set<Entry<String,String>> getCachedFile(Configuration conf) {
-		Map<String, String> cacheFiles = new HashMap<String, String>();
-		int num = conf.getInteger(CACHE_FILE_NUM,0);
+	public static Set<Entry<String, DistributedCacheEntry>> readFileInfoFromConfig(Configuration conf) {
+		Map<String, DistributedCacheEntry> cacheFiles = new HashMap<String, DistributedCacheEntry>();
+		int num = conf.getInteger(CACHE_FILE_NUM, 0);
 		for (int i = 1; i <= num; i++) {
 			String name = conf.getString(CACHE_FILE_NAME + i, "");
 			String filePath = conf.getString(CACHE_FILE_PATH + i, "");
-			cacheFiles.put(name, filePath);
+			Boolean isExecutable = conf.getBoolean(CACHE_FILE_EXE + i, false);
+			cacheFiles.put(name, new DistributedCacheEntry(filePath, isExecutable));
 		}
 		return cacheFiles.entrySet();
 	}

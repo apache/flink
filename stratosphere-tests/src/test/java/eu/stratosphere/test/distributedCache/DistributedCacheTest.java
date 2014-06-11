@@ -14,6 +14,7 @@
 package eu.stratosphere.test.distributedCache;
 
 import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.common.cache.DistributedCache.DistributedCacheEntry;
 import eu.stratosphere.api.java.record.operators.FileDataSink;
 import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.MapFunction;
@@ -134,7 +135,7 @@ public class DistributedCacheTest extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		Plan plan =  getPlan(1 , textPath, resultPath);
 		try {
-			plan.registerCachedFile(cachePath, "cache_test");
+			plan.registerCachedFile("cache_test", new DistributedCacheEntry(cachePath, false));
 		} catch (IOException ex) {
 			throw new RuntimeException(ex);
 		}		
