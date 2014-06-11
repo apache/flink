@@ -113,22 +113,17 @@ public class FileCache {
 				FileStatus[] contents = sFS.listStatus(sourcePath);
 				for (FileStatus content : contents) {
 					String distPath = content.getPath().toString();
-					if (content.isDir()) {
-						if (distPath.endsWith("/")) {
-							distPath = distPath.substring(0, distPath.length() - 1);
-						}
+					if (content.isDir() && distPath.endsWith("/")) {
+						distPath = distPath.substring(0, distPath.length() - 1);
 					}
 					String localPath = targetPath.toString() + distPath.substring(distPath.lastIndexOf("/"));
 					copy(content.getPath(), new Path(localPath), executable);
 				}
 			} else {
-				try {
 					FSDataOutputStream lfsOutput = tFS.create(targetPath, false);
 					FSDataInputStream fsInput = sFS.open(sourcePath);
 					IOUtils.copyBytes(fsInput, lfsOutput);
 					new File(targetPath.toString()).setExecutable(executable);
-				} catch (IOException ioe) {
-				}
 			}
 		}
 	}
