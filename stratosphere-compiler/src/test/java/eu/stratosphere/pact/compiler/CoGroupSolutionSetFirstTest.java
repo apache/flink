@@ -29,12 +29,15 @@ import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.Visitor;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Iterator;
 
+@SuppressWarnings("serial")
 public class CoGroupSolutionSetFirstTest extends CompilerTestBase {
+	
 	public static class SimpleCGroup extends CoGroupFunction<Tuple1<Integer>, Tuple1<Integer>, Tuple1<Integer>> {
 		@Override
 		public void coGroup(Iterator<Tuple1<Integer>> first, Iterator<Tuple1<Integer>> second, Collector<Tuple1<Integer>> out) throws Exception {
@@ -93,11 +96,7 @@ public class CoGroupSolutionSetFirstTest extends CompilerTestBase {
 			}
 
 			@Override
-			public void postVisit(PlanNode visitable) {
-
-			}
+			public void postVisit(PlanNode visitable) {}
 		});
-
 	}
-
 }
