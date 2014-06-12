@@ -27,7 +27,7 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.example.java.ml.util.LinearRegressionData;
 
 /**
- * This example implements a basic Linear Regression using batch gradient descent algorithm.
+ * This example implements a basic Linear Regression  to solve the y = theta0 + theta1*x problem using batch gradient descent algorithm.
  *
  * <p>
  * Linear Regression with BGD(batch gradient descent) algorithm is an iterative clustering algorithm and works as follows:<br>
@@ -56,10 +56,6 @@ import eu.stratosphere.example.java.ml.util.LinearRegressionData;
  * <li> Broadcast variables in bulk iterations
  * <li> Custom Java objects (PoJos)
  * </ul>
- */
-
-/**
- * A linearRegression example to solve the y = theta0 + theta1*x problem.
  */
 @SuppressWarnings("serial")
 public class LinearRegression {
@@ -100,7 +96,7 @@ public class LinearRegression {
 
 		// emit result
 		if(fileOutput) {
-			result.writeAsCsv(outputPath, "\n", " ");
+			result.writeAsText(outputPath);
 		} else {
 			result.print();
 		}
@@ -150,7 +146,7 @@ public class LinearRegression {
 
 		@Override
 		public String toString() {
-			return "(" + theta0 + "|" + theta1 + ")";
+			return theta0 + " " + theta1;
 		}
 
 		public double getTheta0() {

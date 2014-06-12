@@ -52,8 +52,6 @@ public class LinearRegressionDataGenerator {
 	 */
 	public static void main(String[] args) throws IOException {
 
-		System.out.println(args.length);
-
 		// check parameter count
 		if (args.length < 1) {
 			System.out.println("LinearRegressionDataGenerator <numberOfDataPoints> [<seed>]");
@@ -69,7 +67,7 @@ public class LinearRegressionDataGenerator {
 		// write the points out
 		BufferedWriter pointsOut = null;
 		try {
-			pointsOut = new BufferedWriter(new FileWriter(new File(POINTS_FILE)));
+			pointsOut = new BufferedWriter(new FileWriter(new File(tmpDir+"/"+POINTS_FILE)));
 			StringBuilder buffer = new StringBuilder();
 
 			// DIMENSIONALITY + 1 means that the number of x(dimensionality) and target y
