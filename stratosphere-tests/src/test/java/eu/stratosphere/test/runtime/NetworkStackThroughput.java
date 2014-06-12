@@ -45,9 +45,9 @@ import java.util.Collection;
 import java.util.List;
 
 @RunWith(Parameterized.class)
-public class NetworkStackNepheleITCase extends RecordAPITestBase {
+public class NetworkStackThroughput extends RecordAPITestBase {
 
-	private static final Log LOG = LogFactory.getLog(NetworkStackNepheleITCase.class);
+	private static final Log LOG = LogFactory.getLog(NetworkStackThroughput.class);
 
 	private static final String DATA_VOLUME_GB_CONFIG_KEY = "data.volume.gb";
 
@@ -67,7 +67,7 @@ public class NetworkStackNepheleITCase extends RecordAPITestBase {
 
 	// ------------------------------------------------------------------------
 
-	public NetworkStackNepheleITCase(Configuration config) {
+	public NetworkStackThroughput(Configuration config) {
 		super(config);
 
 		setNumTaskManager(2);
@@ -189,7 +189,7 @@ public class NetworkStackNepheleITCase extends RecordAPITestBase {
 			this.writer.initializeSerializers();
 
 			// Determine the amount of data to send per subtask
-			int dataVolumeGb = getTaskConfiguration().getInteger(NetworkStackNepheleITCase.DATA_VOLUME_GB_CONFIG_KEY, 1);
+			int dataVolumeGb = getTaskConfiguration().getInteger(NetworkStackThroughput.DATA_VOLUME_GB_CONFIG_KEY, 1);
 
 			long dataMbPerSubtask = (dataVolumeGb * 1024) / getCurrentNumberOfSubtasks();
 			long numRecordsToEmit = (dataMbPerSubtask * 1024 * 1024) / SpeedTestRecord.RECORD_SIZE;
