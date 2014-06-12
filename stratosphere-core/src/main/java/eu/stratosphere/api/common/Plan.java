@@ -32,6 +32,7 @@ import eu.stratosphere.core.fs.FileSystem;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.util.Visitable;
 import eu.stratosphere.util.Visitor;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -67,7 +68,10 @@ public class Plan implements Visitable<Operator<?>> {
 	 */
 	protected int maxNumberMachines;
 
-	protected HashMap<String, DistributedCacheEntry> cacheFile = new HashMap();
+	/**
+	 * Hash map for files in the distributed cache: registered name to cache entry.
+	 */
+	protected HashMap<String, DistributedCacheEntry> cacheFile = new HashMap<String, DistributedCacheEntry>();
 
 	// ------------------------------------------------------------------------
 
