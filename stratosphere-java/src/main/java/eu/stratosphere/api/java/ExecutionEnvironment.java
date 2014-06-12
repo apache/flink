@@ -88,7 +88,7 @@ public abstract class ExecutionEnvironment {
 	
 	private final List<DataSink<?>> sinks = new ArrayList<DataSink<?>>();
 	
-	private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList();
+	private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList<Tuple2<String, DistributedCacheEntry>>();
 
 	private int degreeOfParallelism = -1;
 	
@@ -574,7 +574,7 @@ public abstract class ExecutionEnvironment {
 	 * @param executable flag indicating whether the file should be executable
 	 */
 	public void registerCachedFile(String filePath, String name, boolean executable){
-		this.cacheFile.add(new Tuple2(name, new DistributedCacheEntry(filePath, executable)));
+		this.cacheFile.add(new Tuple2<String, DistributedCacheEntry>(name, new DistributedCacheEntry(filePath, executable)));
 	}
 	
 	/**
@@ -634,6 +634,9 @@ public abstract class ExecutionEnvironment {
 		} catch (Exception e) {
 			throw new RuntimeException("Error while registering cached files: " + e.getMessage(), e);
 		}
+		
+		// clear all the sinks such that the next execution does not redo everything
+		this.sinks.clear();
 		
 		return plan;
 	}
