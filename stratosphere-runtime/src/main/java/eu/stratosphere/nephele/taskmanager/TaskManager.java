@@ -277,7 +277,6 @@ public class TaskManager implements TaskOperationProtocol {
 		final int pageSize = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE);
 
-		// Initialize network buffer pool
 		int numBuffers = GlobalConfiguration.getInteger(
 				ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
 				ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS);
@@ -287,20 +286,20 @@ public class TaskManager implements TaskOperationProtocol {
 				ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE);
 
 		int numInThreads = GlobalConfiguration.getInteger(
-				ConfigConstants.TASK_MANAGER_NETTY_NUM_IN_THREADS_KEY,
-				ConfigConstants.DEFAULT_TASK_MANAGER_NETTY_NUM_IN_THREADS);
+				ConfigConstants.TASK_MANAGER_NET_NUM_IN_THREADS_KEY,
+				ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_IN_THREADS);
 
 		int numOutThreads = GlobalConfiguration.getInteger(
-				ConfigConstants.TASK_MANAGER_NETTY_NUM_OUT_THREADS_KEY,
-				ConfigConstants.DEFAULT_TASK_MANAGER_NETTY_NUM_OUT_THREADS);
+				ConfigConstants.TASK_MANAGER_NET_NUM_OUT_THREADS_KEY,
+				ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_OUT_THREADS);
 
 		int lowWaterMark = GlobalConfiguration.getInteger(
-				ConfigConstants.TASK_MANAGER_NETTY_LOW_WATER_MARK,
-				ConfigConstants.DEFAULT_TASK_MANAGER_NETTY_LOW_WATER_MARK);
+				ConfigConstants.TASK_MANAGER_NET_NETTY_LOW_WATER_MARK,
+				ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_LOW_WATER_MARK);
 
 		int highWaterMark = GlobalConfiguration.getInteger(
-				ConfigConstants.TASK_MANAGER_NETTY_HIGH_WATER_MARK,
-				ConfigConstants.DEFAULT_TASK_MANAGER_NETTY_HIGH_WATER_MARK);
+				ConfigConstants.TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK,
+				ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK);
 
 		// Initialize the channel manager
 		try {
@@ -309,7 +308,7 @@ public class TaskManager implements TaskOperationProtocol {
 					numBuffers, bufferSize, numInThreads, numOutThreads, lowWaterMark, highWaterMark);
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
-			throw new Exception("Failed to instantiate Byte-buffered channel manager. " + ioe.getMessage(), ioe);
+			throw new Exception("Failed to instantiate channel manager. " + ioe.getMessage(), ioe);
 		}
 
 		{
