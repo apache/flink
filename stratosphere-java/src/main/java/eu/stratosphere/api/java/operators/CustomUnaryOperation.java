@@ -25,5 +25,5 @@ public interface CustomUnaryOperation<IN, OUT> {
 	
 	void setInput(DataSet<IN> inputData);
 	
-	Operator<OUT, ?> createOperator();
+	DataSet<OUT> createResult();
 }

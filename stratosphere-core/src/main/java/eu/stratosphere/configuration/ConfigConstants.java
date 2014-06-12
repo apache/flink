@@ -34,7 +34,6 @@ public final class ConfigConstants {
 	 * The config parameter defining the maximal intra-node parallelism for jobs.
 	 */
 	public static final String PARALLELIZATION_MAX_INTRA_NODE_DEGREE_KEY = "parallelization.intra-node.default";
-
 	
 	// -------------------------------- Runtime -------------------------------
 
@@ -98,6 +97,26 @@ public final class ConfigConstants {
 	 * The config parameter defining the size of the buffers used in the network stack.
 	 */
 	public static final String TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY = "taskmanager.network.bufferSizeInBytes";
+
+	/**
+	 * The number of incoming connection threads used in NettyConnectionManager for the ServerBootstrap.
+	 */
+	public static final String TASK_MANAGER_NETTY_NUM_IN_THREADS_KEY = "taskmanager.netty.numInThreads";
+
+	/**
+	 * The number of outgoing connection threads used in NettyConnectionManager for the Bootstrap.
+	 */
+	public static final String TASK_MANAGER_NETTY_NUM_OUT_THREADS_KEY = "taskmanager.netty.numOutThreads";
+
+	/**
+	 * The low water mark used in NettyConnectionManager for the Bootstrap.
+	 */
+	public static final String TASK_MANAGER_NETTY_LOW_WATER_MARK = "taskmanager.netty.lowWaterMark";
+
+	/**
+	 * The high water mark used in NettyConnectionManager for the Bootstrap.
+	 */
+	public static final String TASK_MANAGER_NETTY_HIGH_WATER_MARK = "taskmanager.netty.highWaterMark";
 	
 	/**
 	 * Parameter for the interval in which the RaskManager sends the periodic heart beat messages
@@ -134,10 +153,9 @@ public final class ConfigConstants {
 	 * The parameter defining the polling interval (in seconds) for the JobClient.
 	 */
 	public static final String JOBCLIENT_POLLING_INTERVAL_KEY = "jobclient.polling.interval";
-	
-	
+
 	// ------------------------ Hadoop Configuration ------------------------
-	
+
 	/**
 	 * Path to hdfs-defaul.xml file
 	 */
@@ -152,7 +170,6 @@ public final class ConfigConstants {
 	 * Path to Hadoop configuration
 	 */
 	public static final String PATH_HADOOP_CONFIG = "fs.hdfs.hadoopconf";
-	
 	
 	// ------------------------ File System Bahavior ------------------------
 
@@ -251,11 +268,7 @@ public final class ConfigConstants {
 	public static final String STRATOSPHERE_BASE_DIR_PATH_KEY = "stratosphere.base.dir.path";
 	
 	public static final String STRATOSPHERE_JVM_OPTIONS = "env.java.opts";
-	
-	
 
-	
-	
 	// ------------------------------------------------------------------------
 	//                            Default Values
 	// ------------------------------------------------------------------------
@@ -318,7 +331,31 @@ public final class ConfigConstants {
 	 * Default size of network stack buffers.
 	 */
 	public static final int DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE = 32768;
-	
+
+	/**
+	 * Default number of incoming connection threads used in NettyConnectionManager for the ServerBootstrap. If set
+	 * to -1, NettyConnectionManager will pick a reasonable default depending on the number of cores of the machine.
+	 */
+	public static final int DEFAULT_TASK_MANAGER_NETTY_NUM_IN_THREADS = -1;
+
+	/**
+	 * Default number of outgoing connection threads used in NettyConnectionManager for the Bootstrap. If set
+	 * to -1, NettyConnectionManager will pick a reasonable default depending on the number of cores of the machine.
+	 */
+	public static final int DEFAULT_TASK_MANAGER_NETTY_NUM_OUT_THREADS = -1;
+
+	/**
+	 * Default low water mark used in NettyConnectionManager for the Bootstrap. If set to -1, NettyConnectionManager
+	 * will use half of the network buffer size as the low water mark.
+	 */
+	public static final int DEFAULT_TASK_MANAGER_NETTY_LOW_WATER_MARK = -1;
+
+	/**
+	 * Default high water mark used in NettyConnectionManager for the Bootstrap. If set to -1, NettyConnectionManager
+	 * will use the network buffer size as the high water mark.
+	 */
+	public static final int DEFAULT_TASK_MANAGER_NETTY_HIGH_WATER_MARK = -1;
+
 	/**
 	 * The default interval for TaskManager heart beats (2000 msecs).
 	 */
@@ -343,12 +380,6 @@ public final class ConfigConstants {
 	 * The default timeout for filesystem stream opening: infinite (means max long milliseconds).
 	 */
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
-	
-	/**
-	 * The config parameter defining whether to use the special multicast logic
-	 * for broadcasts.
-	 */
-	public static final boolean DEFAULT_USE_MULTICAST_FOR_BROADCAST = false;
 	
 	
 	// ------------------------ File System Bahavior ------------------------
@@ -458,7 +489,6 @@ public final class ConfigConstants {
 	 */
 	public static final int DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX = 1;
 
-	
 	// ------------------------------------------------------------------------
 	
 	/**

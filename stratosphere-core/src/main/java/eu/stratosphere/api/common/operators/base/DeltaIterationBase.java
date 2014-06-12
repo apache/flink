@@ -13,6 +13,9 @@
 
 package eu.stratosphere.api.common.operators.base;
 
+import java.util.Collections;
+import java.util.Map;
+
 import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
@@ -202,6 +205,36 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 	 */
 	public void setInitialWorkset(Operator<WT> input) {
 		setSecondInput(input);
+	}
+	
+	/**
+	 * DeltaIteration meta operator cannot have broadcast inputs.
+	 * 
+	 * @return An empty map.
+	 */
+	public Map<String, Operator<?>> getBroadcastInputs() {
+		return Collections.emptyMap();
+	}
+	
+	/**
+	 * The DeltaIteration meta operator cannot have broadcast inputs.
+	 * This method always throws an exception.
+	 * 
+	 * @param name Ignored.
+	 * @param root Ignored.
+	 */
+	public void setBroadcastVariable(String name, Operator<?> root) {
+		throw new UnsupportedOperationException("The DeltaIteration meta operator cannot have broadcast inputs.");
+	}
+	
+	/**
+	 * The DeltaIteration meta operator cannot have broadcast inputs.
+	 * This method always throws an exception.
+	 * 
+	 * @param inputs Ignored
+	 */
+	public <X> void setBroadcastVariables(Map<String, Operator<X>> inputs) {
+		throw new UnsupportedOperationException("The DeltaIteration meta operator cannot have broadcast inputs.");
 	}
 	
 	// --------------------------------------------------------------------------------------------

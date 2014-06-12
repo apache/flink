@@ -13,6 +13,7 @@
 package eu.stratosphere.spargel.java;
 
 import java.io.Serializable;
+import java.util.Collection;
 
 import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.api.common.functions.IterationRuntimeContext;
@@ -102,6 +103,18 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	 */
 	public <T extends Value> T getPreviousIterationAggregate(String name) {
 		return this.runtimeContext.<T>getPreviousIterationAggregate(name);
+	}
+	
+	/**
+	 * Gets the broadcast data set registered under the given name. Broadcast data sets
+	 * are available on all parallel instances of a function. They can be registered via
+	 * {@link VertexCentricIteration#addBroadcastSetForUpdateFunction(String, eu.stratosphere.api.java.DataSet)}.
+	 * 
+	 * @param name The name under which the broadcast set is registered.
+	 * @return The broadcast data set.
+	 */
+	public <T> Collection<T> getBroadcastSet(String name) {
+		return this.runtimeContext.<T>getBroadcastVariable(name);
 	}
 	
 	// --------------------------------------------------------------------------------------------

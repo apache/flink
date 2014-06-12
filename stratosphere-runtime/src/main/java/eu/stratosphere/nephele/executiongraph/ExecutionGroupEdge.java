@@ -13,8 +13,8 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
-import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.runtime.io.channels.ChannelType;
+import eu.stratosphere.nephele.jobgraph.DistributionPattern;
 
 /**
  * An execution group edge represents an edge between two execution group vertices.
@@ -66,11 +66,6 @@ public class ExecutionGroupEdge {
 	private final DistributionPattern distributionPattern;
 
 	/**
-	 * Stores if the edge is part of a broadcast group.
-	 */
-	private final boolean isBroadcast;
-
-	/**
 	 * Constructs a new group edge.
 	 * 
 	 * @param sourceVertex
@@ -85,19 +80,12 @@ public class ExecutionGroupEdge {
 	 *        the channel type for the edge
 	 * @param userDefinedChannelType
 	 *        <code>true</code> if the channel type has been specified by the user, <code>false</code> otherwise
-	 * @param compressionLevel
-	 *        the compression level for the edge
-	 * @param userDefinedCompressionLevel
-	 *        <code>true</code> if the compression level has been specified by the user, <code>false</code> otherwise
 	 * @param distributionPattern
 	 *        the distribution pattern to create the wiring
-	 * @param isBroadcast
-	 *        indicates that the edge is part of a broadcast group
 	 */
 	public ExecutionGroupEdge(final ExecutionGroupVertex sourceVertex, final int indexOfOutputGate,
 			final ExecutionGroupVertex targetVertex, final int indexOfInputGate, final ChannelType channelType,
-			final boolean userDefinedChannelType, final DistributionPattern distributionPattern,
-			final boolean isBroadcast) {
+			final boolean userDefinedChannelType, final DistributionPattern distributionPattern) {
 		this.sourceVertex = sourceVertex;
 		this.indexOfOutputGate = indexOfOutputGate;
 		this.channelType = channelType;
@@ -105,7 +93,6 @@ public class ExecutionGroupEdge {
 		this.userDefinedChannelType = userDefinedChannelType;
 		this.targetVertex = targetVertex;
 		this.distributionPattern = distributionPattern;
-		this.isBroadcast = isBroadcast;
 	}
 
 	/**
@@ -205,14 +192,5 @@ public class ExecutionGroupEdge {
 	 */
 	public DistributionPattern getDistributionPattern() {
 		return this.distributionPattern;
-	}
-
-	/**
-	 * Checks if the edge is part of a broadcast group.
-	 * 
-	 * @return <code>true</code> if the edge is part of a broadcast group, <code>false</code> otherwise
-	 */
-	public boolean isBroadcast() {
-		return this.isBroadcast;
 	}
 }

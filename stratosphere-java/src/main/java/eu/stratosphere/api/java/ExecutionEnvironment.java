@@ -274,12 +274,7 @@ public abstract class ExecutionEnvironment {
 		}
 		
 		try {
-			@SuppressWarnings("unchecked")
-			TypeInformation<X> producedType = (inputFormat instanceof ResultTypeQueryable) ?
-					((ResultTypeQueryable<X>) inputFormat).getProducedType() :
-					TypeExtractor.getInputFormatTypes(inputFormat);
-			
-			return createInput(inputFormat, producedType);
+			return createInput(inputFormat, TypeExtractor.getInputFormatTypes(inputFormat));
 		}
 		catch (Exception e) {
 			throw new InvalidProgramException("The type returned by the input format could not be automatically determined. " +
@@ -608,7 +603,19 @@ public abstract class ExecutionEnvironment {
 		}
 		
 		OperatorTranslation translator = new OperatorTranslation();
-		return translator.translateToPlan(this.sinks, jobName);
+		JavaPlan plan = translator.translateToPlan(this.sinks, jobName);
+		
+		if (getDegreeOfParallelism() > 0) {
+			plan.setDefaultParallelism(getDegreeOfParallelism());
+		}
+		
+		try {
+			registerCachedFilesWithPlan(plan);
+		} catch (Exception e) {
+			throw new RuntimeException("Error while registering cached files: " + e.getMessage(), e);
+		}
+		
+		return plan;
 	}
 	
 	/**

@@ -21,6 +21,8 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.google.common.base.Preconditions;
+
 import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.java.ExecutionEnvironment;
@@ -67,6 +69,7 @@ public class Client {
 	 * @param jobManagerAddress Address and port of the job-manager.
 	 */
 	public Client(InetSocketAddress jobManagerAddress, Configuration config) {
+		Preconditions.checkNotNull(config, "Configuration is null");
 		this.configuration = config;
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
@@ -84,6 +87,7 @@ public class Client {
 	 * @param config The config used to obtain the job-manager's address.
 	 */
 	public Client(Configuration config) {
+		Preconditions.checkNotNull(config, "Configuration is null");
 		this.configuration = config;
 		
 		// instantiate the address to the job manager
@@ -126,6 +130,7 @@ public class Client {
 	}
 	
 	public OptimizedPlan getOptimizedPlan(PackagedProgram prog, int parallelism) throws CompilerException, ProgramInvocationException {
+		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
 			return getOptimizedPlan(prog.getPlanWithJars(), parallelism);
 		}
@@ -316,9 +321,6 @@ public class Client {
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {
 			Plan plan = createProgramPlan(jobName);
-			if (getDegreeOfParallelism() > 0) {
-				plan.setDefaultParallelism(getDegreeOfParallelism());
-			}
 			this.optimizerPlan = compiler.compile(plan);
 			
 			// do not go on with anything now!
@@ -327,11 +329,7 @@ public class Client {
 
 		@Override
 		public String getExecutionPlan() throws Exception {
-			Plan plan = createProgramPlan("unused");
-			if (getDegreeOfParallelism() > 0) {
-				plan.setDefaultParallelism(getDegreeOfParallelism());
-			}
-			
+			Plan plan = createProgramPlan();
 			this.optimizerPlan = compiler.compile(plan);
 			
 			// do not go on with anything now!

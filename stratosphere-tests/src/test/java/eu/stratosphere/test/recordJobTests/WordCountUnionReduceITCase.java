@@ -22,8 +22,6 @@ import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.io.TextInputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
-import eu.stratosphere.nephele.io.MutableUnionRecordReader;
-import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.test.recordJobs.wordcount.WordCount.CountWords;
 import eu.stratosphere.test.recordJobs.wordcount.WordCount.TokenizeLine;
 import eu.stratosphere.test.testdata.WordCountData;
@@ -39,8 +37,6 @@ import eu.stratosphere.types.StringValue;
  * 
  * @see {@link https://github.com/stratosphere/stratosphere/issues/192}
  * @see {@link https://github.com/stratosphere/stratosphere/issues/124}
- * @see {@link UnionRecordReader}
- * @see {@link MutableUnionRecordReader}
  */
 public class WordCountUnionReduceITCase extends RecordAPITestBase {
 

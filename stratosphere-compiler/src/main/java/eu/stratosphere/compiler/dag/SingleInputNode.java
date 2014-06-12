@@ -381,15 +381,36 @@ public abstract class SingleInputNode extends OptimizerNode {
 	protected void instantiateCandidate(OperatorDescriptorSingle dps, Channel in, List<Set<? extends NamedChannel>> broadcastPlanChannels,
 			List<PlanNode> target, CostEstimator estimator, RequestedGlobalProperties globPropsReq, RequestedLocalProperties locPropsReq)
 	{
+		final PlanNode inputSource = in.getSource();
+		
 		for (List<NamedChannel> broadcastChannelsCombination: Sets.cartesianProduct(broadcastPlanChannels)) {
+			
+			boolean validCombination = true;
+			
 			// check whether the broadcast inputs use the same plan candidate at the branching point
-			for (NamedChannel nc : broadcastChannelsCombination) {
+			for (int i = 0; i < broadcastChannelsCombination.size(); i++) {
+				NamedChannel nc = broadcastChannelsCombination.get(i);
 				PlanNode bcSource = nc.getSource();
-				PlanNode inputSource = in.getSource();
 				
+				// check branch compatibility against input
 				if (!areBranchCompatible(bcSource, inputSource)) {
-					return;
+					validCombination = false;
+					break;
 				}
+				
+				// check branch compatibility against all other broadcast variables
+				for (int k = 0; k < i; k++) {
+					PlanNode otherBcSource = broadcastChannelsCombination.get(k).getSource();
+					
+					if (!areBranchCompatible(bcSource, otherBcSource)) {
+						validCombination = false;
+						break;
+					}
+				}
+			}
+			
+			if (!validCombination) {
+				continue;
 			}
 			
 			final SingleInputPlanNode node = dps.instantiate(in, this);

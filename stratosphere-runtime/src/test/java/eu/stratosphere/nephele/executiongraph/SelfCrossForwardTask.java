@@ -15,8 +15,8 @@ package eu.stratosphere.nephele.executiongraph;
 
 
 import eu.stratosphere.core.io.StringRecord;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.runtime.io.api.RecordReader;
+import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
 
 /**
@@ -31,7 +31,7 @@ public class SelfCrossForwardTask extends AbstractTask {
 		
 		new RecordReader<StringRecord>(this, StringRecord.class);
 		new RecordReader<StringRecord>(this, StringRecord.class);
-		new RecordWriter<StringRecord>(this, StringRecord.class);
+		new RecordWriter<StringRecord>(this);
 	}
 
 

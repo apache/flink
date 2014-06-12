@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,81 +13,49 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
+import eu.stratosphere.nephele.AbstractID;
+
 import javax.xml.bind.DatatypeConverter;
+import java.nio.ByteBuffer;
 
-import eu.stratosphere.nephele.io.AbstractID;
-
-/**
- * A class for statistically unique job IDs.
- * <p>
- * This class is thread-safe.
- * 
- */
 public final class JobID extends AbstractID {
 
-	/**
-	 * Constructs a new random ID from a uniform distribution.
-	 */
 	public JobID() {
 		super();
 	}
 
-	/**
-	 * Constructs a new job ID.
-	 * 
-	 * @param lowerPart
-	 *        the lower bytes of the ID
-	 * @param upperPart
-	 *        the higher bytes of the ID
-	 */
-	private JobID(final long lowerPart, final long upperPart) {
+	public JobID(long lowerPart, long upperPart) {
 		super(lowerPart, upperPart);
 	}
 
-	/**
-	 * Constructs a new job ID from the given bytes.
-	 * 
-	 * @param bytes
-	 *        the bytes to initialize the job ID with
-	 */
-	public JobID(final byte[] bytes) {
+	public JobID(byte[] bytes) {
 		super(bytes);
 	}
 
-	/**
-	 * Generates a new statistically unique job ID.
-	 * 
-	 * @return a new statistically unique job ID
-	 */
 	public static JobID generate() {
-
-		final long lowerPart = AbstractID.generateRandomBytes();
-		final long upperPart = AbstractID.generateRandomBytes();
+		long lowerPart = AbstractID.generateRandomLong();
+		long upperPart = AbstractID.generateRandomLong();
 
 		return new JobID(lowerPart, upperPart);
 	}
 
-	/**
-	 * Constructs a new job ID and initializes it with the given bytes.
-	 * 
-	 * @param bytes
-	 *        the bytes to initialize the new job ID with
-	 * @return the new job ID
-	 */
-	public static JobID fromByteArray(final byte[] bytes) {
-
+	public static JobID fromByteArray(byte[] bytes) {
 		return new JobID(bytes);
 	}
-	
-	/**
-	 * Constructs a new job ID and initializes it with the given bytes.
-	 * 
-	 * @param bytes
-	 *        the bytes to initialize the new job ID with
-	 * @return the new job ID
-	 */
-	public static JobID fromHexString(final String hexString) {
 
+	public static JobID fromByteBuffer(ByteBuffer buf) {
+		long lower = buf.getLong();
+		long upper = buf.getLong();
+		return new JobID(lower, upper);
+	}
+
+	public static JobID fromByteBuffer(ByteBuffer buf, int offset) {
+		long lower = buf.getLong(offset);
+		long upper = buf.getLong(offset + 8);
+		return new JobID(lower, upper);
+	}
+
+	public static JobID fromHexString(String hexString) {
 		return new JobID(DatatypeConverter.parseHexBinary(hexString));
 	}
 }

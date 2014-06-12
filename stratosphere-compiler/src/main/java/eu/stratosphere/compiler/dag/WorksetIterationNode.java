@@ -300,8 +300,8 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		
 		// 2) Give the partial solution the properties of the current candidate for the initial partial solution
 		//    This concerns currently only the workset.
-		this.worksetNode.setCandidateProperties(worksetIn.getGlobalProperties(), worksetIn.getLocalProperties());
-		this.solutionSetNode.setCandidateProperties(this.partitionedProperties, new LocalProperties());
+		this.worksetNode.setCandidateProperties(worksetIn.getGlobalProperties(), worksetIn.getLocalProperties(), worksetIn);
+		this.solutionSetNode.setCandidateProperties(this.partitionedProperties, new LocalProperties(), solutionSetIn);
 		
 		final SolutionSetPlanNode sspn = this.solutionSetNode.getCurrentSolutionSetPlanNode();
 		final WorksetPlanNode wspn = this.worksetNode.getCurrentWorksetPlanNode();
@@ -387,19 +387,22 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 			return;
 		}
 
-		// handle the data flow branching for the regular inputs
+		
+		// IMPORTANT: First compute closed branches from the two inputs
+		// we need to do this because the runtime iteration head effectively joins
 		addClosedBranches(getFirstPredecessorNode().closedBranchingNodes);
 		addClosedBranches(getSecondPredecessorNode().closedBranchingNodes);
-		addClosedBranches(getSingleRootOfStepFunction().closedBranchingNodes);
 
 		List<UnclosedBranchDescriptor> result1 = getFirstPredecessorNode().getBranchesForParent(getFirstIncomingConnection());
 		List<UnclosedBranchDescriptor> result2 = getSecondPredecessorNode().getBranchesForParent(getSecondIncomingConnection());
-		List<UnclosedBranchDescriptor> result3 = getSingleRootOfStepFunction().openBranches;
 
 		ArrayList<UnclosedBranchDescriptor> inputsMerged1 = new ArrayList<UnclosedBranchDescriptor>();
-		ArrayList<UnclosedBranchDescriptor> inputsMerged2 = new ArrayList<UnclosedBranchDescriptor>();
-
 		mergeLists(result1, result2, inputsMerged1);
+		
+		addClosedBranches(getSingleRootOfStepFunction().closedBranchingNodes);
+
+		ArrayList<UnclosedBranchDescriptor> inputsMerged2 = new ArrayList<UnclosedBranchDescriptor>();
+		List<UnclosedBranchDescriptor> result3 = getSingleRootOfStepFunction().openBranches;
 		mergeLists(inputsMerged1, result3, inputsMerged2);
 
 		// handle the data flow branching for the broadcast inputs

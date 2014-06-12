@@ -13,7 +13,7 @@
 
 package eu.stratosphere.nephele.managementgraph;
 
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 
 /**
  * This class implements a directed edge of between two {@link ManagementGroupVertex} objects. The edge is derived from

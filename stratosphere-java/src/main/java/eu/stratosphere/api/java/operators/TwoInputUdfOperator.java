@@ -117,9 +117,12 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 */
 	@SuppressWarnings("unchecked")
 	public O withConstantSetFirst(String... constantSetFirst) {
-		DualInputSemanticProperties dsp = SemanticPropUtil.getSemanticPropsDualFromString(constantSetFirst, null,
+		if (this.udfSemantics == null) {
+			this.udfSemantics = new DualInputSemanticProperties();
+		}
+		
+		SemanticPropUtil.getSemanticPropsDualFromString(this.udfSemantics, constantSetFirst, null,
 				null, null, null, null, this.getInput1Type(), this.getInput2Type(), this.getResultType());
-		this.setSemanticProperties(dsp);
 
 		O returnType = (O) this;
 		return returnType;
@@ -145,9 +148,12 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 */
 	@SuppressWarnings("unchecked")
 	public O withConstantSetSecond(String... constantSetSecond) {
-		DualInputSemanticProperties dsp = SemanticPropUtil.getSemanticPropsDualFromString(null, constantSetSecond,
+		if (this.udfSemantics == null) {
+			this.udfSemantics = new DualInputSemanticProperties();
+		}
+		
+		SemanticPropUtil.getSemanticPropsDualFromString(this.udfSemantics, null, constantSetSecond,
 				null, null, null, null, this.getInput1Type(), this.getInput2Type(), this.getResultType());
-		this.setSemanticProperties(dsp);
 
 		O returnType = (O) this;
 		return returnType;

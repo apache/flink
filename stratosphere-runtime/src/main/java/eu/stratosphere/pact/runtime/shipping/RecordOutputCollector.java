@@ -18,7 +18,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.nephele.io.AbstractRecordWriter;
+import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
@@ -27,38 +27,37 @@ import eu.stratosphere.util.Collector;
  * The OutputCollector tracks to which writers a deep-copy must be given and which not.
  */
 public class RecordOutputCollector implements Collector<Record>
-{	
+{
 	// list of writers
-	protected AbstractRecordWriter<Record>[] writers; 
-	
+	protected RecordWriter<Record>[] writers;
+
 	/**
-	 * Initializes the output collector with a set of writers. 
-	 * To specify for a writer that it must be fed with a deep-copy, set the bit in the copy flag bit mask to 1 that 
+	 * Initializes the output collector with a set of writers.
+	 * To specify for a writer that it must be fed with a deep-copy, set the bit in the copy flag bit mask to 1 that
 	 * corresponds to the position of the writer within the {@link List}.
-	 * 
+	 *
 	 * @param writers List of all writers.
 	 */
 	@SuppressWarnings("unchecked")
-	public RecordOutputCollector(List<AbstractRecordWriter<Record>> writers) {
-		
-		this.writers = (AbstractRecordWriter<Record>[]) writers.toArray(new AbstractRecordWriter[writers.size()]);
+	public RecordOutputCollector(List<RecordWriter<Record>> writers) {
+
+		this.writers = (RecordWriter<Record>[]) writers.toArray(new RecordWriter[writers.size()]);
 	}
-	
+
 	/**
 	 * Adds a writer to the OutputCollector.
-	 * 
+	 *
 	 * @param writer The writer to add.
 	 */
-
 	@SuppressWarnings("unchecked")
-	public void addWriter(AbstractRecordWriter<Record> writer)
+	public void addWriter(RecordWriter<Record> writer)
 	{
 		// avoid using the array-list here to reduce one level of object indirection
 		if (this.writers == null) {
-			this.writers = new AbstractRecordWriter[] {writer};
+			this.writers = new RecordWriter[] {writer};
 		}
 		else {
-			AbstractRecordWriter<Record>[] ws = new AbstractRecordWriter[this.writers.length + 1];
+			RecordWriter<Record>[] ws = new RecordWriter[this.writers.length + 1];
 			System.arraycopy(this.writers, 0, ws, 0, this.writers.length);
 			ws[this.writers.length] = writer;
 			this.writers = ws;
@@ -74,7 +73,7 @@ public class RecordOutputCollector implements Collector<Record>
 	{
 		try {
 			for (int i = 0; i < writers.length; i++) {
-				this.writers[i].emit(record);	
+				this.writers[i].emit(record);
 			}
 		}
 		catch (IOException e) {
@@ -85,19 +84,24 @@ public class RecordOutputCollector implements Collector<Record>
 		}
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see eu.stratosphere.pact.common.stub.Collector#close()
-	 */
 	@Override
 	public void close() {
+		for (RecordWriter<?> writer : writers) {
+			try {
+				writer.flush();
+			} catch (IOException e) {
+				throw new RuntimeException(e.getMessage(), e);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e.getMessage(), e);
+			}
+		}
 	}
 
 	/**
 	 * List of writers that are associated with this output collector
 	 * @return list of writers
 	 */
-	public List<AbstractRecordWriter<Record>> getWriters() {
+	public List<RecordWriter<Record>> getWriters() {
 		return Collections.unmodifiableList(Arrays.asList(writers));
 	}
 }

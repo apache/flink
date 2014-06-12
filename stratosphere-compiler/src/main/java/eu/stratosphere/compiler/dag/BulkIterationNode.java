@@ -13,7 +13,6 @@
 
 package eu.stratosphere.compiler.dag;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -248,18 +247,10 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 			return;
 		}
 
-		// handle the data flow branching for the regular inputs
-		addClosedBranches(getPredecessorNode().closedBranchingNodes);
-		addClosedBranches(getNextPartialSolution().closedBranchingNodes);
-
-		List<UnclosedBranchDescriptor> result1 = getPredecessorNode().getBranchesForParent(this.inConn);
-		List<UnclosedBranchDescriptor> result2 = getSingleRootOfStepFunction().openBranches;
-
-		ArrayList<UnclosedBranchDescriptor> inputsMerged = new ArrayList<UnclosedBranchDescriptor>();
-		mergeLists(result1, result2, inputsMerged);
-
-		// handle the data flow branching for the broadcast inputs
-		List<UnclosedBranchDescriptor> result = computeUnclosedBranchStackForBroadcastInputs(inputsMerged);
+		// the resulting branches are those of the step function
+		// because the BulkPartialSolution takes the input's branches
+		addClosedBranches(getSingleRootOfStepFunction().closedBranchingNodes);
+		List<UnclosedBranchDescriptor> result = getSingleRootOfStepFunction().openBranches;
 
 		this.openBranches = (result == null || result.isEmpty()) ? Collections.<UnclosedBranchDescriptor>emptyList() : result;
 	}
@@ -282,7 +273,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		this.nextPartialSolution.accept(PlanCacheCleaner.INSTANCE);
 		
 		// 2) Give the partial solution the properties of the current candidate for the initial partial solution
-		this.partialSolution.setCandidateProperties(in.getGlobalProperties(), in.getLocalProperties());
+		this.partialSolution.setCandidateProperties(in.getGlobalProperties(), in.getLocalProperties(), in);
 		final BulkPartialSolutionPlanNode pspn = this.partialSolution.getCurrentPartialSolutionPlanNode();
 		
 		// 3) Get the alternative plans
@@ -310,10 +301,11 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		else if(candidates.size() > 0) {
 			List<PlanNode> terminationCriterionCandidates = this.terminationCriterion.getAlternativePlans(estimator);
 
+			SingleRootJoiner singleRoot = (SingleRootJoiner) this.singleRoot;
+			
 			for (PlanNode candidate : candidates) {
 				for(PlanNode terminationCandidate : terminationCriterionCandidates) {
-					if (this.singleRoot.areBranchCompatible(candidate, terminationCandidate)) {
-						
+					if (singleRoot.areBranchCompatible(candidate, terminationCandidate)) {
 						BulkIterationPlanNode node = new BulkIterationPlanNode(this, "BulkIteration ("+this.getPactContract().getName()+")", in, pspn, candidate, terminationCandidate);
 						GlobalProperties gProps = candidate.getGlobalProperties().clone();
 						LocalProperties lProps = candidate.getLocalProperties().clone();

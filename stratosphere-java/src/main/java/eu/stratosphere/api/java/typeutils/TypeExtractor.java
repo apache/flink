@@ -39,49 +39,81 @@ import eu.stratosphere.types.Value;
 
 public class TypeExtractor {
 	
+	@SuppressWarnings("unchecked")
 	public static <IN, OUT> TypeInformation<OUT> getMapReturnTypes(MapFunction<IN, OUT> mapFunction, TypeInformation<IN> inType) {
 		validateInputType(MapFunction.class, mapFunction.getClass(), 0, inType);
+		if(mapFunction instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) mapFunction).getProducedType();
+		}
 		return createTypeInfo(MapFunction.class, mapFunction.getClass(), 1, inType, null);
 	}
 	
+	@SuppressWarnings("unchecked")
 	public static <IN, OUT> TypeInformation<OUT> getFlatMapReturnTypes(FlatMapFunction<IN, OUT> flatMapFunction, TypeInformation<IN> inType) {
 		validateInputType(FlatMapFunction.class, flatMapFunction.getClass(), 0, inType);
+		if(flatMapFunction instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) flatMapFunction).getProducedType();
+		}
 		return createTypeInfo(FlatMapFunction.class, flatMapFunction.getClass(), 1, inType, null);
 	}
 	
+	@SuppressWarnings("unchecked")
 	public static <IN, OUT> TypeInformation<OUT> getGroupReduceReturnTypes(GroupReduceFunction<IN, OUT> groupReduceFunction,
 			TypeInformation<IN> inType) {
 		validateInputType(GroupReduceFunction.class, groupReduceFunction.getClass(), 0, inType);
+		if(groupReduceFunction instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) groupReduceFunction).getProducedType();
+		}
 		return createTypeInfo(GroupReduceFunction.class, groupReduceFunction.getClass(), 1, inType, null);
 	}
 	
+	@SuppressWarnings("unchecked")
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(JoinFunction<IN1, IN2, OUT> joinFunction,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		validateInputType(JoinFunction.class, joinFunction.getClass(), 0, in1Type);
 		validateInputType(JoinFunction.class, joinFunction.getClass(), 1, in2Type);
+		if(joinFunction instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) joinFunction).getProducedType();
+		}
 		return createTypeInfo(JoinFunction.class, joinFunction.getClass(), 2, in1Type, in2Type);
 	}
 	
+	@SuppressWarnings("unchecked")
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getCoGroupReturnTypes(CoGroupFunction<IN1, IN2, OUT> coGroupFunction,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		validateInputType(CoGroupFunction.class, coGroupFunction.getClass(), 0, in1Type);
 		validateInputType(CoGroupFunction.class, coGroupFunction.getClass(), 1, in2Type);
+		if(coGroupFunction instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) coGroupFunction).getProducedType();
+		}
 		return createTypeInfo(CoGroupFunction.class, coGroupFunction.getClass(), 2, in1Type, in2Type);
 	}
 	
+	@SuppressWarnings("unchecked")
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getCrossReturnTypes(CrossFunction<IN1, IN2, OUT> crossFunction,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		validateInputType(CrossFunction.class, crossFunction.getClass(), 0, in1Type);
 		validateInputType(CrossFunction.class, crossFunction.getClass(), 1, in2Type);
+		if(crossFunction instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) crossFunction).getProducedType();
+		}
 		return createTypeInfo(CrossFunction.class, crossFunction.getClass(), 2, in1Type, in2Type);
 	}
 	
+	@SuppressWarnings("unchecked")
 	public static <IN, OUT> TypeInformation<OUT> getKeySelectorTypes(KeySelector<IN, OUT> selector, TypeInformation<IN> inType) {
 		validateInputType(KeySelector.class, selector.getClass(), 0, inType);
+		if(selector instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) selector).getProducedType();
+		}
 		return createTypeInfo(KeySelector.class, selector.getClass(), 1, inType, null);
 	}
 	
+	@SuppressWarnings("unchecked")
 	public static <IN> TypeInformation<IN> getInputFormatTypes(InputFormat<IN, ?> inputFormat) {
+		if(inputFormat instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<IN>) inputFormat).getProducedType();
+		}
 		return createTypeInfo(InputFormat.class, inputFormat.getClass(), 0, null, null);
 	}
 	

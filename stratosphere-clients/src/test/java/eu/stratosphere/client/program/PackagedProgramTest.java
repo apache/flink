@@ -15,23 +15,20 @@
 package eu.stratosphere.client.program;
 
 import java.io.File;
-import java.net.URL;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import eu.stratosphere.client.CliFrontendTestUtils;
+
 
 public class PackagedProgramTest {
 
-	private static final String TEST_PROG_FILE_PATH = "/test.jar";
-	
 	@Test
 	public void testGetPreviewPlan() {
 		try {
 			
-			URL jarFileURL = getClass().getResource(TEST_PROG_FILE_PATH);
-			
-			PackagedProgram prog = new PackagedProgram(new File(jarFileURL.getFile()));
+			PackagedProgram prog = new PackagedProgram(new File(CliFrontendTestUtils.getTestJarPath()));
 			Assert.assertNotNull(prog.getPreviewPlan());
 		}
 		catch (Exception e) {

@@ -24,13 +24,13 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.channels.ChannelID;
+import eu.stratosphere.nephele.taskmanager.TaskKillResult;
+import eu.stratosphere.runtime.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
-import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
@@ -96,8 +96,8 @@ public abstract class AbstractInstance extends NetworkNode {
 		if (this.taskManager == null) {
 
 			this.taskManager = RPC.getProxy(TaskOperationProtocol.class,
-				new InetSocketAddress(getInstanceConnectionInfo().getAddress(),
-					getInstanceConnectionInfo().getIPCPort()), NetUtils.getSocketFactory());
+				new InetSocketAddress(getInstanceConnectionInfo().address(),
+					getInstanceConnectionInfo().ipcPort()), NetUtils.getSocketFactory());
 		}
 
 		return this.taskManager;
@@ -209,7 +209,7 @@ public abstract class AbstractInstance extends NetworkNode {
 	/**
 	 * Kills the task identified by the given ID at the instance's
 	 * {@link eu.stratosphere.nephele.taskmanager.TaskManager}.
-	 * 
+	 *
 	 * @param id
 	 *        the ID identifying the task to be killed
 	 * @throws IOException
@@ -220,7 +220,6 @@ public abstract class AbstractInstance extends NetworkNode {
 
 		return getTaskManagerProxy().killTask(id);
 	}
-
 
 	@Override
 	public boolean equals(final Object obj) {

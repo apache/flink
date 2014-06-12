@@ -13,6 +13,32 @@
 
 package eu.stratosphere.nephele.execution;
 
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
+import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
+import eu.stratosphere.nephele.services.iomanager.IOManager;
+import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
+import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.nephele.template.InputSplitProvider;
+import eu.stratosphere.runtime.io.Buffer;
+import eu.stratosphere.runtime.io.channels.ChannelID;
+import eu.stratosphere.runtime.io.channels.OutputChannel;
+import eu.stratosphere.runtime.io.gates.GateID;
+import eu.stratosphere.runtime.io.gates.InputGate;
+import eu.stratosphere.runtime.io.gates.OutputGate;
+import eu.stratosphere.runtime.io.network.bufferprovider.BufferAvailabilityListener;
+import eu.stratosphere.runtime.io.network.bufferprovider.BufferProvider;
+import eu.stratosphere.runtime.io.network.bufferprovider.GlobalBufferPool;
+import eu.stratosphere.runtime.io.network.bufferprovider.LocalBufferPool;
+import eu.stratosphere.runtime.io.network.bufferprovider.LocalBufferPoolOwner;
+import eu.stratosphere.util.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -26,41 +52,14 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.FutureTask;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.nephele.deployment.ChannelDeploymentDescriptor;
-import eu.stratosphere.nephele.deployment.GateDeploymentDescriptor;
-import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
-import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.InputGate;
-import eu.stratosphere.nephele.io.OutputGate;
-import eu.stratosphere.nephele.io.RecordDeserializerFactory;
-import eu.stratosphere.nephele.io.RuntimeInputGate;
-import eu.stratosphere.nephele.io.RuntimeOutputGate;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
-import eu.stratosphere.nephele.services.iomanager.IOManager;
-import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.InputSplitProvider;
-import eu.stratosphere.util.StringUtils;
-
 /**
  * The user code of every Nephele task runs inside a <code>RuntimeEnvironment</code> object. The environment provides
  * important services to the task. It keeps track of setting up the communication channels and provides access to input
  * splits, memory manager, etc.
- * <p>
+ * <p/>
  * This class is thread-safe.
  */
-public class RuntimeEnvironment implements Environment, Runnable {
+public class RuntimeEnvironment implements Environment, BufferProvider, LocalBufferPoolOwner, Runnable {
 
 	/**
 	 * The log object used for debugging.
@@ -75,18 +74,12 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	/**
 	 * List of output gates created by the task.
 	 */
-	private final List<OutputGate<? extends IOReadableWritable>> outputGates = new CopyOnWriteArrayList<OutputGate<? extends IOReadableWritable>>();
+	private final List<OutputGate> outputGates = new CopyOnWriteArrayList<OutputGate>();
 
 	/**
 	 * List of input gates created by the task.
 	 */
 	private final List<InputGate<? extends IOReadableWritable>> inputGates = new CopyOnWriteArrayList<InputGate<? extends IOReadableWritable>>();
-
-	/**
-	 * Queue of unbound output gate IDs which are required for deserializing an environment in the course of an RPC
-	 * call.
-	 */
-	private final Queue<GateID> unboundOutputGateIDs = new ArrayDeque<GateID>();
 
 	/**
 	 * Queue of unbound input gate IDs which are required for deserializing an environment in the course of an RPC
@@ -143,9 +136,9 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * The observer object for the task's execution.
 	 */
 	private volatile ExecutionObserver executionObserver = null;
-	
+
 	/**
-	 * The RPC procy to report accumulators to JobManager
+	 * The RPC proxy to report accumulators to JobManager
 	 */
 	private AccumulatorProtocol accumulatorProtocolProxy = null;
 
@@ -164,28 +157,24 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 */
 	private final String taskName;
 
+	private LocalBufferPool outputBufferPool;
+
 	private Map<String,FutureTask<Path>> cacheCopyTasks = new HashMap<String, FutureTask<Path>>();
 
 	/**
 	 * Creates a new runtime environment object which contains the runtime information for the encapsulated Nephele
 	 * task.
-	 * 
-	 * @param jobID
-	 *        the ID of the original Nephele job
-	 * @param taskName
-	 *        the name of task running in this environment
-	 * @param invokableClass
-	 *        invokableClass the class that should be instantiated as a Nephele task
-	 * @param taskConfiguration
-	 *        the configuration object which was attached to the original {@link JobVertex}
-	 * @param jobConfiguration
-	 *        the configuration object which was attached to the original {@link JobGraph}
-	 * @throws Exception
-	 *         thrown if an error occurs while instantiating the invokable class
+	 *
+	 * @param jobID             the ID of the original Nephele job
+	 * @param taskName          the name of task running in this environment
+	 * @param invokableClass    invokableClass the class that should be instantiated as a Nephele task
+	 * @param taskConfiguration the configuration object which was attached to the original JobVertex
+	 * @param jobConfiguration  the configuration object which was attached to the original JobGraph
+	 * @throws Exception thrown if an error occurs while instantiating the invokable class
 	 */
 	public RuntimeEnvironment(final JobID jobID, final String taskName,
-			final Class<? extends AbstractInvokable> invokableClass, final Configuration taskConfiguration,
-			final Configuration jobConfiguration) throws Exception {
+							final Class<? extends AbstractInvokable> invokableClass, final Configuration taskConfiguration,
+							final Configuration jobConfiguration) throws Exception {
 
 		this.jobID = jobID;
 		this.taskName = taskName;
@@ -205,23 +194,17 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 	/**
 	 * Constructs a runtime environment from a task deployment description.
-	 * 
-	 * @param tdd
-	 *        the task deployment description
-	 * @param memoryManager
-	 *        the task manager's memory manager component
-	 * @param ioManager
-	 *        the task manager's I/O manager component
-	 * @param inputSplitProvider
-	 *        the input split provider for this environment
-	 * @throws Exception
-	 *         thrown if an error occurs while instantiating the invokable class
+	 *
+	 * @param tdd                the task deployment description
+	 * @param memoryManager      the task manager's memory manager component
+	 * @param ioManager          the task manager's I/O manager component
+	 * @param inputSplitProvider the input split provider for this environment
+	 * @throws Exception thrown if an error occurs while instantiating the invokable class
 	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public RuntimeEnvironment(final TaskDeploymentDescriptor tdd,
-			final MemoryManager memoryManager, final IOManager ioManager,
-			final InputSplitProvider inputSplitProvider,
-			AccumulatorProtocol accumulatorProtocolProxy, Map<String, FutureTask<Path>> cpTasks) throws Exception {
+							final MemoryManager memoryManager, final IOManager ioManager,
+							final InputSplitProvider inputSplitProvider,
+							AccumulatorProtocol accumulatorProtocolProxy, Map<String, FutureTask<Path>> cpTasks) throws Exception {
 
 		this.jobID = tdd.getJobID();
 		this.taskName = tdd.getTaskName();
@@ -240,95 +223,48 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		this.invokable.setEnvironment(this);
 		this.invokable.registerInputOutput();
 
-		if (!this.unboundOutputGateIDs.isEmpty() && LOG.isErrorEnabled()) {
-			LOG.error("Inconsistency: " + this.unboundOutputGateIDs.size() + " unbound output gate IDs left");
+		int numOutputGates = tdd.getNumberOfOutputGateDescriptors();
+
+		for (int i = 0; i < numOutputGates; ++i) {
+			this.outputGates.get(i).initializeChannels(tdd.getOutputGateDescriptor(i));
 		}
 
-		if (!this.unboundInputGateIDs.isEmpty() && LOG.isErrorEnabled()) {
-			LOG.error("Inconsistency: " + this.unboundInputGateIDs.size() + " unbound output gate IDs left");
-		}
+		int numInputGates = tdd.getNumberOfInputGateDescriptors();
 
-		final int noogdd = tdd.getNumberOfOutputGateDescriptors();
-		for (int i = 0; i < noogdd; ++i) {
-			final GateDeploymentDescriptor gdd = tdd.getOutputGateDescriptor(i);
-			final OutputGate og = this.outputGates.get(i);
-			final ChannelType channelType = gdd.getChannelType();
-			og.setChannelType(channelType);
-
-			final int nocdd = gdd.getNumberOfChannelDescriptors();
-			for (int j = 0; j < nocdd; ++j) {
-
-				final ChannelDeploymentDescriptor cdd = gdd.getChannelDescriptor(j);
-				switch (channelType) {
-				case NETWORK:
-					og.createNetworkOutputChannel(og, cdd.getOutputChannelID(), cdd.getInputChannelID());
-					break;
-				case INMEMORY:
-					og.createInMemoryOutputChannel(og, cdd.getOutputChannelID(), cdd.getInputChannelID());
-					break;
-				default:
-					throw new IllegalStateException("Unknown channel type");
-				}
-			}
-		}
-
-		final int noigdd = tdd.getNumberOfInputGateDescriptors();
-		for (int i = 0; i < noigdd; ++i) {
-			final GateDeploymentDescriptor gdd = tdd.getInputGateDescriptor(i);
-			final InputGate ig = this.inputGates.get(i);
-			final ChannelType channelType = gdd.getChannelType();
-			ig.setChannelType(channelType);
-
-			final int nicdd = gdd.getNumberOfChannelDescriptors();
-			for (int j = 0; j < nicdd; ++j) {
-
-				final ChannelDeploymentDescriptor cdd = gdd.getChannelDescriptor(j);
-				switch (channelType) {
-				case NETWORK:
-					ig.createNetworkInputChannel(ig, cdd.getInputChannelID(), cdd.getOutputChannelID());
-					break;
-				case INMEMORY:
-					ig.createInMemoryInputChannel(ig, cdd.getInputChannelID(), cdd.getOutputChannelID());
-					break;
-				default:
-					throw new IllegalStateException("Unknown channel type");
-				}
-			}
+		for (int i = 0; i < numInputGates; i++) {
+			this.inputGates.get(i).initializeChannels(tdd.getInputGateDescriptor(i));
 		}
 	}
 
 	/**
 	 * Returns the invokable object that represents the Nephele task.
-	 * 
+	 *
 	 * @return the invokable object that represents the Nephele task
 	 */
 	public AbstractInvokable getInvokable() {
 		return this.invokable;
 	}
 
-
 	@Override
 	public JobID getJobID() {
 		return this.jobID;
 	}
 
-
 	@Override
 	public GateID getNextUnboundInputGateID() {
-
 		return this.unboundInputGateIDs.poll();
 	}
 
+	@Override
+	public OutputGate createAndRegisterOutputGate() {
+		OutputGate gate = new OutputGate(getJobID(), new GateID(), getNumberOfOutputGates());
+		this.outputGates.add(gate);
 
-	public GateID getNextUnboundOutputGateID() {
-
-		return this.unboundOutputGateIDs.poll();
+		return gate;
 	}
-
 
 	@Override
 	public void run() {
-
 		if (invokable == null) {
 			LOG.fatal("ExecutionEnvironment has no Invokable set");
 		}
@@ -343,9 +279,6 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		}
 
 		try {
-
-			// Activate input channels
-			// activateInputChannels();
 			ClassLoader cl = LibraryCacheManager.getClassLoader(jobID);
 			Thread.currentThread().setContextClassLoader(cl);
 			this.invokable.invoke();
@@ -354,9 +287,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			if (this.executionObserver.isCanceled()) {
 				throw new InterruptedException();
 			}
-
 		} catch (Throwable t) {
-
 			if (!this.executionObserver.isCanceled()) {
 
 				// Perform clean up when the task failed and has been not canceled by the user
@@ -370,9 +301,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
 
-			if (this.executionObserver.isCanceled()) {
+			if (this.executionObserver.isCanceled() || t instanceof CancelTaskException) {
 				changeExecutionState(ExecutionState.CANCELED, null);
-			} else {
+			}
+			else {
 				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(t));
 			}
 
@@ -399,9 +331,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
 
-			if (this.executionObserver.isCanceled()) {
+			if (this.executionObserver.isCanceled() || t instanceof CancelTaskException) {
 				changeExecutionState(ExecutionState.CANCELED, null);
-			} else {
+			}
+			else {
 				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(t));
 			}
 
@@ -415,62 +348,35 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		changeExecutionState(ExecutionState.FINISHED, null);
 	}
 
-
 	@Override
-	public <T extends IOReadableWritable> OutputGate<T> createOutputGate(final GateID gateID, Class<T> outputClass,
-			final ChannelSelector<T> selector, final boolean isBroadcast) {
-		final RuntimeOutputGate<T> rog = new RuntimeOutputGate<T>(getJobID(), gateID, outputClass,
-															getNumberOfOutputGates(), selector, isBroadcast);
-		return rog;
+	public <T extends IOReadableWritable> InputGate<T> createAndRegisterInputGate() {
+		InputGate<T> gate = new InputGate<T>(getJobID(), new GateID(), getNumberOfInputGates());
+		this.inputGates.add(gate);
+
+		return gate;
 	}
-
-
-	@Override
-	public <T extends IOReadableWritable> InputGate<T> createInputGate(final GateID gateID,
-										final RecordDeserializerFactory<T> deserializerFactory) {
-		final RuntimeInputGate<T> rig = new RuntimeInputGate<T>(getJobID(), gateID, deserializerFactory,
-			getNumberOfInputGates());
-		return rig;
-	}
-
-	@Override
-	public void registerOutputGate(OutputGate<? extends IOReadableWritable> outputGate) {
-
-		this.outputGates.add(outputGate);
-	}
-
-	@Override
-	public void registerInputGate(InputGate<? extends IOReadableWritable> inputGate) {
-		this.inputGates.add(inputGate);
-	}
-
 
 	public int getNumberOfOutputGates() {
 		return this.outputGates.size();
 	}
-
 
 	@Override
 	public int getNumberOfInputGates() {
 		return this.inputGates.size();
 	}
 
-
 	@Override
 	public int getNumberOfOutputChannels() {
-
 		int numberOfOutputChannels = 0;
 		for (int i = 0; i < this.outputGates.size(); ++i) {
-			numberOfOutputChannels += this.outputGates.get(i).getNumberOfOutputChannels();
+			numberOfOutputChannels += this.outputGates.get(i).getNumChannels();
 		}
 
 		return numberOfOutputChannels;
 	}
 
-
 	@Override
 	public int getNumberOfInputChannels() {
-
 		int numberOfInputChannels = 0;
 		for (int i = 0; i < this.inputGates.size(); ++i) {
 			numberOfInputChannels += this.inputGates.get(i).getNumberOfInputChannels();
@@ -481,9 +387,8 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 	/**
 	 * Returns the registered input gate with index <code>pos</code>.
-	 * 
-	 * @param pos
-	 *        the index of the input gate to return
+	 *
+	 * @param pos the index of the input gate to return
 	 * @return the input gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
 	public InputGate<? extends IOReadableWritable> getInputGate(final int pos) {
@@ -496,14 +401,13 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 	/**
 	 * Returns the registered output gate with index <code>pos</code>.
-	 * 
-	 * @param pos
-	 *        the index of the output gate to return
+	 *
+	 * @param index the index of the output gate to return
 	 * @return the output gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
-	public OutputGate<? extends IOReadableWritable> getOutputGate(final int pos) {
-		if (pos < this.outputGates.size()) {
-			return this.outputGates.get(pos);
+	public OutputGate getOutputGate(int index) {
+		if (index < this.outputGates.size()) {
+			return this.outputGates.get(index);
 		}
 
 		return null;
@@ -511,17 +415,17 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 	/**
 	 * Returns the thread which is assigned to execute the user code.
-	 * 
+	 *
 	 * @return the thread which is assigned to execute the user code
 	 */
 	public Thread getExecutingThread() {
-
 		synchronized (this) {
 
 			if (this.executingThread == null) {
 				if (this.taskName == null) {
 					this.executingThread = new Thread(this);
-				} else {
+				}
+				else {
 					this.executingThread = new Thread(this, getTaskNameWithIndex());
 				}
 			}
@@ -532,48 +436,28 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 	/**
 	 * Blocks until all output channels are closed.
-	 * 
-	 * @throws IOException
-	 *         thrown if an error occurred while closing the output channels
-	 * @throws InterruptedException
-	 *         thrown if the thread waiting for the channels to be closed is interrupted
+	 *
+	 * @throws IOException          thrown if an error occurred while closing the output channels
+	 * @throws InterruptedException thrown if the thread waiting for the channels to be closed is interrupted
 	 */
-	private void waitForOutputChannelsToBeClosed() throws IOException, InterruptedException {
+	private void waitForOutputChannelsToBeClosed() throws InterruptedException {
+		// Make sure, we leave this method with an InterruptedException when the task has been canceled
+		if (this.executionObserver.isCanceled()) {
+			return;
+		}
 
-		// Wait for disconnection of all output gates
-		while (true) {
-
-			// Make sure, we leave this method with an InterruptedException when the task has been canceled
-			if (this.executionObserver.isCanceled()) {
-				throw new InterruptedException();
-			}
-
-			boolean allClosed = true;
-			for (int i = 0; i < getNumberOfOutputGates(); i++) {
-				final OutputGate<? extends IOReadableWritable> og = this.outputGates.get(i);
-				if (!og.isClosed()) {
-					allClosed = false;
-				}
-			}
-
-			if (allClosed) {
-				break;
-			} else {
-				Thread.sleep(SLEEPINTERVAL);
-			}
+		for (OutputGate og : this.outputGates) {
+			og.waitForGateToBeClosed();
 		}
 	}
 
 	/**
 	 * Blocks until all input channels are closed.
-	 * 
-	 * @throws IOException
-	 *         thrown if an error occurred while closing the input channels
-	 * @throws InterruptedException
-	 *         thrown if the thread waiting for the channels to be closed is interrupted
+	 *
+	 * @throws IOException          thrown if an error occurred while closing the input channels
+	 * @throws InterruptedException thrown if the thread waiting for the channels to be closed is interrupted
 	 */
 	private void waitForInputChannelsToBeClosed() throws IOException, InterruptedException {
-
 		// Wait for disconnection of all output gates
 		while (true) {
 
@@ -592,7 +476,8 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 			if (allClosed) {
 				break;
-			} else {
+			}
+			else {
 				Thread.sleep(SLEEPINTERVAL);
 			}
 		}
@@ -602,7 +487,6 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * Closes all input gates which are not already closed.
 	 */
 	private void closeInputGates() throws IOException, InterruptedException {
-
 		for (int i = 0; i < this.inputGates.size(); i++) {
 			final InputGate<? extends IOReadableWritable> eig = this.inputGates.get(i);
 			// Important: close must be called on each input gate exactly once
@@ -615,104 +499,84 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * Requests all output gates to be closed.
 	 */
 	private void requestAllOutputGatesToClose() throws IOException, InterruptedException {
-
 		for (int i = 0; i < this.outputGates.size(); i++) {
 			this.outputGates.get(i).requestClose();
 		}
 	}
-
 
 	@Override
 	public IOManager getIOManager() {
 		return this.ioManager;
 	}
 
-
 	@Override
 	public MemoryManager getMemoryManager() {
 		return this.memoryManager;
 	}
-
 
 	@Override
 	public Configuration getTaskConfiguration() {
 		return this.taskConfiguration;
 	}
 
-
 	@Override
 	public Configuration getJobConfiguration() {
 		return this.jobConfiguration;
 	}
 
-
 	@Override
 	public int getCurrentNumberOfSubtasks() {
-
 		return this.currentNumberOfSubtasks;
 	}
 
-
 	@Override
 	public int getIndexInSubtaskGroup() {
-
 		return this.indexInSubtaskGroup;
 	}
 
 	private void changeExecutionState(final ExecutionState newExecutionState, final String optionalMessage) {
-
 		if (this.executionObserver != null) {
 			this.executionObserver.executionStateChanged(newExecutionState, optionalMessage);
 		}
 	}
 
-
 	@Override
 	public String getTaskName() {
-
 		return this.taskName;
 	}
 
 	/**
 	 * Returns the name of the task with its index in the subtask group and the total number of subtasks.
-	 * 
+	 *
 	 * @return the name of the task with its index in the subtask group and the total number of subtasks
 	 */
 	public String getTaskNameWithIndex() {
-
-		return this.taskName + " (" + (getIndexInSubtaskGroup() + 1) + "/"
-			+ getCurrentNumberOfSubtasks() + ")";
+		return String.format("%s (%d/%d)", this.taskName, getIndexInSubtaskGroup() + 1, getCurrentNumberOfSubtasks());
 	}
 
 	/**
 	 * Sets the execution observer for this environment.
-	 * 
-	 * @param executionObserver
-	 *        the execution observer for this environment
+	 *
+	 * @param executionObserver the execution observer for this environment
 	 */
 	public void setExecutionObserver(final ExecutionObserver executionObserver) {
 		this.executionObserver = executionObserver;
 	}
-
 
 	@Override
 	public InputSplitProvider getInputSplitProvider() {
 		return this.inputSplitProvider;
 	}
 
-
 	@Override
 	public void userThreadStarted(final Thread userThread) {
-
 		if (this.executionObserver != null) {
 			this.executionObserver.userThreadStarted(userThread);
 		}
 	}
 
-
 	@Override
 	public void userThreadFinished(final Thread userThread) {
-
 		if (this.executionObserver != null) {
 			this.executionObserver.userThreadFinished(userThread);
 		}
@@ -723,7 +587,6 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	 * method should only be called after the respected task has stopped running.
 	 */
 	private void releaseAllChannelResources() {
-
 		for (int i = 0; i < this.inputGates.size(); i++) {
 			this.inputGates.get(i).releaseAllChannelResources();
 		}
@@ -733,28 +596,21 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		}
 	}
 
-
 	@Override
 	public Set<ChannelID> getOutputChannelIDs() {
+		Set<ChannelID> ids = new HashSet<ChannelID>();
 
-		final Set<ChannelID> outputChannelIDs = new HashSet<ChannelID>();
-
-		final Iterator<OutputGate<? extends IOReadableWritable>> gateIterator = this.outputGates.iterator();
-		while (gateIterator.hasNext()) {
-
-			final OutputGate<? extends IOReadableWritable> outputGate = gateIterator.next();
-			for (int i = 0; i < outputGate.getNumberOfOutputChannels(); ++i) {
-				outputChannelIDs.add(outputGate.getOutputChannel(i).getID());
+		for (OutputGate gate : this.outputGates) {
+			for (OutputChannel channel : gate.channels()) {
+				ids.add(channel.getID());
 			}
 		}
 
-		return Collections.unmodifiableSet(outputChannelIDs);
+		return Collections.unmodifiableSet(ids);
 	}
-
 
 	@Override
 	public Set<ChannelID> getInputChannelIDs() {
-
 		final Set<ChannelID> inputChannelIDs = new HashSet<ChannelID>();
 
 		final Iterator<InputGate<? extends IOReadableWritable>> gateIterator = this.inputGates.iterator();
@@ -769,10 +625,8 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		return Collections.unmodifiableSet(inputChannelIDs);
 	}
 
-
 	@Override
 	public Set<GateID> getInputGateIDs() {
-
 		final Set<GateID> inputGateIDs = new HashSet<GateID>();
 
 		final Iterator<InputGate<? extends IOReadableWritable>> gateIterator = this.inputGates.iterator();
@@ -783,13 +637,11 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		return Collections.unmodifiableSet(inputGateIDs);
 	}
 
-
 	@Override
 	public Set<GateID> getOutputGateIDs() {
-
 		final Set<GateID> outputGateIDs = new HashSet<GateID>();
 
-		final Iterator<OutputGate<? extends IOReadableWritable>> gateIterator = this.outputGates.iterator();
+		final Iterator<OutputGate> gateIterator = this.outputGates.iterator();
 		while (gateIterator.hasNext()) {
 			outputGateIDs.add(gateIterator.next().getGateID());
 		}
@@ -800,11 +652,10 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 	@Override
 	public Set<ChannelID> getOutputChannelIDsOfGate(final GateID gateID) {
-
-		OutputGate<? extends IOReadableWritable> outputGate = null;
-		final Iterator<OutputGate<? extends IOReadableWritable>> gateIterator = this.outputGates.iterator();
+		OutputGate outputGate = null;
+		final Iterator<OutputGate> gateIterator = this.outputGates.iterator();
 		while (gateIterator.hasNext()) {
-			final OutputGate<? extends IOReadableWritable> candidateGate = gateIterator.next();
+			final OutputGate candidateGate = gateIterator.next();
 			if (candidateGate.getGateID().equals(gateID)) {
 				outputGate = candidateGate;
 				break;
@@ -817,8 +668,8 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		final Set<ChannelID> outputChannelIDs = new HashSet<ChannelID>();
 
-		for (int i = 0; i < outputGate.getNumberOfOutputChannels(); ++i) {
-			outputChannelIDs.add(outputGate.getOutputChannel(i).getID());
+		for (int i = 0; i < outputGate.getNumChannels(); ++i) {
+			outputChannelIDs.add(outputGate.getChannel(i).getID());
 		}
 
 		return Collections.unmodifiableSet(outputChannelIDs);
@@ -827,7 +678,6 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 	@Override
 	public Set<ChannelID> getInputChannelIDsOfGate(final GateID gateID) {
-
 		InputGate<? extends IOReadableWritable> inputGate = null;
 		final Iterator<InputGate<? extends IOReadableWritable>> gateIterator = this.inputGates.iterator();
 		while (gateIterator.hasNext()) {
@@ -850,7 +700,15 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		return Collections.unmodifiableSet(inputChannelIDs);
 	}
-	
+
+	public List<OutputGate> outputGates() {
+		return this.outputGates;
+	}
+
+	public List<InputGate<? extends IOReadableWritable>> inputGates() {
+		return this.inputGates;
+	}
+
 	@Override
 	public AccumulatorProtocol getAccumulatorProtocolProxy() {
 		return accumulatorProtocolProxy;
@@ -859,9 +717,78 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	public void addCopyTaskForCacheFile(String name, FutureTask<Path> copyTask) {
 		this.cacheCopyTasks.put(name, copyTask);
 	}
+
 	@Override
 	public Map<String, FutureTask<Path>> getCopyTask() {
 		return this.cacheCopyTasks;
 	}
 
+	@Override
+	public BufferProvider getOutputBufferProvider() {
+		return this;
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------
+	//                                            BufferProvider methods
+	// -----------------------------------------------------------------------------------------------------------------
+
+	@Override
+	public Buffer requestBuffer(int minBufferSize) throws IOException {
+		return this.outputBufferPool.requestBuffer(minBufferSize);
+	}
+
+	@Override
+	public Buffer requestBufferBlocking(int minBufferSize) throws IOException, InterruptedException {
+		return this.outputBufferPool.requestBufferBlocking(minBufferSize);
+	}
+
+	@Override
+	public int getBufferSize() {
+		return this.outputBufferPool.getBufferSize();
+	}
+
+	@Override
+	public BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
+		return this.outputBufferPool.registerBufferAvailabilityListener(listener);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------
+	//                                       LocalBufferPoolOwner methods
+	// -----------------------------------------------------------------------------------------------------------------
+
+	@Override
+	public int getNumberOfChannels() {
+		return getNumberOfOutputChannels();
+	}
+
+	@Override
+	public void setDesignatedNumberOfBuffers(int numBuffers) {
+		this.outputBufferPool.setNumDesignatedBuffers(numBuffers);
+	}
+
+	@Override
+	public void clearLocalBufferPool() {
+		this.outputBufferPool.destroy();
+	}
+
+	@Override
+	public void registerGlobalBufferPool(GlobalBufferPool globalBufferPool) {
+		if (this.outputBufferPool == null) {
+			this.outputBufferPool = new LocalBufferPool(globalBufferPool, 1);
+		}
+	}
+
+	@Override
+	public void logBufferUtilization() {
+		LOG.info(String.format("\t%s: %d available, %d requested, %d designated",
+				getTaskNameWithIndex(),
+				this.outputBufferPool.numAvailableBuffers(),
+				this.outputBufferPool.numRequestedBuffers(),
+				this.outputBufferPool.numDesignatedBuffers()));
+	}
+
+	@Override
+	public void reportAsynchronousEvent() {
+		this.outputBufferPool.reportAsynchronousEvent();
+	}
 }

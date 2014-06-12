@@ -34,10 +34,6 @@ public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperat
 	public FilterOperator(DataSet<T> input, FilterFunction<T> function) {
 		super(input, input.getType());
 		
-		if (function == null) {
-			throw new NullPointerException("Filter function must not be null.");
-		}
-		
 		this.function = function;
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}

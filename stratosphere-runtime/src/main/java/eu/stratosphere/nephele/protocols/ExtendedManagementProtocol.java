@@ -83,7 +83,7 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 
 	/**
 	 * Kills the task with the given vertex ID.
-	 * 
+	 *
 	 * @param jobID
 	 *        the ID of the job the vertex to be killed belongs to
 	 * @param id

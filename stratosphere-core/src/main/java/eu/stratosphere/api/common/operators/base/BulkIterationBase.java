@@ -14,6 +14,8 @@
 package eu.stratosphere.api.common.operators.base;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -157,6 +159,36 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractFunc
 			throw new InvalidProgramException("No termination condition is set " +
 					"(neither fix number of iteration nor termination criterion).");
 		}
+	}
+	
+	/**
+	 * The BulkIteration meta operator cannot have broadcast inputs.
+	 * 
+	 * @return An empty map.
+	 */
+	public Map<String, Operator<?>> getBroadcastInputs() {
+		return Collections.emptyMap();
+	}
+	
+	/**
+	 * The BulkIteration meta operator cannot have broadcast inputs.
+	 * This method always throws an exception.
+	 * 
+	 * @param name Ignored.
+	 * @param root Ignored.
+	 */
+	public void setBroadcastVariable(String name, Operator<?> root) {
+		throw new UnsupportedOperationException("The BulkIteration meta operator cannot have broadcast inputs.");
+	}
+	
+	/**
+	 * The BulkIteration meta operator cannot have broadcast inputs.
+	 * This method always throws an exception.
+	 * 
+	 * @param inputs Ignored
+	 */
+	public <X> void setBroadcastVariables(Map<String, Operator<X>> inputs) {
+		throw new UnsupportedOperationException("The BulkIteration meta operator cannot have broadcast inputs.");
 	}
 	
 	// --------------------------------------------------------------------------------------------

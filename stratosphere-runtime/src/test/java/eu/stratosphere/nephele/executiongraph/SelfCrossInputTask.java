@@ -14,7 +14,7 @@
 package eu.stratosphere.nephele.executiongraph;
 
 import eu.stratosphere.core.io.StringRecord;
-import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractFileInputTask;
 
 /**
@@ -27,8 +27,8 @@ public class SelfCrossInputTask extends AbstractFileInputTask {
 	@Override
 	public void registerInputOutput() {
 
-		new RecordWriter<StringRecord>(this, StringRecord.class);
-		new RecordWriter<StringRecord>(this, StringRecord.class);
+		new RecordWriter<StringRecord>(this);
+		new RecordWriter<StringRecord>(this);
 	}
 
 

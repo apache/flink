@@ -13,11 +13,11 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.runtime.io.channels.ChannelID;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 
 /**
- * Objects of this class represent a pair of {@link AbstractInputChannel} and {@link AbstractOutputChannel} objects
+ * Objects of this class represent a pair of {@link eu.stratosphere.runtime.io.serialization.io.channels.InputChannel} and {@link AbstractOutputChannel} objects
  * within an {@link ExecutionGraph}, Nephele's internal scheduling representation for jobs.
  * 
  */
@@ -83,11 +83,6 @@ public final class ExecutionEdge {
 	public ChannelType getChannelType() {
 		
 		return this.groupEdge.getChannelType();
-	}
-	
-	public boolean isBroadcast() {
-		
-		return this.groupEdge.isBroadcast();
 	}
 	
 	public int getConnectionID() {
