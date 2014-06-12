@@ -214,7 +214,8 @@ public abstract class FileSystem {
 
 			// Try to create a new file system
 			if (!FSDIRECTORY.containsKey(uri.getScheme())) {
-				throw new IOException("No file system found with scheme " + uri.getScheme());
+				throw new IOException("No file system found with scheme " + uri.getScheme()
+				+ ". Failed for " + uri.toString() + ".");
 			}
 
 			Class<? extends FileSystem> fsClass = null;
