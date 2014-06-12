@@ -41,7 +41,7 @@ import eu.stratosphere.test.compiler.util.CompilerTestBase;
 
 public class SpargelCompilerTest extends CompilerTestBase {
 
-//	@Test
+	@Test
 	public void testSpargelCompiler() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
