@@ -22,6 +22,7 @@ import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 
 import eu.stratosphere.types.TypeInformation;
+
 import org.apache.commons.lang3.Validate;
 import org.apache.hadoop.io.Writable;
 
@@ -490,10 +491,33 @@ public class TypeExtractor {
 			}
 		}
 		// arrays with generics 
-		// (due to a Java 6 bug, it is possible that BasicArrayTypes also get classified as ObjectArrayTypes
-		// since the JVM classifies e.g. String[] as GenericArrayType instead of Class)
 		else if (t instanceof GenericArrayType) {
 			GenericArrayType genericArray = (GenericArrayType) t;
+			
+			Type componentType = genericArray.getGenericComponentType();
+			
+			// due to a Java 6 bug, it is possible that the JVM classifies e.g. String[] or int[] as GenericArrayType instead of Class
+			if (componentType instanceof Class) {
+				
+				Class<?> componentClass = (Class<?>) componentType;
+				String className;
+				// for int[], double[] etc.
+				if(componentClass.isPrimitive()) {
+					className = encodePrimitiveClass(componentClass);
+				}
+				// for String[], Integer[] etc.
+				else {
+					className = "L" + componentClass.getName() + ";";
+				}
+				
+				Class<OUT> classArray = null;
+				try {
+					classArray = (Class<OUT>) Class.forName("[" + className);
+				} catch (ClassNotFoundException e) {
+					throw new InvalidTypesException("Could not convert GenericArrayType to Class.");
+				}
+				return getForClass(classArray);
+			}
 			
 			TypeInformation<?> componentInfo = createTypeInfoWithTypeHierarchy(typeHierarchy, genericArray.getGenericComponentType(),
 					in1Type, in2Type);
@@ -509,6 +533,35 @@ public class TypeExtractor {
 		}
 		
 		throw new InvalidTypesException("Type Information could not be created.");
+	}
+	
+	private static String encodePrimitiveClass(Class<?> primitiveClass) {
+		final String name = primitiveClass.getName();
+		if (name.equals("boolean")) {
+			return "Z";
+		}
+		else if (name.equals("byte")) {
+			return "B";
+		}
+		else if (name.equals("char")) {
+			return "C";
+		}
+		else if (name.equals("double")) {
+			return "D";
+		}
+		else if (name.equals("float")) {
+			return "F";
+		}
+		else if (name.equals("int")) {
+			return "I";
+		}
+		else if (name.equals("long")) {
+			return "J";
+		}
+		else if (name.equals("short")) {
+			return "S";
+		}
+		throw new InvalidTypesException();
 	}
 	
 	private static <IN1, IN2> TypeInformation<?> createTypeInfoWithImmediateBaseChildInput(ParameterizedType baseChild,
