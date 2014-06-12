@@ -20,12 +20,12 @@
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-java</artifactId>
-			<version>0.5.1-SNAPSHOT</version>
+			<version>0.5.1</version>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-clients</artifactId>
-			<version>0.5.1-SNAPSHOT</version>
+			<version>0.5.1</version>
 		</dependency>
 	</dependencies>
 
