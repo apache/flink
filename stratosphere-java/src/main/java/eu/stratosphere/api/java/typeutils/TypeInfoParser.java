@@ -238,23 +238,23 @@ public class TypeInfoParser {
 
 			Class<?> clazz = null;
 			if (className.equals("int")) {
-				clazz = Integer[].class;
+				clazz = int[].class;
 			} else if (className.equals("byte")) {
-				clazz = Byte[].class;
+				clazz = byte[].class;
 			} else if (className.equals("short")) {
-				clazz = Short[].class;
+				clazz = short[].class;
 			} else if (className.equals("char")) {
-				clazz = Character[].class;
+				clazz = char[].class;
 			} else if (className.equals("double")) {
-				clazz = Double[].class;
+				clazz = double[].class;
 			} else if (className.equals("float")) {
-				clazz = Float[].class;
+				clazz = float[].class;
 			} else if (className.equals("long")) {
-				clazz = Long[].class;
+				clazz = long[].class;
 			} else if (className.equals("boolean")) {
-				clazz = Boolean[].class;
+				clazz = boolean[].class;
 			}
-			returnType = BasicArrayTypeInfo.getInfoFor(clazz);
+			returnType = PrimitiveArrayTypeInfo.getInfoFor(clazz);
 		}
 		// custom objects
 		else if (customObjectMatcher.find()) {
