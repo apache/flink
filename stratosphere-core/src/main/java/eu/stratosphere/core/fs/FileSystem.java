@@ -200,7 +200,8 @@ public abstract class FileSystem {
 				}
 				catch (URISyntaxException e) {
 					// we tried to repair it, but could not. report the scheme error
-					throw new IOException("FileSystem: Scheme is null. file:// or hdfs:// are example schemes.");
+					throw new IOException("FileSystem: Scheme is null. file:// or hdfs:// are example schemes. "
+							+ "Failed for " + uri.toString() + ".");
 				}
 			}
 
