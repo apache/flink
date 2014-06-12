@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import eu.stratosphere.api.common.operators.CompilerHints;
@@ -600,44 +601,29 @@ public class PlanJSONDumpGenerator {
 	}
 
 	public static final String formatNumber(double number, String suffix) {
-		final int fractionalDigits = 2;
-
-		StringBuilder bld = new StringBuilder();
-		bld.append(number);
-
-		int len = bld.length();
-
-		// get the power of 10 / 3
-		int pot = (len - (bld.charAt(0) == '-' ? 2 : 1)) / 3;
-		if (pot >= SIZE_SUFFIXES.length) {
-			pot = SIZE_SUFFIXES.length - 1;
-		} else if (pot < 0) {
-			pot = 0;
+		if (number <= 0.0) {
+			return String.valueOf(number);
 		}
 
-		int beforeDecimal = len - pot * 3;
-		if (len > beforeDecimal + fractionalDigits) {
-			bld.setLength(beforeDecimal + fractionalDigits);
+		int power = (int) Math.ceil(Math.log10(number));
+
+		int group = (power - 1) / 3;
+		if (group >= SIZE_SUFFIXES.length) {
+			group = SIZE_SUFFIXES.length - 1;
+		} else if (group < 0) {
+			group = 0;
 		}
 
-		// insert decimal point
-		if (pot > 0) {
-			bld.insert(beforeDecimal, '.');
+		// truncate fractional part
+		int beforeDecimal = power - group * 3;
+		if (power > beforeDecimal) {
+			for (int i = power - beforeDecimal; i > 0; i--) {
+				number /= 10;
+			}
 		}
-
-		// insert number grouping before decimal point
-		for (int pos = beforeDecimal - 3; pos > 0; pos -= 3) {
-			bld.insert(pos, ',');
-		}
-
-		// append the suffix
-		bld.append(' ');
-		if (pot > 0) {
-			bld.append(SIZE_SUFFIXES[pot]);
-		}
-		bld.append(suffix);
-
-		return bld.toString();
+		
+		return group > 0 ? String.format(Locale.US, "%.2f %s", number, SIZE_SUFFIXES[group]) :
+			String.format(Locale.US, "%.2f", number);
 	}
 
 	private static final char[] SIZE_SUFFIXES = { 0, 'K', 'M', 'G', 'T' };
