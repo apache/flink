@@ -1181,8 +1181,33 @@ public class TaskConfig {
 		}
 		
 		@Override
+		public void addAll(Configuration other) {
+			this.addAll(other, "");
+		}
+		
+		@Override
 		public void addAll(Configuration other, String prefix) {
 			this.backingConfig.addAll(other, this.prefix + prefix);
+		}
+		
+		@Override
+		public double getDouble(String key, double defaultValue) {
+			return backingConfig.getDouble(this.prefix + key, defaultValue);
+		}
+		
+		@Override
+		public void setDouble(String key, double value) {
+			backingConfig.setDouble(this.prefix + key, value);
+		}
+		
+		@Override
+		public String toString() {
+			return backingConfig.toString();
+		}
+		
+		@Override
+		public void setClassLoader(ClassLoader classLoader) {
+			backingConfig.setClassLoader(classLoader);
 		}
 		
 		@Override
