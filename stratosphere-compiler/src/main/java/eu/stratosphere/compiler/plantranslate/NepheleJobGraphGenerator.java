@@ -53,7 +53,6 @@ import eu.stratosphere.compiler.plan.WorksetPlanNode;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.nephele.jobgraph.DistributionPattern;
 import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;

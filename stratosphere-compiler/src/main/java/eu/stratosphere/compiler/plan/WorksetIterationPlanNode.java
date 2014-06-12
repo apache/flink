@@ -159,6 +159,10 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 	
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
+		if (source == this) {
+			return FOUND_SOURCE;
+		}
+		
 		SourceAndDamReport fromOutside = super.hasDamOnPathDownTo(source);
 
 		if (fromOutside == FOUND_SOURCE_AND_DAM) {
@@ -170,14 +174,12 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 		} else {
 			SourceAndDamReport fromNextWorkset = nextWorkSetPlanNode.hasDamOnPathDownTo(source);
 
-			if(fromNextWorkset == FOUND_SOURCE_AND_DAM){
+			if (fromNextWorkset == FOUND_SOURCE_AND_DAM){
 				return FOUND_SOURCE_AND_DAM;
-			}else if(fromNextWorkset == FOUND_SOURCE){
+			} else if (fromNextWorkset == FOUND_SOURCE){
 				return FOUND_SOURCE_AND_DAM;
-			}else{
-				SourceAndDamReport fromSolutionSetDelta = solutionSetDeltaPlanNode.hasDamOnPathDownTo(source);
-
-				return fromSolutionSetDelta;
+			} else {
+				return this.solutionSetDeltaPlanNode.hasDamOnPathDownTo(source);
 			}
 		}
 	}

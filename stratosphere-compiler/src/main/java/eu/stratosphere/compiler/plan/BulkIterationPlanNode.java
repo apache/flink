@@ -108,6 +108,10 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
+		if (source == this) {
+			return FOUND_SOURCE;
+		}
+		
 		SourceAndDamReport fromOutside = super.hasDamOnPathDownTo(source);
 
 		if (fromOutside == FOUND_SOURCE_AND_DAM) {
@@ -118,8 +122,7 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 			return FOUND_SOURCE_AND_DAM;
 		} else {
 			// check the step function for dams
-			SourceAndDamReport fromStepFunction = this.rootOfStepFunction.hasDamOnPathDownTo(source);
-			return fromStepFunction;
+			return this.rootOfStepFunction.hasDamOnPathDownTo(source);
 		}
 	}
 
