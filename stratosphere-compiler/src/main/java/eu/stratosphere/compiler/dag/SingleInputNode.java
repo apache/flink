@@ -42,7 +42,6 @@ import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.util.NoOpUnaryUdfOp;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.util.Visitor;
 
 /**
@@ -357,21 +356,17 @@ public abstract class SingleInputNode extends OptimizerNode {
 	protected void addLocalCandidates(Channel template, List<Set<? extends NamedChannel>> broadcastPlanChannels, RequestedGlobalProperties rgps,
 			List<PlanNode> target, CostEstimator estimator)
 	{
-		final LocalProperties lp = template.getLocalPropertiesAfterShippingOnly();
 		for (RequestedLocalProperties ilp : this.inConn.getInterestingProperties().getLocalProperties()) {
 			final Channel in = template.clone();
-			if (ilp.isMetBy(lp)) {
-				in.setLocalStrategy(LocalStrategy.NONE);
-			} else {
-				ilp.parameterizeChannel(in);
-			}
+			ilp.parameterizeChannel(in);
 			
 			// instantiate a candidate, if the instantiated local properties meet one possible local property set
+			outer:
 			for (OperatorDescriptorSingle dps: getPossibleProperties()) {
 				for (RequestedLocalProperties ilps : dps.getPossibleLocalProperties()) {
 					if (ilps.isMetBy(in.getLocalProperties())) {
 						instantiateCandidate(dps, in, broadcastPlanChannels, target, estimator, rgps, ilp);
-						break;
+						break outer;
 					}
 				}
 			}

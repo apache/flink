@@ -319,9 +319,6 @@ public class PlanJSONDumpGenerator {
 						case PARTITION_RANGE:
 							shipStrategy = "Range Partition";
 							break;
-						case PARTITION_LOCAL_HASH:
-							shipStrategy = "Hash Partition (local)";
-							break;
 						case PARTITION_RANDOM:
 							shipStrategy = "Redistribute";
 							break;

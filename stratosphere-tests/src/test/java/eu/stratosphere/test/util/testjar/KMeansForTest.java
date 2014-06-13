@@ -45,7 +45,7 @@ public class KMeansForTest implements Program{
 		}
 	
 		// set up execution environment
-		ExecutionEnvironment env = new RemoteEnvironment("localhost", 1, null);
+		ExecutionEnvironment env = new RemoteEnvironment("localhost", 1);
 		
 		// get input data
 		DataSet<Point> points = getPointDataSet(env);

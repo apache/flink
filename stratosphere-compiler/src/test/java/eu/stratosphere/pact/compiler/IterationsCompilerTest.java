@@ -34,14 +34,17 @@ import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
+import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
+import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.util.Collector;
 
 
 @SuppressWarnings({"serial", "unchecked"})
-public class MultipleIterationsCompilerTest extends CompilerTestBase {
+public class IterationsCompilerTest extends CompilerTestBase {
 
 	@Test
 	public void testTwoIterationsWithMapperInbetween() throws Exception {
@@ -147,6 +150,38 @@ public class MultipleIterationsCompilerTest extends CompilerTestBase {
 		}
 	}
 	
+	@Test
+	public void testIterationPushingWorkOut() throws Exception {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			
+			DataSet<Tuple2<Long, Long>> input1 = env.readCsvFile("/some/file/path").types(Long.class).map(new DuplicateValue());
+			
+			DataSet<Tuple2<Long, Long>> input2 = env.readCsvFile("/some/file/path").types(Long.class, Long.class);
+			
+			doBulkIteration(input1, input2).print();
+			
+			Plan p = env.createProgramPlan();
+			OptimizedPlan op = compileNoStats(p);
+			
+			System.out.println(new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(op));
+			
+			assertEquals(1, op.getDataSinks().size());
+			assertTrue(op.getDataSinks().iterator().next().getInput().getSource() instanceof BulkIterationPlanNode);
+			
+			BulkIterationPlanNode bipn = (BulkIterationPlanNode) op.getDataSinks().iterator().next().getInput().getSource();
+			
+			for (Channel c : bipn.getPartialSolutionPlanNode().getOutgoingChannels()) {
+				assertEquals(ShipStrategyType.PARTITION_HASH, c.getShipStrategy());
+			}
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
 	public static DataSet<Tuple2<Long, Long>> doBulkIteration(DataSet<Tuple2<Long, Long>> vertices, DataSet<Tuple2<Long, Long>> edges) {
 		
 		// open a bulk iteration
@@ -217,5 +252,14 @@ public class MultipleIterationsCompilerTest extends CompilerTestBase {
 		
 		@Override
 		public void reduce(Iterator<Tuple1<Long>> values, Collector<Tuple1<Long>> out) {}
+	}
+	
+	@ConstantFields("0")
+	public static final class DuplicateValue extends MapFunction<Tuple1<Long>, Tuple2<Long, Long>> {
+
+		@Override
+		public Tuple2<Long, Long> map(Tuple1<Long> value) throws Exception {
+			return new Tuple2<Long, Long>(value.f0, value.f0);
+		}
 	}
 }
