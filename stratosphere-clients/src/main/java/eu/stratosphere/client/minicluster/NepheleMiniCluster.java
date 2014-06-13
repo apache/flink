@@ -15,6 +15,7 @@ package eu.stratosphere.client.minicluster;
 
 import java.lang.reflect.Method;
 
+import eu.stratosphere.nephele.ExecutionMode;
 import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -27,7 +28,6 @@ import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobmanager.JobManager;
-import eu.stratosphere.nephele.jobmanager.JobManager.ExecutionMode;
 
 
 public class NepheleMiniCluster {
