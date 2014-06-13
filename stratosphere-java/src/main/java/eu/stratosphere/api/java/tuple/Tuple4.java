@@ -140,4 +140,41 @@ public class Tuple4<T0, T1, T2, T3> extends Tuple {
 			+ ", " + StringUtils.arrayAwareToString(this.f3)
 			+ ")";
 	}
+
+	/**
+	 * Deep equality for tuples by calling equals() on the tuple members
+	 * @param o the object checked for equality
+	 * @return true if this is equal to o.
+	 */
+	@Override
+	public boolean equals(Object o) {
+		if(this == o) { return true; }
+		if (!(o instanceof Tuple4)) { return false; }
+		Tuple4 tuple = (Tuple4) o;
+		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) { return false; }
+		if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) { return false; }
+		if (f2 != null ? !f2.equals(tuple.f2) : tuple.f2 != null) { return false; }
+		if (f3 != null ? !f3.equals(tuple.f3) : tuple.f3 != null) { return false; }
+		return true;
+	}
+
+	@Override
+	public int hashCode() {
+		int result = f0 != null ? f0.hashCode() : 0;
+		result = 31 * result + (f1 != null ? f1.hashCode() : 0);
+		result = 31 * result + (f2 != null ? f2.hashCode() : 0);
+		result = 31 * result + (f3 != null ? f3.hashCode() : 0);
+		return result;
+	}
+	/**
+	* Shallow tuple copy.
+	* @returns A new Tuple with the same fields as this.
+	 */
+	public Tuple4<T0,T1,T2,T3> copy(){ 
+		return new Tuple4<T0,T1,T2,T3>(this.f0,
+			this.f1,
+			this.f2,
+			this.f3);
+	}
+
 }
