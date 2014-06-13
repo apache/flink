@@ -13,11 +13,14 @@
 
 package eu.stratosphere.client.program;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.List;
 
+import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -141,23 +144,46 @@ public class Client {
 				env.setDegreeOfParallelism(parallelism);
 			}
 			env.setAsContext();
+			
+			// temporarily write syser and sysout to bytearray.
+			PrintStream originalOut = System.out;
+			PrintStream originalErr = System.err;
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(baos));
+			ByteArrayOutputStream baes = new ByteArrayOutputStream();
+			System.setErr(new PrintStream(baes));
 			try {
 				prog.invokeInteractiveModeForExecution();
 			}
 			catch (ProgramInvocationException e) {
+				System.setOut(originalOut);
+				System.setErr(originalErr);
+				System.err.println(baes);
+				System.out.println(baos);
 				throw e;
 			}
 			catch (Throwable t) {
+				System.setOut(originalOut);
+				System.setErr(originalErr);
+				System.err.println(baes);
+				System.out.println(baos);
 				// the invocation gets aborted with the preview plan
 				if (env.optimizerPlan != null) {
 					return env.optimizerPlan;
 				} else {
 					throw new ProgramInvocationException("The program caused an error: ", t);
 				}
+			} finally {
+				System.setOut(originalOut);
+				System.setErr(originalErr);
+				System.err.println(baes);
+				System.out.println(baos);
 			}
 			
 			throw new ProgramInvocationException(
-					"The program plan could not be fetched. The program silently swallowed the control flow exceptions.");
+					"The program plan could not be fetched. The program silently swallowed the control flow exceptions.\n"
+					+ "System.err: "+StringEscapeUtils.escapeHtml(baes.toString())+" \n"
+					+ "System.out: "+StringEscapeUtils.escapeHtml(baos.toString())+" \n" );
 		}
 		else {
 			throw new RuntimeException();
