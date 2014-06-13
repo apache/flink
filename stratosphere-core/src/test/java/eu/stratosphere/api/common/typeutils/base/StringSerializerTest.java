@@ -42,7 +42,9 @@ public class StringSerializerTest extends SerializerTestBase<String> {
 	@Override
 	protected String[] getTestData() {
 		Random rnd = new Random(289347567856686223L);
-		return new String[] {StringUtils.getRandomString(rnd, 300, 350), new String(Character.toChars(127315)), 
+		return new String[] {
+			StringUtils.getRandomString(rnd, 300, 350), new String(Character.toChars(127315)), 
+			(char)128+(char)32896+"", // flag collisions
 			"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
 	}
 }
