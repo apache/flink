@@ -141,6 +141,32 @@ public class Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13,
 		this.f17 = value17;
 	}
 
+	/**
+	* Copy constructor. Creates a new tuple and assigns the fields to the fields of the method parameter.
+	* @param tuple The tuple that is shallow-copied.
+	 */
+	public Tuple18(Tuple18<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,T13,T14,T15,T16,T17> tuple) {
+		this(
+			tuple.f0,
+			tuple.f1,
+			tuple.f2,
+			tuple.f3,
+			tuple.f4,
+			tuple.f5,
+			tuple.f6,
+			tuple.f7,
+			tuple.f8,
+			tuple.f9,
+			tuple.f10,
+			tuple.f11,
+			tuple.f12,
+			tuple.f13,
+			tuple.f14,
+			tuple.f15,
+			tuple.f16,
+			tuple.f17);
+	}
+
 	@Override
 	public int getArity() { return 18; }
 
@@ -307,5 +333,63 @@ public class Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13,
 			+ ", " + StringUtils.arrayAwareToString(this.f16)
 			+ ", " + StringUtils.arrayAwareToString(this.f17)
 			+ ")";
+	}
+
+	/**
+	 * Deep equality for tuples by calling equals() on the tuple members
+	 * @param o the object checked for equality
+	 * @return true if this is equal to o.
+	 */
+	@Override
+	public boolean equals(Object o) {
+		if(this == o) { return true; }
+		if (!(o instanceof Tuple18)) { return false; }
+		Tuple18 tuple = (Tuple18) o;
+		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) { return false; }
+		if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) { return false; }
+		if (f2 != null ? !f2.equals(tuple.f2) : tuple.f2 != null) { return false; }
+		if (f3 != null ? !f3.equals(tuple.f3) : tuple.f3 != null) { return false; }
+		if (f4 != null ? !f4.equals(tuple.f4) : tuple.f4 != null) { return false; }
+		if (f5 != null ? !f5.equals(tuple.f5) : tuple.f5 != null) { return false; }
+		if (f6 != null ? !f6.equals(tuple.f6) : tuple.f6 != null) { return false; }
+		if (f7 != null ? !f7.equals(tuple.f7) : tuple.f7 != null) { return false; }
+		if (f8 != null ? !f8.equals(tuple.f8) : tuple.f8 != null) { return false; }
+		if (f9 != null ? !f9.equals(tuple.f9) : tuple.f9 != null) { return false; }
+		if (f10 != null ? !f10.equals(tuple.f10) : tuple.f10 != null) { return false; }
+		if (f11 != null ? !f11.equals(tuple.f11) : tuple.f11 != null) { return false; }
+		if (f12 != null ? !f12.equals(tuple.f12) : tuple.f12 != null) { return false; }
+		if (f13 != null ? !f13.equals(tuple.f13) : tuple.f13 != null) { return false; }
+		if (f14 != null ? !f14.equals(tuple.f14) : tuple.f14 != null) { return false; }
+		if (f15 != null ? !f15.equals(tuple.f15) : tuple.f15 != null) { return false; }
+		if (f16 != null ? !f16.equals(tuple.f16) : tuple.f16 != null) { return false; }
+		if (f17 != null ? !f17.equals(tuple.f17) : tuple.f17 != null) { return false; }
+		return true;
+	}
+
+	/**
+	 * Java Object hash code implementation
+	 * @return Hash code of Tuple object.
+	 */
+	@Override
+	public int hashCode() {
+		int result = f0 != null ? f0.hashCode() : 0;
+		result = 31 * result + (f1 != null ? f1.hashCode() : 0);
+		result = 31 * result + (f2 != null ? f2.hashCode() : 0);
+		result = 31 * result + (f3 != null ? f3.hashCode() : 0);
+		result = 31 * result + (f4 != null ? f4.hashCode() : 0);
+		result = 31 * result + (f5 != null ? f5.hashCode() : 0);
+		result = 31 * result + (f6 != null ? f6.hashCode() : 0);
+		result = 31 * result + (f7 != null ? f7.hashCode() : 0);
+		result = 31 * result + (f8 != null ? f8.hashCode() : 0);
+		result = 31 * result + (f9 != null ? f9.hashCode() : 0);
+		result = 31 * result + (f10 != null ? f10.hashCode() : 0);
+		result = 31 * result + (f11 != null ? f11.hashCode() : 0);
+		result = 31 * result + (f12 != null ? f12.hashCode() : 0);
+		result = 31 * result + (f13 != null ? f13.hashCode() : 0);
+		result = 31 * result + (f14 != null ? f14.hashCode() : 0);
+		result = 31 * result + (f15 != null ? f15.hashCode() : 0);
+		result = 31 * result + (f16 != null ? f16.hashCode() : 0);
+		result = 31 * result + (f17 != null ? f17.hashCode() : 0);
+		return result;
 	}
 }

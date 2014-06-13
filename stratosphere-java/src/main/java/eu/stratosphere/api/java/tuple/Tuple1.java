@@ -56,6 +56,15 @@ public class Tuple1<T0> extends Tuple {
 		this.f0 = value0;
 	}
 
+	/**
+	* Copy constructor. Creates a new tuple and assigns the fields to the fields of the method parameter.
+	* @param tuple The tuple that is shallow-copied.
+	 */
+	public Tuple1(Tuple1<T0> tuple) {
+		this(
+			tuple.f0);
+	}
+
 	@Override
 	public int getArity() { return 1; }
 
@@ -103,5 +112,29 @@ public class Tuple1<T0> extends Tuple {
 	public String toString() {
 		return "(" + StringUtils.arrayAwareToString(this.f0)
 			+ ")";
+	}
+
+	/**
+	 * Deep equality for tuples by calling equals() on the tuple members
+	 * @param o the object checked for equality
+	 * @return true if this is equal to o.
+	 */
+	@Override
+	public boolean equals(Object o) {
+		if(this == o) { return true; }
+		if (!(o instanceof Tuple1)) { return false; }
+		Tuple1 tuple = (Tuple1) o;
+		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) { return false; }
+		return true;
+	}
+
+	/**
+	 * Java Object hash code implementation
+	 * @return Hash code of Tuple object.
+	 */
+	@Override
+	public int hashCode() {
+		int result = f0 != null ? f0.hashCode() : 0;
+		return result;
 	}
 }

@@ -28,6 +28,7 @@ import com.google.common.io.Files;
 class TupleGenerator {
 
 	// Parameters for tuple classes	
+
 	private static final String ROOT_DIRECTORY = "./src/main/java";
 
 	private static final String PACKAGE = "eu.stratosphere.api.java.tuple";
@@ -579,6 +580,33 @@ class TupleGenerator {
 		w.println("\t}");
 		w.println();
 
+
+		w.println("\t/**");
+		w.println("\t* Copy constructor. Creates a new tuple and assigns the fields to the fields of the method parameter.");
+		w.println("\t* @param tuple The tuple that is shallow-copied.");
+		w.println("\t */");
+		w.print("\tpublic " + className + "(" + className + "<");
+		for (int i = 0; i < numFields; i++) {
+			w.print ("T" + i);
+			if (i < numFields - 1) {
+				w.print (",");
+			}
+		}
+		w.println("> tuple) {");
+
+		w.println("\t\tthis(");
+		for (int i = 0; i < numFields; i++) {
+			String field = "f" + i;
+			w.print("\t\t\ttuple." + field);
+			if (i < numFields - 1) {
+				w.println(",");
+			}
+		}
+		w.println(");");
+		w.println("\t}");
+
+		w.println();
+
 		// arity accessor
 		w.println("\t@Override");
 		w.println("\tpublic int getArity() { return " + numFields + "; }");
@@ -658,6 +686,45 @@ class TupleGenerator {
 		}
 		w.println("\t\t\t+ \")\";");
 		w.println("\t}");
+
+
+
+
+		w.println();
+		w.println("\t/**");
+		w.println("\t * Deep equality for tuples by calling equals() on the tuple members");
+		w.println("\t * @param o the object checked for equality");
+		w.println("\t * @return true if this is equal to o.");
+		w.println("\t */");
+		w.println("\t@Override");
+		w.println("\tpublic boolean equals(Object o) {");
+		w.println("\t\tif(this == o) { return true; }");
+		w.println("\t\tif (!(o instanceof " + className + ")) { return false; }");
+		w.println("\t\t" + className + " tuple = (" + className + ") o;");
+		for (int i = 0; i < numFields; i++) {
+			String field = "f" + i;
+			w.println("\t\tif (" + field + " != null ? !" + field +".equals(tuple." +
+					field + ") : tuple." + field + " != null) { return false; }");
+		}
+		w.println("\t\treturn true;");
+		w.println("\t}");
+
+		w.println();
+		w.println("\t/**");
+		w.println("\t * Java Object hash code implementation");
+		w.println("\t * @return Hash code of Tuple object.");
+		w.println("\t */");
+		w.println("\t@Override");
+		w.println("\tpublic int hashCode() {");
+		w.println("\t\tint result = f0 != null ? f0.hashCode() : 0;");
+		for (int i = 1; i < numFields; i++) {
+			String field = "f" + i;
+			w.println("\t\tresult = 31 * result + (" + field + " != null ? " + field + ".hashCode() : 0);");
+		}
+		w.println("\t\treturn result;");
+		w.println("\t}");
+
+
 
 		// foot
 		w.println("}");

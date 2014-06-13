@@ -81,6 +81,20 @@ public class Tuple6<T0, T1, T2, T3, T4, T5> extends Tuple {
 		this.f5 = value5;
 	}
 
+	/**
+	* Copy constructor. Creates a new tuple and assigns the fields to the fields of the method parameter.
+	* @param tuple The tuple that is shallow-copied.
+	 */
+	public Tuple6(Tuple6<T0,T1,T2,T3,T4,T5> tuple) {
+		this(
+			tuple.f0,
+			tuple.f1,
+			tuple.f2,
+			tuple.f3,
+			tuple.f4,
+			tuple.f5);
+	}
+
 	@Override
 	public int getArity() { return 6; }
 
@@ -163,5 +177,39 @@ public class Tuple6<T0, T1, T2, T3, T4, T5> extends Tuple {
 			+ ", " + StringUtils.arrayAwareToString(this.f4)
 			+ ", " + StringUtils.arrayAwareToString(this.f5)
 			+ ")";
+	}
+
+	/**
+	 * Deep equality for tuples by calling equals() on the tuple members
+	 * @param o the object checked for equality
+	 * @return true if this is equal to o.
+	 */
+	@Override
+	public boolean equals(Object o) {
+		if(this == o) { return true; }
+		if (!(o instanceof Tuple6)) { return false; }
+		Tuple6 tuple = (Tuple6) o;
+		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) { return false; }
+		if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) { return false; }
+		if (f2 != null ? !f2.equals(tuple.f2) : tuple.f2 != null) { return false; }
+		if (f3 != null ? !f3.equals(tuple.f3) : tuple.f3 != null) { return false; }
+		if (f4 != null ? !f4.equals(tuple.f4) : tuple.f4 != null) { return false; }
+		if (f5 != null ? !f5.equals(tuple.f5) : tuple.f5 != null) { return false; }
+		return true;
+	}
+
+	/**
+	 * Java Object hash code implementation
+	 * @return Hash code of Tuple object.
+	 */
+	@Override
+	public int hashCode() {
+		int result = f0 != null ? f0.hashCode() : 0;
+		result = 31 * result + (f1 != null ? f1.hashCode() : 0);
+		result = 31 * result + (f2 != null ? f2.hashCode() : 0);
+		result = 31 * result + (f3 != null ? f3.hashCode() : 0);
+		result = 31 * result + (f4 != null ? f4.hashCode() : 0);
+		result = 31 * result + (f5 != null ? f5.hashCode() : 0);
+		return result;
 	}
 }
