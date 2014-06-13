@@ -630,6 +630,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		// let every operator do its computation
 		computeOperatorSpecificDefaultEstimates(statistics);
 		
+		if (this.estimatedOutputSize < 0) {
+			this.estimatedOutputSize = -1;
+		}
+		if (this.estimatedNumRecords < 0) {
+			this.estimatedNumRecords = -1;
+		}
+		
 		// overwrite default estimates with hints, if given
 		if (getPactContract() == null || getPactContract().getCompilerHints() == null) {
 			return ;
