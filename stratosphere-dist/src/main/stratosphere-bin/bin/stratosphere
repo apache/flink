@@ -26,7 +26,6 @@ fi
 
 STRATOSPHERE_LIB_CLIENTS_DIR=$STRATOSPHERE_ROOT_DIR/lib_clients
 
-JVM_ARGS="$JVM_ARGS -Xmx512m"
 
 # auxiliary function to construct a lightweight classpath for the
 # Stratosphere CLI client
