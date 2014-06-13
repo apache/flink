@@ -276,7 +276,7 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 			headConfig.setMemoryDriver(MEM_PER_CONSUMER * JobGraphUtils.MEGABYTE);
 
 			headConfig.addIterationAggregator(
-				WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, LongSumAggregator.class);
+				WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new LongSumAggregator());
 		}
 
 		return head;
@@ -351,9 +351,9 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		syncConfig.setNumberOfIterations(maxIterations);
 		syncConfig.setIterationId(ITERATION_ID);
 		syncConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME,
-			LongSumAggregator.class);
+			new LongSumAggregator());
 		syncConfig.setConvergenceCriterion(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME,
-			WorksetEmptyConvergenceCriterion.class);
+			new WorksetEmptyConvergenceCriterion());
 
 		return sync;
 	}

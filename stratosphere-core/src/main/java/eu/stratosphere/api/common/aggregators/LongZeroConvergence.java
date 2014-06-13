@@ -20,6 +20,7 @@ import eu.stratosphere.types.LongValue;
  * A {@link ConvergenceCriterion} over an {@link Aggregator} that defines convergence as reached once the aggregator
  * holds the value zero. The aggregated data type is a {@link LongValue}.
  */
+@SuppressWarnings("serial")
 public class LongZeroConvergence implements ConvergenceCriterion<LongValue> {
 
 	/**

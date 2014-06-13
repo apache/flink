@@ -76,7 +76,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	
 	private final DataSet<Tuple3<VertexKey, VertexKey, EdgeValue>> edgesWithValue;
 	
-	private final Map<String, Class<? extends Aggregator<?>>> aggregators;
+	private final Map<String, Aggregator<?>> aggregators;
 	
 	private final int maximumNumberOfIterations;
 	
@@ -118,7 +118,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		this.edgesWithoutValue = edgesWithoutValue;
 		this.edgesWithValue = null;
 		this.maximumNumberOfIterations = maximumNumberOfIterations;
-		this.aggregators = new HashMap<String, Class<? extends Aggregator<?>>>();
+		this.aggregators = new HashMap<String, Aggregator<?>>();
 		
 		this.messageType = getMessageType(mf);
 	}
@@ -150,7 +150,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		this.edgesWithoutValue = null;
 		this.edgesWithValue = edgesWithValue;
 		this.maximumNumberOfIterations = maximumNumberOfIterations;
-		this.aggregators = new HashMap<String, Class<? extends Aggregator<?>>>();
+		this.aggregators = new HashMap<String, Aggregator<?>>();
 		
 		this.messageType = getMessageType(mf);
 	}
@@ -167,7 +167,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * @param name The name of the aggregator, used to retrieve it and its aggregates during execution. 
 	 * @param aggregator The aggregator.
 	 */
-	public void registerAggregator(String name, Class<? extends Aggregator<?>> aggregator) {
+	public void registerAggregator(String name, Aggregator<?> aggregator) {
 		this.aggregators.put(name, aggregator);
 	}
 	
@@ -286,7 +286,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		iteration.parallelism(parallelism);
 		
 		// register all aggregators
-		for (Map.Entry<String, Class<? extends Aggregator<?>>> entry : this.aggregators.entrySet()) {
+		for (Map.Entry<String, Aggregator<?>> entry : this.aggregators.entrySet()) {
 			iteration.registerAggregator(entry.getKey(), entry.getValue());
 		}
 		

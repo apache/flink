@@ -192,7 +192,7 @@ public class DeltaIteration<ST, WT> {
 	 * 
 	 * @return The DeltaIteration itself, to allow chaining function calls.
 	 */
-	public DeltaIteration<ST, WT> registerAggregator(String name, Class<? extends Aggregator<?>> aggregator) {
+	public DeltaIteration<ST, WT> registerAggregator(String name, Aggregator<?> aggregator) {
 		this.aggregators.registerAggregator(name, aggregator);
 		return this;
 	}

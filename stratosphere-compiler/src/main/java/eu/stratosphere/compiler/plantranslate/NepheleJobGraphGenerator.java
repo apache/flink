@@ -1285,7 +1285,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		syncConfig.addIterationAggregators(allAggregators);
 		
 		String convAggName = aggs.getConvergenceCriterionAggregatorName();
-		Class<? extends ConvergenceCriterion<?>> convCriterion = aggs.getConvergenceCriterion();
+		ConvergenceCriterion<?> convCriterion = aggs.getConvergenceCriterion();
 		
 		if (convCriterion != null || convAggName != null) {
 			if (convCriterion == null) {
@@ -1474,15 +1474,15 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		syncConfig.addIterationAggregators(allAggregators);
 		
 		String convAggName = aggs.getConvergenceCriterionAggregatorName();
-		Class<? extends ConvergenceCriterion<?>> convCriterion = aggs.getConvergenceCriterion();
+		ConvergenceCriterion<?> convCriterion = aggs.getConvergenceCriterion();
 		
 		if (convCriterion != null || convAggName != null) {
 			throw new CompilerException("Error: Cannot use custom convergence criterion with workset iteration. Workset iterations have implicit convergence criterion where workset is empty.");
 		}
 		
-		headConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, LongSumAggregator.class);
-		syncConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, LongSumAggregator.class);
-		syncConfig.setConvergenceCriterion(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, WorksetEmptyConvergenceCriterion.class);
+		headConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new LongSumAggregator());
+		syncConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new LongSumAggregator());
+		syncConfig.setConvergenceCriterion(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new WorksetEmptyConvergenceCriterion());
 	}
 
 	// -------------------------------------------------------------------------------------
