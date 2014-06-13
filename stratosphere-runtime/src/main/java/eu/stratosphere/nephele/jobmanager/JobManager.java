@@ -31,6 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import eu.stratosphere.nephele.ExecutionMode;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import org.apache.commons.cli.CommandLine;
@@ -123,9 +124,6 @@ import eu.stratosphere.util.StringUtils;
 public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
 		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, AccumulatorProtocol
 {
-	public static enum ExecutionMode { LOCAL, CLUSTER }
-	
-	// --------------------------------------------------------------------------------------------
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 

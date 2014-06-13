@@ -15,6 +15,8 @@ package eu.stratosphere.nephele.instance.local;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+
+import eu.stratosphere.nephele.ExecutionMode;
 import junit.framework.Assert;
 
 import org.junit.Test;
@@ -22,7 +24,6 @@ import org.junit.Test;
 import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.jobmanager.JobManager;
-import eu.stratosphere.nephele.jobmanager.JobManager.ExecutionMode;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 
 /**

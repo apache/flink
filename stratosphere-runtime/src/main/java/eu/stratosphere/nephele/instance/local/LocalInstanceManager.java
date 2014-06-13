@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+import eu.stratosphere.nephele.ExecutionMode;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -150,6 +151,9 @@ public class LocalInstanceManager implements InstanceManager {
 
 		numTaskManagers = GlobalConfiguration.getInteger(ConfigConstants
 				.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1);
+
+		ExecutionMode executionMode = (numTaskManagers > 1) ? ExecutionMode.CLUSTER : ExecutionMode.LOCAL;
+
 		for(int i=0; i< numTaskManagers; i++){
 
 			Configuration tm = new Configuration();
@@ -163,7 +167,7 @@ public class LocalInstanceManager implements InstanceManager {
 
 			GlobalConfiguration.includeConfiguration(tm);
 
-			TaskManager t = new TaskManager();
+			TaskManager t = new TaskManager(executionMode);
 			taskManagers.add(t);
 		}
 	}

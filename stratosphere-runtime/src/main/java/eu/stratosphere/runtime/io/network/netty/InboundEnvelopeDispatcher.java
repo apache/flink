@@ -17,25 +17,19 @@ import eu.stratosphere.runtime.io.network.Envelope;
 import eu.stratosphere.runtime.io.network.EnvelopeDispatcher;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
-public class InboundEnvelopeDispatcherHandler extends ChannelInboundHandlerAdapter {
+public class InboundEnvelopeDispatcher extends ChannelInboundHandlerAdapter {
 
-	private static final Log LOG = LogFactory.getLog(InboundEnvelopeDispatcherHandler.class);
+	private final EnvelopeDispatcher envelopeDispatcher;
 
-	private final EnvelopeDispatcher channelManager;
-
-	public InboundEnvelopeDispatcherHandler(EnvelopeDispatcher channelManager) {
-		this.channelManager = channelManager;
+	public InboundEnvelopeDispatcher(EnvelopeDispatcher envelopeDispatcher) {
+		this.envelopeDispatcher = envelopeDispatcher;
 	}
 
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 		Envelope envelope = (Envelope) msg;
-//		LOG.debug(String.format("Decoded envelope with seq num %d from source channel %s",
-//				envelope.getSequenceNumber(),
-//				envelope.getSource()));
-		this.channelManager.dispatchFromNetwork(envelope);
+
+		envelopeDispatcher.dispatchFromNetwork(envelope);
 	}
 }

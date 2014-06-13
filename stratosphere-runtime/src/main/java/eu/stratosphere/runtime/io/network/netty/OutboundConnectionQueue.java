@@ -33,7 +33,7 @@ public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter implem
 
 	private final ArrayDeque<Envelope> queuedEnvelopes = new ArrayDeque<Envelope>();
 
-	private final AtomicInteger numQueued = new AtomicInteger(0);
+	private final AtomicInteger numQueuedEnvelopes = new AtomicInteger(0);
 
 	public OutboundConnectionQueue(Channel channel) {
 		this.channel = channel;
@@ -58,7 +58,7 @@ public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter implem
 		boolean triggerWrite = this.queuedEnvelopes.isEmpty();
 
 		this.queuedEnvelopes.addLast((Envelope) envelopeToEnqueue);
-		this.numQueued.incrementAndGet();
+		this.numQueuedEnvelopes.incrementAndGet();
 
 		if (triggerWrite) {
 			writeAndFlushNextEnvelopeIfPossible();
@@ -84,17 +84,18 @@ public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter implem
 	}
 
 	public int getNumQueuedEnvelopes() {
-		return this.numQueued.intValue();
+		return this.numQueuedEnvelopes.intValue();
 	}
 
-	public Channel getChannel() {
-		return this.channel;
+	@Override
+	public String toString() {
+		return channel.toString();
 	}
 
 	private void writeAndFlushNextEnvelopeIfPossible() {
 		if (this.channel.isWritable() && !this.queuedEnvelopes.isEmpty()) {
 			Envelope nextEnvelope = this.queuedEnvelopes.pollFirst();
-			this.numQueued.decrementAndGet();
+			this.numQueuedEnvelopes.decrementAndGet();
 
 			this.channel.writeAndFlush(nextEnvelope).addListener(this);
 		}
