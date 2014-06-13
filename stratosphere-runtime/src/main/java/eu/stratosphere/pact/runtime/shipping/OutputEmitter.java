@@ -78,7 +78,6 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		switch (strategy) {
 		case FORWARD:
 		case PARTITION_HASH:
-		case PARTITION_LOCAL_HASH:
 		case PARTITION_RANGE:
 		case PARTITION_RANDOM:
 		case BROADCAST:
@@ -103,7 +102,6 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		case PARTITION_RANDOM:
 			return robin(numberOfChannels);
 		case PARTITION_HASH:
-		case PARTITION_LOCAL_HASH:
 			return hashPartitionDefault(record.getInstance(), numberOfChannels);
 		case PARTITION_RANGE:
 			return rangePartition(record.getInstance(), numberOfChannels);

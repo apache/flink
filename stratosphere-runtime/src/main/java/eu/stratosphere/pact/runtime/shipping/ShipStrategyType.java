@@ -40,12 +40,6 @@ public enum ShipStrategyType {
 	PARTITION_HASH(true, true, true),
 	
 	/**
-	 * Repartitioning the data within a local instance with a hash function. Happens for example when the
-	 * intra-node degree-of-parallelism is increased. 
-	 */
-	PARTITION_LOCAL_HASH(false, true, true),
-	
-	/**
 	 * Partitioning the data in ranges according to a total order.
 	 */
 	PARTITION_RANGE(true, true, true),

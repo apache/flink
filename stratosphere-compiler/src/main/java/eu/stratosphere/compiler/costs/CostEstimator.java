@@ -94,8 +94,6 @@ public abstract class CostEstimator {
 			case FORWARD:
 //				costs.addHeuristicNetworkCost(channel.getMaxDepth());
 				break;
-			case PARTITION_LOCAL_HASH:
-				break;
 			case PARTITION_RANDOM:
 				addRandomPartitioningCost(channel, costs);
 				break;

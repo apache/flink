@@ -187,12 +187,22 @@ public class RequestedLocalProperties implements Cloneable {
 	 * @param channel The channel to parameterize.
 	 */
 	public void parameterizeChannel(Channel channel) {
-		if (this.ordering != null) {
+		LocalProperties current = channel.getLocalProperties();
+		
+		if (isMetBy(current)) {
+			// we are met. record that this is needed.
+			channel.setRequiredLocalProps(this);
+		}
+		else if (this.ordering != null) {
 			channel.setLocalStrategy(LocalStrategy.SORT, this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections());
-		} else if (this.groupedFields != null) {
+		}
+		else if (this.groupedFields != null) {
 			boolean[] dirs = new boolean[this.groupedFields.size()];
 			Arrays.fill(dirs, true);
 			channel.setLocalStrategy(LocalStrategy.SORT, Utils.createOrderedFromSet(this.groupedFields), dirs);
+		}
+		else {
+			channel.setLocalStrategy(LocalStrategy.NONE);
 		}
 	}
 	

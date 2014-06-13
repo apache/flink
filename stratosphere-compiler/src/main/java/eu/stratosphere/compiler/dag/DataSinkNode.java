@@ -31,7 +31,6 @@ import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.SinkPlanNode;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.util.Visitor;
 
 /**
@@ -210,12 +209,7 @@ public class DataSinkNode extends OptimizerNode {
 				for (RequestedLocalProperties lp : ips.getLocalProperties()) {
 					Channel c = new Channel(p);
 					gp.parameterizeChannel(c, globalDopChange, localDopChange);
-
-					if (lp.isMetBy(c.getLocalPropertiesAfterShippingOnly())) {
-						c.setLocalStrategy(LocalStrategy.NONE);
-					} else {
-						lp.parameterizeChannel(c);
-					}
+					lp.parameterizeChannel(c);
 					
 					// no need to check whether the created properties meet what we need in case
 					// of ordering or global ordering, because the only interesting properties we have

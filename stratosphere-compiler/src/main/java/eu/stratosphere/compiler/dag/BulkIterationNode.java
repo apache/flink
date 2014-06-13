@@ -279,13 +279,17 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		// 3) Get the alternative plans
 		List<PlanNode> candidates = this.nextPartialSolution.getAlternativePlans(estimator);
 		
-		// 4) Throw away all that are not compatible with the properties currently requested to the
-		//    initial partial solution
+		// 4) Make sure that the beginning of the step function does not assume properties that 
+		//    are not also produced by the end of the step function.
+
 		for (Iterator<PlanNode> planDeleter = candidates.iterator(); planDeleter.hasNext(); ) {
 			PlanNode candidate = planDeleter.next();
-			if (!(globPropsReq.isMetBy(candidate.getGlobalProperties()) && locPropsReq.isMetBy(candidate.getLocalProperties()))) {
-				planDeleter.remove();
+			
+			// quick-check if the properties at the end of the step function are the same as at the beginning
+			if (candidate.getGlobalProperties().equals(pspn.getGlobalProperties()) && candidate.getLocalProperties().equals(pspn.getLocalProperties())) {
+				continue;
 			}
+			planDeleter.remove();
 		}
 		
 		// 5) Create a candidate for the Iteration Node for every remaining plan of the step function.

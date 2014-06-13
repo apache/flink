@@ -22,6 +22,8 @@ import eu.stratosphere.compiler.dag.EstimateProvider;
 import eu.stratosphere.compiler.dag.TempMode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
+import eu.stratosphere.compiler.dataproperties.RequestedGlobalProperties;
+import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.compiler.plandump.DumpableConnection;
 import eu.stratosphere.compiler.util.Utils;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
@@ -47,6 +49,10 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	private boolean[] shipSortOrder;
 	
 	private boolean[] localSortOrder;
+	
+	private RequestedGlobalProperties requiredGlobalProps;
+	
+	private RequestedLocalProperties requiredLocalProps;
 	
 	private GlobalProperties globalProps;
 	
@@ -329,6 +335,22 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	// --------------------------------------------------------------------------------------------
 	
 
+	public RequestedGlobalProperties getRequiredGlobalProps() {
+		return requiredGlobalProps;
+	}
+
+	public void setRequiredGlobalProps(RequestedGlobalProperties requiredGlobalProps) {
+		this.requiredGlobalProps = requiredGlobalProps;
+	}
+
+	public RequestedLocalProperties getRequiredLocalProps() {
+		return requiredLocalProps;
+	}
+
+	public void setRequiredLocalProps(RequestedLocalProperties requiredLocalProps) {
+		this.requiredLocalProps = requiredLocalProps;
+	}
+
 	public GlobalProperties getGlobalProperties() {
 		if (this.globalProps == null) {
 			this.globalProps = this.source.getGlobalProperties().clone();
@@ -348,19 +370,6 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 				case PARTITION_RANDOM:
 					this.globalProps.reset();
 					break;
-				case PARTITION_LOCAL_HASH:
-					if (getSource().getGlobalProperties().isPartitionedOnFields(this.shipKeys)) {
-						// after a local hash partitioning, we can only state that the data is somehow
-						// partitioned. even if we had a hash partitioning before over 8 partitions,
-						// locally rehashing that onto 16 partitions (each one partition into two) gives you
-						// a different result than directly hashing to 16 partitions. the hash-partitioning
-						// property is only valid, if the assumed built in hash function is directly used.
-						// hence, we can only state that this is some form of partitioning.
-						this.globalProps.setAnyPartitioning(this.shipKeys);
-					} else {
-						this.globalProps.reset();
-					}
-					break;
 				case NONE:
 					throw new CompilerException("Cannot produce GlobalProperties before ship strategy is set.");
 			}
@@ -371,12 +380,13 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	
 	public LocalProperties getLocalProperties() {
 		if (this.localProps == null) {
-			this.localProps = getLocalPropertiesAfterShippingOnly().clone();
+			computeLocalPropertiesAfterShippingOnly();
 			switch (this.localStrategy) {
 				case NONE:
 					break;
 				case SORT:
 				case COMBININGSORT:
+					this.localProps = new LocalProperties();
 					this.localProps.setOrdering(Utils.createOrdering(this.localKeys, this.localSortOrder));
 					break;
 				default:
@@ -387,25 +397,19 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		return this.localProps;
 	}
 	
-	public LocalProperties getLocalPropertiesAfterShippingOnly() {
-		if (this.shipStrategy == ShipStrategyType.FORWARD) {
-			return this.source.getLocalProperties();
-		} else {
-			final LocalProperties props = this.source.getLocalProperties().clone();
-			switch (this.shipStrategy) {
-				case BROADCAST:
-				case PARTITION_HASH:
-				case PARTITION_RANGE:
-				case PARTITION_RANDOM:
-					props.reset();
-					break;
-				case PARTITION_LOCAL_HASH:
-				case FORWARD:
-					break;
-				case NONE:
-					throw new CompilerException("ShipStrategy has not yet been set.");
-			}
-			return props;
+	private void computeLocalPropertiesAfterShippingOnly() {
+		switch (this.shipStrategy) {
+			case BROADCAST:
+			case PARTITION_HASH:
+			case PARTITION_RANGE:
+			case PARTITION_RANDOM:
+				this.localProps = new LocalProperties();
+				break;
+			case FORWARD:
+				this.localProps = this.source.getLocalProperties();
+				break;
+			case NONE:
+				throw new CompilerException("ShipStrategy has not yet been set.");
 		}
 	}
 	
@@ -423,8 +427,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		// some strategies globally reestablish properties
 		switch (this.shipStrategy) {
 		case FORWARD:
-		case PARTITION_LOCAL_HASH:
-			throw new CompilerException("Cannot use FORWARD or LOCAL_HASH strategy between operations " +
+			throw new CompilerException("Cannot use FORWARD strategy between operations " +
 					"with different number of parallel instances.");
 		case NONE: // excluded by sanity check. lust here for verification check completion
 		case BROADCAST:
@@ -452,8 +455,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		case FORWARD:
 			this.globalProps.reset();
 			return;
-		case NONE: // excluded by sanity check. lust here for verification check completion
-		case PARTITION_LOCAL_HASH:
+		case NONE: // excluded by sanity check. just here to silence compiler warnings check completion
 		case BROADCAST:
 		case PARTITION_HASH:
 		case PARTITION_RANGE:

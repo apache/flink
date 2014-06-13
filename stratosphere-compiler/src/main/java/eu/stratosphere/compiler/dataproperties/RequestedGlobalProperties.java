@@ -17,8 +17,6 @@ import eu.stratosphere.api.common.distributions.DataDistribution;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
-import eu.stratosphere.compiler.costs.CostEstimator;
-import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.util.Utils;
@@ -31,8 +29,8 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
  * Currently, the properties are the following: A partitioning type (ANY, HASH, RANGE), and EITHER an ordering (for range partitioning)
  * or an FieldSet with the hash partitioning columns.
  */
-public final class RequestedGlobalProperties implements Cloneable
-{
+public final class RequestedGlobalProperties implements Cloneable {
+	
 	private PartitioningProperty partitioning;	// the type partitioning
 	
 	private FieldSet partitioningFields;		// the fields which are partitioned
@@ -230,20 +228,12 @@ public final class RequestedGlobalProperties implements Cloneable
 		
 		final GlobalProperties inGlobals = channel.getSource().getGlobalProperties();
 		// if we have no global parallelism change, check if we have already compatible global properties
-		if (!globalDopChange && isMetBy(inGlobals)) {
-			if (localDopChange) {
-				// if the local degree of parallelism changes, we need to adjust
-				if (inGlobals.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
-					// to preserve the hash partitioning, we need to locally hash re-partition
-					channel.setShipStrategy(ShipStrategyType.PARTITION_LOCAL_HASH, inGlobals.getPartitioningFields());
-					return;
-				}
-				// else fall though
-			} else {
-				// we meet already everything, so go forward
-				channel.setShipStrategy(ShipStrategyType.FORWARD);
-				return;
-			}
+		if (!globalDopChange && !localDopChange && isMetBy(inGlobals)) {
+			channel.setRequiredGlobalProps(this);
+			
+			// we meet already everything, so go forward
+			channel.setShipStrategy(ShipStrategyType.FORWARD);
+			return;
 		}
 		
 		// if we fall through the conditions until here, we need to re-establish
@@ -264,26 +254,6 @@ public final class RequestedGlobalProperties implements Cloneable
 				break;
 			default:
 				throw new CompilerException();
-		}
-	}
-	
-	public void addMinimalRequiredCosts(Costs to, CostEstimator estimator, OptimizerNode source, OptimizerNode target) {
-		if (this.partitioning == null || this.partitioning == PartitioningProperty.RANDOM) {
-			return;
-		} else {
-			switch (this.partitioning) {
-				case FULL_REPLICATION:
-					estimator.addBroadcastCost(source, target.getDegreeOfParallelism(), to);
-				case ANY_PARTITIONING:
-				case HASH_PARTITIONED:
-					estimator.addHashPartitioningCost(source, to);
-					break;
-				case RANGE_PARTITIONED:
-					estimator.addRangePartitionCost(source, to);
-					break;
-				default:
-					throw new CompilerException();
-			}
 		}
 	}
 

@@ -51,7 +51,6 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DamBehavior;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.util.Visitor;
 
 /**
@@ -488,24 +487,13 @@ public abstract class TwoInputNode extends OptimizerNode {
 			RequestedGlobalProperties rgps1, RequestedGlobalProperties rgps2,
 			List<PlanNode> target, LocalPropertiesPair[] validLocalCombinations, CostEstimator estimator)
 	{
-		final LocalProperties lp1 = template1.getLocalPropertiesAfterShippingOnly();
-		final LocalProperties lp2 = template2.getLocalPropertiesAfterShippingOnly();
-		
 		for (RequestedLocalProperties ilp1 : this.input1.getInterestingProperties().getLocalProperties()) {
 			final Channel in1 = template1.clone();
-			if (ilp1.isMetBy(lp1)) {
-				in1.setLocalStrategy(LocalStrategy.NONE);
-			} else {
-				ilp1.parameterizeChannel(in1);
-			}
+			ilp1.parameterizeChannel(in1);
 			
 			for (RequestedLocalProperties ilp2 : this.input2.getInterestingProperties().getLocalProperties()) {
 				final Channel in2 = template2.clone();
-				if (ilp2.isMetBy(lp2)) {
-					in2.setLocalStrategy(LocalStrategy.NONE);
-				} else {
-					ilp2.parameterizeChannel(in2);
-				}
+				ilp2.parameterizeChannel(in2);
 				
 				allPossibleLoop:
 				for (OperatorDescriptorDual dps: this.possibleProperties) {

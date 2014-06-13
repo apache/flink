@@ -1041,7 +1041,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 
 		switch (channel.getShipStrategy()) {
 			case FORWARD:
-			case PARTITION_LOCAL_HASH:
 				distributionPattern = DistributionPattern.POINTWISE;
 				channelType = ChannelType.NETWORK;
 				break;
