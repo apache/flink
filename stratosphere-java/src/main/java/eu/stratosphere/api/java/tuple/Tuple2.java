@@ -116,4 +116,35 @@ public class Tuple2<T0, T1> extends Tuple {
 			+ ", " + StringUtils.arrayAwareToString(this.f1)
 			+ ")";
 	}
+
+	/**
+	 * Deep equality for tuples by calling equals() on the tuple members
+	 * @param o the object checked for equality
+	 * @return true if this is equal to o.
+	 */
+	@Override
+	public boolean equals(Object o) {
+		if(this == o) { return true; }
+		if (!(o instanceof Tuple2)) { return false; }
+		Tuple2 tuple = (Tuple2) o;
+		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) { return false; }
+		if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) { return false; }
+		return true;
+	}
+
+	@Override
+	public int hashCode() {
+		int result = f0 != null ? f0.hashCode() : 0;
+		result = 31 * result + (f1 != null ? f1.hashCode() : 0);
+		return result;
+	}
+	/**
+	* Shallow tuple copy.
+	* @returns A new Tuple with the same fields as this.
+	 */
+	public Tuple2<T0,T1> copy(){ 
+		return new Tuple2<T0,T1>(this.f0,
+			this.f1);
+	}
+
 }
