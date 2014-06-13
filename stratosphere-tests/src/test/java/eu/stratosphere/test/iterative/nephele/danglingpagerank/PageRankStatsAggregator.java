@@ -15,6 +15,7 @@ package eu.stratosphere.test.iterative.nephele.danglingpagerank;
 
 import eu.stratosphere.api.common.aggregators.Aggregator;
 
+@SuppressWarnings("serial")
 public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
 
 	private double diff = 0;

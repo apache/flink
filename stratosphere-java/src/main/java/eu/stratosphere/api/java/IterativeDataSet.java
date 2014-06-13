@@ -95,7 +95,7 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	 * 
 	 * @return The IterativeDataSet itself, to allow chaining function calls.
 	 */
-	public IterativeDataSet<T> registerAggregator(String name, Class<? extends Aggregator<?>> aggregator) {
+	public IterativeDataSet<T> registerAggregator(String name, Aggregator<?> aggregator) {
 		this.aggregators.registerAggregator(name, aggregator);
 		return this;
 	}
@@ -115,7 +115,7 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	 * @return The IterativeDataSet itself, to allow chaining function calls.
 	 */
 	public <X extends Value> IterativeDataSet<T> registerAggregationConvergenceCriterion(
-			String name, Class<? extends Aggregator<X>> aggregator, Class<? extends ConvergenceCriterion<X>> convergenceCheck)
+			String name, Aggregator<X> aggregator, ConvergenceCriterion<X> convergenceCheck)
 	{
 		this.aggregators.registerAggregationConvergenceCriterion(name, aggregator, convergenceCheck);
 		return this;

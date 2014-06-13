@@ -72,7 +72,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 				DeltaIteration<Tuple3<Double, Long, String>, Tuple2<Double, String>> iteration = initialSolutionSet.iterateDelta(initialWorkSet, NUM_ITERATIONS, ITERATION_KEYS);
 				iteration.name(ITERATION_NAME).parallelism(ITERATION_DOP);
 				
-				iteration.registerAggregator(AGGREGATOR_NAME, LongSumAggregator.class);
+				iteration.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
 				
 				// test that multiple workset consumers are supported
 				DataSet<Tuple2<Double, String>> worksetSelfJoin = 

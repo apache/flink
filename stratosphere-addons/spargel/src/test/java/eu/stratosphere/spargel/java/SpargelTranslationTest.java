@@ -75,7 +75,7 @@ public class SpargelTranslationTest {
 				vertexIteration.setName(ITERATION_NAME);
 				vertexIteration.setParallelism(ITERATION_DOP);
 				
-				vertexIteration.registerAggregator(AGGREGATOR_NAME, LongSumAggregator.class);
+				vertexIteration.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
 				
 				result = initialVertices.runOperation(vertexIteration);
 			}
@@ -154,7 +154,7 @@ public class SpargelTranslationTest {
 				vertexIteration.setName(ITERATION_NAME);
 				vertexIteration.setParallelism(ITERATION_DOP);
 				
-				vertexIteration.registerAggregator(AGGREGATOR_NAME, LongSumAggregator.class);
+				vertexIteration.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
 				
 				result = initialVertices.runOperation(vertexIteration);
 			}

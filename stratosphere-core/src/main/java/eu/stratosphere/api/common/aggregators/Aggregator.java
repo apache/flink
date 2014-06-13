@@ -13,6 +13,8 @@
 
 package eu.stratosphere.api.common.aggregators;
 
+import java.io.Serializable;
+
 import eu.stratosphere.types.Value;
 
 /**
@@ -65,7 +67,7 @@ import eu.stratosphere.types.Value;
  * 
  * @param <T> The type of the aggregated value.
  */
-public interface Aggregator<T extends Value> {
+public interface Aggregator<T extends Value> extends Serializable {
 
 	/**
 	 * Gets the aggregator's current aggregate.
