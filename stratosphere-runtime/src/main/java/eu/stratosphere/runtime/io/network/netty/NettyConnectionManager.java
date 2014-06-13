@@ -15,7 +15,10 @@ package eu.stratosphere.runtime.io.network.netty;
 
 import eu.stratosphere.runtime.io.network.ChannelManager;
 import eu.stratosphere.runtime.io.network.Envelope;
+import eu.stratosphere.runtime.io.network.EnvelopeDispatcher;
+import eu.stratosphere.runtime.io.network.NetworkConnectionManager;
 import eu.stratosphere.runtime.io.network.RemoteReceiver;
+import eu.stratosphere.runtime.io.network.bufferprovider.BufferProviderBroker;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -28,7 +31,6 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.util.concurrent.Future;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -39,50 +41,70 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-public class NettyConnectionManager {
+public class NettyConnectionManager implements NetworkConnectionManager {
 
 	private static final Log LOG = LogFactory.getLog(NettyConnectionManager.class);
 
 	private static final int DEBUG_PRINT_QUEUED_ENVELOPES_EVERY_MS = 10000;
 
-	private final ChannelManager channelManager;
+	private final ConcurrentMap<RemoteReceiver, Object> outConnections = new ConcurrentHashMap<RemoteReceiver, Object>();
 
-	private final ServerBootstrap in;
+	private final InetAddress bindAddress;
 
-	private final Bootstrap out;
+	private final int bindPort;
 
-	private final ConcurrentMap<RemoteReceiver, Object> outConnections;
+	private final int bufferSize;
 
-	public NettyConnectionManager(ChannelManager channelManager, InetAddress bindAddress, int bindPort,
-								int bufferSize, int numInThreads, int numOutThreads,
-								int lowWaterMark, int highWaterMark) {
-		this.outConnections = new ConcurrentHashMap<RemoteReceiver, Object>();
-		this.channelManager = channelManager;
+	private final int numInThreads;
 
-		// --------------------------------------------------------------------
+	private final int numOutThreads;
+
+	private final int lowWaterMark;
+
+	private final int highWaterMark;
+
+	private ServerBootstrap in;
+
+	private Bootstrap out;
+
+	public NettyConnectionManager(InetAddress bindAddress, int bindPort, int bufferSize, int numInThreads,
+								int numOutThreads, int lowWaterMark, int highWaterMark) {
+
+		this.bindAddress = bindAddress;
+		this.bindPort = bindPort;
+
+		this.bufferSize = bufferSize;
 
 		int defaultNumThreads = Math.max(Runtime.getRuntime().availableProcessors() / 4, 1);
-		numInThreads = (numInThreads == -1) ? defaultNumThreads : numInThreads;
-		numOutThreads = (numOutThreads == -1) ? defaultNumThreads : numOutThreads;
-		LOG.info(String.format("Starting with %d incoming and %d outgoing connection threads.", numInThreads, numOutThreads));
 
-		lowWaterMark = (lowWaterMark == -1) ? bufferSize / 2 : lowWaterMark;
-		highWaterMark = (highWaterMark == -1) ? bufferSize : highWaterMark;
+		this.numInThreads = (numInThreads == -1) ? defaultNumThreads : numInThreads;
+		this.numOutThreads = (numOutThreads == -1) ? defaultNumThreads : numOutThreads;
+
+		this.lowWaterMark = (lowWaterMark == -1) ? bufferSize / 2 : lowWaterMark;
+		this.highWaterMark = (highWaterMark == -1) ? bufferSize : highWaterMark;
+	}
+
+	@Override
+	public void start(ChannelManager channelManager) throws IOException {
+		LOG.info(String.format("Starting with %d incoming and %d outgoing connection threads.", numInThreads, numOutThreads));
 		LOG.info(String.format("Setting low water mark to %d and high water mark to %d bytes.", lowWaterMark, highWaterMark));
+
+		final BufferProviderBroker bufferProviderBroker = channelManager;
+		final EnvelopeDispatcher envelopeDispatcher = channelManager;
 
 		// --------------------------------------------------------------------
 		// server bootstrap (incoming connections)
 		// --------------------------------------------------------------------
-		this.in = new ServerBootstrap();
-		this.in.group(new NioEventLoopGroup(numInThreads))
+		in = new ServerBootstrap();
+		in.group(new NioEventLoopGroup(numInThreads))
 				.channel(NioServerSocketChannel.class)
 				.localAddress(bindAddress, bindPort)
 				.childHandler(new ChannelInitializer<SocketChannel>() {
 					@Override
 					public void initChannel(SocketChannel channel) throws Exception {
 						channel.pipeline()
-								.addLast(new InboundEnvelopeDecoder(NettyConnectionManager.this.channelManager))
-								.addLast(new InboundEnvelopeDispatcherHandler(NettyConnectionManager.this.channelManager));
+								.addLast(new InboundEnvelopeDecoder(bufferProviderBroker))
+								.addLast(new InboundEnvelopeDispatcher(envelopeDispatcher));
 					}
 				})
 				.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(bufferSize))
@@ -91,8 +113,8 @@ public class NettyConnectionManager {
 		// --------------------------------------------------------------------
 		// client bootstrap (outgoing connections)
 		// --------------------------------------------------------------------
-		this.out = new Bootstrap();
-		this.out.group(new NioEventLoopGroup(numOutThreads))
+		out = new Bootstrap();
+		out.group(new NioEventLoopGroup(numOutThreads))
 				.channel(NioSocketChannel.class)
 				.handler(new ChannelInitializer<SocketChannel>() {
 					@Override
@@ -108,9 +130,9 @@ public class NettyConnectionManager {
 				.option(ChannelOption.SO_KEEPALIVE, true);
 
 		try {
-			this.in.bind().sync();
+			in.bind().sync();
 		} catch (InterruptedException e) {
-			throw new RuntimeException("Could not bind server socket for incoming connections.");
+			throw new IOException(e);
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -119,16 +141,14 @@ public class NettyConnectionManager {
 				public void run() {
 					Date date = new Date();
 
-
 					while (true) {
 						try {
 							Thread.sleep(DEBUG_PRINT_QUEUED_ENVELOPES_EVERY_MS);
 
 							date.setTime(System.currentTimeMillis());
+
 							System.out.println(date);
-
 							System.out.println(getNonZeroNumQueuedEnvelopes());
-
 						} catch (InterruptedException e) {
 							e.printStackTrace();
 						}
@@ -138,18 +158,7 @@ public class NettyConnectionManager {
 		}
 	}
 
-	public void shutdown() {
-		Future<?> inShutdownFuture = this.in.group().shutdownGracefully();
-		Future<?> outShutdownFuture = this.out.group().shutdownGracefully();
-
-		try {
-			inShutdownFuture.sync();
-			outShutdownFuture.sync();
-		} catch (InterruptedException e) {
-			throw new RuntimeException("Could not properly shutdown connections.");
-		}
-	}
-
+	@Override
 	public void enqueue(Envelope envelope, RemoteReceiver receiver) throws IOException {
 		// Get the channel. The channel may be
 		// 1) a channel that already exists (usual case) -> just send the data
@@ -198,6 +207,29 @@ public class NettyConnectionManager {
 		channel.enqueue(envelope);
 	}
 
+	@Override
+	public void shutdown() throws IOException {
+		if (!in.group().isShuttingDown()) {
+			LOG.info("Shutting down incoming connections.");
+
+			try {
+				in.group().shutdownGracefully().sync();
+			} catch (InterruptedException e) {
+				throw new IOException(e);
+			}
+		}
+
+		if (!out.group().isShuttingDown()) {
+			LOG.info("Shutting down outgoing connections.");
+
+			try {
+				out.group().shutdownGracefully().sync();
+			} catch (InterruptedException e) {
+				throw new IOException(e);
+			}
+		}
+	}
+
 	private String getNonZeroNumQueuedEnvelopes() {
 		StringBuilder str = new StringBuilder();
 
@@ -211,9 +243,10 @@ public class NettyConnectionManager {
 				OutboundConnectionQueue queue = (OutboundConnectionQueue) value;
 				if (queue.getNumQueuedEnvelopes() > 0) {
 					str.append(String.format("%s> Number of queued envelopes for %s with channel %s: %d\n",
-							Thread.currentThread().getId(), receiver, queue.getChannel(), queue.getNumQueuedEnvelopes()));
+							Thread.currentThread().getId(), receiver, queue.toString(), queue.getNumQueuedEnvelopes()));
 				}
-			} else if (value instanceof ChannelInBuildup) {
+			}
+			else if (value instanceof ChannelInBuildup) {
 				str.append(String.format("%s> Connection to %s is still in buildup\n",
 						Thread.currentThread().getId(), receiver));
 			}
@@ -226,13 +259,13 @@ public class NettyConnectionManager {
 
 	private static final class ChannelInBuildup implements ChannelFutureListener {
 
-		private Object lock = new Object();
+		private final Object lock = new Object();
 
 		private volatile OutboundConnectionQueue channel;
 
 		private volatile Throwable error;
 
-		private int numRetries = 2;
+		private int numRetries = 3;
 
 		private final Bootstrap out;
 

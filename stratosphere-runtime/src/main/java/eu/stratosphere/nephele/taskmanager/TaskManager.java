@@ -38,6 +38,10 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import eu.stratosphere.nephele.ExecutionMode;
+import eu.stratosphere.runtime.io.network.LocalConnectionManager;
+import eu.stratosphere.runtime.io.network.NetworkConnectionManager;
+import eu.stratosphere.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
@@ -155,10 +159,11 @@ public class TaskManager implements TaskOperationProtocol {
 	 * receive an initial configuration. All parameters are obtained from the 
 	 * {@link GlobalConfiguration}, which must be loaded prior to instantiating the task manager.
 	 */
-	public TaskManager() throws Exception {
+	public TaskManager(ExecutionMode executionMode) throws Exception {
 		
 		LOG.info("TaskManager started as user " + UserGroupInformation.getCurrentUser().getShortUserName());
 		LOG.info("User system property: " + System.getProperty("user.name"));
+		LOG.info("Execution mode: " + executionMode);
 		
 		// IMPORTANT! At this point, the GlobalConfiguration must have been read!
 		
@@ -286,27 +291,40 @@ public class TaskManager implements TaskOperationProtocol {
 				ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
 				ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE);
 
-		int numInThreads = GlobalConfiguration.getInteger(
-				ConfigConstants.TASK_MANAGER_NET_NUM_IN_THREADS_KEY,
-				ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_IN_THREADS);
 
-		int numOutThreads = GlobalConfiguration.getInteger(
-				ConfigConstants.TASK_MANAGER_NET_NUM_OUT_THREADS_KEY,
-				ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_OUT_THREADS);
-
-		int lowWaterMark = GlobalConfiguration.getInteger(
-				ConfigConstants.TASK_MANAGER_NET_NETTY_LOW_WATER_MARK,
-				ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_LOW_WATER_MARK);
-
-		int highWaterMark = GlobalConfiguration.getInteger(
-				ConfigConstants.TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK,
-				ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK);
 
 		// Initialize the channel manager
 		try {
-			this.channelManager = new ChannelManager(
-					this.lookupService, this.localInstanceConnectionInfo,
-					numBuffers, bufferSize, numInThreads, numOutThreads, lowWaterMark, highWaterMark);
+			NetworkConnectionManager networkConnectionManager = null;
+
+			switch (executionMode) {
+				case LOCAL:
+					networkConnectionManager = new LocalConnectionManager();
+					break;
+				case CLUSTER:
+					int numInThreads = GlobalConfiguration.getInteger(
+							ConfigConstants.TASK_MANAGER_NET_NUM_IN_THREADS_KEY,
+							ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_IN_THREADS);
+
+					int numOutThreads = GlobalConfiguration.getInteger(
+							ConfigConstants.TASK_MANAGER_NET_NUM_OUT_THREADS_KEY,
+							ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_OUT_THREADS);
+
+					int lowWaterMark = GlobalConfiguration.getInteger(
+							ConfigConstants.TASK_MANAGER_NET_NETTY_LOW_WATER_MARK,
+							ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_LOW_WATER_MARK);
+
+					int highWaterMark = GlobalConfiguration.getInteger(
+							ConfigConstants.TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK,
+							ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK);
+
+					networkConnectionManager = new NettyConnectionManager(
+							localInstanceConnectionInfo.address(), localInstanceConnectionInfo.dataPort(),
+							bufferSize, numInThreads, numOutThreads, lowWaterMark, highWaterMark);
+					break;
+			}
+
+			channelManager = new ChannelManager(lookupService, localInstanceConnectionInfo, numBuffers, bufferSize, networkConnectionManager);
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
 			throw new Exception("Failed to instantiate channel manager. " + ioe.getMessage(), ioe);
@@ -436,7 +454,7 @@ public class TaskManager implements TaskOperationProtocol {
 		
 		// Create a new task manager object
 		try {
-			new TaskManager();
+			new TaskManager(ExecutionMode.CLUSTER);
 		} catch (Exception e) {
 			LOG.fatal("Taskmanager startup failed: " + e.getMessage(), e);
 			System.exit(FAILURE_RETURN_CODE);
@@ -910,8 +928,12 @@ public class TaskManager implements TaskOperationProtocol {
 			this.profiler.shutdown();
 		}
 
-		// Shut down the network channel manager
-		this.channelManager.shutdown();
+		// Shut down the channel manager
+		try {
+			this.channelManager.shutdown();
+		} catch (IOException e) {
+			LOG.warn("ChannelManager did not shutdown properly: " + e.getMessage(), e);
+		}
 
 		// Shut down the memory manager
 		if (this.ioManager != null) {

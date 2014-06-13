@@ -37,7 +37,6 @@ import eu.stratosphere.runtime.io.network.bufferprovider.LocalBufferPoolOwner;
 import eu.stratosphere.runtime.io.gates.GateID;
 import eu.stratosphere.runtime.io.gates.InputGate;
 import eu.stratosphere.runtime.io.gates.OutputGate;
-import eu.stratosphere.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -66,7 +65,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 
 	private final GlobalBufferPool globalBufferPool;
 
-	private final NettyConnectionManager nettyConnectionManager;
+	private final NetworkConnectionManager networkConnectionManager;
 	
 	private final InetSocketAddress ourAddress;
 	
@@ -75,18 +74,15 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 	// -----------------------------------------------------------------------------------------------------------------
 
 	public ChannelManager(ChannelLookupProtocol channelLookupService, InstanceConnectionInfo connectionInfo,
-						int numNetworkBuffers, int networkBufferSize,
-						int numInThreads, int numOutThreads,
-						int lowWatermark, int highWaterMark) throws IOException {
+			int numNetworkBuffers, int networkBufferSize, NetworkConnectionManager networkConnectionManager) throws IOException {
 
 		this.channelLookupService = channelLookupService;
 		this.connectionInfo = connectionInfo;
 
 		this.globalBufferPool = new GlobalBufferPool(numNetworkBuffers, networkBufferSize);
 
-		this.nettyConnectionManager = new NettyConnectionManager(
-				this, connectionInfo.address(), connectionInfo.dataPort(),
-				networkBufferSize, numInThreads, numOutThreads, lowWatermark, highWaterMark);
+		this.networkConnectionManager = networkConnectionManager;
+		networkConnectionManager.start(this);
 
 		// management data structures
 		this.channels = new ConcurrentHashMap<ChannelID, Channel>();
@@ -99,8 +95,9 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		this.discardBufferPool = new DiscardBufferPool();
 	}
 
-	public void shutdown() {
-		this.nettyConnectionManager.shutdown();
+	public void shutdown() throws IOException {
+		this.networkConnectionManager.shutdown();
+
 		this.globalBufferPool.destroy();
 	}
 
@@ -324,7 +321,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		final RemoteReceiver ourAddress = new RemoteReceiver(this.ourAddress, connectionIndex);
 		final Envelope senderHint = SenderHintEvent.createEnvelopeWithEvent(envelope, targetChannelID, ourAddress);
 
-		this.nettyConnectionManager.enqueue(senderHint, receiver);
+		this.networkConnectionManager.enqueue(senderHint, receiver);
 	}
 
 	/**
@@ -459,7 +456,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 					generateSenderHint(envelope, remoteReceiver);
 				}
 
-				this.nettyConnectionManager.enqueue(envelope, remoteReceiver);
+				this.networkConnectionManager.enqueue(envelope, remoteReceiver);
 				success = true;
 			}
 		} finally {
@@ -507,7 +504,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 				generateSenderHint(envelope, remoteReceiver);
 			}
 
-			this.nettyConnectionManager.enqueue(envelope, remoteReceiver);
+			this.networkConnectionManager.enqueue(envelope, remoteReceiver);
 		}
 	}
 

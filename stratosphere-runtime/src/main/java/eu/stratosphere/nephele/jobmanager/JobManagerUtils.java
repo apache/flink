@@ -16,11 +16,11 @@ package eu.stratosphere.nephele.jobmanager;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
+import eu.stratosphere.nephele.ExecutionMode;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.instance.InstanceManager;
-import eu.stratosphere.nephele.jobmanager.JobManager.ExecutionMode;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.util.StringUtils;
 
