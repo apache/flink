@@ -42,7 +42,8 @@ public class StringComparatorTest extends ComparatorTestBase<String> {
 			"accd",
 			"bbcd",
 			"bbcde",
-			((char)128)+""+((char)32896)
+			((char)128)+""+((char)32896),
+			((char)128)+""+((char)32897)
 		};
 	}
 }

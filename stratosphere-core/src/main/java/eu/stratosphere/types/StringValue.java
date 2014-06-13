@@ -874,9 +874,14 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		}
 
 	}
-
+	
+	/**
+	Writes the given int variable-length encoded to the given DataOutput. NOT adjusted for null offset.
+	@param lenToWrite int to write
+	@param out output
+	@throws IOException 
+	*/
 	private static void writeLength(int lenToWrite, DataOutput out) throws IOException {
-		// the length we write is offset by one, because a length of zero indicates a null value
 		if (lenToWrite < 0) {
 			throw new IllegalArgumentException("CharSequence is too long.");
 		}
@@ -908,8 +913,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 			int r = 0;
 			int c;
 			while ((c = in.readUnsignedByte()) >= HIGH_BIT) {
-				c &= 0x7F;
-				r |= c;
+				r |= (c & 0x7F) ;
 				r <<= 7;
 			}
 			r |= c;
@@ -918,7 +922,13 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		}
 		return new String(data, 0, len);
 	}
-
+	
+	/**
+	Reads a variable-length encoded int from the given DataInput. Adjusted for null offset.
+	@param in input
+	@return read int
+	@throws IOException 
+	*/
 	private static int readLength(DataInput in) throws IOException {
 		// the length we read is offset by one, because a length of zero indicates a null value
 		int len = in.readUnsignedByte();
