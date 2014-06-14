@@ -52,6 +52,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.NodeReport;
+import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.api.records.QueueInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -338,6 +339,26 @@ public class Client {
 			yarnClient.stop();
 			System.exit(1);
 		}
+		int totalMemoryRequired = jmMemory + tmMemory * taskManagerCount;
+		ClusterResourceDescription freeClusterMem = getCurrentFreeClusterResources(yarnClient);
+		if(freeClusterMem.totalFreeMemory < totalMemoryRequired) {
+			LOG.fatal("This YARN session requires "+totalMemoryRequired+"MB of memory in the cluster. "
+					+ "There are currently only "+freeClusterMem.totalFreeMemory+"MB available.");
+			yarnClient.stop();
+			System.exit(1);
+		}
+		if( tmMemory > freeClusterMem.containerLimit) {
+			LOG.fatal("The requested amount of memory for the TaskManagers ("+tmMemory+"MB) is more than "
+					+ "the largest possible YARN container: "+freeClusterMem.containerLimit);
+			yarnClient.stop();
+			System.exit(1);
+		}
+		if( jmMemory > freeClusterMem.containerLimit) {
+			LOG.fatal("The requested amount of memory for the JobManager ("+jmMemory+"MB) is more than "
+					+ "the largest possible YARN container: "+freeClusterMem.containerLimit);
+			yarnClient.stop();
+			System.exit(1);
+		}
 		
 		// respect custom JVM options in the YAML file
 		final String javaOpts = GlobalConfiguration.getString(ConfigConstants.STRATOSPHERE_JVM_OPTIONS, "");
@@ -495,6 +516,24 @@ public class Client {
 		}
 		
 	}
+	private static class ClusterResourceDescription {
+		public int totalFreeMemory;
+		public int containerLimit;
+	}
+	private ClusterResourceDescription getCurrentFreeClusterResources(YarnClient yarnClient) throws YarnException, IOException {
+		ClusterResourceDescription crd = new ClusterResourceDescription();
+		crd.totalFreeMemory = 0;
+		crd.containerLimit = 0;
+		List<NodeReport> nodes = yarnClient.getNodeReports(NodeState.RUNNING);
+		for(NodeReport rep : nodes) {
+			int free = rep.getCapability().getMemory() - (rep.getUsed() != null ? rep.getUsed().getMemory() : 0 );
+			crd.totalFreeMemory += free;
+			if(free > crd.containerLimit) {
+				crd.containerLimit = free;
+			}
+		}
+		return crd;
+	}
 
 	private void printUsage() {
 		System.out.println("Usage:");
@@ -523,8 +562,8 @@ public class Client {
 	private void showClusterMetrics(YarnClient yarnClient)
 			throws YarnException, IOException {
 		YarnClusterMetrics metrics = yarnClient.getYarnClusterMetrics();
-		System.out.println("NodeManagers in Cluster " + metrics.getNumNodeManagers());
-		List<NodeReport> nodes = yarnClient.getNodeReports();
+		System.out.println("NodeManagers in the Cluster " + metrics.getNumNodeManagers());
+		List<NodeReport> nodes = yarnClient.getNodeReports(NodeState.RUNNING);
 		final String format = "|%-16s |%-16s %n";
 		System.out.printf("|Property         |Value          %n");
 		System.out.println("+---------------------------------------+");
