@@ -41,8 +41,10 @@ import eu.stratosphere.api.common.functions.GenericReduce;
  * @param <IN> Type of the elements that this function processes.
  */
 public abstract class ReduceFunction<T> extends AbstractFunction implements GenericReduce<T> {
-	
+
 	private static final long serialVersionUID = 1L;
+
+	private T initialValue;
 
 	/**
 	 * The core method of the ReduceFunction, combining two values into one value of the same type.
@@ -56,4 +58,14 @@ public abstract class ReduceFunction<T> extends AbstractFunction implements Gene
 	 *                   to fail and may trigger recovery.
 	 */
 	public abstract T reduce(T value1, T value2) throws Exception;
+
+	@Override
+	public void setInitialValue(T value) {
+		initialValue = value;
+	}
+
+	@Override
+	public T getInitialValue() {
+		return initialValue;
+	}
 }

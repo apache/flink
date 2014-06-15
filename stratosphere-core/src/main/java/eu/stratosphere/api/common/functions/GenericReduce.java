@@ -13,8 +13,12 @@
 
 package eu.stratosphere.api.common.functions;
 
-
 public interface GenericReduce<T> extends Function {
-	
+
 	T reduce(T value1, T value2) throws Exception;
+
+	T getInitialValue();
+
+	void setInitialValue(T value);
+
 }
