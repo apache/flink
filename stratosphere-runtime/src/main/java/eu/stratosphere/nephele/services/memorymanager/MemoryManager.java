@@ -72,7 +72,8 @@ public interface MemoryManager {
 
 	/**
 	 * Returns the total size of memory.
-	 * @return
+	 * 
+	 * @return The total size of memory.
 	 */
 	long getMemorySize();
 	
@@ -88,8 +89,9 @@ public interface MemoryManager {
 
 	/**
 	 * Computes the memory size of the fraction per slot.
-	 * @param fraction
-	 * @return
+	 * 
+	 * @param fraction The fraction of the memory of the task slot.
+	 * @return The number of pages corresponding to the memory fraction.
 	 */
 	long computeMemorySize(double fraction);
 	

@@ -13,26 +13,20 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import java.util.List;
-
 import eu.stratosphere.api.common.functions.GenericJoiner;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
-import eu.stratosphere.core.memory.MemorySegment;
-import eu.stratosphere.pact.runtime.hash.MutableHashTable;
+import eu.stratosphere.pact.runtime.hash.BuildFirstReOpenableHashMatchIterator;
+import eu.stratosphere.pact.runtime.hash.BuildSecondReOpenableHashMatchIterator;
+import eu.stratosphere.pact.runtime.task.util.JoinTaskIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
 public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends MatchDriver<IT1, IT2, OT> implements ResettablePactDriver<GenericJoiner<IT1, IT2, OT>, OT> {
-	
-	/**
-	 * We keep it without generic parameters, because they vary depending on which input is the build side.
-	 */
-	protected volatile MutableHashTable<?, ?> hashJoin;
 
+	private volatile JoinTaskIterator<IT1, IT2, OT> matchIterator;
 	
 	private final int buildSideIndex;
 	
@@ -67,23 +61,39 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 		TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = 
 				this.taskContext.getTaskConfig().getPairComparatorFactory(this.taskContext.getUserCodeClassLoader());
 
-		int numMemoryPages = this.taskContext.getMemoryManager().computeNumberOfPages(config.getRelativeMemoryDriver());
-		List<MemorySegment> memSegments = this.taskContext.getMemoryManager().allocatePages(
-			this.taskContext.getOwningNepheleTask(), numMemoryPages);
+		double availableMemory = config.getRelativeMemoryDriver();
 
 		if (buildSideIndex == 0 && probeSideIndex == 1) {
-			MutableHashTable<IT1, IT2> hashJoin = new MutableHashTable<IT1, IT2>(serializer1, serializer2, comparator1, comparator2,
-					pairComparatorFactory.createComparator21(comparator1, comparator2), memSegments, this.taskContext.getIOManager());
-			this.hashJoin = hashJoin;
-			hashJoin.open(input1, EmptyMutableObjectIterator.<IT2>get());
+			
+			matchIterator = 
+					new BuildFirstReOpenableHashMatchIterator<IT1, IT2, OT>(input1, input2, 
+							serializer1, comparator1, 
+							serializer2, comparator2, 
+							pairComparatorFactory.createComparator21(comparator1, comparator2), 
+							this.taskContext.getMemoryManager(),
+							this.taskContext.getIOManager(),
+							this.taskContext.getOwningNepheleTask(),
+							availableMemory
+							);
+			
 		} else if (buildSideIndex == 1 && probeSideIndex == 0) {
-			MutableHashTable<IT2, IT1> hashJoin = new MutableHashTable<IT2, IT1>(serializer2, serializer1, comparator2, comparator1,
-					pairComparatorFactory.createComparator12(comparator1, comparator2), memSegments, this.taskContext.getIOManager());
-			this.hashJoin = hashJoin;
-			hashJoin.open(input2, EmptyMutableObjectIterator.<IT1>get());
+
+			matchIterator = 
+					new BuildSecondReOpenableHashMatchIterator<IT1, IT2, OT>(input1, input2, 
+							serializer1, comparator1, 
+							serializer2, comparator2, 
+							pairComparatorFactory.createComparator12(comparator1, comparator2), 
+							this.taskContext.getMemoryManager(),
+							this.taskContext.getIOManager(),
+							this.taskContext.getOwningNepheleTask(),
+							availableMemory
+							);
+			
 		} else {
 			throw new Exception("Error: Inconcistent setup for repeatable hash join driver.");
 		}
+		
+		this.matchIterator.open();
 	}
 
 	@Override
@@ -98,63 +108,17 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		if (buildSideIndex == 0) {
-			final TypeSerializer<IT1> buildSideSerializer = taskContext.<IT1> getInputSerializer(0).getSerializer();
-			final TypeSerializer<IT2> probeSideSerializer = taskContext.<IT2> getInputSerializer(1).getSerializer();
 			
-			IT1 buildSideRecordFirst;
-			IT1 buildSideRecordOther;
-			IT2 probeSideRecord;
-			IT2 probeSideRecordCopy;
-			final IT1 buildSideRecordFirstReuse = buildSideSerializer.createInstance();
-			final IT1 buildSideRecordOtherReuse = buildSideSerializer.createInstance();
-			final IT2 probeSideRecordReuse = probeSideSerializer.createInstance();
-			final IT2 probeSideRecordCopyReuse = probeSideSerializer.createInstance();
+			final BuildFirstReOpenableHashMatchIterator<IT1, IT2, OT> matchIterator = (BuildFirstReOpenableHashMatchIterator<IT1, IT2, OT>) this.matchIterator;
 			
-			@SuppressWarnings("unchecked")
-			final MutableHashTable<IT1, IT2> join = (MutableHashTable<IT1, IT2>) this.hashJoin;
+			while (this.running && matchIterator != null && matchIterator.callWithNextKey(matchStub, collector));
 			
-			final MutableObjectIterator<IT2> probeSideInput = taskContext.<IT2>getInput(1);
-			
-			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecordReuse)) != null)) {
-				final MutableHashTable.HashBucketIterator<IT1, IT2> bucket = join.getMatchesFor(probeSideRecord);
-				
-				if ((buildSideRecordFirst = bucket.next(buildSideRecordFirstReuse)) != null) {
-					while ((buildSideRecordOther = bucket.next(buildSideRecordOtherReuse)) != null) {
-						probeSideRecordCopy = probeSideSerializer.copy(probeSideRecord, probeSideRecordCopyReuse);
-						matchStub.join(buildSideRecordOther, probeSideRecordCopy, collector);
-					}
-					matchStub.join(buildSideRecordFirst, probeSideRecord, collector);
-				}
-			}
 		} else if (buildSideIndex == 1) {
-			final TypeSerializer<IT2> buildSideSerializer = taskContext.<IT2>getInputSerializer(1).getSerializer();
-			final TypeSerializer<IT1> probeSideSerializer = taskContext.<IT1>getInputSerializer(0).getSerializer();
 			
-			IT2 buildSideRecordFirst;
-			IT2 buildSideRecordOther;
-			IT1 probeSideRecord;
-			IT1 probeSideRecordCopy;
-			final IT2 buildSideRecordFirstReuse = buildSideSerializer.createInstance();
-			final IT2 buildSideRecordOtherReuse = buildSideSerializer.createInstance();
-			final IT1 probeSideRecordReuse = probeSideSerializer.createInstance();
-			final IT1 probeSideRecordCopyReuse = probeSideSerializer.createInstance();
-
-			@SuppressWarnings("unchecked")
-			final MutableHashTable<IT2, IT1> join = (MutableHashTable<IT2, IT1>) this.hashJoin;
+			final BuildSecondReOpenableHashMatchIterator<IT1, IT2, OT> matchIterator = (BuildSecondReOpenableHashMatchIterator<IT1, IT2, OT>) this.matchIterator;
 			
-			final MutableObjectIterator<IT1> probeSideInput = taskContext.<IT1>getInput(0);
+			while (this.running && matchIterator != null && matchIterator.callWithNextKey(matchStub, collector));
 			
-			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecordReuse)) != null)) {
-				final MutableHashTable.HashBucketIterator<IT2, IT1> bucket = join.getMatchesFor(probeSideRecord);
-				
-				if ((buildSideRecordFirst = bucket.next(buildSideRecordFirstReuse)) != null) {
-					while ((buildSideRecordOther = bucket.next(buildSideRecordOtherReuse)) != null) {
-						probeSideRecordCopy = probeSideSerializer.copy(probeSideRecord, probeSideRecordCopyReuse);
-						matchStub.join(probeSideRecordCopy, buildSideRecordOther, collector);
-					}
-					matchStub.join(probeSideRecord, buildSideRecordFirst, collector);
-				}
-			}
 		} else {
 			throw new Exception();
 		}
@@ -164,21 +128,34 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 	public void cleanup() throws Exception {}
 	
 	@Override
-	public void reset() throws Exception {}
+	public void reset() throws Exception {
+		
+		MutableObjectIterator<IT1> input1 = this.taskContext.getInput(0);
+		MutableObjectIterator<IT2> input2 = this.taskContext.getInput(1);
+		
+		if (buildSideIndex == 0 && probeSideIndex == 1) {
+			final BuildFirstReOpenableHashMatchIterator<IT1, IT2, OT> matchIterator = (BuildFirstReOpenableHashMatchIterator<IT1, IT2, OT>) this.matchIterator;
+			matchIterator.reopenProbe(input2);
+		}
+		else {
+			final BuildSecondReOpenableHashMatchIterator<IT1, IT2, OT> matchIterator = (BuildSecondReOpenableHashMatchIterator<IT1, IT2, OT>) this.matchIterator;
+			matchIterator.reopenProbe(input1);
+		}
+	}
 
 	@Override
 	public void teardown() {
-		MutableHashTable<?, ?> ht = this.hashJoin;
-		if (ht != null) {
-			ht.close();
+		this.running = false;
+		if (this.matchIterator != null) {
+			this.matchIterator.close();
 		}
 	}
 
 	@Override
 	public void cancel() {
 		this.running = false;
-		if (this.hashJoin != null) {
-			this.hashJoin.close();
+		if (this.matchIterator != null) {
+			this.matchIterator.abort();
 		}
 	}
 }

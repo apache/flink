@@ -56,7 +56,7 @@ public class HashJoinBuildFirstProperties extends AbstractJoinDescriptor {
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
 		DriverStrategy strategy;
 		
-		if(!in1.isOnDynamicPath() && in1.isInsideIteration() && in2.isInsideIteration()) {
+		if(!in1.isOnDynamicPath() && in2.isOnDynamicPath()) {
 			strategy = DriverStrategy.HYBRIDHASH_BUILD_FIRST_CACHED;
 		}
 		else {

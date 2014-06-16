@@ -26,17 +26,17 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.util.MutableObjectIterator;
 
-public class BuildFirstReOpenableHashMatchIterator<V1, V2, O> extends BuildFirstHashMatchIterator<V1, V2, O> {
+public class BuildSecondReOpenableHashMatchIterator<V1, V2, O> extends BuildSecondHashMatchIterator<V1, V2, O> {
 
 	
-	private final ReOpenableMutableHashTable<V1, V2> reopenHashTable;
+	private final ReOpenableMutableHashTable<V2, V1> reopenHashTable;
 	
-	public BuildFirstReOpenableHashMatchIterator(
+	public BuildSecondReOpenableHashMatchIterator(
 			MutableObjectIterator<V1> firstInput,
 			MutableObjectIterator<V2> secondInput,
 			TypeSerializer<V1> serializer1, TypeComparator<V1> comparator1,
 			TypeSerializer<V2> serializer2, TypeComparator<V2> comparator2,
-			TypePairComparator<V2, V1> pairComparator,
+			TypePairComparator<V1, V2> pairComparator,
 			MemoryManager memManager,
 			IOManager ioManager,
 			AbstractInvokable ownerTask,
@@ -44,9 +44,8 @@ public class BuildFirstReOpenableHashMatchIterator<V1, V2, O> extends BuildFirst
 		throws MemoryAllocationException
 	{
 		super(firstInput, secondInput, serializer1, comparator1, serializer2,
-				comparator2, pairComparator, memManager, ioManager, ownerTask,
-				memoryFraction);
-		reopenHashTable = (ReOpenableMutableHashTable<V1, V2>) hashJoin;
+				comparator2, pairComparator, memManager, ioManager, ownerTask, memoryFraction);
+		reopenHashTable = (ReOpenableMutableHashTable<V2, V1>) hashJoin;
 	}
 
 	@Override
@@ -65,7 +64,7 @@ public class BuildFirstReOpenableHashMatchIterator<V1, V2, O> extends BuildFirst
 	 * Set new input for probe side
 	 * @throws IOException 
 	 */
-	public void reopenProbe(MutableObjectIterator<V2> probeInput) throws IOException {
+	public void reopenProbe(MutableObjectIterator<V1> probeInput) throws IOException {
 		reopenHashTable.reopenProbe(probeInput);
 	}
 

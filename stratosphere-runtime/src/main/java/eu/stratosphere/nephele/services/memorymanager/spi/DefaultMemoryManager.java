@@ -394,8 +394,8 @@ public class DefaultMemoryManager implements MemoryManager {
 	}
 
 	private final int getRelativeNumPages(double fraction){
-		if(fraction < 0){
-			throw new IllegalArgumentException("The fraction of memory to allocate must not be negative.");
+		if (fraction <= 0 || fraction > 1) {
+			throw new IllegalArgumentException("The fraction of memory to allocate must within (0, 1].");
 		}
 
 		return (int)(this.totalNumPages * fraction / this.numberOfSlots);

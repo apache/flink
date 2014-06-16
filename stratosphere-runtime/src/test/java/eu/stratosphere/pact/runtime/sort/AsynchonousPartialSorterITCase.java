@@ -128,7 +128,7 @@ public class AsynchonousPartialSorterITCase {
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
 			Sorter<Record> sorter = new AsynchronousPartialSorter<Record>(this.memoryManager, source,
-				this.parentTask, this.serializer, this.comparator, 1.0);
+				this.parentTask, this.serializer, this.comparator, 0.2);
 	
 			runPartialSorter(sorter, NUM_RECORDS, 2);
 		}
@@ -151,9 +151,9 @@ public class AsynchonousPartialSorterITCase {
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
 			Sorter<Record> sorter = new AsynchronousPartialSorter<Record>(this.memoryManager, source,
-				this.parentTask, this.serializer, this.comparator, 1.0);
+				this.parentTask, this.serializer, this.comparator, 0.15);
 	
-			runPartialSorter(sorter, NUM_RECORDS, 28);
+			runPartialSorter(sorter, NUM_RECORDS, 27);
 		}
 		catch (Exception t) {
 			t.printStackTrace();

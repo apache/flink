@@ -53,7 +53,7 @@ public final class HashJoinBuildSecondProperties extends AbstractJoinDescriptor 
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
 		DriverStrategy strategy;
 		
-		if(!in2.isOnDynamicPath() && in1.isInsideIteration() && in2.isInsideIteration()) {
+		if(!in2.isOnDynamicPath() && in1.isOnDynamicPath()) {
 			strategy = DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED;
 		}
 		else {

@@ -35,6 +35,7 @@ import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializerFactory
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
+import eu.stratosphere.pact.runtime.task.ResettablePactDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
@@ -194,14 +195,46 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 				catch (Throwable t) {}
 			}
 			
+			// if resettable driver invoke treardown
+			if (this.driver instanceof ResettablePactDriver) {
+				final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
+				try {
+					resDriver.teardown();
+				} catch (Throwable t) {
+					throw new Exception("Error while shutting down an iterative operator: " + t.getMessage(), t);
+				}
+			}
+			
 			// drop exception, if the task was canceled
 			if (this.running) {
 				throw ex;
 			}
+			
 		}
 		finally {
 			driver.cleanup();
 		}
+	}
+	
+	@SuppressWarnings({"unchecked","rawtypes"})
+	public void testResettableDriver(ResettablePactDriver driver, Class stubClass, int iterations) throws Exception {
+
+		driver.setup(this);
+		
+		for(int i = 0; i < iterations; i++) {
+			
+			if(i == 0) {
+				driver.initialize();
+			}
+			else {
+				driver.reset();
+			}
+			
+			testDriver(driver, stubClass);
+			
+		}
+		
+		driver.teardown();
 	}
 	
 	public void cancel() throws Exception {

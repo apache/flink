@@ -34,9 +34,9 @@ import eu.stratosphere.util.MutableObjectIterator;
  * An implementation of the {@link eu.stratosphere.pact.runtime.task.util.JoinTaskIterator} that uses a hybrid-hash-join
  * internally to match the records with equal key. The build side of the hash is the second input of the match.  
  */
-public final class BuildSecondHashMatchIterator<V1, V2, O> implements JoinTaskIterator<V1, V2, O> {
+public class BuildSecondHashMatchIterator<V1, V2, O> implements JoinTaskIterator<V1, V2, O> {
 	
-	private final MutableHashTable<V2, V1> hashJoin;
+	protected final MutableHashTable<V2, V1> hashJoin;
 	
 	private final V2 nextBuildSideObject;
 	
@@ -44,7 +44,7 @@ public final class BuildSecondHashMatchIterator<V1, V2, O> implements JoinTaskIt
 	
 	private final V1 probeCopy;
 	
-	private final TypeSerializer<V1> probeSideSerializer;
+	protected final TypeSerializer<V1> probeSideSerializer;
 	
 	private final MemoryManager memManager;
 	

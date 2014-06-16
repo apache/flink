@@ -34,8 +34,6 @@ import eu.stratosphere.util.MutableObjectIterator;
  */
 public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E> {
 	
-	private static final int MAX_MEM_PER_PARTIAL_SORT = 64 * 1024 * 0124;
-	
 	private BufferQueueIterator bufferIterator;
 	
 	// ------------------------------------------------------------------------
@@ -62,11 +60,7 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E> {
 			double memoryFraction)
 	throws IOException, MemoryAllocationException
 	{
-		super(memoryManager, null, input, parentTask, serializerFactory, comparator, memoryFraction,
-			memoryManager.computeNumberOfPages(memoryFraction) < 2 * MIN_NUM_SORT_MEM_SEGMENTS ? 1 :
-				Math.max((int) Math.ceil(((double) memoryManager.computeMemorySize(memoryFraction)) /
-						MAX_MEM_PER_PARTIAL_SORT),	2),
-			2, 0.0f, true);
+		super(memoryManager, null, input, parentTask, serializerFactory, comparator, memoryFraction, 1, 2, 0.0f, true);
 	}
 	
 
@@ -101,11 +95,6 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E> {
 
 	// ------------------------------------------------------------------------
 
-	/**
-	 * This class implements an iterator over values from a {@link eu.stratosphere.pact.runtime.sort.BufferSortable}.
-	 * The iterator returns the values of a given
-	 * interval.
-	 */
 	private final class BufferQueueIterator implements MutableObjectIterator<E> {
 		
 		private final CircularQueues<E> queues;

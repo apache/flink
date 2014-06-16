@@ -92,8 +92,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	protected boolean onDynamicPath;
 	
-	protected boolean insideIteration;
-	
 	protected List<PlanNode> cachedPlans;	// cache candidates, because the may be accessed repeatedly
 	
 	protected int[][] remappedKeys;
@@ -499,14 +497,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		} else {
 			return -1.0f;
 		}
-	}
-
-	public boolean isInsideIteration() {
-		return insideIteration;
-	}
-
-	public void setInsideIteration(boolean insideIteration) {
-		this.insideIteration = insideIteration;
 	}
 
 	/**

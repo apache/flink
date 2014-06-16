@@ -531,6 +531,16 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				}
 				catch (Throwable t) {}
 			}
+			
+			// if resettable driver invoke treardown
+			if (this.driver instanceof ResettablePactDriver) {
+				final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
+				try {
+					resDriver.teardown();
+				} catch (Throwable t) {
+					throw new Exception("Error while shutting down an iterative operator: " + t.getMessage(), t);
+				}
+			}
 
 			RegularPactTask.cancelChainedTasks(this.chainedTasks);
 
