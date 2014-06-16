@@ -19,7 +19,6 @@ import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.NOT_FOUN
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 
 import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.OptimizerNode;
@@ -92,14 +91,14 @@ public class SolutionSetPlanNode extends PlanNode {
 
 
 	@Override
-	public Iterator<PlanNode> getPredecessors() {
-		return Collections.<PlanNode>emptyList().iterator();
+	public Iterable<PlanNode> getPredecessors() {
+		return Collections.<PlanNode>emptyList();
 	}
 
 
 	@Override
-	public Iterator<Channel> getInputs() {
-		return Collections.<Channel>emptyList().iterator();
+	public Iterable<Channel> getInputs() {
+		return Collections.<Channel>emptyList();
 	}
 
 

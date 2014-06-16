@@ -1,4 +1,5 @@
 /***********************************************************************************************************************
+ *
  * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
@@ -9,27 +10,17 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
+ *
  **********************************************************************************************************************/
-package eu.stratosphere.compiler.plandump;
 
-import eu.stratosphere.compiler.dag.OptimizerNode;
-import eu.stratosphere.compiler.plan.PlanNode;
+package eu.stratosphere.util;
+
+import java.util.Iterator;
 
 /**
- *
+ * An {@link Iterator] that is also {@link Iterable} (often by returning itself).
+ * 
+ * @param <T> The iterated elements' type.
  */
-public interface DumpableNode<T extends DumpableNode<T>> {
-	
-	/**
-	 * Gets an iterator over the predecessors.
-	 * 
-	 * @return An iterator over the predecessors.
-	 */
-	Iterable<T> getPredecessors();
-	
-	Iterable<DumpableConnection<T>> getDumpableInputs();
-	
-	OptimizerNode getOptimizerNode();
-	
-	PlanNode getPlanNode();
+public interface IterableIterator<E> extends Iterator<E>, Iterable<E> {
 }

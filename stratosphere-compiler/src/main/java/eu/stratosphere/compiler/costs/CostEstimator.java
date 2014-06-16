@@ -71,8 +71,7 @@ public abstract class CostEstimator {
 		final long availableMemory = n.getGuaranteedAvailableMemory();
 		
 		// add the shipping strategy costs
-		for (Iterator<Channel> channels = n.getInputs(); channels.hasNext(); ) {
-			final Channel channel = channels.next();
+		for (Channel channel : n.getInputs()) {
 			final Costs costs = new Costs();
 			
 			// Plans that apply the same strategies, but at different points
@@ -139,7 +138,7 @@ public abstract class CostEstimator {
 		
 		// get the inputs, if we have some
 		{
-			Iterator<Channel> channels = n.getInputs();
+			Iterator<Channel> channels = n.getInputs().iterator();
 			if (channels.hasNext()) {
 				firstInput = channels.next();
 			}

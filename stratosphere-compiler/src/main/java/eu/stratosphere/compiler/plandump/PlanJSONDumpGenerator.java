@@ -142,8 +142,7 @@ public class PlanJSONDumpGenerator {
 		this.nodeIds.put(node, this.nodeCnt++);
 		
 		// then recurse
-		for (Iterator<? extends DumpableNode<?>> children = node.getPredecessors(); children.hasNext(); ) {
-			final DumpableNode<?> child = children.next();
+		for (DumpableNode<?> child : node.getPredecessors()) {
 			visit(child, writer, first);
 			first = false;
 		}
@@ -254,7 +253,7 @@ public class PlanJSONDumpGenerator {
 				+ (n.getSubtasksPerInstance() >= 1 ? n.getSubtasksPerInstance() : "default") + "\"");
 
 		// output node predecessors
-		Iterator<? extends DumpableConnection<?>> inConns = node.getDumpableInputs();
+		Iterator<? extends DumpableConnection<?>> inConns = node.getDumpableInputs().iterator();
 		String child1name = "", child2name = "";
 
 		if (inConns != null && inConns.hasNext()) {
@@ -270,8 +269,8 @@ public class PlanJSONDumpGenerator {
 				if (conn.getSource() instanceof NAryUnionPlanNode) {
 					inConnsForInput = new ArrayList<DumpableConnection<?>>();
 					
-					for (Iterator<? extends DumpableConnection<?>> inputOfUnion = conn.getSource().getDumpableInputs(); inputOfUnion.hasNext();) {
-						inConnsForInput.add(inputOfUnion.next());
+					for (DumpableConnection<?> inputOfUnion : conn.getSource().getDumpableInputs()) {
+						inConnsForInput.add(inputOfUnion);
 					}
 				}
 				else {

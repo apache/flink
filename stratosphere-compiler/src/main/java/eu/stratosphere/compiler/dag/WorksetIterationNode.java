@@ -342,8 +342,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		gp.setHashPartitioned(this.solutionSetKeyFields);
 		gp.addUniqueFieldCombination(this.solutionSetKeyFields);
 		
-		final LocalProperties lp = new LocalProperties();
-		lp.addUniqueFields(this.solutionSetKeyFields);
+		LocalProperties lp = LocalProperties.TRIVIAL.addUniqueFields(this.solutionSetKeyFields);
 		
 		// take all combinations of solution set delta and workset plans
 		for (PlanNode solutionSetCandidate : solutionSetDeltaCandidates) {

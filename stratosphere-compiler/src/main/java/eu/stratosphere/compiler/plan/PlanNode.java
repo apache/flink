@@ -15,7 +15,6 @@ package eu.stratosphere.compiler.plan;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -275,8 +274,9 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		this.cumulativeCosts = nodeCosts.clone();
 		
 		// add all the normal inputs
-		for (Iterator<PlanNode> preds = getPredecessors(); preds.hasNext();) {
-			Costs parentCosts = preds.next().getCumulativeCostsShare();
+		for (PlanNode pred : getPredecessors()) {
+			
+			Costs parentCosts = pred.getCumulativeCostsShare();
 			if (parentCosts != null) {
 				this.cumulativeCosts.addCosts(parentCosts);
 			} else {
@@ -325,10 +325,10 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	//                               Input, Predecessors, Successors
 	// --------------------------------------------------------------------------------------------
 	
-	public abstract Iterator<Channel> getInputs();
+	public abstract Iterable<Channel> getInputs();
 	
 	@Override
-	public abstract Iterator<PlanNode> getPredecessors();
+	public abstract Iterable<PlanNode> getPredecessors();
 	
 	/**
 	 * Sets a list of all broadcast inputs attached to this node.
@@ -396,7 +396,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		}
 		for (FieldSet fields : uniqueFieldCombinations) {
 			this.globalProps.addUniqueFieldCombination(fields);
-			this.localProps.addUniqueFields(fields);
+			this.localProps = this.localProps.addUniqueFields(fields);
 		}
 	}
 
@@ -461,19 +461,21 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 
 
 	@Override
-	public Iterator<DumpableConnection<PlanNode>> getDumpableInputs() {
+	public Iterable<DumpableConnection<PlanNode>> getDumpableInputs() {
 		List<DumpableConnection<PlanNode>> allInputs = new ArrayList<DumpableConnection<PlanNode>>();
 		
-		for (Iterator<Channel> inputs = getInputs(); inputs.hasNext();) {
-			allInputs.add(inputs.next());
+		for (Channel c : getInputs()) {
+			allInputs.add(c);
 		}
 		
 		for (NamedChannel c : getBroadcastInputs()) {
 			allInputs.add(c);
 		}
 		
-		return allInputs.iterator();
+		return allInputs;
 	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	public static enum SourceAndDamReport {
 		NOT_FOUND, FOUND_SOURCE, FOUND_SOURCE_AND_DAM;

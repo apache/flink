@@ -74,7 +74,6 @@ public final class PartialGroupProperties extends OperatorDescriptorSingle {
 	
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties lProps) {
-		lProps.clearUniqueFieldSets();
-		return lProps;
+		return lProps.clearUniqueFieldSets();
 	}
 }

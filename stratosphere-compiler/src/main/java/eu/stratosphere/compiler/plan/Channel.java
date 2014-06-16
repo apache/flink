@@ -386,8 +386,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 					break;
 				case SORT:
 				case COMBININGSORT:
-					this.localProps = new LocalProperties();
-					this.localProps.setOrdering(Utils.createOrdering(this.localKeys, this.localSortOrder));
+					this.localProps = LocalProperties.forOrdering(Utils.createOrdering(this.localKeys, this.localSortOrder));
 					break;
 				default:
 					throw new CompilerException("Unsupported local strategy for channel.");

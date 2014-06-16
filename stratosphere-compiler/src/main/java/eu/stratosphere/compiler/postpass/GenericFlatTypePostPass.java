@@ -13,7 +13,6 @@
 
 package eu.stratosphere.compiler.postpass;
 
-import java.util.Iterator;
 import java.util.Map;
 
 import eu.stratosphere.api.common.operators.util.FieldList;
@@ -415,8 +414,8 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 		else if (node instanceof NAryUnionPlanNode) {
 			// only propagate the info down
 			try {
-				for (Iterator<Channel> channels = node.getInputs(); channels.hasNext(); ) {
-					propagateToChannel(parentSchema, channels.next(), createUtilities);
+				for (Channel channel : node.getInputs()) {
+					propagateToChannel(parentSchema, channel, createUtilities);
 				}
 			} catch (MissingFieldTypeInfoException ex) {
 				throw new CompilerPostPassException("Could not set up runtime strategy for the input channel to " +
