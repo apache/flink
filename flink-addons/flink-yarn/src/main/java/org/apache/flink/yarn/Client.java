@@ -20,13 +20,16 @@
 
 package org.apache.flink.yarn;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -47,6 +50,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.yarn.rpc.YARNClientMasterProtocol.Message;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -75,22 +79,23 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 
+
 /**
  * All classes in this package contain code taken from
  * https://github.com/apache/hadoop-common/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-applications/hadoop-yarn-applications-distributedshell/src/main/java/org/apache/hadoop/yarn/applications/distributedshell/Client.java?source=cc
  * and
  * https://github.com/hortonworks/simple-yarn-app
- * and 
+ * and
  * https://github.com/yahoo/storm-yarn/blob/master/src/main/java/com/yahoo/storm/yarn/StormOnYarn.java
- * 
- * The Flink jar is uploaded to HDFS by this client. 
+ *
+ * The Flink jar is uploaded to HDFS by this client.
  * The application master and all the TaskManager containers get the jar file downloaded
  * by YARN into their local fs.
- * 
+ *
  */
 public class Client {
 	private static final Log LOG = LogFactory.getLog(Client.class);
-	
+
 	/**
 	 * Command Line argument options
 	 */
@@ -107,11 +112,11 @@ public class Client {
 	private static final Option TM_CORES = new Option("tmc","taskManagerCores",true, "Virtual CPU cores per TaskManager");
 	private static final Option CONTAINER = new Option("n","container",true, "Number of Yarn container to allocate (=Number of"
 			+ " TaskTrackers)");
-	
+
 	/**
 	 * Constants
 	 */
-	// environment variable names 
+	// environment variable names
 	public final static String ENV_TM_MEMORY = "_CLIENT_TM_MEMORY";
 	public final static String ENV_TM_CORES = "_CLIENT_TM_CORES";
 	public final static String ENV_TM_COUNT = "_CLIENT_TM_COUNT";
@@ -120,15 +125,28 @@ public class Client {
 	public static final String ENV_CLIENT_HOME_DIR = "_CLIENT_HOME_DIR";
 	public static final String ENV_CLIENT_SHIP_FILES = "_CLIENT_SHIP_FILES";
 	public static final String ENV_CLIENT_USERNAME = "_CLIENT_USERNAME";
-	
+	public static final String ENV_AM_PRC_PORT = "_AM_PRC_PORT";
+
 	private static final String CONFIG_FILE_NAME = "flink-conf.yaml";
 
-	
-	
+	/**
+	 * Seconds to wait between each status query to the AM.
+	 */
+	private static final int CLIENT_POLLING_INTERVALL = 3;
+
 	private Configuration conf;
+	private YarnClient yarnClient;
+
+	private ClientMasterControl cmc;
+
+	private ApplicationId appId;
+
+	private File addrFile;
+
+	private Path sessionFilesDir;
 
 	public void run(String[] args) throws Exception {
-		
+
 		if(UserGroupInformation.isSecurityEnabled()) {
 			throw new RuntimeException("Flink YARN client does not have security support right now."
 					+ "File a bug, we will fix it asap");
@@ -149,7 +167,7 @@ public class Client {
 		options.addOption(QUEUE);
 		options.addOption(QUERY);
 		options.addOption(SHIP_PATH);
-		
+
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = null;
 		try {
@@ -159,7 +177,7 @@ public class Client {
 			printUsage();
 			System.exit(1);
 		}
-		
+
 		if (System.getProperty("log4j.configuration") == null) {
 			Logger root = Logger.getRootLogger();
 			root.removeAllAppenders();
@@ -173,8 +191,8 @@ public class Client {
 				root.setLevel(Level.INFO);
 			}
 		}
-		
-		
+
+
 		// Jar Path
 		Path localJarPath;
 		if(cmd.hasOption(FLINK_JAR.getOpt())) {
@@ -186,15 +204,15 @@ public class Client {
 		} else {
 			localJarPath = new Path("file://"+Client.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 		}
-		
+
 		if(cmd.hasOption(GEN_CONF.getOpt())) {
 			LOG.info("Placing default configuration in current directory");
 			File outFile = generateDefaultConf(localJarPath);
 			LOG.info("File written to "+outFile.getAbsolutePath());
 			System.exit(0);
 		}
-		
-		// Conf Path 
+
+		// Conf Path
 		Path confPath = null;
 		String confDirPath = "";
 		if(cmd.hasOption(FLINK_CONF_DIR.getOpt())) {
@@ -207,7 +225,7 @@ public class Client {
 			confPath = new Path(confFile.getAbsolutePath());
 		} else {
 			System.out.println("No configuration file has been specified");
-			
+
 			// no configuration path given.
 			// -> see if there is one in the current directory
 			File currDir = new File(".");
@@ -229,7 +247,7 @@ public class Client {
 					System.exit(1);
 				} else if(candidates.length == 1) {
 					confPath = new Path(candidates[0].toURI());
-				} 
+				}
 			}
 		}
 		List<File> shipFiles = new ArrayList<File>();
@@ -257,25 +275,25 @@ public class Client {
 				hasLog4j = true;
 			}
 		}
-		
+
 		// queue
 		String queue = "default";
 		if(cmd.hasOption(QUEUE.getOpt())) {
 			queue = cmd.getOptionValue(QUEUE.getOpt());
 		}
-		
+
 		// JobManager Memory
 		int jmMemory = 512;
 		if(cmd.hasOption(JM_MEMORY.getOpt())) {
 			jmMemory = Integer.valueOf(cmd.getOptionValue(JM_MEMORY.getOpt()));
 		}
-		
+
 		// Task Managers memory
 		int tmMemory = 1024;
 		if(cmd.hasOption(TM_MEMORY.getOpt())) {
 			tmMemory = Integer.valueOf(cmd.getOptionValue(TM_MEMORY.getOpt()));
 		}
-		
+
 		// Task Managers vcores
 		int tmCores = 1;
 		if(cmd.hasOption(TM_CORES.getOpt())) {
@@ -288,24 +306,24 @@ public class Client {
 			jmPort = ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT;
 		}
 		conf = Utils.initializeYarnConfiguration();
-		
+
 		// intialize HDFS
 		LOG.info("Copy App Master jar from local filesystem and add to local environment");
-		// Copy the application master jar to the filesystem 
-		// Create a local resource to point to the destination jar path 
+		// Copy the application master jar to the filesystem
+		// Create a local resource to point to the destination jar path
 		final FileSystem fs = FileSystem.get(conf);
-		
+
 		if(fs.getScheme().startsWith("file")) {
 			LOG.warn("The file system scheme is '" + fs.getScheme() + "'. This indicates that the "
 					+ "specified Hadoop configuration path is wrong and the sytem is using the default Hadoop configuration values."
 					+ "The Flink YARN client needs to store its files in a distributed file system");
 		}
-		
+
 		// Create yarnClient
 		final YarnClient yarnClient = YarnClient.createYarnClient();
 		yarnClient.init(conf);
 		yarnClient.start();
-		
+
 		// Query cluster for metrics
 		if(cmd.hasOption(QUERY.getOpt())) {
 			showClusterMetrics(yarnClient);
@@ -316,10 +334,10 @@ public class Client {
 			yarnClient.stop();
 			System.exit(1);
 		}
-		
+
 		// TM Count
 		final int taskManagerCount = Integer.valueOf(cmd.getOptionValue(CONTAINER.getOpt()));
-		
+
 		System.out.println("Using values:");
 		System.out.println("\tContainer Count = "+taskManagerCount);
 		System.out.println("\tJar Path = "+localJarPath.toUri().getPath());
@@ -364,31 +382,31 @@ public class Client {
 			yarnClient.stop();
 			System.exit(1);
 		}
-		
+
 		// respect custom JVM options in the YAML file
 		final String javaOpts = GlobalConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
-		
+
 		// Set up the container launch context for the application master
 		ContainerLaunchContext amContainer = Records
 				.newRecord(ContainerLaunchContext.class);
-		
+
 		String amCommand = "$JAVA_HOME/bin/java"
 					+ " -Xmx"+Utils.calculateHeapSize(jmMemory)+"M " +javaOpts;
 		if(hasLog4j) {
 			amCommand 	+= " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/jobmanager-log4j.log\" -Dlog4j.configuration=file:log4j.properties";
 		}
-		amCommand 	+= " org.apache.flink.yarn.ApplicationMaster" + " "
+		amCommand 	+= " org.apache.flink.yarn.appMaster.ApplicationMaster" + " "
 					+ " 1>"
 					+ ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager-stdout.log"
 					+ " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager-stderr.log";
 		amContainer.setCommands(Collections.singletonList(amCommand));
-		
+
 		System.err.println("amCommand="+amCommand);
-		
+
 		// Set-up ApplicationSubmissionContext for the application
 		ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
 		final ApplicationId appId = appContext.getApplicationId();
-		
+
 		// Setup jar for ApplicationMaster
 		LocalResource appMasterJar = Records.newRecord(LocalResource.class);
 		LocalResource flinkConf = Records.newRecord(LocalResource.class);
@@ -397,8 +415,8 @@ public class Client {
 		Map<String, LocalResource> localResources = new HashMap<String, LocalResource>(2);
 		localResources.put("flink.jar", appMasterJar);
 		localResources.put("flink-conf.yaml", flinkConf);
-		
-		
+
+
 		// setup security tokens (code from apache storm)
 		final Path[] paths = new Path[3 + shipFiles.size()];
 		StringBuffer envShipFileList = new StringBuffer();
@@ -410,7 +428,7 @@ public class Client {
 			paths[3 + i] = Utils.setupLocalResource(conf, fs, appId.toString(),
 					shipLocalPath, shipResources, fs.getHomeDirectory());
 			localResources.put(shipFile.getName(), shipResources);
-			
+
 			envShipFileList.append(paths[3 + i]);
 			if(i+1 < shipFiles.size()) {
 				envShipFileList.append(',');
@@ -419,15 +437,16 @@ public class Client {
 
 		paths[0] = remotePathJar;
 		paths[1] = remotePathConf;
-		paths[2] = new Path(fs.getHomeDirectory(), ".flink/" + appId.toString() + "/");
+		sessionFilesDir = new Path(fs.getHomeDirectory(), ".flink/" + appId.toString() + "/");
 		FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
-		fs.setPermission(paths[2], permission); // set permission for path.
+		fs.setPermission(sessionFilesDir, permission); // set permission for path.
 		Utils.setTokensFor(amContainer, paths, this.conf);
-		
-		 
+
+
 		amContainer.setLocalResources(localResources);
 		fs.close();
 
+		int amRPCPort = GlobalConfiguration.getInteger(ConfigConstants.YARN_AM_PRC_PORT, ConfigConstants.DEFAULT_YARN_AM_RPC_PORT);
 		// Setup CLASSPATH for ApplicationMaster
 		Map<String, String> appMasterEnv = new HashMap<String, String>();
 		Utils.setupEnv(conf, appMasterEnv);
@@ -440,52 +459,35 @@ public class Client {
 		appMasterEnv.put(Client.ENV_CLIENT_HOME_DIR, fs.getHomeDirectory().toString());
 		appMasterEnv.put(Client.ENV_CLIENT_SHIP_FILES, envShipFileList.toString() );
 		appMasterEnv.put(Client.ENV_CLIENT_USERNAME, UserGroupInformation.getCurrentUser().getShortUserName());
-		
+		appMasterEnv.put(Client.ENV_AM_PRC_PORT, String.valueOf(amRPCPort));
+
 		amContainer.setEnvironment(appMasterEnv);
-		
+
 		// Set up resource type requirements for ApplicationMaster
 		Resource capability = Records.newRecord(Resource.class);
 		capability.setMemory(jmMemory);
 		capability.setVirtualCores(1);
-		
+
 		appContext.setApplicationName("Flink"); // application name
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
 		appContext.setQueue(queue);
-		
+
 		// file that we write into the conf/ dir containing the jobManager address.
-		final File addrFile = new File(confDirPath + CliFrontend.JOBMANAGER_ADDRESS_FILE);
-		
-		Runtime.getRuntime().addShutdownHook(new Thread() {
-		@Override
-		public void run() {
-			try {
-				LOG.info("Killing the Flink-YARN application.");
-				yarnClient.killApplication(appId);
-				LOG.info("Deleting files in "+paths[2]);
-				FileSystem shutFS = FileSystem.get(conf);
-				shutFS.delete(paths[2], true); // delete conf and jar file.
-				shutFS.close();
-			} catch (Exception e) {
-				LOG.warn("Exception while killing the YARN application", e);
-			}
-			try {
-				addrFile.delete();
-			} catch (Exception e) {
-				LOG.warn("Exception while deleting the jobmanager address file", e);
-			}
-			LOG.info("YARN Client is shutting down");
-			yarnClient.stop();
-		}
-		});
-		
+		addrFile = new File(confDirPath + CliFrontend.JOBMANAGER_ADDRESS_FILE);
+
+
 		LOG.info("Submitting application master " + appId);
 		yarnClient.submitApplication(appContext);
 		ApplicationReport appReport = yarnClient.getApplicationReport(appId);
 		YarnApplicationState appState = appReport.getYarnApplicationState();
 		boolean told = false;
 		char[] el = { '/', '|', '\\', '-'};
-		int i = 0; 
+		int i = 0;
+		int numTaskmanagers = 0;
+
+		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+
 		while (appState != YarnApplicationState.FINISHED
 				&& appState != YarnApplicationState.KILLED
 				&& appState != YarnApplicationState.FAILED) {
@@ -493,11 +495,15 @@ public class Client {
 				System.err.println("Flink JobManager is now running on "+appReport.getHost()+":"+jmPort);
 				System.err.println("JobManager Web Interface: "+appReport.getTrackingUrl());
 				// write jobmanager connect information
-				
 				PrintWriter out = new PrintWriter(addrFile);
 				out.println(appReport.getHost()+":"+jmPort);
 				out.close();
 				addrFile.setReadable(true, false); // readable for all.
+
+				// connect RPC service
+				cmc = new ClientMasterControl(new InetSocketAddress(appReport.getHost(), amRPCPort));
+				cmc.start();
+				Runtime.getRuntime().addShutdownHook(new ClientShutdownHook());
 				told = true;
 			}
 			if(!told) {
@@ -507,24 +513,113 @@ public class Client {
 				}
 				Thread.sleep(500); // wait for the application to switch to RUNNING
 			} else {
-				Thread.sleep(5000);
+				int newTmCount = cmc.getNumberOfTaskManagers();
+				if(numTaskmanagers != newTmCount) {
+					System.err.println("Number of connected TaskManagers changed to "+newTmCount+" slots available: "+cmc.getNumberOfAvailableSlots());
+					numTaskmanagers = newTmCount;
+				}
+				if(cmc.getFailedStatus()) {
+					System.err.println("The Application Master failed!\nMessages:\n");
+					for(Message m: cmc.getMessages() ) {
+						System.err.println("Message: "+m.text);
+					}
+					System.err.println("Requesting Application Master shutdown");
+					cmc.shutdownAM();
+					System.err.println("Application Master closed.");
+				}
+				for(Message m: cmc.getMessages() ) {
+					System.err.println("Message: "+m.text);
+				}
+
+				// wait until CLIENT_POLLING_INTERVALL is over or the user entered something.
+				long startTime = System.currentTimeMillis();
+				while ((System.currentTimeMillis() - startTime) < CLIENT_POLLING_INTERVALL * 1000
+				        && !in.ready()) {
+					Thread.sleep(200);
+				}
+				if (in.ready()) {
+					String command = in.readLine();
+					evalCommand(command);
+				}
+
 			}
-			
+
 			appReport = yarnClient.getApplicationReport(appId);
 			appState = appReport.getYarnApplicationState();
 		}
 
 		LOG.info("Application " + appId + " finished with"
-				+ " state " + appState + " at " + appReport.getFinishTime());
+				+ " state " + appState + "and final state " + appReport.getFinalApplicationStatus() + " at " + appReport.getFinishTime());
+
 		if(appState == YarnApplicationState.FAILED || appState == YarnApplicationState.KILLED ) {
 			LOG.warn("Application failed. Diagnostics "+appReport.getDiagnostics());
 		}
-		
+
 	}
+
+	private void printHelp() {
+		System.err.println("Available commands:\n"
+				+ "\t stop : Stop the YARN session\n"
+			//	+ "\t add n : Add n TaskManagers to the YARN session\n"
+			//	+ "\t remove n : Remove n TaskManagers to the YARN session\n"
+				+ "\t allmsg : Show all messages\n");
+	}
+	private void evalCommand(String command) {
+		if(command.equals("help")) {
+			printHelp();
+		} else if(command.equals("stop") || command.equals("quit") || command.equals("exit")) {
+			stopSession();
+			System.exit(0);
+		} else if(command.equals("allmsg")) {
+			System.err.println("All messages from the ApplicationMaster:");
+			for(Message m: cmc.getMessages() ) {
+				System.err.println("Message: "+m.text);
+			}
+		} else if(command.startsWith("add")) {
+			String nStr = command.replace("add", "").trim();
+			int n = Integer.valueOf(nStr);
+			System.err.println("Adding "+n+" TaskManagers to the session");
+			cmc.addTaskManagers(n);
+		} else {
+			System.err.println("Unknown command '"+command+"'");
+			printHelp();
+		}
+	}
+
+	private void stopSession() {
+		try {
+			LOG.info("Sending shutdown request to the Application Master");
+			cmc.shutdownAM();
+			yarnClient.killApplication(appId);
+			LOG.info("Deleting files in "+sessionFilesDir );
+			FileSystem shutFS = FileSystem.get(conf);
+			shutFS.delete(sessionFilesDir, true); // delete conf and jar file.
+			shutFS.close();
+			cmc.close();
+		} catch (Exception e) {
+			LOG.warn("Exception while killing the YARN application", e);
+		}
+		try {
+			addrFile.delete();
+		} catch (Exception e) {
+			LOG.warn("Exception while deleting the JobManager address file", e);
+		}
+		LOG.info("YARN Client is shutting down");
+		yarnClient.stop();
+	}
+
+	public class ClientShutdownHook extends Thread {
+		@Override
+		public void run() {
+			stopSession();
+		}
+	}
+
 	private static class ClusterResourceDescription {
 		public int totalFreeMemory;
 		public int containerLimit;
 	}
+
 	private ClusterResourceDescription getCurrentFreeClusterResources(YarnClient yarnClient) throws YarnException, IOException {
 		ClusterResourceDescription crd = new ClusterResourceDescription();
 		crd.totalFreeMemory = 0;
@@ -549,13 +644,10 @@ public class Client {
 		Options req = new Options();
 		req.addOption(CONTAINER);
 		formatter.printHelp(" ", req);
-		
+
 		formatter.setSyntaxPrefix("   Optional");
 		Options opt = new Options();
 		opt.addOption(VERBOSE);
-	//	opt.addOption(GEN_CONF);
-	//	opt.addOption(STRATOSPHERE_CONF);
-	//	opt.addOption(STRATOSPHERE_JAR);
 		opt.addOption(JM_MEMORY);
 		opt.addOption(TM_MEMORY);
 		opt.addOption(TM_CORES);
@@ -604,10 +696,10 @@ public class Client {
 			System.exit(1);
 		}
 		InputStream confStream = jar.getInputStream(jar.getEntry("flink-conf.yaml"));
-		
+
 		if(confStream == null) {
 			LOG.warn("Given jar file does not contain yaml conf.");
-			confStream = this.getClass().getResourceAsStream("flink-conf.yaml"); 
+			confStream = this.getClass().getResourceAsStream("flink-conf.yaml");
 			if(confStream == null) {
 				throw new RuntimeException("Unable to find flink-conf in jar file");
 			}
@@ -630,4 +722,6 @@ public class Client {
 		Client c = new Client();
 		c.run(args);
 	}
+
+
 }

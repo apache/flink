@@ -245,7 +245,7 @@ public class NepheleMiniCluster {
 	// ------------------------------------------------------------------------
 	
 	private void waitForJobManagerToBecomeReady(int numTaskManagers) throws InterruptedException {
-		while (jobManager.getNumberOfTaskTrackers() < numTaskManagers) {
+		while (jobManager.getNumberOfTaskManagers() < numTaskManagers) {
 			Thread.sleep(50);
 		}
 	}

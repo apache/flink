@@ -177,7 +177,7 @@ public final class TestInstanceManager implements InstanceManager {
 	}
 
 	@Override
-	public int getNumberOfTaskTrackers() {
+	public int getNumberOfTaskManagers() {
 		throw new IllegalStateException("getNumberOfTaskTrackers called on TestInstanceManager");
 	}
 
