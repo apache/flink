@@ -102,7 +102,7 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 		Assert.assertEquals(DriverStrategy.NONE, vertexSource.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.NONE, edgesSource.getDriverStrategy());
 		
-//		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, neighborsJoin.getDriverStrategy());
+		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, neighborsJoin.getDriverStrategy());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput1());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput2());
 		
@@ -182,7 +182,7 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 		Assert.assertEquals(DriverStrategy.NONE, vertexSource.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.NONE, edgesSource.getDriverStrategy());
 		
-//		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, neighborsJoin.getDriverStrategy());
+		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, neighborsJoin.getDriverStrategy());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput1());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput2());
 		

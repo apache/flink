@@ -210,6 +210,8 @@ public class DataSinkNode extends OptimizerNode {
 					Channel c = new Channel(p);
 					gp.parameterizeChannel(c, globalDopChange, localDopChange);
 					lp.parameterizeChannel(c);
+					c.setRequiredLocalProps(lp);
+					c.setRequiredGlobalProps(gp);
 					
 					// no need to check whether the created properties meet what we need in case
 					// of ordering or global ordering, because the only interesting properties we have

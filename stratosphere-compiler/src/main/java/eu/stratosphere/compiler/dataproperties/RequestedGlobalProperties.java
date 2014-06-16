@@ -229,8 +229,6 @@ public final class RequestedGlobalProperties implements Cloneable {
 		final GlobalProperties inGlobals = channel.getSource().getGlobalProperties();
 		// if we have no global parallelism change, check if we have already compatible global properties
 		if (!globalDopChange && !localDopChange && isMetBy(inGlobals)) {
-			channel.setRequiredGlobalProps(this);
-			
 			// we meet already everything, so go forward
 			channel.setShipStrategy(ShipStrategyType.FORWARD);
 			return;

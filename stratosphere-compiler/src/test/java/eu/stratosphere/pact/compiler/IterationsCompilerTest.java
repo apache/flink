@@ -38,7 +38,6 @@ import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
-import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.util.Collector;
 
@@ -163,8 +162,6 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
-			
-			System.out.println(new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(op));
 			
 			assertEquals(1, op.getDataSinks().size());
 			assertTrue(op.getDataSinks().iterator().next().getInput().getSource() instanceof BulkIterationPlanNode);
