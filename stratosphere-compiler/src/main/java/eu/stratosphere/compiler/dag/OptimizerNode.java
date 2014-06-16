@@ -285,7 +285,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	// ------------------------------------------------------------------------
 
 	@Override
-	public Iterator<OptimizerNode> getPredecessors() {
+	public Iterable<OptimizerNode> getPredecessors() {
 		List<OptimizerNode> allPredecessors = new ArrayList<OptimizerNode>();
 		
 		for (Iterator<PactConnection> inputs = getIncomingConnections().iterator(); inputs.hasNext(); ){
@@ -296,7 +296,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			allPredecessors.add(conn.getSource());
 		}
 		
-		return allPredecessors.iterator();
+		return allPredecessors;
 	}
 	
 	/**
@@ -1208,13 +1208,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	}
 	
 	@Override
-	public Iterator<DumpableConnection<OptimizerNode>> getDumpableInputs() {
+	public Iterable<DumpableConnection<OptimizerNode>> getDumpableInputs() {
 		List<DumpableConnection<OptimizerNode>> allInputs = new ArrayList<DumpableConnection<OptimizerNode>>();
 		
 		allInputs.addAll(getIncomingConnections());
 		allInputs.addAll(getBroadcastConnections());
 		
-		return allInputs.iterator();
+		return allInputs;
 	}
 	
 	@Override

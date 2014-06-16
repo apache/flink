@@ -16,7 +16,6 @@ package eu.stratosphere.compiler.postpass;
 
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 
 import eu.stratosphere.api.common.operators.DualInputOperator;
@@ -210,8 +209,8 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		}
 		else if (node instanceof NAryUnionPlanNode){
 			// Traverse to all child channels
-			for (Iterator<Channel> channels = node.getInputs(); channels.hasNext(); ) {
-				traverseChannel(channels.next());
+			for (Channel channel : node.getInputs()) {
+				traverseChannel(channel);
 			}
 		}
 		else {

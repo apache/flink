@@ -18,9 +18,8 @@ import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SO
 import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
 
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.List;
-import java.util.NoSuchElementException;
 
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
@@ -150,67 +149,27 @@ public class SingleInputPlanNode extends PlanNode {
 
 
 	@Override
-	public Iterator<PlanNode> getPredecessors() {
+	public Iterable<PlanNode> getPredecessors() {
 		if (getBroadcastInputs() == null || getBroadcastInputs().isEmpty()) {
-			return new Iterator<PlanNode>() {
-				private boolean hasLeft = true;
-				@Override
-				public boolean hasNext() {
-					return this.hasLeft;
-				}
-				@Override
-				public PlanNode next() {
-					if (this.hasLeft) {
-						this.hasLeft = false;
-						return SingleInputPlanNode.this.input.getSource();
-					} else {
-						throw new NoSuchElementException();
-					}
-				}
-				@Override
-				public void remove() {
-					throw new UnsupportedOperationException();
-				}
-			};
+			return Collections.singleton(this.input.getSource());
 		}
 		else {
 			List<PlanNode> preds = new ArrayList<PlanNode>();
-			
 			preds.add(input.getSource());
 			
 			for (Channel c : getBroadcastInputs()) {
 				preds.add(c.getSource());
 			}
 			
-			return preds.iterator();
+			return preds;
 		}
 	}
 
 
 	@Override
-	public Iterator<Channel> getInputs() {
-		return new Iterator<Channel>() {
-			private boolean hasLeft = true;
-			@Override
-			public boolean hasNext() {
-				return this.hasLeft;
-			}
-			@Override
-			public Channel next() {
-				if (this.hasLeft) {
-					this.hasLeft = false;
-					return SingleInputPlanNode.this.input;
-				} else {
-					throw new NoSuchElementException();
-				}
-			}
-			@Override
-			public void remove() {
-				throw new UnsupportedOperationException();
-			}
-		};
+	public Iterable<Channel> getInputs() {
+		return Collections.singleton(this.input);
 	}
-
 
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {

@@ -40,9 +40,9 @@ public class CrossStreamOuterSecondDescriptor extends CartesianProductDescriptor
 		if ((in2.getGroupedFields() == null || in2.getGroupedFields().size() == 0) &&
 				in2.getUniqueFields() != null && in2.getUniqueFields().size() > 0)
 		{
-			in2.setGroupedFields(in2.getUniqueFields().iterator().next().toFieldList());
+			return LocalProperties.forGrouping(in2.getUniqueFields().iterator().next().toFieldList());
+		} else {
+			return in2.clearUniqueFieldSets();
 		}
-		in2.clearUniqueFieldSets();
-		return in2;
 	}
 }

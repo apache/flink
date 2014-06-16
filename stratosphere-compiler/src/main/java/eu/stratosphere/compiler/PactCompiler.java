@@ -1284,8 +1284,7 @@ public class PactCompiler {
 					}
 					
 					// assign memory to the local and global strategies of the channels
-					for (Iterator<Channel> channels = node.getInputs(); channels.hasNext();) {
-						final Channel c = channels.next();
+					for (Channel c : node.getInputs()) {
 						if (c.getLocalStrategy().dams()) {
 							final long mem = memoryPerInstanceAndWeight / node.getSubtasksPerInstance();
 							c.setMemoryLocalStrategy(mem);
@@ -1362,8 +1361,7 @@ public class PactCompiler {
 			
 			// double-connect the connections. previously, only parents knew their children, because
 			// one child candidate could have been referenced by multiple parents.
-			for (Iterator<Channel> iter = visitable.getInputs(); iter.hasNext();) {
-				final Channel conn = iter.next();
+			for (Channel conn : visitable.getInputs()) {
 				conn.setTarget(visitable);
 				conn.getSource().addOutgoingChannel(conn);
 			}
@@ -1375,8 +1373,7 @@ public class PactCompiler {
 
 			// count the memory consumption
 			this.memoryConsumerWeights += visitable.getMemoryConsumerWeight();
-			for (Iterator<Channel> channels = visitable.getInputs(); channels.hasNext();) {
-				final Channel c = channels.next();
+			for (Channel c : visitable.getInputs()) {
 				if (c.getLocalStrategy().dams()) {
 					this.memoryConsumerWeights++;
 				}

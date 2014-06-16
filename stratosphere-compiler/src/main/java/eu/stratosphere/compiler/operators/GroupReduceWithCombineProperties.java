@@ -129,7 +129,6 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties lProps) {
-		lProps.clearUniqueFieldSets();
-		return lProps;
+		return lProps.clearUniqueFieldSets();
 	}
 }

@@ -455,7 +455,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				final TaskInChain chainedTask;
 				if ((chainedTask = this.chainedTasks.get(node)) != null) {
 					// Chained Task. Sanity check first...
-					final Iterator<Channel> inConns = node.getInputs();
+					final Iterator<Channel> inConns = node.getInputs().iterator();
 					if (!inConns.hasNext()) {
 						throw new CompilerException("Bug: Found chained task with no input.");
 					}
@@ -522,7 +522,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// enclosing iteration node, because the inputs are the initial inputs to the iteration.
 			final Iterator<Channel> inConns;
 			if (node instanceof BulkPartialSolutionPlanNode) {
-				inConns = ((BulkPartialSolutionPlanNode) node).getContainingIterationNode().getInputs();
+				inConns = ((BulkPartialSolutionPlanNode) node).getContainingIterationNode().getInputs().iterator();
 				// because the partial solution has its own vertex, is has only one (logical) input.
 				// note this in the task configuration
 				targetVertexConfig.setIterationHeadPartialSolutionOrWorksetInputIndex(0);
@@ -536,7 +536,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				targetVertexConfig.setIterationHeadPartialSolutionOrWorksetInputIndex(0);
 				targetVertexConfig.setIterationHeadSolutionSetInputIndex(1);
 			} else {
-				inConns = node.getInputs();
+				inConns = node.getInputs().iterator();
 			}
 			if (!inConns.hasNext()) {
 				throw new CompilerException("Bug: Found a non-source task with no input.");
@@ -578,7 +578,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				
 				// check if the iteration's input is a union
 				if (iterationNode.getInput().getSource() instanceof NAryUnionPlanNode) {
-					allInChannels = ((NAryUnionPlanNode) iterationNode.getInput().getSource()).getInputs();
+					allInChannels = ((NAryUnionPlanNode) iterationNode.getInput().getSource()).getInputs().iterator();
 				} else {
 					allInChannels = Collections.singletonList(iterationNode.getInput()).iterator();
 				}
@@ -597,7 +597,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				
 				// check if the iteration's input is a union
 				if (iterationNode.getInput2().getSource() instanceof NAryUnionPlanNode) {
-					allInChannels = ((NAryUnionPlanNode) iterationNode.getInput2().getSource()).getInputs();
+					allInChannels = ((NAryUnionPlanNode) iterationNode.getInput2().getSource()).getInputs().iterator();
 				} else {
 					allInChannels = Collections.singletonList(iterationNode.getInput2()).iterator();
 				}

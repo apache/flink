@@ -83,8 +83,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 			@Override
 			public boolean preVisit(PlanNode visitable) {
 				if (visitable instanceof SingleInputPlanNode && visitable.getPactContract() instanceof ReduceOperator) {
-					for (Iterator<Channel> inputs = visitable.getInputs(); inputs.hasNext();) {
-						final Channel inConn = inputs.next();
+					for (Channel inConn : visitable.getInputs()) {
 						Assert.assertTrue("Reduce should just forward the input if it is already partitioned",
 								inConn.getShipStrategy() == ShipStrategyType.FORWARD); 
 					}
@@ -148,7 +147,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 				 */
 				if (visitable instanceof NAryUnionPlanNode) {
 					int numberInputs = 0;
-					for (Iterator<Channel> inputs = visitable.getInputs(); inputs.hasNext(); numberInputs++) {
+					for (Iterator<Channel> inputs = visitable.getInputs().iterator(); inputs.hasNext(); numberInputs++) {
 						final Channel inConn = inputs.next();
 						PlanNode inNode = inConn.getSource();
 						Assert.assertTrue("Input of Union should be FlatMapOperators",

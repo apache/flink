@@ -81,7 +81,7 @@ public class CoGroupSolutionSetFirstTest extends CompilerTestBase {
 					PlanNode deltaNode = ((WorksetIterationPlanNode) visitable).getSolutionSetDeltaPlanNode();
 
 					//get the CoGroup
-					DualInputPlanNode dpn = (DualInputPlanNode) deltaNode.getInputs().next().getSource();
+					DualInputPlanNode dpn = (DualInputPlanNode) deltaNode.getInputs().iterator().next().getSource();
 					Channel in1 = dpn.getInput1();
 					Channel in2 = dpn.getInput2();
 

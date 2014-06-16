@@ -17,7 +17,6 @@ import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SO
 import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
 
 import java.util.Collections;
-import java.util.Iterator;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.compiler.dag.DataSourceNode;
@@ -82,14 +81,14 @@ public class SourcePlanNode extends PlanNode {
 
 
 	@Override
-	public Iterator<PlanNode> getPredecessors() {
-		return Collections.<PlanNode>emptyList().iterator();
+	public Iterable<PlanNode> getPredecessors() {
+		return Collections.<PlanNode>emptyList();
 	}
 
 
 	@Override
-	public Iterator<Channel> getInputs() {
-		return Collections.<Channel>emptyList().iterator();
+	public Iterable<Channel> getInputs() {
+		return Collections.<Channel>emptyList();
 	}
 
 

@@ -89,7 +89,6 @@ public class SortMergeJoinDescriptor extends AbstractJoinDescriptor
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
 		LocalProperties comb = LocalProperties.combine(in1, in2);
-		comb.clearUniqueFieldSets();
-		return comb;
+		return comb.clearUniqueFieldSets();
 	}
 }

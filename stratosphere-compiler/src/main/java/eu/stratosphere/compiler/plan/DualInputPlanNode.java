@@ -18,9 +18,8 @@ import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SO
 import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
 
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Arrays;
 import java.util.List;
-import java.util.NoSuchElementException;
 
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
@@ -168,31 +167,9 @@ public class DualInputPlanNode extends PlanNode {
 	
 
 	@Override
-	public Iterator<PlanNode> getPredecessors() {
+	public Iterable<PlanNode> getPredecessors() {
 		if (getBroadcastInputs() == null || getBroadcastInputs().isEmpty()) {
-			return new Iterator<PlanNode>() {
-				private int hasLeft = 2;
-				@Override
-				public boolean hasNext() {
-					return this.hasLeft > 0;
-				}
-				@Override
-				public PlanNode next() {
-					if (this.hasLeft == 2) {
-						this.hasLeft = 1;
-						return DualInputPlanNode.this.input1.getSource();
-					} else if (this.hasLeft == 1) {
-						this.hasLeft = 0;
-						return DualInputPlanNode.this.input2.getSource();
-					} else {
-						throw new NoSuchElementException();
-					}
-				}
-				@Override
-				public void remove() {
-					throw new UnsupportedOperationException();
-				}
-			};
+			return Arrays.asList(this.input1.getSource(), this.input2.getSource());
 		} else {
 			List<PlanNode> preds = new ArrayList<PlanNode>();
 			
@@ -203,36 +180,13 @@ public class DualInputPlanNode extends PlanNode {
 				preds.add(c.getSource());
 			}
 			
-			return preds.iterator();
+			return preds;
 		}
 	}
 
-
 	@Override
-	public Iterator<Channel> getInputs() {
-		return new Iterator<Channel>() {
-			private int hasLeft = 2;
-			@Override
-			public boolean hasNext() {
-				return this.hasLeft > 0;
-			}
-			@Override
-			public Channel next() {
-				if (this.hasLeft == 2) {
-					this.hasLeft = 1;
-					return DualInputPlanNode.this.input1;
-				} else if (this.hasLeft == 1) {
-					this.hasLeft = 0;
-					return DualInputPlanNode.this.input2;
-				} else {
-					throw new NoSuchElementException();
-				}
-			}
-			@Override
-			public void remove() {
-				throw new UnsupportedOperationException();
-			}
-		};
+	public Iterable<Channel> getInputs() {
+		return Arrays.asList(this.input1, this.input2);
 	}
 
 
