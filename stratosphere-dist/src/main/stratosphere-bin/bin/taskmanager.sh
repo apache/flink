@@ -69,7 +69,7 @@ case $STARTSTOP in
         rotateLogFile $out
 
         echo Starting task manager on host $HOSTNAME
-        $JAVA_RUN $JVM_ARGS $STRATOSPHERE_OPTS "${log_setting[@]}" -classpath "$STRATOSPHERE_TM_CLASSPATH" eu.stratosphere.nephele.taskmanager.TaskManager -configDir "$STRATOSPHERE_CONF_DIR" > "$out" 2>&1 < /dev/null &
+        $JAVA_RUN $JVM_ARGS $STRATOSPHERE_ENV_JAVA_OPTS "${log_setting[@]}" -classpath "$STRATOSPHERE_TM_CLASSPATH" eu.stratosphere.nephele.taskmanager.TaskManager -configDir "$STRATOSPHERE_CONF_DIR" > "$out" 2>&1 < /dev/null &
         echo $! > $pid
     ;;
 
