@@ -26,7 +26,7 @@ import eu.stratosphere.util.Collector;
 import java.util.Iterator;
 
 
-public class TransitiveClosureJoin implements ProgramDescription {
+public class TransitiveClosureNaive implements ProgramDescription {
 
 
 	public static void main (String... args) throws Exception{
@@ -42,22 +42,24 @@ public class TransitiveClosureJoin implements ProgramDescription {
 
 		IterativeDataSet<Tuple2<Long,Long>> paths = edges.iterate(maxIterations);
 
-		DataSet<Tuple2<Long, Long>> nextPaths = paths
+		DataSet<Tuple2<Long,Long>> nextPaths = paths
 				.join(edges)
-				.where(0)
-				.equalTo(1)
+				.where(1)
+				.equalTo(0)
 				.with(new JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>>() {
 					@Override
 					/**
-						left: Path (y,z) - z is reachable by y
+						left: Path (z,x) - x is reachable by z
 						right: Edge (x,y) - edge x-->y exists
-						out: Path (x,z) - z is reachable by x
+						out: Path (z,y) - y is reachable by z
 					 */
 					public Tuple2<Long, Long> join(Tuple2<Long, Long> left, Tuple2<Long, Long> right) throws Exception {
-						return new Tuple2<Long, Long>(new Long(right.f0), new Long(left.f1));
+						return new Tuple2<Long, Long>(
+								new Long(left.f0),
+								new Long(right.f1));
 					}
 				})
-				.union(edges)
+				.union(paths)
 				.groupBy(0, 1)
 				.reduceGroup(new GroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>() {
 					@Override
@@ -66,7 +68,7 @@ public class TransitiveClosureJoin implements ProgramDescription {
 					}
 				});
 
-		DataSet<Tuple2<Long,Long>> transitiveClosure = paths.closeWith(nextPaths);
+		DataSet<Tuple2<Long, Long>> transitiveClosure = paths.closeWith(nextPaths);
 
 
 		// emit result
@@ -83,7 +85,7 @@ public class TransitiveClosureJoin implements ProgramDescription {
 
 	@Override
 	public String getDescription() {
-		return "Parameters: <vertices-path> <edges-path> <result-path> <max-number-of-iterations>";
+		return "Parameters: <edges-path> <result-path> <max-number-of-iterations>";
 	}
 
 	// *************************************************************************
@@ -105,7 +107,7 @@ public class TransitiveClosureJoin implements ProgramDescription {
 				outputPath = programArguments[1];
 				maxIterations = Integer.parseInt(programArguments[2]);
 			} else {
-				System.err.println("Usage: TransitiveClosure <edges path> <result path>");
+				System.err.println("Usage: TransitiveClosure <edges path> <result path> <max number of iterations>");
 				return false;
 			}
 		} else {
@@ -120,10 +122,11 @@ public class TransitiveClosureJoin implements ProgramDescription {
 
 	private static DataSet<Tuple2<Long, Long>> getEdgeDataSet(ExecutionEnvironment env) {
 
-		if (fileOutput) {
+		if(fileOutput) {
 			return env.readCsvFile(edgesPath).fieldDelimiter(' ').types(Long.class, Long.class);
 		} else {
 			return ConnectedComponentsData.getDefaultEdgeDataSet(env);
 		}
 	}
+
 }

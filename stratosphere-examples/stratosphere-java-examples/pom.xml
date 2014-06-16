@@ -70,13 +70,13 @@
 
                             <archive>
                                 <manifestEntries>
-                                    <program-class>eu.stratosphere.example.java.graph.TransitiveClosureCoGroup</program-class>
+                                    <program-class>eu.stratosphere.example.java.graph.TransitiveClosureNaive</program-class>
                                 </manifestEntries>
                             </archive>
 
                             <includes>
-                                <include>**/java/graph/TransitiveClosureCoGroup.class</include>
-                                <include>**/java/graph/TransitiveClosureCoGroup$*.class</include>
+                                <include>**/java/graph/TransitiveClosureNaive.class</include>
+                                <include>**/java/graph/TransitiveClosureNaive$*.class</include>
                                 <include>**/java/graph/util/ConnectedComponentsData.class</include>
                             </includes>
                         </configuration>
