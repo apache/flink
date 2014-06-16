@@ -294,14 +294,14 @@ public class SemanticPropUtil {
 		}
 
 		matcher = PATTERN_DIGIT.matcher(s);
-		FieldSet fs = new FieldSet();
+		FieldSet fs = FieldSet.EMPTY_SET;
 
 		while (matcher.find()) {
 			int field = Integer.valueOf(matcher.group());
 			if (!isValidField(outType, field) || !isValidField(inType, field)) {
 				throw new IndexOutOfBoundsException("Annotation: Field " + field + " not available in the output tuple.");
 			}
-			fs.add(field);
+			fs = fs.addField(field);
 		}
 		return fs;
 	}

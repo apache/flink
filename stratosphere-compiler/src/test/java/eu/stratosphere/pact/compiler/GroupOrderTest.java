@@ -87,8 +87,7 @@ public class GroupOrderTest extends CompilerTestBase  {
 		Assert.assertEquals(LocalStrategy.SORT, c.getLocalStrategy());
 		
 		FieldList ship = new FieldList(2);
-		FieldList local = new FieldList(2);
-		local.add(5);
+		FieldList local = new FieldList(2, 5);
 		Assert.assertEquals(ship, c.getShipStrategyKeys());
 		Assert.assertEquals(local, c.getLocalStrategyKeys());
 		Assert.assertTrue(c.getLocalStrategySortOrder()[0] == reducer.getSortOrders()[0]);

@@ -49,13 +49,13 @@ public class SingleInputSemanticProperties extends SemanticProperties {
 	 * @param destinationField the position in the destination record(s)
 	 */
 	public void addForwardedField(int sourceField, int destinationField) {
-		FieldSet fs;
-		if((fs = this.forwardedFields.get(sourceField)) != null) {
-			fs.add(destinationField);
-		} else {
-			fs = new FieldSet(destinationField);
-			this.forwardedFields.put(sourceField, fs);
+		FieldSet old = this.forwardedFields.get(sourceField);
+		if (old == null) {
+			old = FieldSet.EMPTY_SET;
 		}
+		
+		FieldSet fs = old.addField(destinationField);
+		this.forwardedFields.put(sourceField, fs);
 	}
 	
 	/**
@@ -67,13 +67,13 @@ public class SingleInputSemanticProperties extends SemanticProperties {
 	 * @param destinationFields the position in the destination record(s)
 	 */
 	public void addForwardedField(int sourceField, FieldSet destinationFields) {
-		FieldSet fs;
-		if((fs = this.forwardedFields.get(sourceField)) != null) {
-			fs.addAll(destinationFields);
-		} else {
-			fs = new FieldSet(destinationFields);
-			this.forwardedFields.put(sourceField, fs);
+		FieldSet old = this.forwardedFields.get(sourceField);
+		if (old == null) {
+			old = FieldSet.EMPTY_SET;
 		}
+		
+		FieldSet fs = old.addFields(destinationFields);
+		this.forwardedFields.put(sourceField, fs);
 	}
 	
 	/**
@@ -105,10 +105,10 @@ public class SingleInputSemanticProperties extends SemanticProperties {
 	 * @param readFields the position(s) in the source record(s)
 	 */
 	public void addReadFields(FieldSet readFields) {
-		if(this.readFields == null) {
-			this.readFields = new FieldSet(readFields);
+		if (this.readFields == null) {
+			this.readFields = readFields;
 		} else {
-			this.readFields.addAll(readFields);
+			this.readFields = this.readFields.addFields(readFields);
 		}
 	}
 	

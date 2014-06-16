@@ -25,27 +25,18 @@ import eu.stratosphere.types.Record
 
 case class KeyCardinality(key: FieldSelector, isUnique: Boolean, distinctCount: Option[Long], avgNumRecords: Option[Float]) {
 
-  private class RefreshableFieldSet extends PactFieldSet {
-    def refresh(indexes: Set[Int]) = {
-      this.collection.clear()
-      for (index <- indexes)
-        this.add(index)
-    }
-  }
-
-  @transient private var pactFieldSets = collection.mutable.Map[Operator[Record] with ScalaOperator[_, _], RefreshableFieldSet]()
+  @transient private var pactFieldSets = collection.mutable.Map[Operator[Record] with ScalaOperator[_, _], PactFieldSet]()
 
   def getPactFieldSet(contract: Operator[Record] with ScalaOperator[_, _]): PactFieldSet = {
 
     if (pactFieldSets == null)
-      pactFieldSets = collection.mutable.Map[Operator[Record] with ScalaOperator[_, _], RefreshableFieldSet]()
+      pactFieldSets = collection.mutable.Map[Operator[Record] with ScalaOperator[_, _], PactFieldSet]()
 
     val keyCopy = key.copy
     contract.getUDF.attachOutputsToInputs(keyCopy.inputFields)
-    val keySet = keyCopy.selectedFields.toIndexSet
+    val keySet = keyCopy.selectedFields.toIndexSet.toArray
 
-    val fieldSet = pactFieldSets.getOrElseUpdate(contract, new RefreshableFieldSet())
-    fieldSet.refresh(keySet)
+    val fieldSet = pactFieldSets.getOrElseUpdate(contract, new PactFieldSet(keySet, true))
     fieldSet
   }
 }

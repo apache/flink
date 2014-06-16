@@ -24,7 +24,7 @@ import eu.stratosphere.types.Key;
  */
 public class Ordering {
 	
-	protected final FieldList indexes = new FieldList();
+	protected FieldList indexes = new FieldList();
 	
 	protected final ArrayList<Class<? extends Key<?>>> types = new ArrayList<Class<? extends Key<?>>>();
 	
@@ -33,7 +33,7 @@ public class Ordering {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * 
+	 * Creates an empty ordering.
 	 */
 	public Ordering() {}
 	
@@ -66,7 +66,7 @@ public class Ordering {
 			throw new IllegalArgumentException("An ordering must not be created with a NONE order.");
 		}
 		
-		this.indexes.add(index);
+		this.indexes = this.indexes.addField(index);
 		this.types.add(type);
 		this.orders.add(order);
 		return this;
@@ -210,10 +210,9 @@ public class Ordering {
 	
 	
 
-	public Ordering clone()
-	{
-		final Ordering newOrdering = new Ordering();
-		newOrdering.indexes.addAll(this.indexes);
+	public Ordering clone() {
+		Ordering newOrdering = new Ordering();
+		newOrdering.indexes = this.indexes;
 		newOrdering.types.addAll(this.types);
 		newOrdering.orders.addAll(this.orders);
 		return newOrdering;
