@@ -72,7 +72,7 @@ case $STARTSTOP in
         rotateLogFile $out
 
         echo Starting job manager
-        $JAVA_RUN $JVM_ARGS $STRATOSPHERE_OPTS "${log_setting[@]}" -classpath "$STRATOSPHERE_JM_CLASSPATH" eu.stratosphere.nephele.jobmanager.JobManager -executionMode $EXECUTIONMODE -configDir "$STRATOSPHERE_CONF_DIR"  > "$out" 2>&1 < /dev/null &
+        $JAVA_RUN $JVM_ARGS $STRATOSPHERE_ENV_JAVA_OPTS "${log_setting[@]}" -classpath "$STRATOSPHERE_JM_CLASSPATH" eu.stratosphere.nephele.jobmanager.JobManager -executionMode $EXECUTIONMODE -configDir "$STRATOSPHERE_CONF_DIR"  > "$out" 2>&1 < /dev/null &
         echo $! > $pid
     ;;
 
