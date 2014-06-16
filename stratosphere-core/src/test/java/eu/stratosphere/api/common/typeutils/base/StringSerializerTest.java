@@ -44,7 +44,9 @@ public class StringSerializerTest extends SerializerTestBase<String> {
 		Random rnd = new Random(289347567856686223L);
 		return new String[] {
 			StringUtils.getRandomString(rnd, 300, 350), new String(Character.toChars(127315)), 
-			(char)128+(char)32896+"", // flag collisions
+			(char)128+(char)32896+"", ""+(char)24640+(char)24640+(char)24640+(char)24640+(char)24640,
+			""+(char)65535+(char)65535+(char)65535+(char)65535+(char)65535,
+			""+(char)0,
 			"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
 	}
 }
