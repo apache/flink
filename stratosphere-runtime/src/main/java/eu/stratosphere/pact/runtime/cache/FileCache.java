@@ -14,6 +14,7 @@
 package eu.stratosphere.pact.runtime.cache;
 
 import eu.stratosphere.api.common.cache.DistributedCache;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -64,7 +65,7 @@ public class FileCache {
 	 */
 	public FutureTask<Path> createTmpFile(String name, DistributedCacheEntry entry, JobID jobID) {
 		synchronized (count) {
-			Pair<JobID, String> key = new ImmutablePair(jobID, name);
+			Pair<JobID, String> key = new ImmutablePair<JobID, String>(jobID, name);
 			if (count.containsKey(key)) {
 				count.put(key, count.get(key) + 1);
 			} else {
@@ -84,7 +85,7 @@ public class FileCache {
 	 * @param jobID
 	 */
 	public void deleteTmpFile(String name, DistributedCacheEntry entry, JobID jobID) {
-		DeleteProcess dp = new DeleteProcess(name, entry, jobID, count.get(new ImmutablePair(jobID,name)));
+		DeleteProcess dp = new DeleteProcess(name, entry, jobID, count.get(new ImmutablePair<JobID, String>(jobID,name)));
 		executorService.schedule(dp, 5000L, TimeUnit.MILLISECONDS);
 	}
 
@@ -138,6 +139,7 @@ public class FileCache {
 	 */
 	private class CopyProcess implements Callable<Path> {
 		private JobID jobID;
+		@SuppressWarnings("unused")
 		private String name;
 		private String filePath;
 		private Boolean executable;
@@ -167,6 +169,7 @@ public class FileCache {
 	 */
 	private class DeleteProcess implements Runnable {
 		private String name;
+		@SuppressWarnings("unused")
 		private String filePath;
 		private JobID jobID;
 		private int oldCount;
@@ -180,7 +183,7 @@ public class FileCache {
 		@Override
 		public void run() {
 			synchronized (count) {
-				if (count.get(new ImmutablePair(jobID, name)) != oldCount) {
+				if (count.get(new ImmutablePair<JobID, String>(jobID, name)) != oldCount) {
 					return;
 				}
 			}

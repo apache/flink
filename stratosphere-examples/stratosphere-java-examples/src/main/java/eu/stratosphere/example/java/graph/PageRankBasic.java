@@ -24,6 +24,7 @@ import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.IterativeDataSet;
 import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
+import eu.stratosphere.api.java.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
@@ -94,7 +95,7 @@ public class PageRankBasic {
 		DataSet<Tuple2<Long, Double>> pagesWithRanks = pagesInput.
 				map(new RankAssigner((1.0d / numPages)));
 		
-		// build adjecency list from link input
+		// build adjacency list from link input
 		DataSet<Tuple2<Long, Long[]>> adjacencyListInput = 
 				linksInput.groupBy(0).reduceGroup(new BuildOutgoingEdgeList());
 		
@@ -150,8 +151,9 @@ public class PageRankBasic {
 	
 	/**
 	 * A reduce function that takes a sequence of edges and builds the adjacency list for the vertex where the edges
-	 * originate. Run as a preprocessing step.
+	 * originate. Run as a pre-processing step.
 	 */
+	@ConstantFields("0")
 	public static final class BuildOutgoingEdgeList extends GroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long[]>> {
 		
 		private final ArrayList<Long> neighbors = new ArrayList<Long>();
@@ -190,6 +192,7 @@ public class PageRankBasic {
 	/**
 	 * The function that applies the page rank dampening formula
 	 */
+	@ConstantFields("0")
 	public static final class Dampener extends MapFunction<Tuple2<Long,Double>, Tuple2<Long,Double>> {
 
 		private final double dampening;
@@ -275,5 +278,4 @@ public class PageRankBasic {
 			return PageRankData.getDefaultEdgeDataSet(env);
 		}
 	}
-	
 }

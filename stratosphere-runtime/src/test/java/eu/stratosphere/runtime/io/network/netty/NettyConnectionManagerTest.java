@@ -124,7 +124,7 @@ public class NettyConnectionManagerTest {
 	}
 
 
-	private class VerifyEnvelopes implements Answer {
+	private class VerifyEnvelopes implements Answer<Object> {
 
 		private final ConcurrentMap<ChannelID, Integer> received = new ConcurrentHashMap<ChannelID, Integer>();
 

@@ -27,7 +27,7 @@ import eu.stratosphere.compiler.dag.OptimizerNode;
  */
 public class LocalProperties implements Cloneable {
 	
-	public static final LocalProperties TRIVIAL = new LocalProperties();
+	public static final LocalProperties EMPTY = new LocalProperties();
 	
 	// --------------------------------------------------------------------------------------------
 	

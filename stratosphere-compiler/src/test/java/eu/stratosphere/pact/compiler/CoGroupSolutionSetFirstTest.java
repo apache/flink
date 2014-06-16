@@ -76,7 +76,6 @@ public class CoGroupSolutionSetFirstTest extends CompilerTestBase {
 		oPlan.accept(new Visitor<PlanNode>() {
 			@Override
 			public boolean preVisit(PlanNode visitable) {
-				System.out.println(visitable);
 				if (visitable instanceof WorksetIterationPlanNode) {
 					PlanNode deltaNode = ((WorksetIterationPlanNode) visitable).getSolutionSetDeltaPlanNode();
 

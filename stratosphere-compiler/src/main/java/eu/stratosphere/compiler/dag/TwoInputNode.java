@@ -447,9 +447,13 @@ public abstract class TwoInputNode extends OptimizerNode {
 							if (gpp.getProperties1().isMetBy(c1.getGlobalProperties()) && 
 								gpp.getProperties2().isMetBy(c2.getGlobalProperties()) )
 							{
+								Channel c1Clone = c1.clone();
+								c1Clone.setRequiredGlobalProps(gpp.getProperties1());
+								c2.setRequiredGlobalProps(gpp.getProperties2());
+								
 								// we form a valid combination, so create the local candidates
 								// for this
-								addLocalCandidates(c1, c2, broadcastPlanChannels, igps1, igps2, outputPlans, allLocalPairs, estimator);
+								addLocalCandidates(c1Clone, c2, broadcastPlanChannels, igps1, igps2, outputPlans, allLocalPairs, estimator);
 								break;
 							}
 						}
@@ -495,7 +499,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 				final Channel in2 = template2.clone();
 				ilp2.parameterizeChannel(in2);
 				
-				allPossibleLoop:
 				for (OperatorDescriptorDual dps: this.possibleProperties) {
 					for (LocalPropertiesPair lpp : dps.getPossibleLocalProperties()) {
 						if (lpp.getProperties1().isMetBy(in1.getLocalProperties()) &&
@@ -507,12 +510,16 @@ public abstract class TwoInputNode extends OptimizerNode {
 							if (dps.areCoFulfilled(lpp.getProperties1(), lpp.getProperties2(), 
 								in1.getLocalProperties(), in2.getLocalProperties()))
 							{
+								Channel in1Copy = in1.clone();
+								in1Copy.setRequiredLocalProps(lpp.getProperties1());
+								in2.setRequiredLocalProps(lpp.getProperties2());
+								
 								// all right, co compatible
-								instantiate(dps, in1, in2, broadcastPlanChannels, target, estimator, rgps1, rgps2, ilp1, ilp2);
-								break allPossibleLoop;
+								instantiate(dps, in1Copy, in2, broadcastPlanChannels, target, estimator, rgps1, rgps2, ilp1, ilp2);
+								break;
 							} else {
 								// meet, but not co-compatible
-								throw new CompilerException("Implements to adjust one side to the other!");
+//								throw new CompilerException("Implements to adjust one side to the other!");
 							}
 						}
 					}

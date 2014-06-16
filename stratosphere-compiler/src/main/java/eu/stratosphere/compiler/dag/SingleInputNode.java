@@ -312,6 +312,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 					// requested properties
 					for (RequestedGlobalProperties rgps: allValidGlobals) {
 						if (rgps.isMetBy(c.getGlobalProperties())) {
+							c.setRequiredGlobalProps(rgps);
 							addLocalCandidates(c, broadcastPlanChannels, igps, outputPlans, estimator);
 							break;
 						}
@@ -365,6 +366,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 			for (OperatorDescriptorSingle dps: getPossibleProperties()) {
 				for (RequestedLocalProperties ilps : dps.getPossibleLocalProperties()) {
 					if (ilps.isMetBy(in.getLocalProperties())) {
+						in.setRequiredLocalProps(ilps);
 						instantiateCandidate(dps, in, broadcastPlanChannels, target, estimator, rgps, ilp);
 						break outer;
 					}

@@ -25,7 +25,7 @@ public enum ShipStrategyType {
 	NONE(false, false, false),
 	
 	/**
-	 * Forwarding the data locally in memory.
+	 * Forwarding the data preserving all global properties.
 	 */
 	FORWARD(false, false, false),
 	

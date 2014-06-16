@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
+@SuppressWarnings("serial")
 public class AvroOutputFormatTest extends JavaProgramTestBase {
 
 	public static String outputPath1;
