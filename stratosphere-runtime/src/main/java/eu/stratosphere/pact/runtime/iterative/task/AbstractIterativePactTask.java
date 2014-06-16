@@ -13,8 +13,13 @@
 
 package eu.stratosphere.pact.runtime.iterative.task;
 
-import eu.stratosphere.api.common.aggregators.Aggregator;
-import eu.stratosphere.api.common.aggregators.LongSumAggregator;
+import java.io.IOException;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import eu.stratosphere.api.common.accumulators.Accumulator;
+import eu.stratosphere.api.common.accumulators.LongCounter;
 import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.api.common.functions.IterationRuntimeContext;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
@@ -25,7 +30,7 @@ import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.Broker;
-import eu.stratosphere.pact.runtime.iterative.concurrent.IterationAggregatorBroker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.IterationAccumulatorBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.io.SolutionSetUpdateOutputCollector;
@@ -36,15 +41,9 @@ import eu.stratosphere.pact.runtime.task.ResettablePactDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
 import eu.stratosphere.runtime.io.api.MutableReader;
-import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.InstantiationUtil;
 import eu.stratosphere.util.MutableObjectIterator;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import java.io.IOException;
 
 /**
  * The base class for all tasks able to participate in an iteration.
@@ -54,7 +53,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 {
 	private static final Log log = LogFactory.getLog(AbstractIterativePactTask.class);
 	
-	protected LongSumAggregator worksetAggregator;
+	protected LongCounter worksetAccumulator;
 
 	protected BlockingBackChannel worksetBackChannel;
 
@@ -65,7 +64,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	protected boolean isSolutionSetUpdate;
 	
 
-	private RuntimeAggregatorRegistry iterationAggregators;
+	private RuntimeAccumulatorRegistry iterationAccumulators;
 
 	private String brokerKey;
 
@@ -101,9 +100,9 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 			worksetBackChannel = BlockingBackChannelBroker.instance().getAndRemove(brokerKey());
 
 			if (isWorksetIteration) {
-				worksetAggregator = getIterationAggregators().getAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME);
+				worksetAccumulator = getIterationAccumulators().getAccumulator(WorksetEmptyConvergenceCriterion.ACCUMULATOR_NAME);
 
-				if (worksetAggregator == null) {
+				if (worksetAccumulator == null) {
 					throw new RuntimeException("Missing workset elements count aggregator.");
 				}
 			}
@@ -198,11 +197,11 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		}
 	}
 
-	public RuntimeAggregatorRegistry getIterationAggregators() {
-		if (this.iterationAggregators == null) {
-			this.iterationAggregators = IterationAggregatorBroker.instance().get(brokerKey());
+	public RuntimeAccumulatorRegistry getIterationAccumulators() {
+		if (this.iterationAccumulators == null) {
+			this.iterationAccumulators = IterationAccumulatorBroker.instance().get(brokerKey());
 		}
-		return this.iterationAggregators;
+		return this.iterationAccumulators;
 	}
 
 	protected void checkForTerminationAndResetEndOfSuperstepState() throws IOException {
@@ -373,17 +372,21 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		public int getSuperstepNumber() {
 			return AbstractIterativePactTask.this.superstepNum;
 		}
-
-		@Override
-		public <T extends Aggregator<?>> T getIterationAggregator(String name) {
-			return getIterationAggregators().<T>getAggregator(name);
+		
+		public <V, A> void addIterationAccumulator(String name, Accumulator<V, A> accumulator) {
+			getIterationAccumulators().addAccumulator(name, accumulator);
 		}
 
-		@Override
 		@SuppressWarnings("unchecked")
-		public <T extends Value> T getPreviousIterationAggregate(String name) {
-			return (T) getIterationAggregators().getPreviousGlobalAggregate(name);
+		@Override
+		public <V, A> Accumulator<V, A> getAccumulator(String name) {
+			return (Accumulator<V, A>) getIterationAccumulators().getAccumulator(name);
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public <T extends Accumulator<?, ?>> T getPreviousIterationAccumulator(String name) {
+			return (T) getIterationAccumulators().getPreviousGlobalAccumulator(name);
 		}
 	}
-
 }

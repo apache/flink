@@ -13,10 +13,16 @@
 
 package eu.stratosphere.test.iterative.nephele.danglingpagerank;
 
-import eu.stratosphere.api.common.aggregators.Aggregator;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
-@SuppressWarnings("serial")
-public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
+import eu.stratosphere.api.common.accumulators.Accumulator;
+import eu.stratosphere.api.common.accumulators.SimpleAccumulator;
+
+public class PageRankStatsAccumulator implements SimpleAccumulator<PageRankStats> {
+
+	private static final long serialVersionUID = 1L;
 
 	private double diff = 0;
 
@@ -34,13 +40,7 @@ public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
 
 	private double finalDiff = 0;
 
-	@Override
-	public PageRankStats getAggregate() {
-		return new PageRankStats(diff, rank, danglingRank, numDanglingVertices, numVertices, edges, summedRank,
-			finalDiff);
-	}
-
-	public void aggregate(double diffDelta, double rankDelta, double danglingRankDelta, long danglingVerticesDelta,
+	public void add(double diffDelta, double rankDelta, double danglingRankDelta, long danglingVerticesDelta,
 			long verticesDelta, long edgesDelta, double summedRankDelta, double finalDiffDelta) {
 		diff += diffDelta;
 		rank += rankDelta;
@@ -53,7 +53,7 @@ public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
 	}
 
 	@Override
-	public void aggregate(PageRankStats pageRankStats) {
+	public void add(PageRankStats pageRankStats) {
 		diff += pageRankStats.diff();
 		rank += pageRankStats.rank();
 		danglingRank += pageRankStats.danglingRank();
@@ -65,7 +65,13 @@ public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
 	}
 
 	@Override
-	public void reset() {
+	public PageRankStats getLocalValue() {
+		return new PageRankStats(diff, rank, danglingRank, numDanglingVertices, numVertices, edges, summedRank,
+				finalDiff);
+	}
+
+	@Override
+	public void resetLocal() {
 		diff = 0;
 		rank = 0;
 		danglingRank = 0;
@@ -74,5 +80,34 @@ public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
 		edges = 0;
 		summedRank = 0;
 		finalDiff = 0;
+	}
+
+	@Override
+	public void merge(Accumulator<PageRankStats, PageRankStats> other) {
+		this.add(other.getLocalValue());
+	}
+
+	@Override
+	public void write(DataOutput out) throws IOException {
+		out.writeDouble(diff);
+		out.writeDouble(rank);
+		out.writeDouble(danglingRank);
+		out.writeLong(numDanglingVertices);
+		out.writeLong(numVertices);
+		out.writeLong(edges);
+		out.writeDouble(summedRank);
+		out.writeDouble(finalDiff);
+	}
+
+	@Override
+	public void read(DataInput in) throws IOException {
+		diff = in.readDouble();
+		rank = in.readDouble();
+		danglingRank = in.readDouble();
+		numDanglingVertices = in.readLong();
+		numVertices = in.readLong();
+		edges = in.readLong();
+		summedRank = in.readDouble();
+		finalDiff = in.readDouble();
 	}
 }

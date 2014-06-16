@@ -40,6 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import eu.stratosphere.nephele.ExecutionMode;
 import eu.stratosphere.runtime.io.network.LocalConnectionManager;
@@ -82,6 +83,8 @@ import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
+import eu.stratosphere.nephele.protocols.IterationInstructionProtocol;
+import eu.stratosphere.nephele.protocols.IterationReportProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
@@ -89,6 +92,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 import eu.stratosphere.pact.runtime.cache.FileCache;
+import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
+import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.runtime.io.channels.ChannelID;
 import eu.stratosphere.runtime.io.network.ChannelManager;
 import eu.stratosphere.runtime.io.network.InsufficientResourcesException;
@@ -101,7 +106,7 @@ import eu.stratosphere.util.StringUtils;
  * as long as the job manager is running on the same local network
  * 
  */
-public class TaskManager implements TaskOperationProtocol {
+public class TaskManager implements TaskOperationProtocol, IterationInstructionProtocol {
 
 	private static final Log LOG = LogFactory.getLog(TaskManager.class);
 
@@ -120,6 +125,8 @@ public class TaskManager implements TaskOperationProtocol {
 	private final ExecutorService executorService = Executors.newCachedThreadPool(ExecutorThreadFactory.INSTANCE);
 	
 	private final AccumulatorProtocol accumulatorProtocolProxy;
+	
+	private final IterationReportProtocol iterationReportProtocolProxy;
 
 	private final Server taskManagerServer;
 
@@ -254,6 +261,15 @@ public class TaskManager implements TaskOperationProtocol {
 		} catch (IOException e) {
 			LOG.fatal("Failed to initialize accumulator protocol: " + e.getMessage(), e);
 			throw new Exception("Failed to initialize accumulator protocol: " + e.getMessage(), e);
+		}
+		
+
+		// Try to create local stub for iteration handling
+		try {
+			this.iterationReportProtocolProxy = RPC.getProxy(IterationReportProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
+		} catch (IOException e) {
+			LOG.fatal("Failed to initialize iteration report protocol: " + e.getMessage(), e);
+			throw new Exception("Failed to initialize iteration report protocol: " + e.getMessage(), e);
 		}
 
 		// Load profiler if it should be used
@@ -723,7 +739,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 			try {
 				re = new RuntimeEnvironment(tdd, this.memoryManager, this.ioManager, new TaskInputSplitProvider(jobID,
-					vertexID, this.globalInputSplitProvider), this.accumulatorProtocolProxy, cpTasks);
+					vertexID, this.globalInputSplitProvider), this.accumulatorProtocolProxy, this.iterationReportProtocolProxy, cpTasks);
 			} catch (Throwable t) {
 				final TaskSubmissionResult result = new TaskSubmissionResult(vertexID,
 					AbstractTaskResult.ReturnCode.DEPLOYMENT_ERROR);
@@ -951,6 +967,9 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// Stop RPC proxy for accumulator reports
 		RPC.stopProxy(this.accumulatorProtocolProxy);
+		
+		// Stop RPC proxy for iteration reports
+		RPC.stopProxy(this.iterationReportProtocolProxy);
 
 		// Shut down the own RPC server
 		this.taskManagerServer.stop();
@@ -1060,6 +1079,63 @@ public class TaskManager implements TaskOperationProtocol {
 			if (!f.canWrite()) {
 				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not writable.");
 			}
+		}
+	}
+
+	@Override
+	public void startNextSuperstep(ExecutionVertexID headVertexId,
+			AllWorkersDoneEvent allWorkersDoneEvent) throws IOException {
+		
+		final Task task = this.runningTasks.get(headVertexId);
+		
+		if (task == null) {
+			throw new RuntimeException("Could not find head vertex to start the next superstep. Wrong ID?");
+		}
+		
+		// get the head task
+		final RuntimeEnvironment environment = (RuntimeEnvironment) task.getEnvironment();
+		final IterationHeadPactTask<?, ?, ?, ?> headTask = (IterationHeadPactTask<?, ?, ?, ?>) environment.getInvokable();
+		
+		AtomicInteger instructionSynchronizer = headTask.getInstructionSynchronizer();
+		
+		synchronized (instructionSynchronizer) {
+		
+			// update its state
+			headTask.setLastGlobalState(allWorkersDoneEvent);
+			
+			// signal next superstep
+			instructionSynchronizer.set(IterationHeadPactTask.NEXT_SUPERSTEP_REQUEST);
+			
+			// notify thread to continue
+			instructionSynchronizer.notifyAll();
+		}
+	}
+
+	@Override
+	public void terminate(ExecutionVertexID headVertexId) throws IOException {
+		
+		final Task task = this.runningTasks.get(headVertexId);
+		
+		if (task == null) {
+			throw new RuntimeException("Could not find head vertex to start the next superstep. Wrong ID?");
+		}
+		
+		// get the head task
+		final RuntimeEnvironment environment = (RuntimeEnvironment) task.getEnvironment();
+		final IterationHeadPactTask<?, ?, ?, ?> headTask = (IterationHeadPactTask<?, ?, ?, ?>) environment.getInvokable();
+		
+		AtomicInteger instructionSynchronizer = headTask.getInstructionSynchronizer();
+		
+		synchronized (instructionSynchronizer) {
+		
+			// update its state
+			headTask.setLastGlobalState(null);
+			
+			// signal next superstep
+			instructionSynchronizer.set(IterationHeadPactTask.TERMINATION_REQUEST);
+			
+			// notify thread to continue
+			instructionSynchronizer.notifyAll();
 		}
 	}
 

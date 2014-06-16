@@ -13,6 +13,9 @@
 
 package eu.stratosphere.test.iterative.nephele.danglingpagerank;
 
+import java.util.Iterator;
+import java.util.Set;
+
 import eu.stratosphere.api.java.record.functions.CoGroupFunction;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.iterative.nephele.ConfigUtils;
@@ -21,15 +24,12 @@ import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
-import java.util.Iterator;
-import java.util.Set;
-
 public class CompensatableDotProductCoGroup extends CoGroupFunction {
 	
 	private static final long serialVersionUID = 1L;
 	
 
-	public static final String AGGREGATOR_NAME = "pagerank.aggregator";
+	public static final String ACCUMULATOR_NAME = "pagerank.accumulator";
 
 	private Record accumulator = new Record();
 
@@ -41,7 +41,7 @@ public class CompensatableDotProductCoGroup extends CoGroupFunction {
 
 	private Set<Integer> failingWorkers;
 
-	private PageRankStatsAggregator aggregator;
+	private PageRankStatsAccumulator aggregator;
 
 	private long numVertices;
 
@@ -73,12 +73,15 @@ public class CompensatableDotProductCoGroup extends CoGroupFunction {
 
 		dampingFactor = (1d - BETA) / (double) numVertices;
 		
-		aggregator = getIterationRuntimeContext().getIterationAggregator(AGGREGATOR_NAME);
+		aggregator = new PageRankStatsAccumulator();
+		getIterationRuntimeContext().addIterationAccumulator(ACCUMULATOR_NAME, aggregator);
 		
 		if (currentIteration == 1) {
 			danglingRankFactor = BETA * (double) numDanglingVertices / ((double) numVertices * (double) numVertices);
 		} else {
-			PageRankStats previousAggregate = getIterationRuntimeContext().getPreviousIterationAggregate(AGGREGATOR_NAME);
+			PageRankStats previousAggregate = (PageRankStats) getIterationRuntimeContext()
+					.getPreviousIterationAccumulator(ACCUMULATOR_NAME)
+					.getLocalValue();
 			danglingRankFactor = BETA * previousAggregate.danglingRank() / (double) numVertices;
 		}
 	}
@@ -110,7 +113,7 @@ public class CompensatableDotProductCoGroup extends CoGroupFunction {
 
 		double diff = Math.abs(currentRank - rank);
 
-		aggregator.aggregate(diff, rank, danglingRankToAggregate, danglingVerticesToAggregate, 1, edges, summedRank, 0);
+		aggregator.add(diff, rank, danglingRankToAggregate, danglingVerticesToAggregate, 1, edges, summedRank, 0);
 
 		newRank.setValue(rank);
 
@@ -124,7 +127,7 @@ public class CompensatableDotProductCoGroup extends CoGroupFunction {
 	@Override
 	public void close() throws Exception {
 		if (currentIteration == failingIteration && failingWorkers.contains(workerIndex)) {
-			aggregator.reset();
+			aggregator.resetLocal();
 		}
 	}
 }

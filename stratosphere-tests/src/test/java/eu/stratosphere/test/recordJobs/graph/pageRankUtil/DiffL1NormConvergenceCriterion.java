@@ -16,7 +16,7 @@ package eu.stratosphere.test.recordJobs.graph.pageRankUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
+import eu.stratosphere.api.common.accumulators.ConvergenceCriterion;
 
 @SuppressWarnings("serial")
 public class DiffL1NormConvergenceCriterion implements ConvergenceCriterion<PageRankStats> {

@@ -13,14 +13,11 @@
 package eu.stratosphere.spargel.java;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.lang3.Validate;
 
-import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.DeltaIteration;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
@@ -76,8 +73,6 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	
 	private final DataSet<Tuple3<VertexKey, VertexKey, EdgeValue>> edgesWithValue;
 	
-	private final Map<String, Aggregator<?>> aggregators;
-	
 	private final int maximumNumberOfIterations;
 	
 	private final List<Tuple2<String, DataSet<?>>> bcVarsUpdate = new ArrayList<Tuple2<String,DataSet<?>>>(4);
@@ -118,7 +113,6 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		this.edgesWithoutValue = edgesWithoutValue;
 		this.edgesWithValue = null;
 		this.maximumNumberOfIterations = maximumNumberOfIterations;
-		this.aggregators = new HashMap<String, Aggregator<?>>();
 		
 		this.messageType = getMessageType(mf);
 	}
@@ -150,25 +144,12 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		this.edgesWithoutValue = null;
 		this.edgesWithValue = edgesWithValue;
 		this.maximumNumberOfIterations = maximumNumberOfIterations;
-		this.aggregators = new HashMap<String, Aggregator<?>>();
 		
 		this.messageType = getMessageType(mf);
 	}
 	
 	private TypeInformation<Message> getMessageType(MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf) {
 		return TypeExtractor.createTypeInfo(MessagingFunction.class, mf.getClass(), 2, null, null);
-	}
-	
-	/**
-	 * Registers a new aggregator. Aggregators registered here are available during the execution of the vertex updates
-	 * via {@link VertexUpdateFunction#getIterationAggregator(String)} and
-	 * {@link VertexUpdateFunction#getPreviousIterationAggregate(String)}.
-	 * 
-	 * @param name The name of the aggregator, used to retrieve it and its aggregates during execution. 
-	 * @param aggregator The aggregator.
-	 */
-	public void registerAggregator(String name, Aggregator<?> aggregator) {
-		this.aggregators.put(name, aggregator);
 	}
 	
 	/**
@@ -284,11 +265,6 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 			this.initialVertices.iterateDelta(this.initialVertices, this.maximumNumberOfIterations, zeroKeyPos);
 		iteration.name(name);
 		iteration.parallelism(parallelism);
-		
-		// register all aggregators
-		for (Map.Entry<String, Aggregator<?>> entry : this.aggregators.entrySet()) {
-			iteration.registerAggregator(entry.getKey(), entry.getValue());
-		}
 		
 		// build the messaging function (co group)
 		CoGroupOperator<?, ?, Tuple2<VertexKey, Message>> messages;

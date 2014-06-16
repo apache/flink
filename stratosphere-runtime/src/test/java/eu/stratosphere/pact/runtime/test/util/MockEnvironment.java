@@ -28,6 +28,7 @@ import eu.stratosphere.runtime.io.gates.InputGate;
 import eu.stratosphere.runtime.io.gates.OutputGate;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
+import eu.stratosphere.nephele.protocols.IterationReportProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
@@ -344,5 +345,11 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	@Override
 	public Map<String, FutureTask<Path>> getCopyTask() {
 		return null;
+	}
+
+	@Override
+	public IterationReportProtocol getIterationReportProtocolProxy() {
+		throw new UnsupportedOperationException(
+				"getIterationReportProtocolProxy() is not supported by MockEnvironment");
 	}
 }

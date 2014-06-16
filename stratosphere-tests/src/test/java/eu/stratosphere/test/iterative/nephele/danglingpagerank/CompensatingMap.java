@@ -50,10 +50,13 @@ public class CompensatingMap extends MapFunction {
 		failingIteration = ConfigUtils.asInteger("compensation.failingIteration", parameters);
 		failingWorkers = ConfigUtils.asIntSet("compensation.failingWorker", parameters);
 		numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
+		
+		getRuntimeContext().addAccumulator(CompensatableDotProductCoGroup.ACCUMULATOR_NAME, new PageRankStatsAccumulator());
 
-		if (currentIteration > 1) {
-			PageRankStats stats = (PageRankStats) getIterationRuntimeContext().getPreviousIterationAggregate(
-				CompensatableDotProductCoGroup.AGGREGATOR_NAME);
+		if (currentIteration > 1) {	
+			PageRankStats stats = (PageRankStats) getIterationRuntimeContext()
+					.getPreviousIterationAccumulator(CompensatableDotProductCoGroup.ACCUMULATOR_NAME)
+					.getLocalValue();
 
 			uniformRank = 1d / (double) numVertices;
 			double lostMassFactor = (numVertices - stats.numVertices()) / (double) numVertices;

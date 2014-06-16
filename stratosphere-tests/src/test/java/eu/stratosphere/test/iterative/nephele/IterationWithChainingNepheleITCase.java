@@ -159,9 +159,6 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 			headFinalOutConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 			headConfig.setIterationHeadFinalOutputConfig(headFinalOutConfig);
 
-			// the sync
-			headConfig.setIterationHeadIndexOfSyncOutput(2);
-
 			// driver
 			headConfig.setDriver(CollectorMapDriver.class);
 			headConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
@@ -169,6 +166,9 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 
 			// back channel
 			headConfig.setBackChannelMemory(MEM_PER_CONSUMER * JobGraphUtils.MEGABYTE);
+			
+			// number of iterations
+			headConfig.setNumberOfIterations(maxIterations);
 		}
 
 		// - tail ------------------------------------------------------------------------------------------------------
@@ -223,12 +223,6 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		// - fake tail -------------------------------------------------------------------------------------------------
 		JobOutputVertex fakeTail = JobGraphUtils.createFakeOutput(jobGraph, "Fake Tail", numSubTasks, numSubTasks);
 
-		// - sync ------------------------------------------------------------------------------------------------------
-		JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, numSubTasks);
-		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-		syncConfig.setNumberOfIterations(maxIterations);
-		syncConfig.setIterationId(ITERATION_ID);
-
 		// --------------------------------------------------------------------------------------------------------------
 		// 2. EDGES
 		// --------------------------------------------------------------------------------------------------------------
@@ -238,8 +232,6 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 
 		JobGraphUtils.connect(head, output, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
-
-		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 
 		JobGraphUtils.connect(tail, fakeTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 
@@ -251,8 +243,6 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		tail.setVertexToShareInstancesWith(head);
 
 		output.setVertexToShareInstancesWith(head);
-
-		sync.setVertexToShareInstancesWith(head);
 
 		fakeTail.setVertexToShareInstancesWith(tail);
 

@@ -16,7 +16,6 @@ package eu.stratosphere.api.common.operators.base;
 import java.util.Collections;
 import java.util.Map;
 
-import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
 import eu.stratosphere.api.common.operators.DualInputOperator;
@@ -65,8 +64,6 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 	 */
 	private int maxNumberOfIterations = -1;
 
-	private final AggregatorRegistry aggregators = new AggregatorRegistry();
-
 	// --------------------------------------------------------------------------------------------
 
 	public DeltaIterationBase(BinaryOperatorInformation<ST, WT, ST> operatorInfo, int keyPosition) {
@@ -100,11 +97,6 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 	
 	public int getMaximumNumberOfIterations() {
 		return this.maxNumberOfIterations;
-	}
-	
-	@Override
-	public AggregatorRegistry getAggregators() {
-		return this.aggregators;
 	}
 	
 	// --------------------------------------------------------------------------------------------

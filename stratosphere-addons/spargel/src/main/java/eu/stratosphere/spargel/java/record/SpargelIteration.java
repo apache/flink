@@ -15,7 +15,6 @@ package eu.stratosphere.spargel.java.record;
 import java.io.IOException;
 import java.util.Iterator;
 
-import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.record.operators.DeltaIteration;
 import eu.stratosphere.api.java.record.functions.CoGroupFunction;
@@ -127,10 +126,6 @@ public class SpargelIteration {
 	
 	public void setNumberOfIterations(int iterations) {
 		this.iteration.setMaximumNumberOfIterations(iterations);
-	}
-	
-	public AggregatorRegistry getAggregators() {
-		return this.iteration.getAggregators();
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -12,9 +12,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.operators;
 
-import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
-
 public interface IterationOperator {
 	
-	AggregatorRegistry getAggregators();
 }

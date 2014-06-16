@@ -22,7 +22,7 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.common.aggregators.LongSumAggregator;
+import eu.stratosphere.api.common.accumulators.LongCounter;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.DeltaIteration;
 import eu.stratosphere.api.java.DeltaIterationResultSet;
@@ -33,13 +33,13 @@ import eu.stratosphere.api.java.tuple.Tuple2;
 
 @SuppressWarnings("serial")
 public class SpargelTranslationTest {
+	
+	public static final String ACCUMULATOR_NAME = "AccumulatorName";
 
 	@Test
 	public void testTranslationPlainEdges() {
 		try {
 			final String ITERATION_NAME = "Test Name";
-			
-			final String AGGREGATOR_NAME = "AggregatorName";
 			
 			final String BC_SET_MESSAGES_NAME = "borat messages";
 			
@@ -75,8 +75,6 @@ public class SpargelTranslationTest {
 				vertexIteration.setName(ITERATION_NAME);
 				vertexIteration.setParallelism(ITERATION_DOP);
 				
-				vertexIteration.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
-				
 				result = initialVertices.runOperation(vertexIteration);
 			}
 			
@@ -93,8 +91,6 @@ public class SpargelTranslationTest {
 			assertArrayEquals(new int[] {0}, resultSet.getKeyPositions());
 			assertEquals(ITERATION_DOP, iteration.getParallelism());
 			assertEquals(ITERATION_NAME, iteration.getName());
-			
-			assertEquals(AGGREGATOR_NAME, iteration.getAggregators().getAllRegisteredAggregators().iterator().next().getName());
 			
 			// validate that the semantic properties are set as they should
 			TwoInputUdfOperator<?, ?, ?, ?> solutionSetJoin = (TwoInputUdfOperator<?, ?, ?, ?>) resultSet.getNextWorkset();
@@ -118,8 +114,6 @@ public class SpargelTranslationTest {
 	public void testTranslationPlainEdgesWithForkedBroadcastVariable() {
 		try {
 			final String ITERATION_NAME = "Test Name";
-			
-			final String AGGREGATOR_NAME = "AggregatorName";
 			
 			final String BC_SET_MESSAGES_NAME = "borat messages";
 			
@@ -154,8 +148,6 @@ public class SpargelTranslationTest {
 				vertexIteration.setName(ITERATION_NAME);
 				vertexIteration.setParallelism(ITERATION_DOP);
 				
-				vertexIteration.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
-				
 				result = initialVertices.runOperation(vertexIteration);
 			}
 			
@@ -172,8 +164,6 @@ public class SpargelTranslationTest {
 			assertArrayEquals(new int[] {0}, resultSet.getKeyPositions());
 			assertEquals(ITERATION_DOP, iteration.getParallelism());
 			assertEquals(ITERATION_NAME, iteration.getName());
-			
-			assertEquals(AGGREGATOR_NAME, iteration.getAggregators().getAllRegisteredAggregators().iterator().next().getName());
 			
 			// validate that the semantic properties are set as they should
 			TwoInputUdfOperator<?, ?, ?, ?> solutionSetJoin = (TwoInputUdfOperator<?, ?, ?, ?>) resultSet.getNextWorkset();
@@ -197,6 +187,12 @@ public class SpargelTranslationTest {
 	
 	public static class UpdateFunction extends VertexUpdateFunction<String, Double, Long> {
 
+		LongCounter acc = new LongCounter();
+		
+		public void preSuperstep() {
+			addIterationAccumulator(ACCUMULATOR_NAME, acc);
+		}
+		
 		@Override
 		public void updateVertex(String vertexKey, Double vertexValue, MessageIterator<Long> inMessages) {}
 	}

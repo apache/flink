@@ -11,15 +11,14 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.test.iterative.aggregators;
+package eu.stratosphere.test.iterative.accumulators;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import junit.framework.Assert;
-
-import eu.stratosphere.api.common.aggregators.LongSumAggregator;
+import eu.stratosphere.api.common.accumulators.ConvergenceCriterion;
+import eu.stratosphere.api.common.accumulators.LongCounter;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.IterativeDataSet;
@@ -29,18 +28,17 @@ import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.util.JavaProgramTestBase;
-import eu.stratosphere.types.LongValue;
 import eu.stratosphere.util.Collector;
 
 
 /**
  * 
- * Connected Components test case that uses a parametrizable aggregator
+ * Connected Components test case that uses a parametrizable convergence criterion
  *
  */
-public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaProgramTestBase {
+public class ConnectedComponentsWithParametrizableConvergenceITCase extends JavaProgramTestBase {
 
-	private static final int MAX_ITERATIONS = 5;
+	private static final int MAX_ITERATIONS = 10;
 	private static final int DOP = 1;
 
 	protected static List<Tuple2<Long, Long>> verticesInput = new ArrayList<Tuple2<Long, Long>>();
@@ -84,31 +82,24 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 		resultPath = getTempDirPath("result");
 
 		expectedResult = "(1, 1)\n" + "(2, 1)\n" + "(3, 1)\n" + "(4, 1)\n" +
-						"(5, 1)\n" + "(6, 1)\n" + "(7, 7)\n" + "(8, 7)\n" + "(9, 7)\n";
+						"(5, 2)\n" + "(6, 1)\n" + "(7, 7)\n" + "(8, 7)\n" + "(9, 7)\n";
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		ConnectedComponentsWithAggregatorProgram.runProgram(resultPath);
+		ConnectedComponentsWithConvergenceProgram.runProgram(resultPath);
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(expectedResult, resultPath);
-		long[] aggr_values = ConnectedComponentsWithAggregatorProgram.aggr_value;
-		Assert.assertEquals(3, aggr_values[0]);
-		Assert.assertEquals(4, aggr_values[1]);
-		Assert.assertEquals(5, aggr_values[2]);
-		Assert.assertEquals(6, aggr_values[3]);
-		Assert.assertEquals(6, aggr_values[4]);
 	}
 
 
-	private static class ConnectedComponentsWithAggregatorProgram {
+	private static class ConnectedComponentsWithConvergenceProgram {
 
-		private static final String ELEMENTS_IN_COMPONENT = "elements.in.component.aggregator";
-		private static final long componentId = 1l;
-		private static long [] aggr_value = new long [MAX_ITERATIONS];
+		private static final String UPDATED_ELEMENTS = "updated.elements.aggr";
+		private static final long convergence_threshold = 3; // the iteration stops if less than this number os elements change value
 
 		public static String runProgram(String resultPath) throws Exception {
 
@@ -121,18 +112,16 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 			IterativeDataSet<Tuple2<Long, Long>> iteration =
 					initialSolutionSet.iterate(MAX_ITERATIONS);
 
-			// register the aggregator
-			iteration.registerAggregator(ELEMENTS_IN_COMPONENT, new LongSumAggregatorWithParameter(componentId));
 
 			DataSet<Tuple2<Long, Long>> verticesWithNewComponents = iteration.join(edges).where(0).equalTo(0)
 					.with(new NeighborWithComponentIDJoin())
 					.groupBy(0).reduceGroup(new MinimumReduce());
 
-			DataSet<Tuple2<Long, Long>> updatedComponentId =
+			DataSet<Tuple2<Long, Long>> updatedComponentId = 
 					verticesWithNewComponents.join(iteration).where(0).equalTo(0)
 					.flatMap(new MinimumIdFilter());
 
-			iteration.closeWith(updatedComponentId).writeAsText(resultPath);
+			iteration.closeWith(updatedComponentId, new UpdatedElementsConvergenceCriterion(convergence_threshold), UPDATED_ELEMENTS).writeAsText(resultPath);
 
 			env.execute();
 
@@ -164,7 +153,7 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 		public void reduce(Iterator<Tuple2<Long, Long>> values,
 				Collector<Tuple2<Long, Long>> out) throws Exception {
 
-			final Tuple2<Long, Long> first = values.next();
+			final Tuple2<Long, Long> first = values.next();		
 			final Long vertexId = first.f0;
 			Long minimumCompId = first.f1;
 
@@ -185,20 +174,13 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 	public static final class MinimumIdFilter extends FlatMapFunction
 		<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
 
-		private static LongSumAggregatorWithParameter aggr;
+		private static LongCounter aggr = new LongCounter();
 
 		@Override
 		public void open(Configuration conf) {
-			aggr = getIterationRuntimeContext().getIterationAggregator(
-					ConnectedComponentsWithAggregatorProgram.ELEMENTS_IN_COMPONENT);
-
-			int superstep = getIterationRuntimeContext().getSuperstepNumber(); 
-
-			if (superstep > 1) {
-				LongValue val = getIterationRuntimeContext().getPreviousIterationAggregate(
-						ConnectedComponentsWithAggregatorProgram.ELEMENTS_IN_COMPONENT);
-				ConnectedComponentsWithAggregatorProgram.aggr_value[superstep-2] = val.getValue();
-			}
+			getIterationRuntimeContext().addIterationAccumulator(
+					ConnectedComponentsWithConvergenceProgram.UPDATED_ELEMENTS,
+					aggr);
 		}
 
 		@Override
@@ -208,30 +190,31 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 
 			if (vertexWithNewAndOldId.f0.f1 < vertexWithNewAndOldId.f1.f1) {
 				out.collect(vertexWithNewAndOldId.f0);
-				if (vertexWithNewAndOldId.f0.f1 == aggr.getComponentId()) {
-					aggr.aggregate(1l);
-				}
+				aggr.add(1l);
 			} else {
 				out.collect(vertexWithNewAndOldId.f1);
-				if (vertexWithNewAndOldId.f1.f1 == aggr.getComponentId()) {
-					aggr.aggregate(1l);
-				}
 			}
 		}
 	}
 
-	// A LongSumAggregator with one parameter
+	// A Convergence Criterion with one parameter
 	@SuppressWarnings("serial")
-	public static final class LongSumAggregatorWithParameter extends LongSumAggregator {
+	public static final class UpdatedElementsConvergenceCriterion implements ConvergenceCriterion<Long> {
 
-		private long componentId;
+		private long threshold;
 
-		public LongSumAggregatorWithParameter(long compId) {
-			this.componentId = compId;
+		public UpdatedElementsConvergenceCriterion(long u_threshold) {
+			this.threshold = u_threshold;
 		}
 
-		public long getComponentId() {
-			return this.componentId;
+		public long getThreshold() {
+			return this.threshold;
+		}
+
+		@Override
+		public boolean isConverged(int iteration, Long value) {
+			return value.longValue() < this.threshold;
 		}
 	}
+
 }

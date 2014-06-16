@@ -10,42 +10,22 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
-package eu.stratosphere.api.common.aggregators;
 
-import eu.stratosphere.types.DoubleValue;
+package eu.stratosphere.api.common.accumulators;
+
+import java.io.Serializable;
 
 
 /**
- * An {@link Aggregator} that sums up {@link DoubleValue} values.
+ * Used to check for convergence. A ConvergenceCriterion is registered on an Accumulator
+ * and is used to determine of an iterative algorithm is converged. 
+ * The type of the ConvergenceCriterion therefore has to be equal to the return type of the 
+ * Accumulator.
  */
-@SuppressWarnings("serial")
-public class DoubleSumAggregator implements Aggregator<DoubleValue> {
-
-	private DoubleValue wrapper = new DoubleValue();
-	private double sum;
-	
-	@Override
-	public DoubleValue getAggregate() {
-		wrapper.setValue(sum);
-		return wrapper;
-	}
-
-	@Override
-	public void aggregate(DoubleValue element) {
-		sum += element.getValue();
-	}
+public interface ConvergenceCriterion<T> extends Serializable {
 
 	/**
-	 * Adds the given value to the current aggregate.
-	 * 
-	 * @param value The value to add to the aggregate.
+	 * Decide whether the iterative algorithm has converged
 	 */
-	public void aggregate(double value) {
-		sum += value;
-	}
-	
-	@Override
-	public void reset() {
-		sum = 0;
-	}
+	boolean isConverged(int iteration, T value);
 }

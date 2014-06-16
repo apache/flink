@@ -18,7 +18,9 @@ import eu.stratosphere.api.common.functions.GenericCollectorMap;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.iterative.nephele.ConfigUtils;
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.types.VertexWithRankAndDangling;
+import eu.stratosphere.test.iterative.nephele.danglingpagerank.CompensatableDotProductCoGroup;
 import eu.stratosphere.test.iterative.nephele.danglingpagerank.PageRankStats;
+import eu.stratosphere.test.iterative.nephele.danglingpagerank.PageRankStatsAccumulator;
 import eu.stratosphere.util.Collector;
 
 import java.util.Set;
@@ -47,10 +49,14 @@ public class CustomCompensatingMap extends AbstractFunction implements GenericCo
 		isFailingWorker = failingWorkers.contains(workerIndex);
 		
 		long numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
+		
+		getIterationRuntimeContext().addIterationAccumulator(CompensatableDotProductCoGroup.ACCUMULATOR_NAME, new PageRankStatsAccumulator());
 
 		if (currentIteration > 1) {
 			
-			PageRankStats stats = (PageRankStats) getIterationRuntimeContext().getPreviousIterationAggregate(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME);
+			PageRankStats stats = (PageRankStats) getIterationRuntimeContext()
+					.getPreviousIterationAccumulator(CompensatableDotProductCoGroup.ACCUMULATOR_NAME)
+					.getLocalValue();
 
 			uniformRank = 1d / (double) numVertices;
 			double lostMassFactor = (numVertices - stats.numVertices()) / (double) numVertices;
