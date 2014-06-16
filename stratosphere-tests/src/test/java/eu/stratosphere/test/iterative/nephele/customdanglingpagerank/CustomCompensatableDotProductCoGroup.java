@@ -20,7 +20,7 @@ import eu.stratosphere.test.iterative.nephele.ConfigUtils;
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.types.VertexWithRank;
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.types.VertexWithRankAndDangling;
 import eu.stratosphere.test.iterative.nephele.danglingpagerank.PageRankStats;
-import eu.stratosphere.test.iterative.nephele.danglingpagerank.PageRankStatsAggregator;
+import eu.stratosphere.test.iterative.nephele.danglingpagerank.PageRankStatsAccumulator;
 import eu.stratosphere.util.Collector;
 
 import java.util.Iterator;
@@ -30,11 +30,11 @@ public class CustomCompensatableDotProductCoGroup extends AbstractFunction imple
 
 	private static final long serialVersionUID = 1L;
 
-	public static final String AGGREGATOR_NAME = "pagerank.aggregator";
+	public static final String ACCUMULATOR_NAME = "pagerank.accumulator";
 	
 	private VertexWithRankAndDangling accumulator = new VertexWithRankAndDangling();
 
-	private PageRankStatsAggregator aggregator;
+	private PageRankStatsAccumulator aggregator;
 
 	private long numVertices;
 
@@ -66,12 +66,15 @@ public class CustomCompensatableDotProductCoGroup extends AbstractFunction imple
 		
 		dampingFactor = (1d - BETA) / (double) numVertices;
 
-		aggregator = getIterationRuntimeContext().getIterationAggregator(AGGREGATOR_NAME);
+		aggregator = new PageRankStatsAccumulator();
+		getIterationRuntimeContext().addIterationAccumulator(ACCUMULATOR_NAME, aggregator);
 		
 		if (currentIteration == 1) {
 			danglingRankFactor = BETA * (double) numDanglingVertices / ((double) numVertices * (double) numVertices);
 		} else {
-			PageRankStats previousAggregate = getIterationRuntimeContext().getPreviousIterationAggregate(AGGREGATOR_NAME);
+			PageRankStats previousAggregate = (PageRankStats) getIterationRuntimeContext()
+					.getPreviousIterationAccumulator(ACCUMULATOR_NAME)
+					.getLocalValue();
 			danglingRankFactor = BETA * previousAggregate.danglingRank() / (double) numVertices;
 		}
 	}
@@ -104,7 +107,7 @@ public class CustomCompensatableDotProductCoGroup extends AbstractFunction imple
 
 		double diff = Math.abs(currentRank - rank);
 
-		aggregator.aggregate(diff, rank, danglingRankToAggregate, danglingVerticesToAggregate, 1, edges, summedRank, 0);
+		aggregator.add(diff, rank, danglingRankToAggregate, danglingVerticesToAggregate, 1, edges, summedRank, 0);
 
 		accumulator.setVertexID(currentPageRank.getVertexID());
 		accumulator.setRank(rank);
@@ -116,7 +119,7 @@ public class CustomCompensatableDotProductCoGroup extends AbstractFunction imple
 	@Override
 	public void close() throws Exception {
 		if (currentIteration == failingIteration && failingWorkers.contains(workerIndex)) {
-			aggregator.reset();
+			aggregator.resetLocal();
 		}
 	}
 	

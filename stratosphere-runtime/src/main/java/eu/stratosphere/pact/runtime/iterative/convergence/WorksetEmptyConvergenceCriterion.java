@@ -16,24 +16,23 @@ package eu.stratosphere.pact.runtime.iterative.convergence;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
-import eu.stratosphere.types.LongValue;
+import eu.stratosphere.api.common.accumulators.ConvergenceCriterion;
 
 /**
  * A workset iteration is by definition converged if no records have been updated in the solutionset
  */
-public class WorksetEmptyConvergenceCriterion implements ConvergenceCriterion<LongValue> {
+public class WorksetEmptyConvergenceCriterion implements ConvergenceCriterion<Long> {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final Log log = LogFactory.getLog(WorksetEmptyConvergenceCriterion.class);
 	
-	public static final String AGGREGATOR_NAME = "pact.runtime.workset-empty-aggregator";
+	public static final String ACCUMULATOR_NAME = "pact.runtime.workset-empty-accumulator";
 
 	@Override
-	public boolean isConverged(int iteration, LongValue value) {
+	public boolean isConverged(int iteration, Long value) {
 
-		long updatedElements = value.getValue();
+		long updatedElements = value.longValue();
 
 		if (log.isInfoEnabled()) {
 			log.info("[" + updatedElements + "] elements updated in the solutionset in iteration [" + iteration + "]");

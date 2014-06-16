@@ -15,7 +15,7 @@ package eu.stratosphere.spargel.java.record;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import eu.stratosphere.api.common.aggregators.Aggregator;
+import eu.stratosphere.api.common.accumulators.Accumulator;
 import eu.stratosphere.api.common.functions.IterationRuntimeContext;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.Key;
@@ -75,13 +75,14 @@ public abstract class MessagingFunction<VertexKey extends Key<VertexKey>, Vertex
 		return this.runtimeContext.getSuperstepNumber();
 	}
 	
-	public <T extends Aggregator<?>> T getIterationAggregator(String name) {
-		return this.runtimeContext.<T>getIterationAggregator(name);
+	public <V, A> void addIterationAccumulator(String name, Accumulator<V, A> accumulator) {
+		this.runtimeContext.addIterationAccumulator(name, accumulator);
 	}
 	
-	public <T extends Value> T getPreviousIterationAggregate(String name) {
-		return this.runtimeContext.<T>getPreviousIterationAggregate(name);
+	public <T extends Accumulator<?, ?>> T getPreviousIterationAccumulator(String name) {
+		return this.runtimeContext.<T>getPreviousIterationAccumulator(name);
 	}
+	
 
 	// --------------------------------------------------------------------------------------------
 	//  internal methods and state

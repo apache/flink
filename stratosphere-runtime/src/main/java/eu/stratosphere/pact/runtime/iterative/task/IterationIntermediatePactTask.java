@@ -88,7 +88,7 @@ public class IterationIntermediatePactTask<S extends Function, OT> extends Abstr
 
 			if (isWorksetUpdate && isWorksetIteration) {
 				long numCollected = worksetUpdateOutputCollector.getElementsCollectedAndReset();
-				worksetAggregator.aggregate(numCollected);
+				worksetAccumulator.add(numCollected);
 			}
 
 			if (log.isInfoEnabled()) {

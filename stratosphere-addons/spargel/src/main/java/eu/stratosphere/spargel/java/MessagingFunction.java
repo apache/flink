@@ -16,13 +16,11 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
 
-import eu.stratosphere.api.common.aggregators.Aggregator;
+import eu.stratosphere.api.common.accumulators.Accumulator;
 import eu.stratosphere.api.common.functions.IterationRuntimeContext;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.spargel.java.OutgoingEdge;
-import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -137,24 +135,23 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	}
 	
 	/**
-	 * Gets the iteration aggregator registered under the given name. The iteration aggregator is combines
-	 * all aggregates globally once per superstep and makes them available in the next superstep.
+	 * Adds an accumulator to this iteration. The accumulator is reset after each superstep.
 	 * 
-	 * @param name The name of the aggregator.
-	 * @return The aggregator registered under this name, or null, if no aggregator was registered.
+	 * @param name
+	 * @param accumulator
 	 */
-	public <T extends Aggregator<?>> T getIterationAggregator(String name) {
-		return this.runtimeContext.<T>getIterationAggregator(name);
+	public <V, A> void addIterationAccumulator(String name, Accumulator<V, A> accumulator) {
+		this.runtimeContext.addIterationAccumulator(name, accumulator);
 	}
 	
 	/**
-	 * Get the aggregated value that an aggregator computed in the previous iteration.
+	 * Returns the accumulated value of the last iteration
 	 * 
-	 * @param name The name of the aggregator.
-	 * @return The aggregated value of the previous iteration.
+	 * @param name
+	 * @return
 	 */
-	public <T extends Value> T getPreviousIterationAggregate(String name) {
-		return this.runtimeContext.<T>getPreviousIterationAggregate(name);
+	public <T extends Accumulator<?, ?>> T getPreviousIterationAccumulator(String name) {
+		return this.runtimeContext.<T>getPreviousIterationAccumulator(name);
 	}
 	
 	/**

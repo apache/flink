@@ -17,7 +17,6 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
 
-import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.Assert;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -25,14 +24,15 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.accumulators.IntCounter;
-import eu.stratosphere.api.java.record.operators.BulkIteration;
-import eu.stratosphere.api.java.record.operators.FileDataSink;
-import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.io.TextInputFormat;
+import eu.stratosphere.api.java.record.operators.BulkIteration;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.Collector;

@@ -20,6 +20,7 @@ import eu.stratosphere.nephele.deployment.TaskDeploymentDescriptor;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
+import eu.stratosphere.nephele.protocols.IterationReportProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
@@ -141,6 +142,11 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	 * The RPC proxy to report accumulators to JobManager
 	 */
 	private AccumulatorProtocol accumulatorProtocolProxy = null;
+	
+	/**
+	 * The RPC procy to report end of superstep to JobManager
+	 */
+	private IterationReportProtocol iterationReportProtocolProxy = null;
 
 	/**
 	 * The index of this subtask in the subtask group.
@@ -204,7 +210,9 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	public RuntimeEnvironment(final TaskDeploymentDescriptor tdd,
 							final MemoryManager memoryManager, final IOManager ioManager,
 							final InputSplitProvider inputSplitProvider,
-							AccumulatorProtocol accumulatorProtocolProxy, Map<String, FutureTask<Path>> cpTasks) throws Exception {
+			AccumulatorProtocol accumulatorProtocolProxy, 
+			IterationReportProtocol iterationReportProtocolProxy,
+			Map<String, FutureTask<Path>> cpTasks) throws Exception {
 
 		this.jobID = tdd.getJobID();
 		this.taskName = tdd.getTaskName();
@@ -217,6 +225,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		this.ioManager = ioManager;
 		this.inputSplitProvider = inputSplitProvider;
 		this.accumulatorProtocolProxy = accumulatorProtocolProxy;
+		this.iterationReportProtocolProxy = iterationReportProtocolProxy;
 		this.cacheCopyTasks = cpTasks;
 
 		this.invokable = this.invokableClass.newInstance();
@@ -712,6 +721,11 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	@Override
 	public AccumulatorProtocol getAccumulatorProtocolProxy() {
 		return accumulatorProtocolProxy;
+	}
+	
+	@Override
+	public IterationReportProtocol getIterationReportProtocolProxy() {
+		return this.iterationReportProtocolProxy;
 	}
 
 	public void addCopyTaskForCacheFile(String name, FutureTask<Path> copyTask) {

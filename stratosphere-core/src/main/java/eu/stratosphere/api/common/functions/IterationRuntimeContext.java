@@ -12,8 +12,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.functions;
 
-import eu.stratosphere.api.common.aggregators.Aggregator;
-import eu.stratosphere.types.Value;
+import eu.stratosphere.api.common.accumulators.Accumulator;
 
 /**
  *
@@ -27,7 +26,19 @@ public interface IterationRuntimeContext extends RuntimeContext {
 	 */
 	int getSuperstepNumber();
 	
-	<T extends Aggregator<?>> T getIterationAggregator(String name);
+	/**
+	 * Adds an accumulator to this iteration. The accumulator is reset after each superstep.
+	 * 
+	 * @param name
+	 * @param accumulator
+	 */
+	<V, A> void addIterationAccumulator(String name, Accumulator<V, A> accumulator);
 	
-	<T extends Value> T getPreviousIterationAggregate(String name);
+	/**
+	 * Returns the accumulated value of the last iteration
+	 * 
+	 * @param name
+	 * @return
+	 */
+	<T extends Accumulator<?, ?>> T getPreviousIterationAccumulator(String name);
 }

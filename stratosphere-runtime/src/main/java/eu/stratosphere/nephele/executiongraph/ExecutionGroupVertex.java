@@ -945,4 +945,13 @@ public final class ExecutionGroupVertex {
 
 		return this.invokableClass;
 	}
+
+	/**
+	 * Returns a list of all ExecutionVertices of the group
+	 * 
+	 * @return a list of all ExecutionVertices of the group
+	 */
+	public CopyOnWriteArrayList<ExecutionVertex> getGroupMembers() {
+		return groupMembers;
+	}
 }

@@ -183,10 +183,17 @@ public class OperatorTranslation {
 		iterationOperator.setMaximumNumberOfIterations(iterationHead.getMaxIterations());
 		iterationOperator.setInput(translate(iterationHead.getInput()));
 		
-		iterationOperator.getAggregators().addAll(iterationHead.getAggregators());
-		
 		if(iterationEnd.getTerminationCriterion() != null) {
 			iterationOperator.setTerminationCriterion(translate(iterationEnd.getTerminationCriterion()));
+		}
+		if(iterationEnd.getConvergenceCriterion() != null) {
+			if(iterationEnd.getTerminationCriterion() != null) {
+				throw new RuntimeException("Error while creating the data flow plan for the program: You can either use a termination criterion or an convergence criterion in bulk iterations, not both.");
+			}
+			if(iterationEnd.getConvergenceCriterionAccumulatorName() == null) {
+				throw new RuntimeException("Error while creating the data flow plan for the program: You have to specify the convergence criterion AND the name of the accumulator that the criterion belongs to.");
+			}
+			iterationOperator.registerConvergenceCriterion(iterationEnd.getConvergenceCriterionAccumulatorName(), iterationEnd.getConvergenceCriterion());
 		}
 
 		return iterationOperator;
@@ -222,9 +229,6 @@ public class OperatorTranslation {
 
 		iterationOperator.setInitialSolutionSet(translate(iterationHead.getInitialSolutionSet()));
 		iterationOperator.setInitialWorkset(translate(iterationHead.getInitialWorkset()));
-		
-		// register all aggregators
-		iterationOperator.getAggregators().addAll(iterationHead.getAggregators());
 		
 		return iterationOperator;
 	}

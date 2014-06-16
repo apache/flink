@@ -14,20 +14,19 @@
 package eu.stratosphere.pact.runtime.task.chaining;
 
 import eu.stratosphere.api.common.functions.Function;
-import eu.stratosphere.api.common.functions.IterationRuntimeContext;
 import eu.stratosphere.api.common.operators.base.BulkIterationBase;
-import eu.stratosphere.api.common.operators.base.BulkIterationBase.TerminationCriterionAggregator;
+import eu.stratosphere.api.common.operators.base.BulkIterationBase.TerminationCriterionAccumulator;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 
 public class ChainedTerminationCriterionDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	
-	private TerminationCriterionAggregator agg;
+	private TerminationCriterionAccumulator acc;
 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void setup(AbstractInvokable parent) {
-		agg = ((IterationRuntimeContext) getUdfRuntimeContext()).getIterationAggregator(BulkIterationBase.TERMINATION_CRITERION_AGGREGATOR_NAME);
+		acc = (TerminationCriterionAccumulator) getUdfRuntimeContext().<Long, Long>getAccumulator(BulkIterationBase.TERMINATION_CRITERION_ACCUMULATOR_NAME);
 	}
 
 	@Override
@@ -53,7 +52,7 @@ public class ChainedTerminationCriterionDriver<IT, OT> extends ChainedDriver<IT,
 
 	@Override
 	public void collect(IT record) {
-		agg.aggregate(1);
+		acc.add(1L);
 	}
 
 	@Override

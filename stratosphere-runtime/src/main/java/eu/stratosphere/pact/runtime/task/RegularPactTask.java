@@ -13,6 +13,14 @@
 
 package eu.stratosphere.pact.runtime.task;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.api.common.accumulators.Accumulator;
 import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
 import eu.stratosphere.api.common.distributions.DataDistribution;
@@ -27,12 +35,6 @@ import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.execution.CancelTaskException;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.runtime.io.api.ChannelSelector;
-import eu.stratosphere.runtime.io.api.RecordWriter;
-import eu.stratosphere.runtime.io.api.MutableReader;
-import eu.stratosphere.runtime.io.api.MutableRecordReader;
-import eu.stratosphere.runtime.io.api.MutableUnionRecordReader;
-import eu.stratosphere.runtime.io.api.BufferWriter;
 import eu.stratosphere.nephele.services.accumulators.AccumulatorEvent;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
@@ -57,17 +59,16 @@ import eu.stratosphere.pact.runtime.task.util.ReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.RecordReaderIterator;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.pact.runtime.udf.RuntimeUDFContext;
+import eu.stratosphere.runtime.io.api.BufferWriter;
+import eu.stratosphere.runtime.io.api.ChannelSelector;
+import eu.stratosphere.runtime.io.api.MutableReader;
+import eu.stratosphere.runtime.io.api.MutableRecordReader;
+import eu.stratosphere.runtime.io.api.MutableUnionRecordReader;
+import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.InstantiationUtil;
 import eu.stratosphere.util.MutableObjectIterator;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 /**
  * The abstract base class for all tasks. Encapsulated common behavior and implements the main life-cycle

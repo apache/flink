@@ -27,6 +27,9 @@ import eu.stratosphere.core.io.IOReadableWritable;
  * is the case e.g. for a set-accumulator: We add single objects, but the result
  * is a set of objects.
  * 
+ * When implementing the interface make sure that there is a default constructor!
+ * Otherwise it will come to problems during serialization.
+ * 
  * @param <V>
  *            Type of values that are added to the accumulator
  * @param <R>

@@ -11,17 +11,25 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.pact.runtime.iterative.concurrent;
+package eu.stratosphere.nephele.protocols;
 
-import eu.stratosphere.pact.runtime.iterative.task.RuntimeAggregatorRegistry;
+import java.io.IOException;
 
-public class IterationAggregatorBroker extends Broker<RuntimeAggregatorRegistry> {
+import eu.stratosphere.core.protocols.VersionedProtocol;
+import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
+
+/**
+ * The iteration report protocol is implemented by the job manager. Task managers can
+ * use it to report the end of a superstep of an iteration to the job manager.
+ */
+public interface IterationReportProtocol extends VersionedProtocol {
+
+	/**
+	 * Report end of superstep (including aggregators) that were collected in a task. 
+	 * Called by Task Manager, after the user code was executed but before the task status
+	 * update is reported.
+	 */
+	void reportEndOfSuperstep(WorkerDoneEvent workerDoneEvent)
+			throws IOException;
 	
-	/** single instance */
-	private static final IterationAggregatorBroker INSTANCE = new IterationAggregatorBroker();
-
-	/** retrieve singleton instance */
-	public static IterationAggregatorBroker instance() {
-		return INSTANCE;
-	}
 }

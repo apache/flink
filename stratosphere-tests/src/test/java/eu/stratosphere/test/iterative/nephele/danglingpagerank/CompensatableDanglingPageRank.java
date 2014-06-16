@@ -159,8 +159,8 @@ public class CompensatableDanglingPageRank {
 		headConfig.setIterationHeadFinalOutputConfig(headFinalOutConfig);
 		
 		// the sync
-		headConfig.setIterationHeadIndexOfSyncOutput(3);
 		headConfig.setNumberOfIterations(numIterations);
+		headConfig.setConvergenceCriterion(CompensatableDotProductCoGroup.ACCUMULATOR_NAME, new DiffL1NormConvergenceCriterion());
 		
 		// the driver 
 		headConfig.setDriver(CollectorMapDriver.class);
@@ -170,7 +170,6 @@ public class CompensatableDanglingPageRank {
 		headConfig.setStubParameter("compensation.failingWorker", failingWorkers);
 		headConfig.setStubParameter("compensation.failingIteration", String.valueOf(failingIteration));
 		headConfig.setStubParameter("compensation.messageLoss", String.valueOf(messageLoss));
-		headConfig.addIterationAggregator(CompensatableDotProductCoGroup.AGGREGATOR_NAME, new PageRankStatsAggregator());
 
 		// --------------- the join ---------------------
 		
@@ -253,13 +252,6 @@ public class CompensatableDanglingPageRank {
 		
 		JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput",
 			degreeOfParallelism, numSubTasksPerInstance);
-
-		JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
-		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-		syncConfig.setNumberOfIterations(numIterations);
-		syncConfig.addIterationAggregator(CompensatableDotProductCoGroup.AGGREGATOR_NAME, new PageRankStatsAggregator());
-		syncConfig.setConvergenceCriterion(CompensatableDotProductCoGroup.AGGREGATOR_NAME, new DiffL1NormConvergenceCriterion());
-		syncConfig.setIterationId(ITERATION_ID);
 		
 		// --------------- the wiring ---------------------
 
@@ -277,8 +269,6 @@ public class CompensatableDanglingPageRank {
 
 		JobGraphUtils.connect(head, output, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 		JobGraphUtils.connect(tail, fakeTailOutput, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
-
-		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 		
 		fakeTailOutput.setVertexToShareInstancesWith(tail);
 		tail.setVertexToShareInstancesWith(head);
@@ -286,7 +276,6 @@ public class CompensatableDanglingPageRank {
 		adjacencyListInput.setVertexToShareInstancesWith(head);
 		intermediate.setVertexToShareInstancesWith(head);
 		output.setVertexToShareInstancesWith(head);
-		sync.setVertexToShareInstancesWith(head);
 
 		return jobGraph;
 	}

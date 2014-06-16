@@ -115,9 +115,9 @@ public class IterationTerminationWithTerminationTail extends RecordAPITestBase {
 		public void map(Record record, Collector<Record> collector) {
 			
 			int currentSum = Integer.parseInt(record.getField(0, StringValue.class).getValue());
-
-			if(currentSum < 22)
+			if(currentSum < 22) {
 				collector.collect(record);
+			}
 		}
 	}
 

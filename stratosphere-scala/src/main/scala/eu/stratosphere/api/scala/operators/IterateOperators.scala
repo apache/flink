@@ -33,7 +33,7 @@ import eu.stratosphere.api.scala.analysis.UDT.NothingUDT
 import eu.stratosphere.api.java.record.operators.BulkIteration
 import eu.stratosphere.api.common.operators.base.BulkIterationBase
 import eu.stratosphere.api.java.record.operators.DeltaIteration
-import eu.stratosphere.api.common.operators.base.BulkIterationBase.{TerminationCriterionAggregationConvergence, TerminationCriterionAggregator, TerminationCriterionMapper}
+import eu.stratosphere.api.common.operators.base.BulkIterationBase.{TerminationCriterionAccumulationConvergence, TerminationCriterionAccumulator, TerminationCriterionMapper}
 import eu.stratosphere.api.common.operators.base.MapOperatorBase
 import eu.stratosphere.types.NothingTypeInfo
 import eu.stratosphere.types.{Nothing => JavaNothing}

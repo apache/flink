@@ -26,7 +26,6 @@ import eu.stratosphere.test.recordJobs.graph.pageRankUtil.DiffL1NormConvergenceC
 import eu.stratosphere.test.recordJobs.graph.pageRankUtil.DotProductCoGroup;
 import eu.stratosphere.test.recordJobs.graph.pageRankUtil.DotProductMatch;
 import eu.stratosphere.test.recordJobs.graph.pageRankUtil.ImprovedAdjacencyListInputFormat;
-import eu.stratosphere.test.recordJobs.graph.pageRankUtil.PageRankStatsAggregator;
 import eu.stratosphere.test.recordJobs.graph.pageRankUtil.PageWithRankOutFormat;
 import eu.stratosphere.types.LongValue;
 
@@ -82,9 +81,8 @@ public class DanglingPageRank implements Program, ProgramDescription {
 		
 		iteration.setNextPartialSolution(rankAggregation);
 		iteration.setMaximumNumberOfIterations(numIterations);
-		iteration.getAggregators().registerAggregationConvergenceCriterion(DotProductCoGroup.AGGREGATOR_NAME, new PageRankStatsAggregator(), 
-				new DiffL1NormConvergenceCriterion());
-		
+		iteration.registerConvergenceCriterion(DotProductCoGroup.ACCUMULATOR_NAME, new DiffL1NormConvergenceCriterion());
+
 		FileDataSink out = new FileDataSink(new PageWithRankOutFormat(), outputPath, iteration, "Final Ranks");
 
 		Plan p = new Plan(out, "Dangling PageRank");

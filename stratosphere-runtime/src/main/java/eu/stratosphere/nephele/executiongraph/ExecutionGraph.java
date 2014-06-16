@@ -51,6 +51,7 @@ import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.taskmanager.ExecutorThreadFactory;
+import eu.stratosphere.nephele.jobgraph.JobVertexID;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.util.StringUtils;
@@ -798,6 +799,24 @@ public class ExecutionGraph implements ExecutionListener {
 	public ExecutionVertex getVertexByID(final ExecutionVertexID id) {
 
 		return this.vertexMap.get(id);
+	}
+	
+	/**
+	 * Returns the ExecutionGroupVertex with the given JobVertexID.
+	 * 
+	 * @param id
+	 *        the JobVertexID to retrieve the ExecutionGroupVertex
+	 * @return the execution ExecutionGroupVertex matching the provided JobVertexID or <code>null</code> if no such ExecutionGroupVertex could be
+	 *         found
+	 */
+	public ExecutionGroupVertex getGroupVertexByJobVertexID(JobVertexID id) {
+
+		for(ExecutionVertex ev : this.vertexMap.values()) {
+			if(ev.getGroupVertex().getJobVertexID().equals(id)) {
+				return ev.getGroupVertex();
+			}
+		}
+		return null;
 	}
 
 	/**

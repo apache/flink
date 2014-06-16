@@ -12,7 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.test.iterative.aggregators;
+package eu.stratosphere.test.iterative.accumulators;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -26,8 +26,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
-import eu.stratosphere.api.common.aggregators.LongSumAggregator;
+import eu.stratosphere.api.common.accumulators.ConvergenceCriterion;
+import eu.stratosphere.api.common.accumulators.LongCounter;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.DeltaIteration;
 import eu.stratosphere.api.java.ExecutionEnvironment;
@@ -38,7 +38,6 @@ import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.javaApiOperators.util.CollectionDataSets;
 import eu.stratosphere.test.util.JavaProgramTestBase;
-import eu.stratosphere.types.LongValue;
 import eu.stratosphere.util.Collector;
 
 /**
@@ -46,7 +45,7 @@ import eu.stratosphere.util.Collector;
  *
  */
 @RunWith(Parameterized.class)
-public class AggregatorsITCase extends JavaProgramTestBase {
+public class IterationAccumulatorsITCase extends JavaProgramTestBase {
 
 	private static final int NUM_PROGRAMS = 5;
 	private static final int MAX_ITERATIONS = 20;	
@@ -56,7 +55,7 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 	private String resultPath;
 	private String expectedResult;
 
-	public AggregatorsITCase(Configuration config) {
+	public IterationAccumulatorsITCase(Configuration config) {
 		super(config);
 	}
 
@@ -107,17 +106,9 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 
 				DataSet<Integer> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env);
 				IterativeDataSet<Integer> iteration = initialSolutionSet.iterate(MAX_ITERATIONS);
-
-				// register aggregator
-				LongSumAggregator aggr = new LongSumAggregator();
-				iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
-				
-				// register convergence criterion
-				iteration.registerAggregationConvergenceCriterion(NEGATIVE_ELEMENTS_AGGR, aggr, 
-						new NegativeElementsConvergenceCriterion());
 				
 				DataSet<Integer> updatedDs = iteration.map(new SubtractOneMap());
-				iteration.closeWith(updatedDs).writeAsText(resultPath);
+				iteration.closeWith(updatedDs, new NegativeElementsConvergenceCriterion(), NEGATIVE_ELEMENTS_AGGR).writeAsText(resultPath);
 				env.execute();
 
 				// return expected result
@@ -134,18 +125,10 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 				env.setDegreeOfParallelism(DOP);
 
 				DataSet<Integer> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env);
-				IterativeDataSet<Integer> iteration = initialSolutionSet.iterate(MAX_ITERATIONS);
-
-				// register aggregator
-				LongSumAggregatorWithParameter aggr = new LongSumAggregatorWithParameter(0);
-				iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
-				
-				// register convergence criterion
-				iteration.registerAggregationConvergenceCriterion(NEGATIVE_ELEMENTS_AGGR, aggr, 
-						new NegativeElementsConvergenceCriterion());
+				IterativeDataSet<Integer> iteration = initialSolutionSet.iterate(MAX_ITERATIONS);	
 				
 				DataSet<Integer> updatedDs = iteration.map(new SubtractOneMapWithParam());
-				iteration.closeWith(updatedDs).writeAsText(resultPath);
+				iteration.closeWith(updatedDs, new NegativeElementsConvergenceCriterion(), NEGATIVE_ELEMENTS_AGGR).writeAsText(resultPath);
 				env.execute();
 				
 				// return expected result
@@ -163,17 +146,9 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 
 				DataSet<Integer> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env);
 				IterativeDataSet<Integer> iteration = initialSolutionSet.iterate(MAX_ITERATIONS);
-
-				// register aggregator
-				LongSumAggregator aggr = new LongSumAggregator();
-				iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
-				
-				// register convergence criterion
-				iteration.registerAggregationConvergenceCriterion(NEGATIVE_ELEMENTS_AGGR, aggr, 
-						new NegativeElementsConvergenceCriterionWithParam(3));
 				
 				DataSet<Integer> updatedDs = iteration.map(new SubtractOneMap());
-				iteration.closeWith(updatedDs).writeAsText(resultPath);
+				iteration.closeWith(updatedDs, new NegativeElementsConvergenceCriterionWithParam(3), NEGATIVE_ELEMENTS_AGGR).writeAsText(resultPath);
 				env.execute();
 				
 				// return expected result
@@ -193,10 +168,6 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 						
 				DeltaIteration<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> iteration = initialSolutionSet.iterateDelta(
 						initialSolutionSet, MAX_ITERATIONS, 0);
-
-				// register aggregator
-				LongSumAggregator aggr = new LongSumAggregator();
-				iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
 				
 				DataSet<Tuple2<Integer, Integer>> updatedDs = iteration.getWorkset().map(new AggregateMapDelta());
 				
@@ -227,10 +198,6 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 						
 				DeltaIteration<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> iteration = initialSolutionSet.iterateDelta(
 						initialSolutionSet, MAX_ITERATIONS, 0);
-
-				// register aggregator
-				LongSumAggregator aggr = new LongSumAggregatorWithParameter(4);
-				iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
 				
 				DataSet<Tuple2<Integer, Integer>> updatedDs = iteration.getWorkset().map(new AggregateMapDelta());
 				
@@ -256,16 +223,16 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class NegativeElementsConvergenceCriterion implements ConvergenceCriterion<LongValue> {
+	public static final class NegativeElementsConvergenceCriterion implements ConvergenceCriterion<Long> {
 
 		@Override
-		public boolean isConverged(int iteration, LongValue value) {
-			return value.getValue() > 3;
+		public boolean isConverged(int iteration, Long value) {
+			return value.longValue() > 3;
 		}
 	}
 
 	@SuppressWarnings("serial")
-	public static final class NegativeElementsConvergenceCriterionWithParam implements ConvergenceCriterion<LongValue> {
+	public static final class NegativeElementsConvergenceCriterionWithParam implements ConvergenceCriterion<Long> {
 
 		private int value;
 
@@ -278,20 +245,20 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 		}
 
 		@Override
-		public boolean isConverged(int iteration, LongValue value) {
-			return value.getValue() > this.value;
+		public boolean isConverged(int iteration, Long value) {
+			return value.longValue() > this.value;
 		}
 	}
 
 	@SuppressWarnings("serial")
 	public static final class SubtractOneMap extends MapFunction<Integer, Integer> {
 
-		private LongSumAggregator aggr;
+		private LongCounter aggr = new LongCounter();
 
 		@Override
 		public void open(Configuration conf) {
-
-			aggr = getIterationRuntimeContext().getIterationAggregator(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR);
+			
+			getIterationRuntimeContext().addIterationAccumulator(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR, aggr);
 		}
 
 		@Override
@@ -299,7 +266,7 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 			Integer newValue = new Integer(value.intValue() - 1);
 			// count negative numbers
 			if (newValue.intValue() < 0) {
-				aggr.aggregate(1l);
+				aggr.add(1l);
 			}
 			return newValue;
 		}
@@ -308,12 +275,12 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 	@SuppressWarnings("serial")
 	public static final class SubtractOneMapWithParam extends MapFunction<Integer, Integer> {
 
-		private LongSumAggregatorWithParameter aggr;
+		private LongSumAggregatorWithParameter aggr = new LongSumAggregatorWithParameter(0);
 
 		@Override
 		public void open(Configuration conf) {
 
-			aggr = getIterationRuntimeContext().getIterationAggregator(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR);
+			getIterationRuntimeContext().addIterationAccumulator(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR, aggr);
 		}
 
 		@Override
@@ -321,16 +288,20 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 			Integer newValue = new Integer(value.intValue() - 1);
 			// count numbers less then the aggregator parameter
 			if ( newValue.intValue() < aggr.getValue() ) {
-				aggr.aggregate(1l);
+				aggr.add(1l);
 			}
 			return newValue;
 		}
 	}
 
 	@SuppressWarnings("serial")
-	public static class LongSumAggregatorWithParameter extends LongSumAggregator {
+	public static class LongSumAggregatorWithParameter extends LongCounter {
 
 		private int value;
+		
+		public LongSumAggregatorWithParameter() {
+			
+		}
 
 		public LongSumAggregatorWithParameter(int val) {
 			this.value = val;
@@ -356,20 +327,20 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 	@SuppressWarnings("serial")
 	public static final class AggregateMapDelta extends MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
 
-		private LongSumAggregator aggr;
-		private LongValue previousAggr;
+		private LongCounter aggr = new LongCounter();
+		private Long previousAggr;
 		private int superstep;
 
 		@Override
 		public void open(Configuration conf) {
 
-			aggr = getIterationRuntimeContext().getIterationAggregator(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR);
+			getIterationRuntimeContext().addIterationAccumulator(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR, aggr);
 			superstep = getIterationRuntimeContext().getSuperstepNumber();
 
 			if (superstep > 1) {
-				previousAggr = getIterationRuntimeContext().getPreviousIterationAggregate(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR);
+				previousAggr = (Long) getIterationRuntimeContext().getPreviousIterationAccumulator(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR).getLocalValue();
 				// check previous aggregator value
-				Assert.assertEquals(superstep - 1, previousAggr.getValue());
+				Assert.assertEquals(superstep - 1, previousAggr.longValue());
 			}
 
 		}
@@ -378,7 +349,7 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 		public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) {
 			// count the elements that are equal to the superstep number
 			if (value.f1.intValue() == superstep) {
-				aggr.aggregate(1l);
+				aggr.add(1l);
 			}
 			return value;
 		}
@@ -416,51 +387,51 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 		}
 	}
 
-	@SuppressWarnings("serial")
-	public static final class AggregateMapDeltaWithParam extends MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
-
-		private LongSumAggregatorWithParameter aggr;
-		private LongValue previousAggr;
-		private int superstep;
-
-		@Override
-		public void open(Configuration conf) {
-
-			aggr = getIterationRuntimeContext().getIterationAggregator(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR);
-			superstep = getIterationRuntimeContext().getSuperstepNumber();
-
-			if (superstep > 1) {
-				previousAggr = getIterationRuntimeContext().getPreviousIterationAggregate(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR);
-
-				// check previous aggregator value
-				switch(superstep) {
-					case 2: {
-						Assert.assertEquals(6, previousAggr.getValue());
-					}
-					case 3: {
-						Assert.assertEquals(5, previousAggr.getValue());
-					}
-					case 4: {
-						Assert.assertEquals(3, previousAggr.getValue());
-					}
-					case 5: {
-						Assert.assertEquals(0, previousAggr.getValue());
-					}
-					default:
-				}
-				Assert.assertEquals(superstep-1, previousAggr.getValue());
-			}
-
-		}
-
-		@Override
-		public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) {
-			// count the elements that are equal to the superstep number
-			if (value.f1.intValue() < aggr.getValue()) {
-				aggr.aggregate(1l);
-			}
-			return value;
-		}
-	}
+//	@SuppressWarnings("serial")
+//	public static final class AggregateMapDeltaWithParam extends MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
+//
+//		private LongSumAggregatorWithParameter aggr;
+//		private LongValue previousAggr;
+//		private int superstep;
+//
+//		@Override
+//		public void open(Configuration conf) {
+//
+//			aggr = getIterationRuntimeContext().getIterationAggregator(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR);
+//			superstep = getIterationRuntimeContext().getSuperstepNumber();
+//
+//			if (superstep > 1) {
+//				previousAggr = getIterationRuntimeContext().getPreviousIterationAggregate(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR);
+//
+//				// check previous aggregator value
+//				switch(superstep) {
+//					case 2: {
+//						Assert.assertEquals(6, previousAggr.getValue());
+//					}
+//					case 3: {
+//						Assert.assertEquals(5, previousAggr.getValue());
+//					}
+//					case 4: {
+//						Assert.assertEquals(3, previousAggr.getValue());
+//					}
+//					case 5: {
+//						Assert.assertEquals(0, previousAggr.getValue());
+//					}
+//					default:
+//				}
+//				Assert.assertEquals(superstep-1, previousAggr.getValue());
+//			}
+//
+//		}
+//
+//		@Override
+//		public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) {
+//			// count the elements that are equal to the superstep number
+//			if (value.f1.intValue() < aggr.getValue()) {
+//				aggr.aggregate(1l);
+//			}
+//			return value;
+//		}
+//	}
 
 }

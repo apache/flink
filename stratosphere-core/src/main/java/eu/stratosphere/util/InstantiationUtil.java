@@ -15,6 +15,8 @@ package eu.stratosphere.util;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -24,6 +26,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.io.IOReadableWritable;
 
 
 /**
@@ -253,6 +256,62 @@ public class InstantiationUtil {
 		oos.writeObject(o);
 
 		return baos.toByteArray();
+	}
+	
+	/**
+	 * Creates a copy of the given {@link IOReadableWritable} object by an in-memory serialization and subsequent
+	 * deserialization.
+	 * 
+	 * @param original
+	 *        the original object to be copied
+	 * @return the copy of original object created by the original object's serialization/deserialization methods
+	 * @throws IOException
+	 *         thrown if an error occurs while creating the copy of the object
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T extends IOReadableWritable> T createCopy(final T original) throws IOException {
+
+		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		final DataOutputStream dos = new DataOutputStream(baos);
+
+		original.write(dos);
+
+		final String className = original.getClass().getName();
+		if (className == null) {
+			throw new RuntimeException("Class name is null");
+		}
+
+		Class<T> clazz = null;
+
+		try {
+			clazz = (Class<T>) Class.forName(className);
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException(e.getMessage());
+		}
+
+		if (clazz == null) {
+			throw new RuntimeException("Cannot find class with name " + className);
+		}
+
+		T copy = null;
+		try {
+			copy = clazz.newInstance();
+		} catch (InstantiationException e) {
+			throw new RuntimeException(e.getMessage());
+		} catch (IllegalAccessException e) {
+			throw new RuntimeException(e.getMessage());
+		}
+
+		if (copy == null) {
+			throw new RuntimeException("Copy of object of type " + className + " is null");
+		}
+
+		final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+		final DataInputStream dis = new DataInputStream(bais);
+
+		copy.read(dis);
+
+		return copy;
 	}
 	
 	// --------------------------------------------------------------------------------------------

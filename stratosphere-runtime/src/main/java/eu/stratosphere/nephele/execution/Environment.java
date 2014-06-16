@@ -19,6 +19,7 @@ import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
+import eu.stratosphere.nephele.protocols.IterationReportProtocol;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.InputSplitProvider;
@@ -212,6 +213,11 @@ public interface Environment {
 	 * Returns the proxy object for the accumulator protocol.
 	 */
 	AccumulatorProtocol getAccumulatorProtocolProxy();
+	
+	/**
+	 * Returns the proxy object for the iteration report protocol.
+	 */
+	IterationReportProtocol getIterationReportProtocolProxy();
 
 	/**
 	 * Returns the buffer provider for this environment.

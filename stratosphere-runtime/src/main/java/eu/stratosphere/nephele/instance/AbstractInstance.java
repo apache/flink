@@ -29,11 +29,13 @@ import eu.stratosphere.runtime.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.net.NetUtils;
+import eu.stratosphere.nephele.protocols.IterationInstructionProtocol;
 import eu.stratosphere.nephele.protocols.TaskOperationProtocol;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
+import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 
 /**
  * An abstract instance represents a resource a {@link eu.stratosphere.nephele.taskmanager.TaskManager} runs on.
@@ -60,6 +62,11 @@ public abstract class AbstractInstance extends NetworkNode {
 	 * Stores the RPC stub object for the instance's task manager.
 	 */
 	private TaskOperationProtocol taskManager = null;
+	
+	/**
+	 * Stores the RPC stub object for iteration handling of task managers.
+	 */
+	private IterationInstructionProtocol iterationInstructionProtocolProxy = null;
 
 	/**
 	 * Constructs an abstract instance object.
@@ -111,6 +118,36 @@ public abstract class AbstractInstance extends NetworkNode {
 		if (this.taskManager != null) {
 			RPC.stopProxy(this.taskManager);
 			this.taskManager = null;
+		}
+	}
+	
+	/**
+	 * Creates or returns the RPC stub object for the instance's task managers' IterationInstructionProtocol
+	 * 
+	 * @return the RPC stub object for the instance's task manager's IterationInstructionProtocol
+	 * @throws IOException
+	 *         thrown if the RPC stub object for the task manager cannot be created
+	 */
+	private IterationInstructionProtocol getIterationInstructionProtocolProxy() throws IOException {
+
+		if (this.iterationInstructionProtocolProxy == null) {
+
+			this.iterationInstructionProtocolProxy = RPC.getProxy(IterationInstructionProtocol.class,
+				new InetSocketAddress(getInstanceConnectionInfo().address(),
+					getInstanceConnectionInfo().ipcPort()), NetUtils.getSocketFactory());
+		}
+
+		return this.iterationInstructionProtocolProxy;
+	}
+
+	/**
+	 * Destroys and removes the RPC stub object for this instance's task manager's IterationInstructionProtocol
+	 */
+	private void destroyIterationInstructionProtocolProxy() {
+
+		if (this.iterationInstructionProtocolProxy != null) {
+			RPC.stopProxy(this.iterationInstructionProtocolProxy);
+			this.iterationInstructionProtocolProxy = null;
 		}
 	}
 
@@ -292,6 +329,31 @@ public abstract class AbstractInstance extends NetworkNode {
 	public synchronized void destroyProxies() {
 
 		destroyTaskManagerProxy();
+		destroyIterationInstructionProtocolProxy();
+	}
+	
+	/**
+	 * Sends a request to terminate the currently running iteration with the id iterationId
+	 * on this instance
+	 * 
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the request
+	 */
+	public synchronized void terminateIteration(ExecutionVertexID headVertexId) throws IOException {
 
+		getIterationInstructionProtocolProxy().terminate(headVertexId);
+	}
+
+	
+	/**
+	 * Sends a request to start the next supertstep of the currently running iteration with 
+	 * the id iterationId on this instance
+	 * 
+	 * @throws IOException
+	 *         thrown if an error occurs while transmitting the request
+	 */
+	public synchronized void startNextSuperstep(ExecutionVertexID headVertexId, AllWorkersDoneEvent allWorkersDoneEvent) throws IOException {
+
+		getIterationInstructionProtocolProxy().startNextSuperstep(headVertexId, allWorkersDoneEvent);
 	}
 }

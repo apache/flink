@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -30,8 +31,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import eu.stratosphere.nephele.ExecutionMode;
-import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
-import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
@@ -46,6 +45,9 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 
+import com.google.common.base.Preconditions;
+
+import eu.stratosphere.api.common.accumulators.ConvergenceCriterion;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
@@ -76,7 +78,6 @@ import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.instance.InstanceType;
 import eu.stratosphere.nephele.instance.InstanceTypeDescription;
 import eu.stratosphere.nephele.instance.local.LocalInstanceManager;
-import eu.stratosphere.runtime.io.channels.ChannelID;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
@@ -85,30 +86,38 @@ import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.accumulators.AccumulatorManager;
 import eu.stratosphere.nephele.jobmanager.archive.ArchiveListener;
 import eu.stratosphere.nephele.jobmanager.archive.MemoryArchivist;
+import eu.stratosphere.nephele.jobmanager.iterations.IterationManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.AbstractScheduler;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitManager;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
 import eu.stratosphere.nephele.jobmanager.web.WebInfoServer;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
+import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 import eu.stratosphere.nephele.profiling.JobManagerProfiler;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
 import eu.stratosphere.nephele.protocols.ChannelLookupProtocol;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
+import eu.stratosphere.nephele.protocols.IterationReportProtocol;
 import eu.stratosphere.nephele.protocols.JobManagerProtocol;
 import eu.stratosphere.nephele.services.accumulators.AccumulatorEvent;
 import eu.stratosphere.nephele.taskmanager.AbstractTaskResult;
+import eu.stratosphere.nephele.taskmanager.ExecutorThreadFactory;
 import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
+import eu.stratosphere.nephele.taskmanager.TaskKillResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
-import eu.stratosphere.runtime.io.network.ConnectionInfoLookupResponse;
-import eu.stratosphere.runtime.io.network.RemoteReceiver;
-import eu.stratosphere.nephele.taskmanager.ExecutorThreadFactory;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.nephele.util.SerializableArrayList;
+import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
+import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.runtime.io.channels.ChannelID;
+import eu.stratosphere.runtime.io.network.ConnectionInfoLookupResponse;
+import eu.stratosphere.runtime.io.network.RemoteReceiver;
 import eu.stratosphere.util.StringUtils;
 
 /**
@@ -120,7 +129,7 @@ import eu.stratosphere.util.StringUtils;
  * 
  */
 public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
-		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, AccumulatorProtocol
+		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, AccumulatorProtocol, IterationReportProtocol
 {
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
@@ -138,6 +147,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private final AbstractScheduler scheduler;
 	
 	private AccumulatorManager accumulatorManager;
+	
+	private ArrayList<IterationManager> iterationManager;
 
 	private InstanceManager instanceManager;
 
@@ -193,7 +204,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// Otherwise they might be deleted before the client requested the
 		// accumulator results.
 		this.accumulatorManager = new AccumulatorManager(Math.min(1, archived_items));
-
+		
+		// Create the list for storage of all running iterations
+		this.iterationManager = new ArrayList<IterationManager>();
+		
 		// Load the input split manager
 		this.inputSplitManager = new InputSplitManager();
 
@@ -513,6 +527,38 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	
 			// Register for updates on the job status
 			eg.registerJobStatusListener(this);
+			
+			// Set up iteration handling
+			for(AbstractJobVertex vertex : job.getAllJobVertices()) {
+				
+				// find one iteration head
+				if(IterationHeadPactTask.class.isAssignableFrom(vertex.getInvokableClass())) {
+					TaskConfig taskConfig = new TaskConfig(vertex.getConfiguration());
+					
+					// instantiate IterationManager
+					IterationManager manager = new IterationManager(job.getJobID(), 
+							taskConfig.getIterationId(),
+							vertex.getNumberOfSubtasks(), 
+							taskConfig.getNumberOfIterations(), 
+							accumulatorManager,
+							eg.getGroupVertexByJobVertexID(vertex.getID()).getGroupMembers());
+					
+					// add the convergence criterion
+					if (taskConfig.usesConvergenceCriterion()) {
+						
+						@SuppressWarnings("unchecked")
+						ConvergenceCriterion<Object> convergenceCriterion = (ConvergenceCriterion<Object>) taskConfig.getConvergenceCriterion();
+						String convergenceAggregatorName = taskConfig.getConvergenceCriterionAccumulatorName();
+						
+						Preconditions.checkNotNull(convergenceCriterion);
+						Preconditions.checkNotNull(convergenceAggregatorName);
+						
+						manager.setConvergenceCriterion(convergenceAggregatorName, convergenceCriterion);
+					}
+					
+					this.iterationManager.add(manager);
+				}
+			}
 	
 			// Schedule job
 			if (LOG.isInfoEnabled()) {
@@ -576,6 +622,13 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		} catch (IOException ioe) {
 			if (LOG.isWarnEnabled()) {
 				LOG.warn(ioe);
+			}
+		}
+		
+		// Remove IterationManager
+		for(int i=0; i < this.iterationManager.size(); i++) {
+			if(this.iterationManager.get(i).getJobId().equals(executionGraph.getJobID())) {
+					this.iterationManager.remove(i);
 			}
 		}
 	}
@@ -1193,5 +1246,20 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	@Override
 	public AccumulatorEvent getAccumulatorResults(JobID jobID) throws IOException {
 		return new AccumulatorEvent(jobID, this.accumulatorManager.getJobAccumulators(jobID), false);
+	}
+	
+	@Override
+	public void reportEndOfSuperstep(WorkerDoneEvent workerDoneEvent)
+			throws IOException {
+		this.getIterationManager(workerDoneEvent.getJobId(), workerDoneEvent.getIterationId()).receiveWorkerDoneEvent(workerDoneEvent);
+	}
+	
+	private IterationManager getIterationManager(JobID jobId, int iterationId) {
+		for(IterationManager manager : this.iterationManager) {
+			if(manager.getJobId().equals(jobId) && manager.getIterationId() == iterationId) {
+				return manager;
+			}
+		}
+		return null;
 	}
 }

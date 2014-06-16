@@ -18,40 +18,63 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Map;
 
-import eu.stratosphere.api.common.aggregators.Aggregator;
-import eu.stratosphere.types.Value;
+import eu.stratosphere.api.common.accumulators.Accumulator;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.services.accumulators.AccumulatorEvent;
 
-public class WorkerDoneEvent extends IterationEventWithAggregators {
+/**
+ * This event is send by the TaskManager when one worker node that takes part in an iteration
+ * reaches its end of superstep. It contains all accumulated values of the Accumulators inside
+ * the iteration. The JobID is contained in the AccumulatorEvent.
+ *
+ */
+public class WorkerDoneEvent implements IOReadableWritable {
+	
+	private int iterationId;
 	
 	private int workerIndex;
+	
+	private AccumulatorEvent accumulators;
 	
 	public WorkerDoneEvent() {
 		super();
 	}
-
-	public WorkerDoneEvent(int workerIndex, String aggregatorName, Value aggregate) {
-		super(aggregatorName, aggregate);
-		this.workerIndex = workerIndex;
-	}
 	
-	public WorkerDoneEvent(int workerIndex, Map<String, Aggregator<?>> aggregators) {
-		super(aggregators);
+	public WorkerDoneEvent(int iterationId, int workerIndex, AccumulatorEvent accumulators) {
+		this.iterationId = iterationId;
 		this.workerIndex = workerIndex;
+		this.accumulators = accumulators;
 	}
 	
 	public int getWorkerIndex() {
 		return workerIndex;
 	}
 	
+	public int getIterationId() {
+		return iterationId;
+	}
+	
+	public Map<String, Accumulator<?, ?>> getAccumulators() {
+		return this.accumulators.getAccumulators();
+	}
+	
+	public JobID getJobId() {
+		return this.accumulators.getJobID();
+	}
+	
 	@Override
 	public void write(DataOutput out) throws IOException {
+		out.writeInt(this.iterationId);
 		out.writeInt(this.workerIndex);
-		super.write(out);
+		accumulators.write(out);
 	}
 	
 	@Override
 	public void read(DataInput in) throws IOException {
+		this.iterationId = in.readInt();
 		this.workerIndex = in.readInt();
-		super.read(in);
+		this.accumulators = new AccumulatorEvent();
+		accumulators.read(in);
 	}
 }
