@@ -16,14 +16,20 @@
 package eu.stratosphere.api.java.io;
 
 import java.io.IOException;
-import java.io.Serializable;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 
-import eu.stratosphere.api.common.InvalidProgramException;
+import eu.stratosphere.api.common.io.ByteArrayInputView;
+import eu.stratosphere.api.common.io.ByteArrayOutputView;
 import eu.stratosphere.api.common.io.GenericInputFormat;
 import eu.stratosphere.api.common.io.NonParallelInput;
+import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.io.GenericInputSplit;
+import eu.stratosphere.core.memory.DataInputView;
 
 /**
  * An input format that returns objects from a collection.
@@ -32,16 +38,19 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 
 	private static final long serialVersionUID = 1L;
 
-	private final Collection<T> dataSet; // input data as collection
+	private Collection<T> dataSet; // input data as collection
+
+	private TypeSerializer<T> serializer;
 
 	private transient Iterator<T> iterator;
-	
 
 	
-	public CollectionInputFormat(Collection<T> dataSet) {
+	public CollectionInputFormat(Collection<T> dataSet, TypeSerializer<T> serializer) {
 		if (dataSet == null) {
 			throw new NullPointerException();
 		}
+
+		this.serializer = serializer;
 		
 		this.dataSet = dataSet;
 	}
@@ -63,6 +72,51 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 	public T nextRecord(T record) throws IOException {
 		return this.iterator.next();
 	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private void writeObject(ObjectOutputStream out) throws IOException{
+		out.writeObject(serializer);
+		out.writeInt(dataSet.size());
+		ByteArrayOutputView outputView = new ByteArrayOutputView();
+		for(T element : dataSet){
+			serializer.serialize(element, outputView);
+		}
+
+		byte[] blob = outputView.getByteArray();
+		out.writeInt(blob.length);
+		out.write(blob);
+	}
+
+	private void readObject(ObjectInputStream in) throws IOException{
+		try{
+			Object obj = in.readObject();
+
+			if(obj instanceof TypeSerializer<?>){
+				serializer = (TypeSerializer<T>)obj;
+			}
+		}catch(ClassNotFoundException ex){
+			throw new IOException(ex);
+		}
+
+
+		int collectionLength = in.readInt();
+		List<T> list = new ArrayList<T>(collectionLength);
+
+		int blobLength = in.readInt();
+		byte[] blob = new byte[blobLength];
+		in.readFully(blob);
+
+		DataInputView inputView = new ByteArrayInputView(blob);
+
+		for(int i=0; i< collectionLength; i++){
+			T element = serializer.createInstance();
+			element = serializer.deserialize(element, inputView);
+			list.add(element);
+		}
+
+		dataSet = list;
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -76,10 +130,6 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 	public static <X> void checkCollection(Collection<X> elements, Class<X> viewedAs) {
 		if (elements == null || viewedAs == null) {
 			throw new NullPointerException();
-		}
-		
-		if (!Serializable.class.isAssignableFrom(viewedAs)) {
-			throw new InvalidProgramException("The elements are not serializable (java.io.Serializable).");
 		}
 		
 		for (X elem : elements) {
