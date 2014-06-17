@@ -60,9 +60,8 @@ public class Tuple1<T0> extends Tuple {
 	* Copy constructor. Creates a new tuple and assigns the fields to the fields of the method parameter.
 	* @param tuple The tuple that is shallow-copied.
 	 */
-	public Tuple1(Tuple1<T0> tuple) {
-		this(
-			tuple.f0);
+	private Tuple1(Tuple1<T0> tuple) {
+		this(tuple.f0);
 	}
 
 	@Override
@@ -128,13 +127,17 @@ public class Tuple1<T0> extends Tuple {
 		return true;
 	}
 
-	/**
-	 * Java Object hash code implementation
-	 * @return Hash code of Tuple object.
-	 */
 	@Override
 	public int hashCode() {
 		int result = f0 != null ? f0.hashCode() : 0;
 		return result;
 	}
+	/**
+	* Shallow tuple copy.
+	* @returns A new Tuple with the same fields as this.
+	 */
+	public Tuple1<T0> copy(){ 
+		return new Tuple1<T0>(this.f0);
+	}
+
 }

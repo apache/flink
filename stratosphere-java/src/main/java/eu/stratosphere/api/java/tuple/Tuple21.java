@@ -160,9 +160,8 @@ public class Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13,
 	* Copy constructor. Creates a new tuple and assigns the fields to the fields of the method parameter.
 	* @param tuple The tuple that is shallow-copied.
 	 */
-	public Tuple21(Tuple21<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,T13,T14,T15,T16,T17,T18,T19,T20> tuple) {
-		this(
-			tuple.f0,
+	private Tuple21(Tuple21<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,T13,T14,T15,T16,T17,T18,T19,T20> tuple) {
+		this(tuple.f0,
 			tuple.f1,
 			tuple.f2,
 			tuple.f3,
@@ -408,10 +407,6 @@ public class Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13,
 		return true;
 	}
 
-	/**
-	 * Java Object hash code implementation
-	 * @return Hash code of Tuple object.
-	 */
 	@Override
 	public int hashCode() {
 		int result = f0 != null ? f0.hashCode() : 0;
@@ -437,4 +432,32 @@ public class Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13,
 		result = 31 * result + (f20 != null ? f20.hashCode() : 0);
 		return result;
 	}
+	/**
+	* Shallow tuple copy.
+	* @returns A new Tuple with the same fields as this.
+	 */
+	public Tuple21<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,T13,T14,T15,T16,T17,T18,T19,T20> copy(){ 
+		return new Tuple21<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,T13,T14,T15,T16,T17,T18,T19,T20>(this.f0,
+			this.f1,
+			this.f2,
+			this.f3,
+			this.f4,
+			this.f5,
+			this.f6,
+			this.f7,
+			this.f8,
+			this.f9,
+			this.f10,
+			this.f11,
+			this.f12,
+			this.f13,
+			this.f14,
+			this.f15,
+			this.f16,
+			this.f17,
+			this.f18,
+			this.f19,
+			this.f20);
+	}
+
 }

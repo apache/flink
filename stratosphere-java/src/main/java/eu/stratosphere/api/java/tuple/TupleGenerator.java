@@ -499,7 +499,7 @@ class TupleGenerator {
 
 		for (int i = FIRST; i <= LAST; i++) {
 			File tupleFile = new File(dir, "Tuple" + i + ".java");
-			PrintWriter writer = new PrintWriter(tupleFile);
+				PrintWriter writer = new PrintWriter(tupleFile);
 			writeTupleClass(writer, i);
 			writer.flush();
 			writer.close();
@@ -585,7 +585,7 @@ class TupleGenerator {
 		w.println("\t* Copy constructor. Creates a new tuple and assigns the fields to the fields of the method parameter.");
 		w.println("\t* @param tuple The tuple that is shallow-copied.");
 		w.println("\t */");
-		w.print("\tpublic " + className + "(" + className + "<");
+		w.print("\tprivate " + className + "(" + className + "<");
 		for (int i = 0; i < numFields; i++) {
 			w.print ("T" + i);
 			if (i < numFields - 1) {
@@ -594,8 +594,12 @@ class TupleGenerator {
 		}
 		w.println("> tuple) {");
 
-		w.println("\t\tthis(");
-		for (int i = 0; i < numFields; i++) {
+		w.print("\t\tthis(");
+		w.print("tuple.f0");
+		if (numFields > 1) {
+			w.println(",");
+		}
+		for (int i = 1; i < numFields; i++) {
 			String field = "f" + i;
 			w.print("\t\t\ttuple." + field);
 			if (i < numFields - 1) {
@@ -662,7 +666,7 @@ class TupleGenerator {
 		w.println("\t}");
 		w.println();
 
-		// standard utilities (toString, equals, hashCode)
+		// standard utilities (toString, equals, hashCode, copy)
 		w.println();
 		w.println("\t// -------------------------------------------------------------------------------------------------");
 		w.println("\t// standard utilities");
@@ -710,10 +714,6 @@ class TupleGenerator {
 		w.println("\t}");
 
 		w.println();
-		w.println("\t/**");
-		w.println("\t * Java Object hash code implementation");
-		w.println("\t * @return Hash code of Tuple object.");
-		w.println("\t */");
 		w.println("\t@Override");
 		w.println("\tpublic int hashCode() {");
 		w.println("\t\tint result = f0 != null ? f0.hashCode() : 0;");
@@ -724,6 +724,37 @@ class TupleGenerator {
 		w.println("\t\treturn result;");
 		w.println("\t}");
 
+
+		String tupleTypes = "<";
+		for (int i = 0; i < numFields; i++) {
+			tupleTypes += "T" + i;
+			if (i < numFields - 1) {
+				tupleTypes += ",";
+			}
+		}
+		tupleTypes += ">";
+
+		w.println("\t/**");
+		w.println("\t* Shallow tuple copy.");
+		w.println("\t* @returns A new Tuple with the same fields as this.");
+		w.println("\t */");
+		w.println("\tpublic " + className + tupleTypes + " copy(){ ");
+
+		w.print("\t\treturn new " + className + tupleTypes + "(this.f0");
+		if (numFields > 1) {
+			w.println(",");
+		}
+		for (int i = 1; i < numFields; i++) {
+			String field = "f" + i;
+			w.print("\t\t\tthis." + field);
+			if (i < numFields - 1) {
+				w.println(",");
+			}
+		}
+		w.println(");");
+		w.println("\t}");
+
+		w.println();
 
 
 		// foot
