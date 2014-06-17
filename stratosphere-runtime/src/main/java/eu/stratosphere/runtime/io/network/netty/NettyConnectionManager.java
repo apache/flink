@@ -132,7 +132,7 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 		try {
 			in.bind().sync();
 		} catch (InterruptedException e) {
-			throw new IOException("Interrupted while trying to bind server socket.");
+			throw new IOException(e);
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -215,7 +215,7 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 			try {
 				in.group().shutdownGracefully().sync();
 			} catch (InterruptedException e) {
-				throw new RuntimeException("Interrupted while trying to shutdown incoming connections.");
+				throw new IOException(e);
 			}
 		}
 
@@ -225,7 +225,7 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 			try {
 				out.group().shutdownGracefully().sync();
 			} catch (InterruptedException e) {
-				throw new RuntimeException("Interrupted while trying to shutdown outgoing connections.");
+				throw new IOException(e);
 			}
 		}
 	}

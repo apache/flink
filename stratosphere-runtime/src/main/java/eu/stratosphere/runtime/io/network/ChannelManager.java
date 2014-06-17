@@ -95,12 +95,8 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		this.discardBufferPool = new DiscardBufferPool();
 	}
 
-	public void shutdown()  {
-		try {
-			this.networkConnectionManager.shutdown();
-		} catch (IOException e) {
-			LOG.warn("NetworkConnectionManager did not shutdown properly.");
-		}
+	public void shutdown() throws IOException {
+		this.networkConnectionManager.shutdown();
 
 		this.globalBufferPool.destroy();
 	}

@@ -929,7 +929,11 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 
 		// Shut down the channel manager
-		this.channelManager.shutdown();
+		try {
+			this.channelManager.shutdown();
+		} catch (IOException e) {
+			LOG.warn("ChannelManager did not shutdown properly: " + e.getMessage(), e);
+		}
 
 		// Shut down the memory manager
 		if (this.ioManager != null) {
