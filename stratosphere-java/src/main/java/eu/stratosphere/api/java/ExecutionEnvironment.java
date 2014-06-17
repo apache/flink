@@ -362,7 +362,7 @@ public abstract class ExecutionEnvironment {
 	public <X> DataSource<X> fromCollection(Collection<X> data, TypeInformation<X> type) {
 		CollectionInputFormat.checkCollection(data, type.getTypeClass());
 		
-		return new DataSource<X>(this, new CollectionInputFormat<X>(data), type);
+		return new DataSource<X>(this, new CollectionInputFormat<X>(data, type.createSerializer()), type);
 	}
 	
 	/**
