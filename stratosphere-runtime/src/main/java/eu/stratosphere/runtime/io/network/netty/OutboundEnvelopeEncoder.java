@@ -16,25 +16,43 @@ package eu.stratosphere.runtime.io.network.netty;
 import eu.stratosphere.runtime.io.Buffer;
 import eu.stratosphere.runtime.io.network.Envelope;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.MessageToByteEncoder;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 
 @ChannelHandler.Sharable
-public class OutboundEnvelopeEncoder extends MessageToByteEncoder<Envelope> {
+public class OutboundEnvelopeEncoder extends ChannelOutboundHandlerAdapter {
 
 	public static final int HEADER_SIZE = 48;
 
 	public static final int MAGIC_NUMBER = 0xBADC0FFE;
 
 	@Override
-	protected void encode(ChannelHandlerContext ctx, Envelope env, ByteBuf out) throws Exception {
+	public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+		Envelope env = (Envelope) msg;
+
+		ByteBuf buf = ctx.alloc().directBuffer();
+
+		encode(env, buf);
+
+		if (buf.isReadable()) {
+			ctx.write(buf, promise);
+		}
+		else {
+			buf.release();
+			ctx.write(Unpooled.EMPTY_BUFFER, promise);
+		}
+	}
+
+	private void encode(Envelope env, ByteBuf out) {
 		// --------------------------------------------------------------------
 		// (1) header (48 bytes)
 		// --------------------------------------------------------------------
 		out.writeInt(MAGIC_NUMBER); // 4 bytes
 
-		if (out.getInt(out.writerIndex()-4) != MAGIC_NUMBER) {
+		if (out.getInt(out.writerIndex() - 4) != MAGIC_NUMBER) {
 			throw new RuntimeException();
 		}
 
@@ -54,12 +72,12 @@ public class OutboundEnvelopeEncoder extends MessageToByteEncoder<Envelope> {
 		// (3) buffer (var length)
 		// --------------------------------------------------------------------
 		if (env.getBuffer() != null) {
-			Buffer buffer = env.getBuffer();
-			out.writeBytes(buffer.getMemorySegment().wrap(0, buffer.size()));
+			Buffer envBuffer = env.getBuffer();
+			out.writeBytes(envBuffer.getMemorySegment().wrap(0, envBuffer.size()));
 
 			// Recycle the buffer from OUR buffer pool after everything has been
 			// copied to Nettys buffer space.
-			buffer.recycleBuffer();
+			envBuffer.recycleBuffer();
 		}
 	}
 }
