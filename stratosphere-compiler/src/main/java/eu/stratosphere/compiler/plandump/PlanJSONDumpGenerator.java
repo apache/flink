@@ -132,10 +132,10 @@ public class PlanJSONDumpGenerator {
 		writer.println("\n\t]\n}");
 	}
 
-	private void visit(DumpableNode<?> node, PrintWriter writer, boolean first) {
+	private boolean visit(DumpableNode<?> node, PrintWriter writer, boolean first) {
 		// check for duplicate traversal
 		if (this.nodeIds.containsKey(node)) {
-			return;
+			return false;
 		}
 		
 		// assign an id first
@@ -143,8 +143,11 @@ public class PlanJSONDumpGenerator {
 		
 		// then recurse
 		for (DumpableNode<?> child : node.getPredecessors()) {
-			visit(child, writer, first);
-			first = false;
+			//This is important, because when the node was already in the graph it is not allowed
+			//to set first to false!
+			if (visit(child, writer, first)) {
+				first = false;
+			};
 		}
 		
 		// check if this node should be skipped from the dump
@@ -153,7 +156,7 @@ public class PlanJSONDumpGenerator {
 		// ------------------ dump after the ascend ---------------------
 		// start a new node and output node id
 		if (!first) {
-			writer.print(",\n");
+			writer.print(",\n");	
 		}
 		// open the node
 		writer.print("\t{\n");
@@ -385,7 +388,7 @@ public class PlanJSONDumpGenerator {
 		if (p == null) {
 			// finish node
 			writer.print("\n\t}");
-			return;
+			return true;
 		}
 		// local strategy
 		String locString = null;
@@ -579,6 +582,7 @@ public class PlanJSONDumpGenerator {
 
 		// finish node
 		writer.print("\n\t}");
+		return true;
 	}
 
 	private void addProperty(PrintWriter writer, String name, String value, boolean first) {
