@@ -42,7 +42,7 @@ public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter implem
 	}
 
 	/**
-	 * Enqueues an envelope so be sent later.
+	 * Enqueues an envelope to be sent later.
 	 * <p/>
 	 * This method is always invoked by the task thread that wants the envelope sent.
 	 *

@@ -92,6 +92,22 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 		final BufferProviderBroker bufferProviderBroker = channelManager;
 		final EnvelopeDispatcher envelopeDispatcher = channelManager;
 
+		int numHeapArenas = 0;
+		int numDirectArenas = numInThreads + numOutThreads;
+		int pageSize = bufferSize << 1;
+		int chunkSize = 16 * 1 << 20; // 16 MB
+
+		// shift pageSize maxOrder times to get to chunkSize
+		int maxOrder = (int) (Math.log(chunkSize/pageSize) / Math.log(2));
+
+		PooledByteBufAllocator pooledByteBufAllocator =
+				new PooledByteBufAllocator(true, numHeapArenas, numDirectArenas, pageSize, maxOrder);
+
+		String msg = String.format("Instantiated PooledByteBufAllocator with direct arenas: %d, heap arenas: %d, " +
+				"page size (bytes): %d, chunk size (bytes): %d.",
+				numDirectArenas, numHeapArenas, pageSize, (pageSize << maxOrder));
+		LOG.info(msg);
+
 		// --------------------------------------------------------------------
 		// server bootstrap (incoming connections)
 		// --------------------------------------------------------------------
@@ -107,8 +123,8 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 								.addLast(new InboundEnvelopeDispatcher(envelopeDispatcher));
 					}
 				})
-				.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(bufferSize))
-				.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+				.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(pageSize))
+				.option(ChannelOption.ALLOCATOR, pooledByteBufAllocator);
 
 		// --------------------------------------------------------------------
 		// client bootstrap (outgoing connections)
@@ -125,7 +141,7 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 				})
 				.option(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, lowWaterMark)
 				.option(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, highWaterMark)
-				.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
+				.option(ChannelOption.ALLOCATOR, pooledByteBufAllocator)
 				.option(ChannelOption.TCP_NODELAY, false)
 				.option(ChannelOption.SO_KEEPALIVE, true);
 
