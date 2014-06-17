@@ -169,6 +169,9 @@ fi
 
 if [ -z "${STRATOSPHERE_ENV_JAVA_OPTS}" ]; then
     STRATOSPHERE_ENV_JAVA_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}" "${YAML_CONF}")
+
+    # Remove leading and ending double quotes (if present) of value
+    STRATOSPHERE_ENV_JAVA_OPTS="$( echo "${STRATOSPHERE_ENV_JAVA_OPTS}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
 if [ -z "${STRATOSPHERE_SSH_OPTS}" ]; then
