@@ -18,13 +18,14 @@ package eu.stratosphere.test.javaApiOperators;
 
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.aggregation.Aggregations;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.javaApiOperators.util.CollectionDataSets;
 import eu.stratosphere.test.util.JavaProgramTestBase;
+
+import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.FileNotFoundException;
@@ -32,6 +33,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
+@RunWith(Parameterized.class)
 public class SumMinMaxITCase extends JavaProgramTestBase  {
 
 	private static int NUM_PROGRAMS = 3;

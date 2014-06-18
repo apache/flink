@@ -38,27 +38,9 @@ import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 public final class ServerTestUtils {
 
 	/**
-	 * The system property key to retrieve the user directory.
-	 */
-	private static final String USER_DIR_KEY = "user.dir";
-
-	/**
-	 * The directory containing the correct configuration file to be used during the tests.
-	 */
-	private static final String CORRECT_CONF_DIR = "/confs/jobmanager";
-
-	/**
-	 * The directory the configuration directory is expected in when test are executed using Eclipse.
-	 */
-	private static final String ECLIPSE_PATH_EXTENSION = "/src/test/resources";
-
-	private static final String INTELLIJ_PATH_EXTENSION = "/stratosphere-runtime/src/test/resources";
-
-	/**
 	 * Private constructor.
 	 */
-	private ServerTestUtils() {
-	}
+	private ServerTestUtils() {}
 
 	/**
 	 * Creates a file with a random name in the given sub directory within the directory for temporary files. The
@@ -179,34 +161,6 @@ public final class ServerTestUtils {
 		jos.close();
 
 		return jarFile;
-	}
-
-	/**
-	 * Returns the directory containing the configuration files that shall be used for the test.
-	 * 
-	 * @return the directory containing the configuration files or <code>null</code> if the configuration directory
-	 *         could not be located
-	 */
-	public static String getConfigDir() {
-
-		// This is the correct path for Maven-based tests
-		String configDir = System.getProperty(USER_DIR_KEY) + CORRECT_CONF_DIR;
-		if (new File(configDir).exists()) {
-			return configDir;
-		}
-
-		configDir = System.getProperty(USER_DIR_KEY) + ECLIPSE_PATH_EXTENSION + CORRECT_CONF_DIR;
-		if (new File(configDir).exists()) {
-			return configDir;
-		}
-
-		configDir = System.getProperty(USER_DIR_KEY) + INTELLIJ_PATH_EXTENSION + CORRECT_CONF_DIR;
-
-		if(new File(configDir).exists()){
-			return configDir;
-		}
-
-		return null;
 	}
 
 	/**

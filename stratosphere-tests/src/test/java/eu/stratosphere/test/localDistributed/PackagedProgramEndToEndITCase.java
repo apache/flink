@@ -14,7 +14,6 @@ package eu.stratosphere.test.localDistributed;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.net.URL;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import org.junit.Assert;
@@ -29,23 +28,26 @@ import eu.stratosphere.util.LogUtils;
 
 public class PackagedProgramEndToEndITCase {
 
-	private static final int DOP = 4;
-
 	static {
 		LogUtils.initializeDefaultTestConsoleLogger();
 	}
 	
 	@Test
 	public void testEverything() {
+		final int PORT = 6498;
+		
 		NepheleMiniCluster cluster = new NepheleMiniCluster();
+		
+		File points = null;
+		File clusters = null;
+		File outFile = null;
+		
 		try {
 			// set up the files
-			File points = File.createTempFile("kmeans_points", ".in");
-			File clusters = File.createTempFile("kmeans_clusters", ".in");
-			File outFile = File.createTempFile("kmeans_result", ".out");
-			points.deleteOnExit();
-			clusters.deleteOnExit();
-			outFile.deleteOnExit();
+			points = File.createTempFile("kmeans_points", ".in");
+			clusters = File.createTempFile("kmeans_clusters", ".in");
+			outFile = File.createTempFile("kmeans_result", ".out");
+			
 			outFile.delete();
 
 			FileWriter fwPoints = new FileWriter(points);
@@ -56,31 +58,39 @@ public class PackagedProgramEndToEndITCase {
 			fwClusters.write(KMeansData.INITIAL_CENTERS);
 			fwClusters.close();
 
-			URL jarFileURL = getClass().getResource("/KMeansForTest.jar");
-			String jarPath = jarFileURL.getFile();
+			String jarPath = "target/maven-test-jar.jar";
 
 			// run KMeans
 			cluster.setNumTaskTracker(2);
 			cluster.setTaskManagerNumSlots(2);
+			cluster.setJobManagerRpcPort(PORT);
 			cluster.start();
-			RemoteExecutor ex = new RemoteExecutor("localhost", 6498);
+			
+			RemoteExecutor ex = new RemoteExecutor("localhost", PORT);
 
 			ex.executeJar(jarPath,
-					"eu.stratosphere.examples.scala.testing.KMeansForTest",
-					new String[] {new Integer(DOP).toString(),
+					"eu.stratosphere.test.util.testjar.KMeansForTest",
+					new String[] {
 							points.toURI().toString(),
 							clusters.toURI().toString(),
 							outFile.toURI().toString(),
 							"25"});
 
-			points.delete();
-			clusters.delete();
-			outFile.delete();
-
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
-		} finally {
+		}
+		finally {
+			if (points != null) {
+				points.delete();
+			}
+			if (cluster != null) {
+				clusters.delete();
+			}
+			if (outFile != null) {
+				outFile.delete();
+			}
+			
 			try {
 				cluster.stop();
 			} catch (Exception e) {

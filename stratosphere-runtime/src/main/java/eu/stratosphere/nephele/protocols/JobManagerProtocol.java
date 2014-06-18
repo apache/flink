@@ -51,7 +51,7 @@ public interface JobManagerProtocol extends VersionedProtocol {
 	 * @return whether the task manager was successfully registered
 	 */
 	RegisterTaskManagerResult registerTaskManager(InstanceConnectionInfo instanceConnectionInfo,
-						HardwareDescription hardwareDescription,IntegerRecord numberOfSlots)
+						HardwareDescription hardwareDescription, IntegerRecord numberOfSlots)
 			throws IOException;
 
 	/**

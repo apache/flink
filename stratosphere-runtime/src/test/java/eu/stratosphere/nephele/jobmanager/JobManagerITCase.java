@@ -20,6 +20,7 @@ import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.ExecutionMode;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.jobgraph.DistributionPattern;
 import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobFileInputVertex;
@@ -34,6 +35,7 @@ import eu.stratosphere.nephele.util.FileLineWriter;
 import eu.stratosphere.nephele.util.JarFileCreator;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 import eu.stratosphere.util.LogUtils;
+
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.AfterClass;
@@ -57,7 +59,8 @@ import static org.junit.Assert.fail;
 public class JobManagerITCase {
 
 	static {
-		LogUtils.initializeDefaultTestConsoleLogger();
+		// no logging, because the tests create expected exception
+		LogUtils.initializeDefaultConsoleLogger(Level.INFO);
 	}
 	
 	/**
@@ -75,7 +78,13 @@ public class JobManagerITCase {
 	@BeforeClass
 	public static void startNephele() {
 		try {
-			GlobalConfiguration.loadConfiguration(ServerTestUtils.getConfigDir());
+			Configuration cfg = new Configuration();
+			cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "127.0.0.1");
+			cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 6123);
+			cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 1);
+			cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+			
+			GlobalConfiguration.includeConfiguration(cfg);
 			
 			configuration = GlobalConfiguration.getConfiguration(new String[] { ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY });
 			
@@ -301,8 +310,9 @@ public class JobManagerITCase {
 			
 			// deactivate logging of expected test exceptions
 			Logger rtLogger = Logger.getLogger(Task.class);
-			Level rtLevel = rtLogger.getEffectiveLevel();
 			rtLogger.setLevel(Level.OFF);
+			Logger envLogger = Logger.getLogger(RuntimeEnvironment.class);
+			envLogger.setLevel(Level.DEBUG);
 			
 			try {
 				jobClient.submitJobAndWait();
@@ -316,9 +326,6 @@ public class JobManagerITCase {
 				}
 
 				return;
-			}
-			finally {
-				rtLogger.setLevel(rtLevel);
 			}
 
 			fail("Expected exception but did not receive it");

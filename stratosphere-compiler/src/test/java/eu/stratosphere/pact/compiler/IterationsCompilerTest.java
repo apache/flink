@@ -153,6 +153,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 	public void testIterationPushingWorkOut() throws Exception {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.setDegreeOfParallelism(8);
 			
 			DataSet<Tuple2<Long, Long>> input1 = env.readCsvFile("/some/file/path").types(Long.class).map(new DuplicateValue());
 			
@@ -168,6 +169,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			BulkIterationPlanNode bipn = (BulkIterationPlanNode) op.getDataSinks().iterator().next().getInput().getSource();
 			
+			// check that work has not! been pushed out, as the end of the step function does not produce the necessary properties
 			for (Channel c : bipn.getPartialSolutionPlanNode().getOutgoingChannels()) {
 				assertEquals(ShipStrategyType.PARTITION_HASH, c.getShipStrategy());
 			}
@@ -182,7 +184,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 	public static DataSet<Tuple2<Long, Long>> doBulkIteration(DataSet<Tuple2<Long, Long>> vertices, DataSet<Tuple2<Long, Long>> edges) {
 		
 		// open a bulk iteration
-		IterativeDataSet<Tuple2<Long, Long>> iteration = vertices.iterate(100);
+		IterativeDataSet<Tuple2<Long, Long>> iteration = vertices.iterate(20);
 		
 		DataSet<Tuple2<Long, Long>> changes = iteration
 				.join(edges).where(0).equalTo(0).with(new Join222())

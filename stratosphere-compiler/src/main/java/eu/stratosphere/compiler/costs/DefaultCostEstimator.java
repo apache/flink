@@ -34,7 +34,7 @@ public class DefaultCostEstimator extends CostEstimator {
 	 * The case of the estimation for all relative costs. We heuristically pick a very large data volume, which
 	 * will favor strategies that are less expensive on large data volumes. This is robust and 
 	 */
-	private static final long HEURISTIC_COST_BASE = 10000000000l;
+	private static final long HEURISTIC_COST_BASE = 1000000000L;
 	
 	// The numbers for the CPU effort are rather magic at the moment and should be seen rather ordinal
 	
@@ -105,9 +105,9 @@ public class DefaultCostEstimator extends CostEstimator {
 			} else {
 				costs.addNetworkCost(replicationFactor * estOutShipSize);
 			}
-			costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE * replicationFactor);
+			costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE * 10 * replicationFactor);
 		} else {
-			costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE * 200);
+			costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE * 1000);
 		}
 	}
 	
