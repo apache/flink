@@ -19,8 +19,11 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.client.program.Client.ProgramAbortException;
+import eu.stratosphere.client.program.PackagedProgram.PreviewPlanEnvironment;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
+import eu.stratosphere.example.java.clustering.KMeans;
 import eu.stratosphere.test.compiler.util.CompilerTestBase;
 import eu.stratosphere.test.recordJobs.graph.DeltaPageRankWithInitialDeltas;
 import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast;
@@ -47,6 +50,23 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 	@Test
 	public void dumpKMeans() {
 		dump(new KMeansSingleStep().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE));
+	}
+	
+	@Test
+	public void dumpIterativeKMeans() {
+		// prepare the test environment
+		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
+		env.setAsContext();
+		try {
+			// <points path> <centers path> <result path> <num iterations
+			KMeans.main(new String[] {IN_FILE, IN_FILE, OUT_FILE, "123"});
+		} catch(ProgramAbortException pae) {
+			// all good.
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("KMeans failed with an exception");
+		}
+		dump(env.getPlan());
 	}
 	
 	@Test

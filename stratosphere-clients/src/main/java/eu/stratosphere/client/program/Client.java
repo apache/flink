@@ -367,7 +367,7 @@ public class Client {
 		}
 	}
 	
-	static final class ProgramAbortException extends Error {
+	public static final class ProgramAbortException extends Error {
 		private static final long serialVersionUID = 1L;
 	}
 }
