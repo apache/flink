@@ -32,8 +32,6 @@ import eu.stratosphere.example.java.graph.ConnectedComponents.NeighborWithCompon
 import eu.stratosphere.test.testdata.ConnectedComponentsData;
 import eu.stratosphere.test.util.JavaProgramTestBase;
 import eu.stratosphere.util.Collector;
-import eu.stratosphere.util.LogUtils;
-
 
 @SuppressWarnings("serial")
 public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase {
@@ -50,8 +48,6 @@ public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase 
 			
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
-		LogUtils.initializeDefaultConsoleLogger();
 		
 		// read vertex and edge data
 		DataSet<Long> vertices = env.fromElements(ConnectedComponentsData.getEnumeratingVertices(NUM_VERTICES).split("\n"))
