@@ -121,11 +121,21 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK = "taskmanager.net.nettyHighWaterMark";
 	
 	/**
-	 * Parameter for the interval in which the RaskManager sends the periodic heart beat messages
+	 * Parameter for the interval in which the TaskManager sends the periodic heart beat messages
 	 * to the JobManager (in msecs).
 	 */
 	public static final String TASK_MANAGER_HEARTBEAT_INTERVAL_KEY = "taskmanager.heartbeat-interval";
-	
+
+	/**
+	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
+	 */
+	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD = "taskmanager.debug.memory.startLogThread";
+
+	/**
+	 * The interval (in ms) for the log thread to log the current memory usage.
+	 */
+	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = "taskmanager.debug.memory.logIntervalMs";
+
 	/**
 	 * Parameter for the maximum fan for out-of-core algorithms.
 	 * Corresponds to the maximum fan-in for merge-sorts and the maximum fan-out
@@ -364,6 +374,16 @@ public final class ConfigConstants {
 	 * The default interval for TaskManager heart beats (2000 msecs).
 	 */
 	public static final int DEFAULT_TASK_MANAGER_HEARTBEAT_INTERVAL = 2000;
+
+	/**
+	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
+	 */
+	public static final boolean DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD = false;
+
+	/**
+	 * The interval (in ms) for the log thread to log the current memory usage.
+	 */
+	public static final int DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = 5000;
 	
 	/**
 	 * The default value for the JobClient's polling interval. 2 Seconds.
