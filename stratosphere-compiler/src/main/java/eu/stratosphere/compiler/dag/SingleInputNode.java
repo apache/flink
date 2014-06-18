@@ -13,6 +13,10 @@
 
 package eu.stratosphere.compiler.dag;
 
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -39,6 +43,7 @@ import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.NamedChannel;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
+import eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport;
 import eu.stratosphere.compiler.util.NoOpUnaryUdfOp;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
@@ -383,6 +388,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		for (List<NamedChannel> broadcastChannelsCombination: Sets.cartesianProduct(broadcastPlanChannels)) {
 			
 			boolean validCombination = true;
+			boolean requiresPipelinebreaker = false;
 			
 			// check whether the broadcast inputs use the same plan candidate at the branching point
 			for (int i = 0; i < broadcastChannelsCombination.size(); i++) {
@@ -404,10 +410,38 @@ public abstract class SingleInputNode extends OptimizerNode {
 						break;
 					}
 				}
+				
+				// check if there is a common predecessor and whether there is a dam on the way to all common predecessors
+				if (this.hereJoinedBranches != null) {
+					for (OptimizerNode brancher : this.hereJoinedBranches) {
+						PlanNode candAtBrancher = in.getSource().getCandidateAtBranchPoint(brancher);
+						
+						if (candAtBrancher == null) {
+							// closed branch between two broadcast variables
+							continue;
+						}
+						
+						SourceAndDamReport res = in.getSource().hasDamOnPathDownTo(candAtBrancher);
+						if (res == NOT_FOUND) {
+							throw new CompilerException("Bug: Tracing dams for deadlock detection is broken.");
+						} else if (res == FOUND_SOURCE) {
+							requiresPipelinebreaker = true;
+							break;
+						} else if (res == FOUND_SOURCE_AND_DAM) {
+							// good
+						} else {
+							throw new CompilerException();
+						}
+					}
+				}
 			}
 			
 			if (!validCombination) {
 				continue;
+			}
+			
+			if (requiresPipelinebreaker) {
+				in.setTempMode(in.getTempMode().makePipelineBreaker());
 			}
 			
 			final SingleInputPlanNode node = dps.instantiate(in, this);
