@@ -910,17 +910,26 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		final int[] data = new int[len];
 		
 		for (int i = 0; i < len; i++) {
-			int r = 0;
-			int c;
-			while ((c = in.readUnsignedByte()) >= HIGH_BIT) {
-				r |= (c & 0x7F) ;
-				r <<= 7;
-			}
-			r |= c;
-
-			data[i] = r;
+			data[i] = readUnicodeChar(in);
 		}
 		return new String(data, 0, len);
+	}
+	
+	/**
+	Reads and returns a variable-length encoded Unicode Character.
+	@param in input channel
+	@return Unicode Character
+	@throws IOException 
+	*/
+	private static int readUnicodeChar(DataInput in) throws IOException {
+		int r = 0;
+		int c;
+		while ((c = in.readUnsignedByte()) >= HIGH_BIT) {
+			r |= (c & 0x7F) ;
+			r <<= 7;
+		}
+		r |= c;
+		return r;
 	}
 	
 	/**
@@ -987,46 +996,10 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		int lengthFirst = readLength(firstSource);
 		int lengthSecond = readLength(secondSource);
 
-		for (int i = 0; i < Math.min(lengthFirst, lengthSecond); i++) {
-			int byteCountFirst = 0;			//# of bytes read for the first character
-			int byteCountSecond = 0;		//# of bytes read for the second character
-			int cmp = 0;					//comparison result in case both chars have the same # of bytes
-			boolean byteIncoming = false;	//another byte can be read for one character 
-
-			int charByteFirst = firstSource.readUnsignedByte();
-			int charByteSecond = secondSource.readUnsignedByte();
-
-			if (charByteFirst >= HIGH_BIT) {
-				byteCountFirst++;
-				byteIncoming = true;
-			}
-			if (charByteSecond >= HIGH_BIT) {
-				byteCountSecond++;
-				byteIncoming = true;
-			}
-			cmp = (charByteFirst & 0x7F) - (charByteSecond & 0x7F);
-
-			while (byteIncoming) {//another byte can be read for at least one character
-				byteIncoming = false;
-				if (byteCountFirst == byteCountSecond) { //both chars have the same length so far
-					charByteFirst = firstSource.readUnsignedByte();
-					charByteSecond = secondSource.readUnsignedByte();
-
-					if (charByteFirst >= HIGH_BIT) {
-						byteCountFirst++;
-						byteIncoming = true;
-					}
-					if (charByteSecond >= HIGH_BIT) {
-						byteCountSecond++;
-						byteIncoming = true;
-					}
-					if (cmp == 0) {
-						cmp = (charByteFirst & 0x7F) - (charByteSecond & 0x7F);
-					}
-				} else { //one character has a bigger # of bytes => is greater than the other
-					return byteCountFirst - byteCountSecond;
-				}
-			} //both chars reached their end and have the same length
+		for (int i = 0; i < Math.min(lengthFirst, lengthSecond); i++) {			
+			int c1 = readUnicodeChar(firstSource);
+			int c2 = readUnicodeChar(secondSource);
+			int cmp = c1 - c2;
 			if (cmp != 0) {
 				return cmp;
 			}
