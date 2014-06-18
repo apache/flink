@@ -72,8 +72,9 @@ public class ProjectOperator<IN, OUT extends Tuple>
 			
 			if(fieldIndexes.length == 0) {
 				throw new IllegalArgumentException("project() needs to select at least one (1) field.");
-			} else if(fieldIndexes.length > 22) {
-				throw new IllegalArgumentException("project() may select only up to twenty-two (22) fields.");
+			} else if(fieldIndexes.length > Tuple.MAX_ARITY - 1) {
+				throw new IllegalArgumentException(
+						"project() may select only up to (" + (Tuple.MAX_ARITY - 1) + ") fields.");
 			}
 			
 			int maxFieldIndex = ((TupleTypeInfo<?>)ds.getType()).getArity();
