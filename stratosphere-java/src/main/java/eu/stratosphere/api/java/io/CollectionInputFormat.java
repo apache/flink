@@ -23,13 +23,12 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.api.common.io.ByteArrayInputView;
-import eu.stratosphere.api.common.io.ByteArrayOutputView;
 import eu.stratosphere.api.common.io.GenericInputFormat;
 import eu.stratosphere.api.common.io.NonParallelInput;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.io.GenericInputSplit;
-import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.InputViewDataInputWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputWrapper;
 
 /**
  * An input format that returns objects from a collection.
@@ -75,43 +74,35 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 
 	// --------------------------------------------------------------------------------------------
 
-	private void writeObject(ObjectOutputStream out) throws IOException{
+	private void writeObject(ObjectOutputStream out) throws IOException {
 		out.writeObject(serializer);
 		out.writeInt(dataSet.size());
-		ByteArrayOutputView outputView = new ByteArrayOutputView();
-		for(T element : dataSet){
-			serializer.serialize(element, outputView);
+		
+		OutputViewDataOutputWrapper outWrapper = new OutputViewDataOutputWrapper();
+		outWrapper.setDelegate(out);
+		
+		for (T element : dataSet){
+			serializer.serialize(element, outWrapper);
 		}
-
-		byte[] blob = outputView.getByteArray();
-		out.writeInt(blob.length);
-		out.write(blob);
 	}
 
-	private void readObject(ObjectInputStream in) throws IOException{
-		try{
-			Object obj = in.readObject();
-
-			if(obj instanceof TypeSerializer<?>){
-				serializer = (TypeSerializer<T>)obj;
-			}
-		}catch(ClassNotFoundException ex){
-			throw new IOException(ex);
+	@SuppressWarnings("unchecked")
+	private void readObject(ObjectInputStream in) throws IOException {
+		try {
+			this.serializer = (TypeSerializer<T>) in.readObject();
+		} catch (ClassNotFoundException ex){
+			throw new IOException("Could not load the serializer class.", ex);
 		}
-
 
 		int collectionLength = in.readInt();
 		List<T> list = new ArrayList<T>(collectionLength);
+		
+		InputViewDataInputWrapper inWrapper = new InputViewDataInputWrapper();
+		inWrapper.setDelegate(in);
 
-		int blobLength = in.readInt();
-		byte[] blob = new byte[blobLength];
-		in.readFully(blob);
-
-		DataInputView inputView = new ByteArrayInputView(blob);
-
-		for(int i=0; i< collectionLength; i++){
+		for (int i = 0; i < collectionLength; i++){
 			T element = serializer.createInstance();
-			element = serializer.deserialize(element, inputView);
+			element = serializer.deserialize(element, inWrapper);
 			list.add(element);
 		}
 

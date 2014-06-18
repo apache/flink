@@ -25,7 +25,7 @@ import eu.stratosphere.util.Collector;
 
 import java.util.Iterator;
 
-
+@SuppressWarnings("serial")
 public class TransitiveClosureNaive implements ProgramDescription {
 
 
