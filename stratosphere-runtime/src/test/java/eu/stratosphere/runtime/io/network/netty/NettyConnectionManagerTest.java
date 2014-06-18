@@ -19,8 +19,6 @@ import eu.stratosphere.runtime.io.network.ChannelManager;
 import eu.stratosphere.runtime.io.network.Envelope;
 import eu.stratosphere.runtime.io.network.RemoteReceiver;
 import junit.framework.Assert;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -37,7 +35,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
-@RunWith(Parameterized.class)
 public class NettyConnectionManagerTest {
 
 	private final static long RANDOM_SEED = 520346508276087l;
