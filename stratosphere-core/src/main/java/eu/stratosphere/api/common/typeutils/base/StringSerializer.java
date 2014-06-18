@@ -57,16 +57,16 @@ public class StringSerializer extends TypeSerializer<String> {
 
 	@Override
 	public void serialize(String record, DataOutputView target) throws IOException {
-		StringValue.writeUnicode(record, target);
+		StringValue.writeUnicodeString(record, target);
 	}
 
 	@Override
 	public String deserialize(String record, DataInputView source) throws IOException {
-		return StringValue.readUnicode(source);
+		return StringValue.readUnicodeString(source);
 	}
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		StringValue.copyUnicode(source, target);
+		StringValue.copyUnicodeString(source, target);
 	}
 }

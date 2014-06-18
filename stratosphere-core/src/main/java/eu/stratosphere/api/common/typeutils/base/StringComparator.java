@@ -39,7 +39,7 @@ public final class StringComparator extends BasicTypeComparator<String> {
 
 	@Override
 	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		int comp = StringValue.compareUnicode(firstSource, secondSource);
+		int comp = StringValue.compareUnicodeString(firstSource, secondSource);
 		return ascendingComparison ? comp : -comp;
 	}
 

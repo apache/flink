@@ -841,7 +841,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	 @param out output channel
 	 @throws IOException 
 	 */
-	public static final void writeUnicode(CharSequence cs, DataOutput out) throws IOException {
+	public static final void writeUnicodeString(CharSequence cs, DataOutput out) throws IOException {
 		if (cs == null) {
 			writeLength(0, out);
 		} else {
@@ -900,7 +900,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	 @return Unicode String
 	 @throws IOException 
 	 */
-	public static final String readUnicode(DataInput in) throws IOException {
+	public static final String readUnicodeString(DataInput in) throws IOException {
 		int len = readLength(in);
 		
 		if(len==0){
@@ -969,7 +969,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	 @param out output channel
 	 @throws IOException 
 	 */
-	public static final void copyUnicode(DataInput in, DataOutput out) throws IOException {
+	public static final void copyUnicodeString(DataInput in, DataOutput out) throws IOException {
 		//copy length
 		int length = readLength(in);
 		// the length we write is offset by one, because a length of zero indicates a null value
@@ -992,7 +992,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	 @return A negative value if the first String is less than the second, 0 if equal, a positive value if greater.
 	 @throws IOException 
 	 */
-	public static final int compareUnicode(DataInputView firstSource, DataInputView secondSource) throws IOException {
+	public static final int compareUnicodeString(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		int lengthFirst = readLength(firstSource);
 		int lengthSecond = readLength(secondSource);
 
