@@ -446,12 +446,20 @@ public abstract class FileSystem {
 			return false;
 		}
 		
+		FileStatus status = null;
+		try {
+			status = getFileStatus(outPath);
+		}
+		catch (FileNotFoundException e) {
+			// okay, the file is not there
+		}
+		
 		// check if path exists
-		if(this.exists(outPath)) {
+		if (status != null) {
 			// path exists, check write mode
-			switch(writeMode) {
+			switch (writeMode) {
 			case NO_OVERWRITE:
-				if(this.getFileStatus(outPath).isDir()) {
+				if (status.isDir()) {
 					return true;
 				} else {
 					// file may not be overwritten
@@ -460,8 +468,8 @@ public abstract class FileSystem {
 							" mode to overwrite existing files and directories.");
 				}
 			case OVERWRITE:
-				if(this.getFileStatus(outPath).isDir()) {
-					if(createDirectory) {
+				if (status.isDir()) {
+					if (createDirectory) {
 						// directory exists and does not need to be created
 						return true;
 					} else {
@@ -469,7 +477,9 @@ public abstract class FileSystem {
 						try {
 							this.delete(outPath, true);
 						} catch(IOException ioe) {
-							throw new IOException("Could not prepare output path. ",ioe);
+							// due to races in some file systems, it may spuriously occur that a deleted the file looks
+							// as if it still exists and is gone a millisecond later, once the change is committed
+							// we ignore the exception
 						}
 					}
 				} else {
@@ -488,7 +498,7 @@ public abstract class FileSystem {
 			}
 		}
 		
-		if(createDirectory) {
+		if (createDirectory) {
 			// Output directory needs to be created
 			try {
 				if(!this.exists(outPath)) {
@@ -501,9 +511,13 @@ public abstract class FileSystem {
 			}
 	
 			// double check that the output directory exists
-			return this.exists(outPath) && this.getFileStatus(outPath).isDir();
+			try {
+				FileStatus check = getFileStatus(outPath);
+				return check.isDir();
+			} catch (FileNotFoundException e) {
+				return false;
+			}
 		} else {
-			
 			// check that the output path does not exist and an output file can be created by the output format.
 			return !this.exists(outPath);
 		}
