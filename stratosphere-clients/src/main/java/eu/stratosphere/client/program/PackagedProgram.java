@@ -637,13 +637,14 @@ public class PackagedProgram {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static final class PreviewPlanEnvironment extends ExecutionEnvironment {
+	public static final class PreviewPlanEnvironment extends ExecutionEnvironment {
 
 		private List<DataSinkNode> previewPlan;
+		private Plan plan;
 		
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {
-			Plan plan = createProgramPlan(jobName);
+			this.plan = createProgramPlan(jobName);
 			this.previewPlan = PactCompiler.createPreOptimizedPlan(plan);
 			
 			// do not go on with anything now!
@@ -659,8 +660,12 @@ public class PackagedProgram {
 			throw new Client.ProgramAbortException();
 		}
 		
-		private void setAsContext() {
+		public void setAsContext() {
 			initializeContextEnvironment(this);
+		}
+
+		public Plan getPlan() {
+			return this.plan;
 		}
 	}
 }
