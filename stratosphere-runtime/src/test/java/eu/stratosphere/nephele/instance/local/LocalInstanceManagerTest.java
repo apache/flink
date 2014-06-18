@@ -13,21 +13,19 @@
 
 package eu.stratosphere.nephele.instance.local;
 
-import static org.junit.Assert.fail;
-
 import eu.stratosphere.nephele.instance.InstanceManager;
 import junit.framework.Assert;
 
 import org.junit.Test;
 
 import eu.stratosphere.nephele.ExecutionMode;
+import eu.stratosphere.configuration.ConfigConstants;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.jobmanager.JobManager;
-import eu.stratosphere.nephele.util.ServerTestUtils;
 
 /**
  * Tests for the {@link LocalInstanceManager}.
- * 
  */
 public class LocalInstanceManagerTest {
 
@@ -39,12 +37,13 @@ public class LocalInstanceManagerTest {
 	public void testInstanceTypeFromConfiguration() {
 
 		try {
-			final String configDir = ServerTestUtils.getConfigDir();
-			if (configDir == null) {
-				fail("Cannot locate configuration directory");
-			}
-
-			GlobalConfiguration.loadConfiguration(configDir);
+			Configuration cfg = new Configuration();
+			cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "127.0.0.1");
+			cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 6123);
+			cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 1);
+			cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+			
+			GlobalConfiguration.includeConfiguration(cfg);
 
 			// start JobManager
 			ExecutionMode executionMode = ExecutionMode.LOCAL;

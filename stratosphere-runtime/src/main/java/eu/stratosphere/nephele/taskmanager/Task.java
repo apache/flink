@@ -24,14 +24,14 @@ import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.util.StringUtils;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class Task implements ExecutionObserver {
 
@@ -49,13 +49,14 @@ public final class Task implements ExecutionObserver {
 	/**
 	 * Stores whether the task has been canceled.
 	 */
-	private volatile boolean isCanceled = false;
+	private final AtomicBoolean canceled = new AtomicBoolean(false);
 
 	/**
 	 * The current execution state of the task
 	 */
 	private volatile ExecutionState executionState = ExecutionState.STARTING;
 
+	
 	private Queue<ExecutionListener> registeredListeners = new ConcurrentLinkedQueue<ExecutionListener>();
 
 	public Task(ExecutionVertexID vertexID, final RuntimeEnvironment environment, TaskManager taskManager) {
@@ -102,11 +103,11 @@ public final class Task implements ExecutionObserver {
 	}
 
 	public void cancelExecution() {
-		cancelOrKillExecution(true);
+		cancelOrKillExecution();
 	}
 
 	public void killExecution() {
-		cancelOrKillExecution(false);
+		cancelOrKillExecution();
 	}
 
 	/**
@@ -114,10 +115,8 @@ public final class Task implements ExecutionObserver {
 	 *
 	 * @param cancel <code>true/code> if the task shall be canceled, <code>false</code> if it shall be killed
 	 */
-	private void cancelOrKillExecution(boolean cancel) {
-		final Thread executingThread = this.environment.getExecutingThread();
-
-		if (executingThread == null) {
+	private void cancelOrKillExecution() {
+		if (!this.canceled.compareAndSet(false, true)) {
 			return;
 		}
 
@@ -125,45 +124,13 @@ public final class Task implements ExecutionObserver {
 			return;
 		}
 
-		LOG.info((cancel ? "Canceling " : "Killing ") + this.environment.getTaskNameWithIndex());
+		executionStateChanged(ExecutionState.CANCELING, null);
 
-		if (cancel) {
-			this.isCanceled = true;
-			// Change state
-			executionStateChanged(ExecutionState.CANCELING, null);
-
-			// Request user code to shut down
-			try {
-				final AbstractInvokable invokable = this.environment.getInvokable();
-				if (invokable != null) {
-					invokable.cancel();
-				}
-			} catch (Throwable e) {
-				LOG.error(StringUtils.stringifyException(e));
-			}
-		}
-
-		// Continuously interrupt the user thread until it changed to state CANCELED
-		while (true) {
-
-			executingThread.interrupt();
-
-			if (!executingThread.isAlive()) {
-				break;
-			}
-
-			try {
-				executingThread.join(1000);
-			} catch (InterruptedException e) {}
-
-			if (!executingThread.isAlive()) {
-				break;
-			}
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Sending repeated " + (cancel == true ? "canceling" : "killing") + " signal to " +
-						this.environment.getTaskName() + " with state " + this.executionState);
-			}
+		// Request user code to shut down
+		try {
+			this.environment.cancelExecution();
+		} catch (Throwable e) {
+			LOG.error("Error while cancelling the task.", e);
 		}
 	}
 
@@ -271,7 +238,6 @@ public final class Task implements ExecutionObserver {
 	 * @return the name of the task associated with this observer object
 	 */
 	private String getTaskName() {
-
 		return this.environment.getTaskName() + " (" + (this.environment.getIndexInSubtaskGroup() + 1) + "/"
 				+ this.environment.getCurrentNumberOfSubtasks() + ")";
 	}
@@ -279,7 +245,6 @@ public final class Task implements ExecutionObserver {
 
 	@Override
 	public void userThreadStarted(final Thread userThread) {
-
 		// Notify the listeners
 		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
 		while (it.hasNext()) {
@@ -290,7 +255,6 @@ public final class Task implements ExecutionObserver {
 
 	@Override
 	public void userThreadFinished(final Thread userThread) {
-
 		// Notify the listeners
 		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
 		while (it.hasNext()) {
@@ -307,7 +271,6 @@ public final class Task implements ExecutionObserver {
 	 */
 
 	public void registerExecutionListener(final ExecutionListener executionListener) {
-
 		this.registeredListeners.add(executionListener);
 	}
 
@@ -320,15 +283,13 @@ public final class Task implements ExecutionObserver {
 	 */
 
 	public void unregisterExecutionListener(final ExecutionListener executionListener) {
-
 		this.registeredListeners.remove(executionListener);
 	}
 
 
 	@Override
 	public boolean isCanceled() {
-
-		return this.isCanceled;
+		return this.canceled.get();
 	}
 
 	/**
@@ -337,7 +298,6 @@ public final class Task implements ExecutionObserver {
 	 * @return the runtime environment associated with this task
 	 */
 	public RuntimeEnvironment getRuntimeEnvironment() {
-
 		return this.environment;
 	}
 }

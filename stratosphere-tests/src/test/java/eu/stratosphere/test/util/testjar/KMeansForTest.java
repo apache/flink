@@ -23,7 +23,6 @@ import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.IterativeDataSet;
-import eu.stratosphere.api.java.RemoteEnvironment;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
@@ -31,25 +30,41 @@ import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.configuration.Configuration;
 
 @SuppressWarnings("serial")
-public class KMeansForTest implements Program{
+public class KMeansForTest implements Program {
 	
 	// *************************************************************************
 	//     PROGRAM
 	// *************************************************************************
 	
 	
+
 	@Override
 	public Plan getPlan(String... args) {
-		if(!parseParameters(args)) {
-			throw new RuntimeException("Unable to parse the arguments");
+		if (args.length < 4) {
+			throw new IllegalArgumentException("Missing parameters");
 		}
-	
-		// set up execution environment
-		ExecutionEnvironment env = new RemoteEnvironment("localhost", 1);
+		
+		final String pointsPath = args[0];
+		final String centersPath = args[1];
+		final String outputPath = args[2];
+		final int numIterations = Integer.parseInt(args[3]);
+		
+		
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(4);
 		
 		// get input data
-		DataSet<Point> points = getPointDataSet(env);
-		DataSet<Centroid> centroids = getCentroidDataSet(env);
+		DataSet<Point> points = env.readCsvFile(pointsPath)
+				.fieldDelimiter('|')
+				.includeFields(true, true)
+				.types(Double.class, Double.class)
+				.map(new TuplePointConverter());
+		
+		DataSet<Centroid> centroids = env.readCsvFile(centersPath)
+				.fieldDelimiter('|')
+				.includeFields(true, true, true)
+				.types(Integer.class, Double.class, Double.class)
+				.map(new TupleCentroidConverter());
 		
 		// set number of bulk iterations for KMeans algorithm
 		IterativeDataSet<Centroid> loop = centroids.iterate(numIterations);
@@ -71,11 +86,8 @@ public class KMeansForTest implements Program{
 				.map(new SelectNearestCenter()).withBroadcastSet(finalCentroids, "centroids");
 		
 		// emit result
-		if(fileOutput) {
-			clusteredPoints.writeAsCsv(outputPath, "\n", " ");
-		} else {
-			clusteredPoints.print();
-		}
+		clusteredPoints.writeAsCsv(outputPath, "\n", " ");
+
 		return env.createProgramPlan();
 	}
 	
@@ -229,66 +241,4 @@ public class KMeansForTest implements Program{
 			return new Centroid(value.f0, value.f1.div(value.f2));
 		}
 	}
-	
-	// *************************************************************************
-	//     UTIL METHODS
-	// *************************************************************************
-	
-	private static boolean fileOutput = false;
-	private static String pointsPath = null;
-	private static String centersPath = null;
-	private static String outputPath = null;
-	private static int numIterations = 10;
-	
-	private static boolean parseParameters(String[] programArguments) {
-		
-		if(programArguments.length > 0) {
-			// parse input arguments
-			fileOutput = true;
-			if(programArguments.length == 4) {
-				pointsPath = programArguments[0];
-				centersPath = programArguments[1];
-				outputPath = programArguments[2];
-				numIterations = Integer.parseInt(programArguments[3]);
-			} else {
-				System.err.println("Usage: KMeans <points path> <centers path> <result path> <num iterations>");
-				return false;
-			}
-		} else {
-			System.out.println("Executing K-Means example with default parameters and built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  We provide a data generator to create synthetic input files for this program.");
-			System.out.println("  Usage: KMeans <points path> <centers path> <result path> <num iterations>");
-		}
-		return true;
-	}
-	
-	private static DataSet<Point> getPointDataSet(ExecutionEnvironment env) {
-		if(fileOutput) {
-			// read points from CSV file
-			return env.readCsvFile(pointsPath)
-						.fieldDelimiter('|')
-						.includeFields(true, true)
-						.types(Double.class, Double.class)
-						.map(new TuplePointConverter());
-		} else {
-			throw new UnsupportedOperationException("Use file output");
-		}
-	}
-	
-	private static DataSet<Centroid> getCentroidDataSet(ExecutionEnvironment env) {
-		if(fileOutput) {
-			return env.readCsvFile(centersPath)
-						.fieldDelimiter('|')
-						.includeFields(true, true, true)
-						.types(Integer.class, Double.class, Double.class)
-						.map(new TupleCentroidConverter());
-		} else {
-			throw new UnsupportedOperationException("Use file output");
-		}
-	}
-
-	
-		
 }

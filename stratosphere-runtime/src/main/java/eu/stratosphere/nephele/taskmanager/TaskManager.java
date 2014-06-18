@@ -164,12 +164,15 @@ public class TaskManager implements TaskOperationProtocol {
 	private volatile boolean shutdownComplete;
 	
 	/**
-	 * Constructs a new task manager, starts its IPC service and attempts to discover the job manager to
-	 * receive an initial configuration. All parameters are obtained from the 
+	 * All parameters are obtained from the 
 	 * {@link GlobalConfiguration}, which must be loaded prior to instantiating the task manager.
 	 */
 	public TaskManager(ExecutionMode executionMode) throws Exception {
-
+		if (executionMode == null) {
+			throw new NullPointerException("Execution mode must not be null.");
+		}
+		
+		
 		LOG.info("TaskManager started as user " + UserGroupInformation.getCurrentUser().getShortUserName());
 		LOG.info("User system property: " + System.getProperty("user.name"));
 		LOG.info("Execution mode: " + executionMode);
@@ -340,6 +343,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 		{
 			HardwareDescription resources = HardwareDescriptionFactory.extractFromSystem();
+			
 			numberOfSlots = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
 					Hardware.getNumberCPUCores());
 

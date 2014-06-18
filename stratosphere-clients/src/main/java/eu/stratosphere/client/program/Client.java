@@ -78,9 +78,6 @@ public class Client {
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
 		
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
-		
-		//  Disable Local Execution when using a Client
-		ContextEnvironment.disableLocalExecution();
 	}
 
 	/**
@@ -105,9 +102,6 @@ public class Client {
 		}
 
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
-		
-		//  Disable Local Execution when using a Client
-		ContextEnvironment.disableLocalExecution();
 	}
 	
 	public void setPrintStatusDuringExecution(boolean print) {
@@ -152,20 +146,13 @@ public class Client {
 			ByteArrayOutputStream baes = new ByteArrayOutputStream();
 			System.setErr(new PrintStream(baes));
 			try {
+				ContextEnvironment.disableLocalExecution();
 				prog.invokeInteractiveModeForExecution();
 			}
 			catch (ProgramInvocationException e) {
-				System.setOut(originalOut);
-				System.setErr(originalErr);
-				System.err.println(baes);
-				System.out.println(baos);
 				throw e;
 			}
 			catch (Throwable t) {
-				System.setOut(originalOut);
-				System.setErr(originalErr);
-				System.err.println(baes);
-				System.out.println(baos);
 				// the invocation gets aborted with the preview plan
 				if (env.optimizerPlan != null) {
 					return env.optimizerPlan;
@@ -239,6 +226,8 @@ public class Client {
 				env.setDegreeOfParallelism(parallelism);
 			}
 			env.setAsContext();
+			
+			ContextEnvironment.disableLocalExecution();
 			
 			if (wait) {
 				// invoke here

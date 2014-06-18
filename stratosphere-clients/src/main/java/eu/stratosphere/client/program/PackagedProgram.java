@@ -215,6 +215,7 @@ public class PackagedProgram {
 			PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 			env.setAsContext();
 			try {
+				ContextEnvironment.disableLocalExecution();
 				invokeInteractiveModeForExecution();
 			}
 			catch (ProgramInvocationException e) {
