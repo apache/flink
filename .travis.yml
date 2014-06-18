@@ -16,14 +16,14 @@ notifications:
 env:
     global: 
         # username and password for sonatype (maven deploy)
-        - secure: "QoLd3npmApUw20q+KTt+6Il07bn/edl5pP3jmEqR+rXQXVA2kogjkZerZ5QdM2iQJha7D1M2Y4BTcsJ2Ty7biTxUZkDl+RXz6kpeHPX2alax/KO7mqrJuEfuPAQvaIdHNmKEmdiU/fLMn2q2HllE5MP7FzUNKD5YJIzh1IekPA8="
-        - secure: "WzMGwNwWwWw62kwvknMGS4W1zy3oRVihitCjjd5wqk/4JMTeWr+oAMv0GfA8GbOuOcYwA7JNxGXQlBMtn45+/PMLJgnsLxYUbqCD2ybwMBLlnembGYoRPABp5zkuzRmU3G2cbMdu/7VwvlTffEPPG/jqAFLKxmvG0oIOtPtk3lg="
+        - secure: "iQrrSH9vL/ANeqj0u2qC1Ft4eAor2KF6mrqA4T6/5Woxqoq22siw9SGcSW7UmLr3fpbzqsapK8XX8Rkpgsi6V7YTpACZyj0tIX6knoy08KK4qJaGEDx+8FlM61l9qQCQ5gFVVu+cFvI+xd3tDCoZuGSZUjZOjNpYZZqSunsOZ7E="
+        - secure: "aip84Xhcy9jYUtLrdfL4uWNATmLgqwIU/Gn9dR85uPJHeVPq7gSq3yrmiLJkEUgc6WyLdsKmiGKPPqwAG2Hc57i/cdz3YSq0Cn/Ksuxviec66HvNIhIFLwuXQkWF/W7MLmMgL6kVD8PxMn+A3d/4aEUKX4ELhoAmBhULOYiXi+E="
         # New s3 deployment
         - ARTIFACTS_S3_BUCKET="stratosphere-bin"
-        - secure: "An/pEveBDMBl6FcZimTfZBAvevAVgkwS2tSAzFblJzp5aofghPORIXiqW/2Dy4ksFkGDK2Yb6QaGXbqC3mbWcPQh7YYeiPbvRipDXe4D+emgoUAiuuxCGvqtgzKxb0VeBeCqrMuNOoO4yLeCXgNZBuZ3B8LjQQCpAyyCWW1f/yo="
-        - secure: "fT1qY3/JbDCL+o+XXkU92fuMrZehkLntu8DRNyCeq1eB9SOH/QA7+3S6S2kZZ++aWaTxXKy65V9rO9DWra+KMgeDDkM+ykoSq4CeTjZso5ZXf0GDa2RcnZ5d5BN8UVV/2iyp79ZrQPy7Yer9MrGhrjC5Mo5cFbxoNbn5UV7Y9Uc="
+        - secure: "AECzVxihEhYfnNcrY/wLirTkKkmSATycvTfKsBmxD07bg6BmaVgsOl4degUu4YL50e6agpoWul6irGxTg0bjLMAwg1ZGyRx57NFvNQ7JYDHK6EWmJ7BsK2WO7HiYzfau+ZAaL36WpOMi0UUPpuNXMvULqaE9b4jZqo1Wo/WDcyU="
+        - secure: "SNZkMm++fvPbjdreibc4j/XTKy7rOvGvjbvJJLQ01fVDR8ur1FGB5L/CE9tm2Aye75G8br+tJ+gf5cMX8CHL+0VrvuTk5U6flbuM08Pd0pmP64ZncmGfRFKC5qTvt24YR0u3cqxWze8RTkdduz0t8xrEdyCtb94CHs1+RNS+0HA="
         # javadocs deploy
-        - secure: "f5arQJrRMyZhogH3KihohKXhb4nwCQdEshtUoOt/KfOwS9OrODblOB5k2CbxzKkR1xhTMWRzSkOLx0bCGN31xbnXDfJ2pqZDIQSn+BlhE/aIyFM0KOc2lq+cbFwnCRF8fdkmfPO28WtRpvjoddQ7Hp/16E7Z7X+aI5IKcH3cuIA="
+        - secure: "f4wACodae0NCaIZtmg/JvP40G/3dE7O6+ONDMbq8P/9dnT5peRB1q7+KZxggRmFSWTMPdPIDI7YxI/rM5wZ3pUN2eX0BpjfANT58OJdgCNXN3Hr9YOa8UykD2h6b+AHpy4G89MG65m73RvNXngHTCQ8SBIfewzeMAhHdD3Fk0u8="
     matrix:
         - PROFILE=
         - PROFILE="-Dhadoop.profile=2"
