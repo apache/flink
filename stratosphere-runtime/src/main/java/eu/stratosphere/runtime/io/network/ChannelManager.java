@@ -79,7 +79,11 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		this.channelLookupService = channelLookupService;
 		this.connectionInfo = connectionInfo;
 
-		this.globalBufferPool = new GlobalBufferPool(numNetworkBuffers, networkBufferSize);
+		try {
+			this.globalBufferPool = new GlobalBufferPool(numNetworkBuffers, networkBufferSize);
+		} catch (Throwable e) {
+			throw new IOException("Failed to instantiate GlobalBufferPool.", e);
+		}
 
 		this.networkConnectionManager = networkConnectionManager;
 		networkConnectionManager.start(this);
