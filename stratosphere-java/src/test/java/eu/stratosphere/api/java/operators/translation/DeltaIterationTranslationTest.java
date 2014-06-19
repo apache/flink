@@ -33,10 +33,12 @@ import eu.stratosphere.api.common.operators.base.MapOperatorBase;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.DeltaIteration;
 import eu.stratosphere.api.java.ExecutionEnvironment;
+import eu.stratosphere.api.java.functions.CoGroupFunction;
 import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
+import eu.stratosphere.util.Collector;
 
 @SuppressWarnings("serial")
 public class DeltaIterationTranslationTest implements java.io.Serializable {
@@ -137,7 +139,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 	}
 	
 	@Test
-	public void testRejectWhenSolutionSetKeysDontMatch() {
+	public void testRejectWhenSolutionSetKeysDontMatchJoin() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			
@@ -151,6 +153,50 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 			
 			try {
 				iteration.getWorkset().join(iteration.getSolutionSet()).where(1).equalTo(2);
+				fail("Accepted invalid program.");
+			}
+			catch (InvalidProgramException e) {
+				// all good!
+			}
+			
+			try {
+				iteration.getSolutionSet().join(iteration.getWorkset()).where(2).equalTo(1);
+				fail("Accepted invalid program.");
+			}
+			catch (InvalidProgramException e) {
+				// all good!
+			}
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testRejectWhenSolutionSetKeysDontMatchCoGroup() {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			
+			@SuppressWarnings("unchecked")
+			DataSet<Tuple3<Double, Long, String>> initialSolutionSet = env.fromElements(new Tuple3<Double, Long, String>(3.44, 5L, "abc"));
+
+			@SuppressWarnings("unchecked")
+			DataSet<Tuple2<Double, String>> initialWorkSet = env.fromElements(new Tuple2<Double, String>(1.23, "abc"));
+			
+			DeltaIteration<Tuple3<Double, Long, String>, Tuple2<Double, String>> iteration = initialSolutionSet.iterateDelta(initialWorkSet, 10, 1);
+			
+			try {
+				iteration.getWorkset().coGroup(iteration.getSolutionSet()).where(1).equalTo(2).with(new SolutionWorksetCoGroup1());
+				fail("Accepted invalid program.");
+			}
+			catch (InvalidProgramException e) {
+				// all good!
+			}
+			
+			try {
+				iteration.getSolutionSet().coGroup(iteration.getWorkset()).where(2).equalTo(1).with(new SolutionWorksetCoGroup2());
 				fail("Accepted invalid program.");
 			}
 			catch (InvalidProgramException e) {
@@ -185,6 +231,22 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 		@Override
 		public T map(T value) throws Exception {
 			return value;
+		}
+	}
+	
+	public static class SolutionWorksetCoGroup1 extends CoGroupFunction<Tuple2<Double, String>, Tuple3<Double, Long, String>, Tuple3<Double, Long, String>> {
+
+		@Override
+		public void coGroup(Iterator<Tuple2<Double, String>> first, Iterator<Tuple3<Double, Long, String>> second,
+				Collector<Tuple3<Double, Long, String>> out) {
+		}
+	}
+	
+	public static class SolutionWorksetCoGroup2 extends CoGroupFunction<Tuple3<Double, Long, String>, Tuple2<Double, String>, Tuple3<Double, Long, String>> {
+
+		@Override
+		public void coGroup(Iterator<Tuple3<Double, Long, String>> second, Iterator<Tuple2<Double, String>> first,
+				Collector<Tuple3<Double, Long, String>> out) {
 		}
 	}
 }

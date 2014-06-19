@@ -25,8 +25,10 @@ import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.common.operators.base.MapOperatorBase;
 import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.DeltaIteration.SolutionSetPlaceHolder;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
 import eu.stratosphere.api.java.functions.KeySelector;
+import eu.stratosphere.api.java.operators.Keys.FieldPositionKeys;
 import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
 import eu.stratosphere.api.java.operators.translation.PlanUnwrappingCoGroupOperator;
 import eu.stratosphere.api.java.operators.translation.TupleKeyExtractingMapper;
@@ -408,6 +410,24 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 				if (!keys1.areCompatibale(keys2)) {
 					throw new InvalidProgramException("The pair of join keys are not compatible with each other.");
+				}
+				
+				// sanity check solution set key mismatches
+				if (input1 instanceof SolutionSetPlaceHolder) {
+					if (keys1 instanceof FieldPositionKeys) {
+						int[] positions = ((FieldPositionKeys<?>) keys1).computeLogicalKeyPositions();
+						((SolutionSetPlaceHolder<?>) input1).checkJoinKeyFields(positions);
+					} else {
+						throw new InvalidProgramException("Currently, the solution set may only be CoGrouped with using tuple field positions.");
+					}
+				}
+				if (input2 instanceof SolutionSetPlaceHolder) {
+					if (keys2 instanceof FieldPositionKeys) {
+						int[] positions = ((FieldPositionKeys<?>) keys2).computeLogicalKeyPositions();
+						((SolutionSetPlaceHolder<?>) input2).checkJoinKeyFields(positions);
+					} else {
+						throw new InvalidProgramException("Currently, the solution set may only be CoGrouped with using tuple field positions.");
+					}
 				}
 
 				return new CoGroupOperatorWithoutFunction(keys2);

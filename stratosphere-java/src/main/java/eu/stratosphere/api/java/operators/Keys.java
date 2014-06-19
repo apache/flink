@@ -42,7 +42,7 @@ public abstract class Keys<T> {
 	
 	public static class FieldPositionKeys<T> extends Keys<T> {
 		
-		private final int[] groupingFields;
+		private final int[] fieldPositions;
 		private final TypeInformation<?>[] types;
 		
 		public FieldPositionKeys(int[] groupingFields, TypeInformation<T> type) {
@@ -60,18 +60,18 @@ public abstract class Keys<T> {
 			
 			TupleTypeInfo<?> tupleType = (TupleTypeInfo<?>)type;
 	
-			this.groupingFields = makeFields(groupingFields, (TupleTypeInfo<?>) type);
+			this.fieldPositions = makeFields(groupingFields, (TupleTypeInfo<?>) type);
 			
-			types = new TypeInformation[this.groupingFields.length];
-			for(int i = 0; i < this.groupingFields.length; i++) {
-				types[i] = tupleType.getTypeAt(this.groupingFields[i]);
+			types = new TypeInformation[this.fieldPositions.length];
+			for(int i = 0; i < this.fieldPositions.length; i++) {
+				types[i] = tupleType.getTypeAt(this.fieldPositions[i]);
 			}
 			
 		}
 
 		@Override
 		public int getNumberOfKeyFields() {
-			return this.groupingFields.length;
+			return this.fieldPositions.length;
 		}
 
 		@Override
@@ -106,9 +106,13 @@ public abstract class Keys<T> {
 
 		@Override
 		public int[] computeLogicalKeyPositions() {
-			return this.groupingFields;
+			return this.fieldPositions;
 		}
 	
+		@Override
+		public String toString() {
+			return Arrays.toString(fieldPositions);
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -119,6 +123,10 @@ public abstract class Keys<T> {
 		private final TypeInformation<K> keyType;
 		
 		public SelectorFunctionKeys(KeySelector<T, K> keyExtractor, TypeInformation<T> type) {
+			if (keyExtractor == null) {
+				throw new NullPointerException("Key extractor must not be null.");
+			}
+			
 			this.keyExtractor = keyExtractor;
 			this.keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
 		}
@@ -162,6 +170,11 @@ public abstract class Keys<T> {
 		@Override
 		public int[] computeLogicalKeyPositions() {
 			return new int[] {0};
+		}
+		
+		@Override
+		public String toString() {
+			return keyExtractor + " (" + keyType + ")";
 		}
 	}
 	
