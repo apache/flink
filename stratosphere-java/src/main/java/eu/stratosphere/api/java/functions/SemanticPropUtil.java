@@ -48,6 +48,27 @@ public class SemanticPropUtil {
 
 	private static final Pattern PATTERN_DIGIT = Pattern.compile("\\d+");
 
+	public static SingleInputSemanticProperties createProjectionPropertiesSingle(int[] fields) {
+		SingleInputSemanticProperties ssp = new SingleInputSemanticProperties();
+		for (int i = 0; i < fields.length; i++) {
+			ssp.addForwardedField(fields[i], i);
+		}
+		return ssp;
+	}
+
+	public static DualInputSemanticProperties createProjectionPropertiesDual(int[] fields, boolean[] isFromFirst) {
+		DualInputSemanticProperties dsp = new DualInputSemanticProperties();
+
+		for (int i = 0; i < fields.length; i++) {
+			if (isFromFirst[i]) {
+				dsp.addForwardedField1(fields[i], i);
+			} else {
+				dsp.addForwardedField2(fields[i], i);
+			}
+		}
+		return dsp;
+	}
+
 	public static SingleInputSemanticProperties getSemanticPropsSingle(Set<Annotation> set, TypeInformation<?> inType, TypeInformation<?> outType) {
 		if (set == null) {
 			return null;

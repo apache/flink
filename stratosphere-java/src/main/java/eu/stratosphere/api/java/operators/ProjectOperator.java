@@ -19,6 +19,7 @@ import java.util.Arrays;
 import eu.stratosphere.api.common.functions.GenericMap;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.functions.SemanticPropUtil;
 import eu.stratosphere.api.java.operators.translation.PlanProjectOperator;
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import eu.stratosphere.api.java.tuple.*;
@@ -54,11 +55,11 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		ppo.setInput(input);
 		// set dop
 		ppo.setDegreeOfParallelism(this.getParallelism());
-		
+		ppo.setSemanticProperties(SemanticPropUtil.createProjectionPropertiesSingle(fields));
+
 		return ppo;
 	}
 
-	
 	public static class Projection<T> {
 		
 		private final DataSet<T> ds;

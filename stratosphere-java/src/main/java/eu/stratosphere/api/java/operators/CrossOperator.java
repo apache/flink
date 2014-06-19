@@ -18,10 +18,12 @@ import java.util.Arrays;
 
 import eu.stratosphere.api.common.functions.GenericCrosser;
 import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
+import eu.stratosphere.api.common.operators.DualInputSemanticProperties;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.CrossFunction;
+import eu.stratosphere.api.java.functions.SemanticPropUtil;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
@@ -49,9 +51,19 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		super(input1, input2, returnType);
 
 		this.function = function;
-		extractSemanticAnnotationsFromUdf(function.getClass());
+
+		if (!(function instanceof ProjectCrossFunction)) {
+			extractSemanticAnnotationsFromUdf(function.getClass());
+		} else {
+			generateProjectionProperties(((ProjectCrossFunction) function));
+		}
 	}
-	
+
+	public void generateProjectionProperties(ProjectCrossFunction pcf) {
+		DualInputSemanticProperties props = SemanticPropUtil.createProjectionPropertiesDual(pcf.getFields(), pcf.getIsFromFirst());
+		setSemanticProperties(props);
+	}
+
 	@Override
 	protected eu.stratosphere.api.common.operators.base.CrossOperatorBase<I1, I2, OUT, GenericCrosser<I1,I2,OUT>> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
 		
@@ -187,6 +199,16 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			super(input1, input2,
 				new ProjectCrossFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer().createInstance()), returnType);
 		}
+
+		@Override
+		public CrossOperator<I1, I2, OUT> withConstantSetFirst(String... constantSetFirst) {
+			throw new RuntimeException("Please do not use ConstantFields on ProjectCross. The Fields are automatically calculated.");
+		}
+
+		@Override
+		public CrossOperator<I1, I2, OUT> withConstantSetSecond(String... constantSetSecond) {
+			throw new RuntimeException("Please do not use ConstantFields on ProjectCross. The Fields are automatically calculated.");
+		}
 	}
 
 	public static final class ProjectCrossFunction<T1, T2, R extends Tuple> extends CrossFunction<T1, T2, R> {
@@ -233,6 +255,14 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 				}
 			}
 			return outTuple;
+		}
+
+		protected int[] getFields() {
+			return fields;
+		}
+
+		protected boolean[] getIsFromFirst() {
+			return isFromFirst;
 		}
 	}
 
