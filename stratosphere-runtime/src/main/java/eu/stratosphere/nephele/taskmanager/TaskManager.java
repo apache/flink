@@ -283,9 +283,6 @@ public class TaskManager implements TaskOperationProtocol {
 
 		checkTempDirs(tmpDirPaths);
 
-		final int pageSize = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
-				ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE);
-
 		int numBuffers = GlobalConfiguration.getInteger(
 				ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
 				ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS);
@@ -328,7 +325,7 @@ public class TaskManager implements TaskOperationProtocol {
 			channelManager = new ChannelManager(lookupService, localInstanceConnectionInfo, numBuffers, bufferSize, networkConnectionManager);
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
-			throw new Exception("Failed to instantiate channel manager. " + ioe.getMessage(), ioe);
+			throw new Exception("Failed to instantiate ChannelManager.", ioe);
 		}
 
 		{
@@ -344,6 +341,9 @@ public class TaskManager implements TaskOperationProtocol {
 						resources.getSizeOfPhysicalMemory(), memorySize * 1024L * 1024L);
 			}
 			this.hardwareDescription = resources;
+
+			final int pageSize = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
+					ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE);
 
 			// Initialize the memory manager
 			LOG.info("Initializing memory manager with " + (resources.getSizeOfFreeMemory() >>> 20) + " megabytes of memory. " +

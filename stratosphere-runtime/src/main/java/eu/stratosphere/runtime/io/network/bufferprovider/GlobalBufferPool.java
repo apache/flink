@@ -52,13 +52,27 @@ public final class GlobalBufferPool {
 		this.numBuffers = numBuffers;
 		this.bufferSize = bufferSize;
 
-		this.buffers = new ArrayBlockingQueue<MemorySegment>(this.numBuffers);
-		for (int i = 0; i < this.numBuffers; i++) {
-			this.buffers.add(new MemorySegment(new byte[this.bufferSize]));
+		buffers = new ArrayBlockingQueue<MemorySegment>(numBuffers);
+
+		final int mb = 1 << 20;
+		final int memRequiredMb = (numBuffers * bufferSize) / mb;
+
+		for (int i = 0; i < numBuffers; i++) {
+			try {
+				byte[] buf = new byte[bufferSize];
+				buffers.add(new MemorySegment(buf));
+			} catch (OutOfMemoryError err) {
+				int memAllocatedMb = ((i + 1) * bufferSize) / mb;
+
+				String msg = String.format("Tried to allocate %d buffers of size %d bytes each (total: %d MB) " +
+						"and ran out of memory after %d buffers (%d MB).",
+						numBuffers, bufferSize, memRequiredMb, i + 1, memAllocatedMb);
+				throw new OutOfMemoryError(msg);
+			}
 		}
 
-		LOG.info(String.format("Initialized global buffer pool with %d buffers (%d bytes each).",
-				this.numBuffers, this.bufferSize));
+		LOG.info(String.format("Allocated %d buffers of size %d bytes each (total: %d MB).",
+				numBuffers, bufferSize, memRequiredMb));
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
