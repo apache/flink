@@ -837,6 +837,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	
 	/**
 	 Writes a CharSequence as a variable-length encoded Unicode String.
+	 Supports Unicode characters up to 22 bits.
 	 @param cs CharSequence to write
 	 @param out output channel
 	 @throws IOException 
@@ -852,27 +853,9 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 					//Non-BMP Unicode character, two characters are treated as one
 					i++;
 				}
-
-				int shift = 0;
-				int count = 0;
-				//determine number of bytes needed
-				while (c >= (HIGH_BIT << (shift - count))) {
-					shift += 8;
-					count++;
-				}
-				//write bytes
-				while (shift >= 0) {
-					if (shift == 0) {
-						out.write(c & 0x7F);
-					} else {
-						out.write((c >>> (shift - count)) | 0x80);
-					}
-					shift -= 8;
-					count--;
-				}
+				writeUnicodeChar(c, out);
 			}
 		}
-
 	}
 	
 	/**
@@ -895,6 +878,42 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	}
 
 	/**
+	 Writes a variable-length encoded Unicode Character.
+	 @param c char to write
+	 @param out output channel
+	 @return Unicode Character
+	 @throws IOException 
+	 */
+	private static void writeUnicodeChar(int c, DataOutput out) throws IOException {
+		int shift = 0;
+
+		while (c >= (HIGH_BIT << shift)) {
+			shift += 5;
+		}
+
+		while (shift >= 0) {
+			switch (shift) {
+				case 0:
+					out.write(c & 0x7F);
+					shift -= 1;
+					break;
+				case 5:
+					out.write(((c >> shift + 2) | 0x80) & 0x9F);
+					shift -= 5;
+					break;
+				case 10:
+					out.write(((c >> shift + 2) | 0xA0) & 0xBF);
+					shift -= 5;
+					break;
+				case 15:
+					out.write(((c >> shift + 2) | 0xC0) & 0xDF);
+					shift -= 5;
+					break;
+			}
+		}
+	}
+
+	/**
 	 Reads and returns a variable-length encoded Unicode String.
 	 @param in input channel
 	 @return Unicode String
@@ -913,23 +932,6 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 			data[i] = readUnicodeChar(in);
 		}
 		return new String(data, 0, len);
-	}
-	
-	/**
-	Reads and returns a variable-length encoded Unicode Character.
-	@param in input channel
-	@return Unicode Character
-	@throws IOException 
-	*/
-	private static int readUnicodeChar(DataInput in) throws IOException {
-		int r = 0;
-		int c;
-		while ((c = in.readUnsignedByte()) >= HIGH_BIT) {
-			r |= (c & 0x7F) ;
-			r <<= 7;
-		}
-		r |= c;
-		return r;
 	}
 	
 	/**
@@ -962,7 +964,25 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 
 		return len;
 	}
-
+	
+	/**
+	Reads and returns a variable-length encoded Unicode Character.
+	@param in input channel
+	@return Unicode Character
+	@throws IOException 
+	*/
+	private static int readUnicodeChar(DataInput in) throws IOException {
+		int r = 0;
+		int c;
+		while ((c = in.readUnsignedByte()) >= HIGH_BIT) {
+			r |= (c & 0x1F);
+			r <<= 5;
+		}
+		r <<= 2;
+		r |= c;
+		return r;
+	}
+	
 	/**
 	 Copies a serialized variable-length encoded Unicode String.
 	 @param in input channel
