@@ -72,6 +72,8 @@ public class WordCount {
 		// Set up Hadoop Output Format
 		HadoopOutputFormat<Text, IntWritable> hadoopOutputFormat = new HadoopOutputFormat<Text, IntWritable>(new TextOutputFormat<Text, IntWritable>(), job);
 		hadoopOutputFormat.getConfiguration().set("mapreduce.output.textoutputformat.separator", " ");
+		hadoopOutputFormat.getConfiguration().set("mapred.textoutputformat.separator", " "); // set the value for both, since this test
+		// is being executed with both types (hadoop1 and hadoop2 profile)
 		TextOutputFormat.setOutputPath(job, new Path(outputPath));
 		
 		// Output & Execute
