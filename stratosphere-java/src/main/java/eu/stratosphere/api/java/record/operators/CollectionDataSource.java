@@ -135,14 +135,14 @@ public class CollectionDataSource extends GenericDataSourceBase<Record, GenericI
 		else if (data.length == 1 && data[0] instanceof Collection) {
 			checkFormat((Collection<Object>) data[0]);
 			f.setData((Collection<Object>) data[0]);
+		}else {
+			Collection<Object> tmp = new ArrayList<Object>();
+			for (Object o : data) {
+				tmp.add(o);
+			}
+			checkFormat(tmp);
+			f.setData(tmp);
 		}
-
-		Collection<Object> tmp = new ArrayList<Object>();
-		for (Object o : data) {
-			tmp.add(o);
-		}
-		checkFormat(tmp);
-		f.setData(tmp);
 	}
 
 	// --------------------------------------------------------------------------------------------
