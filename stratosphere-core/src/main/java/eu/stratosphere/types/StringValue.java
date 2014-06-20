@@ -46,6 +46,8 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	
 	private static final int HIGH_BIT = 0x1 << 7;
 	
+	private static final int END_BYTE = 0x60;
+	
 	private static final int HIGH_BIT2 = 0x1 << 13;
 	
 	private static final int HIGH_BIT2_MASK = 0x3 << 6;
@@ -847,7 +849,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 			writeLength(0, out);
 		} else {
 			writeLength(Character.codePointCount(cs, 0, cs.length()) + 1, out);
-			for (int i = 0; i < Character.codePointCount(cs, 0, cs.length()); i++) {
+			for (int i = 0; i < cs.length(); i++) {
 				int c = Character.codePointAt(cs, i);
 				if (c >= 65536) {
 					//Non-BMP Unicode character, two characters are treated as one
@@ -856,6 +858,8 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 				writeUnicodeChar(c, out);
 			}
 		}
+		//end-of-string byte
+		out.write(END_BYTE);
 	}
 	
 	/**
@@ -894,19 +898,19 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		while (shift >= 0) {
 			switch (shift) {
 				case 0:
-					out.write(c & 0x7F);
+					out.write(c | 0x80);
 					shift -= 1;
 					break;
 				case 5:
-					out.write(((c >> shift + 2) | 0x80) & 0x9F);
+					out.write((c >> shift + 2) & 0x1F);
 					shift -= 5;
 					break;
 				case 10:
-					out.write(((c >> shift + 2) | 0xA0) & 0xBF);
+					out.write(((c >> shift + 2) | 0x20) & 0x3F);
 					shift -= 5;
 					break;
 				case 15:
-					out.write(((c >> shift + 2) | 0xC0) & 0xDF);
+					out.write(((c >> shift + 2) | 0x40) & 0x5F);
 					shift -= 5;
 					break;
 			}
@@ -922,15 +926,13 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	public static final String readUnicodeString(DataInput in) throws IOException {
 		int len = readLength(in);
 		
-		if(len==0){
-			return "";
-		}
-		
 		final int[] data = new int[len];
 		
 		for (int i = 0; i < len; i++) {
 			data[i] = readUnicodeChar(in);
 		}
+		//end-of-string byte
+		in.readUnsignedByte();
 		return new String(data, 0, len);
 	}
 	
@@ -974,12 +976,12 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	private static int readUnicodeChar(DataInput in) throws IOException {
 		int r = 0;
 		int c;
-		while ((c = in.readUnsignedByte()) >= HIGH_BIT) {
+		while ((c = in.readUnsignedByte()) < HIGH_BIT) {
 			r |= (c & 0x1F);
 			r <<= 5;
 		}
 		r <<= 2;
-		r |= c;
+		r |= (c & 0x7F);
 		return r;
 	}
 	
@@ -997,34 +999,35 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 
 		//copy data
 		for (int i = 0; i < length; i++) {
-			int c;
-			while ((c = in.readUnsignedByte()) >= HIGH_BIT) {
-				out.writeByte(c);
-			}
-			out.writeByte(c);
+			writeUnicodeChar(readUnicodeChar(in),out);
 		}
+		//end-of-string byte
+		in.readUnsignedByte();
+		out.writeByte(END_BYTE);
 	}
 
 	/**
 	 Compares two serialized variable-length encoded Unicode String.
-	 @param firstSource input channel
-	 @param secondSource input channel
+	 @param first input channel
+	 @param second input channel
 	 @return A negative value if the first String is less than the second, 0 if equal, a positive value if greater.
 	 @throws IOException 
 	 */
-	public static final int compareUnicodeString(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		int lengthFirst = readLength(firstSource);
-		int lengthSecond = readLength(secondSource);
-
-		for (int i = 0; i < Math.min(lengthFirst, lengthSecond); i++) {			
-			int c1 = readUnicodeChar(firstSource);
-			int c2 = readUnicodeChar(secondSource);
-			int cmp = c1 - c2;
-			if (cmp != 0) {
-				return cmp;
-			}
+	public static final int compareUnicodeString(DataInputView first, DataInputView second) throws IOException {
+		int lengthFirst = readLength(first);
+		int lengthSecond = readLength(second);
+		byte c1, c2;
+		int cmp = 0;
+		for(
+				int x = 0;
+				(c1=first.readByte()) < END_BYTE && 
+				(c2=second.readByte()) < END_BYTE && 
+				(cmp=c1-c2) == 0; 
+				x++);
+		if (cmp!=0){
+			return cmp;
 		}
-		//the first min(lengthFirst, lengthSecond) characterss are equal, longer String > shorter String
+		//the first min(lengthFirst, lengthSecond) characters are equal, longer String > shorter String
 		return lengthFirst - lengthSecond;
 	}
 }
