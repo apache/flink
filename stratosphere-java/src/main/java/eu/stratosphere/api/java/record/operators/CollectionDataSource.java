@@ -136,13 +136,14 @@ public class CollectionDataSource extends GenericDataSourceBase<Record, GenericI
 			checkFormat((Collection<Object>) data[0]);
 			f.setData((Collection<Object>) data[0]);
 		}
-
-		Collection<Object> tmp = new ArrayList<Object>();
-		for (Object o : data) {
-			tmp.add(o);
+		else {
+			Collection<Object> tmp = new ArrayList<Object>();
+			for (Object o : data) {
+				tmp.add(o);
+			}
+			checkFormat(tmp);
+			f.setData(tmp);
 		}
-		checkFormat(tmp);
-		f.setData(tmp);
 	}
 
 	// --------------------------------------------------------------------------------------------
