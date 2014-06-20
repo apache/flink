@@ -40,6 +40,7 @@ import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.jobmanager.JobManager;
+import eu.stratosphere.nephele.jobmanager.JobManagerUtils;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementGraphIterator;
 import eu.stratosphere.nephele.managementgraph.ManagementGroupVertex;
@@ -96,6 +97,8 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			else if("updates".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
 				writeJsonUpdatesForJob(resp.getWriter(), JobID.fromHexString(jobId));
+			} else if ("version".equals(req.getParameter("get"))) {
+				writeJsonForVersion(resp.getWriter());
 			}
 			else{
 				writeJsonForJobs(resp.getWriter(), jobmanager.getRecentJobs());
@@ -504,5 +507,17 @@ public class JobmanagerInfoServlet extends HttpServlet {
 		LOG.info("Info server for jobmanager: Connection closed by client, IOException");
 	} 
 		
+	}
+	
+	/**
+	 * Writes the version and the revision of Stratosphere.
+	 * 
+	 * @param wrt
+	 */
+	private void writeJsonForVersion(PrintWriter wrt) {
+		wrt.write("{");
+		wrt.write("\"version\": \"" + JobManagerUtils.getVersion() + "\",");
+		wrt.write("\"revision\": \"" + JobManagerUtils.getRevision() + "\"");
+		wrt.write("}");
 	}
 }
