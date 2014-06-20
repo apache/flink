@@ -13,8 +13,6 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import eu.stratosphere.nephele.template.AbstractTask;
-
 /**
  * A JobTaskVertex is the vertex type for regular tasks (with both input and output) in Nephele.
  * Tasks running inside a JobTaskVertex must specify at least one record reader and one record writer.
@@ -27,28 +25,15 @@ public class JobTaskVertex extends AbstractJobVertex {
 	 * 
 	 * @param name
 	 *        the name for the new job task vertex
-	 * @param id
-	 *        the ID of this vertex
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobTaskVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
-		super(name, id, jobGraph);
-
-		jobGraph.addVertex(this);
+	public JobTaskVertex(String name, JobGraph jobGraph) {
+		this(name, null, jobGraph);
 	}
-
-	/**
-	 * Creates a new job task vertex with the specified name.
-	 * 
-	 * @param name
-	 *        the name for the new job task vertex
-	 * @param jobGraph
-	 *        the job graph this vertex belongs to
-	 */
-	public JobTaskVertex(final String name, final JobGraph jobGraph) {
-		super(name, null, jobGraph);
-
+	
+	public JobTaskVertex(String name, JobVertexID id, JobGraph jobGraph) {
+		super(name, id, jobGraph);
 		jobGraph.addVertex(this);
 	}
 
@@ -58,29 +43,7 @@ public class JobTaskVertex extends AbstractJobVertex {
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobTaskVertex(final JobGraph jobGraph) {
-		super(null, null, jobGraph);
-
-		jobGraph.addVertex(this);
-	}
-
-	/**
-	 * Sets the class of the vertex's task.
-	 * 
-	 * @param taskClass
-	 *        the class of the vertex's task
-	 */
-	public void setTaskClass(final Class<? extends AbstractTask> taskClass) {
-		this.invokableClass = taskClass;
-	}
-
-	/**
-	 * Returns the class of the vertex's task.
-	 * 
-	 * @return the class of the vertex's task or <code>null</code> if the class has not yet been set
-	 */
-	@SuppressWarnings("unchecked")
-	public Class<? extends AbstractTask> getTaskClass() {
-		return (Class<? extends AbstractTask>) this.invokableClass;
+	public JobTaskVertex(JobGraph jobGraph) {
+		this(null, jobGraph);
 	}
 }

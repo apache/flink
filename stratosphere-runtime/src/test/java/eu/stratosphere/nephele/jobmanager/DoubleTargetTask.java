@@ -13,18 +13,18 @@
 
 package eu.stratosphere.nephele.jobmanager;
 
+import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.runtime.io.api.RecordReader;
 import eu.stratosphere.runtime.io.api.RecordWriter;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.types.Record;
 
-public class DoubleTargetTask extends AbstractTask {
+public class DoubleTargetTask extends AbstractInvokable {
 
-	private RecordReader<Record> input1 = null;
+	private RecordReader<StringRecord> input1 = null;
 
-	private RecordReader<Record> input2 = null;
+	private RecordReader<StringRecord> input2 = null;
 
-	private RecordWriter<Record> output = null;
+	private RecordWriter<StringRecord> output = null;
 
 	@Override
 	public void invoke() throws Exception {
@@ -33,13 +33,13 @@ public class DoubleTargetTask extends AbstractTask {
 
 		while (this.input1.hasNext()) {
 
-			Record s = input1.next();
+			StringRecord s = input1.next();
 			this.output.emit(s);
 		}
 
 		while (this.input2.hasNext()) {
 
-			Record s = input2.next();
+			StringRecord s = input2.next();
 			this.output.emit(s);
 		}
 
@@ -49,9 +49,9 @@ public class DoubleTargetTask extends AbstractTask {
 
 	@Override
 	public void registerInputOutput() {
-		this.input1 = new RecordReader<Record>(this, Record.class);
-		this.input2 = new RecordReader<Record>(this, Record.class);
-		this.output = new RecordWriter<Record>(this);
+		this.input1 = new RecordReader<StringRecord>(this, StringRecord.class);
+		this.input2 = new RecordReader<StringRecord>(this, StringRecord.class);
+		this.output = new RecordWriter<StringRecord>(this);
 	}
 
 }

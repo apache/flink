@@ -34,6 +34,8 @@ import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.Arrays;
 
+import eu.stratosphere.types.Value;
+
 /**
  * This class stores text using standard UTF8 encoding. It provides methods to
  * serialize, deserialize, and compare texts at byte level. The type of length
@@ -44,7 +46,9 @@ import java.util.Arrays;
  * Also includes utilities for serializing/deserialing a string, coding/decoding a string, checking if a byte array
  * contains valid UTF8 code, calculating the length of an encoded string.
  */
-public class StringRecord implements IOReadableWritable {
+public class StringRecord implements Value {
+	
+	private static final long serialVersionUID = 1L;
 
 	private static final ThreadLocal<CharsetEncoder> ENCODER_FACTORY = new ThreadLocal<CharsetEncoder>() {
 		protected CharsetEncoder initialValue() {

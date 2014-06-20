@@ -14,16 +14,15 @@
 package eu.stratosphere.nephele.jobmanager;
 
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.runtime.io.api.RecordReader;
 import eu.stratosphere.runtime.io.api.RecordWriter;
-import eu.stratosphere.nephele.template.AbstractTask;
 
 /**
  * This task is used during the unit tests to generate a custom exception and check the proper response of the execution
  * engine.
- * 
  */
-public class ExceptionTask extends AbstractTask {
+public class ExceptionTask extends AbstractInvokable {
 
 	/**
 	 * The test error message included in the thrown exception
@@ -52,20 +51,14 @@ public class ExceptionTask extends AbstractTask {
 		}
 	}
 
-
 	@Override
 	public void registerInputOutput() {
-
 		new RecordReader<StringRecord>(this, StringRecord.class);
 		new RecordWriter<StringRecord>(this);
 	}
 
-
 	@Override
 	public void invoke() throws Exception {
-
-		// Throw the exception immediately
 		throw new TestException(ERROR_MESSAGE);
 	}
-
 }

@@ -24,14 +24,15 @@ public abstract class AbstractJobOutputVertex extends AbstractJobVertex {
 	 * 
 	 * @param name
 	 *        the name of the new job output vertex
-	 * @param id
-	 *        the ID of this vertex
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	protected AbstractJobOutputVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
+	protected AbstractJobOutputVertex(String name, JobGraph jobGraph) {
+		this(name, null, jobGraph);
+	}
+	
+	protected AbstractJobOutputVertex(String name, JobVertexID id, JobGraph jobGraph) {
 		super(name, id, jobGraph);
-
 		jobGraph.addVertex(this);
 	}
 }

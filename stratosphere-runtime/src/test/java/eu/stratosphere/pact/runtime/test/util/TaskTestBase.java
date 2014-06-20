@@ -27,9 +27,7 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FileSystem.WriteMode;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.nephele.template.AbstractOutputTask;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
@@ -77,7 +75,7 @@ public abstract class TaskTestBase {
 		return this.mockEnv.getTaskConfiguration();
 	}
 
-	public void registerTask(AbstractTask task, @SuppressWarnings("rawtypes") Class<? extends PactDriver> driver, Class<? extends Function> stubClass) {
+	public void registerTask(AbstractInvokable task, @SuppressWarnings("rawtypes") Class<? extends PactDriver> driver, Class<? extends Function> stubClass) {
 		final TaskConfig config = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		config.setDriver(driver);
 		config.setStubWrapper(new UserCodeClassWrapper<Function>(stubClass));
@@ -91,17 +89,16 @@ public abstract class TaskTestBase {
 		task.registerInputOutput();
 	}
 
-	public void registerTask(AbstractTask task) {
+	public void registerTask(AbstractInvokable task) {
 		task.setEnvironment(this.mockEnv);
 		task.registerInputOutput();
 	}
 
-	public void registerFileOutputTask(AbstractOutputTask outTask, Class<? extends FileOutputFormat> stubClass, String outPath)
-	{
+	public void registerFileOutputTask(AbstractInvokable outTask, Class<? extends FileOutputFormat> stubClass, String outPath) {
 		registerFileOutputTask(outTask, InstantiationUtil.instantiate(stubClass, FileOutputFormat.class), outPath);
 	}
 	
-	public void registerFileOutputTask(AbstractOutputTask outTask, FileOutputFormat outputFormat, String outPath) {
+	public void registerFileOutputTask(AbstractInvokable outTask, FileOutputFormat outputFormat, String outPath) {
 		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		
 		outputFormat.setOutputFilePath(new Path(outPath));
@@ -118,7 +115,7 @@ public abstract class TaskTestBase {
 		outTask.registerInputOutput();
 	}
 
-	public void registerFileInputTask(AbstractInputTask<?> inTask,
+	public void registerFileInputTask(AbstractInvokable inTask,
 			Class<? extends DelimitedInputFormat> stubClass, String inPath, String delimiter)
 	{
 		DelimitedInputFormat format;

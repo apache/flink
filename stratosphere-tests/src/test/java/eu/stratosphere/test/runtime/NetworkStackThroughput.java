@@ -13,23 +13,12 @@
 
 package eu.stratosphere.test.runtime;
 
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.nephele.jobgraph.DistributionPattern;
-import eu.stratosphere.nephele.jobgraph.JobGenericInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
-import eu.stratosphere.nephele.jobgraph.JobInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
-import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.nephele.template.AbstractGenericInputTask;
-import eu.stratosphere.nephele.template.AbstractOutputTask;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.runtime.io.api.RecordReader;
-import eu.stratosphere.runtime.io.api.RecordWriter;
-import eu.stratosphere.runtime.io.channels.ChannelType;
-import eu.stratosphere.test.util.RecordAPITestBase;
-import eu.stratosphere.util.LogUtils;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -38,12 +27,20 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.nephele.jobgraph.DistributionPattern;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
+import eu.stratosphere.nephele.jobgraph.JobInputVertex;
+import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
+import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
+import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.runtime.io.api.RecordReader;
+import eu.stratosphere.runtime.io.api.RecordWriter;
+import eu.stratosphere.runtime.io.channels.ChannelType;
+import eu.stratosphere.test.util.RecordAPITestBase;
+import eu.stratosphere.util.LogUtils;
 
 @RunWith(Parameterized.class)
 public class NetworkStackThroughput extends RecordAPITestBase {
@@ -153,8 +150,8 @@ public class NetworkStackThroughput extends RecordAPITestBase {
 
 		JobGraph jobGraph = new JobGraph("Speed Test");
 
-		JobInputVertex producer = new JobGenericInputVertex("Speed Test Producer", jobGraph);
-		producer.setInputClass(SpeedTestProducer.class);
+		JobInputVertex producer = new JobInputVertex("Speed Test Producer", jobGraph);
+		producer.setInvokableClass(SpeedTestProducer.class);
 		producer.setNumberOfSubtasks(numSubtasks);
 		producer.getConfiguration().setInteger(DATA_VOLUME_GB_CONFIG_KEY, dataVolumeGb);
 		producer.getConfiguration().setBoolean(IS_SLOW_SENDER_CONFIG_KEY, isSlowSender);
@@ -162,12 +159,12 @@ public class NetworkStackThroughput extends RecordAPITestBase {
 		JobTaskVertex forwarder = null;
 		if (useForwarder) {
 			forwarder = new JobTaskVertex("Speed Test Forwarder", jobGraph);
-			forwarder.setTaskClass(SpeedTestForwarder.class);
+			forwarder.setInvokableClass(SpeedTestForwarder.class);
 			forwarder.setNumberOfSubtasks(numSubtasks);
 		}
 
 		JobOutputVertex consumer = new JobOutputVertex("Speed Test Consumer", jobGraph);
-		consumer.setOutputClass(SpeedTestConsumer.class);
+		consumer.setInvokableClass(SpeedTestConsumer.class);
 		consumer.setNumberOfSubtasks(numSubtasks);
 		consumer.getConfiguration().setBoolean(IS_SLOW_RECEIVER_CONFIG_KEY, isSlowReceiver);
 
@@ -188,7 +185,7 @@ public class NetworkStackThroughput extends RecordAPITestBase {
 
 	// ------------------------------------------------------------------------
 
-	public static class SpeedTestProducer extends AbstractGenericInputTask {
+	public static class SpeedTestProducer extends AbstractInvokable {
 
 		private RecordWriter<SpeedTestRecord> writer;
 
@@ -227,7 +224,7 @@ public class NetworkStackThroughput extends RecordAPITestBase {
 		}
 	}
 
-	public static class SpeedTestForwarder extends AbstractTask {
+	public static class SpeedTestForwarder extends AbstractInvokable {
 
 		private RecordReader<SpeedTestRecord> reader;
 
@@ -252,7 +249,7 @@ public class NetworkStackThroughput extends RecordAPITestBase {
 		}
 	}
 
-	public static class SpeedTestConsumer extends AbstractOutputTask {
+	public static class SpeedTestConsumer extends AbstractInvokable {
 
 		private RecordReader<SpeedTestRecord> reader;
 

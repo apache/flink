@@ -15,6 +15,8 @@ package eu.stratosphere.runtime.io.network.bufferprovider;
 
 import eu.stratosphere.runtime.io.Buffer;
 import eu.stratosphere.runtime.io.network.bufferprovider.BufferProvider.BufferAvailabilityRegistration;
+import eu.stratosphere.util.LogUtils;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -33,6 +35,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 public class LocalBufferPoolTest {
+	
+	static {
+		LogUtils.initializeDefaultTestConsoleLogger();
+	}
 
 	private final static int NUM_BUFFERS = 2048;
 

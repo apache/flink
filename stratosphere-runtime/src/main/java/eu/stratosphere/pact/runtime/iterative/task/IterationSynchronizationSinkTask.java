@@ -29,7 +29,7 @@ import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.runtime.io.api.MutableRecordReader;
-import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
@@ -44,7 +44,7 @@ import eu.stratosphere.types.Value;
  * In each superstep, it simply waits until it has receiced a {@link WorkerDoneEvent} from each head and will send back
  * an {@link AllWorkersDoneEvent} to signal that the next superstep can begin.
  */
-public class IterationSynchronizationSinkTask extends AbstractOutputTask implements Terminable {
+public class IterationSynchronizationSinkTask extends AbstractInvokable implements Terminable {
 
 	private static final Log log = LogFactory.getLog(IterationSynchronizationSinkTask.class);
 

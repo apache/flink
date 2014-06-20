@@ -90,7 +90,7 @@ public class MassiveStringSortingITCase {
 				MutableObjectIterator<String> inputIterator = new StringReaderMutableObjectIterator(reader);
 				
 				sorter = new UnilateralSortMerger<String>(mm, ioMan, inputIterator, new DummyInvokable(),
-						new RuntimeStatelessSerializerFactory<String>(serializer, String.class), comparator, 1024 * 1024, 4, 0.8f);
+						new RuntimeStatelessSerializerFactory<String>(serializer, String.class), comparator, 1.0, 4, 0.8f);
 
 				MutableObjectIterator<String> sortedData = sorter.getIterator();
 				
@@ -182,7 +182,7 @@ public class MassiveStringSortingITCase {
 				MutableObjectIterator<Tuple2<String, String[]>> inputIterator = new StringTupleReaderMutableObjectIterator(reader);
 				
 				sorter = new UnilateralSortMerger<Tuple2<String, String[]>>(mm, ioMan, inputIterator, new DummyInvokable(),
-						new RuntimeStatelessSerializerFactory<Tuple2<String, String[]>>(serializer, (Class<Tuple2<String, String[]>>) (Class<?>) Tuple2.class), comparator, 1024 * 1024, 4, 0.8f);
+						new RuntimeStatelessSerializerFactory<Tuple2<String, String[]>>(serializer, (Class<Tuple2<String, String[]>>) (Class<?>) Tuple2.class), comparator, 1.0, 4, 0.8f);
 
 				
 				
@@ -219,10 +219,6 @@ public class MassiveStringSortingITCase {
 					
 					nextFromStratoSort = sortedData.next(nextFromStratoSort);
 					Assert.assertNotNull(nextFromStratoSort);
-						
-					if (nextFromStratoSort.f0.equals("http://some-uri.com/that/is/a/common/prefix/to/all(()HK;V3__.e*")) {
-						System.out.println("Found at position " + num);
-					}
 					
 					Assert.assertEquals(next.f0, nextFromStratoSort.f0);
 					Assert.assertArrayEquals(next.f1, nextFromStratoSort.f1);

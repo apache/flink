@@ -13,14 +13,12 @@
 
 package eu.stratosphere.pact.runtime.test.util;
 
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 
 /**
  * An invokable that does nothing.
- *
  */
-public class DummyInvokable extends AbstractTask
-{
+public class DummyInvokable extends AbstractInvokable {
 
 	@Override
 	public void registerInputOutput() {}

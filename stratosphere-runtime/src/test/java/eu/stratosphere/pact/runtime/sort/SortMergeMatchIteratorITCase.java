@@ -32,7 +32,7 @@ import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
 import eu.stratosphere.api.java.typeutils.runtime.record.RecordPairComparator;
 import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializer;
@@ -47,10 +47,9 @@ import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
-/**
- */
-public class SortMergeMatchIteratorITCase
-{
+
+public class SortMergeMatchIteratorITCase {
+	
 	// total memory
 	private static final int MEMORY_SIZE = 1024 * 1024 * 16;
 	private static final int PAGES_FOR_BNLJN = 2;
@@ -66,7 +65,7 @@ public class SortMergeMatchIteratorITCase
 	private static final long SEED2 = 231434613412342L;
 	
 	// dummy abstract task
-	private final AbstractTask parentTask = new DummyInvokable();
+	private final AbstractInvokable parentTask = new DummyInvokable();
 
 	private IOManager ioManager;
 	private MemoryManager memoryManager;

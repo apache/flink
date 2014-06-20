@@ -24,6 +24,9 @@ import eu.stratosphere.nephele.jobmanager.scheduler.DefaultScheduler;
 
 import org.junit.Test;
 
+import eu.stratosphere.api.common.io.GenericInputFormat;
+import eu.stratosphere.api.common.io.OutputFormat;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
@@ -35,63 +38,41 @@ import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobmanager.scheduler.SchedulingException;
-import eu.stratosphere.nephele.template.AbstractGenericInputTask;
-import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.runtime.io.api.RecordReader;
 import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.runtime.io.channels.ChannelType;
+import eu.stratosphere.types.IntValue;
 import eu.stratosphere.util.StringUtils;
 
 /**
- *         This class checks the functionality of the {@link eu.stratosphere.nephele.jobmanager.scheduler.DefaultScheduler} class
+ * This class checks the functionality of the {@link eu.stratosphere.nephele.jobmanager.scheduler.DefaultScheduler} class
  */
+@SuppressWarnings("serial")
 public class DefaultSchedulerTest {
 
-	/**
-	 * Test input task.
-	 * 
-	 */
-	public static final class InputTask extends AbstractGenericInputTask {
 
-		/**
-		 * {@inheritDoc}
-		 */
+	public static final class InputTask extends AbstractInvokable {
+
 		@Override
 		public void registerInputOutput() {
 			new RecordWriter<StringRecord>(this);
 		}
 
-		/**
-		 * {@inheritDoc}
-		 */
 		@Override
-		public void invoke() throws Exception {
-			// Nothing to do here
-		}
+		public void invoke() throws Exception {}
 
 	}
 
-	/**
-	 * Test output task.
-	 * 
-	 */
-	public static final class OutputTask extends AbstractOutputTask {
+	public static final class OutputTask extends AbstractInvokable {
 
-		/**
-		 * {@inheritDoc}
-		 */
 		@Override
 		public void registerInputOutput() {
 			new RecordReader<StringRecord>(this, StringRecord.class);
 		}
 
-		/**
-		 * {@inheritDoc}
-		 */
 		@Override
-		public void invoke() throws Exception {
-			// Nothing to do here
-		}
+		public void invoke() throws Exception {}
 
 	}
 
@@ -111,29 +92,16 @@ public class DefaultSchedulerTest {
 	public static final class DummyOutputFormat implements OutputFormat<IntValue> {
 
 		@Override
-		public void configure(Configuration parameters) {
-
-		}
+		public void configure(Configuration parameters) {}
 
 		@Override
-		public void open(int taskNumber, int numTasks) throws IOException {
-
-		}
+		public void open(int taskNumber, int numTasks) {}
 
 		@Override
-		public void writeRecord(IntValue record) throws IOException {
-
-		}
+		public void writeRecord(IntValue record) {}
 
 		@Override
-		public void close() throws IOException {
-
-		}
-
-		@Override
-		public void initialize(Configuration configuration) {
-
-		}
+		public void close() {}
 	}
 
 	/**
@@ -148,12 +116,12 @@ public class DefaultSchedulerTest {
 		final JobGraph jobGraph = new JobGraph("Job Graph");
 
 		final JobInputVertex inputVertex = new JobInputVertex("Input 1", jobGraph);
-		inputVertex.setInputClass(InputTask.class);
+		inputVertex.setInvokableClass(InputTask.class);
 		inputVertex.setInputFormat(new DummyInputFormat());
 		inputVertex.setNumberOfSubtasks(1);
 
 		final JobOutputVertex outputVertex = new JobOutputVertex("Output 1", jobGraph);
-		outputVertex.setOutputClass(OutputTask.class);
+		outputVertex.setInvokableClass(OutputTask.class);
 		outputVertex.setOutputFormat(new DummyOutputFormat());
 		outputVertex.setNumberOfSubtasks(1);
 

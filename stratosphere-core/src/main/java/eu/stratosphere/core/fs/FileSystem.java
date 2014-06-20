@@ -459,7 +459,7 @@ public abstract class FileSystem {
 			// path exists, check write mode
 			switch (writeMode) {
 			case NO_OVERWRITE:
-				if (status.isDir()) {
+				if (status.isDir() && createDirectory) {
 					return true;
 				} else {
 					// file may not be overwritten
@@ -467,6 +467,7 @@ public abstract class FileSystem {
 							WriteMode.NO_OVERWRITE.name() + " mode. Use " + WriteMode.OVERWRITE.name() + 
 							" mode to overwrite existing files and directories.");
 				}
+
 			case OVERWRITE:
 				if (status.isDir()) {
 					if (createDirectory) {

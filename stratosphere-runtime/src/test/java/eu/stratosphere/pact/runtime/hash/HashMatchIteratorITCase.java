@@ -34,7 +34,7 @@ import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
 import eu.stratosphere.api.java.typeutils.runtime.record.RecordPairComparator;
 import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializer;
@@ -67,7 +67,7 @@ public class HashMatchIteratorITCase {
 	private static final long SEED1 = 561349061987311L;
 	private static final long SEED2 = 231434613412342L;
 	
-	private final AbstractTask parentTask = new DummyInvokable();
+	private final AbstractInvokable parentTask = new DummyInvokable();
 
 	private IOManager ioManager;
 	private MemoryManager memoryManager;

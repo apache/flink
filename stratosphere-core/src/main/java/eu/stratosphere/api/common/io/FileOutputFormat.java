@@ -31,14 +31,14 @@ import eu.stratosphere.core.fs.Path;
  * The abstract base class for all output formats that are file based. Contains the logic to open/close the target
  * file streams.
  */
-public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
+public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, InitializeOnMaster {
+	
 	private static final long serialVersionUID = 1L;
 
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Defines the behavior for creating output directories. 
-	 *
+	 * Behavior for creating output directories. 
 	 */
 	public static enum OutputDirectoryMode {
 		
@@ -54,7 +54,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 
 	private static WriteMode DEFAULT_WRITE_MODE;
 	
-	private static  OutputDirectoryMode DEFAULT_OUTPUT_DIRECTORY_MODE;
+	private static OutputDirectoryMode DEFAULT_OUTPUT_DIRECTORY_MODE;
 	
 	
 	private static final void initDefaultsFromConfiguration() {
@@ -99,11 +99,6 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 	 * The output directory mode
 	 */
 	private OutputDirectoryMode outputDirectoryMode;
-	
-	/**
-	 * Stream opening timeout.
-	 */
-	private long openTimeout = -1;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -158,19 +153,6 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		return this.outputDirectoryMode;
 	}
 	
-	
-	public void setOpenTimeout(long timeout) {
-		if (timeout < 0) {
-			throw new IllegalArgumentException("The timeout must be a nonnegative numer of milliseconds (zero for infinite).");
-		}
-		
-		this.openTimeout = (timeout == 0) ? Long.MAX_VALUE : timeout;
-	}
-	
-	public long getOpenTimeout() {
-		return this.openTimeout;
-	}
-	
 	// ----------------------------------------------------------------
 
 	@Override
@@ -200,34 +182,58 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		if (this.outputDirectoryMode == null) {
 			this.outputDirectoryMode = DEFAULT_OUTPUT_DIRECTORY_MODE;
 		}
-		
-		if (this.openTimeout == -1) {
-			this.openTimeout = FileInputFormat.getDefaultOpeningTimeout();
-		}
 	}
 
 	
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
+		if (taskNumber < 0 || numTasks < 1) {
+			throw new IllegalArgumentException("TaskNumber: " + taskNumber + ", numTasks: " + numTasks);
+		}
 		
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Openint stream for output (" + (taskNumber+1) + "/" + numTasks + "). WriteMode=" + writeMode +
-					", OutputDirectoryMode=" + outputDirectoryMode + ", timeout=" + openTimeout);
+			LOG.debug("Opening stream for output (" + (taskNumber+1) + "/" + numTasks + "). WriteMode=" + writeMode +
+					", OutputDirectoryMode=" + outputDirectoryMode);
 		}
 		
-		// obtain FSDataOutputStream asynchronously, since HDFS client is vulnerable to InterruptedExceptions
-		OutputPathOpenThread opot = new OutputPathOpenThread(this, (taskNumber + 1), numTasks);
-		opot.start();
+		Path p = this.outputFilePath;
+		if (p == null) {
+			throw new IOException("The file path is null.");
+		}
 		
-		try {
-			// get FSDataOutputStream
-			this.stream = opot.waitForCompletion();
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Stream to output file could not be opened: " + e.getMessage(), e);
-		}
-	}
+		final FileSystem fs = p.getFileSystem();
 
+		// if this is a local file system, we need to initialize the local output directory here
+		if (!fs.isDistributedFS()) {
+			
+			if (numTasks == 1 && outputDirectoryMode == OutputDirectoryMode.PARONLY) {
+				// output should go to a single file
+				
+				// prepare local output path. checks for write mode and removes existing files in case of OVERWRITE mode
+				if(!fs.initOutPathLocalFS(p, writeMode, false)) {
+					// output preparation failed! Cancel task.
+					throw new IOException("Output path could not be initialized. Canceling task...");
+				}
+			}
+			else {
+				// numTasks > 1 || outDirMode == OutputDirectoryMode.ALWAYS
+				
+				if(!fs.initOutPathLocalFS(p, writeMode, true)) {
+					// output preparation failed! Cancel task.
+					throw new IOException("Output directory could not be created. Canceling task...");
+				}
+			}
+		}
+			
+			
+		// Suffix the path with the parallel instance index, if needed
+		if (numTasks > 1 || outputDirectoryMode == OutputDirectoryMode.ALWAYS) {
+			p = p.suffix("/" + (taskNumber+1));
+		}
+
+		// create output file
+		this.stream = fs.create(p, writeMode == WriteMode.OVERWRITE);
+	}
 
 	@Override
 	public void close() throws IOException {
@@ -238,153 +244,37 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		}
 	}
 	
-	// ============================================================================================
-	
-	private static final class OutputPathOpenThread extends Thread {
+	/**
+	 * Initialization of the distributed file system if it is used.
+	 *
+	 * @param parallelism The task parallelism.
+	 */
+	@Override
+	public void initializeGlobal(int parallelism) throws IOException {
+		final Path path = getOutputFilePath();
+		final FileSystem fs = path.getFileSystem();
 		
-		private final Path path;
-		
-		private final int taskIndex;
-		
-		private final int numTasks;
-		
-		private final WriteMode writeMode;
-		
-		private final OutputDirectoryMode outDirMode;
-		
-		private final long timeoutMillies;
-		
-		private volatile FSDataOutputStream fdos;
-
-		private volatile Throwable error;
-		
-		private volatile boolean aborted;
-
-		
-		public OutputPathOpenThread(FileOutputFormat<?> fof, int taskIndex, int numTasks) {
-			this.path = fof.getOutputFilePath();
-			this.writeMode = fof.getWriteMode();
-			this.outDirMode = fof.getOutputDirectoryMode();
-			this.timeoutMillies = fof.getOpenTimeout();
-			this.taskIndex = taskIndex;
-			this.numTasks = numTasks;
-		}
-
-		@Override
-		public void run() {
-
-			try {
-				Path p = this.path;
-				final FileSystem fs = p.getFileSystem();
-
-				// initialize output path. 
-				if(this.numTasks == 1 && outDirMode == OutputDirectoryMode.PARONLY) {
-					// output is not written in parallel and should go to a single file
-					
-					if(!fs.isDistributedFS()) {
-						// prepare local output path
-						// checks for write mode and removes existing files in case of OVERWRITE mode
-						if(!fs.initOutPathLocalFS(p, writeMode, false)) {
-							// output preparation failed! Cancel task.
-							throw new IOException("Output path could not be initialized. Canceling task.");
-						}
-					}
-					
-				} else if(this.numTasks > 1 || outDirMode == OutputDirectoryMode.ALWAYS) {
-					// output is written in parallel into a directory or should always be written to a directory
-					
-					if(!fs.isDistributedFS()) {
-						// File system is not distributed.
-						// We need to prepare the output path on each executing node.
-						if(!fs.initOutPathLocalFS(p, writeMode, true)) {
-							// output preparation failed! Cancel task.
-							throw new IOException("Output directory could not be created. Canceling task.");
-						}
-					}
-					
-					// Suffix the path with the parallel instance index
-					p = p.suffix("/" + this.taskIndex);
-					
-				} else {
-					// invalid number of subtasks (<= 0)
-					throw new IllegalArgumentException("Invalid number of subtasks. Canceling task.");
-				}
-					
-				// create output file
-				switch(writeMode) {
-				case NO_OVERWRITE: 
-					this.fdos = fs.create(p, false);
-					break;
-				case OVERWRITE:
-					this.fdos = fs.create(p, true);
-					break;
-				default:
-					throw new IllegalArgumentException("Invalid write mode: "+writeMode);
-				}
-				
-				// check for canceling and close the stream in that case, because no one will obtain it
-				if (this.aborted) {
-					final FSDataOutputStream f = this.fdos;
-					this.fdos = null;
-					f.close();
-				}
-			}
-			catch (Throwable t) {
-				this.error = t;
-			}
-		}
-		
-		public FSDataOutputStream waitForCompletion() throws Exception {
-			final long start = System.currentTimeMillis();
-			long remaining = this.timeoutMillies;
+		// only distributed file systems can be initialized at start-up time.
+		if (fs.isDistributedFS()) {
 			
-			do {
-				try {
-					this.join(remaining);
-				} catch (InterruptedException iex) {
-					// we were canceled, so abort the procedure
-					abortWait();
-					throw iex;
+			final WriteMode writeMode = getWriteMode();
+			final OutputDirectoryMode outDirMode = getOutputDirectoryMode();
+
+			if (parallelism == 1 && outDirMode == OutputDirectoryMode.PARONLY) {
+				// output is not written in parallel and should be written to a single file.
+				// prepare distributed output path
+				if(!fs.initOutPathDistFS(path, writeMode, false)) {
+					// output preparation failed! Cancel task.
+					throw new IOException("Output path could not be initialized.");
 				}
-			}
-			while (this.error == null && this.fdos == null &&
-					(remaining = this.timeoutMillies + start - System.currentTimeMillis()) > 0);
-			
-			if (this.error != null) {
-				throw new IOException("Opening the file output stream failed" +
-					(this.error.getMessage() == null ? "." : ": " + this.error.getMessage()), this.error);
-			}
-			
-			if (this.fdos != null) {
-				return this.fdos;
+
 			} else {
-				// double-check that the stream has not been set by now. we don't know here whether
-				// a) the opener thread recognized the canceling and closed the stream
-				// b) the flag was set such that the stream did not see it and we have a valid stream
-				// In any case, close the stream and throw an exception.
-				abortWait();
-				
-				final boolean stillAlive = this.isAlive();
-				final StringBuilder bld = new StringBuilder(256);
-				for (StackTraceElement e : this.getStackTrace()) {
-					bld.append("\tat ").append(e.toString()).append('\n');
+				// output should be written to a directory
+
+				// only distributed file systems can be initialized at start-up time.
+				if(!fs.initOutPathDistFS(path, writeMode, true)) {
+					throw new IOException("Output directory could not be created.");
 				}
-				throw new IOException("Output opening request timed out. Opener was " + (stillAlive ? "" : "NOT ") + 
-					" alive. Stack:\n" + bld.toString());
-			}
-		}
-		
-		/**
-		 * Double checked procedure setting the abort flag and closing the stream.
-		 */
-		private final void abortWait() {
-			this.aborted = true;
-			final FSDataOutputStream outStream = this.fdos;
-			this.fdos = null;
-			if (outStream != null) {
-				try {
-					outStream.close();
-				} catch (Throwable t) {}
 			}
 		}
 	}
@@ -435,49 +325,6 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT> {
 		 */
 		protected ConfigBuilder(Configuration targetConfig) {
 			super(targetConfig);
-		}
-	}
-
-	/**
-	 * Initialization of the distributed file system if it is used.
-	 *
-	 * @param configuration The task configuration
-	 */
-	@Override
-	public void initialize(Configuration configuration){
-		final Path path = this.getOutputFilePath();
-		final WriteMode writeMode = this.getWriteMode();
-		final OutputDirectoryMode outDirMode = this.getOutputDirectoryMode();
-
-		// Prepare output path and determine max DOP
-		try {
-			final FileSystem fs = path.getFileSystem();
-
-			int dop = configuration.getInteger(DEGREE_OF_PARALLELISM_KEY, -1);
-			if(dop == 1 && outDirMode == OutputDirectoryMode.PARONLY) {
-				// output is not written in parallel and should be written to a single file.
-
-				if(fs.isDistributedFS()) {
-					// prepare distributed output path
-					if(!fs.initOutPathDistFS(path, writeMode, false)) {
-						// output preparation failed! Cancel task.
-						throw new IOException("Output path could not be initialized.");
-					}
-				}
-			} else {
-				// output should be written to a directory
-
-				if(fs.isDistributedFS()) {
-					// only distributed file systems can be initialized at start-up time.
-					if(!fs.initOutPathDistFS(path, writeMode, true)) {
-						throw new IOException("Output directory could not be created.");
-					}
-				}
-			}
-		}
-		catch (IOException e) {
-			LOG.error("Could not access the file system to detemine the status of the output.", e);
-			throw new RuntimeException("I/O Error while accessing file", e);
 		}
 	}
 }

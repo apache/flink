@@ -1,4 +1,5 @@
 /***********************************************************************************************************************
+ *
  * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
@@ -9,14 +10,26 @@
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
+ *
  **********************************************************************************************************************/
 
-package eu.stratosphere.nephele.template;
+package eu.stratosphere.api.common.io;
+
+import java.io.IOException;
 
 /**
- * Abstract base class for tasks submitted as a part of a job output vertex.
+ * This interface may be implemented by {@link OutputFormat}s to have the master initialize them globally.
  * 
+ * For example, the {@link FileOutputFormat} implements this behavior for distributed file systems and
+ * creates/deletes target directories if necessary.
  */
-public abstract class AbstractOutputTask extends AbstractInvokable {
+public interface InitializeOnMaster {
 
+	/**
+	 * The method is invoked on the master (JobManager) before the distributed program execution starts.
+	 * 
+	 * @param parallelism The degree of parallelism with which the format or functions will be run.
+	 * @throws IOException The initialization may throw exceptions, which may cause the job to abort.
+	 */
+	void initializeGlobal(int parallelism) throws IOException;
 }

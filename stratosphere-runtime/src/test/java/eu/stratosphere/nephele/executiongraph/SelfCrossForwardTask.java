@@ -17,27 +17,20 @@ package eu.stratosphere.nephele.executiongraph;
 import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.runtime.io.api.RecordReader;
 import eu.stratosphere.runtime.io.api.RecordWriter;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 
 /**
  * This class represents the cross task in the self cross unit test.
- * 
  */
-public class SelfCrossForwardTask extends AbstractTask {
-
+public class SelfCrossForwardTask extends AbstractInvokable {
 
 	@Override
 	public void registerInputOutput() {
-		
 		new RecordReader<StringRecord>(this, StringRecord.class);
 		new RecordReader<StringRecord>(this, StringRecord.class);
 		new RecordWriter<StringRecord>(this);
 	}
 
-
 	@Override
-	public void invoke() throws Exception {
-		
-		//Nothing to do here
-	}
+	public void invoke() {}
 }

@@ -17,8 +17,7 @@ import java.io.IOException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.runtime.io.gates.InputChannelResult;
-import eu.stratosphere.nephele.template.AbstractOutputTask;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 
 public class MutableRecordReader<T extends IOReadableWritable> extends AbstractSingleGateRecordReader<T> implements MutableReader<T> {
 	
@@ -30,41 +29,8 @@ public class MutableRecordReader<T extends IOReadableWritable> extends AbstractS
 	 * 
 	 * @param taskBase The application that instantiated the record reader.
 	 */
-	public MutableRecordReader(final AbstractTask taskBase) {
+	public MutableRecordReader(AbstractInvokable taskBase) {
 		super(taskBase);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param outputBase The application that instantiated the record reader.
-	 */
-	public MutableRecordReader(final AbstractOutputTask outputBase) {
-		super(outputBase);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param taskBase
-	 *        the application that instantiated the record reader
-	 * @param inputGateID
-	 *        The ID of the input gate that the reader reads from.
-	 */
-	public MutableRecordReader(final AbstractTask taskBase, final int inputGateID) {
-		super(taskBase);
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param outputBase
-	 *        the application that instantiated the record reader
-	 * @param inputGateID
-	 *        The ID of the input gate that the reader reads from.
-	 */
-	public MutableRecordReader(final AbstractOutputTask outputBase, final int inputGateID) {
-		super(outputBase);
 	}
 	
 	// --------------------------------------------------------------------------------------------

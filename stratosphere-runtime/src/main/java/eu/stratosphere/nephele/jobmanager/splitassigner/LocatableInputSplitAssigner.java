@@ -24,8 +24,6 @@ import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.core.io.LocatableInputSplit;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.nephele.template.AbstractInvokable;
 
 /**
  * The locatable input split assigner is a specific implementation of the {@link InputSplitAssigner} interface for

@@ -13,13 +13,12 @@
 
 package eu.stratosphere.nephele.jobmanager;
 
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 
 /**
  * This task throws a {@link RuntimeException} when the method <code>registerInputOutput</code> is called.
- * 
  */
-public class RuntimeExceptionTask extends AbstractTask {
+public class RuntimeExceptionTask extends AbstractInvokable {
 
 	/**
 	 * The message which is used for the test runtime exception.
@@ -29,15 +28,9 @@ public class RuntimeExceptionTask extends AbstractTask {
 
 	@Override
 	public void registerInputOutput() {
-
 		throw new RuntimeException(RUNTIME_EXCEPTION_MESSAGE);
 	}
 
-
 	@Override
-	public void invoke() throws Exception {
-
-		// Nothing to do here
-	}
-
+	public void invoke() {}
 }

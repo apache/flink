@@ -173,7 +173,7 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 		
 		
-		LOG.info("TaskManager started as user " + UserGroupInformation.getCurrentUser().getShortUserName());
+//		LOG.info("TaskManager started as user " + UserGroupInformation.getCurrentUser().getShortUserName());
 		LOG.info("User system property: " + System.getProperty("user.name"));
 		LOG.info("Execution mode: " + executionMode);
 

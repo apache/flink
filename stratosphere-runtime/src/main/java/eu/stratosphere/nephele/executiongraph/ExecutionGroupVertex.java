@@ -15,7 +15,6 @@ package eu.stratosphere.nephele.executiongraph;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.InputSplit;
-import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.instance.AllocatedResource;
 import eu.stratosphere.nephele.instance.DummyInstance;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;

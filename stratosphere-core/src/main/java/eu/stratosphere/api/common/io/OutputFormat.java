@@ -20,14 +20,13 @@ import eu.stratosphere.configuration.Configuration;
 
 
 /**
- * Describes the base interface that is used describe an output that consumes records. The output format
+ * The base interface for outputs that consumes records. The output format
  * describes how to store the final records, for example in a file.
  * <p>
  * The life cycle of an output format is the following:
  * <ol>
- *   <li>After being instantiated (parameterless), it is configured with a {@link Configuration} object. 
- *       Basic fields are read from the configuration, such as for example a file path, if the format describes
- *       files as the sink for the records.</li>
+ *   <li>configure() is invoked a single time. The method can be used to implement initialization from
+ *       the parameters (configuration) that may be attached upon instantiation.</li>
  *   <li>Each parallel output task creates an instance, configures it and opens it.</li>
  *   <li>All records of its parallel instance are handed to the output format.</li>
  *   <li>The output format is closed</li>
@@ -79,13 +78,5 @@ public interface OutputFormat<IT> extends Serializable {
 	 * @throws IOException Thrown, if the input could not be closed properly.
 	 */
 	void close() throws IOException;
-
-	/**
-	 * Method which is called on the JobManager node prior to execution. It can be used to set up output format
-	 * related tasks.
-	 *
-	 * @param configuration The task configuration
-	 */
-	void initialize(Configuration configuration);
 }
 

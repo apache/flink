@@ -43,7 +43,6 @@ import org.apache.commons.logging.LogFactory;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
