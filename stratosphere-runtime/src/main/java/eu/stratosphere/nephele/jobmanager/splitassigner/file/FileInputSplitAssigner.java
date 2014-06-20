@@ -25,8 +25,6 @@ import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitAssigner;
-import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.nephele.template.AbstractInvokable;
 
 /**
  * The file input split assigner is a specific implementation of the {@link InputSplitAssigner} interface for
@@ -89,13 +87,10 @@ public final class FileInputSplitAssigner implements InputSplitAssigner {
 		}
 	}
 
-
 	@Override
 	public void unregisterGroupVertex(final ExecutionGroupVertex groupVertex) {
-		
 		this.vertexMap.remove(groupVertex);
 	}
-
 
 	@Override
 	public InputSplit getNextInputSplit(final ExecutionVertex vertex) {

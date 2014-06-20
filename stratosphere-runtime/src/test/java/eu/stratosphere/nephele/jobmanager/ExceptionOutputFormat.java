@@ -13,41 +13,37 @@
 
 package eu.stratosphere.nephele.jobmanager;
 
+import eu.stratosphere.api.common.io.InitializeOnMaster;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.io.StringRecord;
 
 import java.io.IOException;
 
 
-public class ExceptionOutputFormat implements OutputFormat<Object> {
+public class ExceptionOutputFormat implements OutputFormat<StringRecord>, InitializeOnMaster {
+
+	private static final long serialVersionUID = 1L;
+	
 	/**
 	 * The message which is used for the test runtime exception.
 	 */
 	public static final String RUNTIME_EXCEPTION_MESSAGE = "This is a test runtime exception";
 
+	@Override
+	public void configure(Configuration parameters) {}
 
 	@Override
-	public void configure(Configuration parameters) {
-
-	}
+	public void open(int taskNumber, int numTasks) {}
 
 	@Override
-	public void open(int taskNumber, int numTasks) throws IOException {
-
-	}
+	public void writeRecord(StringRecord record) {}
 
 	@Override
-	public void writeRecord(Object record) throws IOException {
-
-	}
+	public void close() {}
 
 	@Override
-	public void close() throws IOException {
-
-	}
-
-	@Override
-	public void initialize(Configuration configuration) {
+	public void initializeGlobal(int parallelism) throws IOException {
 		throw new RuntimeException(RUNTIME_EXCEPTION_MESSAGE);
 	}
 }

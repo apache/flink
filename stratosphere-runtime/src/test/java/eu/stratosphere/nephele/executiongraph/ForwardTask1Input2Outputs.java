@@ -16,9 +16,9 @@ package eu.stratosphere.nephele.executiongraph;
 import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.runtime.io.api.RecordReader;
 import eu.stratosphere.runtime.io.api.RecordWriter;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 
-public class ForwardTask1Input2Outputs extends AbstractTask {
+public class ForwardTask1Input2Outputs extends AbstractInvokable {
 
 	private RecordReader<StringRecord> input = null;
 

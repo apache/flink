@@ -26,8 +26,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Stack;
-import java.util.Vector;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.FSDataInputStream;
@@ -75,11 +73,6 @@ public class JobGraph implements IOReadableWritable {
 	 * The job configuration attached to this job.
 	 */
 	private Configuration jobConfiguration = new Configuration();
-
-	/**
-	 * The configuration which should be applied to the task managers involved in processing this job.
-	 */
-	private final Configuration taskManagerConfiguration = new Configuration();
 
 	/**
 	 * List of JAR files required to run this job.
@@ -134,24 +127,12 @@ public class JobGraph implements IOReadableWritable {
 	}
 
 	/**
-	 * Returns the configuration object distributed among the task managers
-	 * before they start processing this job.
-	 * 
-	 * @return the configuration object for the task managers, or <code>null</code> if it is not set
-	 */
-	public Configuration getTaskmanagerConfiguration() {
-
-		return this.taskManagerConfiguration;
-	}
-
-	/**
 	 * Adds a new input vertex to the job graph if it is not already included.
 	 * 
 	 * @param inputVertex
 	 *        the new input vertex to be added
 	 */
-	public void addVertex(final AbstractJobInputVertex inputVertex) {
-
+	public void addVertex(AbstractJobInputVertex inputVertex) {
 		if (!inputVertices.containsKey(inputVertex.getID())) {
 			inputVertices.put(inputVertex.getID(), inputVertex);
 		}
@@ -163,8 +144,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param taskVertex
 	 *        the new task vertex to be added
 	 */
-	public void addVertex(final JobTaskVertex taskVertex) {
-
+	public void addVertex(JobTaskVertex taskVertex) {
 		if (!taskVertices.containsKey(taskVertex.getID())) {
 			taskVertices.put(taskVertex.getID(), taskVertex);
 		}
@@ -176,8 +156,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param outputVertex
 	 *        the new output vertex to be added
 	 */
-	public void addVertex(final AbstractJobOutputVertex outputVertex) {
-
+	public void addVertex(AbstractJobOutputVertex outputVertex) {
 		if (!outputVertices.containsKey(outputVertex.getID())) {
 			outputVertices.put(outputVertex.getID(), outputVertex);
 		}
@@ -570,9 +549,6 @@ public class JobGraph implements IOReadableWritable {
 		// Re-instantiate the job configuration object and read the configuration
 		this.jobConfiguration = new Configuration(cl);
 		this.jobConfiguration.read(in);
-
-		// Read the task manager configuration
-		this.taskManagerConfiguration.read(in);
 	}
 
 
@@ -610,7 +586,6 @@ public class JobGraph implements IOReadableWritable {
 
 		// Write out configuration objects
 		this.jobConfiguration.write(out);
-		this.taskManagerConfiguration.write(out);
 	}
 
 	/**

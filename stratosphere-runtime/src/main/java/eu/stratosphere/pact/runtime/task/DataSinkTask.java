@@ -16,26 +16,22 @@ package eu.stratosphere.pact.runtime.task;
 import java.io.IOException;
 
 import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.common.io.FileOutputFormat;
-import eu.stratosphere.api.common.io.FileOutputFormat.OutputDirectoryMode;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.fs.FileSystem;
-import eu.stratosphere.core.fs.FileSystem.WriteMode;
-import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.execution.CancelTaskException;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.runtime.io.api.MutableReader;
 import eu.stratosphere.runtime.io.api.MutableRecordReader;
 import eu.stratosphere.runtime.io.api.MutableUnionRecordReader;
-import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
@@ -51,7 +47,7 @@ import eu.stratosphere.util.MutableObjectIterator;
  * 
  * @see OutputFormat
  */
-public class DataSinkTask<IT> extends AbstractOutputTask {
+public class DataSinkTask<IT> extends AbstractInvokable {
 	
 	public static final String DEGREE_OF_PARALLELISM_KEY = "sink.dop";
 	

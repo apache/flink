@@ -14,36 +14,34 @@
 package eu.stratosphere.nephele.jobmanager;
 
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.runtime.io.api.MutableRecordReader;
 import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.runtime.io.api.UnionRecordReader;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.types.Record;
 
 /**
  * A simple implementation of a task using a {@link UnionRecordReader}.
  */
-public class UnionTask extends AbstractTask {
+public class UnionTask extends AbstractInvokable {
 
 	/**
 	 * The union record reader to be used during the tests.
 	 */
-	private UnionRecordReader<Record> unionReader;
+	private UnionRecordReader<StringRecord> unionReader;
 
-	private RecordWriter<Record> writer;
+	private RecordWriter<StringRecord> writer;
 	
 	
 	@Override
 	public void registerInputOutput() {
 
 		@SuppressWarnings("unchecked")
-		MutableRecordReader<Record>[] recordReaders = (MutableRecordReader<Record>[]) new
-				MutableRecordReader<?>[2];
-		recordReaders[0] = new MutableRecordReader<Record>(this);
-		recordReaders[1] = new MutableRecordReader<Record>(this);
-		this.unionReader = new UnionRecordReader<Record>(recordReaders, Record.class);
+		MutableRecordReader<StringRecord>[] recordReaders = (MutableRecordReader<StringRecord>[]) new MutableRecordReader<?>[2];
+		recordReaders[0] = new MutableRecordReader<StringRecord>(this);
+		recordReaders[1] = new MutableRecordReader<StringRecord>(this);
+		this.unionReader = new UnionRecordReader<StringRecord>(recordReaders, StringRecord.class);
 		
-		this.writer = new RecordWriter<Record>(this);
+		this.writer = new RecordWriter<StringRecord>(this);
 	}
 
 	@Override

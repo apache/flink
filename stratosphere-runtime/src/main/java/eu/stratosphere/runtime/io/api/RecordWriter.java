@@ -15,9 +15,7 @@ package eu.stratosphere.runtime.io.api;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
-import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.runtime.io.Buffer;
 import eu.stratosphere.runtime.io.channels.EndOfSuperstepEvent;
 import eu.stratosphere.runtime.io.network.bufferprovider.BufferProvider;
@@ -47,25 +45,11 @@ public class RecordWriter<T extends IOReadableWritable> extends BufferWriter {
 
 	// -----------------------------------------------------------------------------------------------------------------
 
-	public RecordWriter(AbstractTask task) {
-		this((AbstractInvokable) task, new RoundRobinChannelSelector<T>());
+	public RecordWriter(AbstractInvokable invokable) {
+		this(invokable, new RoundRobinChannelSelector<T>());
 	}
 
-	public RecordWriter(AbstractTask task, ChannelSelector<T> channelSelector) {
-		this((AbstractInvokable) task, channelSelector);
-	}
-
-	public RecordWriter(AbstractInputTask<?> task) {
-		this((AbstractInvokable) task, new RoundRobinChannelSelector<T>());
-	}
-
-	public RecordWriter(AbstractInputTask<?> task, ChannelSelector<T> channelSelector) {
-		this((AbstractInvokable) task, channelSelector);
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------
-
-	private RecordWriter(AbstractInvokable invokable, ChannelSelector<T> channelSelector) {
+	public RecordWriter(AbstractInvokable invokable, ChannelSelector<T> channelSelector) {
 		// initialize the gate
 		super(invokable);
 

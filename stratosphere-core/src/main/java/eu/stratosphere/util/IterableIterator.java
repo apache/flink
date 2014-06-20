@@ -18,9 +18,9 @@ package eu.stratosphere.util;
 import java.util.Iterator;
 
 /**
- * An {@link Iterator] that is also {@link Iterable} (often by returning itself).
+ * An {@link Iterator} that is also {@link Iterable} (often by returning itself).
  * 
- * @param <T> The iterated elements' type.
+ * @param <E> The iterated elements' type.
  */
 public interface IterableIterator<E> extends Iterator<E>, Iterable<E> {
 }

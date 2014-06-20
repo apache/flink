@@ -393,9 +393,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		try {
 			// First check if job is null
 			if (job == null) {
-				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
-					"Submitted job is null!");
-				return result;
+				return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, "Submitted job is null!");
 			}
 	
 			if (LOG.isDebugEnabled()) {

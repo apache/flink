@@ -36,9 +36,7 @@ import eu.stratosphere.runtime.io.api.BufferWriter;
 import eu.stratosphere.nephele.services.accumulators.AccumulatorEvent;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
@@ -73,7 +71,7 @@ import java.util.Map;
  * The abstract base class for all tasks. Encapsulated common behavior and implements the main life-cycle
  * of the user code.
  */
-public class RegularPactTask<S extends Function, OT> extends AbstractTask implements PactTaskContext<S, OT> {
+public class RegularPactTask<S extends Function, OT> extends AbstractInvokable implements PactTaskContext<S, OT> {
 
 	protected static final Log LOG = LogFactory.getLog(RegularPactTask.class);
 
@@ -1251,11 +1249,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 					oe = new RecordOutputEmitter(strategy, comparator, distribution);
 				}
 
-				if (task instanceof AbstractTask) {
-					writers.add(new RecordWriter<Record>((AbstractTask) task, oe));
-				} else if (task instanceof AbstractInputTask<?>) {
-					writers.add(new RecordWriter<Record>((AbstractInputTask<?>) task, oe));
-				}
+				writers.add(new RecordWriter<Record>(task, oe));
 			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);
@@ -1288,11 +1282,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 					oe = new OutputEmitter<T>(strategy, comparator, dataDist);
 				}
 
-				if (task instanceof AbstractTask) {
-					writers.add(new RecordWriter<SerializationDelegate<T>>((AbstractTask) task, oe));
-				} else if (task instanceof AbstractInputTask<?>) {
-					writers.add(new RecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, oe));
-				}
+				writers.add(new RecordWriter<SerializationDelegate<T>>(task, oe));
 			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);

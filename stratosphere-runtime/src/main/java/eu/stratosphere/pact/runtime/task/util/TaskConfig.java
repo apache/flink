@@ -1102,8 +1102,10 @@ public class TaskConfig {
 	/**
 	 * A configuration that manages a subset of keys with a common prefix from a given configuration.
 	 */
-	public static final class DelegatingConfiguration extends Configuration
-	{
+	public static final class DelegatingConfiguration extends Configuration {
+		
+		private static final long serialVersionUID = 1L;
+
 		private final Configuration backingConfig;		// the configuration actually storing the data
 		
 		private String prefix;							// the prefix key by which keys for this config are marked

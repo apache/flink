@@ -18,9 +18,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
 import eu.stratosphere.runtime.io.api.BufferWriter;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -32,7 +34,8 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.execution.CancelTaskException;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.template.AbstractInputTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
 import eu.stratosphere.pact.runtime.shipping.RecordOutputCollector;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedCollectorMapDriver;
@@ -47,11 +50,11 @@ import eu.stratosphere.util.Collector;
  * 
  * @see eu.stratosphere.api.common.io.InputFormat
  */
-public class DataSourceTask<OT> extends AbstractInputTask<InputSplit> {
+public class DataSourceTask<OT> extends AbstractInvokable {
 	
-	// Obtain DataSourceTask Logger
 	private static final Log LOG = LogFactory.getLog(DataSourceTask.class);
 
+	
 	private List<BufferWriter> eventualOutputs;
 
 	// Output collector
@@ -76,11 +79,10 @@ public class DataSourceTask<OT> extends AbstractInputTask<InputSplit> {
 
 
 	@Override
-	public void registerInputOutput()
-	{
+	public void registerInputOutput() {
 		initInputFormat();
 
-		if (LOG.isDebugEnabled())
+		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Start registering input and output"));
 		}
 
@@ -331,7 +333,7 @@ l	 *
 		}
 		
 		// get the factory for the type serializer
-		this.serializerFactory = this.config.getOutputSerializer(cl);
+		this.serializerFactory = this.config.getOutputSerializer(this.userCodeClassLoader);
 	}
 
 	/**
@@ -342,49 +344,6 @@ l	 *
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
 		this.eventualOutputs = new ArrayList<BufferWriter>();
 		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs);
-	}
-	
-	// ------------------------------------------------------------------------
-	//                              Input Split creation
-	// ------------------------------------------------------------------------
-	
-
-	@Override
-	public InputSplit[] computeInputSplits(int requestedMinNumber) throws Exception {
-		// we have to be sure that the format is instantiated at this point
-		if (this.format == null) {
-			throw new IllegalStateException("BUG: Input format hast not been instantiated, yet.");
-		}
-		return this.format.createInputSplits(requestedMinNumber);
-	}
-
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public Class<InputSplit> getInputSplitType() {
-		// we have to be sure that the format is instantiated at this point
-		if (this.format == null) {
-			throw new IllegalStateException("BUG: Input format hast not been instantiated, yet.");
-		}
-		
-		return (Class<InputSplit>) this.format.getInputSplitType();
-	}
-	
-	// ------------------------------------------------------------------------
-	//                       Control of Parallelism
-	// ------------------------------------------------------------------------
-	
-
-	@Override
-	public int getMinimumNumberOfSubtasks() {
-		return 1;
-	}
-
-
-	@Override
-	public int getMaximumNumberOfSubtasks() {
-		// since splits can in theory be arbitrarily small, we report a possible infinite number of subtasks.
-		return -1;
 	}
 
 	// ------------------------------------------------------------------------
@@ -412,5 +371,55 @@ l	 *
 	 */
 	private String getLogString(String message, String taskName) {
 		return RegularPactTask.constructLogString(message, taskName, this);
+	}
+	
+	private Iterator<InputSplit> getInputSplits() {
+
+		final InputSplitProvider provider = getEnvironment().getInputSplitProvider();
+
+		return new Iterator<InputSplit>() {
+
+			private InputSplit nextSplit;
+			
+			private boolean exhausted;
+
+			@Override
+			public boolean hasNext() {
+				if (exhausted) {
+					return false;
+				}
+				
+				if (nextSplit != null) {
+					return true;
+				}
+				
+				InputSplit split = provider.getNextInputSplit();
+				
+				if (split != null) {
+					this.nextSplit = split;
+					return true;
+				}
+				else {
+					exhausted = true;
+					return false;
+				}
+			}
+
+			@Override
+			public InputSplit next() {
+				if (this.nextSplit == null && !hasNext()) {
+					throw new NoSuchElementException();
+				}
+
+				final InputSplit tmp = this.nextSplit;
+				this.nextSplit = null;
+				return tmp;
+			}
+
+			@Override
+			public void remove() {
+				throw new UnsupportedOperationException();
+			}
+		};
 	}
 }

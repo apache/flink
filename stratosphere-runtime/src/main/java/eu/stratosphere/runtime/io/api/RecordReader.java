@@ -14,8 +14,7 @@
 package eu.stratosphere.runtime.io.api;
 
 import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.nephele.template.AbstractOutputTask;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.runtime.io.gates.InputChannelResult;
 
 import java.io.IOException;
@@ -50,21 +49,8 @@ public class RecordReader<T extends IOReadableWritable> extends AbstractSingleGa
 	 * @param recordType
 	 *        The class of records that can be read from the record reader.
 	 */
-	public RecordReader(AbstractTask taskBase, Class<T> recordType) {
+	public RecordReader(AbstractInvokable taskBase, Class<T> recordType) {
 		super(taskBase);
-		this.recordType = recordType;
-	}
-
-	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
-	 * 
-	 * @param outputBase
-	 *        The application that instantiated the record reader.
-	 * @param recordType
-	 *        The class of records that can be read from the record reader.
-	 */
-	public RecordReader(AbstractOutputTask outputBase, Class<T> recordType) {
-		super(outputBase);
 		this.recordType = recordType;
 	}
 	

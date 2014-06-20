@@ -13,8 +13,6 @@
 
 package eu.stratosphere.test.recordJobs.util;
 
-import java.io.IOException;
-
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.Record;
@@ -23,28 +21,20 @@ import eu.stratosphere.types.Record;
  * A simple output format that discards all data by doing nothing.
  */
 public class DiscardingOutputFormat implements OutputFormat<Record> {
-	private static final long serialVersionUID = 1L;
 	
+	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void configure(Configuration parameters)
-	{}
-
-
-	@Override
-	public void open(int taskNumber, int numTasks) throws IOException
-	{}
+	public void configure(Configuration parameters) {}
 
 
 	@Override
-	public void writeRecord(Record record) throws IOException
-	{}
+	public void open(int taskNumber, int numTasks) {}
+
+	@Override
+	public void writeRecord(Record record) {}
 
 
 	@Override
-	public void close() throws IOException
-	{}
-
-	@Override
-	public void initialize(Configuration configuration){}
+	public void close() {}
 }

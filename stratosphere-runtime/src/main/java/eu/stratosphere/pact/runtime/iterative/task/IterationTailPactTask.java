@@ -97,7 +97,13 @@ public class IterationTailPactTask<S extends Function, OT> extends AbstractItera
 				log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
 			}
 
-			super.run();
+			try {
+				super.run();
+			}
+			catch (NullPointerException e) {
+				boolean terminationRequested = terminationRequested();
+				System.out.println("Nullpoint exception when termination requested was " + terminationRequested);
+			}
 
 			// check if termination was requested
 			checkForTerminationAndResetEndOfSuperstepState();

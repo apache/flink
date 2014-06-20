@@ -30,7 +30,6 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
 import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
@@ -41,10 +40,9 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Value;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
-/**
- */
-public class AsynchonousPartialSorterITCase
-{
+
+public class AsynchonousPartialSorterITCase {
+	
 	private static final Log LOG = LogFactory.getLog(AsynchonousPartialSorterITCase.class);
 
 	private static final long SEED = 649180756312423613L;
@@ -57,7 +55,7 @@ public class AsynchonousPartialSorterITCase
 
 	public static final int MEMORY_SIZE = 1024 * 1024 * 32;
 	
-	private final AbstractTask parentTask = new DummyInvokable();
+	private final AbstractInvokable parentTask = new DummyInvokable();
 
 	private IOManager ioManager;
 

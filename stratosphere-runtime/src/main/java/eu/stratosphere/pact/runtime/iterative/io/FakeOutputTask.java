@@ -13,14 +13,14 @@
 
 package eu.stratosphere.pact.runtime.iterative.io;
 
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.runtime.io.api.MutableRecordReader;
-import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.types.Record;
 
 /**
  * Output task for the iteration tail
  */
-public class FakeOutputTask extends AbstractOutputTask {
+public class FakeOutputTask extends AbstractInvokable {
 
 	private MutableRecordReader<Record> reader;
 

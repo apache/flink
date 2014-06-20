@@ -18,8 +18,9 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import org.apache.commons.lang.Validate;
+
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.configuration.IllegalConfigurationException;
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
@@ -29,8 +30,7 @@ import eu.stratosphere.nephele.util.EnumUtils;
 import eu.stratosphere.util.StringUtils;
 
 /**
- * An abstract base class for a job vertex in Nephele.
- * 
+ * An abstract base class for a job vertex.
  */
 public abstract class AbstractJobVertex implements IOReadableWritable {
 
@@ -86,19 +86,30 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 */
 	protected Class<? extends AbstractInvokable> invokableClass = null;
 
+	
 	/**
 	 * Constructs a new job vertex and assigns it with the given name.
 	 * 
 	 * @param name
 	 *        the name of the new job vertex
-	 * @param id
-	 *        the ID of this vertex
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	protected AbstractJobVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
+	protected AbstractJobVertex(String name, JobGraph jobGraph) {
+		this(name, null, jobGraph);
+	}
+	
+	/**
+	 * Constructs a new job vertex and assigns it with the given name.
+	 * 
+	 * @param name
+	 *        the name of the new job vertex
+	 * @param jobGraph
+	 *        the job graph this vertex belongs to
+	 */
+	protected AbstractJobVertex(String name, JobVertexID id, JobGraph jobGraph) {
 		this.name = name == null ? DEFAULT_NAME : name;
-		this.id = (id == null) ? new JobVertexID() : id;
+		this.id = id == null ? new JobVertexID() : id;
 		this.jobGraph = jobGraph;
 	}
 
@@ -572,13 +583,17 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		return this.configuration;
 	}
 
+	public void setInvokableClass(Class<? extends AbstractInvokable> invokable) {
+		Validate.notNull(invokable);
+		this.invokableClass = invokable;
+	}
+	
 	/**
 	 * Returns the invokable class which represents the task of this vertex
 	 * 
 	 * @return the invokable class, <code>null</code> if it is not set
 	 */
 	public Class<? extends AbstractInvokable> getInvokableClass() {
-
 		return this.invokableClass;
 	}
 	

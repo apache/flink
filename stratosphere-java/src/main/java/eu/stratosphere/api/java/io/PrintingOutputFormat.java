@@ -95,7 +95,4 @@ public class PrintingOutputFormat<T> implements OutputFormat<T> {
 	public String toString() {
 		return "Print to " + (target == STD_OUT ? "System.out" : "System.err");
 	}
-
-	@Override
-	public void initialize(Configuration configuration){}
 }
