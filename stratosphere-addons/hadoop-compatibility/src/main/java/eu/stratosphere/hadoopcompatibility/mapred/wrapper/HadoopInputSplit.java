@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility;
+package eu.stratosphere.hadoopcompatibility.mapred.wrapper;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -23,7 +23,7 @@ import org.apache.hadoop.mapred.JobConf;
 import eu.stratosphere.core.io.InputSplit;
 
 
-public class HadoopInputSplitWrapper implements InputSplit {
+public class HadoopInputSplit implements InputSplit {
 
 	public transient org.apache.hadoop.mapred.InputSplit hadoopInputSplit;
 	public JobConf jobConf;
@@ -36,12 +36,12 @@ public class HadoopInputSplitWrapper implements InputSplit {
 	}
 	
 	
-	public HadoopInputSplitWrapper() {
+	public HadoopInputSplit() {
 		super();
 	}
 	
 	
-	public HadoopInputSplitWrapper(org.apache.hadoop.mapred.InputSplit hInputSplit, JobConf jobconf) {
+	public HadoopInputSplit(org.apache.hadoop.mapred.InputSplit hInputSplit, JobConf jobconf) {
 		this.hadoopInputSplit = hInputSplit;
 		this.hadoopInputSplitTypeName = hInputSplit.getClass().getName();
 		this.jobConf=jobconf;

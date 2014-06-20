@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility;
+package eu.stratosphere.hadoopcompatibility.mapred.record;
 
 import java.util.List;
 
@@ -26,8 +26,8 @@ import com.google.common.collect.ImmutableList;
 import eu.stratosphere.api.java.record.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.compiler.contextcheck.Validatable;
-import eu.stratosphere.hadoopcompatibility.datatypes.DefaultStratosphereTypeConverter;
-import eu.stratosphere.hadoopcompatibility.datatypes.StratosphereTypeConverter;
+import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.DefaultStratosphereTypeConverter;
+import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.StratosphereTypeConverter;
 
 /**
  * The HadoopDataSink is a generic wrapper for all Hadoop OutputFormats.
@@ -40,7 +40,7 @@ import eu.stratosphere.hadoopcompatibility.datatypes.StratosphereTypeConverter;
  *
  * Note that it is possible to provide custom data type converter.
  *
- * The HadoopDataSink provides a default converter: {@link eu.stratosphere.hadoopcompatibility.datatypes.DefaultStratosphereTypeConverter}
+ * The HadoopDataSink provides a default converter: {@link eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.DefaultStratosphereTypeConverter}
  **/
 public class HadoopDataSink<K,V> extends GenericDataSink implements Validatable {
 
@@ -68,7 +68,7 @@ public class HadoopDataSink<K,V> extends GenericDataSink implements Validatable 
 
 	@SuppressWarnings("deprecation")
 	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, List<Operator<Record>> input, StratosphereTypeConverter<K,V> conv, Class<K> keyClass, Class<V> valueClass) {
-		super(new HadoopOutputFormatWrapper<K,V>(hadoopFormat, jobConf, conv),input, name);
+		super(new HadoopRecordOutputFormat<K,V>(hadoopFormat, jobConf, conv),input, name);
 		Preconditions.checkNotNull(hadoopFormat);
 		Preconditions.checkNotNull(jobConf);
 		this.name = name;

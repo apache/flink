@@ -11,7 +11,7 @@
  * specific language governing permissions and limitations under the License.
  **********************************************************************************************************************/
 
-package eu.stratosphere.hadoopcompatibility.example;
+package eu.stratosphere.hadoopcompatibility.mapred.record.example;
 
 import java.io.Serializable;
 import java.util.Iterator;
@@ -26,17 +26,17 @@ import org.apache.hadoop.mapred.TextInputFormat;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
-import eu.stratosphere.api.java.record.operators.FileDataSink;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.hadoopcompatibility.HadoopDataSource;
-import eu.stratosphere.hadoopcompatibility.datatypes.WritableWrapperConverter;
+import eu.stratosphere.hadoopcompatibility.mapred.record.HadoopDataSource;
+import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.WritableWrapperConverter;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
@@ -44,7 +44,14 @@ import eu.stratosphere.util.Collector;
 
 /**
  * Implements a word count which takes the input file and counts the number of
- * the occurrences of each word in the file.
+ * the occurrences of each word in the file. 
+ * 
+ * <br /><br />
+ * 
+ * <b>Note</b>: This example uses the out dated Record API.
+ * It is recommended to use the new Java API.
+ * 
+ * @see eu.stratosphere.hadoopcompatibility.mapred.record.example.example.WordCount
  */
 public class WordCount implements Program, ProgramDescription {
 	
