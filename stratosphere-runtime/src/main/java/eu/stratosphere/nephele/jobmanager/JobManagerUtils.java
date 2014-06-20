@@ -13,10 +13,14 @@
 
 package eu.stratosphere.nephele.jobmanager;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Properties;
 
 import eu.stratosphere.nephele.ExecutionMode;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -182,5 +186,34 @@ public class JobManagerUtils {
 //		final String modeClass = getClassStringForMode(executionMode);
 //		final String instanceManagerClassNameKey = "jobmanager.instancemanager." + modeClass + ".classname";
 //		return GlobalConfiguration.getString(instanceManagerClassNameKey, null);
+	}
+	
+	/**
+	 * Returns the version of Stratosphere as String.
+	 * If version == null, then the JobManager runs from inside the IDE (or somehow not from the maven build jar)
+	 * @return String
+	 */
+	public static String getVersion() {
+		String version = JobManagerUtils.class.getPackage().getImplementationVersion();
+		return version;
+	}
+
+	/**
+	 * Returns the revision of Stratosphere as String.
+	 * @return String
+	 */
+	public static String getRevision() {
+		String revision = "<unknown>";
+		try {
+			Properties properties = new Properties();
+			InputStream propFile = JobManagerUtils.class.getClassLoader().getResourceAsStream(".version.properties");
+			if (propFile != null) {
+				properties.load(propFile);
+				revision = properties.getProperty("git.commit.id.abbrev");
+			}
+		} catch (IOException e) {
+			LOG.info("Cannot determine code revision. Unable ro read version property file.");
+		}
+		return revision;
 	}
 }
