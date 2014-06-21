@@ -368,6 +368,8 @@
 						<exclude>**/*.iml</exclude>
 						<!-- Generated content -->
 						<exclude>**/target/**</exclude>
+						<!-- Documentation -->
+						<exclude>**/docs/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
