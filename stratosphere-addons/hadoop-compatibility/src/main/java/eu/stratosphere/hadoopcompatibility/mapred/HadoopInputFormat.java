@@ -53,10 +53,10 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 	private Class<V> valueClass;
 	private JobConf jobConf;
 	
-	public transient K key;
-	public transient V value;
+	private transient K key;
+	private transient V value;
 	
-	public RecordReader<K, V> recordReader;
+	private transient RecordReader<K, V> recordReader;
 	private transient boolean fetched = false;
 	private transient boolean hasNext;
 	
@@ -117,10 +117,9 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 				LOG.warn("Could not determine statistics due to an io error: "
 						+ ioex.getMessage());
 			}
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error("Unexpected problen while getting the file statistics: "
+				LOG.error("Unexpected problem while getting the file statistics: "
 						+ t.getMessage(), t);
 			}
 		}

@@ -39,10 +39,10 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 	
 	private static final long serialVersionUID = 1L;
 	
-	public JobConf jobConf;	
-	public org.apache.hadoop.mapred.OutputFormat<K,V> mapredOutputFormat;	
-	public transient RecordWriter<K,V> recordWriter;	
-	public transient FileOutputCommitter fileOutputCommitter;
+	private JobConf jobConf;	
+	private org.apache.hadoop.mapred.OutputFormat<K,V> mapredOutputFormat;	
+	private transient RecordWriter<K,V> recordWriter;	
+	private transient FileOutputCommitter fileOutputCommitter;
 	private transient TaskAttemptContext context;
 	private transient JobContext jobContext;
 	
@@ -109,8 +109,7 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 		
 		try {
 			this.jobContext = HadoopUtils.instantiateJobContext(this.jobConf, new JobID());
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 		

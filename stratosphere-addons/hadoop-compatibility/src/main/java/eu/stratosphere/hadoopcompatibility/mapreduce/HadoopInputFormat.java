@@ -56,7 +56,7 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 	private Class<V> valueClass;
 	private org.apache.hadoop.conf.Configuration configuration;
 	
-	public transient RecordReader<K, V> recordReader;
+	private transient RecordReader<K, V> recordReader;
 	private boolean fetched = false;
 	private boolean hasNext;
 	
@@ -108,8 +108,7 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 		JobContext jobContext = null;
 		try {
 			jobContext = HadoopUtils.instantiateJobContext(configuration, null);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 		
@@ -118,17 +117,15 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 				
 				try {
 					final org.apache.hadoop.fs.Path[] paths = FileInputFormat.getInputPaths(jobContext);
-					
 					return getFileStats(cachedFileStats, paths, new ArrayList<FileStatus>(1));
 				} catch (IOException ioex) {
 					if (LOG.isWarnEnabled()) {
 						LOG.warn("Could not determine statistics due to an io error: "
 								+ ioex.getMessage());
 					}
-				}
-				catch (Throwable t) {
+				} catch (Throwable t) {
 					if (LOG.isErrorEnabled()) {
-						LOG.error("Unexpected problen while getting the file statistics: "
+						LOG.error("Unexpected problem while getting the file statistics: "
 								+ t.getMessage(), t);
 					}
 				}
@@ -145,8 +142,7 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 		JobContext jobContext = null;
 		try {
 			jobContext = HadoopUtils.instantiateJobContext(configuration, new JobID());
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 		
@@ -174,8 +170,7 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 		TaskAttemptContext context = null;
 		try {
 			context = HadoopUtils.instantiateTaskAttemptContext(configuration, new TaskAttemptID());
-		}
-		catch(Exception e) {
+		} catch(Exception e) {
 			throw new RuntimeException(e);
 		}
 		
