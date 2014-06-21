@@ -54,8 +54,7 @@ public class HadoopUtils {
 			JobContext context = (JobContext) constructor.newInstance(jobConf, jobId);
 			
 			return context;
-		}
-		catch(Exception e) {
+		} catch(Exception e) {
 			throw new Exception("Could not create instance of JobContext.", e);
 		}
 	}
@@ -76,8 +75,7 @@ public class HadoopUtils {
 			constructor.setAccessible(true);
 			TaskAttemptContext context = (TaskAttemptContext) constructor.newInstance(jobConf, taskAttemptID);
 			return context;
-		}
-		catch(Exception e) {
+		} catch(Exception e) {
 			throw new Exception("Could not create instance of TaskAttemptContext.", e);
 		}
 	}

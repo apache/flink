@@ -111,8 +111,7 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 		
 		try {
 			this.fileOutputCommitter.setupJob(HadoopUtils.instantiateJobContext(this.configuration, new JobID()));
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 		
@@ -140,7 +139,6 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 	 * commit the task by moving the output file out from the temporary directory.
 	 * @throws IOException
 	 */
-	@SuppressWarnings("deprecation")
 	@Override
 	public void close() throws IOException {
 		try {

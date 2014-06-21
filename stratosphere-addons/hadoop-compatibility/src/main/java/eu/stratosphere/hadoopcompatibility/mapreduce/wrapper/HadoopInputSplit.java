@@ -67,8 +67,7 @@ public class HadoopInputSplit implements InputSplit {
 				Class<? extends org.apache.hadoop.io.Writable> inputSplit = 
 						Class.forName(className).asSubclass(org.apache.hadoop.io.Writable.class);
 				this.mapreduceInputSplit = (org.apache.hadoop.mapreduce.InputSplit) WritableFactories.newInstance(inputSplit);
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				throw new RuntimeException("Unable to create InputSplit", e);
 			}
 		}

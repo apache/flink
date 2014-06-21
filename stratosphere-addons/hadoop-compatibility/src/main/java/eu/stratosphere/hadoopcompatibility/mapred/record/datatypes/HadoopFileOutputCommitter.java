@@ -50,8 +50,7 @@ public class HadoopFileOutputCommitter extends FileOutputCommitter implements Se
 	}
 
 	private static boolean getOutputDirMarking(JobConf conf) {
-		return conf.getBoolean(SUCCESSFUL_JOB_OUTPUT_DIR_MARKER,
-			true);
+		return conf.getBoolean(SUCCESSFUL_JOB_OUTPUT_DIR_MARKER,  true);
 	}
 
 	private void markSuccessfulOutputDir(JobConf conf)

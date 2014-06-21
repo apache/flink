@@ -25,8 +25,8 @@ import eu.stratosphere.core.io.InputSplit;
 
 public class HadoopInputSplit implements InputSplit {
 
-	public transient org.apache.hadoop.mapred.InputSplit hadoopInputSplit;
-	public JobConf jobConf;
+	private transient org.apache.hadoop.mapred.InputSplit hadoopInputSplit;
+	private JobConf jobConf;
 	private int splitNumber;
 	private String hadoopInputSplitTypeName;
 	
@@ -44,7 +44,7 @@ public class HadoopInputSplit implements InputSplit {
 	public HadoopInputSplit(org.apache.hadoop.mapred.InputSplit hInputSplit, JobConf jobconf) {
 		this.hadoopInputSplit = hInputSplit;
 		this.hadoopInputSplitTypeName = hInputSplit.getClass().getName();
-		this.jobConf=jobconf;
+		this.jobConf = jobconf;
 	}
 	
 	@Override
