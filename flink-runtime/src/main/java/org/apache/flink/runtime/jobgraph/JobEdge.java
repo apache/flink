@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.runtime.io.network.channels.ChannelType;
@@ -24,7 +23,6 @@ import org.apache.flink.runtime.io.network.channels.ChannelType;
 /**
  * Objects of this class represent edges in the user's job graph.
  * The edges can be annotated by a specific channel and compression level.
- * 
  */
 public class JobEdge {
 

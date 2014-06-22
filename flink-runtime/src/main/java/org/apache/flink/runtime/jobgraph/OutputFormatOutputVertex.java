@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.api.common.io.OutputFormat;
@@ -28,7 +27,7 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
  * for Nephele tasks which sink data in a not further specified way. As every job output vertex,
  * a JobOutputVertex must not have any further output.
  */
-public class JobOutputVertex extends AbstractJobOutputVertex {
+public class OutputFormatOutputVertex extends AbstractJobOutputVertex {
 	/**
 	 * Contains the output format associated to this output vertex. It can be <pre>null</pre>.
 	 */
@@ -43,11 +42,11 @@ public class JobOutputVertex extends AbstractJobOutputVertex {
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobOutputVertex(String name, JobGraph jobGraph) {
+	public OutputFormatOutputVertex(String name, JobGraph jobGraph) {
 		this(name, null, jobGraph);
 	}
 	
-	public JobOutputVertex(String name, JobVertexID id, JobGraph jobGraph) {
+	public OutputFormatOutputVertex(String name, JobVertexID id, JobGraph jobGraph) {
 		super(name, id, jobGraph);
 	}
 
@@ -57,7 +56,7 @@ public class JobOutputVertex extends AbstractJobOutputVertex {
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobOutputVertex(JobGraph jobGraph) {
+	public OutputFormatOutputVertex(JobGraph jobGraph) {
 		this(null, jobGraph);
 	}
 	

@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,24 +47,13 @@ import org.apache.flink.util.ClassUtils;
 /**
  * A job graph represents an entire job in Nephele. A job graph must consists at least of one job vertex
  * and must be acyclic.
- * 
  */
 public class JobGraph implements IOReadableWritable {
 
 	/**
-	 * List of input vertices included in this job graph.
-	 */
-	private Map<JobVertexID, AbstractJobInputVertex> inputVertices = new HashMap<JobVertexID, AbstractJobInputVertex>();
-
-	/**
-	 * List of output vertices included in this job graph.
-	 */
-	private Map<JobVertexID, AbstractJobOutputVertex> outputVertices = new HashMap<JobVertexID, AbstractJobOutputVertex>();
-
-	/**
 	 * List of task vertices included in this job graph.
 	 */
-	private Map<JobVertexID, JobTaskVertex> taskVertices = new HashMap<JobVertexID, JobTaskVertex>();
+	private Map<JobVertexID, AbstractJobVertex> taskVertices = new LinkedHashMap<JobVertexID, AbstractJobVertex>();
 
 	/**
 	 * ID of this job.
@@ -90,11 +80,8 @@ public class JobGraph implements IOReadableWritable {
 	 */
 	private static final int BUFFERSIZE = 8192;
 
-	/**
-	 * Buffer for array of reachable job vertices
-	 */
-	private volatile AbstractJobVertex[] bufferedAllReachableJobVertices = null;
-
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Constructs a new job graph with a random job ID.
 	 */
@@ -108,7 +95,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param jobName
 	 *        the name for this job graph
 	 */
-	public JobGraph(final String jobName) {
+	public JobGraph(String jobName) {
 		this();
 		this.jobName = jobName;
 	}
@@ -128,20 +115,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @return the configuration object for this job, or <code>null</code> if it is not set
 	 */
 	public Configuration getJobConfiguration() {
-
 		return this.jobConfiguration;
-	}
-
-	/**
-	 * Adds a new input vertex to the job graph if it is not already included.
-	 * 
-	 * @param inputVertex
-	 *        the new input vertex to be added
-	 */
-	public void addVertex(AbstractJobInputVertex inputVertex) {
-		if (!inputVertices.containsKey(inputVertex.getID())) {
-			inputVertices.put(inputVertex.getID(), inputVertex);
-		}
 	}
 
 	/**
@@ -150,40 +124,15 @@ public class JobGraph implements IOReadableWritable {
 	 * @param taskVertex
 	 *        the new task vertex to be added
 	 */
-	public void addVertex(JobTaskVertex taskVertex) {
-		if (!taskVertices.containsKey(taskVertex.getID())) {
-			taskVertices.put(taskVertex.getID(), taskVertex);
+	public void addVertex(AbstractJobVertex vertex) {
+		final JobVertexID id = vertex.getID();
+		AbstractJobVertex previous = taskVertices.put(id, vertex);
+		
+		// if we had a prior association, restore and throw an exception
+		if (previous != null) {
+			taskVertices.put(id, vertex);
+			throw new IllegalArgumentException("The JobGraph already contains a vertex with that id.");
 		}
-	}
-
-	/**
-	 * Adds a new output vertex to the job graph if it is not already included.
-	 * 
-	 * @param outputVertex
-	 *        the new output vertex to be added
-	 */
-	public void addVertex(AbstractJobOutputVertex outputVertex) {
-		if (!outputVertices.containsKey(outputVertex.getID())) {
-			outputVertices.put(outputVertex.getID(), outputVertex);
-		}
-	}
-
-	/**
-	 * Returns the number of input vertices registered with the job graph.
-	 * 
-	 * @return the number of input vertices registered with the job graph
-	 */
-	public int getNumberOfInputVertices() {
-		return this.inputVertices.size();
-	}
-
-	/**
-	 * Returns the number of output vertices registered with the job graph.
-	 * 
-	 * @return the number of output vertices registered with the job graph
-	 */
-	public int getNumberOfOutputVertices() {
-		return this.outputVertices.size();
 	}
 
 	/**
@@ -196,39 +145,12 @@ public class JobGraph implements IOReadableWritable {
 	}
 
 	/**
-	 * Returns an iterator to iterate all input vertices registered with the job graph.
+	 * Returns an Iterable to iterate all vertices registered with the job graph.
 	 * 
-	 * @return an iterator to iterate all input vertices registered with the job graph
+	 * @return an Iterable to iterate all vertices registered with the job graph
 	 */
-	public Iterator<AbstractJobInputVertex> getInputVertices() {
-
-		final Collection<AbstractJobInputVertex> coll = this.inputVertices.values();
-
-		return coll.iterator();
-	}
-
-	/**
-	 * Returns an iterator to iterate all output vertices registered with the job graph.
-	 * 
-	 * @return an iterator to iterate all output vertices registered with the job graph
-	 */
-	public Iterator<AbstractJobOutputVertex> getOutputVertices() {
-
-		final Collection<AbstractJobOutputVertex> coll = this.outputVertices.values();
-
-		return coll.iterator();
-	}
-
-	/**
-	 * Returns an iterator to iterate all task vertices registered with the job graph.
-	 * 
-	 * @return an iterator to iterate all task vertices registered with the job graph
-	 */
-	public Iterator<JobTaskVertex> getTaskVertices() {
-
-		final Collection<JobTaskVertex> coll = this.taskVertices.values();
-
-		return coll.iterator();
+	public Iterable<AbstractJobVertex> getTaskVertices() {
+		return this.taskVertices.values();
 	}
 
 	/**
@@ -237,35 +159,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @return the number of all job vertices registered with this job graph
 	 */
 	public int getNumberOfVertices() {
-
-		return this.inputVertices.size() + this.outputVertices.size() + this.taskVertices.size();
-	}
-
-	/**
-	 * Returns an array of all job vertices than can be reached when traversing the job graph from the input vertices.
-	 * Each job vertex is contained only one time.
-	 * 
-	 * @return an array of all job vertices than can be reached when traversing the job graph from the input vertices
-	 */
-	public AbstractJobVertex[] getAllReachableJobVertices() {
-		if(bufferedAllReachableJobVertices == null){
-			final List<AbstractJobVertex> collector = new ArrayList<AbstractJobVertex>();
-			final HashSet<JobVertexID> visited = new HashSet<JobVertexID>();
-
-			final Iterator<AbstractJobInputVertex> inputs = getInputVertices();
-
-			while(inputs.hasNext()){
-				AbstractJobVertex vertex = inputs.next();
-
-				if(!visited.contains(vertex.getID())){
-					collectVertices(vertex, visited, collector);
-				}
-			}
-
-			bufferedAllReachableJobVertices = collector.toArray(new AbstractJobVertex[0]);
-		}
-
-		return bufferedAllReachableJobVertices;
+		return this.taskVertices.size();
 	}
 
 	/**
@@ -297,7 +191,8 @@ public class JobGraph implements IOReadableWritable {
 	 * @return an array of all job vertices that are registered with the job graph
 	 */
 	public AbstractJobVertex[] getAllJobVertices() {
-
+		return this.taskVertices.values().toArray(new AbstractJobVertex[this.taskVertices.size()]);
+		
 		int i = 0;
 		final AbstractJobVertex[] vertices = new AbstractJobVertex[inputVertices.size() + outputVertices.size()
 			+ taskVertices.size()];
@@ -337,21 +232,8 @@ public class JobGraph implements IOReadableWritable {
 	 *        the ID of the vertex to search for
 	 * @return the vertex with the matching ID or <code>null</code> if no vertex with such ID could be found
 	 */
-	public AbstractJobVertex findVertexByID(final JobVertexID id) {
-
-		if (this.inputVertices.containsKey(id)) {
-			return this.inputVertices.get(id);
-		}
-
-		if (this.outputVertices.containsKey(id)) {
-			return this.outputVertices.get(id);
-		}
-
-		if (this.taskVertices.containsKey(id)) {
-			return this.taskVertices.get(id);
-		}
-
-		return null;
+	public AbstractJobVertex findVertexByID(JobVertexID id) {
+		return this.taskVertices.get(id);
 	}
 
 	/**

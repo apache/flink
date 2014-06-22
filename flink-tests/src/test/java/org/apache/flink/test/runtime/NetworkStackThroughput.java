@@ -32,9 +32,9 @@ import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphDefinitionException;
-import org.apache.flink.runtime.jobgraph.JobInputVertex;
-import org.apache.flink.runtime.jobgraph.JobOutputVertex;
 import org.apache.flink.runtime.jobgraph.JobTaskVertex;
+import org.apache.flink.runtime.jobgraph.SimpleInputVertex;
+import org.apache.flink.runtime.jobgraph.SimpleOutputVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.test.util.RecordAPITestBase;
 import org.junit.After;
@@ -99,7 +99,7 @@ public class NetworkStackThroughput {
 
 			JobGraph jobGraph = new JobGraph("Speed Test");
 
-			JobInputVertex producer = new JobInputVertex("Speed Test Producer", jobGraph);
+			SimpleInputVertex producer = new SimpleInputVertex("Speed Test Producer", jobGraph);
 			producer.setInvokableClass(SpeedTestProducer.class);
 			producer.setNumberOfSubtasks(numSubtasks);
 			producer.getConfiguration().setInteger(DATA_VOLUME_GB_CONFIG_KEY, dataVolumeGb);
@@ -112,7 +112,7 @@ public class NetworkStackThroughput {
 				forwarder.setNumberOfSubtasks(numSubtasks);
 			}
 
-			JobOutputVertex consumer = new JobOutputVertex("Speed Test Consumer", jobGraph);
+			SimpleOutputVertex consumer = new SimpleOutputVertex("Speed Test Consumer", jobGraph);
 			consumer.setInvokableClass(SpeedTestConsumer.class);
 			consumer.setNumberOfSubtasks(numSubtasks);
 			consumer.getConfiguration().setBoolean(IS_SLOW_RECEIVER_CONFIG_KEY, isSlowReceiver);

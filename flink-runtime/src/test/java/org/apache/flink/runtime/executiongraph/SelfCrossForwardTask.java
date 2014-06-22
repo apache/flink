@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.executiongraph;
-
 
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.runtime.io.network.api.RecordReader;

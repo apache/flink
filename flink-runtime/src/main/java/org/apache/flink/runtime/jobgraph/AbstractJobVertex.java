@@ -72,14 +72,9 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	private int numberOfSubtasks = -1;
 
 	/**
-	 * Number of retries in case of an error before the task represented by this vertex is considered as failed.
-	 */
-	private int numberOfExecutionRetries = -1;
-
-	/**
 	 * Other task to share a (set of) of instances with at runtime.
 	 */
-	private AbstractJobVertex vertexToShareInstancesWith = null;
+	private AbstractJobVertex vertexToShareInstancesWith;
 
 	/**
 	 * Custom configuration passed to the assigned task at runtime.
@@ -89,7 +84,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	/**
 	 * The class of the invokable.
 	 */
-	protected Class<? extends AbstractInvokable> invokableClass = null;
+	protected Class<? extends AbstractInvokable> invokableClass;
 
 	
 	/**
@@ -388,9 +383,6 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		// Read number of subtasks
 		this.numberOfSubtasks = in.readInt();
 
-		// Number of execution retries
-		this.numberOfExecutionRetries = in.readInt();
-
 		// Read vertex to share instances with
 		if (in.readBoolean()) {
 			final JobVertexID id = new JobVertexID();
@@ -464,9 +456,6 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		// Number of subtasks
 		out.writeInt(this.numberOfSubtasks);
 
-		// Number of execution retries
-		out.writeInt(this.numberOfExecutionRetries);
-
 		// Vertex to share instance with
 		if (this.vertexToShareInstancesWith != null) {
 			out.writeBoolean(true);
@@ -535,29 +524,6 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 */
 	public int getNumberOfSubtasks() {
 		return this.numberOfSubtasks;
-	}
-
-	/**
-	 * Sets the number of retries in case of an error before the task represented by this vertex is considered as
-	 * failed.
-	 * 
-	 * @param numberOfExecutionRetries
-	 *        the number of retries in case of an error before the task represented by this vertex is considered as
-	 *        failed
-	 */
-	public void setNumberOfExecutionRetries(final int numberOfExecutionRetries) {
-		this.numberOfExecutionRetries = numberOfExecutionRetries;
-	}
-
-	/**
-	 * Returns the number of retries in case of an error before the task represented by this vertex is considered as
-	 * failed.
-	 * 
-	 * @return the number of retries in case of an error before the task represented by this vertex is considered as
-	 *         failed or <code>-1</code> if unspecified
-	 */
-	public int getNumberOfExecutionRetries() {
-		return this.numberOfExecutionRetries;
 	}
 
 	/**

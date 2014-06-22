@@ -19,24 +19,35 @@
 package org.apache.flink.runtime.jobgraph;
 
 /**
- * An abstract base class for output vertices in Nephele.
+ * A JobOutputVertex is a specific sub-type of a {@link AbstractJobOutputVertex} and is designed
+ * for Nephele tasks which sink data in a not further specified way. As every job output vertex,
+ * a JobOutputVertex must not have any further output.
  */
-public abstract class AbstractJobOutputVertex extends AbstractJobVertex {
+public class SimpleOutputVertex extends AbstractJobOutputVertex {
 
 	/**
-	 * Constructs a new job output vertex with the given name.
+	 * Creates a new job file output vertex with the specified name.
 	 * 
 	 * @param name
-	 *        the name of the new job output vertex
+	 *        the name of the new job file output vertex
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	protected AbstractJobOutputVertex(String name, JobGraph jobGraph) {
+	public SimpleOutputVertex(String name, JobGraph jobGraph) {
 		this(name, null, jobGraph);
 	}
 	
-	protected AbstractJobOutputVertex(String name, JobVertexID id, JobGraph jobGraph) {
+	public SimpleOutputVertex(String name, JobVertexID id, JobGraph jobGraph) {
 		super(name, id, jobGraph);
-		jobGraph.addVertex(this);
 	}
+
+	/**
+	 * Creates a new job file input vertex.
+	 * 
+	 * @param jobGraph
+	 *        the job graph this vertex belongs to
+	 */
+	public SimpleOutputVertex(JobGraph jobGraph) {
+		this(null, jobGraph);
+	}	
 }

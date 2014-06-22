@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.configuration.Configuration;
@@ -24,7 +23,6 @@ import org.apache.flink.runtime.execution.Environment;
 
 /**
  * Abstract base class for every task class in Nephele.
- * 
  */
 public abstract class AbstractInvokable {
 
@@ -42,7 +40,7 @@ public abstract class AbstractInvokable {
 	 * Must be overwritten by the concrete task. This method is called by the task manager
 	 * when the actual execution of the task starts.
 	 * 
-	 * @throws Execution
+	 * @throws Exception
 	 *         thrown if any exception occurs during the execution of the tasks
 	 */
 	public abstract void invoke() throws Exception;
@@ -89,9 +87,9 @@ public abstract class AbstractInvokable {
 	}
 
 	/**
-	 * Returns the task configuration object which was attached to the original {@link JobVertex}.
+	 * Returns the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.AbstractJobVertex}.
 	 * 
-	 * @return the task configuration object which was attached to the original {@link JobVertex}
+	 * @return the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.AbstractJobVertex}
 	 */
 	public final Configuration getTaskConfiguration() {
 
@@ -99,9 +97,9 @@ public abstract class AbstractInvokable {
 	}
 
 	/**
-	 * Returns the job configuration object which was attached to the original {@link JobGraph}.
+	 * Returns the job configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobGraph}.
 	 * 
-	 * @return the job configuration object which was attached to the original {@link JobGraph}
+	 * @return the job configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobGraph}
 	 */
 	public final Configuration getJobConfiguration() {
 

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobgraph;
 
 import java.io.IOException;
@@ -26,11 +25,12 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 
-public class JobInputVertex extends AbstractJobInputVertex {
+
+public class InputFormatInputVertex extends AbstractJobInputVertex {
 
 	private InputFormat<?, ?> inputFormat;
 	
-	public JobInputVertex(String name, JobVertexID id, JobGraph jobGraph) {
+	public InputFormatInputVertex(String name, JobVertexID id, JobGraph jobGraph) {
 		super(name, id, jobGraph);
 	}
 	
@@ -42,7 +42,7 @@ public class JobInputVertex extends AbstractJobInputVertex {
 	 * @param jobGraph
 	 *        The job graph this vertex belongs to.
 	 */
-	public JobInputVertex(String name, JobGraph jobGraph) {
+	public InputFormatInputVertex(String name, JobGraph jobGraph) {
 		this(name, null, jobGraph);
 	}
 
@@ -52,7 +52,7 @@ public class JobInputVertex extends AbstractJobInputVertex {
 	 * @param jobGraph
 	 *        The job graph this vertex belongs to.
 	 */
-	public JobInputVertex(JobGraph jobGraph) {
+	public InputFormatInputVertex(JobGraph jobGraph) {
 		this(null, jobGraph);
 	}
 	

@@ -18,25 +18,44 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-/**
- * An abstract base class for output vertices in Nephele.
- */
-public abstract class AbstractJobOutputVertex extends AbstractJobVertex {
+import org.apache.flink.core.io.InputSplit;
+
+
+public class SimpleInputVertex extends AbstractJobInputVertex {
 
 	/**
-	 * Constructs a new job output vertex with the given name.
+	 * Creates a new job file output vertex with the specified name.
 	 * 
 	 * @param name
-	 *        the name of the new job output vertex
+	 *        the name of the new job file output vertex
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	protected AbstractJobOutputVertex(String name, JobGraph jobGraph) {
+	public SimpleInputVertex(String name, JobGraph jobGraph) {
 		this(name, null, jobGraph);
 	}
 	
-	protected AbstractJobOutputVertex(String name, JobVertexID id, JobGraph jobGraph) {
+	public SimpleInputVertex(String name, JobVertexID id, JobGraph jobGraph) {
 		super(name, id, jobGraph);
-		jobGraph.addVertex(this);
 	}
+
+	/**
+	 * Creates a new job file input vertex.
+	 * 
+	 * @param jobGraph
+	 *        the job graph this vertex belongs to
+	 */
+	public SimpleInputVertex(JobGraph jobGraph) {
+		this(null, jobGraph);
+	}
+
+	@Override
+	public Class<? extends InputSplit> getInputSplitType() {
+		return null;
+	}
+
+	@Override
+	public InputSplit[] getInputSplits(int minNumSplits) throws Exception {
+		return null;
+	}	
 }
