@@ -172,8 +172,12 @@ public class TaskManager implements TaskOperationProtocol {
 			throw new NullPointerException("Execution mode must not be null.");
 		}
 		
-		
-//		LOG.info("TaskManager started as user " + UserGroupInformation.getCurrentUser().getShortUserName());
+		try {
+			LOG.info("TaskManager started as user " + UserGroupInformation.getCurrentUser().getShortUserName());
+		} catch (Throwable t) {
+			LOG.error("Cannot determine user group information.", t);
+		}
+			
 		LOG.info("User system property: " + System.getProperty("user.name"));
 		LOG.info("Execution mode: " + executionMode);
 
@@ -344,9 +348,14 @@ public class TaskManager implements TaskOperationProtocol {
 		{
 			HardwareDescription resources = HardwareDescriptionFactory.extractFromSystem();
 			
-			numberOfSlots = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
-					Hardware.getNumberCPUCores());
-
+			int slots = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, -1);
+			if (slots == -1) { 
+				slots = Hardware.getNumberCPUCores();
+			} else if (slots <= 0) {
+				throw new Exception("Illegal value for the number of task slots: " + slots);
+			}
+			this.numberOfSlots = slots;
+			
 			// Check whether the memory size has been explicitly configured. if so that overrides the default mechanism
 			// of taking as much as is mentioned in the hardware description
 			long memorySize = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1);

@@ -66,7 +66,7 @@ public class JobManagerITCase {
 
 	static {
 		// no logging, because the tests create expected exception
-		LogUtils.initializeDefaultConsoleLogger(Level.INFO);
+		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
 	}
 	
 	/**
