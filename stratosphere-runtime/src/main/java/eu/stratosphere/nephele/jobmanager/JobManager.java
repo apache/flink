@@ -16,14 +16,12 @@ package eu.stratosphere.nephele.jobmanager;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -468,7 +466,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			ExecutionGraph eg;
 	
 			try {
-				eg = new ExecutionGraph(job, this.getAvailableSlots());
+				eg = new ExecutionGraph(job, 1);
 			} catch (GraphConversionException e) {
 				if (e.getCause() == null) {
 					return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(e));

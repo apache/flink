@@ -37,10 +37,10 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 
 	private static final long serialVersionUID = 1L;
 
-	private Collection<T> dataSet; // input data as collection
-
 	private TypeSerializer<T> serializer;
 
+	private transient Collection<T> dataSet; // input data as collection. transient, because it will be serialized in a custom way
+	
 	private transient Iterator<T> iterator;
 
 	
@@ -75,7 +75,7 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 	// --------------------------------------------------------------------------------------------
 
 	private void writeObject(ObjectOutputStream out) throws IOException {
-		out.writeObject(serializer);
+		out.defaultWriteObject();
 		out.writeInt(dataSet.size());
 		
 		OutputViewDataOutputWrapper outWrapper = new OutputViewDataOutputWrapper();
@@ -86,13 +86,8 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 		}
 	}
 
-	@SuppressWarnings("unchecked")
-	private void readObject(ObjectInputStream in) throws IOException {
-		try {
-			this.serializer = (TypeSerializer<T>) in.readObject();
-		} catch (ClassNotFoundException ex){
-			throw new IOException("Could not load the serializer class.", ex);
-		}
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
 
 		int collectionLength = in.readInt();
 		List<T> list = new ArrayList<T>(collectionLength);

@@ -145,7 +145,6 @@ public class ExecutionGraph implements ExecutionListener {
 	 *        the configuration originally attached to the job graph
 	 */
 	private ExecutionGraph(final JobID jobID, final String jobName, final Configuration jobConfiguration) {
-
 		if (jobID == null) {
 			throw new IllegalArgumentException("Argument jobID must not be null");
 		}
@@ -165,8 +164,7 @@ public class ExecutionGraph implements ExecutionListener {
 	 * @throws GraphConversionException
 	 *         thrown if the job graph is not valid and no execution graph can be constructed from it
 	 */
-	public ExecutionGraph(final JobGraph job, final int defaultParallelism)
-																					throws GraphConversionException {
+	public ExecutionGraph(JobGraph job, int defaultParallelism) throws GraphConversionException {
 		this(job.getJobID(), job.getName(), job.getJobConfiguration());
 
 		// Start constructing the new execution graph from given job graph

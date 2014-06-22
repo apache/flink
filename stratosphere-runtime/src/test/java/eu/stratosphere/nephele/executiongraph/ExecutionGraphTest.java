@@ -104,7 +104,7 @@ public class ExecutionGraphTest {
 
 			LibraryCacheManager.register(jobID, new String[0]);
 
-			final ExecutionGraph eg = new ExecutionGraph(jg, -1);
+			final ExecutionGraph eg = new ExecutionGraph(jg, 1);
 
 			// test all methods of ExecutionGraph
 			final ExecutionStage executionStage = eg.getCurrentExecutionStage();
@@ -215,7 +215,7 @@ public class ExecutionGraphTest {
 			assertEquals(1, egv2.getNumberOfBackwardLinks());
 			assertEquals(1, egv2.getNumberOfForwardLinks());
 			assertEquals(0, egv2.getStageNumber());
-			assertEquals(-1, egv2.getUserDefinedNumberOfMembers());
+			assertEquals(1, egv2.getUserDefinedNumberOfMembers());
 			assertNull(egv2.getVertexToShareInstancesWith());
 
 			// test all methods of ExecutionVertex

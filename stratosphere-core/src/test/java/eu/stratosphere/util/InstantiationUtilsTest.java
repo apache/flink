@@ -60,7 +60,5 @@ public class InstantiationUtilsTest {
 		InstantiationUtil.checkForInstantiation(TestClass.class);
 	}
 
-	private class TestClass {
-
-	}
+	private class TestClass {}
 }

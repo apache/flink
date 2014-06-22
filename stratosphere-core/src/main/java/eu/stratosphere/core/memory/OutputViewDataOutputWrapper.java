@@ -110,7 +110,7 @@ public class OutputViewDataOutputWrapper implements DataOutputView {
 	@Override
 	public void write(DataInputView source, int numBytes) throws IOException {
 		for (int i = 0; i < numBytes; i++) {
-			this.delegate.writeByte(source.readByte());
+			this.delegate.writeByte(source.readUnsignedByte());
 		}
 	}
 }

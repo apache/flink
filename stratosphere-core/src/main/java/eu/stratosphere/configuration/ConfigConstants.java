@@ -29,11 +29,6 @@ public final class ConfigConstants {
 	 * The config parameter defining the default degree of parallelism for jobs.
 	 */
 	public static final String DEFAULT_PARALLELIZATION_DEGREE_KEY = "parallelization.degree.default";
-
-	/**
-	 * The config parameter defining the maximal intra-node parallelism for jobs.
-	 */
-	public static final String PARALLELIZATION_MAX_INTRA_NODE_DEGREE_KEY = "parallelization.intra-node.default";
 	
 	// -------------------------------- Runtime -------------------------------
 
