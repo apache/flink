@@ -19,11 +19,15 @@
 
 package org.apache.flink.runtime.util;
 
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.Opcodes;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashSet;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.jar.JarEntry;
@@ -54,6 +58,11 @@ public class JarFileCreator {
 	private final File outputFile;
 
 	/**
+	 * The namespace of the dependencies to be packaged.
+	 */
+	private final Set<String> packages = new HashSet<String>();
+
+	/**
 	 * Constructs a new jar file creator.
 	 * 
 	 * @param outputFile
@@ -70,9 +79,89 @@ public class JarFileCreator {
 	 * @param clazz
 	 *        the class to be added to the jar file.
 	 */
-	public synchronized void addClass(final Class<?> clazz) {
+	public synchronized JarFileCreator addClass(final Class<?> clazz) {
 
 		this.classSet.add(clazz);
+		String name = clazz.getName();
+		int n = name.lastIndexOf('.');
+		if (n > -1) {
+			name = name.substring(0, n);
+		}
+		return addPackage(name);
+	}
+
+	/**
+	 * Manually specify the package of the dependencies.
+	 *
+	 * @param p
+	 * 		  the package to be included.
+	 */
+	public synchronized JarFileCreator addPackage(String p) {
+		this.packages.add(p);
+		return this;
+	}
+
+	/**
+	 * Manually specify the packages of the dependencies.
+	 *
+	 * @param packages
+	 *        the packages to be included.
+	 */
+	public synchronized JarFileCreator addPackages(String[] packages) {
+		for (String p : packages) {
+			addPackage(p);
+		}
+		return this;
+	}
+
+	/**
+	 * Add the dependencies within the given packages automatically.
+	 * @throws IOException
+	 * 			throw if an error occurs while read the class file.
+	 */
+	private synchronized void addDependencies() throws IOException {
+		List<String> dependencies = new ArrayList<String>();
+		for (Class clazz : classSet) {
+			dependencies.add(clazz.getName());
+		}
+		//Traverse the dependency tree using BFS.
+		int head = 0;
+		while (head != dependencies.size()) {
+			DependencyVisitor v = new DependencyVisitor(Opcodes.ASM5);
+			v.addNameSpace(this.packages);
+			InputStream classInputStream = null;
+			String name = dependencies.get(head);
+			try {
+				Class clazz = Class.forName(name);
+				int n = name.lastIndexOf('.');
+				String className = null;
+				if (n > -1) {
+					className = name.substring(n + 1, name.length());
+				}
+				classInputStream = clazz.getResourceAsStream(className + CLASS_EXTENSION);
+			} catch (ClassNotFoundException e) {
+				throw new RuntimeException(e.getMessage());
+			}
+			new ClassReader(classInputStream).accept(v, 0);
+			classInputStream.close();
+
+			//Update the BFS queue.
+			Set<String> classPackages = v.getPackages();
+			for (String s : classPackages) {
+				if (!dependencies.contains(s.replace('/','.'))) {
+					dependencies.add(s.replace('/','.'));
+				}
+			}
+			head++;
+		}
+
+		for (String dependency : dependencies) {
+			try {
+				this.classSet.add(Class.forName(dependency));
+			} catch (ClassNotFoundException e) {
+				throw new RuntimeException(e.getMessage());
+			}
+		}
 	}
 
 	/**
@@ -84,6 +173,8 @@ public class JarFileCreator {
 	 *         thrown if an error occurs while writing to the output file
 	 */
 	public synchronized void createJarFile() throws IOException {
+		//Retrieve dependencies automatically
+		addDependencies();
 
 		// Temporary buffer for the stream copy
 		final byte[] buf = new byte[128];
@@ -107,7 +198,14 @@ public class JarFileCreator {
 
 			jos.putNextEntry(new JarEntry(entry));
 
-			final InputStream classInputStream = clazz.getResourceAsStream(clazz.getSimpleName() + CLASS_EXTENSION);
+			String name = clazz.getName();
+			int n = name.lastIndexOf('.');
+			String className = null;
+			if (n > -1) {
+				className = name.substring(n + 1, name.length());
+			}
+			//Using the part after last dot instead of class.getSimpleName() could resolve the problem of inner class.
+			final InputStream classInputStream = clazz.getResourceAsStream(className + CLASS_EXTENSION);
 
 			int num = classInputStream.read(buf);
 			while (num != -1) {
@@ -118,7 +216,6 @@ public class JarFileCreator {
 			classInputStream.close();
 			jos.closeEntry();
 		}
-
 		jos.close();
 	}
 }
