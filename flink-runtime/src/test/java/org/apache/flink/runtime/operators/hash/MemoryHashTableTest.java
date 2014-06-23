@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.operators.hash;
 
-
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -52,6 +52,7 @@ import org.apache.flink.runtime.operators.testutils.types.StringPairPairComparat
 import org.apache.flink.runtime.operators.testutils.types.StringPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Test;
+import org.powermock.reflect.Whitebox;
 
 
 public class MemoryHashTableTest {
@@ -82,11 +83,15 @@ public class MemoryHashTableTest {
 	
 	private final TypePairComparator<IntPair, IntList> pairComparatorPL =new IntPairListPairComparator();
 	
-	private final int SIZE = 80; //FIXME 75 triggers serialization bug in testVariableLengthBuildAndRetrieve
+	private final int SIZE = 75;
 	
 	private final int NUM_PAIRS = 100000;
 
 	private final int NUM_LISTS = 100000;
+	
+	private final int ADDITIONAL_MEM = 100;
+	
+	private final int NUM_REWRITES = 10;
 	
 
 	private final TypeSerializer<StringPair> serializerS = new StringPairSerializer();
@@ -96,7 +101,7 @@ public class MemoryHashTableTest {
 	private final TypePairComparator<StringPair, StringPair> pairComparatorS = new StringPairPairComparator();
 	
 	
-	
+	@Test
 	public void testDifferentProbers() {
 		final int NUM_MEM_PAGES = 32 * NUM_PAIRS / PAGE_SIZE;
 		
@@ -106,11 +111,13 @@ public class MemoryHashTableTest {
 		AbstractHashTableProber<IntPair, IntPair> prober2 = table.getProber(comparator, pairComparator);
 		
 		assertFalse(prober1 == prober2);
+		
+		table.close();
+		assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
 	}
 	
 	@Test
 	public void testBuildAndRetrieve() {
-		
 		try {
 			final int NUM_MEM_PAGES = 32 * NUM_PAIRS / PAGE_SIZE;
 			
@@ -134,8 +141,7 @@ public class MemoryHashTableTest {
 			
 			table.close();
 			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Error: " + e.getMessage());
 		}
@@ -143,7 +149,6 @@ public class MemoryHashTableTest {
 	
 	@Test
 	public void testEntryIterator() {
-		
 		try {
 			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
 			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
@@ -167,8 +172,7 @@ public class MemoryHashTableTest {
 			
 			assertTrue(sum == result);
 			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Error: " + e.getMessage());
 		}
@@ -197,7 +201,8 @@ public class MemoryHashTableTest {
 				assertTrue(listProber.getMatchFor(lists[i], target));
 				assertArrayEquals(lists[i].getValue(), target.getValue());
 			}
-			
+			table.close();
+			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Error: " + e.getMessage());
@@ -218,7 +223,6 @@ public class MemoryHashTableTest {
 				try {
 					table.insert(lists[i]);
 				} catch (Exception e) {
-					//System.out.println("index: " + i + " ");
 					throw e;
 				}
 			}
@@ -241,14 +245,13 @@ public class MemoryHashTableTest {
 			}
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue(prober.getMatchFor(overwriteLists[i], target));
+				assertTrue("" + i, prober.getMatchFor(overwriteLists[i], target));
 				assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
 			}
 			
 			table.close();
 			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Error: " + e.getMessage());
 		}
@@ -288,14 +291,13 @@ public class MemoryHashTableTest {
 			}
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue(prober.getMatchFor(lists[i], target));
+				assertTrue("" + i, prober.getMatchFor(lists[i], target));
 				assertArrayEquals(lists[i].getValue(), target.getValue());
 			}
 			
 			table.close();
 			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Error: " + e.getMessage());
 		}
@@ -343,8 +345,321 @@ public class MemoryHashTableTest {
 			
 			table.close();
 			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail("Error: " + e.getMessage());
 		}
-		catch (Exception e) {
+	}
+	
+	@Test
+	public void testRepeatedBuildAndRetrieve() {
+		try {
+			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
+			
+			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
+			
+			AbstractMutableHashTable<IntList> table = new CompactingHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			table.open();
+			
+			for (int i = 0; i < NUM_LISTS; i++) {
+				try {
+					table.insert(lists[i]);
+				} catch (Exception e) {
+					throw e;
+				}
+			}
+
+
+			AbstractHashTableProber<IntList, IntList> prober = table.getProber(comparatorV, pairComparatorV);
+			IntList target = new IntList();
+			
+			for (int i = 0; i < NUM_LISTS; i++) {
+				assertTrue(prober.getMatchFor(lists[i], target));
+				assertArrayEquals(lists[i].getValue(), target.getValue());
+			}
+			
+			IntList[] overwriteLists;
+			
+			for(int k = 0; k < NUM_REWRITES; k++) {
+				overwriteLists = getRandomizedIntLists(NUM_LISTS, rnd);
+				// test replacing
+				IntList tempHolder = new IntList();
+				for (int i = 0; i < NUM_LISTS; i++) {
+					table.insertOrReplaceRecord(overwriteLists[i], tempHolder);
+				}
+			
+				for (int i = 0; i < NUM_LISTS; i++) {
+					assertTrue("" + i, prober.getMatchFor(overwriteLists[i], target));
+					assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
+				}
+			}
+			
+			table.close();
+			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail("Error: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testProberUpdate() {
+		try {
+			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
+			
+			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
+			
+			AbstractMutableHashTable<IntList> table = new CompactingHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			table.open();
+			
+			for (int i = 0; i < NUM_LISTS; i++) {
+				try {
+					table.insert(lists[i]);
+				} catch (Exception e) {
+					throw e;
+				}
+			}
+
+			final IntList[] overwriteLists = getRandomizedIntLists(NUM_LISTS, rnd);
+
+			AbstractHashTableProber<IntList, IntList> prober = table.getProber(comparatorV, pairComparatorV);
+			IntList target = new IntList();
+			
+			for (int i = 0; i < NUM_LISTS; i++) {
+				assertTrue(""+i,prober.getMatchFor(lists[i], target));
+				assertArrayEquals(lists[i].getValue(), target.getValue());
+				prober.updateMatch(overwriteLists[i]);
+			}
+			
+			for (int i = 0; i < NUM_LISTS; i++) {
+				assertTrue("" + i, prober.getMatchFor(overwriteLists[i], target));
+				assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
+			}
+			
+			table.close();
+			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail("Error: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testResize() {
+		try {
+			final int NUM_MEM_PAGES = 30 * NUM_PAIRS / PAGE_SIZE;
+			final IntPair[] pairs = getRandomizedIntPairs(NUM_PAIRS, rnd);
+			
+			List<MemorySegment> memory = getMemory(NUM_MEM_PAGES, PAGE_SIZE);
+			CompactingHashTable<IntPair> table = new CompactingHashTable<IntPair>(serializer, comparator, memory);
+			table.open();
+			
+			for (int i = 0; i < NUM_PAIRS; i++) {
+				table.insert(pairs[i]);
+			}
+	
+			AbstractHashTableProber<IntPair, IntPair> prober = table.getProber(comparator, pairComparator);
+			IntPair target = new IntPair();
+			
+			for (int i = 0; i < NUM_PAIRS; i++) {
+				assertTrue(prober.getMatchFor(pairs[i], target));
+				assertEquals(pairs[i].getValue(), target.getValue());
+			}
+			
+			// make sure there is enough memory for resize
+			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
+			Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());
+			
+			for (int i = 0; i < NUM_PAIRS; i++) {
+				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
+				assertEquals(pairs[i].getValue(), target.getValue());
+			}
+			
+			table.close();
+			assertEquals("Memory lost", NUM_MEM_PAGES + ADDITIONAL_MEM, table.getFreeMemory().size());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail("Error: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testDoubleResize() {
+		try {
+			final int NUM_MEM_PAGES = 30 * NUM_PAIRS / PAGE_SIZE;
+			final IntPair[] pairs = getRandomizedIntPairs(NUM_PAIRS, rnd);
+			
+			List<MemorySegment> memory = getMemory(NUM_MEM_PAGES, PAGE_SIZE);
+			CompactingHashTable<IntPair> table = new CompactingHashTable<IntPair>(serializer, comparator, memory);
+			table.open();
+			
+			for (int i = 0; i < NUM_PAIRS; i++) {
+				table.insert(pairs[i]);
+			}
+	
+			AbstractHashTableProber<IntPair, IntPair> prober = table.getProber(comparator, pairComparator);
+			IntPair target = new IntPair();
+			
+			for (int i = 0; i < NUM_PAIRS; i++) {
+				assertTrue(prober.getMatchFor(pairs[i], target));
+				assertEquals(pairs[i].getValue(), target.getValue());
+			}
+			
+			// make sure there is enough memory for resize
+			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
+			Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());
+			
+			for (int i = 0; i < NUM_PAIRS; i++) {
+				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
+				assertEquals(pairs[i].getValue(), target.getValue());
+			}
+			
+			// make sure there is enough memory for resize
+			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
+			b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());
+						
+			for (int i = 0; i < NUM_PAIRS; i++) {
+				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
+				assertEquals(pairs[i].getValue(), target.getValue());
+			}
+						
+			table.close();
+			assertEquals("Memory lost", NUM_MEM_PAGES + ADDITIONAL_MEM + ADDITIONAL_MEM, table.getFreeMemory().size());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail("Error: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testTripleResize() {
+		try {
+			final int NUM_MEM_PAGES = 30 * NUM_PAIRS / PAGE_SIZE;
+			final IntPair[] pairs = getRandomizedIntPairs(NUM_PAIRS, rnd);
+			
+			List<MemorySegment> memory = getMemory(NUM_MEM_PAGES, PAGE_SIZE);
+			CompactingHashTable<IntPair> table = new CompactingHashTable<IntPair>(serializer, comparator, memory);
+			table.open();
+			
+			for (int i = 0; i < NUM_PAIRS; i++) {
+				table.insert(pairs[i]);
+			}
+	
+			AbstractHashTableProber<IntPair, IntPair> prober = table.getProber(comparator, pairComparator);
+			IntPair target = new IntPair();
+			
+			for (int i = 0; i < NUM_PAIRS; i++) {
+				assertTrue(prober.getMatchFor(pairs[i], target));
+				assertEquals(pairs[i].getValue(), target.getValue());
+			}
+			
+			// make sure there is enough memory for resize
+			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
+			Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());
+			
+			for (int i = 0; i < NUM_PAIRS; i++) {
+				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
+				assertEquals(pairs[i].getValue(), target.getValue());
+			}
+			
+			// make sure there is enough memory for resize
+			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
+			b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());
+						
+			for (int i = 0; i < NUM_PAIRS; i++) {
+				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
+				assertEquals(pairs[i].getValue(), target.getValue());
+			}
+			
+			// make sure there is enough memory for resize
+			memory.addAll(getMemory(2*ADDITIONAL_MEM, PAGE_SIZE));
+			b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());
+									
+			for (int i = 0; i < NUM_PAIRS; i++) {
+				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
+				assertEquals(pairs[i].getValue(), target.getValue());
+			}
+						
+			table.close();
+			assertEquals("Memory lost", NUM_MEM_PAGES + 4*ADDITIONAL_MEM, table.getFreeMemory().size());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail("Error: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testResizeWithCompaction(){
+		try {
+			final int NUM_MEM_PAGES = (SIZE * NUM_LISTS / PAGE_SIZE);
+			
+			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
+			
+			List<MemorySegment> memory = getMemory(NUM_MEM_PAGES, PAGE_SIZE);
+			CompactingHashTable<IntList> table = new CompactingHashTable<IntList>(serializerV, comparatorV, memory);
+			table.open();
+			
+			for (int i = 0; i < NUM_LISTS; i++) {
+				try {
+					table.insert(lists[i]);
+				} catch (Exception e) {
+					throw e;
+				}
+			}
+
+			AbstractHashTableProber<IntList, IntList> prober = table.getProber(comparatorV, pairComparatorV);
+			IntList target = new IntList();
+			
+			for (int i = 0; i < NUM_LISTS; i++) {
+				assertTrue(prober.getMatchFor(lists[i], target));
+				assertArrayEquals(lists[i].getValue(), target.getValue());
+			}
+			
+			// make sure there is enough memory for resize
+			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
+			Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());
+						
+			for (int i = 0; i < NUM_LISTS; i++) {
+				assertTrue(prober.getMatchFor(lists[i], target));
+				assertArrayEquals(lists[i].getValue(), target.getValue());
+			}
+			
+			final IntList[] overwriteLists = getRandomizedIntLists(NUM_LISTS, rnd);
+			
+			// test replacing
+			IntList tempHolder = new IntList();
+			for (int i = 0; i < NUM_LISTS; i++) {
+				table.insertOrReplaceRecord(overwriteLists[i], tempHolder);
+			}
+			
+			Field list = Whitebox.getField(CompactingHashTable.class, "partitions");
+			@SuppressWarnings("unchecked")
+			ArrayList<InMemoryPartition<IntList>> partitions = (ArrayList<InMemoryPartition<IntList>>) list.get(table);
+			int numPartitions = partitions.size();
+			for(int i = 0; i < numPartitions; i++) {
+				Whitebox.invokeMethod(table, "compactPartition", i);
+			}
+			
+			// make sure there is enough memory for resize
+			memory.addAll(getMemory(2*ADDITIONAL_MEM, PAGE_SIZE));
+			b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());									
+			
+			for (int i = 0; i < NUM_LISTS; i++) {
+				assertTrue("" + i, prober.getMatchFor(overwriteLists[i], target));
+				assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
+			}
+			
+			table.close();
+			assertEquals("Memory lost", NUM_MEM_PAGES + 3*ADDITIONAL_MEM, table.getFreeMemory().size());
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Error: " + e.getMessage());
 		}
@@ -352,7 +667,6 @@ public class MemoryHashTableTest {
 	
 	@Test
 	public void testVariableLengthStringBuildAndRetrieve() {
-		
 		try {
 			final int NUM_MEM_PAGES = 40 * NUM_PAIRS / PAGE_SIZE;
 			
@@ -364,13 +678,6 @@ public class MemoryHashTableTest {
 
 			MutableObjectIterator<StringPair> updateTester = new UniformStringPairGenerator(NUM_PAIRS, 1, false);
 			
-			//long start = 0L;
-			//long end = 0L;
-			
-			//long first = System.currentTimeMillis();
-			
-			//System.out.println("Creating and filling CompactingHashMap...");
-			//start = System.currentTimeMillis();
 			AbstractMutableHashTable<StringPair> table = new CompactingHashTable<StringPair>(serializerS, comparatorS, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
 			table.open();
 			
@@ -378,47 +685,27 @@ public class MemoryHashTableTest {
 			while(buildInput.next(target) != null) {
 				table.insert(target);
 			}
-			//end = System.currentTimeMillis();
-			//System.out.println("HashMap ready. Time: " + (end-start) + " ms");
-			
-			//System.out.println("Starting first probing run...");
-			//start = System.currentTimeMillis();
 
 			AbstractHashTableProber<StringPair, StringPair> prober = table.getProber(comparatorS, pairComparatorS);
 			StringPair temp = new StringPair();
 			while(probeTester.next(target) != null) {
-				assertTrue(prober.getMatchFor(target, temp));
+				assertTrue("" + target.getKey(), prober.getMatchFor(target, temp));
 				assertEquals(temp.getValue(), target.getValue());
 			}
-			//end = System.currentTimeMillis();
-			//System.out.println("Probing done. Time: " + (end-start) + " ms");
 			
-			//System.out.println("Starting update...");
-			//start = System.currentTimeMillis();
 			while(updater.next(target) != null) {
 				target.setValue(target.getValue());
 				table.insertOrReplaceRecord(target, temp);
 			}
-			//end = System.currentTimeMillis();
-			//System.out.println("Update done. Time: " + (end-start) + " ms");
 			
-			//System.out.println("Starting second probing run...");
-			//start = System.currentTimeMillis();
 			while (updateTester.next(target) != null) {
 				assertTrue(prober.getMatchFor(target, temp));
 				assertEquals(target.getValue(), temp.getValue());
 			}
-			//end = System.currentTimeMillis();
-			//System.out.println("Probing done. Time: " + (end-start) + " ms");
 			
 			table.close();
-			
-			//end = System.currentTimeMillis();
-			//System.out.println("Overall time: " + (end-first) + " ms");
-			
 			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Error: " + e.getMessage());
 		}
