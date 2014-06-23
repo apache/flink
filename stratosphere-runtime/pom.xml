@@ -59,6 +59,7 @@
 			<version>4.0.19.Final</version>
 		</dependency>
 
+		
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-java</artifactId>

@@ -51,9 +51,9 @@ public class InMemoryPartition<T> {
 	
 	private final ListMemorySegmentSource availableMemory;
 	
-	private final WriteView writeView;
+	private WriteView writeView;
 	
-	private final ReadView readView;
+	private ReadView readView;
 	
 	private long recordCounter;				// number of records in this partition including garbage
 	
@@ -62,6 +62,10 @@ public class InMemoryPartition<T> {
 	private int partitionNumber;					// the number of the partition
 	
 	private boolean compacted;						// overwritten records since allocation or last full compaction
+	
+	private int pageSize;							// segment size in bytes
+	
+	private int pageSizeInBits;
 	
 	// --------------------------------------------------------------------------------------------------
 	
@@ -93,6 +97,10 @@ public class InMemoryPartition<T> {
 		this.partitionPages.add(memSource.nextSegment());
 		// empty partitions have no garbage
 		this.compacted = true;
+		
+		this.pageSize = pageSize;
+		
+		this.pageSizeInBits = pageSizeInBits;
 		
 		this.writeView = new WriteView(this.partitionPages, memSource, pageSize, pageSizeInBits);
 		this.readView = new ReadView(this.partitionPages, pageSize, pageSizeInBits);
@@ -142,6 +150,38 @@ public class InMemoryPartition<T> {
 	}
 	
 	/**
+	 * resets read and write views and should only be used on compaction partition
+	 */
+	public void resetRWViews() {
+		this.writeView.resetTo(0L);
+		this.readView.setReadPosition(0L);
+	}
+	
+	public void pushDownPages() {
+		this.writeView = new WriteView(this.partitionPages, availableMemory, pageSize, pageSizeInBits);
+		this.readView = new ReadView(this.partitionPages, pageSize, pageSizeInBits);
+	}
+	
+	/**
+	 * resets overflow bucket counters and returns freed memory and should only be used for resizing
+	 * 
+	 * @return freed memory segments
+	 */
+	public ArrayList<MemorySegment> resetOverflowBuckets() {
+		this.numOverflowSegments = 0;
+		this.nextOverflowBucket = 0;
+		
+		ArrayList<MemorySegment> result = new ArrayList<MemorySegment>(this.overflowSegments.length);
+		for(int i = 0; i < this.overflowSegments.length; i++) {
+			if(this.overflowSegments[i] != null) {
+				result.add(this.overflowSegments[i]);
+			}
+		}
+		this.overflowSegments = new MemorySegment[2];
+		return result;
+	}
+	
+	/**
 	 * @return true if garbage exists in partition
 	 */
 	public boolean isCompacted() {
@@ -173,8 +213,7 @@ public class InMemoryPartition<T> {
 			this.serializer.serialize(record, this.writeView);
 			this.recordCounter++;
 			return pointer;
-		}
-		catch (EOFException e) {
+		} catch (EOFException e) {
 			// we ran out of pages. 
 			// first, reset the pages and then we need to trigger a compaction
 			//int oldCurrentBuffer = 
@@ -218,8 +257,7 @@ public class InMemoryPartition<T> {
 			for (int k = 0; k < this.numOverflowSegments; k++) {
 				target.add(this.overflowSegments[k]);
 			}
-		}
-		
+		}	
 		// return the partition buffers
 		target.addAll(this.partitionPages);
 		this.partitionPages.clear();
@@ -242,12 +280,6 @@ public class InMemoryPartition<T> {
 		}
 	}
 	
-	public void releaseSegments(int maxSegmentNumber, ArrayList<MemorySegment> target) {
-		while(getBlockCount() > maxSegmentNumber) {
-			target.add(partitionPages.remove(partitionPages.size()-1));
-		}
-	}
-
 	@Override
 	public String toString() {
 		return String.format("Partition %d - %d records, %d partition blocks, %d bucket overflow blocks", getPartitionNumber(), getRecordCount(), getBlockCount(), this.numOverflowSegments);
@@ -279,6 +311,7 @@ public class InMemoryPartition<T> {
 			this.memSource = memSource;
 			this.sizeBits = pageSizeBits;
 			this.sizeMask = pageSize - 1;
+			this.segmentNumberOffset = 0;
 		}
 		
 
@@ -310,6 +343,7 @@ public class InMemoryPartition<T> {
 			return posInArray;
 		}
 		
+		@SuppressWarnings("unused")
 		public void setSegmentNumberOffset(int offset) {
 			this.segmentNumberOffset = offset;
 		}
@@ -319,7 +353,7 @@ public class InMemoryPartition<T> {
 	private static final class ReadView extends AbstractPagedInputView implements SeekableDataInputView {
 
 		private final ArrayList<MemorySegment> segments;
-		
+
 		private final int segmentSizeBits;
 		
 		private final int segmentSizeMask;
@@ -339,6 +373,7 @@ public class InMemoryPartition<T> {
 			this.segments = segments;
 			this.segmentSizeBits = segmentSizeBits;
 			this.segmentSizeMask = segmentSize - 1;
+			this.segmentNumberOffset = 0;
 		}
 
 		@Override
@@ -364,6 +399,7 @@ public class InMemoryPartition<T> {
 			seekInput(this.segments.get(bufferNum), offset, this.segmentSizeMask + 1);
 		}
 		
+		@SuppressWarnings("unused")
 		public void setSegmentNumberOffset(int offset) {
 			this.segmentNumberOffset = offset;
 		}
