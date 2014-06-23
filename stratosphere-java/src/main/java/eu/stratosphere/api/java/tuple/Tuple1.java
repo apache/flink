@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -125,6 +125,7 @@ public class Tuple1<T0> extends Tuple {
 		int result = f0 != null ? f0.hashCode() : 0;
 		return result;
 	}
+
 	/**
 	* Shallow tuple copy.
 	* @returns A new Tuple with the same fields as this.
@@ -132,5 +133,4 @@ public class Tuple1<T0> extends Tuple {
 	public Tuple1<T0> copy(){ 
 		return new Tuple1<T0>(this.f0);
 	}
-
 }

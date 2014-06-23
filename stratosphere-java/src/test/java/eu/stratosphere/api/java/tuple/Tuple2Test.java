@@ -13,30 +13,21 @@
  *
  **********************************************************************************************************************/
 
-// --------------------------------------------------------------
-//  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!
-//  GENERATED FROM eu.stratosphere.api.java.tuple.TupleGenerator.
-// --------------------------------------------------------------
+package eu.stratosphere.api.java.tuple;
 
+import junit.framework.Assert;
 
-package eu.stratosphere.api.java.tuple.builder;
+import org.junit.Test;
 
-import java.util.LinkedList;
-import java.util.List;
+public class Tuple2Test {
 
-import eu.stratosphere.api.java.tuple.Tuple1;
+	@Test
+	public void testSwapValues() {
+		Tuple2<String, Integer> toSwap = new Tuple2<String, Integer>(new String("Test case"), 25);
+		Tuple2<Integer, String> swapped = toSwap.swap();
 
-public class Tuple1Builder<T0> {
+		Assert.assertEquals(swapped.f0, toSwap.f1);
 
-	private List<Tuple1<T0>> tuples = new LinkedList<Tuple1<T0>>();
-
-	public Tuple1Builder<T0> add(T0 value0){
-		tuples.add(new Tuple1<T0>(value0));
-		return this;
-	}
-
-	@SuppressWarnings("unchecked")
-	public Tuple1<T0>[] build(){
-		return tuples.toArray(new Tuple1[tuples.size()]);
+		Assert.assertEquals(swapped.f1, toSwap.f0);
 	}
 }

@@ -635,6 +635,18 @@ class TupleGenerator {
 		}
 		w.println("\t}");
 		w.println();
+		
+		// swap method only for Tuple2
+		if (numFields == 2) {
+			w.println("\t/**");
+			w.println("\t* Returns a shallow copy of the tuple with swapped values.");
+			w.println("\t*");
+			w.println("\t* @return shallow copy of the tuple with swapped values");
+			w.println("\t*/");
+			w.println("\tpublic Tuple2<T1, T0> swap() {");
+			w.println("\t\treturn new Tuple2<T1, T0>(f1, f0);");
+			w.println("\t}");
+		}
 
 		// standard utilities (toString, equals, hashCode, copy)
 		w.println();
@@ -660,9 +672,6 @@ class TupleGenerator {
 		}
 		w.println("\t\t\t+ \")\";");
 		w.println("\t}");
-
-
-
 
 		w.println();
 		w.println("\t/**");
@@ -705,6 +714,7 @@ class TupleGenerator {
 		}
 		tupleTypes += ">";
 
+		w.println();
 		w.println("\t/**");
 		w.println("\t* Shallow tuple copy.");
 		w.println("\t* @returns A new Tuple with the same fields as this.");
@@ -724,9 +734,6 @@ class TupleGenerator {
 		}
 		w.println(");");
 		w.println("\t}");
-
-		w.println();
-
 
 		// foot
 		w.println("}");
@@ -824,7 +831,7 @@ class TupleGenerator {
 	private static String HEADER = 
 		"/***********************************************************************************************************************\n" +
 		" *\n" +
-		" * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)\n" +
+		" * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)\n" +
 		" *\n" +
 		" * Licensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with\n" +
 		" * the License. You may obtain a copy of the License at\n" +

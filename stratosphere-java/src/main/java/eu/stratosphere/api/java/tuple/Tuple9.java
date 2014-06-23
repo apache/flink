@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -237,6 +237,7 @@ public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
 		result = 31 * result + (f8 != null ? f8.hashCode() : 0);
 		return result;
 	}
+
 	/**
 	* Shallow tuple copy.
 	* @returns A new Tuple with the same fields as this.
@@ -252,5 +253,4 @@ public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
 			this.f7,
 			this.f8);
 	}
-
 }
