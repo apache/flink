@@ -28,6 +28,24 @@ import org.apache.flink.runtime.managementgraph.ManagementVertexID;
  */
 public class ExecutionVertexID extends AbstractID {
 
+	private static final long serialVersionUID = 1L;
+	
+	/**
+	 * Creates a new random execution vertex id.
+	 */
+	public ExecutionVertexID() {
+		super();
+	}
+	
+	/**
+	 * Creates a new execution vertex id, equal to the given id.
+	 * 
+	 * @param from The id to copy.
+	 */
+	public ExecutionVertexID(AbstractID from) {
+		super(from);
+	}
+	
 	/**
 	 * Converts the execution vertex ID into a
 	 * management vertex ID. The new management vertex ID
@@ -38,11 +56,7 @@ public class ExecutionVertexID extends AbstractID {
 	 * @return the new management vertex ID
 	 */
 	public ManagementVertexID toManagementVertexID() {
-
-		final ManagementVertexID newID = new ManagementVertexID();
-		newID.setID(this);
-
-		return newID;
+		return new ManagementVertexID(this);
 	}
 
 	/**
@@ -54,11 +68,7 @@ public class ExecutionVertexID extends AbstractID {
 	 *        the management vertex ID to be converted
 	 * @return the resulting execution vertex ID
 	 */
-	public static ExecutionVertexID fromManagementVertexID(final ManagementVertexID vertexID) {
-
-		final ExecutionVertexID newID = new ExecutionVertexID();
-		newID.setID(vertexID);
-
-		return newID;
+	public static ExecutionVertexID fromManagementVertexID(ManagementVertexID vertexID) {
+		return new ExecutionVertexID(vertexID);
 	}
 }

@@ -24,7 +24,6 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
-import org.apache.flink.runtime.io.network.channels.ChannelID;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 
 /**
@@ -32,27 +31,13 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
  */
 public class AbstractIDTest {
 	/**
-	 * Tests the setID method of an abstract ID.
-	 */
-	@Test
-	public void testSetID() {
-
-		final ChannelID id1 = new ChannelID();
-		final ChannelID id2 = new ChannelID();
-		id1.setID(id2);
-
-		assertEquals(id1.hashCode(), id2.hashCode());
-		assertEquals(id1, id2);
-	}
-
-	/**
 	 * Tests the serialization/deserialization of an abstract ID.
 	 */
 	@Test
 	public void testSerialization() {
-		final ChannelID origID = new ChannelID();
+		final AbstractID origID = new AbstractID();
 		try {
-			final ChannelID copyID = (ChannelID) CommonTestUtils.createCopyWritable(origID);
+			final AbstractID copyID = (AbstractID) CommonTestUtils.createCopyWritable(origID);
 
 			assertEquals(origID.hashCode(), copyID.hashCode());
 			assertEquals(origID, copyID);

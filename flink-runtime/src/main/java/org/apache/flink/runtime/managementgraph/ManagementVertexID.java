@@ -16,16 +16,21 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.managementgraph;
 
 import org.apache.flink.runtime.AbstractID;
 
 /**
  * A management vertex ID uniquely identifies a {@link ManagementVertex}.
- * <p>
- * This class is not thread-safe.
- * 
  */
 public final class ManagementVertexID extends AbstractID {
+	private static final long serialVersionUID = 1L;
+	
+	public ManagementVertexID() {
+		super();
+	}
+	
+	public ManagementVertexID(AbstractID toCopy) {
+		super(toCopy);
+	}
 }

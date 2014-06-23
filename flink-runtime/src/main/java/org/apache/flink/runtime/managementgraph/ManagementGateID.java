@@ -16,17 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.managementgraph;
 
 import org.apache.flink.runtime.AbstractID;
 
 /**
  * A management gate ID uniquely identifies a {@link ManagementGate}.
- * <p>
- * This class is not thread-safe.
- * 
  */
 public final class ManagementGateID extends AbstractID {
-
+	private static final long serialVersionUID = 1L;
 }

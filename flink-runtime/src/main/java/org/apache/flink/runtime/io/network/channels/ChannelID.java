@@ -25,6 +25,8 @@ import org.apache.flink.runtime.AbstractID;
 
 public class ChannelID extends AbstractID {
 
+	private static final long serialVersionUID = 1L;
+	
 	public ChannelID() {
 		super();
 	}
@@ -33,8 +35,8 @@ public class ChannelID extends AbstractID {
 		super(lowerPart, upperPart);
 	}
 
-	public ChannelID(byte[] bytes) {
-		super(bytes);
+	public ChannelID(AbstractID id) {
+		super(id);
 	}
 
 	public static ChannelID fromByteBuffer(ByteBuffer buf) {

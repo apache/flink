@@ -23,4 +23,6 @@ import org.apache.flink.runtime.AbstractID;
 /**
  * A class for statistically unique job vertex IDs.
  */
-public class JobVertexID extends AbstractID {}
+public class JobVertexID extends AbstractID {
+	private static final long serialVersionUID = 1L;
+}

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.managementgraph;
 
 import javax.xml.bind.DatatypeConverter;
@@ -25,16 +24,13 @@ import org.apache.flink.runtime.AbstractID;
 
 /**
  * A management group vertex ID uniquely identifies a {@link ManagementGroupVertex}.
- * <p>
- * This class is not thread-safe.
- * 
  */
 public final class ManagementGroupVertexID extends AbstractID {
 	
-	
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * Constructs a new ManagementGroupVertexID
-	 * 
 	 */
 	public ManagementGroupVertexID() {
 		super();
@@ -50,16 +46,7 @@ public final class ManagementGroupVertexID extends AbstractID {
 		super(bytes);
 	}
 	
-	/**
-	 * Constructs a new job ID and initializes it with the given bytes.
-	 * 
-	 * @param bytes
-	 *        the bytes to initialize the new job ID with
-	 * @return the new job ID
-	 */
 	public static ManagementGroupVertexID fromHexString(final String hexString) {
-
 		return new ManagementGroupVertexID(DatatypeConverter.parseHexBinary(hexString));
 	}
-	
 }
