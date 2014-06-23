@@ -99,6 +99,14 @@ public class Tuple2<T0, T1> extends Tuple {
 		this.f1 = value1;
 	}
 
+	@SuppressWarnings("unchecked")
+	public void swapValues() {
+		// Save value 1);
+		T1 temp = this.f1;
+		// Swap values
+		this.f1 = (T1) f0;
+		this.f0 = (T0) temp;
+	}
 
 	// -------------------------------------------------------------------------------------------------
 	// standard utilities

@@ -633,6 +633,18 @@ class TupleGenerator {
 		}
 		w.println("\t}");
 		w.println();
+		
+		// swap method only for Tuple2
+		if (numFields == 2) {
+			w.println("\t@SuppressWarnings(\"unchecked\")");
+			w.println("\tpublic void swapValues() {");
+			w.println("\t\t// Save value 1);");
+			w.println("\t\tT1 temp = this.f1;");
+			w.println("\t\t// Swap values");
+			w.println("\t\tthis.f1 = (T1) f0;");
+			w.println("\t\tthis.f0 = (T0) temp;");
+			w.println("\t}");
+		}
 
 		// standard utilities (toString, equals, hashCode)
 		w.println();
