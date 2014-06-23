@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# the directory where you have your flink code
+export FLINK_HOME="/home/robert/projects/flink/incubator-flink"
+# Remote name which points to the Gihub site
+export PR_REMOTE_NAME="github_flink"
+# Remote name which points to Apache git
+export PUSH_REMOTE_NAME="asf_flink"
+# ASF JIRA username
+export JIRA_USERNAME"rmetzger"
+# ASF JIRA password
+export JIRA_PASSWORD="Ideally, don't push your password to git."
+
+# Arch Linux users have to call "python2.7" here.
+python merge_flink_pr.py
