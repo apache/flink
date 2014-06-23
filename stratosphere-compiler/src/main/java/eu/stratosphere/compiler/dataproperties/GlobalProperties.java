@@ -190,6 +190,18 @@ public class GlobalProperties implements Cloneable
 		this.partitioningFields = null;
 	}
 
+	public Ordering getOrdering() {
+		return this.ordering;
+	}
+
+	public void setOrdering(Ordering ordering) {
+		this.ordering = ordering;
+	}
+
+	public void setPartitioningFields(FieldList partitioningFields) {
+		this.partitioningFields = partitioningFields;
+	}
+
 	/**
 	 * Filters these properties by what can be preserved through the given output contract.
 	 * 
@@ -199,17 +211,36 @@ public class GlobalProperties implements Cloneable
 	 */
 	public GlobalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
 		// check if partitioning survives
+		FieldList forwardFields = null;
+		GlobalProperties returnProps = this;
+
 		if (this.ordering != null) {
-			for (int col : this.ordering.getInvolvedIndexes()) {
-				if (!node.isFieldConstant(input, col)) {
-					return new GlobalProperties();
+			for (int index : this.ordering.getInvolvedIndexes()) {
+				forwardFields = node.getForwardField(input, index) == null ? null: node.getForwardField(input, index).toFieldList();
+				if (forwardFields == null) {
+					returnProps = new GlobalProperties();
+				} else if (!forwardFields.contains(index)) {
+					returnProps = returnProps == this ? this.clone() : returnProps;
+					returnProps.setOrdering(returnProps.getOrdering().replaceOrdering(index, forwardFields.get(0)));
 				}
 			}
 		}
 		if (this.partitioningFields != null) {
-			for (int colIndex : this.partitioningFields) {
-				if (!node.isFieldConstant(input, colIndex)) {
-					return new GlobalProperties();
+			for (int index : this.partitioningFields) {
+				forwardFields = node.getForwardField(input, index) == null ? null: node.getForwardField(input, index).toFieldList();
+				if (forwardFields == null) {
+					returnProps = new GlobalProperties();
+				} else if (!forwardFields.contains(index)) {
+					returnProps = returnProps == this ? this.clone() : returnProps;
+					FieldList partitioned = new FieldList();
+					for (Integer value : returnProps.getPartitioningFields()) {
+						if (value.intValue() == index) {
+							partitioned = partitioned.addFields(forwardFields);
+						} else {
+							partitioned = partitioned.addField(value);
+						}
+					}
+					returnProps.setPartitioningFields(partitioned);
 				}
 			}
 		}
@@ -238,7 +269,7 @@ public class GlobalProperties implements Cloneable
 			return new GlobalProperties();
 		}
 		
-		return this;
+		return returnProps;
 	}
 	
 	public void parameterizeChannel(Channel channel, boolean globalDopChange) {

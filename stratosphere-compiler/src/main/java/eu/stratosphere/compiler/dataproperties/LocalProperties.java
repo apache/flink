@@ -13,13 +13,13 @@
 
 package eu.stratosphere.compiler.dataproperties;
 
-import java.util.HashSet;
-import java.util.Set;
 
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.dag.OptimizerNode;
+import java.util.Set;
+import java.util.HashSet;
 
 /**
  * This class represents local properties of the data. A local property is a property that exists
@@ -131,11 +131,14 @@ public class LocalProperties implements Cloneable {
 		Ordering no = this.ordering;
 		FieldList ngf = this.groupedFields;
 		Set<FieldSet> nuf = this.uniqueFields;
-		
+		FieldList forwardList = null;
+
 		if (this.ordering != null) {
 			final FieldList involvedIndexes = this.ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
-				if (!node.isFieldConstant(input, involvedIndexes.get(i))) {
+				forwardList = node.getForwardField(input, involvedIndexes.get(i)) == null ? null : node.getForwardField(input, involvedIndexes.get(i)).toFieldList();
+
+				if (forwardList == null) {
 					if (i == 0) {
 						no = null;
 						ngf = null;
@@ -144,29 +147,59 @@ public class LocalProperties implements Cloneable {
 						ngf = no.getInvolvedIndexes();
 					}
 					break;
+				} else if (!forwardList.contains(involvedIndexes.get(i))) {
+					no = this.getOrdering().replaceOrdering(involvedIndexes.get(i), forwardList.get(0));
+					ngf = no.getInvolvedIndexes();
 				}
 			}
 		}
 		else if (this.groupedFields != null) {
 			// check, whether the local key grouping is preserved
 			for (Integer index : this.groupedFields) {
-				if (!node.isFieldConstant(input, index)) {
+				forwardList = node.getForwardField(input, index) == null ? null : node.getForwardField(input, index).toFieldList();
+				if (forwardList == null) {
 					ngf = null;
+					break;
+				} else if (!forwardList.contains(index)) {
+					FieldList grouped = new FieldList();
+					for (Integer value : ngf.toFieldList()) {
+						if (value.intValue() == index) {
+							grouped = grouped.addFields(forwardList);
+						} else {
+							grouped = grouped.addField(value);
+						}
+					}
 				}
 			}
 		}
 		
-		if (this.uniqueFields != null && this.uniqueFields.size() > 0) {
+		// check, whether the local key grouping is preserved
+		if (this.uniqueFields != null) {
+			boolean modified = false;
 			Set<FieldSet> s = new HashSet<FieldSet>(this.uniqueFields);
 			for (FieldSet fields : this.uniqueFields) {
 				for (Integer index : fields) {
-					if (!node.isFieldConstant(input, index)) {
+					forwardList = node.getForwardField(input, index) == null ? null : node.getForwardField(input, index).toFieldList();
+					if (forwardList == null) {
 						s.remove(fields);
+						modified = true;
 						break;
+					} else if (!forwardList.contains(index)) {
+						FieldList tmp = new FieldList();
+						for (Integer i: fields) {
+							if (i != index) {
+								tmp.addField(i);
+							} else {
+								tmp.addFields(forwardList);
+							}
+						}
+						s.remove(fields);
+						s.add(tmp);
+						modified = true;
 					}
 				}
 			}
-			if (s.size() != this.uniqueFields.size()) {
+			if (modified) {
 				nuf = s;
 			}
 		}

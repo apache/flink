@@ -698,8 +698,50 @@ public abstract class TwoInputNode extends OptimizerNode {
 		
 		return false;
 	}
-	
-	
+
+	@Override
+	public FieldSet getForwardField(int input, int fieldNumber) {
+		DualInputOperator<?, ?, ?, ?> c = getPactContract();
+		DualInputSemanticProperties semanticProperties = c.getSemanticProperties();
+
+		if (semanticProperties == null) {
+			return null;
+		}
+
+		switch(input) {
+			case 0:
+					return semanticProperties.getForwardedField1(fieldNumber);
+			case 1:
+					return semanticProperties.getForwardedField2(fieldNumber);
+			default:
+				throw new IndexOutOfBoundsException();
+		}
+	}
+
+	@Override
+	public FieldSet getSourceField(int input, int fieldNumber) {
+		DualInputOperator<?, ?, ?, ?> c = getPactContract();
+		DualInputSemanticProperties semanticProperties = c.getSemanticProperties();
+
+		switch(input) {
+			case 0:
+				if (semanticProperties != null) {
+					return semanticProperties.getForwardedField1(fieldNumber) != null ? semanticProperties.getForwardedField1(fieldNumber) : semanticProperties.forwardedFrom1(fieldNumber);
+
+				}
+				break;
+			case 1:
+				if(semanticProperties != null) {
+					return semanticProperties.getForwardedField2(fieldNumber) != null ? semanticProperties.getForwardedField2(fieldNumber) : semanticProperties.forwardedFrom2(fieldNumber);
+				}
+				break;
+			default:
+				throw new IndexOutOfBoundsException();
+		}
+
+		return null;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//                                     Miscellaneous
 	// --------------------------------------------------------------------------------------------

@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.costs.CostEstimator;
 import eu.stratosphere.compiler.plan.PlanNode;
@@ -42,6 +43,16 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode {
 	public abstract IterationNode getIterationNode();
 	
 	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public FieldSet getSourceField(int input, int fieldNumber) {
+		return null;
+	}
+
+	@Override
+	public FieldSet getForwardField(int input, int fieldNumber) {
+		return null;
+	}
 	
 	public boolean isOnDynamicPath() {
 		return true;

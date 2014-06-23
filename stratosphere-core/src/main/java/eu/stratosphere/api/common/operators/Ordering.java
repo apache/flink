@@ -71,7 +71,21 @@ public class Ordering {
 		this.orders.add(order);
 		return this;
 	}
-	
+
+	public Ordering replaceOrdering(int oldField, int newField) {
+		Ordering newOrdering = new Ordering();
+
+		for (int i = 0; i < indexes.size(); i++) {
+			if (indexes.get(i).intValue() == oldField) {
+				newOrdering.appendOrdering(newField, this.types.get(i), this.orders.get(i));
+			} else {
+				newOrdering.appendOrdering(this.indexes.get(i), this.types.get(i), this.orders.get(i));
+			}
+		}
+
+		return newOrdering;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	public int getNumberOfFields() {

@@ -155,7 +155,37 @@ public abstract class SingleInputNode extends OptimizerNode {
 		
 		return false;
 	}
-	
+
+
+	@Override
+	public FieldSet getForwardField(int input, int fieldNumber) {
+		if (input != 0) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		SingleInputOperator<?, ?, ?> c = getPactContract();
+		SingleInputSemanticProperties semanticProperties = c.getSemanticProperties();
+
+		if (semanticProperties != null) {
+			return semanticProperties.getForwardedField(fieldNumber);
+		}
+		return null;
+	}
+
+	@Override
+	public FieldSet getSourceField(int input, int fieldNumber) {
+		if (input != 0) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		SingleInputOperator<?, ?, ?> c = getPactContract();
+		SingleInputSemanticProperties semanticProperties = c.getSemanticProperties();
+
+		if (semanticProperties != null) {
+			return semanticProperties.getForwardedField(fieldNumber) != null ? semanticProperties.getForwardedField(fieldNumber) : semanticProperties.forwardedFrom(fieldNumber);
+		}
+		return null;
+	}
 
 	@Override
 	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode) throws CompilerException {

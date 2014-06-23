@@ -40,6 +40,20 @@ public class SingleInputSemanticProperties extends SemanticProperties {
 		super();
 		this.init();
 	}
+
+	public FieldSet forwardedFrom(int dest) {
+		FieldSet fs = null;
+		for (Map.Entry<Integer, FieldSet> entry : forwardedFields.entrySet()) {
+			if (entry.getValue().contains(dest)) {
+				if (fs == null) {
+					fs = new FieldSet();
+				}
+
+				fs = fs.addField(entry.getKey());
+			}
+		}
+		return fs;
+	}
 	
 	/**
 	 * Adds, to the existing information, a field that is forwarded directly

@@ -139,22 +139,44 @@ public class RequestedLocalProperties implements Cloneable {
 	 * @return True, if the resulting properties are non trivial.
 	 */
 	public RequestedLocalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
+		FieldList sourceList;
+		RequestedLocalProperties returnProps = this;
+
 		if (this.ordering != null) {
-			final FieldList involvedIndexes = this.ordering.getInvolvedIndexes();
-			for (int i = 0; i < involvedIndexes.size(); i++) {
-				if (!node.isFieldConstant(input, involvedIndexes.get(i))) {
+			for (int index: this.ordering.getInvolvedIndexes()) {
+				sourceList = node.getSourceField(input, index) == null ? null : node.getSourceField(input, index).toFieldList();
+				if (sourceList != null) {
+					if (!sourceList.contains(index)) {
+						returnProps = returnProps == this ? this.clone() : returnProps;
+						returnProps.setOrdering(returnProps.getOrdering().replaceOrdering(index, sourceList.get(0)));
+					}
+				} else {
 					return null;
 				}
 			}
 		} else if (this.groupedFields != null) {
 			// check, whether the local key grouping is preserved
 			for (Integer index : this.groupedFields) {
-				if (!node.isFieldConstant(input, index)) {
+				sourceList = node.getSourceField(input, index) == null ? null : node.getSourceField(input, index).toFieldList();
+				if (sourceList != null) {
+					if (!sourceList.contains(index)) {
+						returnProps = returnProps == this ? this.clone() : returnProps;
+						FieldList grouped = new FieldList();
+						for (Integer value : returnProps.getGroupedFields()) {
+							if (value.intValue() == index) {
+								grouped = grouped.addFields(sourceList);
+							} else {
+								grouped = grouped.addField(value);
+							}
+						}
+						returnProps.setGroupedFields(grouped);
+					}
+				} else {
 					return null;
 				}
 			}
 		}
-		return this;
+		return returnProps;
 	}
 
 	/**

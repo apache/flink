@@ -15,6 +15,7 @@ package eu.stratosphere.compiler.dataproperties;
 
 import eu.stratosphere.api.common.distributions.DataDistribution;
 import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.dag.OptimizerNode;
@@ -152,6 +153,13 @@ public final class RequestedGlobalProperties implements Cloneable {
 		this.partitioningFields = null;
 	}
 
+	public void setPartitioningFields(FieldSet partitioned) {
+		this.partitioningFields = partitioned;
+	}
+
+	public void setOrdering(Ordering newOrdering) {
+		this.ordering = newOrdering;
+	}
 	/**
 	 * Filters these properties by what can be preserved by the given node when propagated down
 	 * to the given input.
@@ -161,16 +169,39 @@ public final class RequestedGlobalProperties implements Cloneable {
 	 * @return True, if any non-default value is preserved, false otherwise.
 	 */
 	public RequestedGlobalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
+		FieldList sourceList;
+		RequestedGlobalProperties returnProps = this;
+
 		// check if partitioning survives
 		if (this.ordering != null) {
-			for (int col : this.ordering.getInvolvedIndexes()) {
-				if (!node.isFieldConstant(input, col)) {
+			for (int index : this.ordering.getInvolvedIndexes()) {
+				sourceList = node.getSourceField(input, index) == null ? null : node.getSourceField(input, index).toFieldList();
+				if (sourceList != null) {
+					if (!sourceList.contains(index)) {
+						returnProps = returnProps == this ? this.clone() : returnProps;
+						returnProps.setOrdering(returnProps.getOrdering().replaceOrdering(index, sourceList.get(0)));
+					}
+				} else {
 					return null;
 				}
 			}
 		} else if (this.partitioningFields != null) {
-			for (int colIndex : this.partitioningFields) {
-				if (!node.isFieldConstant(input, colIndex)) {
+			for (Integer index : this.partitioningFields) {
+				sourceList = node.getSourceField(input, index) == null ? null : node.getSourceField(input, index).toFieldList();
+				if (sourceList != null) {
+					if (!sourceList.contains(index)) {
+						returnProps = returnProps == this ? this.clone() : returnProps;
+						FieldList partitioned = new FieldList();
+						for (Integer value : returnProps.getPartitionedFields()) {
+							if (value.intValue() == index) {
+								partitioned = partitioned.addFields(sourceList);
+							} else {
+								partitioned = partitioned.addField(value);
+							}
+						}
+						returnProps.setPartitioningFields(partitioned);
+					}
+				} else {
 					return null;
 				}
 			}

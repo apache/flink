@@ -22,6 +22,7 @@ import eu.stratosphere.api.common.distributions.DataDistribution;
 import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.costs.CostEstimator;
@@ -228,7 +229,17 @@ public class DataSinkNode extends OptimizerNode {
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		return false;
 	}
-		
+
+	@Override
+	public FieldSet getForwardField(int input, int fieldNumber) {
+		return null;
+	}
+
+	@Override
+	public FieldSet getSourceField(int input, int fieldNumber) {
+		return null;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//                                     Miscellaneous
 	// --------------------------------------------------------------------------------------------

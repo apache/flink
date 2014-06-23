@@ -53,7 +53,40 @@ public class DualInputSemanticProperties extends SemanticProperties {
 		super();
 		this.init();
 	}
-	
+
+	/**
+	 * Finds the source field where the given field was forwarded from.
+	 * @param dest The destination field in the output data.
+	 * @return FieldSet containing the source input fields.
+	 */
+	public FieldSet forwardedFrom1(int dest) {
+		FieldSet fs = null;
+		for (Map.Entry<Integer, FieldSet> entry : forwardedFields1.entrySet()) {
+			if (entry.getValue().contains(dest)) {
+				if (fs == null) {
+					fs = new FieldSet();
+				}
+
+				fs = fs.addField(entry.getKey());
+			}
+		}
+		return fs;
+	}
+
+	public FieldSet forwardedFrom2(int dest) {
+		FieldSet fs = null;
+		for (Map.Entry<Integer, FieldSet> entry : forwardedFields2.entrySet()) {
+			if (entry.getValue().contains(dest)) {
+				if (fs == null) {
+					fs = new FieldSet();
+				}
+
+				fs = fs.addField(entry.getKey());
+			}
+		}
+		return fs;
+	}
+
 	/**
 	 * Adds, to the existing information, a field that is forwarded directly
 	 * from the source record(s) in the first input to the destination

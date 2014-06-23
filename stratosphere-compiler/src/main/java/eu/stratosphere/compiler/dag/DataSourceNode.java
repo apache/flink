@@ -24,6 +24,7 @@ import eu.stratosphere.api.common.io.NonParallelInput;
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
 import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.costs.CostEstimator;
@@ -191,7 +192,18 @@ public class DataSourceNode extends OptimizerNode {
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		return false;
 	}
-	
+
+
+	@Override
+	public FieldSet getForwardField(int input, int fieldNumber) {
+		return null;
+	}
+
+	@Override
+	public FieldSet getSourceField(int input, int fieldNumber) {
+		return null;
+	}
+
 	@Override
 	public void accept(Visitor<OptimizerNode> visitor) {
 		if (visitor.preVisit(this)) {

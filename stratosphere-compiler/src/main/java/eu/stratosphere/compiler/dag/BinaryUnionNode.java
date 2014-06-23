@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Set;
 
 import eu.stratosphere.api.common.operators.Union;
+import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.costs.CostEstimator;
@@ -248,6 +249,11 @@ public class BinaryUnionNode extends TwoInputNode {
 	@Override
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		return true;
+	}
+
+	@Override
+	public FieldSet getForwardField(int input, int fieldNumber) {
+		return new FieldSet(fieldNumber);
 	}
 	
 	@Override

@@ -960,6 +960,7 @@ public class PactCompiler {
 		
 		private CostEstimator estimator; // the cost estimator for maximal costs of an interesting property
 
+
 		/**
 		 * Creates a new visitor that computes the interesting properties for all nodes in the plan.
 		 * It uses the given cost estimator used to compute the maximal costs for an interesting property.

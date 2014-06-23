@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.api.common.operators.base.FilterOperatorBase;
+import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.operators.FilterDescriptor;
 import eu.stratosphere.compiler.operators.OperatorDescriptorSingle;
@@ -44,6 +45,11 @@ public class FilterNode extends SingleInputNode {
 	@Override
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		return true;
+	}
+
+	@Override
+	public FieldSet getForwardField(int input, int fieldNumber) {
+		return new FieldSet(fieldNumber);
 	}
 
 	@Override

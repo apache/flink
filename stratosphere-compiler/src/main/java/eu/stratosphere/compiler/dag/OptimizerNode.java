@@ -273,6 +273,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 */
 	public abstract boolean isFieldConstant(int input, int fieldNumber);
 
+	public abstract FieldSet getSourceField(int input, int fieldNumber);
+
+	public abstract FieldSet getForwardField(int input, int fieldNumber);
 	// ------------------------------------------------------------------------
 	//                          Getters / Setters
 	// ------------------------------------------------------------------------
