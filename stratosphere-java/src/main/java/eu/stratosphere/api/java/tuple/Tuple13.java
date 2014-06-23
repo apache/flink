@@ -116,26 +116,6 @@ public class Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> exte
 		this.f12 = value12;
 	}
 
-	/**
-	* Copy constructor. Creates a new tuple and assigns the fields to the fields of the method parameter.
-	* @param tuple The tuple that is shallow-copied.
-	 */
-	private Tuple13(Tuple13<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12> tuple) {
-		this(tuple.f0,
-			tuple.f1,
-			tuple.f2,
-			tuple.f3,
-			tuple.f4,
-			tuple.f5,
-			tuple.f6,
-			tuple.f7,
-			tuple.f8,
-			tuple.f9,
-			tuple.f10,
-			tuple.f11,
-			tuple.f12);
-	}
-
 	@Override
 	public int getArity() { return 13; }
 

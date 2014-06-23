@@ -81,19 +81,6 @@ public class Tuple6<T0, T1, T2, T3, T4, T5> extends Tuple {
 		this.f5 = value5;
 	}
 
-	/**
-	* Copy constructor. Creates a new tuple and assigns the fields to the fields of the method parameter.
-	* @param tuple The tuple that is shallow-copied.
-	 */
-	private Tuple6(Tuple6<T0,T1,T2,T3,T4,T5> tuple) {
-		this(tuple.f0,
-			tuple.f1,
-			tuple.f2,
-			tuple.f3,
-			tuple.f4,
-			tuple.f5);
-	}
-
 	@Override
 	public int getArity() { return 6; }
 

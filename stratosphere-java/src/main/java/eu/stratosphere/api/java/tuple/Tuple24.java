@@ -171,37 +171,6 @@ public class Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13,
 		this.f23 = value23;
 	}
 
-	/**
-	* Copy constructor. Creates a new tuple and assigns the fields to the fields of the method parameter.
-	* @param tuple The tuple that is shallow-copied.
-	 */
-	private Tuple24(Tuple24<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,T13,T14,T15,T16,T17,T18,T19,T20,T21,T22,T23> tuple) {
-		this(tuple.f0,
-			tuple.f1,
-			tuple.f2,
-			tuple.f3,
-			tuple.f4,
-			tuple.f5,
-			tuple.f6,
-			tuple.f7,
-			tuple.f8,
-			tuple.f9,
-			tuple.f10,
-			tuple.f11,
-			tuple.f12,
-			tuple.f13,
-			tuple.f14,
-			tuple.f15,
-			tuple.f16,
-			tuple.f17,
-			tuple.f18,
-			tuple.f19,
-			tuple.f20,
-			tuple.f21,
-			tuple.f22,
-			tuple.f23);
-	}
-
 	@Override
 	public int getArity() { return 24; }
 

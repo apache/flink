@@ -581,36 +581,6 @@ class TupleGenerator {
 		w.println();
 
 
-		w.println("\t/**");
-		w.println("\t* Copy constructor. Creates a new tuple and assigns the fields to the fields of the method parameter.");
-		w.println("\t* @param tuple The tuple that is shallow-copied.");
-		w.println("\t */");
-		w.print("\tprivate " + className + "(" + className + "<");
-		for (int i = 0; i < numFields; i++) {
-			w.print ("T" + i);
-			if (i < numFields - 1) {
-				w.print (",");
-			}
-		}
-		w.println("> tuple) {");
-
-		w.print("\t\tthis(");
-		w.print("tuple.f0");
-		if (numFields > 1) {
-			w.println(",");
-		}
-		for (int i = 1; i < numFields; i++) {
-			String field = "f" + i;
-			w.print("\t\t\ttuple." + field);
-			if (i < numFields - 1) {
-				w.println(",");
-			}
-		}
-		w.println(");");
-		w.println("\t}");
-
-		w.println();
-
 		// arity accessor
 		w.println("\t@Override");
 		w.println("\tpublic int getArity() { return " + numFields + "; }");
