@@ -62,11 +62,6 @@ public class Plan implements Visitable<Operator<?>> {
 	 * The default parallelism to use for nodes that have no explicitly specified parallelism.
 	 */
 	protected int defaultParallelism = DEFAULT_PARALELLISM;
-	
-	/**
-	 * The maximal number of machines to use in the job.
-	 */
-	protected int maxNumberMachines;
 
 	/**
 	 * Hash map for files in the distributed cache: registered name to cache entry.
@@ -234,28 +229,6 @@ public class Plan implements Visitable<Operator<?>> {
 		checkNotNull(jobName, "The job name must not be null.");
 		this.jobName = jobName;
 	}
-
-	/**
-	 * Gets the maximum number of machines to be used for this job.
-	 * 
-	 * @return The maximum number of machines to be used for this job.
-	 */
-	public int getMaxNumberMachines() {
-		return this.maxNumberMachines;
-	}
-
-	/**
-	 * Sets the maximum number of machines to be used for this job.
-	 * 
-	 * @param maxNumberMachines The the maximum number to set.
-	 */
-	public void setMaxNumberMachines(int maxNumberMachines) {
-		if (maxNumberMachines == 0 || maxNumberMachines < -1) {
-			throw new IllegalArgumentException("The maximum number of machines must be positive, or -1 if no limit is imposed.");
-		}
-		
-		this.maxNumberMachines = maxNumberMachines;
-	}
 	
 	/**
 	 * Gets the default degree of parallelism for this job. That degree is always used when an operator
@@ -337,5 +310,27 @@ public class Plan implements Visitable<Operator<?>> {
 	 */
 	public Set<Entry<String,DistributedCacheEntry>> getCachedFiles() {
 		return this.cacheFile.entrySet();
+	}
+	
+	public int getMaximumParallelism() {
+		MaxDopVisitor visitor = new MaxDopVisitor();
+		accept(visitor);
+		return Math.max(visitor.maxDop, this.defaultParallelism);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private static final class MaxDopVisitor implements Visitor<Operator<?>> {
+
+		private int maxDop = -1;
+		
+		@Override
+		public boolean preVisit(Operator<?> visitable) {
+			this.maxDop = Math.max(this.maxDop, visitable.getDegreeOfParallelism());
+			return true;
+		}
+
+		@Override
+		public void postVisit(Operator<?> visitable) {}
 	}
 }
