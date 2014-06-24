@@ -15,6 +15,7 @@ package eu.stratosphere.nephele.taskmanager;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
@@ -408,9 +409,10 @@ public class TaskManager implements TaskOperationProtocol {
 		// Memory Usage
 		// --------------------------------------------------------------------
 
-		final MemoryMXBean memoryUsageBean = ManagementFactory.getMemoryMXBean();
+		final MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
+		final List<GarbageCollectorMXBean> gcMXBeans = ManagementFactory.getGarbageCollectorMXBeans();
 
-		LOG.info(getMemoryUsageAsString(memoryUsageBean));
+		LOG.info(getMemoryUsageStatsAsString(memoryMXBean));
 
 		boolean startMemoryUsageLogThread = GlobalConfiguration.getBoolean(
 				ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD,
@@ -427,7 +429,10 @@ public class TaskManager implements TaskOperationProtocol {
 					try {
 						while (!isShutDown()) {
 							Thread.sleep(logIntervalMs);
-							LOG.debug(getMemoryUsageAsString(memoryUsageBean));
+
+							LOG.debug(getMemoryUsageStatsAsString(memoryMXBean));
+
+							LOG.debug(getGarbageCollectorStatsAsString(gcMXBeans));
 						}
 					} catch (InterruptedException e) {
 						LOG.warn("Unexpected interruption of memory usage logger thread.");
@@ -1120,9 +1125,9 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 	}
 
-	private String getMemoryUsageAsString(MemoryMXBean memoryUsageBean) {
-		MemoryUsage heap = memoryUsageBean.getHeapMemoryUsage();
-		MemoryUsage nonHeap = memoryUsageBean.getNonHeapMemoryUsage();
+	private String getMemoryUsageStatsAsString(MemoryMXBean memoryMXBean) {
+		MemoryUsage heap = memoryMXBean.getHeapMemoryUsage();
+		MemoryUsage nonHeap = memoryMXBean.getNonHeapMemoryUsage();
 
 		int mb = 1 << 20;
 
@@ -1134,9 +1139,25 @@ public class TaskManager implements TaskOperationProtocol {
 		int nonHeapCommitted = (int) (nonHeap.getCommitted() / mb);
 		int nonHeapMax = (int) (nonHeap.getMax() / mb);
 
-		String msg = String.format("Memory usage HEAP: %d/%d/%d MB, NON HEAP: %d/%d/%d MB (used/comitted/max)",
+		String msg = String.format("Memory usage stats: [HEAP: %d/%d/%d MB, NON HEAP: %d/%d/%d MB (used/comitted/max)]",
 				heapUsed, heapCommitted, heapMax, nonHeapUsed, nonHeapCommitted, nonHeapMax);
 
 		return msg;
+	}
+
+	private String getGarbageCollectorStatsAsString(List<GarbageCollectorMXBean> gcMXBeans) {
+		StringBuilder str = new StringBuilder();
+		str.append("Garbage collector stats: ");
+
+		for (int i = 0; i < gcMXBeans.size(); i++) {
+			GarbageCollectorMXBean bean = gcMXBeans.get(i);
+
+			String msg = String.format("[%s, GC TIME (ms): %d, GC COUNT: %d]",
+					bean.getName(), bean.getCollectionTime(), bean.getCollectionCount());
+			str.append(msg);
+			str.append(i < gcMXBeans.size() - 1 ? ", " : "");
+		}
+
+		return str.toString();
 	}
 }
