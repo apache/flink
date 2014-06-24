@@ -17,9 +17,6 @@ package eu.stratosphere.test.exampleJavaPrograms;
 import eu.stratosphere.example.java.wordcount.WordCount;
 import eu.stratosphere.test.testdata.WordCountData;
 import eu.stratosphere.test.util.JavaProgramTestBase;
-import eu.stratosphere.util.LogUtils;
-import org.apache.log4j.Level;
-
 
 public class WordCountITCase extends JavaProgramTestBase {
 
@@ -27,8 +24,6 @@ public class WordCountITCase extends JavaProgramTestBase {
 	protected String resultPath;
 
 	public WordCountITCase(){
-		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG);
-
 		setDegreeOfParallelism(4);
 		setNumTaskTracker(2);
 		setTaskManagerNumSlots(2);
