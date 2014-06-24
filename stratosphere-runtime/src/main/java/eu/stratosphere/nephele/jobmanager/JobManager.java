@@ -79,6 +79,7 @@ import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.jobmanager.JobManagerUtils.RevisionInformation;
 import eu.stratosphere.nephele.jobmanager.accumulators.AccumulatorManager;
 import eu.stratosphere.nephele.jobmanager.archive.ArchiveListener;
 import eu.stratosphere.nephele.jobmanager.archive.MemoryArchivist;
@@ -291,7 +292,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 * Log Stratosphere version information.
 	 */
 	private static void logVersionInformation() {
-		LOG.info("Starting Stratosphere JobManager (Version: " + JobManagerUtils.getVersion() + ", Rev:" + JobManagerUtils.getRevision() + ")");
+		RevisionInformation rev = JobManagerUtils.getRevisionInformation();
+		LOG.info("Starting Stratosphere JobManager "
+				+ "(Version: " + JobManagerUtils.getVersion() + ", "
+					+ "Rev:" + rev.commitId + ", "
+					+ "Date:" + rev.commitDate + ")");
 	}
 	
 	/**

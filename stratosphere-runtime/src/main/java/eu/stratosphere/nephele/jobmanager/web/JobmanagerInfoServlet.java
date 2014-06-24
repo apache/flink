@@ -517,7 +517,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 	private void writeJsonForVersion(PrintWriter wrt) {
 		wrt.write("{");
 		wrt.write("\"version\": \"" + JobManagerUtils.getVersion() + "\",");
-		wrt.write("\"revision\": \"" + JobManagerUtils.getRevision() + "\"");
+		wrt.write("\"revision\": \"" + JobManagerUtils.getRevisionInformation().commitId + "\"");
 		wrt.write("}");
 	}
 }
