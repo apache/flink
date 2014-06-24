@@ -80,6 +80,8 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.JobID;
+import eu.stratosphere.nephele.jobmanager.JobManagerUtils;
+import eu.stratosphere.nephele.jobmanager.JobManagerUtils.RevisionInformation;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
@@ -172,13 +174,18 @@ public class TaskManager implements TaskOperationProtocol {
 			throw new NullPointerException("Execution mode must not be null.");
 		}
 		
+		RevisionInformation rev = JobManagerUtils.getRevisionInformation();
+		LOG.info("Starting Stratosphere TaskManager "
+				+ "(Version: " + JobManagerUtils.getVersion() + ", "
+					+ "Rev:" + rev.commitId + ", "
+					+ "Date:" + rev.commitDate + ")");
+		
 		try {
 			LOG.info("TaskManager started as user " + UserGroupInformation.getCurrentUser().getShortUserName());
 		} catch (Throwable t) {
 			LOG.error("Cannot determine user group information.", t);
 		}
 			
-		LOG.info("User system property: " + System.getProperty("user.name"));
 		LOG.info("Execution mode: " + executionMode);
 
 		// IMPORTANT! At this point, the GlobalConfiguration must have been read!

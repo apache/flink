@@ -182,18 +182,28 @@ public class JobManagerUtils {
 	 * Returns the revision of Stratosphere as String.
 	 * @return String
 	 */
-	public static String getRevision() {
+	public static RevisionInformation getRevisionInformation() {
+		RevisionInformation info = new RevisionInformation();
 		String revision = "<unknown>";
+		String commitDate = "<unknown>";
 		try {
 			Properties properties = new Properties();
 			InputStream propFile = JobManagerUtils.class.getClassLoader().getResourceAsStream(".version.properties");
 			if (propFile != null) {
 				properties.load(propFile);
 				revision = properties.getProperty("git.commit.id.abbrev");
+				commitDate = properties.getProperty("git.commit.time");
 			}
 		} catch (IOException e) {
 			LOG.info("Cannot determine code revision. Unable ro read version property file.");
 		}
-		return revision;
+		info.commitId = revision;
+		info.commitDate = commitDate;
+		return info;
+	}
+	
+	public static class RevisionInformation {
+		public String commitId;
+		public String commitDate;
 	}
 }
