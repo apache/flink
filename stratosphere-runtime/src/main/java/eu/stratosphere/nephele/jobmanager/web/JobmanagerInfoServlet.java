@@ -40,13 +40,13 @@ import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobgraph.JobStatus;
 import eu.stratosphere.nephele.jobmanager.JobManager;
-import eu.stratosphere.nephele.jobmanager.JobManagerUtils;
 import eu.stratosphere.nephele.managementgraph.ManagementGraph;
 import eu.stratosphere.nephele.managementgraph.ManagementGraphIterator;
 import eu.stratosphere.nephele.managementgraph.ManagementGroupVertex;
 import eu.stratosphere.nephele.managementgraph.ManagementGroupVertexID;
 import eu.stratosphere.nephele.managementgraph.ManagementVertex;
 import eu.stratosphere.nephele.services.accumulators.AccumulatorEvent;
+import eu.stratosphere.runtime.util.EnvironmentInformation;
 import eu.stratosphere.util.StringUtils;
 
 
@@ -516,8 +516,8 @@ public class JobmanagerInfoServlet extends HttpServlet {
 	 */
 	private void writeJsonForVersion(PrintWriter wrt) {
 		wrt.write("{");
-		wrt.write("\"version\": \"" + JobManagerUtils.getVersion() + "\",");
-		wrt.write("\"revision\": \"" + JobManagerUtils.getRevisionInformation().commitId + "\"");
+		wrt.write("\"version\": \"" + EnvironmentInformation.getVersion() + "\",");
+		wrt.write("\"revision\": \"" + EnvironmentInformation.getRevisionInformation().commitId + "\"");
 		wrt.write("}");
 	}
 }

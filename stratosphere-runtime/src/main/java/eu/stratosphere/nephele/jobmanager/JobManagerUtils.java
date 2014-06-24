@@ -13,18 +13,15 @@
 
 package eu.stratosphere.nephele.jobmanager;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Properties;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.ExecutionMode;
 import eu.stratosphere.nephele.instance.InstanceManager;
 import eu.stratosphere.nephele.jobmanager.scheduler.DefaultScheduler;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.util.StringUtils;
 
 /**
@@ -166,44 +163,5 @@ public class JobManagerUtils {
 		default:
 			throw new RuntimeException("Unrecognized Execution Mode.");
 		}
-	}
-	
-	/**
-	 * Returns the version of Stratosphere as String.
-	 * If version == null, then the JobManager runs from inside the IDE (or somehow not from the maven build jar)
-	 * @return String
-	 */
-	public static String getVersion() {
-		String version = JobManagerUtils.class.getPackage().getImplementationVersion();
-		return version;
-	}
-
-	/**
-	 * Returns the revision of Stratosphere as String.
-	 * @return String
-	 */
-	public static RevisionInformation getRevisionInformation() {
-		RevisionInformation info = new RevisionInformation();
-		String revision = "<unknown>";
-		String commitDate = "<unknown>";
-		try {
-			Properties properties = new Properties();
-			InputStream propFile = JobManagerUtils.class.getClassLoader().getResourceAsStream(".version.properties");
-			if (propFile != null) {
-				properties.load(propFile);
-				revision = properties.getProperty("git.commit.id.abbrev");
-				commitDate = properties.getProperty("git.commit.time");
-			}
-		} catch (IOException e) {
-			LOG.info("Cannot determine code revision. Unable ro read version property file.");
-		}
-		info.commitId = revision;
-		info.commitDate = commitDate;
-		return info;
-	}
-	
-	public static class RevisionInformation {
-		public String commitId;
-		public String commitDate;
 	}
 }
