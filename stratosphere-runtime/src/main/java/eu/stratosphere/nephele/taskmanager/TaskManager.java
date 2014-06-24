@@ -46,7 +46,6 @@ import eu.stratosphere.nephele.ExecutionMode;
 import eu.stratosphere.runtime.io.network.LocalConnectionManager;
 import eu.stratosphere.runtime.io.network.NetworkConnectionManager;
 import eu.stratosphere.runtime.io.network.netty.NettyConnectionManager;
-import eu.stratosphere.nephele.instance.Hardware;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.RegisterTaskManagerResult;
 import eu.stratosphere.nephele.types.IntegerRecord;
 
@@ -357,10 +356,13 @@ public class TaskManager implements TaskOperationProtocol {
 			HardwareDescription resources = HardwareDescriptionFactory.extractFromSystem();
 			
 			int slots = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, -1);
-			if (slots == -1) { 
-				slots = Hardware.getNumberCPUCores();
+			if (slots == -1) {
+				slots = 1;
+				LOG.info("Number of task slots not configured. Creating one task slot.");
 			} else if (slots <= 0) {
 				throw new Exception("Illegal value for the number of task slots: " + slots);
+			} else {
+				LOG.info("Creating " + slots + " task slot(s).");
 			}
 			this.numberOfSlots = slots;
 			
