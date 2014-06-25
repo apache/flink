@@ -13,5 +13,5 @@ public interface GenericMapPartition<T, O> extends Function {
      * @param out The collector to hand results to.
      * @throws Exception
      */
-    void map(Iterator<T> records, Collector<O> out) throws Exception;
+    void mapPartition(Iterator<T> records, Collector<O> out) throws Exception;
 }
