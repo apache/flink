@@ -14,6 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.io;
 
+import java.io.IOException;
 import java.nio.charset.Charset;
 
 import eu.stratosphere.api.common.io.DelimitedInputFormat;
@@ -25,12 +26,6 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private String charsetName = "UTF-8";
-	
-//	private boolean skipInvalidLines;
-	
-	private transient Charset charset;
-
 	/**
 	 * Code of \r, used to remove \r from a line when the line ends with \r\n
 	 */
@@ -40,7 +35,12 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 	 * Code of \n, used to identify if \n is used as delimiter
 	 */
 	private static final byte NEW_LINE = (byte) '\n';
-
+	
+	
+	/**
+	 * The name of the charset to use for decoding.
+	 */
+	private String charsetName = "UTF-8";
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -62,14 +62,6 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 		this.charsetName = charsetName;
 	}
 	
-//	public boolean isSkipInvalidLines() {
-//		return skipInvalidLines;
-//	}
-//	
-//	public void setSkipInvalidLines(boolean skipInvalidLines) {
-//		this.skipInvalidLines = skipInvalidLines;
-//	}
-	
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -79,13 +71,12 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 		if (charsetName == null || !Charset.isSupported(charsetName)) {
 			throw new RuntimeException("Unsupported charset: " + charsetName);
 		}
-		this.charset = Charset.forName(charsetName);
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public String readRecord(String reusable, byte[] bytes, int offset, int numBytes) {
+	public String readRecord(String reusable, byte[] bytes, int offset, int numBytes) throws IOException {
 		//Check if \n is used as delimiter and the end of this line is a \r, then remove \r from the line
 		if (this.getDelimiter() != null && this.getDelimiter().length == 1 
 				&& this.getDelimiter()[0] == NEW_LINE && offset+numBytes >= 1 
@@ -93,13 +84,13 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 			numBytes -= 1;
 		}
 		
-		return new String(bytes, offset, numBytes, this.charset);
+		return new String(bytes, offset, numBytes, this.charsetName);
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	public String toString() {
-		return "TextInputFormat (" + getFilePath() + ") - " + this.charsetName; // + (this.skipInvalidLines ? "(skipping invalid lines)" : "");
+		return "TextInputFormat (" + getFilePath() + ") - " + this.charsetName;
 	}
 }

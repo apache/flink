@@ -13,17 +13,12 @@
 
 package eu.stratosphere.types.parser;
 
-import java.nio.charset.Charset;
-
 /**
  * Converts a variable length field of a byte array into a {@link String}. The byte contents between
  * delimiters is interpreted as an ASCII string. The string may be quoted in double quotes. For quoted
  * strings, whitespaces (space and tab) leading and trailing before and after the quotes are removed.
  */
 public class AsciiStringParser extends FieldParser<String> {
-
-	// the default (ascii style) charset. should be available really everywhere.
-	private static final Charset CHARSET = Charset.forName("ISO-8859-1");
 	
 	private static final byte WHITESPACE_SPACE = (byte) ' ';
 	private static final byte WHITESPACE_TAB = (byte) '\t';
@@ -58,7 +53,7 @@ public class AsciiStringParser extends FieldParser<String> {
 			
 			if (i < limit) {
 				// end of the string
-				this.result = new String(bytes, quoteStart, i-quoteStart, CHARSET);
+				this.result = new String(bytes, quoteStart, i-quoteStart);
 				
 				i++; // the quote
 				
@@ -87,7 +82,7 @@ public class AsciiStringParser extends FieldParser<String> {
 			}
 			
 			// set from the beginning. unquoted strings include the leading whitespaces
-			this.result = new String(bytes, startPos, i-startPos, CHARSET);
+			this.result = new String(bytes, startPos, i-startPos);
 			return (i == limit ? limit : i+1);
 		}
 	}

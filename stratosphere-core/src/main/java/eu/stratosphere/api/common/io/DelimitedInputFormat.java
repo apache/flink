@@ -258,7 +258,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	 * 
 	 * @return returns whether the record was successfully deserialized or not.
 	 */
-	public abstract OT readRecord(OT reuse, byte[] bytes, int offset, int numBytes);
+	public abstract OT readRecord(OT reuse, byte[] bytes, int offset, int numBytes) throws IOException;
 	
 	// --------------------------------------------------------------------------------------------
 	//  Pre-flight: Configuration, Splits, Sampling
