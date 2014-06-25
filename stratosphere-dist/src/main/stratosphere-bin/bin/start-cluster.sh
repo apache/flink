@@ -30,6 +30,14 @@ if [ ! -f "$HOSTLIST" ]; then
     exit 1
 fi
 
+if [ "${UNAME:0:6}" == "CYGWIN" ] || [ "$UNAME" == "Linux" ]; then
+    sed -i 's/'$KEY_JOBM_ADD':.*/'$KEY_JOBM_ADD': '$HOSTNAME'/g' $YAML_CONF
+elif [ "$UNAME" == "Darwin" ]; then
+    sed -i "" 's/'$KEY_JOBM_ADD':.*/'$KEY_JOBM_ADD': '$HOSTNAME'/g' $YAML_CONF
+else
+    echo "System $UNAME is not supported to rewrite the jobmanager address in config file."
+fi
+
 # cluster mode, bring up job manager locally and a task manager on every slave host
 "$STRATOSPHERE_BIN_DIR"/jobmanager.sh start cluster
 
@@ -39,6 +47,6 @@ do
     read line || GOON=false
     if [ -n "$line" ]; then
         HOST=$( extractHostName $line)
-        ssh -n $STRATOSPHERE_SSH_OPTS $HOST -- "nohup /bin/bash $STRATOSPHERE_BIN_DIR/taskmanager.sh start &"
+        ssh -n $STRATOSPHERE_SSH_OPTS $HOST -- "nohup /bin/bash $STRATOSPHERE_BIN_DIR/taskmanager.sh start"
     fi
 done < "$HOSTLIST"

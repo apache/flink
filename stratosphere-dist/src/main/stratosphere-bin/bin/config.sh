@@ -71,6 +71,7 @@ DEFAULT_ENV_SSH_OPTS=""                             # Optional SSH parameters ru
 # CONFIG KEYS: The default values can be overwritten by the following keys in conf/stratosphere-conf.yaml
 ########################################################################################################################
 
+KEY_JOBM_ADD="jobmanager.rpc.address"
 KEY_JOBM_HEAP_MB="jobmanager.heap.mb"
 KEY_TASKM_HEAP_MB="taskmanager.heap.mb"
 KEY_ENV_PID_DIR="env.pid.dir"
