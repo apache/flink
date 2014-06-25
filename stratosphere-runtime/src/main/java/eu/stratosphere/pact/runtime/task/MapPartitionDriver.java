@@ -14,7 +14,7 @@ import eu.stratosphere.util.MutableObjectIterator;
  * The MapPartitionTask creates an iterator over all key-value pairs of its input and hands that to the <code>map_partition()</code> method
  * of the MapFunction.
  *
- * @see GenericCollectorMap
+ * @see GenericMapPartition
  *
  * @param <IT> The mapper's input data type.
  * @param <OT> The mapper's output data type.
