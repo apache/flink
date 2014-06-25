@@ -22,14 +22,14 @@ import eu.stratosphere.compiler.operators.MapPartitionDescriptor;
 import eu.stratosphere.compiler.operators.OperatorDescriptorSingle;
 
 /**
- * The optimizer's internal representation of a <i>Map</i> operator node.
+ * The optimizer's internal representation of a <i>MapPartition</i> operator node.
  */
 public class MapPartitionNode extends SingleInputNode {
 	
 	/**
 	 * Creates a new MapNode for the given contract.
 	 * 
-	 * @param operator The map contract object.
+	 * @param operator The map partition contract object.
 	 */
 	public MapPartitionNode(SingleInputOperator<?, ?, ?> operator) {
 		super(operator);
@@ -37,7 +37,7 @@ public class MapPartitionNode extends SingleInputNode {
 
 	@Override
 	public String getName() {
-		return "Map";
+		return "MapPartition";
 	}
 
 	@Override
@@ -46,12 +46,11 @@ public class MapPartitionNode extends SingleInputNode {
 	}
 
 	/**
-	 * Computes the estimates for the Map operator. 
+	 * Computes the estimates for the MapPartition operator.
 	 * We assume that by default, Map takes one value and transforms it into another value.
 	 * The cardinality consequently stays the same.
 	 */
 	@Override
 	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
-		this.estimatedNumRecords = getPredecessorNode().getEstimatedNumRecords();
 	}
 }
