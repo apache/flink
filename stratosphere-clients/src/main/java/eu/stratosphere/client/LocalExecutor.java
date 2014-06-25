@@ -257,32 +257,11 @@ public class LocalExecutor extends PlanExecutor {
 	 * @throws Exception
 	 */
 	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
-		synchronized (this.lock) {
-			
-			// check if we start a session dedicated for this execution
-			final boolean shutDownAtEnd;
-			if (this.nephele == null) {
-				// we start a session just for us now
-				shutDownAtEnd = true;
-				start();
-			} else {
-				// we use the existing session
-				shutDownAtEnd = false;
-			}
-
-			try {
-				PactCompiler pc = new PactCompiler(new DataStatistics());
-				OptimizedPlan op = pc.compile(plan);
-				PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
-		
-				return gen.getOptimizerPlanAsJSON(op);
-			}
-			finally {
-				if (shutDownAtEnd) {
-					stop();
-				}
-			}
-		}
+		PactCompiler pc = new PactCompiler(new DataStatistics());
+		OptimizedPlan op = pc.compile(plan);
+		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
+	
+		return gen.getOptimizerPlanAsJSON(op);
 	}
 	
 	// --------------------------------------------------------------------------------------------
