@@ -128,12 +128,12 @@ public abstract class DataSet<T> {
      * @see MapPartitionOperator
      * @see DataSet
      */
-    public <R> MapPartitionOperator<T, R> mapPartition(MapPartitionFunction<T, R> mapPartition ){
-        if (mapPartition == null) {
-            throw new NullPointerException("MapPartition function must not be null.");
-        }
-        return new MapPartitionOperator<T, R>(this, mapPartition);
-    }
+	public <R> MapPartitionOperator<T, R> mapPartition(MapPartitionFunction<T, R> mapPartition ){
+		if (mapPartition == null) {
+			throw new NullPointerException("MapPartition function must not be null.");
+		}
+		return new MapPartitionOperator<T, R>(this, mapPartition);
+	}
 	
 	/**
 	 * Applies a FlatMap transformation on a {@link DataSet}.<br/>

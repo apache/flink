@@ -44,13 +44,13 @@ public class TypeExtractor {
 
 
     @SuppressWarnings("unchecked")
-    public static <IN, OUT> TypeInformation<OUT> getMapPartitionReturnTypes(MapPartitionFunction<IN, OUT> mapPartitionFunction, TypeInformation<IN> inType) {
-        validateInputType(MapPartitionFunction.class, mapPartitionFunction.getClass(), 0, inType);
-        if(mapPartitionFunction instanceof ResultTypeQueryable) {
-            return ((ResultTypeQueryable<OUT>) mapPartitionFunction).getProducedType();
-        }
-        return createTypeInfo(MapPartitionFunction.class, mapPartitionFunction.getClass(), 1, inType, null);
-    }
+	public static <IN, OUT> TypeInformation<OUT> getMapPartitionReturnTypes(MapPartitionFunction<IN, OUT> mapPartitionFunction, TypeInformation<IN> inType) {
+		validateInputType(MapPartitionFunction.class, mapPartitionFunction.getClass(), 0, inType);
+		if(mapPartitionFunction instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) mapPartitionFunction).getProducedType();
+		}
+		return createTypeInfo(MapPartitionFunction.class, mapPartitionFunction.getClass(), 1, inType, null);
+	}
 
 	
 	@SuppressWarnings("unchecked")
