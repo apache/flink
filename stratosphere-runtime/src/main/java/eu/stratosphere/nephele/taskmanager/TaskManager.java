@@ -566,7 +566,6 @@ public class TaskManager implements TaskOperationProtocol {
 
 			// send heart beat
 			try {
-				LOG.debug("heartbeat");
 				this.jobManager.sendHeartbeat(this.localInstanceConnectionInfo);
 			} catch (IOException e) {
 				if (shutdownStarted.get()) {
