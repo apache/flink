@@ -2,72 +2,68 @@
 title: "Quickstart: Java API"
 ---
 
-<p class="lead">Start working on your Stratosphere Java program in a few simple steps.</p>
+Start working on your Stratosphere Java program in a few simple steps.
 
-<section id="requirements">
-  <div class="page-header"><h2>Requirements</h2></div>
-  <p class="lead">The only requirements are working <strong>Maven 3.0.4</strong> (or higher) and <strong>Java 6.x</strong> (or higher) installations.</p>
-</section>
 
-<section id="create_project">
-  <div class="page-header"><h2>Create Project</h2></div>
+# Requirements
+The only requirements are working __Maven 3.0.4__ (or higher) and __Java 6.x__ (or higher) installations.
 
-  <p class="lead">Use one of the following commands to <strong>create a project</strong>:</p>
+# Create Project
+Use one of the following commands to __create a project__:
 
-  <ul class="nav nav-tabs" style="border-bottom: none;">
-      <li class="active"><a href="#quickstart-script" data-toggle="tab">Run the <strong>quickstart script</strong></a></li>
-      <li><a href="#maven-archetype" data-toggle="tab">Use <strong>Maven archetypes</strong></a></li>
-  </ul>
-  <div class="tab-content">
-      <div class="tab-pane active" id="quickstart-script">
-{% highlight bash %}
-$ curl https://raw.githubusercontent.com/stratosphere/stratosphere-quickstart/master/quickstart.sh | bash
-{% endhighlight %}
-      </div>
-      <div class="tab-pane" id="maven-archetype">
-{% highlight bash %}
-$ mvn archetype:generate                             \
-    -DarchetypeGroupId=eu.stratosphere               \
-    -DarchetypeArtifactId=quickstart-java            \
-    -DarchetypeVersion={{site.current_stable}}
-{% endhighlight %}
-      This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
-      </div>
-  </div>
-</section>
+<ul class="nav nav-tabs" style="border-bottom: none;">
+    <li class="active"><a href="#quickstart-script" data-toggle="tab">Run the <strong>quickstart script</strong></a></li>
+    <li><a href="#maven-archetype" data-toggle="tab">Use <strong>Maven archetypes</strong></a></li>
+</ul>
+<div class="tab-content">
+    <div class="tab-pane active" id="quickstart-script">
+    {% highlight bash %}
+    $ curl https://raw.githubusercontent.com/stratosphere/stratosphere-quickstart/master/quickstart.sh | bash
+    {% endhighlight %}
+    </div>
+    <div class="tab-pane" id="maven-archetype">
+    {% highlight bash %}
+    $ mvn archetype:generate                             \
+      -DarchetypeGroupId=eu.stratosphere               \
+      -DarchetypeArtifactId=quickstart-java            \
+      -DarchetypeVersion={{site.current_stable}}
+    {% endhighlight %}
+        This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
+    </div>
+</div>
 
-<section id="inspect_project">
-  <div class="page-header"><h2>Inspect Project</h2></div>
-  <p class="lead">There will be a <strong>new directory in your working directory</strong>. If you've used the <em>curl</em> approach, the directory is called <code>quickstart</code>. Otherwise, it has the name of your artifactId.</p>
-  <p class="lead">The sample project is a <strong>Maven project</strong>, which contains two classes. <em>Job</em> is a basic skeleton program and <em>WordCountJob</em> a working example. Please note that the <em>main</em> method of both classes allow you to start Stratosphere in a development/testing mode.</p>
-  <p class="lead">We recommend to <strong>import this project into your IDE</strong> to develop and test it. If you use Eclipse, the <a href="http://www.eclipse.org/m2e/">m2e plugin</a> allows to <a href="http://books.sonatype.com/m2eclipse-book/reference/creating-sect-importing-projects.html#fig-creating-import">import Maven projects</a>. Some Eclipse bundles include that plugin by default, other require you to install it manually. The IntelliJ IDE also supports Maven projects out of the box.</p>
-</section>
+# Inspect Project
+There will be a new directory in your working directory. If you've used the _curl_ approach, the directory is called `quickstart`. Otherwise, it has the name of your artifactId.
 
-<section id="build_project">
-<div class="alert alert-danger">A note to Mac OS X users: The default JVM heapsize for Java is too small for Stratosphere. You have to manually increase it. Choose "Run Configurations" -> Arguments and write into the "VM Arguments" box: "-Xmx800m" in Eclipse.</div>
-  <div class="page-header"><h2>Build Project</h2></div>
-  <p class="lead">If you want to <strong>build your project</strong>, go to your project directory and issue the <code>mvn clean package</code> command. You will <strong>find a jar</strong> that runs on every Stratosphere cluster in <code>target/stratosphere-project-0.1-SNAPSHOT.jar</code>.</p>
-</section>
+The sample project is a __Maven project__, which contains two classes. _Job_ is a basic skeleton program and _WordCountJob_ a working example. Please note that the _main_ method of both classes allow you to start Stratosphere in a development/testing mode.
 
-<section id="next_steps">
-  <div class="page-header"><h2>Next Steps</h2></div>
-  <p class="lead"><strong>Write your application!</strong></p>
-  <p>The quickstart project contains a WordCount implementation, the "Hello World" of Big Data processing systems. The goal of WordCount is to determine the frequencies of words in a text, e.g., how often do the terms "the" or "house" occurs in all Wikipedia texts.</p>
- <br>
-<b>Sample Input:</b> <br>
-{% highlight bash %}
+We recommend to __import this project into your IDE__ to develop and test it. If you use Eclipse, the [m2e plugin](http://www.eclipse.org/m2e/) allows to [import Maven projects](http://books.sonatype.com/m2eclipse-book/reference/creating-sect-importing-projects.html#fig-creating-import). Some Eclipse bundles include that plugin by default, other require you to install it manually. The IntelliJ IDE also supports Maven projects out of the box.
+
+
+A note to Mac OS X users: The default JVM heapsize for Java is too small for Stratosphere. You have to manually increase it. Choose "Run Configurations" -> Arguments and write into the "VM Arguments" box: "-Xmx800m" in Eclipse.
+
+# Build Project
+If you want to __build your project__, go to your project directory and issue the `mvn clean package` command. You will __find a jar__ that runs on every Stratosphere cluster in `target/stratosphere-project-0.1-SNAPSHOT.jar`.
+
+# Next Steps
+Write your application!
+
+The quickstart project contains a WordCount implementation, the "Hello World" of Big Data processing systems. The goal of WordCount is to determine the frequencies of words in a text, e.g., how often do the terms "the" or "house" occurs in all Wikipedia texts.
+
+__Sample Input__:
+```bash
 big data is big
-{% endhighlight %}
-<b>Sample Output:</b> <br>
-{% highlight bash %}
+```
+
+__Sample Output__:
+```bash
 big 2
 data 1
 is 1
-{% endhighlight %}
+```
+The following code shows the WordCount implementation from the Quickstart which processes some text lines with two operators (FlatMap and Reduce), and writes the prints the resulting words and counts to std-out.
 
-<p>The following code shows the WordCount implementation from the Quickstart which processes some text lines with two operators (FlatMap and Reduce), and writes the prints the resulting words and counts to std-out.</p>
-
-{% highlight java %}
+```java
 public class WordCount {
   
   public static void main(String[] args) throws Exception {
@@ -97,11 +93,11 @@ public class WordCount {
     env.execute("WordCount Example");
   }
 }
-{% endhighlight %}
+```
 
-<p>The operations are defined by specialized classes, here the LineSplitter class.</p>
+The operations are defined by specialized classes, here the LineSplitter class.
 
-{% highlight java %}
+```java
 public class LineSplitter extends FlatMapFunction<String, Tuple2<String, Integer>> {
 
   @Override
@@ -117,10 +113,7 @@ public class LineSplitter extends FlatMapFunction<String, Tuple2<String, Integer
     }
   }
 }
+```
+[Check GitHub](https://github.com/apache/incubator-flink/blob/master/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/wordcount/WordCount.java) for the full example code.
 
-{% endhighlight %}
-
-<p><a href="https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/wordcount/WordCount.java">Check GitHub</a> for the full example code.</p>
-
-<p class="lead">For a complete overview over our Java API, have a look at the <a href="{{ site.baseurl }}/docs/{{site.current_stable_documentation}}/programming_guides/java.html">Stratosphere Documentation</a> and <a href="{{ site.baseurl }}/docs/{{site.current_stable_documentation}}/programming_guides/examples_java.html">further example programs</a>. If you have any trouble, ask on our <a href="https://groups.google.com/forum/#!forum/stratosphere-dev">Mailing list</a>. We are happy to provide help.</p>
-</section>
+For a complete overview over our Java API, have a look at the [API Documentation](java_api_guide.html) and [further example programs](java_api_examples.html). If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/incubator-flink-dev/). We are happy to provide help.
