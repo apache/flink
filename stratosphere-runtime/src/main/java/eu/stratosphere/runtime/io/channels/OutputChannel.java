@@ -66,6 +66,7 @@ public class OutputChannel extends Channel {
 
 		// discard empty buffers
 		if (buffer.size() == 0) {
+			buffer.recycleBuffer();
 			return;
 		}
 
