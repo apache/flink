@@ -318,7 +318,7 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 		json.append("\"vertexid\": \"" + this.getID() + "\",");
 		json.append("\"vertexname\": \"" + StringUtils.escapeHtml(this.toString()) + "\",");
 		json.append("\"vertexstatus\": \"" + this.getExecutionState() + "\",");
-		json.append("\"vertexinstancename\": \"" + this.getInstanceName() + "\",");
+		json.append("\"vertexinstancename\": \"" + this.getInstanceName() + "\"");
 		json.append("}");
 		return json.toString();
 	}
