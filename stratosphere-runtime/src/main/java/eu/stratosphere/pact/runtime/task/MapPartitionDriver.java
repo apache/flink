@@ -1,6 +1,5 @@
 package eu.stratosphere.pact.runtime.task;
 
-import eu.stratosphere.api.common.functions.GenericMap;
 import eu.stratosphere.api.common.functions.GenericMapPartition;
 import eu.stratosphere.pact.runtime.util.MutableToRegularIteratorWrapper;
 import eu.stratosphere.util.Collector;
