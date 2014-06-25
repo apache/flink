@@ -630,10 +630,10 @@ public class PactCompiler {
 				n = dsn;
 			}
 			else if (c instanceof MapOperatorBase) {
-				n = new MapPartitionNode((MapOperatorBase<?, ?, ?>) c);
+				n = new MapNode((MapOperatorBase<?, ?, ?>) c);
 			}
             else if (c instanceof MapPartitionOperatorBase) {
-                n = new MapNode((MapPartitionOperatorBase<?, ?, ?>) c);
+                n = new MapPartitionNode((MapPartitionOperatorBase<?, ?, ?>) c);
             }
 			else if (c instanceof CollectorMapOperatorBase) {
 				n = new CollectorMapNode((CollectorMapOperatorBase<?, ?, ?>) c);
