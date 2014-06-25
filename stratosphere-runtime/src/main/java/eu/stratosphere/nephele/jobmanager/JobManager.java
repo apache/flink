@@ -22,6 +22,7 @@ import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -1176,6 +1177,10 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	public int getNumberOfTaskTrackers() {
 		return this.instanceManager.getNumberOfTaskTrackers();
+	}
+	
+	public Map<InstanceConnectionInfo, Instance> getInstances() {
+		return this.instanceManager.getInstances();
 	}
 
 	@Override

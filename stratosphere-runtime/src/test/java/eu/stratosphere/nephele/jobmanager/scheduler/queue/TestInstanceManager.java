@@ -17,10 +17,10 @@ import java.net.Inet4Address;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.instance.*;
-import eu.stratosphere.nephele.instance.Instance;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
@@ -183,5 +183,11 @@ public final class TestInstanceManager implements InstanceManager {
 	@Override
 	public int getNumberOfSlots() {
 		return this.testInstance.getNumberOfSlots();
+	}
+
+
+	@Override
+	public Map<InstanceConnectionInfo, Instance> getInstances() {
+		throw new IllegalStateException("getInstances called on TestInstanceManager");
 	}
 }

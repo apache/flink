@@ -1,24 +1,15 @@
 
 $(document).ready(function() {
-	loadData();
-	
-});
-
-/*
- * Load all necessary data
- */
-function loadData() {
-	$.ajax({ url : "configuration", type : "GET", cache: false, success : function(json) {
+	$.ajax({ url : "setupInfo?get=globalC", type : "GET", cache: false, success : function(json) {
 		loadConfigTable(json);
 	}, dataType : "json",
 	});
-}
+});
 
 /*
  * Initializes global config table
  */
 function loadConfigTable(json) {
-	console.log(json);
 	$("#confTable").empty();
 	var table = "<table class=\"table table-bordered table-hover table-striped\">";
 	table += "<tr><th>Property</th><th>Value</th></tr>";

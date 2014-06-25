@@ -14,6 +14,8 @@
 package eu.stratosphere.nephele.instance;
 
 
+import java.util.Map;
+
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
@@ -41,4 +43,6 @@ public interface InstanceManager {
 	int getNumberOfTaskTrackers();
 
 	int getNumberOfSlots();
+	
+	Map<InstanceConnectionInfo, Instance> getInstances();
 }
