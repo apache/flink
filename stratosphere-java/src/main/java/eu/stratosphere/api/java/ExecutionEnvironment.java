@@ -37,6 +37,7 @@ import eu.stratosphere.api.java.io.IteratorInputFormat;
 import eu.stratosphere.api.java.io.ParallelIteratorInputFormat;
 import eu.stratosphere.api.java.io.TextInputFormat;
 import eu.stratosphere.api.java.io.TextValueInputFormat;
+import eu.stratosphere.api.java.io.PrimitiveInputFormat;
 import eu.stratosphere.api.java.operators.DataSink;
 import eu.stratosphere.api.java.operators.DataSource;
 import eu.stratosphere.api.java.operators.Operator;
@@ -236,7 +237,36 @@ public abstract class ExecutionEnvironment {
 		format.setSkipInvalidLines(skipInvalidLines);
 		return new DataSource<StringValue>(this, format, new ValueTypeInfo<StringValue>(StringValue.class) );
 	}
-	
+
+	// ----------------------------------- Primitive Input Format ---------------------------------------
+
+	/**
+	 * Creates a DataSet that represents the primitive type produced by reading the given file line wise.
+	 * This method is similar to {@link #readCsvFile(String)} with single field, but it produces a DataSet not through
+	 * {@link eu.stratosphere.api.java.tuple.Tuple1}.
+	 *
+	 * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
+	 * @param typeClass The primitive type class to be read.
+	 * @return A DataSet that represents the data read from the given file as primitive type.
+	 */
+	public <X> DataSource<X> readPrimitiveSequence(String filePath, Class<X> typeClass) {
+		return new DataSource<X>(this, new PrimitiveInputFormat<X>(new Path(filePath), typeClass), TypeExtractor.getForClass(typeClass));
+	}
+
+	/**
+	 * Creates a DataSet that represents the primitive type produced by reading the given file in delimited way.
+	 * This method is similar to {@link #readCsvFile(String)} with single field, but it produces a DataSet not through
+	 * {@link eu.stratosphere.api.java.tuple.Tuple1}.
+	 *
+	 * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
+	 * @param delimiter The delimiter of the given file.
+	 * @param typeClass The primitive type class to be read.
+	 * @return A DataSet that represents the data read from the given file as primitive type.
+	 */
+	public <X> DataSource<X> readPrimitiveSequence(String filePath, char delimiter, Class<X> typeClass) {
+		return new DataSource<X>(this, new PrimitiveInputFormat<X>(new Path(filePath), delimiter, typeClass), TypeExtractor.getForClass(typeClass));
+	}
+
 	// ----------------------------------- CSV Input Format ---------------------------------------
 	
 	/**
