@@ -23,52 +23,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import eu.stratosphere.api.common.operators.base.*;
+import eu.stratosphere.compiler.dag.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Union;
-import eu.stratosphere.api.common.operators.base.BulkIterationBase;
 import eu.stratosphere.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
-import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
-import eu.stratosphere.api.common.operators.base.CollectorMapOperatorBase;
-import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
-import eu.stratosphere.api.common.operators.base.DeltaIterationBase;
 import eu.stratosphere.api.common.operators.base.DeltaIterationBase.SolutionSetPlaceHolder;
 import eu.stratosphere.api.common.operators.base.DeltaIterationBase.WorksetPlaceHolder;
-import eu.stratosphere.api.common.operators.base.FilterOperatorBase;
-import eu.stratosphere.api.common.operators.base.FlatMapOperatorBase;
-import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
-import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
-import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
-import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
-import eu.stratosphere.api.common.operators.base.MapOperatorBase;
-import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
 import eu.stratosphere.compiler.costs.CostEstimator;
 import eu.stratosphere.compiler.costs.DefaultCostEstimator;
-import eu.stratosphere.compiler.dag.BinaryUnionNode;
-import eu.stratosphere.compiler.dag.BulkIterationNode;
-import eu.stratosphere.compiler.dag.BulkPartialSolutionNode;
-import eu.stratosphere.compiler.dag.CoGroupNode;
-import eu.stratosphere.compiler.dag.CollectorMapNode;
-import eu.stratosphere.compiler.dag.CrossNode;
-import eu.stratosphere.compiler.dag.DataSinkNode;
-import eu.stratosphere.compiler.dag.DataSourceNode;
-import eu.stratosphere.compiler.dag.FilterNode;
-import eu.stratosphere.compiler.dag.FlatMapNode;
-import eu.stratosphere.compiler.dag.GroupReduceNode;
-import eu.stratosphere.compiler.dag.IterationNode;
-import eu.stratosphere.compiler.dag.MapNode;
-import eu.stratosphere.compiler.dag.MatchNode;
-import eu.stratosphere.compiler.dag.OptimizerNode;
-import eu.stratosphere.compiler.dag.PactConnection;
-import eu.stratosphere.compiler.dag.ReduceNode;
-import eu.stratosphere.compiler.dag.SinkJoiner;
-import eu.stratosphere.compiler.dag.SolutionSetNode;
-import eu.stratosphere.compiler.dag.TempMode;
-import eu.stratosphere.compiler.dag.WorksetIterationNode;
-import eu.stratosphere.compiler.dag.WorksetNode;
 import eu.stratosphere.compiler.deadlockdetect.DeadlockPreventer;
 import eu.stratosphere.compiler.plan.BinaryUnionPlanNode;
 import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
@@ -663,8 +630,11 @@ public class PactCompiler {
 				n = dsn;
 			}
 			else if (c instanceof MapOperatorBase) {
-				n = new MapNode((MapOperatorBase<?, ?, ?>) c);
+				n = new MapPartitionNode((MapOperatorBase<?, ?, ?>) c);
 			}
+            else if (c instanceof MapPartitionOperatorBase) {
+                n = new MapNode((MapPartitionOperatorBase<?, ?, ?>) c);
+            }
 			else if (c instanceof CollectorMapOperatorBase) {
 				n = new CollectorMapNode((CollectorMapOperatorBase<?, ?, ?>) c);
 			}

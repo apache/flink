@@ -21,20 +21,13 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 
+import eu.stratosphere.api.java.functions.*;
 import eu.stratosphere.types.TypeInformation;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.hadoop.io.Writable;
 
 import eu.stratosphere.api.common.io.InputFormat;
-import eu.stratosphere.api.java.functions.CoGroupFunction;
-import eu.stratosphere.api.java.functions.CrossFunction;
-import eu.stratosphere.api.java.functions.FlatMapFunction;
-import eu.stratosphere.api.java.functions.GroupReduceFunction;
-import eu.stratosphere.api.java.functions.InvalidTypesException;
-import eu.stratosphere.api.java.functions.JoinFunction;
-import eu.stratosphere.api.java.functions.KeySelector;
-import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.types.Value;
 
@@ -48,6 +41,17 @@ public class TypeExtractor {
 		}
 		return createTypeInfo(MapFunction.class, mapFunction.getClass(), 1, inType, null);
 	}
+
+
+    @SuppressWarnings("unchecked")
+    public static <IN, OUT> TypeInformation<OUT> getMapPartitionReturnTypes(MapPartitionFunction<IN, OUT> mapPartitionFunction, TypeInformation<IN> inType) {
+        validateInputType(MapPartitionFunction.class, mapPartitionFunction.getClass(), 0, inType);
+        if(mapPartitionFunction instanceof ResultTypeQueryable) {
+            return ((ResultTypeQueryable<OUT>) mapPartitionFunction).getProducedType();
+        }
+        return createTypeInfo(MapPartitionFunction.class, mapPartitionFunction.getClass(), 1, inType, null);
+    }
+
 	
 	@SuppressWarnings("unchecked")
 	public static <IN, OUT> TypeInformation<OUT> getFlatMapReturnTypes(FlatMapFunction<IN, OUT> flatMapFunction, TypeInformation<IN> inType) {
