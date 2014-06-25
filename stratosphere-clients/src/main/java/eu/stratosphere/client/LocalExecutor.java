@@ -42,7 +42,7 @@ public class LocalExecutor extends PlanExecutor {
 	
 	private static boolean DEFAULT_OVERWRITE = false;
 
-	private static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = 1;
+	private static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = -1;
 
 	private final Object lock = new Object();	// we lock to ensure singleton execution
 	
@@ -214,6 +214,15 @@ public class LocalExecutor extends PlanExecutor {
 			if (this.nephele == null) {
 				// we start a session just for us now
 				shutDownAtEnd = true;
+				
+				// configure the number of local slots equal to the parallelism of the local plan
+				if (this.taskManagerNumSlots == DEFAULT_TASK_MANAGER_NUM_SLOTS) {
+					int maxParallelism = plan.getMaximumParallelism();
+					if (maxParallelism > 0) {
+						this.taskManagerNumSlots = maxParallelism;
+					}
+				}
+				
 				start();
 			} else {
 				// we use the existing session

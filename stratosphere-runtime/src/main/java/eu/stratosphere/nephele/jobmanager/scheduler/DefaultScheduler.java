@@ -269,7 +269,7 @@ public class DefaultScheduler implements InstanceListener, JobStatusListener, Ex
 
 			final int requiredSlots = executionStage.getRequiredSlots();
 
-			LOG.info("Requesting " + requiredSlots + " for job " + executionGraph.getJobID());
+			LOG.info("Requesting " + requiredSlots + " slots for job " + executionGraph.getJobID());
 
 			this.instanceManager.requestInstance(executionGraph.getJobID(), executionGraph.getJobConfiguration(),
 				requiredSlots);

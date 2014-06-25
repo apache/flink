@@ -79,7 +79,6 @@ import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobmanager.JobManagerUtils.RevisionInformation;
 import eu.stratosphere.nephele.jobmanager.accumulators.AccumulatorManager;
 import eu.stratosphere.nephele.jobmanager.archive.ArchiveListener;
 import eu.stratosphere.nephele.jobmanager.archive.MemoryArchivist;
@@ -103,6 +102,7 @@ import eu.stratosphere.nephele.taskmanager.TaskExecutionState;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 import eu.stratosphere.runtime.io.network.ConnectionInfoLookupResponse;
 import eu.stratosphere.runtime.io.network.RemoteReceiver;
+import eu.stratosphere.runtime.util.EnvironmentInformation;
 import eu.stratosphere.nephele.taskmanager.ExecutorThreadFactory;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.RegisterTaskManagerResult;
 import eu.stratosphere.nephele.topology.NetworkTopology;
@@ -287,17 +287,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		this.isShutDown = true;
 		LOG.debug("Shutdown of job manager completed");
 	}
-
-	/**
-	 * Log Stratosphere version information.
-	 */
-	private static void logVersionInformation() {
-		RevisionInformation rev = JobManagerUtils.getRevisionInformation();
-		LOG.info("Starting Stratosphere JobManager "
-				+ "(Version: " + JobManagerUtils.getVersion() + ", "
-					+ "Rev:" + rev.commitId + ", "
-					+ "Date:" + rev.commitDate + ")");
-	}
 	
 	/**
 	 * Entry point for the program
@@ -340,9 +329,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	
 	@SuppressWarnings("static-access")
 	public static JobManager initialize(String[] args) throws Exception {
-		// output the version and revision information to the log
-		logVersionInformation();
-		
 		final Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg()
 			.withDescription("Specify configuration directory.").create("configDir");
 
@@ -374,6 +360,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			System.err.println("Unrecognized execution mode: " + executionModeName);
 			System.exit(FAILURE_RETURN_CODE);
 		}
+		
+		// print some startup environment info, like user, code revision, etc
+		EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager");
 		
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);

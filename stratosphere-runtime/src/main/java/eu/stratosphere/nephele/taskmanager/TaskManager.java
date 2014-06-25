@@ -46,7 +46,6 @@ import eu.stratosphere.nephele.ExecutionMode;
 import eu.stratosphere.runtime.io.network.LocalConnectionManager;
 import eu.stratosphere.runtime.io.network.NetworkConnectionManager;
 import eu.stratosphere.runtime.io.network.netty.NettyConnectionManager;
-import eu.stratosphere.nephele.instance.Hardware;
 import eu.stratosphere.nephele.taskmanager.transferenvelope.RegisterTaskManagerResult;
 import eu.stratosphere.nephele.types.IntegerRecord;
 
@@ -59,7 +58,6 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.security.UserGroupInformation;
 
 import eu.stratosphere.api.common.cache.DistributedCache;
 import eu.stratosphere.api.common.cache.DistributedCache.DistributedCacheEntry;
@@ -81,8 +79,6 @@ import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
 import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobmanager.JobManagerUtils;
-import eu.stratosphere.nephele.jobmanager.JobManagerUtils.RevisionInformation;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.profiling.ProfilingUtils;
 import eu.stratosphere.nephele.profiling.TaskManagerProfiler;
@@ -99,6 +95,7 @@ import eu.stratosphere.pact.runtime.cache.FileCache;
 import eu.stratosphere.runtime.io.channels.ChannelID;
 import eu.stratosphere.runtime.io.network.ChannelManager;
 import eu.stratosphere.runtime.io.network.InsufficientResourcesException;
+import eu.stratosphere.runtime.util.EnvironmentInformation;
 import eu.stratosphere.util.StringUtils;
 
 /**
@@ -173,18 +170,6 @@ public class TaskManager implements TaskOperationProtocol {
 	public TaskManager(ExecutionMode executionMode) throws Exception {
 		if (executionMode == null) {
 			throw new NullPointerException("Execution mode must not be null.");
-		}
-		
-		RevisionInformation rev = JobManagerUtils.getRevisionInformation();
-		LOG.info("Starting Stratosphere TaskManager "
-				+ "(Version: " + JobManagerUtils.getVersion() + ", "
-					+ "Rev:" + rev.commitId + ", "
-					+ "Date:" + rev.commitDate + ")");
-		
-		try {
-			LOG.info("TaskManager started as user " + UserGroupInformation.getCurrentUser().getShortUserName());
-		} catch (Throwable t) {
-			LOG.error("Cannot determine user group information.", t);
 		}
 			
 		LOG.info("Execution mode: " + executionMode);
@@ -357,10 +342,13 @@ public class TaskManager implements TaskOperationProtocol {
 			HardwareDescription resources = HardwareDescriptionFactory.extractFromSystem();
 			
 			int slots = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, -1);
-			if (slots == -1) { 
-				slots = Hardware.getNumberCPUCores();
+			if (slots == -1) {
+				slots = 1;
+				LOG.info("Number of task slots not configured. Creating one task slot.");
 			} else if (slots <= 0) {
 				throw new Exception("Illegal value for the number of task slots: " + slots);
+			} else {
+				LOG.info("Creating " + slots + " task slot(s).");
 			}
 			this.numberOfSlots = slots;
 			
@@ -511,14 +499,9 @@ public class TaskManager implements TaskOperationProtocol {
 			LOG.info("Setting temporary directory to "+tempDirVal);
 			GlobalConfiguration.includeConfiguration(c);
 		}
-		System.err.println("Configuration "+GlobalConfiguration.getConfiguration());
-		LOG.info("Current user "+UserGroupInformation.getCurrentUser().getShortUserName());
 		
-		{
-			// log the available JVM memory
-			long maxMemoryMiBytes = Runtime.getRuntime().maxMemory() >>> 20;
-			LOG.info("Starting TaskManager in a JVM with " + maxMemoryMiBytes + " MiBytes maximum heap size.");
-		}
+		// print some startup environment info, like user, code revision, etc
+		EnvironmentInformation.logEnvironmentInfo(LOG, "TaskManager");
 		
 		// Create a new task manager object
 		try {
