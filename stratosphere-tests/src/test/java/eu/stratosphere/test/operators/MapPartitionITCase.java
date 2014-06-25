@@ -18,7 +18,6 @@ import eu.stratosphere.api.java.record.operators.FileDataSink;
 import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.MapPartitionFunction;
 import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
-import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.MapPartitionOperator;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
