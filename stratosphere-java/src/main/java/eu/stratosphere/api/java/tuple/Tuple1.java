@@ -114,6 +114,7 @@ public class Tuple1<T0> extends Tuple {
 	public boolean equals(Object o) {
 		if(this == o) { return true; }
 		if (!(o instanceof Tuple1)) { return false; }
+		@SuppressWarnings("rawtypes")
 		Tuple1 tuple = (Tuple1) o;
 		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) { return false; }
 		return true;

@@ -674,6 +674,7 @@ class TupleGenerator {
 		w.println("\tpublic boolean equals(Object o) {");
 		w.println("\t\tif(this == o) { return true; }");
 		w.println("\t\tif (!(o instanceof " + className + ")) { return false; }");
+		w.println("\t\t@SuppressWarnings(\"rawtypes\")");
 		w.println("\t\t" + className + " tuple = (" + className + ") o;");
 		for (int i = 0; i < numFields; i++) {
 			String field = "f" + i;

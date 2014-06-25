@@ -162,6 +162,7 @@ public class Tuple5<T0, T1, T2, T3, T4> extends Tuple {
 	public boolean equals(Object o) {
 		if(this == o) { return true; }
 		if (!(o instanceof Tuple5)) { return false; }
+		@SuppressWarnings("rawtypes")
 		Tuple5 tuple = (Tuple5) o;
 		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) { return false; }
 		if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) { return false; }

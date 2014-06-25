@@ -222,6 +222,7 @@ public class Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> extends Tuple {
 	public boolean equals(Object o) {
 		if(this == o) { return true; }
 		if (!(o instanceof Tuple10)) { return false; }
+		@SuppressWarnings("rawtypes")
 		Tuple10 tuple = (Tuple10) o;
 		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) { return false; }
 		if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) { return false; }

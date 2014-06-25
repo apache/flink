@@ -469,12 +469,12 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	// GENERATED FROM eu.stratosphere.api.java.tuple.TupleGenerator.
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -483,7 +483,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple1<T0>> tType = new TupleTypeInfo<Tuple1<T0>>(fTypes);
 
@@ -491,13 +491,13 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -506,7 +506,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple2<T0, T1>> tType = new TupleTypeInfo<Tuple2<T0, T1>>(fTypes);
 
@@ -514,14 +514,14 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -530,7 +530,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple3<T0, T1, T2>> tType = new TupleTypeInfo<Tuple3<T0, T1, T2>>(fTypes);
 
@@ -538,15 +538,15 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
 		 * @param type3 The class of field '3' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -555,7 +555,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple4<T0, T1, T2, T3>> tType = new TupleTypeInfo<Tuple4<T0, T1, T2, T3>>(fTypes);
 
@@ -563,16 +563,16 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
 		 * @param type3 The class of field '3' of the result tuples.
 		 * @param type4 The class of field '4' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -581,7 +581,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple5<T0, T1, T2, T3, T4>> tType = new TupleTypeInfo<Tuple5<T0, T1, T2, T3, T4>>(fTypes);
 
@@ -589,9 +589,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -599,7 +599,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type4 The class of field '4' of the result tuples.
 		 * @param type5 The class of field '5' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -608,7 +608,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple6<T0, T1, T2, T3, T4, T5>> tType = new TupleTypeInfo<Tuple6<T0, T1, T2, T3, T4, T5>>(fTypes);
 
@@ -616,9 +616,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -627,7 +627,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type5 The class of field '5' of the result tuples.
 		 * @param type6 The class of field '6' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -636,7 +636,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple7<T0, T1, T2, T3, T4, T5, T6>> tType = new TupleTypeInfo<Tuple7<T0, T1, T2, T3, T4, T5, T6>>(fTypes);
 
@@ -644,9 +644,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -656,7 +656,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type6 The class of field '6' of the result tuples.
 		 * @param type7 The class of field '7' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -665,7 +665,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> tType = new TupleTypeInfo<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>(fTypes);
 
@@ -673,9 +673,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -686,7 +686,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type7 The class of field '7' of the result tuples.
 		 * @param type8 The class of field '8' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -695,7 +695,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> tType = new TupleTypeInfo<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>(fTypes);
 
@@ -703,9 +703,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -717,7 +717,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type8 The class of field '8' of the result tuples.
 		 * @param type9 The class of field '9' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -726,7 +726,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> tType = new TupleTypeInfo<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>(fTypes);
 
@@ -734,9 +734,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -749,7 +749,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type9 The class of field '9' of the result tuples.
 		 * @param type10 The class of field '10' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -758,7 +758,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> tType = new TupleTypeInfo<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>(fTypes);
 
@@ -766,9 +766,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -782,7 +782,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type10 The class of field '10' of the result tuples.
 		 * @param type11 The class of field '11' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -791,7 +791,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> tType = new TupleTypeInfo<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>(fTypes);
 
@@ -799,9 +799,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -816,7 +816,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type11 The class of field '11' of the result tuples.
 		 * @param type12 The class of field '12' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -825,7 +825,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> tType = new TupleTypeInfo<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>(fTypes);
 
@@ -833,9 +833,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -851,7 +851,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type12 The class of field '12' of the result tuples.
 		 * @param type13 The class of field '13' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -860,7 +860,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> tType = new TupleTypeInfo<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>(fTypes);
 
@@ -868,9 +868,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -887,7 +887,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type13 The class of field '13' of the result tuples.
 		 * @param type14 The class of field '14' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -896,7 +896,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> tType = new TupleTypeInfo<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>(fTypes);
 
@@ -904,9 +904,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -924,7 +924,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type14 The class of field '14' of the result tuples.
 		 * @param type15 The class of field '15' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -933,7 +933,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> tType = new TupleTypeInfo<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>(fTypes);
 
@@ -941,9 +941,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -962,7 +962,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type15 The class of field '15' of the result tuples.
 		 * @param type16 The class of field '16' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -971,7 +971,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> tType = new TupleTypeInfo<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>(fTypes);
 
@@ -979,9 +979,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -1001,7 +1001,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type16 The class of field '16' of the result tuples.
 		 * @param type17 The class of field '17' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -1010,7 +1010,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> tType = new TupleTypeInfo<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>(fTypes);
 
@@ -1018,9 +1018,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -1041,7 +1041,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type17 The class of field '17' of the result tuples.
 		 * @param type18 The class of field '18' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -1050,7 +1050,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> tType = new TupleTypeInfo<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>(fTypes);
 
@@ -1058,9 +1058,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -1082,7 +1082,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type18 The class of field '18' of the result tuples.
 		 * @param type19 The class of field '19' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -1091,7 +1091,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> tType = new TupleTypeInfo<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>(fTypes);
 
@@ -1099,9 +1099,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -1124,7 +1124,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type19 The class of field '19' of the result tuples.
 		 * @param type20 The class of field '20' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -1133,7 +1133,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> tType = new TupleTypeInfo<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>(fTypes);
 
@@ -1141,9 +1141,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields.
-		 * Requires the classes of the fields of the resulting tuples.
-		 *
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * Requires the classes of the fields of the resulting tuples. 
+		 * 
 		 * @param type0 The class of field '0' of the result tuples.
 		 * @param type1 The class of field '1' of the result tuples.
 		 * @param type2 The class of field '2' of the result tuples.
@@ -1167,7 +1167,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param type20 The class of field '20' of the result tuples.
 		 * @param type21 The class of field '21' of the result tuples.
 		 * @return The projected data set.
-		 *
+		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -1176,7 +1176,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if(types.length != this.fieldIndexes.length) {
 				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
 			}
-
+			
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
 			TupleTypeInfo<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> tType = new TupleTypeInfo<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>>(fTypes);
 

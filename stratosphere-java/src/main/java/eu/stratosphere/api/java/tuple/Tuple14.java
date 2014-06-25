@@ -270,6 +270,7 @@ public class Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>
 	public boolean equals(Object o) {
 		if(this == o) { return true; }
 		if (!(o instanceof Tuple14)) { return false; }
+		@SuppressWarnings("rawtypes")
 		Tuple14 tuple = (Tuple14) o;
 		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) { return false; }
 		if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) { return false; }
