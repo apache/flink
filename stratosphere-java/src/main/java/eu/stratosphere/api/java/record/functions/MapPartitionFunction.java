@@ -13,7 +13,7 @@ import java.util.Iterator;
  */
 public abstract class MapPartitionFunction extends AbstractFunction implements GenericMapPartition<Record, Record> {
 
-    private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * This method must be implemented to provide a user implementation of a mappartitioner.
@@ -27,5 +27,5 @@ public abstract class MapPartitionFunction extends AbstractFunction implements G
 	 *                   decide whether to retry the mapper execution.
 	 */
 	@Override
-    public abstract void mapPartition(Iterator<Record> records, Collector<Record> out) throws Exception;
+	public abstract void mapPartition(Iterator<Record> records, Collector<Record> out) throws Exception;
 }

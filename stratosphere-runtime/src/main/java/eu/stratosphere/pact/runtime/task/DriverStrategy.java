@@ -39,7 +39,7 @@ public enum DriverStrategy {
 	MAP(MapDriver.class, ChainedMapDriver.class, PIPELINED, false),
 
     // the proper map partition
-    MAP_PARTITION(MapPartitionDriver.class, null, PIPELINED, false),
+	MAP_PARTITION(MapPartitionDriver.class, null, PIPELINED, false),
 
 	// the flat mapper
 	FLAT_MAP(FlatMapDriver.class, ChainedFlatMapDriver.class, PIPELINED, false),

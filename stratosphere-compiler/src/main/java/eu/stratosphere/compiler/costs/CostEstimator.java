@@ -154,7 +154,7 @@ public abstract class CostEstimator {
 		case BINARY_NO_OP:	
 		case COLLECTOR_MAP:
 		case MAP:
-        case MAP_PARTITION:
+		case MAP_PARTITION:
 		case FLAT_MAP:
 			
 		case ALL_GROUP_REDUCE:

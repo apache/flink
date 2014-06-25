@@ -14,21 +14,46 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java;
 
-import eu.stratosphere.api.java.functions.*;
-import eu.stratosphere.api.java.operators.*;
+
 import org.apache.commons.lang3.Validate;
 
 import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.java.aggregation.Aggregations;
+import eu.stratosphere.api.java.functions.CoGroupFunction;
+import eu.stratosphere.api.java.functions.FilterFunction;
+import eu.stratosphere.api.java.functions.FlatMapFunction;
+import eu.stratosphere.api.java.functions.MapPartitionFunction;
+import eu.stratosphere.api.java.functions.GroupReduceFunction;
+import eu.stratosphere.api.java.functions.KeySelector;
+import eu.stratosphere.api.java.functions.MapFunction;
+import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.io.CsvOutputFormat;
 import eu.stratosphere.api.java.io.PrintingOutputFormat;
 import eu.stratosphere.api.java.io.TextOutputFormat;
+import eu.stratosphere.api.java.operators.AggregateOperator;
+import eu.stratosphere.api.java.operators.CoGroupOperator;
 import eu.stratosphere.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
+import eu.stratosphere.api.java.operators.CrossOperator;
 import eu.stratosphere.api.java.operators.CrossOperator.DefaultCross;
+import eu.stratosphere.api.java.operators.CustomUnaryOperation;
+import eu.stratosphere.api.java.operators.DataSink;
+import eu.stratosphere.api.java.operators.FilterOperator;
+import eu.stratosphere.api.java.operators.FlatMapOperator;
+import eu.stratosphere.api.java.operators.MapPartitionOperator;
+import eu.stratosphere.api.java.operators.Grouping;
+import eu.stratosphere.api.java.operators.JoinOperator;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinHint;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinOperatorSets;
+import eu.stratosphere.api.java.operators.Keys;
+import eu.stratosphere.api.java.operators.MapOperator;
+import eu.stratosphere.api.java.operators.ProjectOperator;
 import eu.stratosphere.api.java.operators.ProjectOperator.Projection;
+import eu.stratosphere.api.java.operators.ReduceGroupOperator;
+import eu.stratosphere.api.java.operators.ReduceOperator;
+import eu.stratosphere.api.java.operators.SortedGrouping;
+import eu.stratosphere.api.java.operators.UnionOperator;
+import eu.stratosphere.api.java.operators.UnsortedGrouping;
 import eu.stratosphere.api.java.record.functions.CrossFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple2;
@@ -36,6 +61,7 @@ import eu.stratosphere.api.java.typeutils.InputTypeConfigurable;
 import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.core.fs.FileSystem.WriteMode;
 import eu.stratosphere.core.fs.Path;
+
 
 /**
  * A DataSet represents a collection of elements of the same type.<br/>

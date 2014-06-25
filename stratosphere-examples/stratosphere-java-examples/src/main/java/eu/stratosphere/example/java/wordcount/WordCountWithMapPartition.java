@@ -16,7 +16,6 @@ package eu.stratosphere.example.java.wordcount;
 
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.MapPartitionFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.example.java.wordcount.util.WordCountData;
@@ -103,7 +102,7 @@ public class WordCountWithMapPartition {
 					}
 				}
 			}
-        }
+		}
 	}
 	
 	// *************************************************************************
