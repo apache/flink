@@ -63,9 +63,6 @@ public class WordCountWithMapPartition {
 		// get input data
 		DataSet<String> text = getTextDataSet(env);
 
-
-
-
 		DataSet<Tuple2<String, Integer>> counts =
 				// split up the lines in pairs (2-tuples) containing: (word,1)
 				text.mapPartition(new Tokenizer())
@@ -94,32 +91,19 @@ public class WordCountWithMapPartition {
 	 * multiple pairs in the form of "(word,1)" (Tuple2<String, Integer>).
 	 */
 	public static final class Tokenizer extends MapPartitionFunction<String, Tuple2<String, Integer>> {
-        @Override
-        public void mapPartition(Iterator<String> records, Collector<Tuple2<String, Integer>> out) throws Exception {
-            while(records.hasNext()){
-                // normalize and split the line
-                String[] tokens = records.next().toLowerCase().split("\\W+");
-                // emit the pairs
-                for (String token : tokens) {
-                    if (token.length() > 0) {
-                        out.collect(new Tuple2<String, Integer>(token, 1));
-                    }
-                }
-            }
-        }
-
-		/*@Override
-		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
-			// normalize and split the line
-			String[] tokens = value.toLowerCase().split("\\W+");
-			
-			// emit the pairs
-			for (String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new Tuple2<String, Integer>(token, 1));
+		@Override
+			public void mapPartition(Iterator<String> records, Collector<Tuple2<String, Integer>> out) throws Exception {
+				while(records.hasNext()){
+				// normalize and split the line
+				String[] tokens = records.next().toLowerCase().split("\\W+");
+				// emit the pairs
+				for (String token : tokens) {
+					if (token.length() > 0) {
+						out.collect(new Tuple2<String, Integer>(token, 1));
+					}
 				}
 			}
-		}*/
+        }
 	}
 	
 	// *************************************************************************
