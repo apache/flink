@@ -40,7 +40,7 @@ import eu.stratosphere.types.Record;
  */
 public class MapPartitionOperator extends MapPartitionOperatorBase<Record, Record, MapPartitionFunction> implements RecordOperator {
 	
-	private static String DEFAULT_NAME = "<Unnamed MapPartitioner>";
+	private static String DEFAULT_NAME = "<Unnamed MapPartition>";
 	
 	// --------------------------------------------------------------------------------------------
 	
