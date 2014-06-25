@@ -72,8 +72,8 @@ public class JobInputVertex extends AbstractJobInputVertex {
 	 */
 	@Override
 	public Class<? extends InputSplit> getInputSplitType() {
-		if(inputFormat == null){
-			throw new RuntimeException("No input format has been set for job vertex: "+ this.getID());
+		if (inputFormat == null){
+			return InputSplit.class;
 		}
 
 		return inputFormat.getInputSplitType();
@@ -89,7 +89,7 @@ public class JobInputVertex extends AbstractJobInputVertex {
 	@Override
 	public InputSplit[] getInputSplits(int minNumSplits) throws IOException {
 		if (inputFormat == null){
-			throw new RuntimeException("No input format has been set for job vertex: "+ this.getID());
+			return null;
 		}
 
 		return inputFormat.createInputSplits(minNumSplits);

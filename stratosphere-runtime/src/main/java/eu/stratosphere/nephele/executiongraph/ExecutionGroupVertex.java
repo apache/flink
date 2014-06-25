@@ -429,8 +429,9 @@ public final class ExecutionGroupVertex {
 	 *
 	 * @param inputSplitType Input split type class
 	 */
-	public void setInputSplitType(final Class<? extends InputSplit> inputSplitType) { this.inputSplitType =
-			inputSplitType; }
+	public void setInputSplitType(final Class<? extends InputSplit> inputSplitType) { 
+		this.inputSplitType = inputSplitType;
+	}
 
 	/**
 	 * Returns the input splits assigned to this group vertex.
@@ -438,7 +439,6 @@ public final class ExecutionGroupVertex {
 	 * @return the input splits, possibly <code>null</code> if the group vertex does not represent an input vertex
 	 */
 	public InputSplit[] getInputSplits() {
-
 		return this.inputSplits;
 	}
 

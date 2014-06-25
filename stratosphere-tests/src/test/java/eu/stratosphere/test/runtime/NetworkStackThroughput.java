@@ -13,12 +13,16 @@
 
 package eu.stratosphere.test.runtime;
 
-import eu.stratosphere.api.common.io.GenericInputFormat;
-import eu.stratosphere.api.common.io.OutputFormat;
-import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.junit.After;
+
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.jobgraph.DistributionPattern;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
@@ -26,20 +30,11 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.runtime.io.api.RecordReader;
 import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.test.util.RecordAPITestBase;
-import eu.stratosphere.types.Record;
 import eu.stratosphere.util.LogUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.junit.After;
-
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 
 public class NetworkStackThroughput {
 
@@ -109,9 +104,6 @@ public class NetworkStackThroughput {
 			producer.getConfiguration().setInteger(DATA_VOLUME_GB_CONFIG_KEY, dataVolumeGb);
 			producer.getConfiguration().setBoolean(IS_SLOW_SENDER_CONFIG_KEY, isSlowSender);
 
-			TaskConfig inputConfig = new TaskConfig(producer.getConfiguration());
-			inputConfig.setStubWrapper(new UserCodeObjectWrapper<Object>(new DummyInputFormat()));
-
 			JobTaskVertex forwarder = null;
 			if (useForwarder) {
 				forwarder = new JobTaskVertex("Speed Test Forwarder", jobGraph);
@@ -123,9 +115,6 @@ public class NetworkStackThroughput {
 			consumer.setInvokableClass(SpeedTestConsumer.class);
 			consumer.setNumberOfSubtasks(numSubtasks);
 			consumer.getConfiguration().setBoolean(IS_SLOW_RECEIVER_CONFIG_KEY, isSlowReceiver);
-
-			TaskConfig outputConfig = new TaskConfig(consumer.getConfiguration());
-			outputConfig.setStubWrapper(new UserCodeObjectWrapper<Object>(new DummyOutputFormat()));
 
 			if (useForwarder) {
 				producer.connectTo(forwarder, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
@@ -266,45 +255,6 @@ public class NetworkStackThroughput {
 		@Override
 		public void read(DataInput in) throws IOException {
 			in.readFully(this.buf);
-		}
-	}
-
-	public static final class DummyInputFormat extends GenericInputFormat {
-
-		private static final long serialVersionUID = 6891640958330871924L;
-
-		@Override
-		public void open(InputSplit split) throws IOException {
-
-		}
-
-		@Override
-		public boolean reachedEnd() throws IOException {
-			return false;
-		}
-
-		@Override
-		public Object nextRecord(Object reuse) throws IOException {
-			return null;
-		}
-	}
-
-	public static final class DummyOutputFormat implements OutputFormat<Record> {
-
-		@Override
-		public void configure(Configuration parameters) {
-		}
-
-		@Override
-		public void open(int taskNumber, int numTasks) {
-		}
-
-		@Override
-		public void writeRecord(Record record) {
-		}
-
-		@Override
-		public void close() {
 		}
 	}
 
