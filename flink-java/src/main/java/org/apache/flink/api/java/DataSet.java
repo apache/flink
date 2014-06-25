@@ -140,6 +140,33 @@ public abstract class DataSet<T> {
 		}
 		return new MapOperator<T, R>(this, mapper);
 	}
+
+
+
+    /**
+     * Applies a Map operation to the entire partition of the data.
+	 * The function is called once per parallel partition of the data,
+	 * and the entire partition is available through the given Iterator.
+	 * The number of elements that each instance of the MapPartition function
+	 * sees is non deterministic and depends on the degree of parallelism of the operation.
+	 *
+	 * This function is intended for operations that cannot transform individual elements,
+	 * requires no grouping of elements. To transform individual elements,
+	 * the use of {@code map()} and {@code flatMap()} is preferable.
+	 *
+	 * @param mapPartition The MapPartitionFunction that is called for the full DataSet.
+     * @return A MapPartitionOperator that represents the transformed DataSet.
+     *
+     * @see MapPartitionFunction
+     * @see MapPartitionOperator
+     * @see DataSet
+     */
+	public <R> MapPartitionOperator<T, R> mapPartition(MapPartitionFunction<T, R> mapPartition ){
+		if (mapPartition == null) {
+			throw new NullPointerException("MapPartition function must not be null.");
+		}
+		return new MapPartitionOperator<T, R>(this, mapPartition);
+	}
 	
 	/**
 	 * Applies a FlatMap transformation on a {@link DataSet}.<br/>

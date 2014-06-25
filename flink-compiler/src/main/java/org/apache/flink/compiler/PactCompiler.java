@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler;
 
 import java.util.ArrayDeque;
@@ -670,6 +669,9 @@ public class PactCompiler {
 			}
 			else if (c instanceof MapOperatorBase) {
 				n = new MapNode((MapOperatorBase<?, ?, ?>) c);
+			}
+			else if (c instanceof MapPartitionOperatorBase) {
+				n = new MapPartitionNode((MapPartitionOperatorBase<?, ?, ?>) c);
 			}
 			else if (c instanceof org.apache.flink.api.common.operators.base.CollectorMapOperatorBase) {
 				n = new CollectorMapNode((org.apache.flink.api.common.operators.base.CollectorMapOperatorBase<?, ?, ?>) c);
