@@ -17,37 +17,28 @@ package eu.stratosphere.api.java.tuple;
 
 import junit.framework.Assert;
 
-import org.junit.Before;
 import org.junit.Test;
 
 public class Tuple2Test {
 	
-	private Tuple2<String, Integer> classUnderTestTuple2;
-
-	@Before
-	public void setUp() throws Exception {
-		classUnderTestTuple2 = new Tuple2<String, Integer>(new String("Test case"), 25);
-	}
 
 	@Test
 	public void testSwapValues() {
-		// Tuple 2 is instantiated with String and Integer
-		String stringBeforeSwap = classUnderTestTuple2.f0;
-		Integer intBeforeSwap = classUnderTestTuple2.f1;
+		Tuple2<String, Integer> fullTuple2 = new Tuple2<String, Integer>(new String("Test case"), 25);
+		//Swapped tuple for comparison
+		Tuple2<Integer, String> swappedTuple2 = new Tuple2<Integer, String>(25, new String("Test case"));
 		
 		// Swap the values
-		classUnderTestTuple2.swapValues();
-		
-		// Check if values are really swapped and is really the same (Object.equals);
+		fullTuple2.swapValues();
 		
 		// Assert when not the same
 		// Use overloaded equals method to check for equality. Especially important for String
-		if(!classUnderTestTuple2.getField(0).equals(intBeforeSwap)) {
-			Assert.fail();
+		if(!swappedTuple2.f0.equals(fullTuple2.getField(0))) {
+			Assert.fail("Swapped values should be the same");
 		}
 		
-		if(!classUnderTestTuple2.getField(1).equals(stringBeforeSwap)) {
-			Assert.fail();
+		if(!swappedTuple2.f1.equals(fullTuple2.getField(1))) {
+			Assert.fail("Swapped values should be the same");
 		}
 		
 	}
