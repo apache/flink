@@ -28,7 +28,7 @@ import eu.stratosphere.util.Collector;
  * over hard coded examples or text files. This example demonstrates how to use KeySelectors, ReduceFunction and FlatMapFunction.
  */
 @SuppressWarnings("serial")
-public class WordCountPLOJO {
+public class WordCountPOJO {
 	
 	/**
 	 * Runs the WordCount program.
@@ -50,11 +50,11 @@ public class WordCountPLOJO {
 		
 		// Read the text file from given input path or hard coded
 		DataSet<String> text = null;
-		try {
+		if(args.length >= 1) {
 			inputPath = args[0];
-			env.readTextFile(inputPath);
+			text = env.readTextFile(inputPath);
 		}
-		catch(Exception e) {
+		else {
 			System.out.println("No input file specified. Using hard coded example.");
 			text = env.fromElements("To be", "or not to be", "or to be still", "and certainly not to be not at all", "is that the question?");
 		}
@@ -62,22 +62,17 @@ public class WordCountPLOJO {
 		// Split up the lines in pairs (2-tuples) containing: (word,1)
 		DataSet<CustomizedWord> words = text.flatMap(new Tokenizer());
 		
-		// Create KeySelector to be able to group CustomizedWord 
-		CustomizedWordKeySelector keySelector = new CustomizedWordKeySelector();
-		
-		// Instantiate customized reduce function
-		CustomizedWordReducer reducer = new CustomizedWordReducer();
-		
-		// Group by the tuple field "0" and sum up tuple field "1"
-		DataSet<CustomizedWord> result = words.groupBy(keySelector).reduce(reducer);
+		// Group by the tuple field "0" and sum up tuple field "1". Create KeySelector to be able to group CustomizedWord. Instantiate customized reduce function. 
+		DataSet<CustomizedWord> result = words.groupBy(new CustomizedWordKeySelector())
+				.reduce(new CustomizedWordReducer());
 		
 		// Print result
-		try {
+		if( args.length >= 2) {
 			outputPath = args[1];
 			// write out the result
 			result.writeAsText(outputPath);
 		}
-		catch(Exception e) {
+		else {
 			System.out.println("No output file specified. Printing result to console.");
 			// Print result to console
 			result.print();
