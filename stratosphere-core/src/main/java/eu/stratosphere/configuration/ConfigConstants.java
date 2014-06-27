@@ -156,12 +156,6 @@ public final class ConfigConstants {
 	public static final String FS_STREAM_OPENING_TIMEOUT_KEY = "taskmanager.runtime.fs_timeout";
 	
 	/**
-	 * The config parameter defining whether to use the special multicast logic
-	 * for broadcasts. Use with caution! The multicast logic is experimental at this point.
-	 */
-	public static final String USE_MULTICAST_FOR_BROADCAST = "taskmanager.runtime.multicast-for-broadcast";
-	
-	/**
 	 * The parameter defining the polling interval (in seconds) for the JobClient.
 	 */
 	public static final String JOBCLIENT_POLLING_INTERVAL_KEY = "jobclient.polling.interval";
