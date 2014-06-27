@@ -28,7 +28,7 @@ import eu.stratosphere.util.Collector;
  * over hard coded examples or text files. This example demonstrates how to use KeySelectors, ReduceFunction and FlatMapFunction.
  */
 @SuppressWarnings("serial")
-public class WordCountPOJO {
+public class WordCountKeySelector {
 	
 	/**
 	 * Runs the WordCount program.
