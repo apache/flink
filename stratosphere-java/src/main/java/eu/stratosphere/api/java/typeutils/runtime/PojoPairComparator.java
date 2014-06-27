@@ -28,6 +28,7 @@ public class PojoPairComparator<T1, T2> extends TypePairComparator<T1, T2> imple
 
 	private static final long serialVersionUID = 1L;
 
+	@SuppressWarnings("unused")
 	private final int[] keyPositions1, keyPositions2;
 	private transient Field[] keyFields1, keyFields2;
 	private final TypeComparator<Object>[] comparators1;

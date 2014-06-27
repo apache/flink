@@ -187,6 +187,7 @@ public abstract class Keys<T> {
 
 		private final TypeInformation<?>[] types;
 
+		@SuppressWarnings("unused")
 		private PojoTypeInfo<?> type;
 
 		public ExpressionKeys(String[] expressions, TypeInformation<T> type) {

@@ -17,8 +17,6 @@ package eu.stratosphere.api.java.typeutils.runtime;
 import java.util.Random;
 
 import com.google.common.base.Objects;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 
 import eu.stratosphere.api.common.typeutils.SerializerTestBase;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;

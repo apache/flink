@@ -18,8 +18,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.types.TypeInformation;
 import junit.framework.Assert;
 
 import org.junit.Test;

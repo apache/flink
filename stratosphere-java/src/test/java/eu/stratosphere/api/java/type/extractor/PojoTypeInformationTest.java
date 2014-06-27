@@ -13,17 +13,15 @@
 
 package eu.stratosphere.api.java.type.extractor;
 
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
 import eu.stratosphere.api.java.typeutils.PojoTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.TypeInformation;
 
+@SuppressWarnings("unused")
 public class PojoTypeInformationTest {
 
 	static class SimplePojo {
