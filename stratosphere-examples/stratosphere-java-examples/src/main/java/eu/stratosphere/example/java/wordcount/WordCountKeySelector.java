@@ -38,7 +38,7 @@ public class WordCountKeySelector {
 	public static void main(String[] args) throws Exception {
 		// Check whether arguments are given and tell user how to use this example with files.
 		if (args.length < 2) {
-			System.out.println("You can specify: WordCountPLOJO <input path> <result path>, in order to work with files.");
+			System.out.println("You can specify: WordCountKeySelector <input path> <result path>, in order to work with files.");
 		}
 		
 		// Input and output path [optional]
