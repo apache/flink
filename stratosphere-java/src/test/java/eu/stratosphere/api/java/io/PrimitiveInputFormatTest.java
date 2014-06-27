@@ -44,7 +44,7 @@ public class PrimitiveInputFormatTest {
 	public void testStringInput() {
 		try {
 			final String fileContent = "abc|def||";
-			final FileInputSplit split = createTempFile(fileContent);
+			final FileInputSplit split = createInputSplit(fileContent);
 
 			final PrimitiveInputFormat<String> format = new PrimitiveInputFormat<String>(PATH, '|', String.class);
 
@@ -79,7 +79,7 @@ public class PrimitiveInputFormatTest {
 	public void testIntegerInput() throws IOException {
 		try {
 			final String fileContent = "111|222|";
-			final FileInputSplit split = createTempFile(fileContent);
+			final FileInputSplit split = createInputSplit(fileContent);
 
 			final PrimitiveInputFormat<Integer> format = new PrimitiveInputFormat<Integer>(PATH,'|', Integer.class);
 
@@ -106,7 +106,7 @@ public class PrimitiveInputFormatTest {
 	public void testDoubleInputLinewise() throws IOException {
 		try {
 			final String fileContent = "1.21\n2.23\n";
-			final FileInputSplit split = createTempFile(fileContent);
+			final FileInputSplit split = createInputSplit(fileContent);
 
 			final PrimitiveInputFormat<Double> format = new PrimitiveInputFormat<Double>(PATH, Double.class);
 
@@ -129,24 +129,13 @@ public class PrimitiveInputFormatTest {
 		}
 	}
 
-	private FileInputSplit createTempFile(String content) throws IOException {
-		File tempFile = File.createTempFile("test_contents", "tmp");
-		tempFile.deleteOnExit();
-
-		FileWriter wrt = new FileWriter(tempFile);
-		wrt.write(content);
-		wrt.close();
-
-		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
-	}
-
 	@Test
 	public void testRemovingTrailingCR() {
 		try {
 			String first = "First line";
 			String second = "Second line";
 			String fileContent = first + "\r\n" + second + "\r\n";
-			final FileInputSplit split = createTempFile(fileContent);
+			final FileInputSplit split = createInputSplit(fileContent);
 
 			final PrimitiveInputFormat<String> format = new PrimitiveInputFormat<String>(PATH ,String.class);
 
@@ -160,11 +149,21 @@ public class PrimitiveInputFormatTest {
 
 			result = format.nextRecord(result);
 			assertEquals(second, result);
-
 		}
 		catch (Exception ex) {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
 		}
+	}
+
+	private FileInputSplit createInputSplit(String content) throws IOException {
+		File tempFile = File.createTempFile("test_contents", "tmp");
+		tempFile.deleteOnExit();
+
+		FileWriter wrt = new FileWriter(tempFile);
+		wrt.write(content);
+		wrt.close();
+
+		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
 	}
 
 }

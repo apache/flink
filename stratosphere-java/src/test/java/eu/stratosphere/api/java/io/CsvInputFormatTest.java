@@ -57,7 +57,7 @@ public class CsvInputFormatTest {
 	public void readStringFields() {
 		try {
 			final String fileContent = "abc|def|ghijk\nabc||hhg\n|||";
-			final FileInputSplit split = createTempFile(fileContent);
+			final FileInputSplit split = createInputSplit(fileContent);
 			
 			final CsvInputFormat<Tuple3<String, String, String>> format = new CsvInputFormat<Tuple3<String, String, String>>(PATH, "\n", '|', String.class, String.class, String.class);
 		
@@ -99,7 +99,7 @@ public class CsvInputFormatTest {
 	public void readStringFieldsWithTrailingDelimiters() {
 		try {
 			final String fileContent = "abc|def|ghijk\nabc||hhg\n|||\n";
-			final FileInputSplit split = createTempFile(fileContent);
+			final FileInputSplit split = createInputSplit(fileContent);
 		
 			final CsvInputFormat<Tuple3<String, String, String>> format = new CsvInputFormat<Tuple3<String, String, String>>(PATH);
 			
@@ -142,7 +142,7 @@ public class CsvInputFormatTest {
 	public void testIntegerFieldsl() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555\n666|777|888|999|000|\n";
-			final FileInputSplit split = createTempFile(fileContent);	
+			final FileInputSplit split = createInputSplit(fileContent);
 		
 			final CsvInputFormat<Tuple5<Integer, Integer, Integer, Integer, Integer>> format = new CsvInputFormat<Tuple5<Integer, Integer, Integer, Integer, Integer>>(PATH);
 			
@@ -183,7 +183,7 @@ public class CsvInputFormatTest {
 	public void testReadFirstN() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555|\n666|777|888|999|000|\n";
-			final FileInputSplit split = createTempFile(fileContent);	
+			final FileInputSplit split = createInputSplit(fileContent);
 		
 			final CsvInputFormat<Tuple2<Integer, Integer>> format = new CsvInputFormat<Tuple2<Integer, Integer>>(PATH);
 			
@@ -219,7 +219,7 @@ public class CsvInputFormatTest {
 	public void testReadSparseWithNullFieldsForTypes() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
-			final FileInputSplit split = createTempFile(fileContent);	
+			final FileInputSplit split = createInputSplit(fileContent);
 			
 			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH);
 			
@@ -256,7 +256,7 @@ public class CsvInputFormatTest {
 	public void testReadSparseWithPositionSetter() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
-			final FileInputSplit split = createTempFile(fileContent);	
+			final FileInputSplit split = createInputSplit(fileContent);
 			
 			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH);
 			
@@ -295,7 +295,7 @@ public class CsvInputFormatTest {
 	public void testReadSparseWithMask() throws IOException {
 		try {
 			final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
-			final FileInputSplit split = createTempFile(fileContent);	
+			final FileInputSplit split = createInputSplit(fileContent);
 			
 			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH);
 			
@@ -348,17 +348,6 @@ public class CsvInputFormatTest {
 		catch (Exception ex) {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
 		}
-	}
-	
-	private FileInputSplit createTempFile(String content) throws IOException {
-		File tempFile = File.createTempFile("test_contents", "tmp");
-		tempFile.deleteOnExit();
-		
-		FileWriter wrt = new FileWriter(tempFile);
-		wrt.write(content);
-		wrt.close();
-			
-		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
 	}
 	
 	@Test
@@ -415,13 +404,23 @@ public class CsvInputFormatTest {
 			
 			assertNotNull("Expecting to not return null", result);
 			assertEquals(SECOND_PART, result.f0);
-			
 		}
 		catch (Throwable t) {
 			System.err.println("test failed with exception: " + t.getMessage());
 			t.printStackTrace(System.err);
 			fail("Test erroneous");
 		}
+	}
+
+	private FileInputSplit createInputSplit(String content) throws IOException {
+		File tempFile = File.createTempFile("test_contents", "tmp");
+		tempFile.deleteOnExit();
+
+		FileWriter wrt = new FileWriter(tempFile);
+		wrt.write(content);
+		wrt.close();
+
+		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
 	}
 
 }
