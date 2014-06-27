@@ -272,7 +272,7 @@ public class NepheleMiniCluster {
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, defaultOverwriteFiles);
 		config.setBoolean(ConfigConstants.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY, defaultAlwaysCreateDirectory);
 
-		if(memorySize < 0){
+		if (memorySize < 0){
 			memorySize = HardwareDescriptionFactory.extractFromSystem().getSizeOfFreeMemory();
 
 			// at this time, we need to scale down the memory, because we cannot dedicate all free memory to the
@@ -282,9 +282,12 @@ public class NepheleMiniCluster {
 					GlobalConfiguration.getLong(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
 							ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE);
 
-			memorySize = (long) (0.8 * (memorySize - bufferMem));
+			memorySize = memorySize - bufferMem;
+			
+			// apply the fraction that makes sure memory is left to the heap for other data structures and UDFs.
+			memorySize = (long) (memorySize * ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
 
-			//convert from bytes to mega bytes
+			//convert from bytes to megabytes
 			memorySize >>>= 20;
 		}
 

@@ -334,9 +334,8 @@ public class TaskManager implements TaskOperationProtocol {
 			throw new Exception("Failed to instantiate ChannelManager.", ioe);
 		}
 
+		// initialize the number of slots
 		{
-			HardwareDescription resources = HardwareDescriptionFactory.extractFromSystem();
-			
 			int slots = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, -1);
 			if (slots == -1) {
 				slots = 1;
@@ -347,23 +346,34 @@ public class TaskManager implements TaskOperationProtocol {
 				LOG.info("Creating " + slots + " task slot(s).");
 			}
 			this.numberOfSlots = slots;
+		}
+		
+		this.hardwareDescription = HardwareDescriptionFactory.extractFromSystem();
+		
+		// initialize the memory manager
+		{
+			// Check whether the memory size has been explicitly configured.
+			final long configuredMemorySize = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1);
+			final long memorySize;
 			
-			// Check whether the memory size has been explicitly configured. if so that overrides the default mechanism
-			// of taking as much as is mentioned in the hardware description
-			long memorySize = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1);
-
-			if (memorySize > 0) {
-				// manually configured memory size. override the value in the hardware config
-				resources = HardwareDescriptionFactory.construct(resources.getNumberOfCPUCores(),
-					resources.getSizeOfPhysicalMemory(), memorySize * 1024L * 1024L);
+			if (configuredMemorySize == -1) {
+				// no manually configured memory. take a relative fraction of the free heap space
+				float fraction = GlobalConfiguration.getFloat(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY, ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
+				memorySize = (long) (this.hardwareDescription.getSizeOfFreeMemory() * fraction);
+				LOG.info("Using " + fraction + " of the free heap space for managed memory.");
 			}
-			this.hardwareDescription = resources;
+			else if (configuredMemorySize <= 0) {
+				throw new Exception("Invalid value for Memory Manager memory size: " + configuredMemorySize);
+			}
+			else {
+				memorySize = configuredMemorySize << 20;
+			}
 
 			final int pageSize = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
 					ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE);
 
 			// Initialize the memory manager
-			LOG.info("Initializing memory manager with " + (resources.getSizeOfFreeMemory() >>> 20) + " megabytes of memory. " +
+			LOG.info("Initializing memory manager with " + (memorySize >>> 20) + " megabytes of memory. " +
 					"Page size is " + pageSize + " bytes.");
 			
 			try {
@@ -371,11 +381,9 @@ public class TaskManager implements TaskOperationProtocol {
 				final boolean lazyAllocation = GlobalConfiguration.getBoolean(ConfigConstants.TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY,
 					ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_LAZY_ALLOCATION);
 				
-				this.memoryManager = new DefaultMemoryManager(resources.getSizeOfFreeMemory(), this.numberOfSlots,
-						pageSize);
+				this.memoryManager = new DefaultMemoryManager(memorySize, this.numberOfSlots, pageSize);
 			} catch (Throwable t) {
-				LOG.fatal("Unable to initialize memory manager with " + (resources.getSizeOfFreeMemory() >>> 20)
-					+ " megabytes of memory.", t);
+				LOG.fatal("Unable to initialize memory manager with " + (memorySize >>> 20) + " megabytes of memory.", t);
 				throw new Exception("Unable to initialize memory manager.", t);
 			}
 		}
