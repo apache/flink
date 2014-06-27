@@ -15,9 +15,12 @@
 package eu.stratosphere.api.java.io;
 
 import eu.stratosphere.api.common.io.DelimitedInputFormat;
+import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.types.parser.FieldParser;
 import eu.stratosphere.util.InstantiationUtil;
+
+import java.io.IOException;
 
 /**
  * An input format that reads single field primitive data from a given file. The difference between this and
@@ -31,26 +34,29 @@ public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 
 	private static final byte NEW_LINE = (byte) '\n';
 
+	private transient FieldParser<OT> parser;
+
 
 	public PrimitiveInputFormat(Path filePath, Class<OT> primitiveClass) {
 		super(filePath);
-		Class<? extends FieldParser<OT>> parserType = FieldParser.getParserForType(primitiveClass);
-		if (parserType == null) {
-			throw new IllegalArgumentException("The type '" + primitiveClass.getName() + "' is not supported for the primitive input format.");
-		}
 		this.primitiveClass = primitiveClass;
 	}
 
 	public PrimitiveInputFormat(Path filePath, char delimiter, Class<OT> primitiveClass) {
 		super(filePath);
-		Class<? extends FieldParser<OT>> parserType = FieldParser.getParserForType(primitiveClass);
-		if (parserType == null) {
-			throw new IllegalArgumentException("The type '" + primitiveClass.getName() + "' is not supported for the primitive input format.");
-		}
 		this.primitiveClass = primitiveClass;
 		this.setDelimiter(delimiter);
 	}
 
+	@Override
+	public void open(FileInputSplit split) throws IOException {
+		super.open(split);
+		Class<? extends FieldParser<OT>> parserType = FieldParser.getParserForType(primitiveClass);
+		if (parserType == null) {
+			throw new IllegalArgumentException("The type '" + primitiveClass.getName() + "' is not supported for the primitive input format.");
+		}
+		parser = InstantiationUtil.instantiate(parserType, FieldParser.class);
+	}
 
 	@Override
 	public OT readRecord(OT reuse, byte[] bytes, int offset, int numBytes) {
@@ -61,11 +67,7 @@ public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 			numBytes -= 1;
 		}
 
-		Class<? extends FieldParser<OT>> parserType = FieldParser.getParserForType(this.primitiveClass);
-		@SuppressWarnings("unchecked")
-		FieldParser<OT> p = (FieldParser<OT>) InstantiationUtil.instantiate(parserType, FieldParser.class);
-		p.parseField(bytes, offset, numBytes + offset, (char) this.getDelimiter()[0], reuse);
-
-		return p.getLastResult();
+		parser.parseField(bytes, offset, numBytes + offset, (char) this.getDelimiter()[0], reuse);
+		return parser.getLastResult();
 	}
 }
