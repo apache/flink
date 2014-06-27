@@ -102,16 +102,10 @@ public class HardwareDescriptionFactory {
 	 *         determined
 	 */
 	private static long getSizeOfFreeMemory() {
-		float fractionToUse = GlobalConfiguration.getFloat(
-			ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY, ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
-		
 		Runtime r = Runtime.getRuntime();
-		long max = r.maxMemory();
-		long total = r.totalMemory();
-		long free = r.freeMemory();
-		
-		long available = max - total + free;
-		return (long) (fractionToUse * available);
+		long available = r.maxMemory() - r.totalMemory() + r.freeMemory();
+
+		return available;
 	}
 
 	/**

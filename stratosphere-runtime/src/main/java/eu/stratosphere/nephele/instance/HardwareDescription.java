@@ -67,7 +67,6 @@ public final class HardwareDescription implements IOReadableWritable {
 		this.sizeOfFreeMemory = sizeOfFreeMemory;
 	}
 
-
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
@@ -75,7 +74,6 @@ public final class HardwareDescription implements IOReadableWritable {
 		out.writeLong(this.sizeOfPhysicalMemory);
 		out.writeLong(this.sizeOfFreeMemory);
 	}
-
 
 	@Override
 	public void read(final DataInput in) throws IOException {
