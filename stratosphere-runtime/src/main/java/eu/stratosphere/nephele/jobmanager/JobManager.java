@@ -335,9 +335,14 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		final Option executionModeOpt = OptionBuilder.withArgName("execution mode").hasArg()
 			.withDescription("Specify execution mode.").create("executionMode");
 
+		final Option jobmanagerAddOpt = OptionBuilder.withArgName("jobmanager rpc address").hasArg().withDescription(
+			"Specify jobmanager rpc address.").create("jobmanagerAdd");
+
+		jobmanagerAddOpt.setRequired(false);
 		final Options options = new Options();
 		options.addOption(configDirOpt);
 		options.addOption(executionModeOpt);
+		options.addOption(jobmanagerAddOpt);
 
 		CommandLineParser parser = new GnuParser();
 		CommandLine line = null;
@@ -350,7 +355,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		final String configDir = line.getOptionValue(configDirOpt.getOpt(), null);
 		final String executionModeName = line.getOptionValue(executionModeOpt.getOpt(), "local");
-		
+		final String jobmanagerAdd = line.getOptionValue(jobmanagerAddOpt.getOpt(), null);
+
 		ExecutionMode executionMode = null;
 		if ("local".equals(executionModeName)) {
 			executionMode = ExecutionMode.LOCAL;
@@ -360,12 +366,20 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			System.err.println("Unrecognized execution mode: " + executionModeName);
 			System.exit(FAILURE_RETURN_CODE);
 		}
-		
+
 		// print some startup environment info, like user, code revision, etc
 		EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager");
 		
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
+
+		// Get the jobmanager rpc address
+		if (jobmanagerAdd != null) {
+			Configuration c = GlobalConfiguration.getConfiguration();
+			c.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobmanagerAdd);
+			LOG.info("Setting jobmanager rpc address to "+ jobmanagerAdd);
+			GlobalConfiguration.includeConfiguration(c);
+		}
 
 		// Create a new job manager object
 		JobManager jobManager = new JobManager(executionMode);

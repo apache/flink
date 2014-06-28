@@ -477,11 +477,16 @@ public class TaskManager implements TaskOperationProtocol {
 		Option tempDir = OptionBuilder.withArgName("temporary directory (overwrites configured option)")
 				.hasArg().withDescription(
 				"Specify temporary directory.").create(ARG_CONF_DIR);
+		Option jobmanagerAddOpt = OptionBuilder.withArgName("jobmanager rpc address").hasArg().withDescription(
+			"Specify jobmanager rpc address.").create("jobmanagerAdd");
+
 		configDirOpt.setRequired(true);
 		tempDir.setRequired(false);
+		jobmanagerAddOpt.setRequired(false);
 		Options options = new Options();
 		options.addOption(configDirOpt);
 		options.addOption(tempDir);
+		options.addOption(jobmanagerAddOpt);
 		
 
 		CommandLineParser parser = new GnuParser();
@@ -495,6 +500,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 		String configDir = line.getOptionValue(configDirOpt.getOpt(), null);
 		String tempDirVal = line.getOptionValue(tempDir.getOpt(), null);
+		String jobmanagerAdd = line.getOptionValue(jobmanagerAddOpt.getOpt(), null);
 
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
@@ -506,7 +512,14 @@ public class TaskManager implements TaskOperationProtocol {
 			LOG.info("Setting temporary directory to "+tempDirVal);
 			GlobalConfiguration.includeConfiguration(c);
 		}
-		
+
+		if (jobmanagerAdd != null) {
+			Configuration c = GlobalConfiguration.getConfiguration();
+			c.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobmanagerAdd);
+			LOG.info("Setting jobmanager rpc address to "+ jobmanagerAdd);
+			GlobalConfiguration.includeConfiguration(c);
+		}
+
 		// print some startup environment info, like user, code revision, etc
 		EnvironmentInformation.logEnvironmentInfo(LOG, "TaskManager");
 		
