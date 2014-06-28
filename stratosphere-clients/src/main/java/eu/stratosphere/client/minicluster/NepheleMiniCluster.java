@@ -282,7 +282,7 @@ public class NepheleMiniCluster {
 					GlobalConfiguration.getLong(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
 							ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE);
 
-			memorySize = memorySize - bufferMem;
+			memorySize = memorySize - (bufferMem * numTaskManager);
 			
 			// apply the fraction that makes sure memory is left to the heap for other data structures and UDFs.
 			memorySize = (long) (memorySize * ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
