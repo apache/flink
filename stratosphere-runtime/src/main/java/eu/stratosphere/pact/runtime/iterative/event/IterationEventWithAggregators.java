@@ -15,14 +15,16 @@ package eu.stratosphere.pact.runtime.iterative.event;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInput;
 import java.io.DataInputStream;
-import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Map;
 
 import eu.stratosphere.api.common.aggregators.Aggregator;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.types.Value;
 import eu.stratosphere.util.InstantiationUtil;
@@ -95,7 +97,7 @@ public abstract class IterationEventWithAggregators extends AbstractTaskEvent {
 				
 				DataInputStream in = new DataInputStream(new ByteArrayInputStream(serializedData[i]));
 				try {
-					v.read(in);
+					v.read(new InputViewDataInputStreamWrapper(in));
 					in.close();
 				} catch (IOException e) {
 					throw new RuntimeException("Error while deserializing the user-defined aggregate class.", e);
@@ -109,7 +111,7 @@ public abstract class IterationEventWithAggregators extends AbstractTaskEvent {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		int num = this.aggNames.length;
 		out.writeInt(num);
 		
@@ -122,7 +124,7 @@ public abstract class IterationEventWithAggregators extends AbstractTaskEvent {
 			out.writeUTF(this.aggregates[i].getClass().getName());
 			
 			// aggregator value indirect as a byte array
-			this.aggregates[i].write(bufferStream);
+			this.aggregates[i].write(new OutputViewDataOutputStreamWrapper(bufferStream));
 			bufferStream.flush();
 			byte[] bytes = boas.toByteArray();
 			out.writeInt(bytes.length);
@@ -134,7 +136,7 @@ public abstract class IterationEventWithAggregators extends AbstractTaskEvent {
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		int num = in.readInt();
 		if (num == 0) {
 			this.aggNames = NO_STRINGS;

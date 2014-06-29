@@ -13,12 +13,12 @@
 
 package eu.stratosphere.nephele;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.util.StringUtils;
 import io.netty.buffer.ByteBuf;
 
@@ -152,13 +152,13 @@ public class AbstractID implements IOReadableWritable {
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		this.lowerPart = in.readLong();
 		this.upperPart = in.readLong();
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeLong(this.lowerPart);
 		out.writeLong(this.upperPart);
 	}

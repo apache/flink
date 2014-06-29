@@ -27,8 +27,8 @@ import eu.stratosphere.api.common.io.GenericInputFormat;
 import eu.stratosphere.api.common.io.NonParallelInput;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.io.GenericInputSplit;
-import eu.stratosphere.core.memory.InputViewDataInputWrapper;
-import eu.stratosphere.core.memory.OutputViewDataOutputWrapper;
+import eu.stratosphere.core.memory.InputViewObjectInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewObjectOutputStreamWrapper;
 
 /**
  * An input format that returns objects from a collection.
@@ -78,11 +78,8 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 		out.defaultWriteObject();
 		out.writeInt(dataSet.size());
 		
-		OutputViewDataOutputWrapper outWrapper = new OutputViewDataOutputWrapper();
-		outWrapper.setDelegate(out);
-		
 		for (T element : dataSet){
-			serializer.serialize(element, outWrapper);
+			serializer.serialize(element, new OutputViewObjectOutputStreamWrapper(out));
 		}
 	}
 
@@ -92,12 +89,10 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 		int collectionLength = in.readInt();
 		List<T> list = new ArrayList<T>(collectionLength);
 		
-		InputViewDataInputWrapper inWrapper = new InputViewDataInputWrapper();
-		inWrapper.setDelegate(in);
 
 		for (int i = 0; i < collectionLength; i++){
 			T element = serializer.createInstance();
-			element = serializer.deserialize(element, inWrapper);
+			element = serializer.deserialize(element, new InputViewObjectInputStreamWrapper(in));
 			list.add(element);
 		}
 

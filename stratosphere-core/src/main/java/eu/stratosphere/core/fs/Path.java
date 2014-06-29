@@ -19,8 +19,6 @@
 
 package eu.stratosphere.core.fs;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -29,6 +27,8 @@ import java.net.URISyntaxException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.util.OperatingSystem;
 import eu.stratosphere.util.StringUtils;
 
@@ -451,7 +451,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 
 		final boolean isNotNull = in.readBoolean();
 		if (isNotNull) {
@@ -474,7 +474,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 
 		if (uri == null) {
 			out.writeBoolean(false);

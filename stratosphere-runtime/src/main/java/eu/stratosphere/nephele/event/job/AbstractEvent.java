@@ -13,14 +13,14 @@
 
 package eu.stratosphere.nephele.event.job;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 
 /**
  * An abstract event is transmitted from the job manager to the
@@ -74,7 +74,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 
 		// Read the timestamp
 		this.timestamp = in.readLong();
@@ -83,7 +83,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 
 		// Write the timestamp
 		out.writeLong(this.timestamp);

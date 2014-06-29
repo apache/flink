@@ -12,7 +12,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.io;
 
-import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
@@ -20,6 +19,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -213,7 +214,7 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 			fdis.seek(file.getLen() - blockInfo.getInfoSize());
 
 			DataInputStream input = new DataInputStream(fdis);
-			blockInfo.read(input);
+			blockInfo.read(new InputViewDataInputStreamWrapper(input));
 			totalCount += blockInfo.getAccumulatedRecordCount();
 		}
 
@@ -249,7 +250,7 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 			// TODO: seek not supported by compressed streams. Will throw exception
 			this.stream.seek(this.splitStart + this.splitLength - this.blockInfo.getInfoSize());
 			DataInputStream infoStream = new DataInputStream(this.stream);
-			this.blockInfo.read(infoStream);
+			this.blockInfo.read(new InputViewDataInputStreamWrapper(infoStream));
 		}
 
 		this.stream.seek(this.splitStart + this.blockInfo.getFirstRecordStart());
@@ -269,12 +270,12 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 			return null;
 		}
 		
-		record = this.deserialize(record, this.dataInputStream);
+		record = this.deserialize(record, new InputViewDataInputStreamWrapper(this.dataInputStream));
 		this.readRecords++;
 		return record;
 	}
 
-	protected abstract T deserialize(T reuse, DataInput dataInput) throws IOException;
+	protected abstract T deserialize(T reuse, DataInputView dataInput) throws IOException;
 
 	/**
 	 * Writes a block info at the end of the blocks.<br>

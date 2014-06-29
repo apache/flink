@@ -20,6 +20,8 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.Random;
 
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 import junit.framework.Assert;
 import junit.framework.TestCase;
 
@@ -298,9 +300,9 @@ public class RecordOutputEmitterTest extends TestCase {
 			rec = new Record(1);
 			rec.setField(0, new IntValue());
 			
-			rec.write(out);
+			rec.write(new OutputViewDataOutputStreamWrapper(out));
 			rec = new Record();
-			rec.read(in);
+			rec.read(new InputViewDataInputStreamWrapper(in));
 		
 		} catch (IOException e) {
 			fail("Test erroneous");

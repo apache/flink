@@ -15,9 +15,9 @@
 
 package eu.stratosphere.runtime.io.serialization;
 
+import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.MemoryUtils;
 
-import java.io.DataInput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
@@ -27,7 +27,7 @@ import java.nio.ByteOrder;
 /**
  * A simple and efficient deserializer for the {@link java.io.DataInput} interface.
  */
-public class DataInputDeserializer implements DataInput {
+public class DataInputDeserializer implements DataInputView {
 	
 	private byte[] buffer;
 	
@@ -311,4 +311,48 @@ public class DataInputDeserializer implements DataInput {
 	private static final long BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
 	
 	private static final boolean LITTLE_ENDIAN = (MemoryUtils.NATIVE_BYTE_ORDER == ByteOrder.LITTLE_ENDIAN);
+
+	@Override
+	public void skipBytesToRead(int numBytes) throws IOException {
+		int skippedBytes = skipBytes(numBytes);
+
+		if(skippedBytes < numBytes){
+			throw new EOFException("Could not skip " + numBytes +" bytes.");
+		}
+	}
+
+	@Override
+	public int read(byte[] b, int off, int len) throws IOException {
+		if(b == null){
+			throw new NullPointerException("Byte array b cannot be null.");
+		}
+
+		if(off < 0){
+			throw new IndexOutOfBoundsException("Offset cannot be negative.");
+		}
+
+		if(len < 0){
+			throw new IndexOutOfBoundsException("Length cannot be negative.");
+		}
+
+		if(b.length - off < len){
+			throw new IndexOutOfBoundsException("Byte array does not provide enough space to store requested data" +
+					".");
+		}
+
+		if(this.position >= this.end){
+			return -1;
+		}else{
+			int toRead = Math.min(this.end-this.position, len);
+			System.arraycopy(this.buffer,this.position,b,off,toRead);
+			this.position += toRead;
+
+			return toRead;
+		}
+	}
+
+	@Override
+	public int read(byte[] b) throws IOException {
+		return read(b, 0, b.length);
+	}
 }

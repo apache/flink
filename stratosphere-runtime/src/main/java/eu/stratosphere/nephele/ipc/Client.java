@@ -21,6 +21,7 @@ package eu.stratosphere.nephele.ipc;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.util.IOUtils;
 import eu.stratosphere.runtime.io.serialization.DataOutputSerializer;
@@ -514,7 +515,7 @@ public class Client {
 						} catch (IllegalAccessException e) {
 							LOG.error(e);
 						}
-						value.read(in); // read value
+						value.read(new InputViewDataInputStreamWrapper(in)); // read value
 					}
 					call.setValue(value);
 				} else if (state == Status.ERROR.state) {

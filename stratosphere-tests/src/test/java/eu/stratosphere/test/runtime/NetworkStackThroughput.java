@@ -13,10 +13,10 @@
 
 package eu.stratosphere.test.runtime;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.After;
@@ -248,12 +248,12 @@ public class NetworkStackThroughput {
 		}
 
 		@Override
-		public void write(DataOutput out) throws IOException {
+		public void write(DataOutputView out) throws IOException {
 			out.write(this.buf);
 		}
 
 		@Override
-		public void read(DataInput in) throws IOException {
+		public void read(DataInputView in) throws IOException {
 			in.readFully(this.buf);
 		}
 	}

@@ -12,11 +12,11 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 
 public class BlockInfo implements IOReadableWritable {
 
@@ -50,14 +50,14 @@ public class BlockInfo implements IOReadableWritable {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeLong(this.recordCount);
 		out.writeLong(this.accumulatedRecordCount);
 		out.writeLong(this.firstRecordStart);
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		this.recordCount = in.readLong();
 		this.accumulatedRecordCount = in.readLong();
 		this.firstRecordStart = in.readLong();

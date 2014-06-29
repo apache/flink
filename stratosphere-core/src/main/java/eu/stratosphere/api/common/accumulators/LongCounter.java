@@ -13,8 +13,9 @@
 
 package eu.stratosphere.api.common.accumulators;
 
-import java.io.DataInput;
-import java.io.DataOutput;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+
 import java.io.IOException;
 
 
@@ -46,12 +47,12 @@ public class LongCounter implements SimpleAccumulator<Long> {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeLong(this.localValue);
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		this.localValue = in.readLong();
 	}
 	

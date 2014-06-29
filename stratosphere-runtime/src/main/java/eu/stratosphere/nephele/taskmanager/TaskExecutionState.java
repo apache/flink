@@ -13,12 +13,12 @@
 
 package eu.stratosphere.nephele.taskmanager;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -103,7 +103,7 @@ public class TaskExecutionState implements IOReadableWritable {
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 
 		boolean isNotNull = in.readBoolean();
 
@@ -133,7 +133,7 @@ public class TaskExecutionState implements IOReadableWritable {
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 
 		if (this.jobID == null) {
 			out.writeBoolean(false);

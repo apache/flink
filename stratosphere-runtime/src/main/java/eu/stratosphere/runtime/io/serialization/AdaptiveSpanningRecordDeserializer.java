@@ -14,9 +14,9 @@
 package eu.stratosphere.runtime.io.serialization;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.MemorySegment;
 
-import java.io.DataInput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
@@ -116,7 +116,7 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 
 	// -----------------------------------------------------------------------------------------------------------------
 	
-	private static final class NonSpanningWrapper implements DataInput {
+	private static final class NonSpanningWrapper implements DataInputView {
 		
 		private MemorySegment segment;
 		
@@ -339,11 +339,46 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 			this.position += toSkip;
 			return toSkip;
 		}
+
+		@Override
+		public void skipBytesToRead(int numBytes) throws IOException {
+			int skippedBytes = skipBytes(numBytes);
+
+			if(skippedBytes < numBytes){
+				throw new EOFException("Could not skip " + numBytes + " bytes.");
+			}
+		}
+
+		@Override
+		public int read(byte[] b, int off, int len) throws IOException {
+			if(b == null){
+				throw new NullPointerException("Byte array b cannot be null.");
+			}
+
+			if(off < 0){
+				throw new IllegalArgumentException("The offset off cannot be negative.");
+			}
+
+			if(len < 0){
+				throw new IllegalArgumentException("The length len cannot be negative.");
+			}
+
+			int toRead = Math.min(len, remaining());
+			this.segment.get(this.position,b,off, toRead);
+			this.position += toRead;
+
+			return toRead;
+		}
+
+		@Override
+		public int read(byte[] b) throws IOException {
+			return read(b, 0, b.length);
+		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
 	
-	private static final class SpanningWrapper implements DataInput {
+	private static final class SpanningWrapper implements DataInputView {
 
 		private final DataOutputSerializer serializationBuffer;
 
@@ -524,6 +559,21 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 		@Override
 		public String readUTF() throws IOException {
 			return this.serializationReadBuffer.readUTF();
+		}
+
+		@Override
+		public void skipBytesToRead(int numBytes) throws IOException {
+			this.serializationReadBuffer.skipBytesToRead(numBytes);
+		}
+
+		@Override
+		public int read(byte[] b, int off, int len) throws IOException {
+			return this.serializationReadBuffer.read(b, off, len);
+		}
+
+		@Override
+		public int read(byte[] b) throws IOException {
+			return this.serializationReadBuffer.read(b);
 		}
 	}
 }

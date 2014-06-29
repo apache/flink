@@ -19,6 +19,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 import junit.framework.Assert;
 
 import org.junit.Test;
@@ -107,7 +109,7 @@ public class SimpleDataDistributionTest {
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		final DataOutputStream dos = new DataOutputStream(baos);
 		try {
-			ddWrite.write(dos);
+			ddWrite.write(new OutputViewDataOutputStreamWrapper(dos));
 		} catch (IOException e) {
 			Assert.fail("Error serializing the DataDistribution: " + e.getMessage());
 		}
@@ -120,7 +122,7 @@ public class SimpleDataDistributionTest {
 		SimpleDistribution ddRead = new SimpleDistribution();
 		
 		try {
-			ddRead.read(in);
+			ddRead.read(new InputViewDataInputStreamWrapper(in));
 		} catch (Exception ex) {
 			Assert.fail("The deserialization of the encoded data distribution caused an error");
 		}

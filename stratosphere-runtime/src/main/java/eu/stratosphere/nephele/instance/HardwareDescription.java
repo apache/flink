@@ -13,11 +13,11 @@
 
 package eu.stratosphere.nephele.instance;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 
 /**
  * A hardware description reflects the hardware environment which is actually present on the task manager's compute
@@ -68,7 +68,7 @@ public final class HardwareDescription implements IOReadableWritable {
 	}
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 
 		out.writeInt(this.numberOfCPUCores);
 		out.writeLong(this.sizeOfPhysicalMemory);
@@ -76,7 +76,7 @@ public final class HardwareDescription implements IOReadableWritable {
 	}
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 
 		this.numberOfCPUCores = in.readInt();
 		this.sizeOfPhysicalMemory = in.readLong();

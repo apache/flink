@@ -22,6 +22,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map.Entry;
 
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 import junit.framework.Assert;
 
 import org.junit.Before;
@@ -58,8 +60,8 @@ public class CollectionsDataTypeTest {
 		try {
 			NfIntStringPair mPairActual = new NfIntStringPair();
 
-			pair1.write(out);
-			mPairActual.read(in);
+			pair1.write(new OutputViewDataOutputStreamWrapper(out));
+			mPairActual.read(new InputViewDataInputStreamWrapper(in));
 
 			Assert.assertEquals(pair1, mPairActual);
 		} catch (IOException e) {
@@ -182,8 +184,8 @@ public class CollectionsDataTypeTest {
 		// now test data transfer
 		NfIntStringMap nMap = new NfIntStringMap();
 		try {
-			map0.write(out);
-			nMap.read(in);
+			map0.write(new OutputViewDataOutputStreamWrapper(out));
+			nMap.read(new InputViewDataInputStreamWrapper(in));
 		} catch (Exception e) {
 			Assert.assertTrue(false);
 		}
@@ -210,8 +212,8 @@ public class CollectionsDataTypeTest {
 		// test data transfer
 		NfStringList mList2 = new NfStringList();
 		try {
-			list.write(out);
-			mList2.read(in);
+			list.write(new OutputViewDataOutputStreamWrapper(out));
+			mList2.read(new InputViewDataInputStreamWrapper(in));
 		} catch (Exception e) {
 			Assert.assertTrue(false);
 		}

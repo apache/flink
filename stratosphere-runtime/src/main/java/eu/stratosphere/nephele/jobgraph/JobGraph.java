@@ -13,8 +13,6 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -34,6 +32,8 @@ import eu.stratosphere.core.fs.FileSystem;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.util.ClassUtils;
 
@@ -465,7 +465,7 @@ public class JobGraph implements IOReadableWritable {
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 
 		// Read job id
 		this.jobID.read(in);
@@ -553,7 +553,7 @@ public class JobGraph implements IOReadableWritable {
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 
 		// Write job ID
 		this.jobID.write(out);
@@ -598,7 +598,8 @@ public class JobGraph implements IOReadableWritable {
 	 * @throws IOException
 	 *         thrown if an error occurs while writing to the stream
 	 */
-	private void writeRequiredJarFiles(final DataOutput out, final AbstractJobVertex[] jobVertices) throws IOException {
+	private void writeRequiredJarFiles(final DataOutputView out, final AbstractJobVertex[] jobVertices) throws
+			IOException {
 
 		// Now check if all the collected jar files really exist
 		final FileSystem fs = FileSystem.getLocalFileSystem();
@@ -643,7 +644,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @throws IOException
 	 *         thrown if an error occurs while reading the stream
 	 */
-	private void readRequiredJarFiles(final DataInput in) throws IOException {
+	private void readRequiredJarFiles(final DataInputView in) throws IOException {
 
 		// Do jar files follow;
 		final int numJars = in.readInt();

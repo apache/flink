@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 import junit.framework.Assert;
 
 import org.junit.Before;
@@ -56,15 +58,15 @@ public class PrimitiveDataTypeTest {
 		Assert.assertEquals(int0.compareTo(int3), -1);
 		// test stream output and retrieval
 		try {
-			int0.write(mOut);
-			int2.write(mOut);
-			int3.write(mOut);
+			int0.write(new OutputViewDataOutputStreamWrapper(mOut));
+			int2.write(new OutputViewDataOutputStreamWrapper(mOut));
+			int3.write(new OutputViewDataOutputStreamWrapper(mOut));
 			IntValue int1n = new IntValue();
 			IntValue int2n = new IntValue();
 			IntValue int3n = new IntValue();
-			int1n.read(mIn);
-			int2n.read(mIn);
-			int3n.read(mIn);
+			int1n.read(new InputViewDataInputStreamWrapper(mIn));
+			int2n.read(new InputViewDataInputStreamWrapper(mIn));
+			int3n.read(new InputViewDataInputStreamWrapper(mIn));
 			Assert.assertEquals(int0.compareTo(int1n), 0);
 			Assert.assertEquals(int0.getValue(), int1n.getValue());
 			Assert.assertEquals(int2.compareTo(int2n), 0);
@@ -92,15 +94,15 @@ public class PrimitiveDataTypeTest {
 		Assert.assertEquals(double0.compareTo(double3), -1);
 		// test stream output and retrieval
 		try {
-			double0.write(mOut);
-			double2.write(mOut);
-			double3.write(mOut);
+			double0.write(new OutputViewDataOutputStreamWrapper(mOut));
+			double2.write(new OutputViewDataOutputStreamWrapper(mOut));
+			double3.write(new OutputViewDataOutputStreamWrapper(mOut));
 			DoubleValue double1n = new DoubleValue();
 			DoubleValue double2n = new DoubleValue();
 			DoubleValue double3n = new DoubleValue();
-			double1n.read(mIn);
-			double2n.read(mIn);
-			double3n.read(mIn);
+			double1n.read(new InputViewDataInputStreamWrapper(mIn));
+			double2n.read(new InputViewDataInputStreamWrapper(mIn));
+			double3n.read(new InputViewDataInputStreamWrapper(mIn));
 			Assert.assertEquals(double0.compareTo(double1n), 0);
 			Assert.assertEquals(double0.getValue(), double1n.getValue());
 			Assert.assertEquals(double2.compareTo(double2n), 0);
@@ -156,21 +158,21 @@ public class PrimitiveDataTypeTest {
 		
 		// test stream out/input
 		try {
-			string0.write(mOut);
-			string4.write(mOut);
-			string2.write(mOut);
-			string3.write(mOut);
-			string7.write(mOut);
+			string0.write(new OutputViewDataOutputStreamWrapper(mOut));
+			string4.write(new OutputViewDataOutputStreamWrapper(mOut));
+			string2.write(new OutputViewDataOutputStreamWrapper(mOut));
+			string3.write(new OutputViewDataOutputStreamWrapper(mOut));
+			string7.write(new OutputViewDataOutputStreamWrapper(mOut));
 			StringValue string1n = new StringValue();
 			StringValue string2n = new StringValue();
 			StringValue string3n = new StringValue();
 			StringValue string4n = new StringValue();
 			StringValue string7n = new StringValue();
-			string1n.read(mIn);
-			string4n.read(mIn);
-			string2n.read(mIn);
-			string3n.read(mIn);
-			string7n.read(mIn);
+			string1n.read(new InputViewDataInputStreamWrapper(mIn));
+			string4n.read(new InputViewDataInputStreamWrapper(mIn));
+			string2n.read(new InputViewDataInputStreamWrapper(mIn));
+			string3n.read(new InputViewDataInputStreamWrapper(mIn));
+			string7n.read(new InputViewDataInputStreamWrapper(mIn));
 			Assert.assertEquals(string0.compareTo(string1n), 0);
 			Assert.assertEquals(string0.toString(), string1n.toString());
 			Assert.assertEquals(string4.compareTo(string4n), 0);
@@ -209,12 +211,12 @@ public class PrimitiveDataTypeTest {
 		try {
 			// write it multiple times
 			for (int i = 0; i < numWrites; i++) {
-				pn.write(mOut);
+				pn.write(new OutputViewDataOutputStreamWrapper(mOut));
 			}
 			
 			// read it multiple times
 			for (int i = 0; i < numWrites; i++) {
-				pn.read(mIn);
+				pn.read(new InputViewDataInputStreamWrapper(mIn));
 			}
 			
 			Assert.assertEquals("Reading PactNull does not consume the same data as was written.", mIn.available(), 0);

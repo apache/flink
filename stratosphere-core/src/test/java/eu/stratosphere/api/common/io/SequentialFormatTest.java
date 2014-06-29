@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Assert;
@@ -92,7 +93,7 @@ public class SequentialFormatTest {
 			ByteCounter byteCounter = new ByteCounter();
 			DataOutputStream out = new DataOutputStream(byteCounter);
 			for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++) {
-				this.getRecord(recordIndex).write(out);
+				this.getRecord(recordIndex).write(new OutputViewDataOutputStreamWrapper(out));
 			}
 			this.rawDataSizes[fileIndex] = byteCounter.getLength();
 		}

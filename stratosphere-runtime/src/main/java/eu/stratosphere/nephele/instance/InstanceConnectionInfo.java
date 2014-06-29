@@ -13,14 +13,14 @@
 
 package eu.stratosphere.nephele.instance;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.util.StringUtils;
 
 /**
@@ -206,7 +206,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 
 		final int addr_length = in.readInt();
 		byte[] address = new byte[addr_length];
@@ -226,7 +226,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 
 		out.writeInt(this.inetAddress.getAddress().length);
 		out.write(this.inetAddress.getAddress());

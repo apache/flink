@@ -13,14 +13,14 @@
 
 package eu.stratosphere.nephele.services.accumulators;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 import eu.stratosphere.api.common.accumulators.Accumulator;
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.util.StringUtils;
@@ -60,7 +60,7 @@ public class AccumulatorEvent implements IOReadableWritable {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeBoolean(this.useUserClassLoader);
 		jobID.write(out);
 		out.writeInt(accumulators.size());
@@ -74,7 +74,7 @@ public class AccumulatorEvent implements IOReadableWritable {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		this.useUserClassLoader = in.readBoolean();
 		jobID = new JobID();
 		jobID.read(in);

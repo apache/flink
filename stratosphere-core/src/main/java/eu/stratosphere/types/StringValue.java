@@ -470,7 +470,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		int len = in.readUnsignedByte();
 
 		if (len >= HIGH_BIT) {
@@ -508,7 +508,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	}
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 		int len = this.len;
 
 		// write the length, variable-length encoded

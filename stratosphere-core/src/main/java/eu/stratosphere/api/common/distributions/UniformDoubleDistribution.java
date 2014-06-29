@@ -12,10 +12,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.distributions;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.types.DoubleValue;
 
 
@@ -45,13 +45,13 @@ public class UniformDoubleDistribution implements DataDistribution {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeDouble(min);
 		out.writeDouble(max);
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		min = in.readDouble();
 		max = in.readDouble();
 	}

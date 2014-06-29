@@ -13,14 +13,14 @@
 
 package eu.stratosphere.nephele.services.iomanager;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Random;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
@@ -265,12 +265,12 @@ public class IOManagerITCase {
 		}
 
 		@Override
-		public void read(DataInput in) throws IOException {
+		public void read(DataInputView in) throws IOException {
 			value = in.readUTF();
 		}
 
 		@Override
-		public void write(DataOutput out) throws IOException {
+		public void write(DataOutputView out) throws IOException {
 			out.writeUTF(this.value);
 		}
 

@@ -183,6 +183,57 @@ public abstract class AbstractPagedInputView implements DataInputView {
 	// --------------------------------------------------------------------------------------------
 	//                               Data Input Specific methods
 	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public int read(byte[] b) throws IOException{
+		return read(b,0,b.length);
+	}
+
+	@Override
+	public int read(byte[] b, int off, int len) throws IOException{
+		if (off < 0 || len < 0 || off + len > b.length) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		int remaining = this.limitInSegment - this.positionInSegment;
+		if (remaining >= len) {
+			this.currentSegment.get(this.positionInSegment, b, off, len);
+			this.positionInSegment += len;
+			return len;
+		}
+		else {
+			if (remaining == 0) {
+				try {
+					advance();
+				}catch(EOFException eof){
+					return -1;
+				}
+				remaining = this.limitInSegment - this.positionInSegment;
+			}
+
+			int bytesRead = 0;
+			while (true) {
+				int toRead = Math.min(remaining, len-bytesRead);
+				this.currentSegment.get(this.positionInSegment, b, off, toRead);
+				off += toRead;
+				bytesRead += toRead;
+
+				if (len > bytesRead) {
+					try {
+						advance();
+					}catch(EOFException eof){
+						return bytesRead;
+					}
+					remaining = this.limitInSegment - this.positionInSegment;
+				}
+				else {
+					this.positionInSegment += toRead;
+					break;
+				}
+			}
+			return len;
+		}
+	}
 	
 	@Override
 	public void readFully(byte[] b) throws IOException {
@@ -191,36 +242,10 @@ public abstract class AbstractPagedInputView implements DataInputView {
 
 	@Override
 	public void readFully(byte[] b, int off, int len) throws IOException {
-		if (off < 0 || len < 0 || off + len > b.length) {
-			throw new IndexOutOfBoundsException();
-		}
-		
-		int remaining = this.limitInSegment - this.positionInSegment;
-		if (remaining >= len) {
-			this.currentSegment.get(this.positionInSegment, b, off, len);
-			this.positionInSegment += len;
-		}
-		else {
-			if (remaining == 0) {
-				advance();
-				remaining = this.limitInSegment - this.positionInSegment;
-			}
-			
-			while (true) {
-				int toRead = Math.min(remaining, len);
-				this.currentSegment.get(this.positionInSegment, b, off, toRead);
-				off += toRead;
-				len -= toRead;
-				
-				if (len > 0) {
-					advance();
-					remaining = this.limitInSegment - this.positionInSegment;	
-				}
-				else {
-					this.positionInSegment += toRead;
-					break;
-				}
-			}
+		int bytesRead = read(b,off,len);
+
+		if(bytesRead == -1){
+			throw new EOFException("There is no more data left in the DataInputView.");
 		}
 	}
 

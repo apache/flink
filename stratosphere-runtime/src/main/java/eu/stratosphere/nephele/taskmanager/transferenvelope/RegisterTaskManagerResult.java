@@ -14,10 +14,10 @@
 package eu.stratosphere.nephele.taskmanager.transferenvelope;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.util.EnumUtils;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 public class RegisterTaskManagerResult implements IOReadableWritable {
@@ -39,12 +39,12 @@ public class RegisterTaskManagerResult implements IOReadableWritable {
 
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		EnumUtils.writeEnum(out, this.returnCode);
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		this.returnCode = EnumUtils.readEnum(in, ReturnCode.class);
 	}
 }

@@ -26,6 +26,8 @@ import java.io.PipedOutputStream;
 import java.util.Arrays;
 import java.util.Random;
 
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -59,15 +61,15 @@ public class RecordTest {
 		try {
 			// test deserialize into self
 			Record empty = new Record();
-			empty.write(this.out);
-			empty.read(this.in);
+			empty.write(new OutputViewDataOutputStreamWrapper(this.out));
+			empty.read(new InputViewDataInputStreamWrapper(this.in));
 			Assert.assertTrue("Deserialized Empty record is not another empty record.", empty.getNumFields() == 0);
 			
 			// test deserialize into new
 			empty = new Record();
-			empty.write(this.out);
+			empty.write(new OutputViewDataOutputStreamWrapper(this.out));
 			empty = new Record();
-			empty.read(this.in);
+			empty.read(new InputViewDataInputStreamWrapper(this.in));
 			Assert.assertTrue("Deserialized Empty record is not another empty record.", empty.getNumFields() == 0);
 			
 		} catch (Throwable t) {
@@ -382,18 +384,18 @@ public class RecordTest {
 	
 			try {
 				// serialize and deserialize to remove all buffered info
-				r.write(out);
+				r.write(new OutputViewDataOutputStreamWrapper(out));
 				r = new Record();
-				r.read(in);
+				r.read(new InputViewDataInputStreamWrapper(in));
 	
 				r.setField(1, new IntValue(10));
 				r.setField(4, new StringValue("Some long value"));
 				r.setField(5, new StringValue("An even longer value"));
 				r.setField(10, new IntValue(10));
 	
-				r.write(out);
+				r.write(new OutputViewDataOutputStreamWrapper(out));
 				r = new Record();
-				r.read(in);
+				r.read(new InputViewDataInputStreamWrapper(in));
 	
 				assertTrue(r.getField(0, IntValue.class).getValue() == 0);
 				assertTrue(r.getField(1, IntValue.class).getValue() == 10);
@@ -427,8 +429,8 @@ public class RecordTest {
 			Record record2 = new Record();
 			try {
 				// De/Serialize the record
-				record1.write(this.out);
-				record2.read(this.in);
+				record1.write(new OutputViewDataOutputStreamWrapper(this.out));
+				record2.read(new InputViewDataInputStreamWrapper(this.in));
 	
 				assertTrue(record1.getNumFields() == record2.getNumFields());
 	
@@ -456,20 +458,20 @@ public class RecordTest {
 		try {
 			Record record = new Record(new IntValue(42));
 	
-			record.write(out);
+			record.write(new OutputViewDataOutputStreamWrapper(out));
 			Assert.assertEquals(42, record.getField(0, IntValue.class).getValue());
 	
 			record.setField(0, new IntValue(23));
-			record.write(out);
+			record.write(new OutputViewDataOutputStreamWrapper(out));
 			Assert.assertEquals(23, record.getField(0, IntValue.class).getValue());
 	
 			record.clear();
 			Assert.assertEquals(0, record.getNumFields());
 	
 			Record record2 = new Record(new IntValue(42));
-			record2.read(in);
+			record2.read(new InputViewDataInputStreamWrapper(in));
 			Assert.assertEquals(42, record2.getField(0, IntValue.class).getValue());
-			record2.read(in);
+			record2.read(new InputViewDataInputStreamWrapper(in));
 			Assert.assertEquals(23, record2.getField(0, IntValue.class).getValue());
 		} catch (Throwable t) {
 			Assert.fail("Test failed due to an exception: " + t.getMessage());
@@ -541,7 +543,8 @@ public class RecordTest {
 		}
 	}
 	
-	static final void blackboxTestRecordWithValues(Value[] values, Random rnd, DataInput reader, DataOutput writer)
+	static final void blackboxTestRecordWithValues(Value[] values, Random rnd, DataInputStream reader,
+												   DataOutputStream writer)
 	throws Exception
 	{
 		final int[] permutation1 = createPermutation(rnd, values.length);
@@ -586,9 +589,9 @@ public class RecordTest {
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
-		rec.write(writer);
+		rec.write(new OutputViewDataOutputStreamWrapper(writer));
 		rec = new Record();
-		rec.read(reader);
+		rec.read(new InputViewDataInputStreamWrapper(reader));
 		testAllRetrievalMethods(rec, permutation2, values);
 		
 		// test adding and retrieving with full stream serialization and deserialization into the same record
@@ -597,8 +600,8 @@ public class RecordTest {
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
-		rec.write(writer);
-		rec.read(reader);
+		rec.write(new OutputViewDataOutputStreamWrapper(writer));
+		rec.read(new InputViewDataInputStreamWrapper(reader));
 		testAllRetrievalMethods(rec, permutation2, values);
 		
 		// test adding and retrieving with partial stream serialization and deserialization into a new record
@@ -606,18 +609,18 @@ public class RecordTest {
 		updatePos = rnd.nextInt(values.length + 1);
 		for (int i = 0; i < values.length; i++) {
 			if (i == updatePos) {
-				rec.write(writer);
+				rec.write(new OutputViewDataOutputStreamWrapper(writer));
 				rec = new Record();
-				rec.read(reader);
+				rec.read(new InputViewDataInputStreamWrapper(reader));
 			}
 			
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
 		if (updatePos == values.length) {
-			rec.write(writer);
+			rec.write(new OutputViewDataOutputStreamWrapper(writer));
 			rec = new Record();
-			rec.read(reader);
+			rec.read(new InputViewDataInputStreamWrapper(reader));
 		}
 		testAllRetrievalMethods(rec, permutation2, values);
 		
@@ -626,16 +629,16 @@ public class RecordTest {
 		updatePos = rnd.nextInt(values.length + 1);
 		for (int i = 0; i < values.length; i++) {
 			if (i == updatePos) {
-				rec.write(writer);
-				rec.read(reader);
+				rec.write(new OutputViewDataOutputStreamWrapper(writer));
+				rec.read(new InputViewDataInputStreamWrapper(reader));
 			}
 			
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
 		if (updatePos == values.length) {
-			rec.write(writer);
-			rec.read(reader);
+			rec.write(new OutputViewDataOutputStreamWrapper(writer));
+			rec.read(new InputViewDataInputStreamWrapper(reader));
 		}
 		testAllRetrievalMethods(rec, permutation2, values);
 
@@ -644,17 +647,17 @@ public class RecordTest {
 		updatePos = rnd.nextInt(values.length + 1);
 		for (int i = 0; i < values.length; i++) {
 			if (i == updatePos) {
-				rec.write(writer);
+				rec.write(new OutputViewDataOutputStreamWrapper(writer));
 				rec = new Record();
-				rec.read(reader);
+				rec.read(new InputViewDataInputStreamWrapper(reader));
 			}
 			
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
-		rec.write(writer);
+		rec.write(new OutputViewDataOutputStreamWrapper(writer));
 		rec = new Record();
-		rec.read(reader);
+		rec.read(new InputViewDataInputStreamWrapper(reader));
 		testAllRetrievalMethods(rec, permutation2, values);
 		
 		// test adding and retrieving with partial stream serialization and deserialization into the same record
@@ -662,15 +665,15 @@ public class RecordTest {
 		updatePos = rnd.nextInt(values.length + 1);
 		for (int i = 0; i < values.length; i++) {
 			if (i == updatePos) {
-				rec.write(writer);
-				rec.read(reader);
+				rec.write(new OutputViewDataOutputStreamWrapper(writer));
+				rec.read(new InputViewDataInputStreamWrapper(reader));
 			}
 			
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
-		rec.write(writer);
-		rec.read(reader);
+		rec.write(new OutputViewDataOutputStreamWrapper(writer));
+		rec.read(new InputViewDataInputStreamWrapper(reader));
 		testAllRetrievalMethods(rec, permutation2, values);
 	}
 	

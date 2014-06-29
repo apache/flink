@@ -13,8 +13,6 @@
 
 package eu.stratosphere.test.recordJobTests;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,6 +27,8 @@ import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Key;
@@ -110,14 +110,14 @@ public class GlobalSortingMixedOrderITCase extends RecordAPITestBase {
 		public TripleIntDistribution() {}
 
 		@Override
-		public void write(DataOutput out) throws IOException {
+		public void write(DataOutputView out) throws IOException {
 			out.writeBoolean(this.ascendingI1);
 			out.writeBoolean(this.ascendingI2);
 			out.writeBoolean(this.ascendingI3);
 		}
 
 		@Override
-		public void read(DataInput in) throws IOException {
+		public void read(DataInputView in) throws IOException {
 			this.ascendingI1 = in.readBoolean();
 			this.ascendingI2 = in.readBoolean();
 			this.ascendingI3 = in.readBoolean();

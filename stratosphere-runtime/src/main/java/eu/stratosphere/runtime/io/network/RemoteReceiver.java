@@ -13,13 +13,13 @@
 
 package eu.stratosphere.runtime.io.network;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 
 /**
  * Objects of this class uniquely identify a connection to a remote {@link TaskManager}.
@@ -111,7 +111,7 @@ public final class RemoteReceiver implements IOReadableWritable {
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 
 		final InetAddress ia = this.connectionAddress.getAddress();
 		out.writeInt(ia.getAddress().length);
@@ -123,7 +123,7 @@ public final class RemoteReceiver implements IOReadableWritable {
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		final int addr_length = in.readInt();
 		final byte[] address = new byte[addr_length];
 		in.readFully(address);

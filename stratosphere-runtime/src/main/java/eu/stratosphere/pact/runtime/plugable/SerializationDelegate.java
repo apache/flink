@@ -13,13 +13,12 @@
 
 package eu.stratosphere.pact.runtime.plugable;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.core.memory.OutputViewDataOutputWrapper;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 
 
 public class SerializationDelegate<T> implements IOReadableWritable {
@@ -28,12 +27,9 @@ public class SerializationDelegate<T> implements IOReadableWritable {
 	
 	private final TypeSerializer<T> serializer;
 	
-	private final OutputViewDataOutputWrapper wrapper;
-	
-	
+
 	public SerializationDelegate(TypeSerializer<T> serializer) {
 		this.serializer = serializer;
-		this.wrapper = new OutputViewDataOutputWrapper();
 	}
 	
 	public void setInstance(T instance) {
@@ -45,14 +41,12 @@ public class SerializationDelegate<T> implements IOReadableWritable {
 	}
 	
 	@Override
-	public void write(DataOutput out) throws IOException {
-		this.wrapper.setDelegate(out);
-		this.serializer.serialize(this.instance, this.wrapper);
+	public void write(DataOutputView out) throws IOException {
+		this.serializer.serialize(this.instance, out);
 	}
 
-
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		throw new IllegalStateException("Deserialization method called on SerializationDelegate.");
 	}
 }

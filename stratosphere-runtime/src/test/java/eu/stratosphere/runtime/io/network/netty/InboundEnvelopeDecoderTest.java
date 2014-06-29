@@ -13,6 +13,8 @@
 
 package eu.stratosphere.runtime.io.network.netty;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -37,8 +39,6 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -792,12 +792,12 @@ public class InboundEnvelopeDecoderTest {
 		}
 
 		@Override
-		public void write(DataOutput out) throws IOException {
+		public void write(DataOutputView out) throws IOException {
 			out.writeLong(id);
 		}
 
 		@Override
-		public void read(DataInput in) throws IOException {
+		public void read(DataInputView in) throws IOException {
 			id = in.readLong();
 		}
 
@@ -830,12 +830,12 @@ public class InboundEnvelopeDecoderTest {
 		}
 
 		@Override
-		public void write(DataOutput out) throws IOException {
+		public void write(DataOutputView out) throws IOException {
 			out.writeLong(id);
 		}
 
 		@Override
-		public void read(DataInput in) throws IOException {
+		public void read(DataInputView in) throws IOException {
 			id = in.readLong();
 		}
 

@@ -13,8 +13,6 @@
 
 package eu.stratosphere.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.core.memory.DataInputView;
@@ -88,7 +86,7 @@ public class LongValue implements NormalizableKey<LongValue>, ResettableValue<Lo
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		this.value = in.readLong();
 	}
 
@@ -97,7 +95,7 @@ public class LongValue implements NormalizableKey<LongValue>, ResettableValue<Lo
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 		out.writeLong(this.value);
 	}
 

@@ -13,8 +13,6 @@
 
 package eu.stratosphere.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -22,6 +20,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.util.ReflectionUtil;
 
 /**
@@ -83,7 +83,7 @@ public abstract class ListValue<V extends Value> implements Value, List<V> {
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		int size = in.readInt();
 		this.list.clear();
 
@@ -106,7 +106,7 @@ public abstract class ListValue<V extends Value> implements Value, List<V> {
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 		out.writeInt(this.list.size());
 		for (final V value : this.list) {
 			value.write(out);

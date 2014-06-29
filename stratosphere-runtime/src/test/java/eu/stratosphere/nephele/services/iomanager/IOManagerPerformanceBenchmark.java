@@ -26,6 +26,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.List;
 
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
@@ -251,7 +253,7 @@ public class IOManagerPerformanceBenchmark
 			int valsLeft = NUM_INTS_WRITTEN;
 			while (valsLeft-- > 0) {
 				rec.setValue(valsLeft);
-				rec.write(daos);
+				rec.write(new OutputViewDataOutputStreamWrapper(daos));
 			}
 			daos.close();
 			daos = null;
@@ -267,7 +269,7 @@ public class IOManagerPerformanceBenchmark
 			
 			valsLeft = NUM_INTS_WRITTEN;
 			while (valsLeft-- > 0) {
-				rec.read(dais);
+				rec.read(new InputViewDataInputStreamWrapper(dais));
 			}
 			dais.close();
 			dais = null;

@@ -13,8 +13,6 @@
 
 package eu.stratosphere.test.accumulators;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
@@ -22,6 +20,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.Assert;
 import org.junit.runner.RunWith;
@@ -308,12 +308,12 @@ public class AccumulatorITCase extends RecordAPITestBase {
 		}
 
 		@Override
-		public void write(DataOutput out) throws IOException {
+		public void write(DataOutputView out) throws IOException {
 			this.set.write(out);
 		}
 
 		@Override
-		public void read(DataInput in) throws IOException {
+		public void read(DataInputView in) throws IOException {
 			this.set.read(in);
 		}
 	}

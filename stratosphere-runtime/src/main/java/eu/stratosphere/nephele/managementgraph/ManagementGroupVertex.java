@@ -13,8 +13,6 @@
 
 package eu.stratosphere.nephele.managementgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.nephele.util.EnumUtils;
@@ -342,7 +342,7 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 
 		int numberOfForwardLinks = in.readInt();
 		for (int i = 0; i < numberOfForwardLinks; i++) {
@@ -359,7 +359,7 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 
 		// Write the number of forward links
 		out.writeInt(this.forwardEdges.size());

@@ -13,13 +13,13 @@
 
 package eu.stratosphere.nephele.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Arrays;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 
 public class FileRecord implements IOReadableWritable {
 
@@ -80,7 +80,7 @@ public class FileRecord implements IOReadableWritable {
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		this.fileName = StringRecord.readString(in);
 
 		final int newLength = in.readInt();
@@ -90,7 +90,7 @@ public class FileRecord implements IOReadableWritable {
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 		StringRecord.writeString(out, fileName);
 		out.writeInt(this.bytes.length);
 		out.write(this.bytes, 0, this.bytes.length);

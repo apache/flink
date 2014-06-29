@@ -1070,7 +1070,7 @@ public final class Record implements Value, CopyableValue<Record> {
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		// make sure everything is in a valid binary representation
 		updateBinaryRepresenation();
 		
@@ -1080,7 +1080,7 @@ public final class Record implements Value, CopyableValue<Record> {
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		final int len = readVarLengthInt(in);
 		this.binaryLen = len;
 			
@@ -1187,7 +1187,7 @@ public final class Record implements Value, CopyableValue<Record> {
 	}
 	
 	/**
-	 * Writes this record to the given output view. This method is similar to {@link #write(DataOutput)}, but
+	 * Writes this record to the given output view. This method is similar to {@link eu.stratosphere.core.io.IOReadableWritable#write(eu.stratosphere.core.memory.DataOutputView)}, but
 	 * it returns the number of bytes written.
 	 * 
 	 * @param target The view to write the record to.
@@ -1262,12 +1262,12 @@ public final class Record implements Value, CopyableValue<Record> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void write(DataOutput out) throws IOException {
+		public void write(DataOutputView out) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public void read(DataInput in) throws IOException {
+		public void read(DataInputView in) throws IOException {
 			throw new UnsupportedOperationException();
 		}		
 	};
@@ -1275,7 +1275,7 @@ public final class Record implements Value, CopyableValue<Record> {
 	/**
 	 * Internal interface class to provide serialization for the data types.
 	 */
-	private static final class InternalDeSerializer implements DataInput, DataOutput, Serializable {
+	private static final class InternalDeSerializer implements DataInputView, DataOutputView, Serializable {
 		
 		private static final long serialVersionUID = 1L;
 		
@@ -1510,6 +1510,49 @@ public final class Record implements Value, CopyableValue<Record> {
 				return n;
 			}
 		}
+
+		@Override
+		public void skipBytesToRead(int numBytes) throws IOException {
+			if(this.end - this.position < numBytes) {
+				throw new EOFException("Could not skip " + numBytes + ".");
+			}
+			skipBytes(numBytes);
+		}
+
+		@Override
+		public int read(byte[] b, int off, int len) throws IOException {
+			if(b == null){
+				throw new NullPointerException("Byte array b cannot be null.");
+			}
+
+			if(off < 0){
+				throw new IndexOutOfBoundsException("Offset cannot be negative.");
+			}
+
+			if(len < 0){
+				throw new IndexOutOfBoundsException("Length cannot be negative.");
+			}
+
+			if(b.length - off < len){
+				throw new IndexOutOfBoundsException("Byte array does not provide enough space to store requested data" +
+						".");
+			}
+
+			if(this.position >= this.end){
+				return -1;
+			}else{
+				int toRead = Math.min(this.end-this.position, len);
+				System.arraycopy(this.memory,this.position,b,off,toRead);
+				this.position += toRead;
+
+				return toRead;
+			}
+		}
+
+		@Override
+		public int read(byte[] b) throws IOException {
+			return read(b, 0, b.length);
+		}
 		
 		// ----------------------------------------------------------------------------------------
 		//                               Data Output
@@ -1736,5 +1779,24 @@ public final class Record implements Value, CopyableValue<Record> {
 		private static final long BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
 		
 		private static final boolean LITTLE_ENDIAN = (MemoryUtils.NATIVE_BYTE_ORDER == ByteOrder.LITTLE_ENDIAN);
+
+		@Override
+		public void skipBytesToWrite(int numBytes) throws IOException {
+			int skippedBytes = skipBytes(numBytes);
+
+			if(skippedBytes != numBytes){
+				throw new EOFException("Could not skip " + numBytes + " bytes.");
+			}
+		}
+
+		@Override
+		public void write(DataInputView source, int numBytes) throws IOException {
+			if(numBytes > this.end - this.position){
+				throw new IOException("Could not write " + numBytes + " bytes since the buffer is full.");
+			}
+
+			source.read(this.memory,this.position, numBytes);
+			this.position += numBytes;
+		}
 	}
 }

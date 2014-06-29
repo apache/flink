@@ -13,14 +13,14 @@
 
 package eu.stratosphere.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.util.ReflectionUtil;
 
 /**
@@ -73,7 +73,7 @@ public abstract class MapValue<K extends Value, V extends Value> implements Valu
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#read(java.io.DataInput)
 	 */
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		int size = in.readInt();
 		this.map.clear();
 
@@ -97,7 +97,7 @@ public abstract class MapValue<K extends Value, V extends Value> implements Valu
 	 * @see eu.stratosphere.nephele.io.IOReadableWritable#write(java.io.DataOutput)
 	 */
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 		out.writeInt(this.map.size());
 		for (final Entry<K, V> entry : this.map.entrySet()) {
 			entry.getKey().write(out);

@@ -13,10 +13,9 @@
 
 package eu.stratosphere.test.recordJobs.sort.tsUtil;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-
 import eu.stratosphere.api.common.distributions.DataDistribution;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.types.Key;
 
 /**
@@ -49,8 +48,8 @@ public class TeraDistribution implements DataDistribution  {
 	}
 
 	@Override
-	public void write(DataOutput out) {}
+	public void write(DataOutputView out) {}
 
 	@Override
-	public void read(DataInput in) {}
+	public void read(DataInputView in) {}
 }

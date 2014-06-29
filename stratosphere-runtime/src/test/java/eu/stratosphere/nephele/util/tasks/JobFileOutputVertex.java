@@ -15,11 +15,11 @@
 
 package eu.stratosphere.nephele.util.tasks;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobVertexID;
@@ -83,7 +83,7 @@ public class JobFileOutputVertex extends AbstractJobOutputVertex {
 	}
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		super.read(in);
 
 		// Read path of the input file
@@ -95,7 +95,7 @@ public class JobFileOutputVertex extends AbstractJobOutputVertex {
 	}
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 		super.write(out);
 
 		// Write out the path of the input file

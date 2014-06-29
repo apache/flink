@@ -12,7 +12,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.io;
 
-import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -20,6 +19,8 @@ import java.io.OutputStream;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataOutputView;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 
 
 public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends FileOutputFormat<T> {
@@ -79,12 +80,12 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 		this.dataOutputStream = new DataOutputStream(this.blockBasedInput);
 	}
 
-	protected abstract void serialize(T record, DataOutput dataOutput) throws IOException;
+	protected abstract void serialize(T record, DataOutputView dataOutput) throws IOException;
 
 	@Override
 	public void writeRecord(T record) throws IOException {
 		this.blockBasedInput.startRecord();
-		this.serialize(record, this.dataOutputStream);
+		this.serialize(record, new OutputViewDataOutputStreamWrapper(this.dataOutputStream));
 	}
 
 	/**
@@ -165,7 +166,7 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 			this.blockInfo.setAccumulatedRecordCount(this.totalCount);
 			this.blockInfo.setFirstRecordStart(this.firstRecordStartPos == NO_RECORD ? 0 : this.firstRecordStartPos);
 			BinaryOutputFormat.this.complementBlockInfo(this.blockInfo);
-			this.blockInfo.write(this.headerStream);
+			this.blockInfo.write(new OutputViewDataOutputStreamWrapper(this.headerStream));
 			this.blockPos = 0;
 			this.blockCount = 0;
 			this.firstRecordStartPos = NO_RECORD;
