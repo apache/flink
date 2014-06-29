@@ -17,15 +17,17 @@ or pull request that updates these documents as well.*
 
 - [General Architecture and Process Model](general_arch.html)
 
+<!--
 - [Life Cycle of a Program](program_life_cycle.html)
 
 - [Jobs and Scheduling](job_scheduling.html)
 
 - [Distributed Runtime](distributed_runtime.html)
 
-- [Runtime Algorithms and Memory Management](distributed_runtime.html)
+- [Runtime Algorithms and Memory Management](operators_and_memory.html)
 
 - [Program Optimizer](optimizer.html)
+-->
 
 - [How-to: Adding a new Operator](add_operator.html)
 
