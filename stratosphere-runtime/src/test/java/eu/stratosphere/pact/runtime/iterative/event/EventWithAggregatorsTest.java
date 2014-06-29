@@ -22,6 +22,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -94,7 +96,7 @@ public class EventWithAggregatorsTest {
 		try {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			DataOutputStream out = new DataOutputStream(baos);
-			event.write(out);
+			event.write(new OutputViewDataOutputStreamWrapper(out));
 			out.flush();
 			
 			byte[] data = baos.toByteArray();
@@ -103,7 +105,7 @@ public class EventWithAggregatorsTest {
 			
 			DataInputStream in = new DataInputStream(new ByteArrayInputStream(data));
 			IterationEventWithAggregators newEvent = event.getClass().newInstance();
-			newEvent.read(in);
+			newEvent.read(new InputViewDataInputStreamWrapper(in));
 			in.close();
 			
 			return newEvent;

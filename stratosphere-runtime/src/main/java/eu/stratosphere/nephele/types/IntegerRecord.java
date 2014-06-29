@@ -13,11 +13,11 @@
 
 package eu.stratosphere.nephele.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 
 /**
  * This class represents record for integer values.
@@ -65,13 +65,13 @@ public class IntegerRecord implements IOReadableWritable {
 	}
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		// Simply read the value from the stream
 		this.value = in.readInt();
 	}
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 		// Simply write the value to the stream
 		out.writeInt(this.value);
 	}

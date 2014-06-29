@@ -14,9 +14,11 @@
  **********************************************************************************************************************/
 package eu.stratosphere.runtime.io.serialization;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.core.memory.MemoryUtils;
 
-import java.io.DataOutput;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
 import java.nio.ByteBuffer;
@@ -25,7 +27,7 @@ import java.nio.ByteOrder;
 /**
  * A simple and efficient serializer for the {@link java.io.DataOutput} interface.
  */
-public class DataOutputSerializer implements DataOutput {
+public class DataOutputSerializer implements DataOutputView {
 	
 	private byte[] buffer;
 	
@@ -257,4 +259,23 @@ public class DataOutputSerializer implements DataOutput {
 	private static final long BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
 	
 	private static final boolean LITTLE_ENDIAN = (MemoryUtils.NATIVE_BYTE_ORDER == ByteOrder.LITTLE_ENDIAN);
+
+	@Override
+	public void skipBytesToWrite(int numBytes) throws IOException {
+		if(buffer.length - this.position < numBytes){
+			throw new EOFException("Could not skip " + numBytes + " bytes.");
+		}
+
+		this.position += numBytes;
+	}
+
+	@Override
+	public void write(DataInputView source, int numBytes) throws IOException {
+		if(buffer.length - this.position < numBytes){
+			throw new EOFException("Could not write " + numBytes + " bytes. Buffer overflow.");
+		}
+
+		source.read(this.buffer, this.position, numBytes);
+		this.position += numBytes;
+	}
 }

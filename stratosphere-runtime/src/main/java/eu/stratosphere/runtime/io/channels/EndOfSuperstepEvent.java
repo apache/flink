@@ -13,10 +13,10 @@
 
 package eu.stratosphere.runtime.io.channels;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 
 /**
@@ -27,8 +27,8 @@ public class EndOfSuperstepEvent extends AbstractEvent {
 	public static final EndOfSuperstepEvent INSTANCE = new EndOfSuperstepEvent();
 
 	@Override
-	public void write(DataOutput out) throws IOException {}
+	public void write(DataOutputView out) throws IOException {}
 
 	@Override
-	public void read(DataInput in) throws IOException {}
+	public void read(DataInputView in) throws IOException {}
 }

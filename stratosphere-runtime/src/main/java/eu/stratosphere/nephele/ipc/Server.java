@@ -52,6 +52,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -875,7 +877,7 @@ public abstract class Server {
 		// / Reads the connection header following version
 		private void processProtocol() throws IOException {
 			DataInputStream in = new DataInputStream(new ByteArrayInputStream(data.array()));
-			header.read(in);
+			header.read(new InputViewDataInputStreamWrapper(in));
 			try {
 				String protocolClassName = header.getProtocol();
 				if (protocolClassName != null) {
@@ -894,7 +896,7 @@ public abstract class Server {
 
 
 			IOReadableWritable invocation = newInstance(invocationClass); // read param
-			invocation.read(dis);
+			invocation.read(new InputViewDataInputStreamWrapper(dis));
 
 			Call call = new Call(id, invocation, this);
 			callQueue.put(call); // queue the call; maybe blocked here
@@ -1048,7 +1050,7 @@ public abstract class Server {
 			} else {
 				out.writeBoolean(true);
 				StringRecord.writeString(out, rv.getClass().getName());
-				rv.write(out);
+				rv.write(new OutputViewDataOutputStreamWrapper(out));
 			}
 
 		} else {

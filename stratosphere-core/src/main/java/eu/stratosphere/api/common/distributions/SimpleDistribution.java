@@ -12,10 +12,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.distributions;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.types.Key;
 import eu.stratosphere.util.InstantiationUtil;
 
@@ -123,7 +123,7 @@ public class SimpleDistribution implements DataDistribution {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeInt(this.dim);
 		out.writeInt(boundaries.length);
 		
@@ -141,7 +141,7 @@ public class SimpleDistribution implements DataDistribution {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		this.dim = in.readInt();
 		final int len = in.readInt();
 		

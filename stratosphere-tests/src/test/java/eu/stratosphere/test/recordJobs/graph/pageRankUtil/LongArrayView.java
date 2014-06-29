@@ -13,10 +13,10 @@
 
 package eu.stratosphere.test.recordJobs.graph.pageRankUtil;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.types.Value;
 
 public class LongArrayView implements Value {
@@ -66,14 +66,14 @@ public class LongArrayView implements Value {
 		}
 	}
 
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeInt(numEntries);
 		for (int n = 0; n < numEntries; n++) {
 			out.writeLong(entries[n]);
 		}
 	}
 
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		numEntries = in.readInt();
 		ensureCapacity();
 		for (int n = 0; n < numEntries; n++) {

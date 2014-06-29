@@ -13,8 +13,6 @@
 
 package eu.stratosphere.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.core.memory.DataInputView;
@@ -80,12 +78,12 @@ public class IntValue implements NormalizableKey<IntValue>, ResettableValue<IntV
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		this.value = in.readInt();
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeInt(this.value);
 	}
 

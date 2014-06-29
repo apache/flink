@@ -29,6 +29,8 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 import eu.stratosphere.nephele.jobmanager.JobManagerITCase;
 import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 
@@ -197,7 +199,7 @@ public final class ServerTestUtils {
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		final DataOutputStream dos = new DataOutputStream(baos);
 
-		original.write(dos);
+		original.write(new OutputViewDataOutputStreamWrapper(dos));
 
 		final String className = original.getClass().getName();
 		if (className == null) {
@@ -232,7 +234,7 @@ public final class ServerTestUtils {
 		final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
 		final DataInputStream dis = new DataInputStream(bais);
 
-		copy.read(dis);
+		copy.read(new InputViewDataInputStreamWrapper(dis));
 
 		return copy;
 	}

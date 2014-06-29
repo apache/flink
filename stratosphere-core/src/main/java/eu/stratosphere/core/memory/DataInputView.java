@@ -35,4 +35,26 @@ public interface DataInputView extends DataInput {
 	 *                     be advanced to the desired position.
 	 */
 	public void skipBytesToRead(int numBytes) throws IOException;
+
+	/**
+	 * Reads up to {@code len} bytes of memory and stores it into {@code b} starting at offset {@code off}.
+	 * It returns the number of read bytes or -1 if there is no more data left.
+	 *
+	 * @param b byte array to store the data to
+	 * @param off offset into byte array
+	 * @param len byte length to read
+	 * @return the number of actually read bytes of -1 if there is no more data left
+	 * @throws IOException
+	 */
+	public int read(byte[] b, int off, int len) throws IOException;
+
+	/**
+	 * Tries to fill the given byte array {@code b}. Returns the actually number of read bytes or -1 if there is no
+	 * more data.
+	 *
+	 * @param b byte array to store the data to
+	 * @return the number of read bytes or -1 if there is no more data left
+	 * @throws IOException
+	 */
+	public int read(byte[] b) throws IOException;
 }

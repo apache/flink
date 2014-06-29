@@ -23,6 +23,8 @@ import java.io.File;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 
 /**
  * This class contains auxiliary methods for unit tests in the Nephele management module.
@@ -61,7 +63,7 @@ public final class ManagementTestUtils {
 		final DataOutputStream dos = new DataOutputStream(baos);
 
 		try {
-			original.write(dos);
+			original.write(new OutputViewDataOutputStreamWrapper(dos));
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
 		}
@@ -100,7 +102,7 @@ public final class ManagementTestUtils {
 		final DataInputStream dis = new DataInputStream(bais);
 
 		try {
-			copy.read(dis);
+			copy.read(new InputViewDataInputStreamWrapper(dis));
 		} catch (IOException e) {
 			fail(e.getMessage());
 		}

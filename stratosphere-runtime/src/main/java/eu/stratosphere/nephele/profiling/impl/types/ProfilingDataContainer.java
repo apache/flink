@@ -13,8 +13,6 @@
 
 package eu.stratosphere.nephele.profiling.impl.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Iterator;
@@ -22,6 +20,8 @@ import java.util.Queue;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.util.StringUtils;
 
 public class ProfilingDataContainer implements IOReadableWritable {
@@ -43,7 +43,7 @@ public class ProfilingDataContainer implements IOReadableWritable {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 
 		final int numberOfRecords = in.readInt();
 		for (int i = 0; i < numberOfRecords; i++) {
@@ -83,7 +83,7 @@ public class ProfilingDataContainer implements IOReadableWritable {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 
 		// Write the number of records
 		out.writeInt(this.queuedProfilingData.size());

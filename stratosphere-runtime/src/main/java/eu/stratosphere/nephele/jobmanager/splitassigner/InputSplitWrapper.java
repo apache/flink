@@ -13,13 +13,13 @@
 
 package eu.stratosphere.nephele.jobmanager.splitassigner;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.util.StringUtils;
@@ -68,7 +68,7 @@ public final class InputSplitWrapper implements IOReadableWritable {
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 
 		// Write the job ID
 		this.jobID.write(out);
@@ -90,7 +90,7 @@ public final class InputSplitWrapper implements IOReadableWritable {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 
 		// Read the job ID
 		this.jobID.read(in);

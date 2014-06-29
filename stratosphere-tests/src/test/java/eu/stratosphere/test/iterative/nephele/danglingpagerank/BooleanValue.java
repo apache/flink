@@ -13,10 +13,10 @@
 
 package eu.stratosphere.test.iterative.nephele.danglingpagerank;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.types.Value;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 public class BooleanValue implements Value {
@@ -40,12 +40,12 @@ public class BooleanValue implements Value {
   }
 
   @Override
-  public void write(DataOutput out) throws IOException {
+  public void write(DataOutputView out) throws IOException {
     out.writeBoolean(value);
   }
 
   @Override
-  public void read(DataInput in) throws IOException {
+  public void read(DataInputView in) throws IOException {
     value = in.readBoolean();
   }
 }

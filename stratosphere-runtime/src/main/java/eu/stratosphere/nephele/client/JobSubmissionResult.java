@@ -13,8 +13,9 @@
 
 package eu.stratosphere.nephele.client;
 
-import java.io.DataInput;
-import java.io.DataOutput;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+
 import java.io.IOException;
 
 /**
@@ -49,13 +50,13 @@ public class JobSubmissionResult extends AbstractJobResult {
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		super.read(in);
 	}
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 		super.write(out);
 	}
 

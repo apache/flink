@@ -12,10 +12,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.recordJobs.kmeans.udfs;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.types.Key;
 
 /**
@@ -99,7 +99,7 @@ public final class CoordVector implements Key<CoordVector> {
 
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		int length = in.readInt();
 		this.coordinates = new double[length];
 		for (int i = 0; i < length; i++) {
@@ -109,7 +109,7 @@ public final class CoordVector implements Key<CoordVector> {
 
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeInt(this.coordinates.length);
 		for (int i = 0; i < this.coordinates.length; i++) {
 			out.writeDouble(this.coordinates[i]);

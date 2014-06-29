@@ -25,6 +25,8 @@ import java.io.IOException;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 
 /**
  * This class contains auxiliary methods for unit tests in the Nephele common module.
@@ -95,7 +97,7 @@ public class CommonTestUtils {
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		final DataOutputStream dos = new DataOutputStream(baos);
 
-		original.write(dos);
+		original.write(new OutputViewDataOutputStreamWrapper(dos));
 
 		final String className = original.getClass().getName();
 		if (className == null) {
@@ -130,7 +132,7 @@ public class CommonTestUtils {
 		final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
 		final DataInputStream dis = new DataInputStream(bais);
 
-		copy.read(dis);
+		copy.read(new InputViewDataInputStreamWrapper(dis));
 
 		return copy;
 	}

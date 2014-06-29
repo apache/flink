@@ -13,8 +13,9 @@
 
 package eu.stratosphere.core.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+
 import java.io.IOException;
 
 /**
@@ -53,13 +54,13 @@ public class GenericInputSplit implements InputSplit {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeInt(this.partitionNumber);
 		out.writeInt(this.totalNumberOfPartitions);
 	}
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		this.partitionNumber = in.readInt();
 		this.totalNumberOfPartitions = in.readInt();
 	}

@@ -15,9 +15,7 @@ package eu.stratosphere.pact.runtime.task.util;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInput;
 import java.io.DataInputStream;
-import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -37,6 +35,10 @@ import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.PactDriver;
@@ -535,7 +537,7 @@ public class TaskConfig {
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		final DataOutputStream dos = new DataOutputStream(baos);
 		try {
-			distribution.write(dos);
+			distribution.write(new OutputViewDataOutputStreamWrapper(dos));
 		} catch (IOException e) {
 			throw new RuntimeException("Error serializing the DataDistribution: " + e.getMessage(), e);
 		}
@@ -569,7 +571,7 @@ public class TaskConfig {
 		final DataInputStream in = new DataInputStream(bais);
 		
 		try {
-			distribution.read(in);
+			distribution.read(new InputViewDataInputStreamWrapper(in));
 			return distribution;
 		} catch (Exception ex) {
 			throw new RuntimeException("The deserialization of the encoded data distribution state caused an error"
@@ -1261,13 +1263,13 @@ public class TaskConfig {
 		// --------------------------------------------------------------------------------------------
 
 		@Override
-		public void read(DataInput in) throws IOException {
+		public void read(DataInputView in) throws IOException {
 			this.prefix = in.readUTF();
 			this.backingConfig.read(in);
 		}
 
 		@Override
-		public void write(DataOutput out) throws IOException {
+		public void write(DataOutputView out) throws IOException {
 			out.writeUTF(this.prefix);
 			this.backingConfig.write(out);
 		}

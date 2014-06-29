@@ -13,10 +13,10 @@
 
 package eu.stratosphere.hadoopcompatibility.mapred.wrapper;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import org.apache.hadoop.io.WritableFactories;
 import org.apache.hadoop.mapred.JobConf;
 
@@ -48,14 +48,14 @@ public class HadoopInputSplit implements InputSplit {
 	}
 	
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeInt(splitNumber);
 		out.writeUTF(hadoopInputSplitTypeName);
 		hadoopInputSplit.write(out);
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		this.splitNumber=in.readInt();
 		this.hadoopInputSplitTypeName = in.readUTF();
 		if(hadoopInputSplit == null) {

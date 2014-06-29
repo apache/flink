@@ -13,12 +13,12 @@
 
 package eu.stratosphere.nephele.execution.librarycache;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 
 /**
  * A library cache profile response is the response to a library cache profile request. It contains the set of
@@ -92,7 +92,7 @@ public class LibraryCacheProfileResponse implements IOReadableWritable {
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 
 		// Read the names of the required jar files
 		this.requiredLibraries = new String[in.readInt()];
@@ -110,7 +110,7 @@ public class LibraryCacheProfileResponse implements IOReadableWritable {
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 
 		if (this.requiredLibraries == null) {
 			throw new IOException("requiredLibraries is null");

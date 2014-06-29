@@ -19,8 +19,6 @@
 
 package eu.stratosphere.nephele.ipc;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
@@ -34,6 +32,8 @@ import java.util.Map;
 
 import javax.net.SocketFactory;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -102,7 +102,7 @@ public class RPC {
 
 		// TODO: See if type safety can be improved here
 		@SuppressWarnings("unchecked")
-		public void read(DataInput in) throws IOException {
+		public void read(DataInputView in) throws IOException {
 
 			this.methodName = StringRecord.readString(in);
 			this.parameters = new IOReadableWritable[in.readInt()];
@@ -140,7 +140,7 @@ public class RPC {
 			}
 		}
 
-		public void write(DataOutput out) throws IOException {
+		public void write(DataOutputView out) throws IOException {
 			StringRecord.writeString(out, methodName);
 			out.writeInt(parameterClasses.length);
 			for (int i = 0; i < parameterClasses.length; i++) {

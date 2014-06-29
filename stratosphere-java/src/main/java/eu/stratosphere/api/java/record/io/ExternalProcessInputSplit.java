@@ -13,12 +13,12 @@
 
 package eu.stratosphere.api.java.record.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.GenericInputSplit;
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 
 /**
  * The ExternalProcessInputSplit contains all informations for {@link InputFormat} that read their data from external processes.
@@ -58,13 +58,13 @@ public class ExternalProcessInputSplit extends GenericInputSplit {
 	
 	
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		super.read(in);
 		this.extProcessCommand = StringRecord.readString(in);
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		super.write(out);
 		StringRecord.writeString(out, this.extProcessCommand);
 	}

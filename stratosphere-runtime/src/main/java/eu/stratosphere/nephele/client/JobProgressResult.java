@@ -13,11 +13,11 @@
 
 package eu.stratosphere.nephele.client;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Iterator;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.event.job.AbstractEvent;
 import eu.stratosphere.nephele.util.SerializableArrayList;
 
@@ -62,7 +62,7 @@ public class JobProgressResult extends AbstractJobResult {
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		super.read(in);
 
 		this.events.read(in);
@@ -70,7 +70,7 @@ public class JobProgressResult extends AbstractJobResult {
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 		super.write(out);
 
 		this.events.write(out);

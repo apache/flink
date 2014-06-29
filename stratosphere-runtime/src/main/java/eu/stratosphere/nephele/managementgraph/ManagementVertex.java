@@ -13,14 +13,14 @@
 
 package eu.stratosphere.nephele.managementgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.util.EnumUtils;
 import eu.stratosphere.util.StringUtils;
@@ -266,7 +266,7 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	}
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 
 		// Read the execution state
 		this.executionState = EnumUtils.readEnum(in, ExecutionState.class);
@@ -288,7 +288,7 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 
 		// Write the execution state
 		EnumUtils.writeEnum(out, this.executionState);

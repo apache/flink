@@ -13,11 +13,11 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import org.apache.commons.lang.Validate;
 
 import eu.stratosphere.configuration.Configuration;
@@ -374,7 +374,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 
 		if (jobGraph == null) {
 			throw new IOException("jobGraph is null, cannot deserialize");
@@ -454,7 +454,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 
 		// Number of subtasks
 		out.writeInt(this.numberOfSubtasks);

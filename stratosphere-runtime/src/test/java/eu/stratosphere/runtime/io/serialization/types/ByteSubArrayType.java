@@ -13,8 +13,9 @@
 
 package eu.stratosphere.runtime.io.serialization.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
@@ -52,13 +53,13 @@ public class ByteSubArrayType implements SerializationTestType {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeInt(this.len);
 		out.write(this.data, 0, this.len);
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		this.len = in.readInt();
 		in.readFully(this.data, 0, this.len);
 	}

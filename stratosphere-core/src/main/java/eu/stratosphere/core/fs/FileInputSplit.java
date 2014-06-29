@@ -19,12 +19,12 @@
 
 package eu.stratosphere.core.fs;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 
 /**
  * A file input split provides information on a particular part of a file, possibly
@@ -143,7 +143,7 @@ public class FileInputSplit implements InputSplit {
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 		// write partition number
 		out.writeInt(this.partitionNumber);
 
@@ -173,7 +173,7 @@ public class FileInputSplit implements InputSplit {
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		// read partition number
 		this.partitionNumber = in.readInt();
 

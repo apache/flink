@@ -14,8 +14,6 @@
 package eu.stratosphere.test.recordJobs.kmeans;
 
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,6 +33,8 @@ import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
@@ -128,14 +128,14 @@ public class KMeansSingleStep implements Program, ProgramDescription {
 		}
 
 		@Override
-		public void write(DataOutput out) throws IOException {
+		public void write(DataOutputView out) throws IOException {
 			out.writeDouble(x);
 			out.writeDouble(y);
 			out.writeDouble(z);
 		}
 
 		@Override
-		public void read(DataInput in) throws IOException {
+		public void read(DataInputView in) throws IOException {
 			x = in.readDouble();
 			y = in.readDouble();
 			z = in.readDouble();

@@ -13,10 +13,10 @@
 
 package eu.stratosphere.nephele.profiling.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
 
@@ -96,7 +96,7 @@ public final class InputGateProfilingEvent extends VertexProfilingEvent {
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		super.read(in);
 
 		this.gateIndex = in.readInt();
@@ -105,7 +105,7 @@ public final class InputGateProfilingEvent extends VertexProfilingEvent {
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 		super.write(out);
 
 		out.writeInt(this.gateIndex);

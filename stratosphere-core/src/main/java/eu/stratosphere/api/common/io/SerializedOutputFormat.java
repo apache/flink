@@ -12,10 +12,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.io;
 
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataOutputView;
 
 /**
  * Stores elements by serializing them with their regular serialization/deserialization functionality.
@@ -27,7 +27,7 @@ public class SerializedOutputFormat extends BinaryOutputFormat<IOReadableWritabl
 	private static final long serialVersionUID = 1L;
 	
 	@Override
-	protected void serialize(IOReadableWritable record, DataOutput dataOutputStream) throws IOException {
-		record.write(dataOutputStream);
+	protected void serialize(IOReadableWritable record, DataOutputView dataOutputView) throws IOException {
+		record.write(dataOutputView);
 	}
 }

@@ -13,12 +13,12 @@
 
 package eu.stratosphere.api.common.accumulators;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Map;
 
 import com.google.common.collect.Maps;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 
 /**
  * Histogram for discrete-data. Let's you populate a histogram distributedly.
@@ -73,7 +73,7 @@ public class Histogram implements Accumulator<Integer, Map<Integer, Integer>> {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeInt(hashMap.size());
 		for (Map.Entry<Integer, Integer> entry : hashMap.entrySet()) {
 			out.writeInt(entry.getKey());
@@ -82,7 +82,7 @@ public class Histogram implements Accumulator<Integer, Map<Integer, Integer>> {
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		int size = in.readInt();
 		for (int i = 0; i < size; ++i) {
 			hashMap.put(in.readInt(), in.readInt());

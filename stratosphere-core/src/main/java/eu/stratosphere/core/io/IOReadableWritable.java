@@ -13,8 +13,9 @@
 
 package eu.stratosphere.core.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+
 import java.io.IOException;
 
 /**
@@ -27,23 +28,23 @@ import java.io.IOException;
 public interface IOReadableWritable {
 
 	/**
-	 * Writes the object's internal data to the given data output stream.
+	 * Writes the object's internal data to the given data output view.
 	 * 
 	 * @param out
-	 *        the output stream to receive the data.
+	 *        the output view to receive the data.
 	 * @throws IOException
 	 *         thrown if any error occurs while writing to the output stream
 	 */
-	void write(DataOutput out) throws IOException;
+	void write(DataOutputView out) throws IOException;
 
 	/**
-	 * Reads the object's internal data from the given data input stream.
+	 * Reads the object's internal data from the given data input view.
 	 * 
 	 * @param in
-	 *        the input stream to read the data from
+	 *        the input view to read the data from
 	 * @throws IOException
 	 *         thrown if any error occurs while reading from the input stream
 	 */
-	void read(DataInput in) throws IOException;
+	void read(DataInputView in) throws IOException;
 
 }

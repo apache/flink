@@ -30,8 +30,9 @@
 
 package eu.stratosphere.nephele.event.task;
 
-import java.io.DataInput;
-import java.io.DataOutput;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+
 import java.io.IOException;
 
 /**
@@ -74,13 +75,13 @@ public class IntegerTaskEvent extends AbstractTaskEvent {
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 		out.writeInt(this.value);
 	}
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		this.value = in.readInt();
 	}
 

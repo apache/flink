@@ -13,12 +13,12 @@
 
 package eu.stratosphere.runtime.io.network;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.event.task.AbstractEvent;
 import eu.stratosphere.runtime.io.channels.ChannelID;
 
@@ -65,7 +65,7 @@ public final class SenderHintEvent extends AbstractEvent {
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 
 		this.source.write(out);
 		this.remoteReceiver.write(out);
@@ -73,7 +73,7 @@ public final class SenderHintEvent extends AbstractEvent {
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 
 		this.source.read(in);
 		this.remoteReceiver.read(in);

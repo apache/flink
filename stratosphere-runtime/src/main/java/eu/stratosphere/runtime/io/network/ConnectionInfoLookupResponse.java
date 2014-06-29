@@ -16,11 +16,11 @@
 
 package eu.stratosphere.runtime.io.network;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.runtime.io.channels.ChannelID;
 
 public class ConnectionInfoLookupResponse implements IOReadableWritable {
@@ -66,7 +66,7 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		this.returnCode = ReturnCode.values()[in.readInt()];
 		
 		if (in.readBoolean()) {
@@ -80,7 +80,7 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeInt(this.returnCode.ordinal());
 		
 		if (this.remoteTarget != null) {

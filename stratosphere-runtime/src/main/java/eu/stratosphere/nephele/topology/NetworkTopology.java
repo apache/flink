@@ -14,9 +14,7 @@
 package eu.stratosphere.nephele.topology;
 
 import java.io.BufferedReader;
-import java.io.DataInput;
 import java.io.DataInputStream;
-import java.io.DataOutput;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -28,6 +26,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 
 public class NetworkTopology implements IOReadableWritable {
 
@@ -120,14 +120,14 @@ public class NetworkTopology implements IOReadableWritable {
 	}
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 
 		this.rootNode.read(in);
 
 	}
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 
 		this.rootNode.write(out);
 

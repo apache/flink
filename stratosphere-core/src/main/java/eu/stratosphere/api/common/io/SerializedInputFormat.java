@@ -12,10 +12,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.common.io;
 
-import java.io.DataInput;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
 
 /**
  * Reads elements by deserializing them with their regular serialization/deserialization functionality.
@@ -27,7 +27,7 @@ public class SerializedInputFormat<T extends IOReadableWritable> extends BinaryI
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	protected T deserialize(T reuse, DataInput dataInput) throws IOException {
+	protected T deserialize(T reuse, DataInputView dataInput) throws IOException {
 		reuse.read(dataInput);
 		return reuse;
 	}

@@ -13,10 +13,10 @@
 
 package eu.stratosphere.nephele.profiling.impl.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
 
 public class InternalInstanceProfilingData implements InternalProfilingData {
@@ -145,7 +145,7 @@ public class InternalInstanceProfilingData implements InternalProfilingData {
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 
 		this.freeMemory = in.readLong();
 		this.ioWaitCPU = in.readInt();
@@ -166,7 +166,7 @@ public class InternalInstanceProfilingData implements InternalProfilingData {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 
 		out.writeLong(this.freeMemory);
 		out.writeInt(this.ioWaitCPU);

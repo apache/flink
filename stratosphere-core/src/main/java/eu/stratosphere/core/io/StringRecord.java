@@ -34,6 +34,8 @@ import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.Arrays;
 
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 import eu.stratosphere.types.Value;
 
 /**
@@ -287,8 +289,9 @@ public class StringRecord implements Value {
 
 	/**
 	 * deserialize
+	 * @param in
 	 */
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 		final int newLength = in.readInt();
 		setCapacity(newLength, false);
 		in.readFully(this.bytes, 0, newLength);
@@ -316,7 +319,7 @@ public class StringRecord implements Value {
 	}
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 		out.writeInt(this.length);
 		out.write(this.bytes, 0, this.length);
 	}

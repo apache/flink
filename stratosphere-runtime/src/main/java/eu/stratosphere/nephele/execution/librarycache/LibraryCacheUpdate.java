@@ -13,11 +13,11 @@
 
 package eu.stratosphere.nephele.execution.librarycache;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
 
 /**
  * This class is used to encapsulate the transmission of a library file in a Nephele RPC call.
@@ -48,14 +48,14 @@ public class LibraryCacheUpdate implements IOReadableWritable {
 
 
 	@Override
-	public void read(final DataInput in) throws IOException {
+	public void read(final DataInputView in) throws IOException {
 
 		LibraryCacheManager.readLibraryFromStream(in);
 	}
 
 
 	@Override
-	public void write(final DataOutput out) throws IOException {
+	public void write(final DataOutputView out) throws IOException {
 
 		if (this.libraryFileName == null) {
 			throw new IOException("libraryFileName is null");

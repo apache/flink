@@ -13,8 +13,9 @@
 
 package eu.stratosphere.runtime.io.serialization.types;
 
-import java.io.DataInput;
-import java.io.DataOutput;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+
 import java.io.IOException;
 import java.util.Random;
 
@@ -41,12 +42,12 @@ public class LongType implements SerializationTestType {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeLong(this.value);
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		this.value = in.readLong();
 	}
 

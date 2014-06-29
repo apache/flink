@@ -13,8 +13,9 @@
 
 package eu.stratosphere.api.common.accumulators;
 
-import java.io.DataInput;
-import java.io.DataOutput;
+import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.DataOutputView;
+
 import java.io.IOException;
 
 public class DoubleCounter implements SimpleAccumulator<Double> {
@@ -44,12 +45,12 @@ public class DoubleCounter implements SimpleAccumulator<Double> {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.writeDouble(localValue);
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		this.localValue = in.readDouble();
 	}
 

@@ -13,11 +13,11 @@
 
 package eu.stratosphere.api.common.io;
 
-import java.io.DataInput;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
+import eu.stratosphere.core.memory.DataInputView;
 import org.apache.log4j.Level;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -35,7 +35,7 @@ public class BinaryInputFormatTest {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		protected Record deserialize(Record record, DataInput dataInput) {
+		protected Record deserialize(Record record, DataInputView dataInput) {
 			return record;
 		}
 	}

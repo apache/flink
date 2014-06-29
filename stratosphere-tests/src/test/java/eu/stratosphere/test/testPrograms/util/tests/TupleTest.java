@@ -19,6 +19,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
+import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -636,14 +638,14 @@ public class TupleTest {
 		Tuple t = new Tuple();
 		t.addAttribute("Hello world!");
 		try {
-			t.write(dos);
+			t.write(new OutputViewDataOutputStreamWrapper(dos));
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
 		
 		t.addAttribute("2ndAttribute");
 		try {
-			t.write(dos);
+			t.write(new OutputViewDataOutputStreamWrapper(dos));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -653,7 +655,7 @@ public class TupleTest {
 		t = new Tuple(ba, of2, 5);
 		
 		try {
-			t.write(dos);
+			t.write(new OutputViewDataOutputStreamWrapper(dos));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -678,7 +680,7 @@ public class TupleTest {
 		
 		t = new Tuple();
 		try {
-			t.read(dis);
+			t.read(new InputViewDataInputStreamWrapper(dis));
 			
 			Assert.assertTrue(t.getNumberOfColumns() == 1);
 			Assert.assertTrue(t.getStringValueAt(0).equals("Hello world!"));
@@ -689,7 +691,7 @@ public class TupleTest {
 		
 		t = new Tuple();
 		try {
-			t.read(dis);
+			t.read(new InputViewDataInputStreamWrapper(dis));
 			
 			Assert.assertTrue(t.getNumberOfColumns() == 2);
 			Assert.assertTrue(t.getStringValueAt(0).equals("Hello world!"));
@@ -701,7 +703,7 @@ public class TupleTest {
 		
 		t = new Tuple();
 		try {
-			t.read(dis);
+			t.read(new InputViewDataInputStreamWrapper(dis));
 			
 			Assert.assertTrue(t.getNumberOfColumns() == 5);
 			Assert.assertTrue(t.getStringValueAt(0).equals("attr1"));
