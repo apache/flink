@@ -23,6 +23,8 @@ import org.apache.hadoop.io.Writable;
 import org.junit.Assert;
 import org.junit.Test;
 
+import eu.stratosphere.api.common.functions.GenericMap;
+import eu.stratosphere.api.common.functions.RuntimeContext;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
 import eu.stratosphere.api.java.functions.CrossFunction;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
@@ -40,14 +42,15 @@ import eu.stratosphere.api.java.typeutils.BasicArrayTypeInfo;
 import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
 import eu.stratosphere.api.java.typeutils.GenericTypeInfo;
 import eu.stratosphere.api.java.typeutils.ObjectArrayTypeInfo;
-import eu.stratosphere.api.java.typeutils.PrimitiveArrayTypeInfo;
 import eu.stratosphere.api.java.typeutils.PojoTypeInfo;
+import eu.stratosphere.api.java.typeutils.PrimitiveArrayTypeInfo;
 import eu.stratosphere.api.java.typeutils.ResultTypeQueryable;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.api.java.typeutils.TypeInfoParser;
 import eu.stratosphere.api.java.typeutils.ValueTypeInfo;
 import eu.stratosphere.api.java.typeutils.WritableTypeInfo;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
@@ -1373,5 +1376,39 @@ public class TypeExtractorTest {
 		Assert.assertEquals(PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(6));
 		Assert.assertEquals(PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(7));
 		Assert.assertEquals(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO, tti.getTypeAt(8));
+	}
+	
+	@Test
+	public void testInterface() {
+		GenericMap<String, Boolean> mapInterface = new GenericMap<String, Boolean>() {
+			
+			@Override
+			public void setRuntimeContext(RuntimeContext t) {
+				
+			}
+			
+			@Override
+			public void open(Configuration parameters) throws Exception {
+				
+			}
+			
+			@Override
+			public RuntimeContext getRuntimeContext() {
+				return null;
+			}
+			
+			@Override
+			public void close() throws Exception {
+				
+			}
+			
+			@Override
+			public Boolean map(String record) throws Exception {
+				return null;
+			}
+		};
+		
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(mapInterface, BasicTypeInfo.STRING_TYPE_INFO);
+		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
 	}
 }
