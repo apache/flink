@@ -192,29 +192,7 @@ public class JobGraph implements IOReadableWritable {
 	 */
 	public AbstractJobVertex[] getAllJobVertices() {
 		return this.taskVertices.values().toArray(new AbstractJobVertex[this.taskVertices.size()]);
-		
-		int i = 0;
-		final AbstractJobVertex[] vertices = new AbstractJobVertex[inputVertices.size() + outputVertices.size()
-			+ taskVertices.size()];
-
-		final Iterator<AbstractJobInputVertex> iv = getInputVertices();
-		while (iv.hasNext()) {
-			vertices[i++] = iv.next();
-		}
-
-		final Iterator<AbstractJobOutputVertex> ov = getOutputVertices();
-		while (ov.hasNext()) {
-			vertices[i++] = ov.next();
-		}
-
-		final Iterator<JobTaskVertex> tv = getTaskVertices();
-		while (tv.hasNext()) {
-			vertices[i++] = tv.next();
-		}
-
-		return vertices;
 	}
-
 
 	/**
 	 * Returns the ID of the job.

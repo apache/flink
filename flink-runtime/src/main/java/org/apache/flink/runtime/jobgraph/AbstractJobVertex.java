@@ -42,19 +42,19 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	private static final String DEFAULT_NAME = "(unnamed vertex)";
 	
 	/**
-	 * List of outgoing edges.
+	 * List of produced data sets, one per writer
 	 */
-	private final ArrayList<JobEdge> forwardEdges = new ArrayList<JobEdge>();
+	private final ArrayList<IntermediateDataSet> results = new ArrayList<IntermediateDataSet>();
 
 	/**
-	 * List of incoming edges.
+	 * List of edges with incoming data. One per Reader.
 	 */
-	private final ArrayList<JobEdge> backwardEdges = new ArrayList<JobEdge>();
+	private final ArrayList<JobEdge> inputs = new ArrayList<JobEdge>();
 
 	/**
 	 * The name of the vertex or task, respectively.
 	 */
-	private String name;
+	private final String name;
 
 	/**
 	 * The ID of the vertex.
@@ -86,6 +86,7 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 */
 	protected Class<? extends AbstractInvokable> invokableClass;
 
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Constructs a new job vertex and assigns it with the given name.
@@ -112,6 +113,8 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		this.id = id == null ? new JobVertexID() : id;
 		this.jobGraph = jobGraph;
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Connects the job vertex to the specified job vertex.
