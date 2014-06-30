@@ -16,18 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.protocols;
 
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.managementgraph.ManagementGraph;
-import org.apache.flink.runtime.managementgraph.ManagementVertexID;
 
 /**
  * This protocol provides extended management capabilities beyond the
@@ -69,29 +66,6 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 *         thrown if an error occurs while retrieving the list of events
 	 */
 	List<AbstractEvent> getEvents(JobID jobID) throws IOException;
-
-	/**
-	 * Kills the task with the given vertex ID.
-	 *
-	 * @param jobID
-	 *        the ID of the job the vertex to be killed belongs to
-	 * @param id
-	 *        the vertex ID which identified the task be killed
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the kill request
-	 */
-	void killTask(JobID jobID, ManagementVertexID id) throws IOException;
-
-	/**
-	 * Triggers all task managers involved in processing the job with the given job ID to write the utilization of
-	 * their read and write buffers to their log files. This method is primarily for debugging purposes.
-	 * 
-	 * @param jobID
-	 *        the ID of the job to print the buffer distribution for
-	 * @throws IOException
-	 *         throws if an error occurs while transmitting the request
-	 */
-	void logBufferUtilization(JobID jobID) throws IOException;
 
 	/**
 	 * Returns the number of available slots among the registered task managers

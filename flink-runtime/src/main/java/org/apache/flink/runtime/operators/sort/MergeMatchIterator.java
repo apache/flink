@@ -147,14 +147,14 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	 * 
 	 * @throws Exception Forwards all exceptions from the user code and the I/O system.
 	 * 
-	 * @see org.apache.flink.runtime.operators.util.JoinTaskIterator#callWithNextKey()
+	 * @see org.apache.flink.runtime.operators.util.JoinTaskIterator#callWithNextKey(FlatJoinFunction, Collector)
 	 */
 	@Override
 	public boolean callWithNextKey(final FlatJoinFunction<T1, T2, O> matchFunction, final Collector<O> collector)
 	throws Exception
 	{
 		if (!this.iterator1.nextKey() || !this.iterator2.nextKey()) {
-			// consume all remanining keys (hack to prevent remaining inputs during iterations, lets get rid of this soon)
+			// consume all remaining keys (hack to prevent remaining inputs during iterations, lets get rid of this soon)
 			while (this.iterator1.nextKey());
 			while (this.iterator2.nextKey());
 			

@@ -35,7 +35,6 @@ import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.managementgraph.ManagementGraph;
-import org.apache.flink.runtime.managementgraph.ManagementVertexID;
 import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
 import org.apache.flink.runtime.types.IntegerRecord;
 import org.junit.Assert;
@@ -186,16 +185,6 @@ public class CliFrontendListCancelTest {
 
 		@Override
 		public List<AbstractEvent> getEvents(JobID jobID) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public void killTask(JobID jobID, ManagementVertexID id) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public void logBufferUtilization(JobID jobID) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 

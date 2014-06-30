@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.event.job;
 
 import java.io.IOException;
@@ -24,46 +23,31 @@ import java.io.IOException;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.ExecutionState2;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.util.EnumUtils;
 
 /**
- * Vertex events are transmitted from the job manager
- * to the job client in order to inform the user about
+ * Vertex events are transmitted from the job manager to the job client in order to inform the user about
  * changes in terms of a tasks execution state.
- * 
  */
 public class VertexEvent extends AbstractEvent {
 
-	/**
-	 * The ID of the job vertex this event belongs to.
-	 */
+	/** The ID of the job vertex this event belongs to. */
 	private JobVertexID jobVertexID;
 
-	/**
-	 * The name of the job vertex this event belongs to.
-	 */
+	/** The name of the job vertex this event belongs to. */
 	private String jobVertexName;
 
-	/**
-	 * The number of subtasks the corresponding vertex has been split into at runtime.
-	 */
+	/** The number of subtasks the corresponding vertex has been split into at runtime. */
 	private int totalNumberOfSubtasks;
 
-	/**
-	 * The index of the subtask that this event belongs to.
-	 */
+	/** The index of the subtask that this event belongs to. */
 	private int indexOfSubtask;
 
-	/**
-	 * The current execution state of the subtask this event belongs to.
-	 */
-	private ExecutionState currentExecutionState;
+	/** The current execution state of the subtask this event belongs to. */
+	private ExecutionState2 currentExecutionState;
 
-	/**
-	 * An optional more detailed description of the event.
-	 */
+	/** An optional more detailed description of the event. */
 	private String description;
 
 	/**
@@ -84,10 +68,12 @@ public class VertexEvent extends AbstractEvent {
 	 * @param description
 	 *        an optional description
 	 */
-	public VertexEvent(final long timestamp, final JobVertexID jobVertexID, final String jobVertexName,
-			final int totalNumberOfSubtasks, final int indexOfSubtask, final ExecutionState currentExecutionState,
-			final String description) {
+	public VertexEvent(long timestamp, JobVertexID jobVertexID, String jobVertexName,
+			int totalNumberOfSubtasks, int indexOfSubtask, ExecutionState2 currentExecutionState,
+			String description)
+	{
 		super(timestamp);
+		
 		this.jobVertexID = jobVertexID;
 		this.jobVertexName = jobVertexName;
 		this.totalNumberOfSubtasks = totalNumberOfSubtasks;
@@ -108,7 +94,7 @@ public class VertexEvent extends AbstractEvent {
 		this.jobVertexName = null;
 		this.totalNumberOfSubtasks = -1;
 		this.indexOfSubtask = -1;
-		this.currentExecutionState = ExecutionState.CREATED;
+		this.currentExecutionState = ExecutionState2.CREATED;
 		this.description = null;
 	}
 
@@ -122,7 +108,7 @@ public class VertexEvent extends AbstractEvent {
 		this.jobVertexName = StringRecord.readString(in);
 		this.totalNumberOfSubtasks = in.readInt();
 		this.indexOfSubtask = in.readInt();
-		this.currentExecutionState = EnumUtils.readEnum(in, ExecutionState.class);
+		this.currentExecutionState = ExecutionState2.values()[in.readInt()];
 		this.description = StringRecord.readString(in);
 	}
 
@@ -136,7 +122,7 @@ public class VertexEvent extends AbstractEvent {
 		StringRecord.writeString(out, this.jobVertexName);
 		out.writeInt(this.totalNumberOfSubtasks);
 		out.writeInt(this.indexOfSubtask);
-		EnumUtils.writeEnum(out, this.currentExecutionState);
+		out.writeInt(this.currentExecutionState.ordinal());
 		StringRecord.writeString(out, this.description);
 	}
 
@@ -183,7 +169,7 @@ public class VertexEvent extends AbstractEvent {
 	 * 
 	 * @return the current execution state of the subtask this event belongs to
 	 */
-	public ExecutionState getCurrentExecutionState() {
+	public ExecutionState2 getCurrentExecutionState() {
 		return currentExecutionState;
 	}
 
@@ -261,7 +247,6 @@ public class VertexEvent extends AbstractEvent {
 
 	@Override
 	public int hashCode() {
-
 		return super.hashCode();
 	}
 }

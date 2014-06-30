@@ -31,6 +31,8 @@ import org.apache.flink.core.memory.DataOutputView;
  */
 public class TableInputSplit extends LocatableInputSplit {
 
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * The name of the table to retrieve data from
 	 */

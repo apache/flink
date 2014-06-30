@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -26,7 +27,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 /**
  * A slot sharing units defines which different task (from different job vertices) can be
  * deployed together within a slot. This is a soft permission, in contrast to the hard constraint
- * defined by the {@link CoLocationHint}.
+ * defined by a co-location hint.
  */
 public class SlotSharingGroup {
 	
@@ -44,12 +45,16 @@ public class SlotSharingGroup {
 	}
 	
 	
-	public void addVertexGroup(JobVertexID id) {
+	public void addVertexToGroup(JobVertexID id) {
 		this.ids.add(id);
 	}
 	
+	public void removeVertexFromGroup(JobVertexID id) {
+		this.ids.remove(id);
+	}
+	
 	public Set<JobVertexID> getJobVertexIds() {
-		return ids;
+		return Collections.unmodifiableSet(ids);
 	}
 	
 	
@@ -65,6 +70,6 @@ public class SlotSharingGroup {
 	
 	@Override
 	public String toString() {
-		return this.ids.toString();
+		return "SlotSharingGroup " + this.ids.toString();
 	}
 }

@@ -41,11 +41,11 @@ import org.apache.flink.runtime.execution.ExecutionStateTransition;
 import org.apache.flink.runtime.instance.AllocatedResource;
 import org.apache.flink.runtime.instance.AllocationID;
 import org.apache.flink.runtime.io.network.gates.GateID;
-import org.apache.flink.runtime.taskmanager.AbstractTaskResult;
+import org.apache.flink.runtime.taskmanager.TaskOperationResult;
 import org.apache.flink.runtime.taskmanager.TaskCancelResult;
 import org.apache.flink.runtime.taskmanager.TaskKillResult;
 import org.apache.flink.runtime.taskmanager.TaskSubmissionResult;
-import org.apache.flink.runtime.taskmanager.AbstractTaskResult.ReturnCode;
+import org.apache.flink.runtime.taskmanager.TaskOperationResult.ReturnCode;
 import org.apache.flink.runtime.util.AtomicEnum;
 import org.apache.flink.runtime.util.SerializableArrayList;
 import org.apache.flink.util.StringUtils;
@@ -432,8 +432,8 @@ public final class ExecutionVertex {
 
 		if (this.cancelRequested.compareAndSet(true, false)) {
 			final TaskCancelResult tsr = cancelTask();
-			if (tsr.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS
-				&& tsr.getReturnCode() != AbstractTaskResult.ReturnCode.TASK_NOT_FOUND) {
+			if (tsr.getReturnCode() != AbstractTaskResult.TaskOperationResult.SUCCESS
+				&& tsr.getReturnCode() != AbstractTaskResult.TaskOperationResult.TASK_NOT_FOUND) {
 				LOG.error("Unable to cancel vertex " + this + ": " + tsr.getReturnCode().toString()
 					+ ((tsr.getDescription() != null) ? (" (" + tsr.getDescription() + ")") : ""));
 			}
@@ -675,7 +675,7 @@ public final class ExecutionVertex {
 
 		if (ar == null) {
 			final TaskSubmissionResult result = new TaskSubmissionResult(getID(),
-				AbstractTaskResult.ReturnCode.NO_INSTANCE);
+				AbstractTaskResult.TaskOperationResult.NO_INSTANCE);
 			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
 			return result;
 		}
@@ -690,7 +690,7 @@ public final class ExecutionVertex {
 
 		} catch (IOException e) {
 			final TaskSubmissionResult result = new TaskSubmissionResult(getID(),
-				AbstractTaskResult.ReturnCode.IPC_ERROR);
+				AbstractTaskResult.TaskOperationResult.IPC_ERROR);
 			result.setDescription(StringUtils.stringifyException(e));
 			return result;
 		}
@@ -709,7 +709,7 @@ public final class ExecutionVertex {
 		final ExecutionState state = this.executionState.get();
 
 		if (state != ExecutionState.RUNNING) {
-			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.ILLEGAL_STATE);
+			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.TaskOperationResult.ILLEGAL_STATE);
 			result.setDescription("Vertex " + this.toString() + " is in state " + state);
 			return result;
 		}
@@ -717,7 +717,7 @@ public final class ExecutionVertex {
 		final AllocatedResource ar = this.allocatedResource.get();
 
 		if (ar == null) {
-			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.NO_INSTANCE);
+			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.TaskOperationResult.NO_INSTANCE);
 			result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
 			return result;
 		}
@@ -725,7 +725,7 @@ public final class ExecutionVertex {
 		try {
 			return ar.getInstance().killTask(this.vertexID);
 		} catch (IOException e) {
-			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.ReturnCode.IPC_ERROR);
+			final TaskKillResult result = new TaskKillResult(getID(), AbstractTaskResult.TaskOperationResult.IPC_ERROR);
 			result.setDescription(StringUtils.stringifyException(e));
 			return result;
 		}
@@ -746,15 +746,15 @@ public final class ExecutionVertex {
 			final ExecutionState previousState = this.executionState.get();
 
 			if (previousState == ExecutionState.CANCELED) {
-				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+				return new TaskCancelResult(getID(), AbstractTaskResult.TaskOperationResult.SUCCESS);
 			}
 
 			if (previousState == ExecutionState.FAILED) {
-				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+				return new TaskCancelResult(getID(), AbstractTaskResult.TaskOperationResult.SUCCESS);
 			}
 
 			if (previousState == ExecutionState.FINISHED) {
-				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+				return new TaskCancelResult(getID(), AbstractTaskResult.TaskOperationResult.SUCCESS);
 			}
 
 			// The vertex has already received a cancel request
@@ -774,7 +774,7 @@ public final class ExecutionVertex {
 					continue;
 				}
 
-				return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+				return new TaskCancelResult(getID(), AbstractTaskResult.TaskOperationResult.SUCCESS);
 			}
 
 			// Check if we had a race. If state change is accepted, send cancel request
@@ -783,20 +783,20 @@ public final class ExecutionVertex {
 				if (this.groupVertex.getStageNumber() != this.executionGraph.getIndexOfCurrentExecutionStage()) {
 					// Set to canceled directly
 					updateExecutionState(ExecutionState.CANCELED, null);
-					return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+					return new TaskCancelResult(getID(), AbstractTaskResult.TaskOperationResult.SUCCESS);
 				}
 
 				if (previousState != ExecutionState.RUNNING && previousState != ExecutionState.FINISHING) {
 					// Set to canceled directly
 					updateExecutionState(ExecutionState.CANCELED, null);
-					return new TaskCancelResult(getID(), AbstractTaskResult.ReturnCode.SUCCESS);
+					return new TaskCancelResult(getID(), AbstractTaskResult.TaskOperationResult.SUCCESS);
 				}
 
 				final AllocatedResource ar = this.allocatedResource.get();
 
 				if (ar == null) {
 					final TaskCancelResult result = new TaskCancelResult(getID(),
-						AbstractTaskResult.ReturnCode.NO_INSTANCE);
+						AbstractTaskResult.TaskOperationResult.NO_INSTANCE);
 					result.setDescription("Assigned instance of vertex " + this.toString() + " is null!");
 					return result;
 				}
@@ -806,7 +806,7 @@ public final class ExecutionVertex {
 
 				} catch (IOException e) {
 					final TaskCancelResult result = new TaskCancelResult(getID(),
-						AbstractTaskResult.ReturnCode.IPC_ERROR);
+						AbstractTaskResult.TaskOperationResult.IPC_ERROR);
 					result.setDescription(StringUtils.stringifyException(e));
 					return result;
 				}

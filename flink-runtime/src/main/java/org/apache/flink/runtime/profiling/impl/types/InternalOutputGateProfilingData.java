@@ -16,19 +16,18 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.impl.types;
 
 import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 
 public class InternalOutputGateProfilingData implements InternalProfilingData {
 
-	private final ExecutionVertexID executionVertexID;
+	private final ExecutionAttemptID executionID;
 
 	private final JobID jobId;
 
@@ -40,16 +39,16 @@ public class InternalOutputGateProfilingData implements InternalProfilingData {
 
 	public InternalOutputGateProfilingData() {
 		this.jobId = new JobID();
-		this.executionVertexID = new ExecutionVertexID();
+		this.executionID = new ExecutionAttemptID();
 		this.gateIndex = 0;
 		this.profilingInternval = 0;
 		this.channelCapacityExhaustedCounter = 0;
 	}
 
-	public InternalOutputGateProfilingData(JobID jobID, ExecutionVertexID executionVertexID, int gateIndex,
+	public InternalOutputGateProfilingData(JobID jobID, ExecutionAttemptID executionVertexID, int gateIndex,
 			int profilingInterval, int channelCapacityExhaustedCounter) {
 		this.jobId = jobID;
-		this.executionVertexID = executionVertexID;
+		this.executionID = executionVertexID;
 		this.gateIndex = gateIndex;
 		this.profilingInternval = profilingInterval;
 		this.channelCapacityExhaustedCounter = channelCapacityExhaustedCounter;
@@ -57,9 +56,8 @@ public class InternalOutputGateProfilingData implements InternalProfilingData {
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-
 		this.jobId.read(in);
-		this.executionVertexID.read(in);
+		this.executionID.read(in);
 		this.gateIndex = in.readInt();
 		this.profilingInternval = in.readInt();
 		this.channelCapacityExhaustedCounter = in.readInt();
@@ -67,9 +65,8 @@ public class InternalOutputGateProfilingData implements InternalProfilingData {
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-
 		this.jobId.write(out);
-		this.executionVertexID.write(out);
+		this.executionID.write(out);
 		out.writeInt(this.gateIndex);
 		out.writeInt(this.profilingInternval);
 		out.writeInt(this.channelCapacityExhaustedCounter);
@@ -79,8 +76,8 @@ public class InternalOutputGateProfilingData implements InternalProfilingData {
 		return this.jobId;
 	}
 
-	public ExecutionVertexID getExecutionVertexID() {
-		return this.executionVertexID;
+	public ExecutionAttemptID getExecutionID() {
+		return this.executionID;
 	}
 
 	public int getGateIndex() {

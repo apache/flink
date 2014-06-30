@@ -31,13 +31,10 @@ import org.apache.flink.core.memory.MemorySegment;
 
 /**
  * The facade for the provided I/O manager services.
- * 
  */
-public final class IOManager implements UncaughtExceptionHandler
-{
-	/**
-	 * Logging.
-	 */
+public class IOManager implements UncaughtExceptionHandler {
+	
+	/** Logging */
 	private static final Logger LOG = LoggerFactory.getLogger(IOManager.class);
 
 	/**
@@ -85,7 +82,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	/**
 	 * Constructs a new IOManager.
 	 * 
-	 * @param path The base directory path for files underlying channels.
+	 * @param tempDir The base directory path for files underlying channels.
 	 */
 	public IOManager(String tempDir) {
 		this(new String[] {tempDir});
@@ -94,12 +91,10 @@ public final class IOManager implements UncaughtExceptionHandler
 	/**
 	 * Constructs a new IOManager.
 	 * 
-	 * @param path
-	 *        the basic directory path for files underlying anonymous
-	 *        channels.
+	 * @param paths
+	 *        the basic directory paths for files underlying anonymous channels.
 	 */
-	public IOManager(String[] paths)
-	{
+	public IOManager(String[] paths) {
 		this.paths = paths;
 		this.random = new Random();
 		this.nextPath = 0;
@@ -199,7 +194,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	@Override
 	public void uncaughtException(Thread t, Throwable e)
 	{
-		LOG.error("IO Thread '" + t.getName() + "' terminated due to an exception. Closing I/O Manager.", e);
+		LOG.fatal("IO Thread '" + t.getName() + "' terminated due to an exception. Closing I/O Manager.", e);
 		shutdown();	
 	}
 

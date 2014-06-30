@@ -33,4 +33,8 @@ public final class ManagementVertexID extends AbstractID {
 	public ManagementVertexID(AbstractID toCopy) {
 		super(toCopy);
 	}
+	
+	public ManagementVertexID(long lowerPart, long upperPart) {
+		super(lowerPart, upperPart);
+	}
 }

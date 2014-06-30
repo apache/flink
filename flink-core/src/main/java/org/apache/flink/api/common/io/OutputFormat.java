@@ -16,14 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io;
 
 import java.io.IOException;
 import java.io.Serializable;
 
 import org.apache.flink.configuration.Configuration;
-
 
 /**
  * The base interface for outputs that consumes records. The output format

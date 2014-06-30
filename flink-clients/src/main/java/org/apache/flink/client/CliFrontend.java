@@ -541,7 +541,7 @@ public class CliFrontend {
 				if (running && rje.getJobStatus().equals(JobStatus.RUNNING)) {
 					runningJobs.add(rje);
 				}
-				if (scheduled && rje.getJobStatus().equals(JobStatus.SCHEDULED)) {
+				if (scheduled && rje.getJobStatus().equals(JobStatus.CREATED)) {
 					scheduledJobs.add(rje);
 				}
 			}

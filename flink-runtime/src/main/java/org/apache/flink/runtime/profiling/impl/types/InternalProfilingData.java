@@ -16,11 +16,8 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.impl.types;
 
 import org.apache.flink.core.io.IOReadableWritable;
 
-public interface InternalProfilingData extends IOReadableWritable {
-
-}
+public interface InternalProfilingData extends IOReadableWritable {}

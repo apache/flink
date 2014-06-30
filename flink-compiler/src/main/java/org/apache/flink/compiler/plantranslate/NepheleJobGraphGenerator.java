@@ -66,12 +66,8 @@ import org.apache.flink.runtime.iterative.task.IterationTailPactTask;
 import org.apache.flink.runtime.jobgraph.AbstractJobOutputVertex;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.InputFormatInputVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphDefinitionException;
-import org.apache.flink.runtime.jobgraph.JobTaskVertex;
-import org.apache.flink.runtime.jobgraph.OutputFormatOutputVertex;
-import org.apache.flink.runtime.jobgraph.SimpleOutputVertex;
 import org.apache.flink.runtime.operators.CoGroupDriver;
 import org.apache.flink.runtime.operators.CoGroupWithSolutionSetFirstDriver;
 import org.apache.flink.runtime.operators.CoGroupWithSolutionSetSecondDriver;
@@ -809,8 +805,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		return vertex;
 	}
 
-	private AbstractJobVertex createDataSourceVertex(SourcePlanNode node) throws CompilerException {
-		final InputFormatInputVertex vertex = new InputFormatInputVertex(node.getNodeName(), this.jobGraph);
+	private InputFormatVertex createDataSourceVertex(SourcePlanNode node) throws CompilerException {
+		final InputFormatVertex vertex = new InputFormatVertex(node.getNodeName(), this.jobGraph);
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
 
 		vertex.setInvokableClass(DataSourceTask.class);
@@ -824,7 +820,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	}
 
 	private AbstractJobOutputVertex createDataSinkVertex(SinkPlanNode node) throws CompilerException {
-		final OutputFormatOutputVertex vertex = new OutputFormatOutputVertex(node.getNodeName(), this.jobGraph);
+		final OutputFormatVertex vertex = new OutputFormatVertex(node.getNodeName(), this.jobGraph);
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
 
 		vertex.setInvokableClass(DataSinkTask.class);

@@ -16,60 +16,72 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.taskmanager;
+
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionListener;
-import org.apache.flink.runtime.execution.ExecutionObserver;
-import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.ExecutionStateTransition;
+import org.apache.flink.runtime.execution.ExecutionState2;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.profiling.TaskManagerProfiler;
+import org.apache.flink.util.ExceptionUtils;
 
-import java.util.Iterator;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
+public final class Task {
 
-public final class Task implements ExecutionObserver {
-
-	/**
-	 * The log object used for debugging.
-	 */
+	/** For atomic state updates */
+	private static final AtomicReferenceFieldUpdater<Task, ExecutionState2> STATE_UPDATER = 
+			AtomicReferenceFieldUpdater.newUpdater(Task.class, ExecutionState2.class, "executionState");
+			
+	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
-	private final ExecutionVertexID vertexID;
-
-	private final RuntimeEnvironment environment;
+	// --------------------------------------------------------------------------------------------
+	
+	private final JobID jobId;
+	
+	private final JobVertexID vertexId;
+	
+	private final int subtaskIndex;
+	
+	private final int numberOfSubtasks;
+	
+	private final ExecutionAttemptID executionId;
+	
+	private final String taskName;
 
 	private final TaskManager taskManager;
-
-	/**
-	 * Stores whether the task has been canceled.
-	 */
-	private final AtomicBoolean canceled = new AtomicBoolean(false);
-
-	/**
-	 * The current execution state of the task
-	 */
-	private volatile ExecutionState executionState = ExecutionState.STARTING;
-
 	
-	private Queue<ExecutionListener> registeredListeners = new ConcurrentLinkedQueue<ExecutionListener>();
+	
+	private final List<ExecutionListener> executionListeners = new CopyOnWriteArrayList<ExecutionListener>();
 
-	public Task(ExecutionVertexID vertexID, final RuntimeEnvironment environment, TaskManager taskManager) {
-		this.vertexID = vertexID;
-		this.environment = environment;
+	/** The environment (with the invokable) executed by this task */
+	private volatile RuntimeEnvironment environment;
+	
+	/** The current execution state of the task */
+	private volatile ExecutionState2 executionState = ExecutionState2.DEPLOYING;
+
+	// --------------------------------------------------------------------------------------------	
+	
+	public Task(JobID jobId, JobVertexID vertexId, int taskIndex, int parallelism, 
+			ExecutionAttemptID executionId, String taskName, TaskManager taskManager)
+	{
+		this.jobId = jobId;
+		this.vertexId = vertexId;
+		this.subtaskIndex = taskIndex;
+		this.numberOfSubtasks = parallelism;
+		this.executionId = executionId;
+		this.taskName = taskName;
 		this.taskManager = taskManager;
-
-		this.environment.setExecutionObserver(this);
 	}
 
 
@@ -79,89 +91,186 @@ public final class Task implements ExecutionObserver {
 	 * @return the ID of the job this task belongs to
 	 */
 	public JobID getJobID() {
-		return this.environment.getJobID();
+		return this.jobId;
 	}
 
 	/**
-	 * Returns the ID of this task.
+	 * Returns the ID of this task vertex.
 	 * 
-	 * @return the ID of this task
+	 * @return the ID of this task vertex.
 	 */
-	public ExecutionVertexID getVertexID() {
-		return this.vertexID;
+	public JobVertexID getVertexID() {
+		return this.vertexId;
 	}
 
 	/**
-	 * Returns the environment associated with this task.
+	 * Gets the index of the parallel subtask [0, parallelism).
 	 * 
-	 * @return the environment associated with this task
+	 * @return The task index of the parallel subtask.
 	 */
-	public Environment getEnvironment() {
-		return this.environment;
+	public int getSubtaskIndex() {
+		return subtaskIndex;
 	}
-
+	
 	/**
-	 * Marks the task as failed and triggers the appropriate state changes.
-	 */
-	public void markAsFailed() {
-		executionStateChanged(ExecutionState.FAILED, "Execution thread died unexpectedly");
-	}
-
-	public void cancelExecution() {
-		cancelOrKillExecution();
-	}
-
-	public void killExecution() {
-		cancelOrKillExecution();
-	}
-
-	/**
-	 * Cancels or kills the task.
-	 *
-	 * @param cancel <code>true/code> if the task shall be canceled, <code>false</code> if it shall be killed
-	 */
-	private void cancelOrKillExecution() {
-		if (!this.canceled.compareAndSet(false, true)) {
-			return;
-		}
-
-		if (this.executionState != ExecutionState.RUNNING && this.executionState != ExecutionState.FINISHING) {
-			return;
-		}
-
-		executionStateChanged(ExecutionState.CANCELING, null);
-
-		// Request user code to shut down
-		try {
-			this.environment.cancelExecution();
-		} catch (Throwable e) {
-			LOG.error("Error while cancelling the task.", e);
-		}
-	}
-
-	/**
-	 * Checks if the state of the thread which is associated with this task is <code>TERMINATED</code>.
+	 * Gets the total number of subtasks of the task that this subtask belongs to.
 	 * 
-	 * @return <code>true</code> if the state of this thread which is associated with this task is
-	 *         <code>TERMINATED</code>, <code>false</code> otherwise
+	 * @return The total number of this task's subtasks.
 	 */
-	public boolean isTerminated() {
-		final Thread executingThread = this.environment.getExecutingThread();
-		if (executingThread.getState() == Thread.State.TERMINATED) {
+	public int getNumberOfSubtasks() {
+		return numberOfSubtasks;
+	}
+	
+	/**
+	 * Gets the ID of the execution attempt.
+	 * 
+	 * @return The ID of the execution attempt.
+	 */
+	public ExecutionAttemptID getExecutionId() {
+		return executionId;
+	}
+	
+	/**
+	 * Returns the current execution state of the task.
+	 * 
+	 * @return the current execution state of the task
+	 */
+	public ExecutionState2 getExecutionState() {
+		return this.executionState;
+	}
+	
+	public void setEnvironment(RuntimeEnvironment environment) {
+		this.environment = environment;
+	}
+	
+	public RuntimeEnvironment getEnvironment() {
+		return environment;
+	}
+	
+	public boolean isCanceled() {
+		return executionState == ExecutionState2.CANCELING ||
+				executionState == ExecutionState2.CANCELED;
+	}
+	
+	public String getTaskName() {
+		return taskName;
+	}
+	
+	public String getTaskNameWithSubtasks() {
+		return this.taskName + " (" + (this.subtaskIndex + 1) + "/" + this.numberOfSubtasks + ")";
+	}
+	
+	// ----------------------------------------------------------------------------------------------------------------
+	//  States and Transitions
+	// ----------------------------------------------------------------------------------------------------------------
+	
+	/**
+	 * Marks the task as finished. This succeeds, if the task was previously in the state
+	 * "RUNNING", otherwise it fails. Failure indicates that the task was either
+	 * canceled, or set to failed.
+	 * 
+	 * @return True, if the task correctly enters the state FINISHED.
+	 */
+	public boolean markAsFinished() {
+		if (STATE_UPDATER.compareAndSet(this, ExecutionState2.RUNNING, ExecutionState2.FINISHED)) {
+			notifyObservers(ExecutionState2.FINISHED, null);
+			taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState2.FINISHED, null);
 			return true;
+		} else {
+			return false;
 		}
-
-		return false;
+	}
+	
+	public void markFailed(Throwable error) {
+		while (true) {
+			ExecutionState2 current = this.executionState;
+			
+			if (current == ExecutionState2.CANCELED || current == ExecutionState2.CANCELING) {
+				return;
+			}
+			
+			if (STATE_UPDATER.compareAndSet(this, current, ExecutionState2.FAILED)) {
+				String message = ExceptionUtils.stringifyException(error);
+				notifyObservers(ExecutionState2.FAILED, message);
+				taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState2.FAILED, message);
+				return;
+			}
+		}
+	}
+	
+	public void cancelExecution() {
+		while (true) {
+			ExecutionState2 current = this.executionState;
+			
+			// if the task is already canceled (or canceling) or finished, then we
+			// need not do anything
+			if (current == ExecutionState2.FINISHED || current == ExecutionState2.CANCELED ||
+					current == ExecutionState2.CANCELING) {
+				return;
+			}
+			
+			if (current == ExecutionState2.DEPLOYING) {
+				// directly set to canceled
+				if (STATE_UPDATER.compareAndSet(this, current, ExecutionState2.CANCELED)) {
+					notifyObservers(ExecutionState2.CANCELED, null);
+					taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState2.CANCELED, null);
+					return;
+				}
+			}
+			else if (current == ExecutionState2.RUNNING) {
+				// go to canceling and perform the actual task canceling
+				if (STATE_UPDATER.compareAndSet(this, current, ExecutionState2.CANCELING)) {
+					notifyObservers(ExecutionState2.CANCELING, null);
+					try {
+						this.environment.cancelExecution();
+					} catch (Throwable e) {
+						LOG.error("Error while cancelling the task.", e);
+					}
+					
+					return;
+				}
+			}
+			else {
+				throw new RuntimeException("unexpected state for cancelling: " + current);
+			}
+		}
+	}
+	
+	public void cancelingDone() {
+		if (STATE_UPDATER.compareAndSet(this, ExecutionState2.CANCELING, ExecutionState2.CANCELED)) {
+			notifyObservers(ExecutionState2.CANCELED, null);
+			taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState2.CANCELED, null);
+		}
 	}
 
 	/**
 	 * Starts the execution of this task.
 	 */
-	public void startExecution() {
-
-		final Thread thread = this.environment.getExecutingThread();
-		thread.start();
+	public boolean startExecution() {
+		if (STATE_UPDATER.compareAndSet(this, ExecutionState2.DEPLOYING, ExecutionState2.RUNNING)) {
+			final Thread thread = this.environment.getExecutingThread();
+			thread.start();
+			return true;
+		} else {
+			return false;
+		}
 	}
+	
+	/**
+	 * Unregisters the task from the central memory manager.
+	 * 
+	 * @param memoryManager
+	 *        the central memory manager
+	 */
+	public void unregisterMemoryManager(MemoryManager memoryManager) {
+		if (memoryManager != null) {
+			memoryManager.releaseAll(this.environment.getInvokable());
+		}
+	}
+	
+	// -----------------------------------------------------------------------------------------------------------------
+	//                                        Task Profiling
+	// -----------------------------------------------------------------------------------------------------------------
 
 	/**
 	 * Registers the task manager profiler with the task.
@@ -171,20 +280,8 @@ public final class Task implements ExecutionObserver {
 	 * @param jobConfiguration
 	 *        the configuration attached to the job
 	 */
-	public void registerProfiler(final TaskManagerProfiler taskManagerProfiler, final Configuration jobConfiguration) {
+	public void registerProfiler(TaskManagerProfiler taskManagerProfiler, Configuration jobConfiguration) {
 		taskManagerProfiler.registerExecutionListener(this, jobConfiguration);
-	}
-
-	/**
-	 * Unregisters the task from the central memory manager.
-	 * 
-	 * @param memoryManager
-	 *        the central memory manager
-	 */
-	public void unregisterMemoryManager(final MemoryManager memoryManager) {
-		if (memoryManager != null) {
-			memoryManager.releaseAll(this.environment.getInvokable());
-		}
 	}
 
 	/**
@@ -193,116 +290,47 @@ public final class Task implements ExecutionObserver {
 	 * @param taskManagerProfiler
 	 *        the task manager profiler
 	 */
-	public void unregisterProfiler(final TaskManagerProfiler taskManagerProfiler) {
+	public void unregisterProfiler(TaskManagerProfiler taskManagerProfiler) {
 		if (taskManagerProfiler != null) {
-			taskManagerProfiler.unregisterExecutionListener(this.vertexID);
+			taskManagerProfiler.unregisterExecutionListener(this.executionId);
 		}
 	}
-
-	/**
-	 * Returns the current execution state of the task.
-	 * 
-	 * @return the current execution state of the task
-	 */
-	public ExecutionState getExecutionState() {
-		return this.executionState;
+	
+	// --------------------------------------------------------------------------------------------
+	//                                     State Listeners
+	// --------------------------------------------------------------------------------------------
+	
+	public void registerExecutionListener(ExecutionListener listener) {
+		if (listener == null) {
+			throw new IllegalArgumentException();
+		}
+		this.executionListeners.add(listener);
 	}
 
-	// -----------------------------------------------------------------------------------------------------------------
-	//                                        ExecutionObserver methods
-	// -----------------------------------------------------------------------------------------------------------------
+	public void unregisterExecutionListener(ExecutionListener listener) {
+		if (listener == null) {
+			throw new IllegalArgumentException();
+		}
+		this.executionListeners.remove(listener);
+	}
+	
+	private void notifyObservers(ExecutionState2 newState, String message) {
+		for (ExecutionListener listener : this.executionListeners) {
+			try {
+				listener.executionStateChanged(jobId, vertexId, subtaskIndex, executionId, newState, message);
+			}
+			catch (Throwable t) {
+				LOG.error("Error while calling execution listener.", t);
+			}
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//                                       Utilities
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
-	public void executionStateChanged(final ExecutionState newExecutionState, final String optionalMessage) {
-
-		// Check the state transition
-		ExecutionStateTransition.checkTransition(false, getTaskName(), this.executionState, newExecutionState);
-
-		// Make sure the reason for a transition to FAILED appears in the log files
-		if (newExecutionState == ExecutionState.FAILED) {
-			LOG.error(optionalMessage);
-		}
-
-		// Notify all listener objects
-		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
-		while (it.hasNext()) {
-			it.next().executionStateChanged(this.environment.getJobID(), this.vertexID, newExecutionState,
-					optionalMessage);
-		}
-
-		// Store the new execution state
-		this.executionState = newExecutionState;
-
-		// Finally propagate the state change to the job manager
-		this.taskManager.executionStateChanged(this.environment.getJobID(), this.vertexID, newExecutionState,
-				optionalMessage);
-	}
-
-	/**
-	 * Returns the name of the task associated with this observer object.
-	 *
-	 * @return the name of the task associated with this observer object
-	 */
-	private String getTaskName() {
-		return this.environment.getTaskName() + " (" + (this.environment.getIndexInSubtaskGroup() + 1) + "/"
-				+ this.environment.getCurrentNumberOfSubtasks() + ")";
-	}
-
-
-	@Override
-	public void userThreadStarted(final Thread userThread) {
-		// Notify the listeners
-		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
-		while (it.hasNext()) {
-			it.next().userThreadStarted(this.environment.getJobID(), this.vertexID, userThread);
-		}
-	}
-
-
-	@Override
-	public void userThreadFinished(final Thread userThread) {
-		// Notify the listeners
-		final Iterator<ExecutionListener> it = this.registeredListeners.iterator();
-		while (it.hasNext()) {
-			it.next().userThreadFinished(this.environment.getJobID(), this.vertexID, userThread);
-		}
-	}
-
-	/**
-	 * Registers the {@link ExecutionListener} object for this task. This object
-	 * will be notified about important events during the task execution.
-	 *
-	 * @param executionListener
-	 *        the object to be notified for important events during the task execution
-	 */
-
-	public void registerExecutionListener(final ExecutionListener executionListener) {
-		this.registeredListeners.add(executionListener);
-	}
-
-	/**
-	 * Unregisters the {@link ExecutionListener} object for this environment. This object
-	 * will no longer be notified about important events during the task execution.
-	 *
-	 * @param executionListener
-	 *        the lister object to be unregistered
-	 */
-
-	public void unregisterExecutionListener(final ExecutionListener executionListener) {
-		this.registeredListeners.remove(executionListener);
-	}
-
-
-	@Override
-	public boolean isCanceled() {
-		return this.canceled.get();
-	}
-
-	/**
-	 * Returns the runtime environment associated with this task.
-	 *
-	 * @return the runtime environment associated with this task
-	 */
-	public RuntimeEnvironment getRuntimeEnvironment() {
-		return this.environment;
+	public String toString() {
+		return getTaskNameWithSubtasks() + " [" + executionState + ']';
 	}
 }

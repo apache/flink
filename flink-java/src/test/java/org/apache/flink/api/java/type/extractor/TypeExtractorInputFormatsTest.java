@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 
 import java.io.IOException;
 
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -141,7 +142,7 @@ public class TypeExtractorInputFormatsTest {
 		public InputSplit[] createInputSplits(int minNumSplits) { return null; }
 
 		@Override
-		public Class<? extends InputSplit> getInputSplitType() { return null; }
+		public DefaultInputSplitAssigner getInputSplitAssigner(InputSplit[] splits) { return null; }
 
 		@Override
 		public void open(InputSplit split) {}
@@ -211,7 +212,7 @@ public class TypeExtractorInputFormatsTest {
 		public InputSplit[] createInputSplits(int minNumSplits) { return null; }
 
 		@Override
-		public Class<? extends InputSplit> getInputSplitType() { return null; }
+		public DefaultInputSplitAssigner getInputSplitAssigner(InputSplit[] splits) { return null; }
 
 		@Override
 		public void open(InputSplit split) {}

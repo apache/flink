@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.instance;
 
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,7 +28,11 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 
-public class LocalInstanceManager extends DefaultInstanceManager {
+/**
+ * A variant of the {@link InstanceManager} that internally spawn task managers as instances, rather than waiting for external
+ * TaskManagers to register.
+ */
+public class LocalInstanceManager extends InstanceManager {
 	
 	private final List<TaskManager> taskManagers = new ArrayList<TaskManager>();
 
@@ -55,7 +58,7 @@ public class LocalInstanceManager extends DefaultInstanceManager {
 				GlobalConfiguration.includeConfiguration(tm);
 			}
 
-			taskManagers.add(new TaskManager(execMode));
+			taskManagers.add(TaskManager.createTaskManager(execMode));
 		}
 	}
 

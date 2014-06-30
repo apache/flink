@@ -21,7 +21,8 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 import org.apache.flink.runtime.instance.Instance;
 
 /**
- * A SlotRecycler handles allocated slots that have been released.
+ * A SlotAvailablilityListener can be notified when new {@link org.apache.flink.runtime.instance.AllocatedSlot}s become available
+ * on an {@link org.apache.flink.runtime.instance.Instance}.
  */
 public interface SlotAvailablilityListener {
 

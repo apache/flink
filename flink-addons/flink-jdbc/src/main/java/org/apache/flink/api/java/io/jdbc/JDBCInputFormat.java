@@ -28,12 +28,15 @@ import java.sql.Statement;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.types.NullValue;
 
 /**
@@ -47,7 +50,6 @@ import org.apache.flink.types.NullValue;
 public class JDBCInputFormat<OUT extends Tuple> implements InputFormat<OUT, InputSplit> {
 	private static final long serialVersionUID = 1L;
 
-	@SuppressWarnings("unused")
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCInputFormat.class);
 
 	private String username;
@@ -184,8 +186,6 @@ public class JDBCInputFormat<OUT extends Tuple> implements InputFormat<OUT, Inpu
 	/**
 	 * Enters data value from the current resultSet into a Record.
 	 *
-	 * @param pos Tuple position to be set.
-	 * @param type SQL type of the resultSet value.
 	 * @param reuse Target Record.
 	 */
 	private void addValue(OUT reuse) throws SQLException {
@@ -289,9 +289,10 @@ public class JDBCInputFormat<OUT extends Tuple> implements InputFormat<OUT, Inpu
 	}
 
 	@Override
-	public Class<? extends InputSplit> getInputSplitType() {
-		return GenericInputSplit.class;
+	public InputSplitAssigner getInputSplitAssigner(InputSplit[] inputSplits) {
+		return new DefaultInputSplitAssigner(inputSplits);
 	}
+	
 
 	/**
 	 * A builder used to set parameters to the output format's configuration in a fluent way.

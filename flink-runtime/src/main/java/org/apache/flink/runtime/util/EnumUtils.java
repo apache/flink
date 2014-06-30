@@ -16,18 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import org.apache.flink.core.io.StringRecord;
+import org.apache.flink.types.StringValue;
 
 /**
  * Auxiliary class to (de)serialize enumeration values.
- * 
  */
 public final class EnumUtils {
 
@@ -56,7 +54,7 @@ public final class EnumUtils {
 			return null;
 		}
 
-		return T.valueOf(enumType, StringRecord.readString(in));
+		return T.valueOf(enumType, StringValue.readString(in));
 	}
 
 	/**
@@ -75,7 +73,7 @@ public final class EnumUtils {
 			out.writeBoolean(false);
 		} else {
 			out.writeBoolean(true);
-			StringRecord.writeString(out, enumVal.name());
+			StringValue.writeString(enumVal.name(), out);
 		}
 	}
 }

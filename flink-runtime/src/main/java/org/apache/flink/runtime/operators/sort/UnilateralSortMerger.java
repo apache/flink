@@ -792,9 +792,6 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		 */
 		public void run() {
 			try {
-				if (this.parentTask != null) {
-					this.parentTask.userThreadStarted(this);
-				}
 				go();
 			}
 			catch (Throwable t) {
@@ -802,9 +799,6 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 					+ t.getMessage(), t));
 			}
 			finally {
-				if (this.parentTask != null) {
-					this.parentTask.userThreadFinished(this);
-				}
 			}
 		}
 

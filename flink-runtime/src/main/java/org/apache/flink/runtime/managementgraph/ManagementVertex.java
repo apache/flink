@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.managementgraph;
 
 import java.io.IOException;
@@ -27,16 +26,13 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.util.EnumUtils;
+import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.types.StringValue;
 import org.apache.flink.util.StringUtils;
 
 /**
  * This class implements a management vertex of a {@link ManagementGraph}. A management vertex is derived from the type
  * of vertices Nephele uses in its internal scheduling structures.
- * <p>
- * This class is not thread-safe.
- * 
  */
 public final class ManagementVertex extends ManagementAttachment implements IOReadableWritable {
 
@@ -63,7 +59,7 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	/**
 	 * The current execution state of the vertex represented by this management vertex.
 	 */
-	private ExecutionState executionState = ExecutionState.CREATED;
+	private ExecutionState2 executionState = ExecutionState2.CREATED;
 
 	/**
 	 * The name of the instance the vertex represented by this management vertex currently runs on.
@@ -240,7 +236,7 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	 * @param executionState
 	 *        the current execution state of this vertex
 	 */
-	public void setExecutionState(final ExecutionState executionState) {
+	public void setExecutionState(ExecutionState2 executionState) {
 		this.executionState = executionState;
 	}
 
@@ -249,7 +245,7 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	 * 
 	 * @return the current execution state of this management vertex
 	 */
-	public ExecutionState getExecutionState() {
+	public ExecutionState2 getExecutionState() {
 		return this.executionState;
 	}
 
@@ -275,7 +271,7 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	public void read(final DataInputView in) throws IOException {
 
 		// Read the execution state
-		this.executionState = EnumUtils.readEnum(in, ExecutionState.class);
+		this.executionState = ExecutionState2.values()[in.readInt()];
 
 		// Read number of input gates
 		int numberOfInputGates = in.readInt();
@@ -295,17 +291,11 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 
 	@Override
 	public void write(final DataOutputView out) throws IOException {
-
-		// Write the execution state
-		EnumUtils.writeEnum(out, this.executionState);
-
-		// Write out number of input gates
+		out.writeInt(this.executionState.ordinal());
 		out.writeInt(this.inputGates.size());
-
-		// Write out number of output gates
 		out.writeInt(this.outputGates.size());
 
-		StringRecord.writeString(out, this.instanceName);
+		StringValue.writeString(this.instanceName, out);
 	}
 	
 	@Override
@@ -314,9 +304,9 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	}
 	
 	/**
-	 * Returns Json representation of this ManagementVertex
+	 * Returns JSON representation of this ManagementVertex
 	 * 
-	 * @return
+	 * @return A JSON representation of this ManagementVertex
 	 */
 	public String toJson() {
 		StringBuilder json = new StringBuilder("");

@@ -36,6 +36,7 @@ import org.apache.flink.util.MutableObjectIterator;
  * @param <IT> The mapper's input data type.
  * @param <OT> The mapper's output data type.
  */
+@SuppressWarnings("deprecation")
 public class CollectorMapDriver<IT, OT> implements PactDriver<GenericCollectorMap<IT, OT>, OT> {
 	
 	private PactTaskContext<GenericCollectorMap<IT, OT>, OT> taskContext;

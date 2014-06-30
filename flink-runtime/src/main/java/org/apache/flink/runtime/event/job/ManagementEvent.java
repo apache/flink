@@ -16,14 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.event.job;
 
 /**
  * This is a marker interface only. It marks events which
- * should only be accessible via the {@link ExtendedManagementProtocol}.
- * 
+ * should only be accessible via the {@link org.apache.flink.runtime.protocols.ExtendedManagementProtocol}.
  */
-public interface ManagementEvent {
-
-}
+public interface ManagementEvent {}

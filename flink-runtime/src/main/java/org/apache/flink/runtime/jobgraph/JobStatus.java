@@ -16,46 +16,28 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobgraph;
 
 /**
- * Defines the possible status of a job once it has been
- * accepted by the job manager.
- * <p>
- * This class is thread-safe.
- * 
+ * Possible states of a job once it has been accepted by the job manager.
  */
 public enum JobStatus {
 
-	/**
-	 * All tasks of the job are in the execution state CREATED.
-	 */
+	/** Job is newly created, no task has started to run. */
 	CREATED,
 
-	/**
-	 * All tasks of the job have been accepted by the scheduler, resources have been requested.
-	 */
-	SCHEDULED,
-
-	/**
-	 * At least one task of the job is running, none has definitely failed.
-	 */
+	/** Some tasks are scheduled or running, some may be pending, some may be finished. */
 	RUNNING,
 
-	/**
-	 * At least one task of the job has definitively failed and cannot
-	 * be recovered anymore. As a result, the job has been terminated.
-	 */
+	/** The job has failed to to non-recoverable task failure */
 	FAILED,
 
-	/**
-	 * All tasks of the job are canceled as a result of a user request. The job has been terminated.
-	 */
+	/** Job is being cancelled */
+	CANCELLING,
+	
+	/** Job has been cancelled */
 	CANCELED,
 
-	/**
-	 * All of the job's tasks have successfully finished.
-	 */
+	/** All of the job's tasks have successfully finished. */
 	FINISHED
 };

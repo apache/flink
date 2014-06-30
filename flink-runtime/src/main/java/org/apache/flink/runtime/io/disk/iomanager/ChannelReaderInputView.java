@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import java.io.EOFException;
@@ -28,9 +27,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.memorymanager.AbstractPagedInputView;
 
-
 /**
- * A {@link DataInputView} that is backed by a {@link BlockChannelReader}, making it effectively a data input
+ * A {@link org.apache.flink.core.memory.DataInputView} that is backed by a
+ * {@link BlockChannelReader}, making it effectively a data input
  * stream. The view reads it data in blocks from the underlying channel. The view can only read data that
  * has been written by a {@link ChannelWriterOutputView}, due to block formatting.
  */
@@ -245,8 +244,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 	
 
 	@Override
-	protected int getLimitForSegment(MemorySegment segment)
-	{
+	protected int getLimitForSegment(MemorySegment segment) {
 		return segment.getInt(ChannelWriterOutputView.HEAD_BLOCK_LENGTH_OFFSET);
 	}
 	
@@ -257,8 +255,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 	 * @param seg The segment to use for the read request.
 	 * @throws IOException Thrown, if the reader is in error.
 	 */
-	protected void sendReadRequest(MemorySegment seg) throws IOException
-	{
+	protected void sendReadRequest(MemorySegment seg) throws IOException {
 		if (this.numRequestsRemaining != 0) {
 			this.reader.readBlock(seg);
 			if (this.numRequestsRemaining != -1) {

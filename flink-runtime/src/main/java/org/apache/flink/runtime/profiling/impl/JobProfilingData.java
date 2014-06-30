@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.impl;
 
 import java.util.HashMap;
@@ -27,13 +26,12 @@ import java.util.Set;
 
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGroupVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionGroupVertexIterator;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.DummyInstance;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.profiling.impl.types.InternalInstanceProfilingData;
 import org.apache.flink.runtime.profiling.types.InstanceSummaryProfilingEvent;
+
 
 public class JobProfilingData {
 
@@ -111,8 +109,7 @@ public class JobProfilingData {
 	private InstanceSummaryProfilingEvent constructInstanceSummary(long timestamp) {
 
 		final int numberOfInstances = this.collectedInstanceProfilingData.size();
-		final Iterator<InstanceConnectionInfo> instanceIterator = this.collectedInstanceProfilingData.keySet()
-			.iterator();
+		final Iterator<InstanceConnectionInfo> instanceIterator = this.collectedInstanceProfilingData.keySet().iterator();
 
 		long freeMemorySum = 0;
 		long totalMemorySum = 0;
@@ -134,8 +131,7 @@ public class JobProfilingData {
 		// Sum up the individual values
 		while (instanceIterator.hasNext()) {
 
-			final InternalInstanceProfilingData profilingData = this.collectedInstanceProfilingData
-				.get(instanceIterator.next());
+			final InternalInstanceProfilingData profilingData = this.collectedInstanceProfilingData.get(instanceIterator.next());
 
 			freeMemorySum += profilingData.getFreeMemory();
 			ioWaitCPUSum += profilingData.getIOWaitCPU();

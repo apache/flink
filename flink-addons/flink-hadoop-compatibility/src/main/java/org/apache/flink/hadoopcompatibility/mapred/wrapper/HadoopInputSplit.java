@@ -30,8 +30,14 @@ import org.apache.hadoop.mapred.JobConf;
 
 public class HadoopInputSplit implements InputSplit {
 
+	private static final long serialVersionUID = 1L;
+
+	
 	private transient org.apache.hadoop.mapred.InputSplit hadoopInputSplit;
+	
+	@SuppressWarnings("unused")
 	private JobConf jobConf;
+	
 	private int splitNumber;
 	private String hadoopInputSplitTypeName;
 	

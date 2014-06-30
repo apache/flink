@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobmanager;
 
 import java.io.File;
@@ -25,11 +24,10 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.util.HashSet;
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -48,61 +46,49 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.core.io.StringRecord;
+import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.runtime.ExecutionMode;
+import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorEvent;
 import org.apache.flink.runtime.client.AbstractJobResult;
+import org.apache.flink.runtime.client.AbstractJobResult.ReturnCode;
 import org.apache.flink.runtime.client.JobCancelResult;
 import org.apache.flink.runtime.client.JobProgressResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
-import org.apache.flink.runtime.client.AbstractJobResult.ReturnCode;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphIterator;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
-import org.apache.flink.runtime.executiongraph.GraphConversionException;
-import org.apache.flink.runtime.executiongraph.InternalJobStatus;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
-import org.apache.flink.runtime.instance.DefaultInstanceManager;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.InstanceManager;
 import org.apache.flink.runtime.instance.LocalInstanceManager;
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
-import org.apache.flink.runtime.io.network.RemoteReceiver;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
 import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.ipc.Server;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager;
 import org.apache.flink.runtime.jobmanager.archive.ArchiveListener;
 import org.apache.flink.runtime.jobmanager.archive.MemoryArchivist;
 import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
-import org.apache.flink.runtime.jobmanager.splitassigner.InputSplitWrapper;
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer;
 import org.apache.flink.runtime.managementgraph.ManagementGraph;
-import org.apache.flink.runtime.managementgraph.ManagementVertexID;
-import org.apache.flink.runtime.profiling.JobManagerProfiler;
-import org.apache.flink.runtime.profiling.ProfilingUtils;
 import org.apache.flink.runtime.protocols.AccumulatorProtocol;
 import org.apache.flink.runtime.protocols.ChannelLookupProtocol;
 import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
 import org.apache.flink.runtime.protocols.InputSplitProviderProtocol;
 import org.apache.flink.runtime.protocols.JobManagerProtocol;
-import org.apache.flink.runtime.taskmanager.AbstractTaskResult;
-import org.apache.flink.runtime.taskmanager.TaskCancelResult;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.taskmanager.TaskKillResult;
-import org.apache.flink.runtime.taskmanager.TaskSubmissionResult;
 import org.apache.flink.runtime.types.IntegerRecord;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -113,15 +99,13 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 
+import com.google.common.base.Preconditions;
+
 /**
- * In Nephele the job manager is the central component for communication with clients, creating
- * schedules for incoming jobs and supervise their execution. A job manager may only exist once in
- * the system and its address must be known the clients.
- * Task managers can discover the job manager by means of an UDP broadcast and afterwards advertise
- * themselves as new workers for tasks.
- * 
+ * The JobManager is the master that coordinates the distributed execution.
+ * It receives jobs from clients, tracks the distributed execution.
  */
-public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
+public class JobManager implements ExtendedManagementProtocol, InputSplitProviderProtocol,
 		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, AccumulatorProtocol
 {
 
@@ -130,31 +114,45 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private final static int FAILURE_RETURN_CODE = 1;
 	
 	
+	/** Executor service for asynchronous commands (to relieve the RPC threads of work) */
 	private final ExecutorService executorService = Executors.newCachedThreadPool(ExecutorThreadFactory.INSTANCE);
 	
+
+	/** The RPC end point through which the JobManager gets its calls */
 	private final Server jobManagerServer;
 
+	/** Keeps track of the currently available task managers */
+	private final InstanceManager instanceManager;
+	
+	/** Assigns tasks to slots and keeps track on available and allocated task slots*/
+	private final DefaultScheduler scheduler;
+	
+	/** The currently running jobs */
+	private final ConcurrentHashMap<JobID, ExecutionGraph> currentJobs;
+	
+	
+	// begin: these will be consolidated / removed 
 	private final EventCollector eventCollector;
 	
 	private final ArchiveListener archive;
-
-	private final InstanceManager instanceManager;
-	
-	private final DefaultScheduler scheduler;
 	
 	private final AccumulatorManager accumulatorManager;
-
 	
 	private final int recommendedClientPollingInterval;
-
+	// end: these will be consolidated / removed
+	
 	
 	private final AtomicBoolean isShutdownInProgress = new AtomicBoolean(false);
-
+	
 	private volatile boolean isShutDown;
 	
 	
 	private WebInfoServer server;
 	
+	
+	// --------------------------------------------------------------------------------------------
+	//  Initialization & Shutdown
+	// --------------------------------------------------------------------------------------------
 	
 	public JobManager(ExecutionMode executionMode) throws Exception {
 
@@ -190,6 +188,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			this.archive = null;
 		}
 		
+		this.currentJobs = new ConcurrentHashMap<JobID, ExecutionGraph>();
+		
 		// Create the accumulator manager, with same archiving limit as web
 		// interface. We need to store the accumulators for at least one job.
 		// Otherwise they might be deleted before the client requested the
@@ -218,21 +218,15 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			this.instanceManager = new LocalInstanceManager(numTaskManagers);
 		}
 		else if (executionMode == ExecutionMode.CLUSTER) {
-			this.instanceManager = new DefaultInstanceManager();
+			this.instanceManager = new InstanceManager();
 		}
 		else {
 			throw new IllegalArgumentException("ExecutionMode");
 		}
 
-		// Try to load the scheduler for the given execution mode
-		final String schedulerClassName = JobManagerUtils.getSchedulerClassName(executionMode);
-		LOG.info("Trying to load " + schedulerClassName + " as scheduler");
-
-		// Try to get the instance manager class name
-		this.scheduler = JobManagerUtils.loadScheduler(schedulerClassName, this, this.instanceManager);
-		if (this.scheduler == null) {
-			throw new Exception("Unable to load scheduler " + schedulerClassName);
-		}
+		// create the scheduler and make it listen at the availability of new instances
+		this.scheduler = new DefaultScheduler();
+		this.instanceManager.addInstanceListener(this.scheduler);
 	}
 
 	public void shutdown() {
@@ -274,6 +268,398 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		this.isShutDown = true;
 		LOG.debug("Shutdown of job manager completed");
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Job Execution
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public JobSubmissionResult submitJob(JobGraph job) throws IOException {
+		
+		boolean success = false;
+		
+		try {
+			// First check if job is null
+			if (job == null) {
+				return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, "Submitted job is null!");
+			}
+	
+			if (LOG.isInfoEnabled()) {
+				LOG.info(String.format("Received job %s (%s)", job.getJobID(), job.getName()));
+			}
+			
+			// get the existing execution graph (if we attach), or construct a new empty one to attach
+			ExecutionGraph executionGraph = this.currentJobs.get(job.getJobID());
+			if (executionGraph == null) {
+				if (LOG.isInfoEnabled()) {
+					LOG.info("Creating new execution graph for job " + job.getJobID() + " (" + job.getName() + ')');
+				}
+				
+				executionGraph = new ExecutionGraph(job.getJobID(), job.getName(), job.getJobConfiguration(), this.executorService);
+				ExecutionGraph previous = this.currentJobs.putIfAbsent(job.getJobID(), executionGraph);
+				if (previous != null) {
+					throw new JobException("Concurrent submission of a job with the same jobId: " + job.getJobID());
+				}
+			}
+			else {
+				if (LOG.isInfoEnabled()) {
+					LOG.info(String.format("Found existing execution graph for id %s, attaching this job.", job.getJobID()));
+				}
+			}
+			
+			// grab the class loader for user-defined code
+			final ClassLoader userCodeLoader = LibraryCacheManager.getClassLoader(job.getJobID());
+			if (userCodeLoader == null) {
+				throw new JobException("The user code class loader could not be initialized.");
+			}
+			
+			String[] jarFilesForJob = LibraryCacheManager.getRequiredJarFiles(job.getJobID());
+			for (String fileId : jarFilesForJob) {
+				executionGraph.addUserCodeJarFile(fileId);
+			}
+			
+			// first, perform the master initialization of the nodes
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(String.format("Running master initialization of job %s (%s)", job.getJobID(), job.getName()));
+			}
+			try {
+				for (AbstractJobVertex vertex : job.getVertices()) {
+					// check that the vertex has an executable class
+					String executableClass = vertex.getInvokableClassName();
+					if (executableClass == null || executableClass.length() == 0) {
+						throw new JobException(String.format("The vertex %s (%s) has no invokable class.", vertex.getID(), vertex.getName()));
+					}
+					
+					// master side initialization
+					vertex.initializeOnMaster(userCodeLoader);
+				}
+			}
+			catch (FileNotFoundException e) {
+				LOG.error("File-not-Found: " + e.getMessage());
+				return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, e.getMessage());
+			}
+			
+			// first topologically sort the job vertices to form the basis of creating the execution graph
+			List<AbstractJobVertex> topoSorted = job.getVerticesSortedTopologicallyFromSources();
+			
+			// first convert this job graph to an execution graph
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(String.format("Adding %d vertices from job graph %s (%s)", topoSorted.size(), job.getJobID(), job.getName()));
+			}
+			
+			executionGraph.attachJobGraph(topoSorted);
+			
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(String.format("Successfully created execution graph from job graph %s (%s)", job.getJobID(), job.getName()));
+			}
+	
+			// Register job with the progress collector
+			if (this.eventCollector != null) {
+				this.eventCollector.registerJob(executionGraph, false, System.currentTimeMillis());
+			}
+	
+			// Register for updates on the job status
+			executionGraph.registerJobStatusListener(this);
+	
+			// Schedule job
+			if (LOG.isInfoEnabled()) {
+				LOG.info("Scheduling job " + job.getName());
+			}
+	
+			executionGraph.scheduleForExecution(this.scheduler);
+	
+			// Return on success
+			success = true;
+			return new JobSubmissionResult(AbstractJobResult.ReturnCode.SUCCESS, null);
+		}
+		catch (Throwable t) {
+			LOG.error("Job submission failed.", t);
+			return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(t));
+		}
+		finally {
+			if (!success) {
+				this.currentJobs.remove(job.getJobID());
+				
+				try {
+					LibraryCacheManager.unregister(job.getJobID());
+				}
+				catch (IllegalStateException e) {
+					// may happen if the job failed before being registered at the
+					// library cache manager
+				}
+				catch (Throwable t) {
+					LOG.error("Error while de-registering job at library cache manager.", t);
+				}
+			}
+		}
+	}
+
+	@Override
+	public JobCancelResult cancelJob(JobID jobID) throws IOException {
+
+		LOG.info("Trying to cancel job with ID " + jobID);
+
+		final ExecutionGraph eg = this.currentJobs.get(jobID);
+		if (eg == null) {
+			LOG.info("No job found with ID " + jobID);
+			return new JobCancelResult(ReturnCode.ERROR, "Cannot find job with ID " + jobID);
+		}
+
+		final Runnable cancelJobRunnable = new Runnable() {
+			@Override
+			public void run() {
+				eg.cancel();
+			}
+		};
+
+		eg.execute(cancelJobRunnable);
+
+		return new JobCancelResult(AbstractJobResult.ReturnCode.SUCCESS, null);
+	}
+	
+	@Override
+	public void updateTaskExecutionState(TaskExecutionState executionState) throws IOException {
+		Preconditions.checkNotNull(executionState);
+
+
+		final ExecutionGraph eg = this.currentJobs.get(executionState.getJobID());
+		if (eg == null) {
+			LOG.error("Cannot find execution graph for ID " + executionState.getJobID() + " to change state to "
+				+ executionState.getExecutionState());
+			return;
+		}
+
+		eg.updateState(executionState);
+	}
+	
+	@Override
+	public InputSplit requestNextInputSplit(JobID jobID, JobVertexID vertexId) throws IOException {
+
+		final ExecutionGraph graph = this.currentJobs.get(jobID);
+		if (graph == null) {
+			LOG.error("Cannot find execution graph to job ID " + jobID);
+			return null;
+		}
+
+		final ExecutionJobVertex vertex = graph.getJobVertex(vertexId);
+		if (vertex == null) {
+			LOG.error("Cannot find execution vertex for vertex ID " + vertexId);
+			return null;
+		}
+
+		InputSplitAssigner splitAssigner = vertex.getSplitAssigner();
+		if (splitAssigner == null) {
+			LOG.error("No InputSplitAssigner for vertex ID " + vertexId);
+			return null;
+		}
+		
+		
+		return splitAssigner.getNextInputSplit(null);
+	}
+	
+	@Override
+	public void jobStatusHasChanged(ExecutionGraph executionGraph, JobStatus newJobStatus, String optionalMessage) {
+
+		final JobID jid = executionGraph.getJobID();
+		
+		if (LOG.isInfoEnabled()) {
+			String message = optionalMessage == null ? "." : ": " + optionalMessage;
+			LOG.info(String.format("Status of job %s (%s) changed to %s%s", 
+					jid, executionGraph.getJobName(), newJobStatus, message));
+		}
+
+		// remove the job graph if the state is any terminal state
+		if (newJobStatus == JobStatus.FINISHED || newJobStatus == JobStatus.CANCELED || newJobStatus == JobStatus.FAILED) {
+			this.currentJobs.remove(jid);
+			
+			try {
+				LibraryCacheManager.unregister(jid);
+			}
+			catch (Throwable t) {
+				LOG.warn("Could not properly unregister job " + jid + " from the library cache.");
+			}
+		}
+	}
+
+	@Override
+	public JobProgressResult getJobProgress(final JobID jobID) throws IOException {
+
+		if (this.eventCollector == null) {
+			return new JobProgressResult(ReturnCode.ERROR, "JobManager does not support progress reports for jobs", null);
+		}
+
+		final SerializableArrayList<AbstractEvent> eventList = new SerializableArrayList<AbstractEvent>();
+		this.eventCollector.getEventsForJob(jobID, eventList, false);
+
+		return new JobProgressResult(ReturnCode.SUCCESS, null, eventList);
+	}
+
+
+	@Override
+	public ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID, ChannelID sourceChannelID) {
+
+		final ExecutionGraph eg = this.currentJobs.get(jobID);
+		if (eg == null) {
+			LOG.error("Cannot find execution graph to job ID " + jobID);
+			return ConnectionInfoLookupResponse.createReceiverNotFound();
+		}
+
+		return eg.lookupConnectionInfoAndDeployReceivers(caller, sourceChannelID);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Properties
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Tests whether the job manager has been shut down completely.
+	 * 
+	 * @return <code>true</code> if the job manager has been shut down completely, <code>false</code> otherwise
+	 */
+	public boolean isShutDown() {
+		return this.isShutDown;
+	}
+	
+	public InstanceManager getInstanceManager() {
+		return this.instanceManager;
+	}
+	
+	/**
+	 * Returns current ManagementGraph from eventCollector and, if not current, from archive
+	 * 
+	 * {@inheritDoc}
+	 */
+	@Override
+	public ManagementGraph getManagementGraph(final JobID jobID) throws IOException {
+
+		ManagementGraph mg = this.eventCollector.getManagementGraph(jobID);
+		if (mg == null) {
+			if(this.archive != null) {
+				mg = this.archive.getManagementGraph(jobID);
+			}
+			
+			if (mg == null) {
+				throw new IOException("Cannot find job with ID " + jobID);
+			}
+		}
+
+		return mg;
+	}
+
+	@Override
+	public IntegerRecord getRecommendedPollingInterval() throws IOException {
+		return new IntegerRecord(this.recommendedClientPollingInterval);
+	}
+
+	@Override
+	public List<RecentJobEvent> getRecentJobs() throws IOException {
+
+		final List<RecentJobEvent> eventList = new SerializableArrayList<RecentJobEvent>();
+
+		if (this.eventCollector == null) {
+			throw new IOException("No instance of the event collector found");
+		}
+
+		this.eventCollector.getRecentJobs(eventList);
+
+		return eventList;
+	}
+
+
+	@Override
+	public List<AbstractEvent> getEvents(final JobID jobID) throws IOException {
+
+		final List<AbstractEvent> eventList = new SerializableArrayList<AbstractEvent>();
+
+		if (this.eventCollector == null) {
+			throw new IOException("No instance of the event collector found");
+		}
+
+		this.eventCollector.getEventsForJob(jobID, eventList, true);
+
+		return eventList;
+	}
+
+	@Override
+	public int getAvailableSlots() {
+		return getInstanceManager().getTotalNumberOfSlots();
+	}
+	
+	/**
+	 * Starts the Jetty Infoserver for the Jobmanager
+	 * 
+	 */
+	public void startInfoServer() {
+		final Configuration config = GlobalConfiguration.getConfiguration();
+		// Start InfoServer
+		try {
+			int port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+			server = new WebInfoServer(config, port, this);
+			server.start();
+		} catch (FileNotFoundException e) {
+			LOG.error(e.getMessage(), e);
+		} catch (Exception e) {
+			LOG.error("Cannot instantiate info server: " + e.getMessage(), e);
+		}
+	}
+	
+	
+	public List<RecentJobEvent> getOldJobs() throws IOException {
+		if (this.archive == null) {
+			throw new IOException("No instance of the event collector found");
+		}
+
+		return this.archive.getJobs();
+	}
+	
+	public ArchiveListener getArchive() {
+		return this.archive;
+	}
+
+	public int getNumberOfTaskManagers() {
+		return this.instanceManager.getNumberOfRegisteredTaskManagers();
+	}
+	
+	public Map<InstanceID, Instance> getInstances() {
+		return this.instanceManager.getAllRegisteredInstances();
+	}
+
+	@Override
+	public void reportAccumulatorResult(AccumulatorEvent accumulatorEvent) throws IOException {
+		this.accumulatorManager.processIncomingAccumulators(accumulatorEvent.getJobID(), accumulatorEvent.getAccumulators(LibraryCacheManager.getClassLoader(accumulatorEvent.getJobID())));
+	}
+
+	@Override
+	public AccumulatorEvent getAccumulatorResults(JobID jobID) throws IOException {
+		return new AccumulatorEvent(jobID, this.accumulatorManager.getJobAccumulators(jobID));
+	}
+	
+	public Map<String, Accumulator<?, ?>> getAccumulators(JobID jobID) {
+		return this.accumulatorManager.getJobAccumulators(jobID);
+	}
+	
+	public Map<JobID, ExecutionGraph> getCurrentJobs() {
+		return Collections.unmodifiableMap(currentJobs);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  TaskManager to JobManager communication
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public boolean sendHeartbeat(InstanceID taskManagerId) {
+		return this.instanceManager.reportHeartBeat(taskManagerId);
+	}
+
+	@Override
+	public InstanceID registerTaskManager(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription, int numberOfSlots) {
+		return this.instanceManager.registerTaskManager(instanceConnectionInfo, hardwareDescription, numberOfSlots);
+	}
+	
+	
+	// --------------------------------------------------------------------------------------------
+	//  Executable
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Entry point for the program
@@ -364,760 +750,5 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 		GlobalConfiguration.includeConfiguration(infoserverConfig);
 		return jobManager;
-	}
-
-
-	@Override
-	public JobSubmissionResult submitJob(JobGraph job) throws IOException {
-		try {
-			// First check if job is null
-			if (job == null) {
-				return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, "Submitted job is null!");
-			}
-	
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Submitted job " + job.getName() + " is not null");
-			}
-	
-			// Check if any vertex of the graph has null edges
-			AbstractJobVertex jv = job.findVertexWithNullEdges();
-			if (jv != null) {
-				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, "Vertex "
-					+ jv.getName() + " has at least one null edge");
-				return result;
-			}
-	
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Submitted job " + job.getName() + " has no null edges");
-			}
-	
-			// Next, check if the graph is weakly connected
-			if (!job.isWeaklyConnected()) {
-				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
-					"Job graph is not weakly connected");
-				return result;
-			}
-	
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("The graph of job " + job.getName() + " is weakly connected");
-			}
-	
-			// Check if job graph has cycles
-			if (!job.isAcyclic()) {
-				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
-					"Job graph is not a DAG");
-				return result;
-			}
-	
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("The graph of job " + job.getName() + " is acyclic");
-			}
-	
-			// Check constrains on degree
-			jv = job.areVertexDegreesCorrect();
-			if (jv != null) {
-				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
-					"Degree of vertex " + jv.getName() + " is incorrect");
-				return result;
-			}
-	
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("All vertices of job " + job.getName() + " have the correct degree");
-			}
-	
-			if (!job.isInstanceDependencyChainAcyclic()) {
-				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
-					"The dependency chain for instance sharing contains a cycle");
-	
-				return result;
-			}
-	
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("The dependency chain for instance sharing is acyclic");
-			}
-	
-			// Try to create initial execution graph from job graph
-			LOG.info("Creating initial execution graph from job graph " + job.getName());
-			ExecutionGraph eg;
-	
-			try {
-				eg = new ExecutionGraph(job, 1);
-			} catch (GraphConversionException e) {
-				if (e.getCause() == null) {
-					return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(e));
-				} else {
-					Throwable t = e.getCause();
-					if (t instanceof FileNotFoundException) {
-						return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, t.getMessage());
-					} else {
-						return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(t));
-					}
-				}
-			}
-	
-			// Register job with the progress collector
-			if (this.eventCollector != null) {
-				this.eventCollector.registerJob(eg, false, System.currentTimeMillis());
-			}
-	
-			// Register for updates on the job status
-			eg.registerJobStatusListener(this);
-	
-			// Schedule job
-			if (LOG.isInfoEnabled()) {
-				LOG.info("Scheduling job " + job.getName());
-			}
-	
-			try {
-				this.scheduler.scheduleJob(eg);
-			} catch (SchedulingException e) {
-				unregisterJob(eg);
-				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(e));
-				return result;
-			}
-	
-			// Return on success
-			return new JobSubmissionResult(AbstractJobResult.ReturnCode.SUCCESS, null);
-		}
-		catch (Throwable t) {
-			LOG.error("Job submission failed.", t);
-			return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(t));
-		}
-	}
-	
-
-	public InstanceManager getInstanceManager() {
-		return this.instanceManager;
-	}
-
-	/**
-	 * This method is a convenience method to unregister a job from all of
-	 * Nephele's monitoring, profiling and optimization components at once.
-	 * Currently, it is only being used to unregister from profiling (if activated).
-	 * 
-	 * @param executionGraph
-	 *        the execution graph to remove from the job manager
-	 */
-	private void unregisterJob(final ExecutionGraph executionGraph) {
-
-		// Remove job from profiler (if activated)
-		if (this.profiler != null
-			&& executionGraph.getJobConfiguration().getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
-			this.profiler.unregisterProfilingJob(executionGraph);
-
-			if (this.eventCollector != null) {
-				this.profiler.unregisterFromProfilingData(executionGraph.getJobID(), this.eventCollector);
-			}
-		}
-
-		// Remove job from input split manager
-		if (this.inputSplitManager != null) {
-			this.inputSplitManager.unregisterJob(executionGraph);
-		}
-
-		// Unregister job with library cache manager
-		try {
-			LibraryCacheManager.unregister(executionGraph.getJobID());
-		} catch (IOException ioe) {
-			if (LOG.isWarnEnabled()) {
-				LOG.warn(ioe);
-			}
-		}
-	}
-
-
-	@Override
-	public void sendHeartbeat(final InstanceConnectionInfo instanceConnectionInfo) {
-
-		// Delegate call to instance manager
-		if (this.instanceManager != null) {
-
-			final Runnable heartBeatRunnable = new Runnable() {
-
-				@Override
-				public void run() {
-					instanceManager.reportHeartBeat(instanceConnectionInfo);
-				}
-			};
-
-			this.executorService.execute(heartBeatRunnable);
-		}
-	}
-
-	@Override
-	public RegisterTaskManagerResult registerTaskManager(final InstanceConnectionInfo instanceConnectionInfo,
-									final HardwareDescription hardwareDescription, final IntegerRecord numberOfSlots){
-		if(this.instanceManager != null) {
-			final Runnable registerTaskManagerRunnable = new Runnable() {
-				@Override
-				public void run(){
-					instanceManager.registerTaskManager(instanceConnectionInfo, hardwareDescription,
-							numberOfSlots.getValue());
-				}
-			};
-
-			this.executorService.execute(registerTaskManagerRunnable);
-			return new RegisterTaskManagerResult(RegisterTaskManagerResult.ReturnCode.SUCCESS);
-		}
-
-		return new RegisterTaskManagerResult(RegisterTaskManagerResult.ReturnCode.FAILURE);
-	}
-
-
-	@Override
-	public void updateTaskExecutionState(final TaskExecutionState executionState) throws IOException {
-
-		// Ignore calls with executionResult == null
-		if (executionState == null) {
-			LOG.error("Received call to updateTaskExecutionState with executionState == null");
-			return;
-		}
-
-		if (executionState.getExecutionState() == ExecutionState.FAILED) {
-			LOG.error(executionState.getDescription());
-		}
-
-		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(executionState.getJobID());
-		if (eg == null) {
-			LOG.error("Cannot find execution graph for ID " + executionState.getJobID() + " to change state to "
-				+ executionState.getExecutionState());
-			return;
-		}
-
-		final ExecutionVertex vertex = eg.getVertexByID(executionState.getID());
-		if (vertex == null) {
-			LOG.error("Cannot find vertex with ID " + executionState.getID() + " of job " + eg.getJobID()
-				+ " to change state to " + executionState.getExecutionState());
-			return;
-		}
-
-		// Asynchronously update execute state of vertex
-		vertex.updateExecutionStateAsynchronously(executionState.getExecutionState(), executionState.getDescription());
-	}
-
-
-	@Override
-	public JobCancelResult cancelJob(final JobID jobID) throws IOException {
-
-		LOG.info("Trying to cancel job with ID " + jobID);
-
-		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
-		if (eg == null) {
-			return new JobCancelResult(ReturnCode.ERROR, "Cannot find job with ID " + jobID);
-		}
-
-		final Runnable cancelJobRunnable = new Runnable() {
-
-			@Override
-			public void run() {
-				eg.updateJobStatus(InternalJobStatus.CANCELING, "Job canceled by user");
-				final TaskCancelResult cancelResult = cancelJob(eg);
-				if (cancelResult != null) {
-					LOG.error(cancelResult.getDescription());
-				}
-			}
-		};
-
-		eg.executeCommand(cancelJobRunnable);
-
-		LOG.info("Cancel of job " + jobID + " successfully triggered");
-
-		return new JobCancelResult(AbstractJobResult.ReturnCode.SUCCESS, null);
-	}
-
-	/**
-	 * Cancels all the tasks in the current and upper stages of the
-	 * given execution graph.
-	 * 
-	 * @param eg
-	 *        the execution graph representing the job to cancel.
-	 * @return <code>null</code> if no error occurred during the cancel attempt,
-	 *         otherwise the returned object will describe the error
-	 */
-	private TaskCancelResult cancelJob(final ExecutionGraph eg) {
-
-		TaskCancelResult errorResult = null;
-
-		/**
-		 * Cancel all nodes in the current and upper execution stages.
-		 */
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(),
-			false, true);
-		while (it.hasNext()) {
-
-			final ExecutionVertex vertex = it.next();
-			final TaskCancelResult result = vertex.cancelTask();
-			if (result.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS) {
-				errorResult = result;
-			}
-		}
-
-		return errorResult;
-	}
-
-
-	@Override
-	public JobProgressResult getJobProgress(final JobID jobID) throws IOException {
-
-		if (this.eventCollector == null) {
-			return new JobProgressResult(ReturnCode.ERROR, "JobManager does not support progress reports for jobs",
-				null);
-		}
-
-		final SerializableArrayList<AbstractEvent> eventList = new SerializableArrayList<AbstractEvent>();
-		this.eventCollector.getEventsForJob(jobID, eventList, false);
-
-		return new JobProgressResult(ReturnCode.SUCCESS, null, eventList);
-	}
-
-
-	@Override
-	public ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID, ChannelID sourceChannelID) {
-
-		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
-		if (eg == null) {
-			LOG.error("Cannot find execution graph to job ID " + jobID);
-			return ConnectionInfoLookupResponse.createReceiverNotFound();
-		}
-
-		final InternalJobStatus jobStatus = eg.getJobStatus();
-		if (jobStatus == InternalJobStatus.FAILING || jobStatus == InternalJobStatus.CANCELING) {
-			return ConnectionInfoLookupResponse.createJobIsAborting();
-		}
-
-		final ExecutionEdge edge = eg.getEdgeByID(sourceChannelID);
-		if (edge == null) {
-			LOG.error("Cannot find execution edge associated with ID " + sourceChannelID);
-			return ConnectionInfoLookupResponse.createReceiverNotFound();
-		}
-
-		if (sourceChannelID.equals(edge.getInputChannelID())) {
-			// Request was sent from an input channel
-
-			final ExecutionVertex connectedVertex = edge.getOutputGate().getVertex();
-
-			final Instance assignedInstance = connectedVertex.getAllocatedResource().getInstance();
-			if (assignedInstance == null) {
-				LOG.error("Cannot resolve lookup: vertex found for channel ID " + edge.getOutputGateIndex()
-					+ " but no instance assigned");
-				// LOG.info("Created receiverNotReady for " + connectedVertex + " 1");
-				return ConnectionInfoLookupResponse.createReceiverNotReady();
-			}
-
-			// Check execution state
-			final ExecutionState executionState = connectedVertex.getExecutionState();
-			if (executionState == ExecutionState.FINISHED) {
-				// that should not happen. if there is data pending, the receiver cannot be ready
-				return ConnectionInfoLookupResponse.createReceiverNotFound();
-			}
-
-			// running is common, finishing is happens when the lookup is for the close event
-			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
-				// LOG.info("Created receiverNotReady for " + connectedVertex + " in state " + executionState + " 2");
-				return ConnectionInfoLookupResponse.createReceiverNotReady();
-			}
-
-			if (assignedInstance.getInstanceConnectionInfo().equals(caller)) {
-				// Receiver runs on the same task manager
-				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(edge.getOutputChannelID());
-			} else {
-				// Receiver runs on a different task manager
-
-				final InstanceConnectionInfo ici = assignedInstance.getInstanceConnectionInfo();
-				final InetSocketAddress isa = new InetSocketAddress(ici.address(), ici.dataPort());
-
-				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, edge.getConnectionID()));
-			}
-		}
-		// else, the request is for an output channel
-		// Find vertex of connected input channel
-		final ExecutionVertex targetVertex = edge.getInputGate().getVertex();
-
-		// Check execution state
-		final ExecutionState executionState = targetVertex.getExecutionState();
-
-		// check whether the task needs to be deployed
-		if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING && executionState != ExecutionState.FINISHED) {
-
-			if (executionState == ExecutionState.ASSIGNED) {
-				final Runnable command = new Runnable() {
-					@Override
-					public void run() {
-						scheduler.deployAssignedVertices(targetVertex);
-					}
-				};
-				eg.executeCommand(command);
-			}
-
-			// LOG.info("Created receiverNotReady for " + targetVertex + " in state " + executionState + " 3");
-			return ConnectionInfoLookupResponse.createReceiverNotReady();
-		}
-
-		final Instance assignedInstance = targetVertex.getAllocatedResource().getInstance();
-		if (assignedInstance == null) {
-			LOG.error("Cannot resolve lookup: vertex found for channel ID " + edge.getInputChannelID() + " but no instance assigned");
-			// LOG.info("Created receiverNotReady for " + targetVertex + " in state " + executionState + " 4");
-			return ConnectionInfoLookupResponse.createReceiverNotReady();
-		}
-
-		if (assignedInstance.getInstanceConnectionInfo().equals(caller)) {
-			// Receiver runs on the same task manager
-			return ConnectionInfoLookupResponse.createReceiverFoundAndReady(edge.getInputChannelID());
-		} else {
-			// Receiver runs on a different task manager
-			final InstanceConnectionInfo ici = assignedInstance.getInstanceConnectionInfo();
-			final InetSocketAddress isa = new InetSocketAddress(ici.address(), ici.dataPort());
-
-			return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, edge.getConnectionID()));
-		}
-	}
-
-	/**
-	 * Returns current ManagementGraph from eventCollector and, if not current, from archive
-	 * 
-	 * {@inheritDoc}
-	 */
-	@Override
-	public ManagementGraph getManagementGraph(final JobID jobID) throws IOException {
-
-		ManagementGraph mg = this.eventCollector.getManagementGraph(jobID);
-		if (mg == null) {
-			if(this.archive != null) {
-				mg = this.archive.getManagementGraph(jobID);
-			}
-			
-			if (mg == null) {
-				throw new IOException("Cannot find job with ID " + jobID);
-			}
-		}
-
-		return mg;
-	}
-
-	@Override
-	public IntegerRecord getRecommendedPollingInterval() throws IOException {
-		return new IntegerRecord(this.recommendedClientPollingInterval);
-	}
-
-	@Override
-	public List<RecentJobEvent> getRecentJobs() throws IOException {
-
-		final List<RecentJobEvent> eventList = new SerializableArrayList<RecentJobEvent>();
-
-		if (this.eventCollector == null) {
-			throw new IOException("No instance of the event collector found");
-		}
-
-		this.eventCollector.getRecentJobs(eventList);
-
-		return eventList;
-	}
-
-
-	@Override
-	public List<AbstractEvent> getEvents(final JobID jobID) throws IOException {
-
-		final List<AbstractEvent> eventList = new SerializableArrayList<AbstractEvent>();
-
-		if (this.eventCollector == null) {
-			throw new IOException("No instance of the event collector found");
-		}
-
-		this.eventCollector.getEventsForJob(jobID, eventList, true);
-
-		return eventList;
-	}
-
-
-	@Override
-	public void killTask(final JobID jobID, final ManagementVertexID id) throws IOException {
-
-		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
-		if (eg == null) {
-			LOG.error("Cannot find execution graph for job " + jobID);
-			return;
-		}
-
-		final ExecutionVertex vertex = eg.getVertexByID(ExecutionVertexID.fromManagementVertexID(id));
-		if (vertex == null) {
-			LOG.error("Cannot find execution vertex with ID " + id);
-			return;
-		}
-
-		LOG.info("Killing task " + vertex + " of job " + jobID);
-
-		final Runnable runnable = new Runnable() {
-
-			@Override
-			public void run() {
-
-				final TaskKillResult result = vertex.killTask();
-				if (result.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS) {
-					LOG.error(result.getDescription());
-				}
-			}
-		};
-
-		eg.executeCommand(runnable);
-	}
-
-	/**
-	 * Tests whether the job manager has been shut down completely.
-	 * 
-	 * @return <code>true</code> if the job manager has been shut down completely, <code>false</code> otherwise
-	 */
-	public boolean isShutDown() {
-		return this.isShutDown;
-	}
-
-
-
-	@Override
-	public void jobStatusHasChanged(final ExecutionGraph executionGraph, final InternalJobStatus newJobStatus,
-			final String optionalMessage) {
-
-		LOG.info("Status of job " + executionGraph.getJobName() + "(" + executionGraph.getJobID() + ")"
-			+ " changed to " + newJobStatus);
-
-		if (newJobStatus == InternalJobStatus.FAILING) {
-
-			// Cancel all remaining tasks
-			cancelJob(executionGraph);
-		}
-
-		if (newJobStatus == InternalJobStatus.CANCELED || newJobStatus == InternalJobStatus.FAILED
-			|| newJobStatus == InternalJobStatus.FINISHED) {
-			// Unregister job for Nephele's monitoring, optimization components, and dynamic input split assignment
-			unregisterJob(executionGraph);
-		}
-	}
-
-
-	@Override
-	public void logBufferUtilization(final JobID jobID) throws IOException {
-
-		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
-		if (eg == null) {
-			return;
-		}
-
-		final Set<Instance> allocatedInstance = new HashSet<Instance>();
-
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, true);
-		while (it.hasNext()) {
-
-			final ExecutionVertex vertex = it.next();
-			final ExecutionState state = vertex.getExecutionState();
-			if (state == ExecutionState.RUNNING || state == ExecutionState.FINISHING) {
-				final Instance instance = vertex.getAllocatedResource().getInstance();
-
-				if (instance instanceof DummyInstance) {
-					LOG.error("Found instance of type DummyInstance for vertex " + vertex.getName() + " (state "
-						+ state + ")");
-					continue;
-				}
-
-				allocatedInstance.add(instance);
-			}
-		}
-
-		// Send requests to task managers from separate thread
-		final Runnable requestRunnable = new Runnable() {
-
-			@Override
-			public void run() {
-
-				final Iterator<Instance> it2 = allocatedInstance.iterator();
-
-				try {
-					while (it2.hasNext()) {
-						it2.next().logBufferUtilization();
-					}
-				} catch (IOException ioe) {
-					LOG.error(ioe);
-				}
-
-			}
-		};
-
-		// Hand over to the executor service
-		this.executorService.execute(requestRunnable);
-	}
-
-	@Override
-	public int getAvailableSlots() {
-		return getInstanceManager().getTotalNumberOfSlots();
-	}
-
-
-	@Override
-	public void deploy(final JobID jobID, final Instance instance,
-			final List<ExecutionVertex> verticesToBeDeployed) {
-
-		if (verticesToBeDeployed.isEmpty()) {
-			LOG.error("Method 'deploy' called but list of vertices to be deployed is empty");
-			return;
-		}
-
-		for (final ExecutionVertex vertex : verticesToBeDeployed) {
-
-			// Check vertex state
-			if (vertex.getExecutionState() != ExecutionState.READY) {
-				LOG.error("Expected vertex " + vertex + " to be in state READY but it is in state "
-					+ vertex.getExecutionState());
-			}
-
-			vertex.updateExecutionState(ExecutionState.STARTING, null);
-		}
-
-		// Create a new runnable and pass it the executor service
-		final Runnable deploymentRunnable = new Runnable() {
-
-			/**
-			 * {@inheritDoc}
-			 */
-			@Override
-			public void run() {
-
-				// Check if all required libraries are available on the instance
-				try {
-					instance.checkLibraryAvailability(jobID);
-				} catch (IOException ioe) {
-					LOG.error("Cannot check library availability: " + StringUtils.stringifyException(ioe));
-				}
-
-				final List<TaskDeploymentDescriptor> submissionList = new SerializableArrayList<TaskDeploymentDescriptor>();
-
-				// Check the consistency of the call
-				for (final ExecutionVertex vertex : verticesToBeDeployed) {
-
-					submissionList.add(vertex.constructDeploymentDescriptor());
-
-					LOG.info("Starting task " + vertex + " on " + vertex.getAllocatedResource().getInstance());
-				}
-
-				List<TaskSubmissionResult> submissionResultList = null;
-
-				try {
-					submissionResultList = instance.submitTasks(submissionList);
-				} catch (final IOException ioe) {
-					final String errorMsg = StringUtils.stringifyException(ioe);
-					for (final ExecutionVertex vertex : verticesToBeDeployed) {
-						vertex.updateExecutionStateAsynchronously(ExecutionState.FAILED, errorMsg);
-					}
-				}
-
-				if (verticesToBeDeployed.size() != submissionResultList.size()) {
-					LOG.error("size of submission result list does not match size of list with vertices to be deployed");
-				}
-
-				int count = 0;
-				for (final TaskSubmissionResult tsr : submissionResultList) {
-
-					ExecutionVertex vertex = verticesToBeDeployed.get(count++);
-					if (!vertex.getID().equals(tsr.getVertexID())) {
-						LOG.error("Expected different order of objects in task result list");
-						vertex = null;
-						for (final ExecutionVertex candVertex : verticesToBeDeployed) {
-							if (tsr.getVertexID().equals(candVertex.getID())) {
-								vertex = candVertex;
-								break;
-							}
-						}
-
-						if (vertex == null) {
-							LOG.error("Cannot find execution vertex for vertex ID " + tsr.getVertexID());
-							continue;
-						}
-					}
-
-					if (tsr.getReturnCode() != AbstractTaskResult.ReturnCode.SUCCESS) {
-						// Change the execution state to failed and let the scheduler deal with the rest
-						vertex.updateExecutionStateAsynchronously(ExecutionState.FAILED, tsr.getDescription());
-					}
-				}
-			}
-		};
-
-		this.executorService.execute(deploymentRunnable);
-	}
-
-
-	@Override
-	public InputSplitWrapper requestNextInputSplit(final JobID jobID, final ExecutionVertexID vertexID,
-			final IntegerRecord sequenceNumber) throws IOException {
-
-		final ExecutionGraph graph = this.scheduler.getExecutionGraphByID(jobID);
-		if (graph == null) {
-			LOG.error("Cannot find execution graph to job ID " + jobID);
-			return null;
-		}
-
-		final ExecutionVertex vertex = graph.getVertexByID(vertexID);
-		if (vertex == null) {
-			LOG.error("Cannot find execution vertex for vertex ID " + vertexID);
-			return null;
-		}
-
-		return new InputSplitWrapper(jobID, this.inputSplitManager.getNextInputSplit(vertex, sequenceNumber.getValue()));
-	}
-	
-	/**
-	 * Starts the Jetty Infoserver for the Jobmanager
-	 * 
-	 */
-	public void startInfoServer() {
-		final Configuration config = GlobalConfiguration.getConfiguration();
-		// Start InfoServer
-		try {
-			int port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
-			server = new WebInfoServer(config, port, this);
-			server.start();
-		} catch (FileNotFoundException e) {
-			LOG.error(e.getMessage(), e);
-		} catch (Exception e) {
-			LOG.error("Cannot instantiate info server: " + e.getMessage(), e);
-		}
-	}
-	
-	
-	// TODO Add to RPC?
-	public List<RecentJobEvent> getOldJobs() throws IOException {
-
-		//final List<RecentJobEvent> eventList = new SerializableArrayList<RecentJobEvent>();
-
-		if (this.archive == null) {
-			throw new IOException("No instance of the event collector found");
-		}
-
-		//this.eventCollector.getRecentJobs(eventList);
-
-		return this.archive.getJobs();
-	}
-	
-	public ArchiveListener getArchive() {
-		return this.archive;
-	}
-
-	public int getNumberOfTaskManagers() {
-		return this.instanceManager.getNumberOfRegisteredTaskManagers();
-	}
-	
-	public Map<InstanceConnectionInfo, Instance> getInstances() {
-		return this.instanceManager.getInstances();
-	}
-
-	@Override
-	public void reportAccumulatorResult(AccumulatorEvent accumulatorEvent) throws IOException {
-		this.accumulatorManager.processIncomingAccumulators(accumulatorEvent.getJobID(), accumulatorEvent.getAccumulators(LibraryCacheManager.getClassLoader(accumulatorEvent.getJobID())));
-	}
-
-	@Override
-	public AccumulatorEvent getAccumulatorResults(JobID jobID) throws IOException {
-		return new AccumulatorEvent(jobID, this.accumulatorManager.getJobAccumulators(jobID));
-	}
-	
-	public Map<String, Accumulator<?, ?>> getAccumulators(JobID jobID) {
-		return this.accumulatorManager.getJobAccumulators(jobID);
 	}
 }

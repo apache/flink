@@ -82,20 +82,6 @@ public interface Environment {
 	int getIndexInSubtaskGroup();
 
 	/**
-	 * Sends a notification that objects that a new user thread has been started to the execution observer.
-	 *
-	 * @param userThread the user thread which has been started
-	 */
-	void userThreadStarted(Thread userThread);
-
-	/**
-	 * Sends a notification that a user thread has finished to the execution observer.
-	 *
-	 * @param userThread the user thread which has finished
-	 */
-	void userThreadFinished(Thread userThread);
-
-	/**
 	 * Returns the input split provider assigned to this environment.
 	 *
 	 * @return the input split provider or <code>null</code> if no such provider has been assigned to this environment.

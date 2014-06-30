@@ -19,10 +19,16 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.runtime.AbstractID;
+import org.apache.flink.runtime.managementgraph.ManagementVertexID;
 
 /**
  * A class for statistically unique job vertex IDs.
  */
 public class JobVertexID extends AbstractID {
+	
 	private static final long serialVersionUID = 1L;
+	
+	public ManagementVertexID toManagementVertexId(int subtaskIndex) {
+		return new ManagementVertexID(subtaskIndex, getLowerPart() + getUpperPart());
+	}
 }

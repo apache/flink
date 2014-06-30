@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.deployment;
 
 import static org.junit.Assert.assertEquals;
@@ -30,10 +29,7 @@ import org.apache.flink.runtime.testutils.ServerTestUtils;
 import org.apache.flink.util.StringUtils;
 import org.junit.Test;
 
-/**
- * This class contains unit tests for the {@link ChannelDeploymentDescriptor} class.
- * 
- */
+
 public class ChannelDeploymentDescriptorTest {
 
 	/**

@@ -271,7 +271,7 @@ public final class LibraryCacheManager {
 	 * 
 	 * @param id
 	 *        the ID of the job to be registered.
-	 * @param clientPaths
+	 * @param requiredJarFiles
 	 *        the client path's of the required libraries
 	 * @throws IOException
 	 *         thrown if the library cache manager could not be instantiated or one of the requested libraries is not in
@@ -290,7 +290,7 @@ public final class LibraryCacheManager {
 	 * 
 	 * @param id
 	 *        the ID of the job to be registered.
-	 * @param clientPaths
+	 * @param requiredJarFiles
 	 *        the client path's of the required libraries
 	 * @throws IOException
 	 *         thrown if one of the requested libraries is not in the cache
@@ -438,8 +438,6 @@ public final class LibraryCacheManager {
 	 *        the ID of the job to return the class loader for
 	 * @return the class loader of requested vertex or <code>null</code> if no class loader has been registered with the
 	 *         given ID.
-	 * @throws IOException
-	 *         thrown if the library cache manager could not be instantiated
 	 */
 	private ClassLoader getClassLoaderInternal(final JobID id) {
 

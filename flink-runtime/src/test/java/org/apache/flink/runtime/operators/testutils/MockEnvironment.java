@@ -250,16 +250,6 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	}
 
 	@Override
-	public void userThreadStarted(final Thread userThread) {
-		// Nothing to do here
-	}
-
-	@Override
-	public void userThreadFinished(final Thread userThread) {
-		// Nothing to do here
-	}
-
-	@Override
 	public InputSplitProvider getInputSplitProvider() {
 		return this.inputSplitProvider;
 	}

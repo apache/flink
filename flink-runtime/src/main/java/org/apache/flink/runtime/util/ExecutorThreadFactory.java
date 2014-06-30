@@ -19,20 +19,46 @@
 package org.apache.flink.runtime.util;
 
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 public class ExecutorThreadFactory implements ThreadFactory {
 	
-	public static final ExecutorThreadFactory INSTANCE = new ExecutorThreadFactory();
-
-	private static final String THREAD_NAME = "Flink Executor Thread";
+	private static final Log LOG = LogFactory.getLog(ExecutorThreadFactory.class);
 	
+	
+	private static final String THREAD_NAME_PREFIX = "Flink Executor Thread - ";
+	
+	private static final AtomicInteger COUNTER = new AtomicInteger(1);
+	
+	private static final ThreadGroup THREAD_GROUP = new ThreadGroup("Flink Executor Threads");
+	
+	private static final Thread.UncaughtExceptionHandler EXCEPTION_HANDLER = new LoggingExceptionHander();
+	
+	
+	public static final ExecutorThreadFactory INSTANCE = new ExecutorThreadFactory();
+	
+	// --------------------------------------------------------------------------------------------
 	
 	private ExecutorThreadFactory() {}
 	
 	
 	public Thread newThread(Runnable target) {
-		Thread t = new Thread(target, THREAD_NAME);
+		Thread t = new Thread(THREAD_GROUP, target, THREAD_NAME_PREFIX + COUNTER.getAndIncrement());
 		t.setDaemon(true);
+		t.setUncaughtExceptionHandler(EXCEPTION_HANDLER);
 		return t;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private static final class LoggingExceptionHander implements Thread.UncaughtExceptionHandler {
+
+		@Override
+		public void uncaughtException(Thread t, Throwable e) {
+			LOG.error("Thread '" + t.getName() + "' produced an uncaught exception.", e);
+		}
 	}
 }

@@ -78,7 +78,7 @@ public class GenericInputSplit implements InputSplit, java.io.Serializable {
 	}
 
 	@Override
-	public void read(final DataInputView in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		this.partitionNumber = in.readInt();
 		this.totalNumberOfPartitions = in.readInt();
 	}

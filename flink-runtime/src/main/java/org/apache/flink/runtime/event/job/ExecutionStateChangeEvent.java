@@ -23,13 +23,11 @@ import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.ExecutionState2;
 import org.apache.flink.runtime.managementgraph.ManagementVertexID;
-import org.apache.flink.runtime.util.EnumUtils;
 
 /**
- * An {@link ExecutionStateChangeEvent} can be used to notify other objects about an execution state change of a vertex.
- * 
+ * An {@link ExecutionStateChangeEvent} can be used to notify other objects about an execution state change of a vertex. 
  */
 public final class ExecutionStateChangeEvent extends AbstractEvent implements ManagementEvent {
 
@@ -41,7 +39,7 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 	/**
 	 * The new execution state of the vertex this event refers to.
 	 */
-	private ExecutionState newExecutionState;
+	private ExecutionState2 newExecutionState;
 
 	/**
 	 * Constructs a new vertex event object.
@@ -53,8 +51,7 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 	 * @param newExecutionState
 	 *        the new execution state of the vertex this event refers to
 	 */
-	public ExecutionStateChangeEvent(final long timestamp, final ManagementVertexID managementVertexID,
-			final ExecutionState newExecutionState) {
+	public ExecutionStateChangeEvent(long timestamp, ManagementVertexID managementVertexID, ExecutionState2 newExecutionState) {
 		super(timestamp);
 		this.managementVertexID = managementVertexID;
 		this.newExecutionState = newExecutionState;
@@ -69,7 +66,7 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 		super();
 
 		this.managementVertexID = new ManagementVertexID();
-		this.newExecutionState = ExecutionState.CREATED;
+		this.newExecutionState = ExecutionState2.CREATED;
 	}
 
 	/**
@@ -86,28 +83,24 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 	 * 
 	 * @return the new execution state of the vertex this event refers to
 	 */
-	public ExecutionState getNewExecutionState() {
+	public ExecutionState2 getNewExecutionState() {
 		return this.newExecutionState;
 	}
 
 
 	@Override
-	public void read(final DataInputView in) throws IOException {
-
+	public void read(DataInputView in) throws IOException {
 		super.read(in);
-
 		this.managementVertexID.read(in);
-		this.newExecutionState = EnumUtils.readEnum(in, ExecutionState.class);
+		this.newExecutionState = ExecutionState2.values()[in.readInt()];
 	}
 
 
 	@Override
-	public void write(final DataOutputView out) throws IOException {
-
+	public void write(DataOutputView out) throws IOException {
 		super.write(out);
-
 		this.managementVertexID.write(out);
-		EnumUtils.writeEnum(out, this.newExecutionState);
+		out.writeInt(this.newExecutionState.ordinal());
 	}
 
 

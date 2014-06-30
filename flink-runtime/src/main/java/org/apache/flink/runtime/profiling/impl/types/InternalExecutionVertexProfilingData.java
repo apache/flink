@@ -16,53 +16,49 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.impl.types;
 
 import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 
 public abstract class InternalExecutionVertexProfilingData implements InternalProfilingData {
 
-	private final ExecutionVertexID executionVertexID;
+	private final ExecutionAttemptID executionId;
 
 	private final JobID jobId;
 
+	
 	public InternalExecutionVertexProfilingData() {
 		this.jobId = new JobID();
-		this.executionVertexID = new ExecutionVertexID();
+		this.executionId = new ExecutionAttemptID();
 	}
 
-	public InternalExecutionVertexProfilingData(JobID jobID, ExecutionVertexID executionVertexID) {
+	public InternalExecutionVertexProfilingData(JobID jobID, ExecutionAttemptID executionId) {
 		this.jobId = jobID;
-		this.executionVertexID = executionVertexID;
+		this.executionId = executionId;
 	}
 
-	public ExecutionVertexID getExecutionVertexID() {
-
-		return this.executionVertexID;
+	public ExecutionAttemptID getExecutionAttemptId() {
+		return this.executionId;
 	}
 
 	public JobID getJobID() {
-
 		return this.jobId;
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-
 		this.jobId.read(in);
-		this.executionVertexID.read(in);
+		this.executionId.read(in);
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-
 		this.jobId.write(out);
-		this.executionVertexID.write(out);
+		this.executionId.write(out);
 	}
 }

@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.gates;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
@@ -43,7 +43,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobID;
 
 /**
- * In Nephele input gates are a specialization of general gates and connect input channels and record readers. As
+ * Input gates are a specialization of general gates and connect input channels and record readers. As
  * channels, input gates are always parameterized to a specific type of record which they can transport. In contrast to
  * output gates input gates can be associated with a {@link DistributionPattern} object which dictates the concrete
  * wiring between two groups of vertices.
@@ -103,14 +103,12 @@ public class InputGate<T extends IOReadableWritable> extends Gate<T> implements 
 
 	@SuppressWarnings("unchecked")
 	public void initializeChannels(GateDeploymentDescriptor inputGateDescriptor){
-		channels = new InputChannel[inputGateDescriptor.getNumberOfChannelDescriptors()];
+		List<ChannelDeploymentDescriptor> channelDescr = inputGateDescriptor.getChannels();
+		
+		channels = new InputChannel[channelDescr.size()];
 
-		setChannelType(inputGateDescriptor.getChannelType());
-
-		final int nicdd = inputGateDescriptor.getNumberOfChannelDescriptors();
-
-		for(int i = 0; i < nicdd; i++){
-			final ChannelDeploymentDescriptor cdd = inputGateDescriptor.getChannelDescriptor(i);
+		for(int i = 0; i < channelDescr.size(); i++){
+			ChannelDeploymentDescriptor cdd = channelDescr.get(i);
 			channels[i] = new InputChannel<T>(this, i, cdd.getInputChannelID(),
 					cdd.getOutputChannelID(), getChannelType());
 		}

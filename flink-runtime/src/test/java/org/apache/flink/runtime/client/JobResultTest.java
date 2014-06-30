@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.client;
 
 import static org.junit.Assert.assertEquals;
@@ -36,7 +35,6 @@ import org.junit.Test;
 
 /**
  * This class contains test concerning all classes which are derived from {@link AbstractJobResult}.
- * 
  */
 public class JobResultTest {
 

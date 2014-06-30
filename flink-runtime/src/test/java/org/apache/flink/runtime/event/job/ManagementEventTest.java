@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.event.job;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.event.job.ExecutionStateChangeEvent;
+import org.apache.flink.runtime.event.job.RecentJobEvent;
+import org.apache.flink.runtime.execution.ExecutionState2;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.managementgraph.ManagementVertexID;
@@ -31,9 +32,9 @@ import org.junit.Test;
 
 /**
  * This test checks the proper serialization and deserialization of job events.
- * 
  */
 public class ManagementEventTest {
+
 	/**
 	 * The time stamp used during the tests.
 	 */
@@ -51,7 +52,7 @@ public class ManagementEventTest {
 	public void testExecutionStateChangeEvent() {
 
 		final ExecutionStateChangeEvent orig = new ExecutionStateChangeEvent(TIMESTAMP, new ManagementVertexID(),
-			ExecutionState.READY);
+			ExecutionState2.DEPLOYING);
 
 		final ExecutionStateChangeEvent copy = (ExecutionStateChangeEvent) ManagementTestUtils.createCopy(orig);
 
@@ -68,8 +69,7 @@ public class ManagementEventTest {
 	@Test
 	public void testRecentJobEvent() {
 
-		final RecentJobEvent orig = new RecentJobEvent(new JobID(), JOBNAME, JobStatus.SCHEDULED, true, TIMESTAMP,
-			TIMESTAMP);
+		final RecentJobEvent orig = new RecentJobEvent(new JobID(), JOBNAME, JobStatus.RUNNING, true, TIMESTAMP, TIMESTAMP);
 
 		final RecentJobEvent copy = (RecentJobEvent) ManagementTestUtils.createCopy(orig);
 
@@ -79,22 +79,6 @@ public class ManagementEventTest {
 		assertEquals(orig.isProfilingAvailable(), copy.isProfilingAvailable());
 		assertEquals(orig.getTimestamp(), copy.getTimestamp());
 		assertEquals(orig.getSubmissionTimestamp(), copy.getSubmissionTimestamp());
-		assertEquals(orig.hashCode(), copy.hashCode());
-		assertTrue(orig.equals(copy));
-	}
-
-	/**
-	 * Tests serialization/deserialization for {@link VertexAssignmentEvent}.
-	 */
-	@Test
-	public void testVertexAssignmentEvent() {
-
-		final VertexAssignmentEvent orig = new VertexAssignmentEvent(TIMESTAMP, new ManagementVertexID(), "test");
-		final VertexAssignmentEvent copy = (VertexAssignmentEvent) ManagementTestUtils.createCopy(orig);
-
-		assertEquals(orig.getVertexID(), copy.getVertexID());
-		assertEquals(orig.getTimestamp(), copy.getTimestamp());
-		assertEquals(orig.getInstanceName(), copy.getInstanceName());
 		assertEquals(orig.hashCode(), copy.hashCode());
 		assertTrue(orig.equals(copy));
 	}

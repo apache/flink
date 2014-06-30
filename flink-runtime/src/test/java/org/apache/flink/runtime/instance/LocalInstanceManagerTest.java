@@ -25,6 +25,7 @@ import java.util.List;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.accumulators.AccumulatorEvent;
 import org.apache.flink.runtime.client.JobCancelResult;
@@ -34,8 +35,6 @@ import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
-import org.apache.flink.runtime.executiongraph.InternalJobStatus;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
@@ -43,10 +42,10 @@ import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.ipc.RPC.Server;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.DeploymentManager;
-import org.apache.flink.runtime.jobmanager.splitassigner.InputSplitWrapper;
 import org.apache.flink.runtime.managementgraph.ManagementGraph;
-import org.apache.flink.runtime.managementgraph.ManagementVertexID;
 import org.apache.flink.runtime.protocols.AccumulatorProtocol;
 import org.apache.flink.runtime.protocols.ChannelLookupProtocol;
 import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
@@ -204,7 +203,7 @@ public class LocalInstanceManagerTest {
 		}
 
 		@Override
-		public void jobStatusHasChanged(ExecutionGraph executionGraph, InternalJobStatus newJobStatus, String optionalMessage) {}
+		public void jobStatusHasChanged(ExecutionGraph executionGraph, JobStatus newJobStatus, String optionalMessage) {}
 
 		@Override
 		public ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID, ChannelID sourceChannelID) {
@@ -213,11 +212,6 @@ public class LocalInstanceManagerTest {
 
 		@Override
 		public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {}
-
-		@Override
-		public InputSplitWrapper requestNextInputSplit(JobID jobID, ExecutionVertexID vertexID, IntegerRecord sequenceNumber) {
-			return null;
-		}
 
 		@Override
 		public ManagementGraph getManagementGraph(JobID jobID) {
@@ -235,12 +229,6 @@ public class LocalInstanceManagerTest {
 		}
 
 		@Override
-		public void killTask(JobID jobID, ManagementVertexID id) {}
-
-		@Override
-		public void logBufferUtilization(JobID jobID) {}
-
-		@Override
 		public int getAvailableSlots() {
 			return 0;
 		}
@@ -256,6 +244,11 @@ public class LocalInstanceManagerTest {
 		@Override
 		public InstanceID registerTaskManager(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription, int numberOfSlots) {
 			return new InstanceID();
+		}
+
+		@Override
+		public InputSplit requestNextInputSplit(JobID jobID, JobVertexID vertex) throws IOException {
+			return null;
 		}
 	}
 }

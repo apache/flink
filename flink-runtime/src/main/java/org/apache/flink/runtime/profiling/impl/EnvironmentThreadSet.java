@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.impl;
 
 import java.lang.management.ThreadInfo;
@@ -25,7 +24,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.profiling.impl.types.InternalExecutionVertexThreadProfilingData;
 
@@ -79,15 +78,15 @@ public class EnvironmentThreadSet {
 
 	private final Thread mainThread;
 
-	private final ExecutionVertexID executionVertexID;
+	private final ExecutionAttemptID executionId;
 
 	private final Map<Thread, CPUUtilizationSnapshot> userThreads = new HashMap<Thread, CPUUtilizationSnapshot>();
 
 	private CPUUtilizationSnapshot mainThreadSnapshot = null;
 
-	public EnvironmentThreadSet(ThreadMXBean tmx, Thread mainThread, ExecutionVertexID executionVertexID) {
+	public EnvironmentThreadSet(ThreadMXBean tmx, Thread mainThread, ExecutionAttemptID executionId) {
 		this.mainThread = mainThread;
-		this.executionVertexID = executionVertexID;
+		this.executionId = executionId;
 
 		this.mainThreadSnapshot = createCPUUtilizationSnapshot(tmx, mainThread, System.currentTimeMillis());
 	}
@@ -206,7 +205,7 @@ public class EnvironmentThreadSet {
 				sumWaiTime /= (divisor + 1);
 			}
 
-			return new InternalExecutionVertexThreadProfilingData(jobID, this.executionVertexID, (int) mainInterval,
+			return new InternalExecutionVertexThreadProfilingData(jobID, this.executionId, (int) mainInterval,
 				sumUsrTime, sumSysTime, sumBlkTime, sumWaiTime);
 		}
 	}

@@ -184,13 +184,7 @@ public class DefaultScheduler implements InstanceListener, SlotAvailablilityList
 								slot = sharingUnit.getTaskAssignment().addSlotWithTask(slot, task.getJobVertexId());
 							}
 							
-							// try to run the task 
-							if (slot.runTask(task.getTaskVertex())) {
-								return slot;
-							} else {
-								// did not assign, so we recycle the resource
-								slot.releaseSlot();
-							}
+							return slot;
 						}
 					}
 					catch (InstanceDiedException e) {
@@ -279,12 +273,18 @@ public class DefaultScheduler implements InstanceListener, SlotAvailablilityList
 				
 				try {
 					AllocatedSlot newSlot = instance.allocateSlot(task.getTaskVertex().getJobId());
-					if (newSlot != null && newSlot.runTask(task.getTaskVertex())) {
+					if (newSlot != null) {
 						
 						// success, remove from the task queue and notify the future
 						taskQueue.poll();
 						if (queued.getFuture() != null) {
-							queued.getFuture().setSlot(newSlot);
+							try {
+								queued.getFuture().setSlot(newSlot);
+							}
+							catch (Throwable t) {
+								LOG.error("Error calling allocation future for task " + task.getTaskVertex().getSimpleName(), t);
+								task.getTaskVertex().fail(t);
+							}
 						}
 					}
 				}

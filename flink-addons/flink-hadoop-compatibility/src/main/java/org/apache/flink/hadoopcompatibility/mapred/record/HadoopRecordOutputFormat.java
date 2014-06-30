@@ -110,7 +110,7 @@ public class HadoopRecordOutputFormat<K,V> implements OutputFormat<Record> {
 
 	/**
 	 * Custom serialization methods.
-	 *  @see http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html
+	 *  @see "http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html"
 	 */
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		out.writeUTF(hadoopOutputFormatName);

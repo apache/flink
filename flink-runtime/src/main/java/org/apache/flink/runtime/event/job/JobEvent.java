@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.event.job;
 
 import java.io.IOException;
@@ -30,18 +29,13 @@ import org.apache.flink.runtime.util.EnumUtils;
 /**
  * A job event object is used by the job manager to inform a client about
  * changes of the job's status.
- * 
  */
 public class JobEvent extends AbstractEvent {
 
-	/**
-	 * The current status of the job.
-	 */
+	/** The current status of the job. */
 	private JobStatus currentJobStatus;
 
-	/**
-	 * An optional message attached to the event, possibly <code>null</code>.
-	 */
+	/** An optional message attached to the event, possibly <code>null</code>. */
 	private String optionalMessage = null;
 
 	/**
@@ -68,8 +62,7 @@ public class JobEvent extends AbstractEvent {
 	 */
 	public JobEvent() {
 		super();
-
-		this.currentJobStatus = JobStatus.SCHEDULED;
+		this.currentJobStatus = JobStatus.CREATED;
 	}
 
 
@@ -111,20 +104,17 @@ public class JobEvent extends AbstractEvent {
 	 * @return the optional message, possibly <code>null</code>.
 	 */
 	public String getOptionalMessage() {
-
 		return this.optionalMessage;
 	}
 
 
 	public String toString() {
-
 		return timestampToString(getTimestamp()) + ":\tJob execution switched to status " + this.currentJobStatus;
 	}
 
 
 	@Override
 	public boolean equals(final Object obj) {
-
 		if (!super.equals(obj)) {
 			return false;
 		}
@@ -154,7 +144,6 @@ public class JobEvent extends AbstractEvent {
 
 	@Override
 	public int hashCode() {
-
 		return super.hashCode();
 	}
 }

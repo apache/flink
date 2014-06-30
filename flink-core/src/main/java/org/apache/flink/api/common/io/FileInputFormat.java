@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io;
 
 import java.io.IOException;
@@ -44,7 +43,7 @@ import org.apache.flink.core.fs.Path;
  * The base class for {@link InputFormat}s that read from files. For specific input types the 
  * <tt>nextRecord()</tt> and <tt>reachedEnd()</tt> methods need to be implemented.
  * Additionally, one may override {@link #open(FileInputSplit)} and {@link #close()} to
- * change the lifecycle behavior.
+ * change the life cycle behavior.
  * <p>
  * After the {@link #open(FileInputSplit)} method completed, the file input data is available
  * from the {@link #stream} field.
@@ -358,8 +357,8 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	}
 
 	@Override
-	public Class<FileInputSplit> getInputSplitType() {
-		return FileInputSplit.class;
+	public LocatableInputSplitAssigner getInputSplitAssigner(FileInputSplit[] splits) {
+		return new LocatableInputSplitAssigner(splits);
 	}
 
 	/**
