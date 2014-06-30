@@ -28,18 +28,10 @@ public class Tuple2Test {
 		// Swapped tuple for comparison
 		Tuple2<Integer, String> swappedTuple2 = fullTuple2.swapValues();
 		
-		Assert.failNotEquals("Must be equal", swappedTuple2.f1, fullTuple2.f0);
-		Assert.failNotEquals("Must be equal", swappedTuple2.f0, fullTuple2.f1);
+		// Check for equality
+		Assert.assertEquals(swappedTuple2.f0, fullTuple2.f1);
 		
-		// Assert when not the same
-		// Use overloaded equals method to check for equality. Especially important for String.
-		if(!swappedTuple2.f1.equals(fullTuple2.f0)) {
-			Assert.fail("Swapped values should be the same");
-		}
-		
-		if(!swappedTuple2.f0.equals(fullTuple2.f1)) {
-			Assert.fail("Swapped values should be the same");
-		}
+		Assert.assertEquals(swappedTuple2.f1, fullTuple2.f0);
 		
 	}
 
