@@ -46,7 +46,10 @@ trait OutputHintable[Out] { this: DataSet[Out] =>
   
   private var _cardinalities: List[KeyCardinality] = List[KeyCardinality]()
   
-  def addCardinality(card: KeyCardinality) { _cardinalities = card :: _cardinalities }
+  def addCardinality(card: KeyCardinality) {
+    _cardinalities = card :: _cardinalities
+    applyHints(getContract)
+  }
 
   def degreeOfParallelism = contract.getDegreeOfParallelism()
   def degreeOfParallelism_=(value: Int) = contract.setDegreeOfParallelism(value)
