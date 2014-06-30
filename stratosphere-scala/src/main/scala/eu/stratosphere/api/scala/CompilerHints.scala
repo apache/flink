@@ -105,6 +105,7 @@ object OutputHintableMacros {
       val card = KeyCardinality(key, true, None, None)
       
       c.prefix.splice.addCardinality(card)
+      c.prefix.splice.applyHints(c.prefix.splice.getContract)
     }
     return result
   }
