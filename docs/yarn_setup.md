@@ -172,7 +172,7 @@ Please post to the [Stratosphere mailinglist](https://groups.google.com/d/forum/
 
 This section briefly describes how Stratosphere and YARN interact. 
 
-<img src="{{site.baseurl}}/img/StratosphereOnYarn.svg" class="img-responsive">
+<img src="img/StratosphereOnYarn.svg" class="img-responsive">
 
 The YARN client needs to access the Hadoop configuration to connect to the YARN resource manager and to HDFS. It determines the Hadoop configuration using the following strategy:
 

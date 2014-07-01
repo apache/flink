@@ -2,7 +2,7 @@
 title: "Scala API Programming Guide"
 ---
 
-
+<section id="top">
 Scala Programming Guide
 =======================
 
@@ -20,6 +20,8 @@ Writing Scala jobs requires an understanding of Scala, there is excellent
 documentation available [here](http://scala-lang.org/documentation/). Most
 of the examples can be understood by someone with a good understanding
 of programming in general, though.
+
+[Back to top](#top)
 
 <section id="intro-example">
 Word Count Example
@@ -77,6 +79,8 @@ which can then be executed on a cluster using `RemoteExecutor`. Here, the
 `LocalExecutor` is used to run the flow on the local computer. This is useful
 for debugging your job before running it on an actual cluster.
 
+[Back to top](#top)
+
 <section id="intro-example">
 Project Setup
 -------------
@@ -122,6 +126,8 @@ The first two imports contain things like `DataSet`, `Plan`, data sources, data
 sinks, and the operations. The last two imports are required if you want to run
 a data flow on your local machine, respectively cluster.
 
+[Back to top](#top)
+
 <section id="dataset">
 The DataSet Abstraction
 -----------------------
@@ -155,6 +161,8 @@ val mapped = input map { a => (a._1, a._2 + 1)}
 
 The anonymous function would retrieve in `a` tuples of type `(String, Int)`.
 
+[Back to top](#top)
+
 <section id="datatypes">
 Data Types
 ----------
@@ -170,7 +178,7 @@ For custom data types that should also be used as a grouping key or join key
 the [Key](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-core/src/main/java/eu/stratosphere/types/Key.java)
 interface must be implemented.
 
-
+[Back to top](#top)
 
 <section id="data-sources">
 Creating Data Sources
@@ -201,6 +209,8 @@ formats are:
 We will now have a look at each of them and show how they are employed and in
 which situations.
 
+[Back to top](#top)
+
 <section id="text-input-format">
 #### TextInputFormat
 
@@ -219,6 +229,8 @@ val input = TextFile("<file-path>")
 ```
 
 The `input` would then be a `DataSet[String]`.
+
+[Back to top](#top)
 
 <section id="csv-input-format">
 #### CsvInputFormat
@@ -259,6 +271,8 @@ val input = DataSource("file:///some/file", CsvInputFormat[(Int, Int, String)](S
 Here only the specified fields would be read and 3-tuples created for you.
 The type of input would be `DataSet[(Int, Int, String)]`.
 
+[Back to top](#top)
+
 <section id="delimited-input-format">
 #### DelimitedInputFormat
 
@@ -290,6 +304,8 @@ In this example EdgeInputPattern is some regular expression used for parsing
 a line of text and `Path` is a custom case class that is used to represent
 the data. The type of input would in this case be `DataSet[Path]`.
 
+[Back to top](#top)
+
 <section id="binary-input-format">
 #### BinaryInputFormat
 
@@ -320,6 +336,8 @@ val input = DataSource("file:///some/file", BinaryInputFormat( { input =>
 
 Here `input` would be of type `DataSet[(Int, Double)]`.
 
+[Back to top](#top)
+
 <section id="binary-serialized-input-format">
 #### BinarySerializedInputFormat
 
@@ -340,6 +358,7 @@ could use:
 ```scala
 val input = DataSource("file:///some/file", BinarySerializedInputFormat[(String, Int)]())
 ```
+[Back to top](#top)
 
 <section id="fixed-length-input-format">
 #### FixedLengthInputFormat
@@ -357,6 +376,7 @@ FixedLengthInputFormat[Out](readFunction: (Array[Byte], Int) => Out, recordLengt
 The specified function gets an array and a position at which it must start
 reading the array and returns the element read from the binary data.
 
+[Back to top](#top)
 
 <section id="operations">
 Operations on DataSet
@@ -387,6 +407,8 @@ a data flow graph that processes data only when executed.
 There are operations on `DataSet` that correspond to all the types of operators
 that the Stratosphere system supports. We will shortly go trough all of them with
 some examples.
+
+[Back to top](#top)
 
 <section id="operator-templates">
 #### Basic Operator Templates
@@ -438,6 +460,7 @@ val input: DataSet[(String, Int)]
 
 val mapped = input.filter { x => x._2 >= 3 }
 ```
+[Back to top](#top)
 
 <section id="key-selectors">
 #### Field/Key Selectors
@@ -660,6 +683,8 @@ def union(secondInput: DataSet[A])
 
 Where `A` is the generic type of the `DataSet` on which you execute the `union`.
 
+[Back to top](#top)
+
 <section id="iterations">
 Iterations
 ----------
@@ -729,6 +754,7 @@ refer to [iterations](iterations.html). A working example job is
 available here:
 [Scala Connected Components Example](examples_scala.html#connected_components) 
 
+[Back to top](#top)
 
 <section id="data-sinks">
 Creating Data Sinks
@@ -756,6 +782,8 @@ builtin formats or a custom output format. The builtin formats are:
 
 We will now have a look at each of them and show how they are employed and in
 which situations.
+
+[Back to top](#top)
 
 <section id="delimited-output-format">
 #### DelimitedOutputFormat
@@ -785,6 +813,8 @@ Here we use Scala String formatting to write the two fields of the tuple
 separated by a pipe character. The default newline delimiter will be inserted
 between the elements in the output files.
 
+[Back to top](#top)
+
 <section id="csv-output-format">
 #### CsvOutputFormat
 
@@ -809,6 +839,8 @@ val sink = out.write("file:///some/file", CsvOutputFormat())
 ```
 
 Notice how we don't need to specify the generic type here, it is inferred.
+
+[Back to top](#top)
 
 <section id="raw-output-format">
 #### RawOutputFormat
@@ -850,6 +882,7 @@ A `BinaryOutputFormat` is created like this:
 BinaryOutputFormat[In](writeFunction: (In, DataOutput) => Unit)
 BinaryOutputFormat[In](writeFunction: (In, DataOutput) => Unit, blockSize: Long)
 ```
+[Back to top](#top)
 
 <section id="binary-serialized-output-format">
 #### BinarySerializedOutputFormat
@@ -874,6 +907,8 @@ val sink = out.write("file:///some/file", BinarySerializedInputFormat())
 
 As you can see the type of the elements need not be specified, it is inferred
 by Scala.
+
+[Back to top](#top)
 
 <section id="execution">
 Executing Jobs
@@ -933,6 +968,8 @@ setup. Have a look at [cluster quickstart](/quickstart/setup.html) for a quick
 guide about how to set up a cluster. The default cluster port is 6123, so
 if you run a job manger on your local computer you can give this and "localhost"
 as the first to parameters to the `RemoteExecutor` constructor.
+
+[Back to top](#top)
 
 <section id="rich-functions">
 Rich Functions
@@ -1006,3 +1043,5 @@ abstract class FlatCrossFunction[LeftIn, RightIn, Out]
 
 Note that for all the rich stubs, you need to specify the generic type of
 the input (or inputs) and the output type.
+
+[Back to top](#top)

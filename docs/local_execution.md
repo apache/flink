@@ -6,7 +6,7 @@ title:  "Local Execution"
 
 Stratosphere can run on a single machine, even in a single Java Virtual Machine. This allows users to test and debug Stratosphere programs locally. This section gives an overview of the local execution mechanisms.
 
-**NOTE:** Please also refer to the [debugging section]({{site.baseurl}}/docs/0.5/programming_guides/java.html#debugging) in the Java API documentation for a guide to testing and local debugging utilities in the Java API.
+**NOTE:** Please also refer to the [debugging section](java_api_guide.html#debugging) in the Java API documentation for a guide to testing and local debugging utilities in the Java API.
 
 The local environments and executors allow you to run Stratosphere programs in local Java Virtual Machine, or with within any JVM as part of existing programs. Most examples can be launched locally by simply hitting the "Run" button of your IDE.
 
@@ -35,7 +35,7 @@ The `LocalEnvironment` is a handle to local execution for Stratosphere programs.
 
 The local environment is instantiated via the method `ExecutionEnvironment.createLocalEnvironment()`. By default, it will use as many local threads for execution as your machine has CPU cores (hardware contexts). You can alternatively specify the desired parallelism. The local environment can be configured to log to the console using `enableLogging()`/`disableLogging()`.
 
-In most cases, calling `ExecutionEnvironment.getExecutionEnvironment()` is the even better way to go. That method returns a `LocalEnvironment` when the program is started locally (outside the command line interface), and it returns a pre-configured environment for cluster execution, when the program is invoked by the [command line interface]({{ site.baseurl }}/docs/0.5/program_execution/cli_client.html).
+In most cases, calling `ExecutionEnvironment.getExecutionEnvironment()` is the even better way to go. That method returns a `LocalEnvironment` when the program is started locally (outside the command line interface), and it returns a pre-configured environment for cluster execution, when the program is invoked by the [command line interface](cli.html).
 
 ```java
 public static void main(String[] args) throws Exception {

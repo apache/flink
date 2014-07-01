@@ -77,7 +77,7 @@ As a rule-of-thumb, the number of buffers should be at least
 
 ## My job fails early with a java.io.EOFException. What could be the cause?
 
-Note: In version <em>0.4</em>, the delta iterations limit the solution set to
+Note: In version _0.4_, the delta iterations limit the solution set to
 records with fixed-length data types. We will  in the next version.
 
 The most common case for these exception is when Stratosphere is set up with the
@@ -100,7 +100,7 @@ Call to <host:port> failed on local exception: java.io.EOFException
 ```
 
 Please refer to the [download page](http://stratosphere.eu/downloads/#maven) and
-the [build instructions](https://github.com/stratosphere/stratosphere/blob/master/README.md)
+the {% gh_link README.md master build instructions %}
 for details on how to set up Stratosphere for different Hadoop and HDFS versions.
 
 ## My program does not compute the correct result. Why are my custom key types

@@ -4,9 +4,9 @@ title:  "Java API Examples"
 
 The following example programs showcase different applications of Stratosphere 
 from simple word counting to graph algorithms. The code samples illustrate the 
-use of **[Stratosphere's Java API]({{site.baseurl}}/docs/{{site current_stable}}/programming_guides/java.html)**. 
+use of [Stratosphere's Java API](java_api_guide.html). 
 
-The full source code of the following and more examples can be found in the **[stratosphere-java-examples](https://github.com/stratosphere/stratosphere/tree/release-{{site.current_stable}}/stratosphere-examples/stratosphere-java-examples)** module.
+The full source code of the following and more examples can be found in the __stratosphere-java-examples__ module.
 
 # Word Count
 WordCount is the "Hello World" of Big Data processing systems. It computes the frequency of words in a text collection. The algorithm works in two steps: First, the texts are splits the text to individual words. Second, the words are grouped and counted.
@@ -42,13 +42,13 @@ public static final class Tokenizer extends FlatMapFunction<String, Tuple2<Strin
 }
 ```
 
-The [WordCount example](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/wordcount/WordCount.java) implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
+The [WordCount example](https://github.com/apache/incubator-flink/blob/cd665b9e8abec2bbfecf384fe7273bd50f22ce67/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/wordcount/WordCount.java) implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
 
 # Page Rank
 
 The PageRank algorithm computes the "importance" of pages in a graph defined by links, which point from one pages to another page. It is an iterative graph algorithm, which means that it repeatedly applies the same computation. In each iteration, each page distributes its current rank over all its neighbors, and compute its new rank as a taxed sum of the ranks it received from its neighbors. The PageRank algorithm was popularized by the Google search engine which uses the importance of webpages to rank the results of search queries.
 
-In this simple example, PageRank is implemented with a [bulk iteration]({{site.baseurl}}/docs/{{site.current_stable}}/programming_guides/java.html#iterations) and a fixed number of iterations.
+In this simple example, PageRank is implemented with a [bulk iteration](java_api_guide.html#iterations) and a fixed number of iterations.
 
 ```java
 // get input data
@@ -118,7 +118,7 @@ public static final class EpsilonFilter
 }
 ```
 
-The [PageRank program](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/graph/PageRankBasic.java) implements the above example.
+The [PageRank program](https://github.com/apache/incubator-flink/blob/ca2b287a7a78328ebf43766b9fdf39b56fb5fd4f/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/graph/PageRankBasic.java) implements the above example.
 It requires the following parameters to run: `<pages input path>, <links input path>, <output path>, <num pages>, <num iterations>`.
 
 Input files are plain text files and must be formatted as follows:
@@ -133,7 +133,7 @@ For this simple implementation it is required that each page has at least one in
 
 The Connected Components algorithm identifies parts of a larger graph which are connected by assigning all vertices in the same connected part the same component ID. Similar to PageRank, Connected Components is an iterative algorithm. In each step, each vertex propagates its current component ID to all its neighbors. A vertex accepts the component ID from a neighbor, if it is smaller than its own component ID.
 
-This implementation uses a [delta iteration]({{site.baseurl}}/docs/{{site.current_stable}}/programming_guides/java.html#iterations): Vertices that have not changed their component ID do not participate in the next step. This yields much better performance, because the later iterations typically deal only with a few outlier vertices.
+This implementation uses a [delta iteration](iterations.html): Vertices that have not changed their component ID do not participate in the next step. This yields much better performance, because the later iterations typically deal only with a few outlier vertices.
 
 ```java
 // read vertex and edge data
@@ -209,7 +209,7 @@ public static final class ComponentIdFilter
 }
 ```
 
-The [ConnectedComponents program](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/graph/ConnectedComponents.java) implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
+The [ConnectedComponents program](https://github.com/apache/incubator-flink/blob/ca2b287a7a78328ebf43766b9fdf39b56fb5fd4f/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/graph/ConnectedComponents.java) implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
 
 Input files are plain text files and must be formatted as follows:
 - Vertices represented as IDs and separated by new-line characters.
@@ -280,7 +280,7 @@ DataSet<Tuple3<Integer, Integer, Double>> priceSums =
 priceSums.writeAsCsv(outputPath);
 ```
 
-The [Relational Query program](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/relational/RelationalQuery.java) implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>`.
+The [Relational Query program](https://github.com/apache/incubator-flink/blob/ca2b287a7a78328ebf43766b9fdf39b56fb5fd4f/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/relational/RelationalQuery.java) implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>`.
 
 The orders and lineitem files can be generated using the [TPC-H benchmark](http://www.tpc.org/tpch/) suite's data generator tool (DBGEN). 
 Take the following steps to generate arbitrary large input files for the provided Stratosphere programs:
