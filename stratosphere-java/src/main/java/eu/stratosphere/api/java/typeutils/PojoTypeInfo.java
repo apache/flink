@@ -167,4 +167,8 @@ public class PojoTypeInfo<T> extends TypeInformation<T> implements CompositeType
 
 		return new PojoComparator<T>(keyFields, fieldComparators, createSerializer(), typeClass);
 	}
+
+	public PojoField[] getFields() {
+		return fields;
+	}
 }

@@ -332,6 +332,23 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
+	 * Returns a distinct set of a {@link DataSet} using field expressions. A field expression is either the name of a public field
+	 * or a getter method with parentheses of the {@link DataSet}S underlying type. A dot can be used to drill down
+	 * into objects, as in {@code "field1.getInnerField2()" }.
+	 * <p/>
+	 * The field expressions keys specify the fields of Tuples on which the decision is made if two Tuples are distinct or
+	 * not.
+	 * <p/>
+	 * Note: Field position keys can only be specified for Tuple DataSets.
+	 *
+	 * @param fields One or more field expressions on which the distinction of the DataSet is decided. 
+	 * @return A DistinctOperator that represents the distinct DataSet.
+	 */
+	public DistinctOperator<T> distinct(String... fields) {
+		return new DistinctOperator<T>(this, new Keys.ExpressionKeys<T>(fields, getType()));
+	}
+	
+	/**
 	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using all fields of the tuple.
 	 * <p/>
 	 * Note: This operator can only be applied to Tuple DataSets.

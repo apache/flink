@@ -18,7 +18,7 @@ import eu.stratosphere.types.TypeInformation;
 
 import java.lang.reflect.Field;
 
-class PojoField {
+public class PojoField {
 	public Field field;
 	public TypeInformation<?> type;
 
