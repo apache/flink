@@ -1,7 +1,7 @@
 ---
 title: "Java API Programming Guide"
 ---
-
+<section id="top"></section>
 Java API
 ========
 
@@ -12,10 +12,9 @@ Introduction
 Analysis programs in Stratosphere are regular Java programs that implement transformations on data sets (e.g., filtering, mapping, joining, grouping). The data sets are initially created from certain sources (e.g., by reading files, or from collections). Results are returned via sinks, which may for example write the data to (distributed) files, or to standard output (for example the command line terminal). Stratosphere programs run in a variety of contexts, standalone, or embedded in other programs. The execution can happen in a local JVM, or on clusters of many machines.
 
 In order to create your own Stratosphere program, we encourage you to start with the [program skeleton](#skeleton) and gradually add your own [transformations](#transformations). The remaining sections act as references for additional operations and advanced features.
-</section>
+
 
 <section id="toc">
-
 <div id="docs_05_toc">
   <div class="list-group">
 {% for sublink in page.toc %}
@@ -23,8 +22,6 @@ In order to create your own Stratosphere program, we encourage you to start with
 {% endfor %}
   </div>
 </div>
-
-</section>
 
 <section id="example">
 Example Program
@@ -62,8 +59,7 @@ public class WordCountExample {
 }
 ```
 
-<div class="back-to-top"><a href="#toc">Back to top</a></div>
-</section>
+[Back to top](#top)
 
 <section id="linking">
 Linking with Stratosphere
@@ -73,16 +69,16 @@ To write programs with Stratosphere, you need to include Stratosphere’s Java A
 
 The simplest way to do this is to use the [quickstart scripts]({{site.baseurl}}/quickstart/java.html). They create a blank project from a template (a Maven Archetype), which sets up everything for you. To manually create the project, you can use the archetype and create a project by calling:
 
-{% highlight bash %}
+```bash
 mvn archetype:generate /
     -DarchetypeGroupId=eu.stratosphere /
     -DarchetypeArtifactId=quickstart-java /
     -DarchetypeVersion={{site.docs_05_stable}}
-{% endhighlight %}
+```
 
 If you want to add Stratosphere to an existing Maven project, add the following entry to your *dependencies* section in the *pom.xml* file of your project:
 
-{% highlight xml %}
+```xml
 <dependency>
   <groupId>eu.stratosphere</groupId>
   <artifactId>stratosphere-java</artifactId>
@@ -93,15 +89,14 @@ If you want to add Stratosphere to an existing Maven project, add the following 
   <artifactId>stratosphere-clients</artifactId>
   <version>{{site.docs_05_stable}}</version>
 </dependency>
-{% endhighlight %}
+```
 
 In order to link against the latest SNAPSHOT versions of the code, please follow [this guide]({{site.baseurl}}/downloads/#nightly).
 
 The *stratosphere-clients* dependency is only necessary to invoke the Stratosphere program locally (for example to run it standalone for testing and debugging). 
 If you intend to only export the program as a JAR file and [run it on a cluster]({{site.baseurl}}/docs/0.5/program_execution/cluster_execution.html), you can skip that dependency.
 
-<div class="back-to-top"><a href="#toc">Back to top</a></div>
-</section>
+[Back to top](#top)
 
 <section id="skeleton">
 Program Skeleton
@@ -206,8 +201,7 @@ Once you specified the complete program you need to call `execute` on
 the `ExecutionEnvironment`. This will either execute on your local
 machine or submit your program for execution on a cluster, depending on
 how you created the execution environment.
-<div class="back-to-top"><a href="#toc">Back to top</a></div>
-</section>
+[Back to top](#top)
 
 <section id="lazyeval">
 Lazy Evaluation
@@ -216,7 +210,6 @@ Lazy Evaluation
 All Stratosphere programs are executed lazily: When the program's main method is executed, the data loading and transformations do not happen directly. Rather, each operation is created and added to the program's plan. The operations are actually executed when one of the `execute()` methods is invoked on the ExecutionEnvironment object. Whether the program is executed locally or on a cluster depends on the environment of the program.
 
 The lazy evaluation lets you construct sophisticated programs that Stratosphere executes as one holistically planned unit.
-</section>
 
 <section id="types">
 Data Types
@@ -346,8 +339,8 @@ The type inference has its limits and needs the "cooperation" of the programmer 
 
 The [ResultTypeQueryable](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-java/src/main/java/eu/stratosphere/api/java/typeutils/ResultTypeQueryable.java) interface can be implemented by input formats and functions to tell the API explicitly about their return type. The *input types* that the functions are invoked with can usually be inferred by the result types of the previous operations.
 
-<div class="back-to-top"><a href="#toc">Back to top</a></div>
-</section>
+[Back to top](#top)
+
 
 <section id="transformations">
 Data Transformations
@@ -992,8 +985,8 @@ DataSet<Tuple2<String, Integer>> unioned = vals1.union(vals2)
 ```
 
 
-<div class="back-to-top"><a href="#toc">Back to top</a></div>
-</section>
+[Back to top](#top)
+
 
 <section id="data_sources">
 Data Sources
@@ -1061,8 +1054,8 @@ DataSet<Tuple2<String, Integer> dbData =
 // Note: Stratosphere's program compiler needs to infer the data types of the data items which are returned by an InputFormat. If this information cannot be automatically inferred, it is necessary to manually provide the type information as shown in the examples above.
 ```
 
-<div class="back-to-top"><a href="#toc">Back to top</a></div>
-</section>
+[Back to top](#top)
+
 
 <section id="data_sinks">
 Data Sinks
@@ -1120,8 +1113,8 @@ myResult.output(
     );
 ```
 
-<div class="back-to-top"><a href="#toc">Back to top</a></div>
-</section>
+[Back to top](#top)
+
 
 <section id="debugging">
 Debugging
@@ -1155,9 +1148,7 @@ env.execute();
 
 Providing input for an analysis program and checking its output is cumbersome done by creating input files and reading output files. Stratosphere features special data sources and sinks which are backed by Java collections to ease testing. Once a program has been tested, the sources and sinks can be easily replaced by sources and sinks that read from / write to external data stores such as HDFS.
 
-<p>
 Collection data sources can be used as follows:
-</p>
 
 ```java
 final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
@@ -1176,9 +1167,7 @@ DataSet<Long> myLongs = env.fromCollection(longIt, Long.class);
 
 **Note:** Currently, the collection data source requires that data types and iterators implement `Serializable`. Furthermore, collection data sources can not be executed in parallel (degree of parallelism = 1).
 
-<p>
 A collection data sink is specified as follows:
-</p>
 
 ```java
 DataSet<Tuple2<String, Integer>> myResult = ...
@@ -1189,8 +1178,8 @@ myResult.output(new LocalCollectionOutputFormat(outData));
 
 **Note:** Collection data sources will only work correctly, if the whole program is executed in the same JVM!
 
-<div class="back-to-top"><a href="#toc">Back to top</a></div>
-</section>
+[Back to top](#top)
+
 
 <section id="iterations">
 Iteration Operators
@@ -1280,8 +1269,8 @@ iteration.closeWith(deltas, nextWorkset)
 	.writeAsCsv(outputPath);
 ```
 
-<div class="back-to-top"><a href="#toc">Back to top</a></div>
-</section>
+[Back to top](#top)
+
 
 <section id="annotations">
 Semantic Annotations
@@ -1320,8 +1309,8 @@ The following annotations are currently available:
 
 **Note**: It is important to be conservative when providing annotations. Only annotate fields, when they are always constant for every call to the function. Otherwise the system has incorrect assumptions about the execution and the execution may produce wrong results. If the behavior of the operator is not clearly predictable, no annotation should be provided.
 
-<div class="back-to-top"><a href="#toc">Back to top</a></div>
-</section>
+[Back to top](#top)
+
 
 <section id="broadcast_variables">
 Broadcast Variables
@@ -1358,8 +1347,8 @@ Make sure that the names (`broadcastSetName` in the previous example) match when
 
 **Note**: As the content of broadcast variables is kept in-memory on each node, it should not become too large. For simpler things like scalar values you can simply make parameters part of the closure of a function, or use the `withParameters(...)` method to pass in a configuration.
 
-<div class="back-to-top"><a href="#toc">Back to top</a></div>
-</section>
+[Back to top](#top)
+
 
 <section id="packaging">
 Program Packaging & Distributed Execution
@@ -1387,8 +1376,8 @@ The overall procedure to invoke a packaged program is as follows:
   2. If the entry point class implements the `eu.stratosphere.api.common.Program`, then the system calls the `getPlan(String...)` method to obtain the program plan to execute. The `getPlan(String...)` method was the only possible way of defining a program in the *Record API* (see [0.4 docs]({{ site.baseurl }}/docs/0.4/)) and is also supported in the new Java API.
   3. If the entry point class does not implement the `eu.stratosphere.api.common.Program` interface, the system will invoke the main method of the class.
 
-<div class="back-to-top"><a href="#toc">Back to top</a></div>
-</section>
+[Back to top](#top)
+
 
 <section id="accumulators_counters">
 Accumulators &amp; Counters
@@ -1432,8 +1421,8 @@ To implement your own accumulator you simply have to write your implementation o
 
 You have the choice to implement either [Accumulator](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/Accumulator.java) or [SimpleAccumulator](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/SimpleAccumulator.java). ```Accumulator<V,R>``` is most flexible: It defines a type ```V``` for the value to add, and a result type ```R``` for the final result. E.g. for a histogram, ```V``` is a number and ```R``` is a histogram. ```SimpleAccumulator``` is for the cases where both types are the same, e.g. for counters.
 
-<div class="back-to-top"><a href="#toc">Back to top</a></div>
-</section>
+[Back to top](#top)
+
 
 <section id="execution_plan">
 Execution Plans
@@ -1472,5 +1461,5 @@ The script to start the webinterface is located under ```bin/start-webclient.sh`
 
 You are able to specify program arguments in the textbox at the bottom of the page. Checking the plan visualization checkbox shows the execution plan before executing the actual program.
 
-<div class="back-to-top"><a href="#toc">Back to top</a></div>
-</section>
+[Back to top](#top)
+

@@ -6,9 +6,10 @@ Iterative algorithms occur in many domains of data analysis, such as *machine le
 
 Stratosphere programs implement iterative algorithms by defining a **step function** and embedding it into a special iteration operator. There are two  variants of this operator: **Iterate** and **Delta Iterate**. Both operators repeatedly invoke the step function on the current iteration state until a certain termination condition is reached.
 
-Here, we provide background on both operator variants and outline their usage. The [programming guides]({{ site.baseurl }}/docs/0.4/programming_guides/) explain how to implement the operators in both [Scala]({{ site.baseurl }}/docs/0.4/programming_guides/scala.html) and [Java]({{ site.baseurl }}/docs/0.4/programming_guides/java.html#iterations). We also provide a **vertex-centric graph processing API** called [Spargel]({{ site.baseurl }}/docs/0.4/programming_guides/spargel.html).
+Here, we provide background on both operator variants and outline their usage. The [programming guides](java_api_guide.html) explain how to implement the operators in both [Scala](scala_api_guide.html) and [Java](java_api_guide.html#iterations). We also provide a **vertex-centric graph processing API** called [Spargel](spargel_guide.html).
 
 The following table provides an overview of both operators:
+
 
 <table class="table table-striped table-hover table-bordered">
 	<thead>
@@ -64,11 +65,11 @@ Iterate Operator
 The **iterate operator** covers the *simple form of iterations*: in each iteration, the **step function** consumes the **entire input** (the *result of the previous iteration*, or the *initial data set*), and computes the **next version of the partial solution** (e.g. `map`, `reduce`, `join`, etc.).
 
 <p class="text-center">
-    <img alt="Iterate Operator" width="60%" src="{{ site.baseurl }}/docs/0.4/img/iterations_iterate_operator.png" />
+    <img alt="Iterate Operator" width="60%" src="img/iterations_iterate_operator.png" />
 </p>
 
   1. **Iteration Input**: Initial input for the *first iteration* from a *data source* or *previous operators*.
-  2. **Step Function**: The step function will be executed in each iteration. It is an arbitrary data flow consisting of operators like `map`, `reduce`, `join`, etc. (see [programming model]({{ site.baseurl }}/docs/0.4/programming_guides/pmodel.html) for details) and depends on your specific task at hand.
+  2. **Step Function**: The step function will be executed in each iteration. It is an arbitrary data flow consisting of operators like `map`, `reduce`, `join`, etc. and depends on your specific task at hand.
   3. **Next Partial Solution**: In each iteration, the output of the step function will be fed back into the *next iteration*.
   4. **Iteration Result**: Output of the *last iteration* is written to a *data sink* or used as input to the *following operators*.
 
@@ -79,7 +80,7 @@ There are multiple options to specify **termination conditions** for an iteratio
 
 You can also think about the iterate operator in pseudo-code:
 
-{% highlight java %}
+```java
 IterationState state = getInitialState();
 
 while (!terminationCriterion()) {
@@ -87,11 +88,11 @@ while (!terminationCriterion()) {
 }
 
 setFinalState(state);
-{% endhighlight %}
+```
 
 <div class="panel panel-default">
 	<div class="panel-body">
-	See the <strong><a href="{{ site.baseurl }}/docs/0.4/programming_guides/scala.html">Scala</a> and <a href="{{ site.baseurl }}/docs/0.4/programming_guides/java.html#iterations">Java</a> programming guides</strong> for details and code examples.</div>
+	See the <strong><a href="scala_api_guide.html">Scala</a> and <a href="java_api_guide.html#iterations">Java</a> programming guides</strong> for details and code examples.</div>
 </div>
 
 ### Example: Incrementing Numbers
@@ -99,7 +100,7 @@ setFinalState(state);
 In the following example, we **iteratively incremenet a set numbers**:
 
 <p class="text-center">
-    <img alt="Iterate Operator Example" width="60%" src="{{ site.baseurl }}/docs/0.4/img/iterations_iterate_operator_example.png" />
+    <img alt="Iterate Operator Example" width="60%" src="img/iterations_iterate_operator_example.png" />
 </p>
 
   1. **Iteration Input**: The inital input is read from a data source and consists of five single-field records (integers `1` to `5`).
@@ -128,18 +129,19 @@ The **delta iterate operator** covers the case of **incremental iterations**. In
 Where applicable, this leads to **more efficient algorithms**, because not every element in the solution set changes in each iteration. This allows to **focus on the hot parts** of the solution and leave the **cold parts untouched**. Frequently, the majority of the solution cools down comparatively fast and the later iterations operate only on a small subset of the data.
 
 <p class="text-center">
-    <img alt="Delta Iterate Operator" width="60%" src="{{ site.baseurl }}/docs/0.4/img/iterations_delta_iterate_operator.png" />
+    <img alt="Delta Iterate Operator" width="60%" src="img/iterations_delta_iterate_operator.png" />
 </p>
 
   1. **Iteration Input**: The initial workset and solution set are read from *data sources* or *previous operators* as input to the first iteration.
-  2. **Step Function**: The step function will be executed in each iteration. It is an arbitrary data flow consisting of operators like `map`, `reduce`, `join`, etc. (see [programming model]({{ site.baseurl }}/docs/0.4/programming_guides/pmodel.html) for details) and depends on your specific task at hand.
+  2. **Step Function**: The step function will be executed in each iteration. It is an arbitrary data flow consisting of operators like `map`, `reduce`, `join`, etc. and depends on your specific task at hand.
   3. **Next Workset/Update Solution Set**: The *next workset* drives the iterative computation and will be fed back into the *next iteration*. Furthermore, the solution set will be updated and implicitly forwarded (it is not required to be rebuild). Both data sets can be updated by different operators of the step function.
   4. **Iteration Result**: After the *last iteration*, the *solution set* is written to a *data sink* or used as input to the *following operators*.
 
 The default **termination condition** for delta iterations is specified by the **empty workset convergence criterion** and a **maximum number of iterations**. The iteration will terminate when a produced *next workset* is empty or when the maximum number of iterations is reached. It is also possible to specify a **custom aggregator** and **convergence criterion**.
 
 You can also think about the iterate operator in pseudo-code:
-{% highlight java %}
+
+```java
 IterationState workset = getInitialState();
 IterationState solution = getInitialSolution();
 
@@ -150,11 +152,11 @@ while (!terminationCriterion()) {
 }
 
 setFinalState(solution);
-{% endhighlight %}
+```
 
 <div class="panel panel-default">
 	<div class="panel-body">
-	See the <strong><a href="{{ site.baseurl }}/docs/0.4/programming_guides/scala.html">Scala</a> and <a href="{{ site.baseurl }}/docs/0.4/programming_guides/java.html#iterations">Java</a> programming guides</strong> for details and code examples.</div>
+	See the <strong><a href="scala_api_guide.html">Scala</a> and <a href="java_api_guide.html#iterations">Java</a> programming guides</strong> for details and code examples.</div>
 </div>
 
 ### Example: Propagate Minimum in Graph
@@ -162,7 +164,7 @@ setFinalState(solution);
 In the following example, every vertex has an **ID** and a **coloring**. Each vertex will propagete its vertex ID to neighboring vertices. The **goal** is to *assign the minimum ID to every vertex in a subgraph*. If a received ID is smaller then the current one, it changes to the color of the vertex with the received ID. One application of this can be found in *community analysis* or *connected components* computation.
 
 <p class="text-center">
-    <img alt="Delta Iterate Operator Example" width="100%" src="{{ site.baseurl }}/docs/0.4/img/iterations_delta_iterate_operator_example.png" />
+    <img alt="Delta Iterate Operator Example" width="100%" src="img/iterations_delta_iterate_operator_example.png" />
 </p>
 
 The **intial input** is set as **both workset and solution set.** In the above figure, the colors visualize the **evolution of the solution set**. With each iteration, the color of the minimum ID is spreading in the respective subgraph. At the same time, the amount of work (exchanged and compared vertex IDs) decreases with each iteration. This corresponds to the **decreasing size of the workset**, which goes from all seven vertices to zero after three iterations, at which time the iteration terminates. The **important observation** is that *the lower subgraph converges before the upper half* does and the delta iteration is able to capture this with the workset abstraction.
@@ -183,6 +185,6 @@ Superstep Synchronization
 We referred to each execution of the step function of an iteration operator as *a single iteration*. In parallel setups, **multiple instances of the step function are evaluated in parallel** on different partitions of the iteration state. In many settings, one evaluation of the step function on all parallel instances forms a so called **superstep**, which is also the granularity of synchronization. Therefore, *all* parallel tasks of an iteration need to complete the superstep, before a next superstep will be initialized. **Termination criteria** will also be evaluated at superstep barriers.
 
 <p class="text-center">
-    <img alt="Supersteps" width="50%" src="{{ site.baseurl }}/docs/0.4/img/iterations_supersteps.png" />
+    <img alt="Supersteps" width="50%" src="img/iterations_supersteps.png" />
 </p>
 </section>
