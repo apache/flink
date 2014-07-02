@@ -75,125 +75,131 @@ object AnnotationUtil {
   }
 
   def updateCombinable(op: GroupReduceOperatorBase[_, _, _]){
-    val scalaOp = op.asInstanceOf[ScalaOperator[_, _]]
+    if(op.isInstanceOf[ScalaOperator[_,_]]) {
+      val scalaOp = op.asInstanceOf[ScalaOperator[_, _]]
 
-    val combinableAnnotaion = scalaOp.getUserCodeAnnotation(classOf[Combinable])
+      val combinableAnnotaion = scalaOp.getUserCodeAnnotation(classOf[Combinable])
 
-    if(combinableAnnotaion != null){
-      op.setCombinable(true)
+      if (combinableAnnotaion != null) {
+        op.setCombinable(true)
+      }
     }
   }
 
   def updateDualSemanticProperties(op: DualInputOperator[_, _, _, _]){
-    val scalaOp = op.asInstanceOf[ScalaOperator[_, _]]
-    val properties = op.getSemanticProperties
+    if(op.isInstanceOf[ScalaOperator[_,_]]) {
+      val scalaOp = op.asInstanceOf[ScalaOperator[_, _]]
+      val properties = op.getSemanticProperties
 
-    // get readSet annotation from stub
-    val constantSet1Annotation: FunctionAnnotation.ConstantFieldsFirst = scalaOp.getUserCodeAnnotation(
-      classOf[FunctionAnnotation.ConstantFieldsFirst])
-    val constantSet2Annotation: FunctionAnnotation.ConstantFieldsSecond = scalaOp.getUserCodeAnnotation(
-      classOf[FunctionAnnotation.ConstantFieldsSecond])
+      // get readSet annotation from stub
+      val constantSet1Annotation: FunctionAnnotation.ConstantFieldsFirst = scalaOp.getUserCodeAnnotation(
+        classOf[FunctionAnnotation.ConstantFieldsFirst])
+      val constantSet2Annotation: FunctionAnnotation.ConstantFieldsSecond = scalaOp.getUserCodeAnnotation(
+        classOf[FunctionAnnotation.ConstantFieldsSecond])
 
-    // get readSet annotation from stub
-    val notConstantSet1Annotation: FunctionAnnotation.ConstantFieldsFirstExcept = scalaOp.getUserCodeAnnotation(
-      classOf[FunctionAnnotation.ConstantFieldsFirstExcept])
-    val notConstantSet2Annotation: FunctionAnnotation.ConstantFieldsSecondExcept = scalaOp.getUserCodeAnnotation(
-      classOf[FunctionAnnotation.ConstantFieldsSecondExcept])
+      // get readSet annotation from stub
+      val notConstantSet1Annotation: FunctionAnnotation.ConstantFieldsFirstExcept = scalaOp.getUserCodeAnnotation(
+        classOf[FunctionAnnotation.ConstantFieldsFirstExcept])
+      val notConstantSet2Annotation: FunctionAnnotation.ConstantFieldsSecondExcept = scalaOp.getUserCodeAnnotation(
+        classOf[FunctionAnnotation.ConstantFieldsSecondExcept])
 
-    if (notConstantSet1Annotation != null && constantSet1Annotation != null) {
-      throw new RuntimeException("Either ConstantFieldsFirst or ConstantFieldsFirstExcept can be specified, not both.")
-    }
+      if (notConstantSet1Annotation != null && constantSet1Annotation != null) {
+        throw new RuntimeException("Either ConstantFieldsFirst or ConstantFieldsFirstExcept can be specified, not both.")
+      }
 
-    if (constantSet2Annotation != null && notConstantSet2Annotation != null) {
-      throw new RuntimeException("Either ConstantFieldsSecond or ConstantFieldsSecondExcept can be specified, not both.")
-    }
+      if (constantSet2Annotation != null && notConstantSet2Annotation != null) {
+        throw new RuntimeException("Either ConstantFieldsSecond or ConstantFieldsSecondExcept can be specified, not both.")
+      }
 
-    // extract readSets from annotations
-    if (notConstantSet1Annotation != null) {
-      for(element <- notConstantSet1Annotation.value()){
-        if(properties.getForwardedField1(element) != null){
-          throw new RuntimeException("Field " + element + " cannot be forwarded and non constant at the same time.")
+      // extract readSets from annotations
+      if (notConstantSet1Annotation != null) {
+        for (element <- notConstantSet1Annotation.value()) {
+          if (properties.getForwardedField1(element) != null) {
+            throw new RuntimeException("Field " + element + " cannot be forwarded and non constant at the same time.")
+          }
+        }
+
+        val fieldSet = new FieldSet(notConstantSet1Annotation.value(): _*)
+
+        for (i <- 0 until scalaOp.getUDF().getOutputLength) {
+          if (!fieldSet.contains(i)) {
+            properties.addForwardedField1(i, i)
+          }
+        }
+      } else if (constantSet1Annotation != null) {
+        for (value <- constantSet1Annotation.value) {
+          properties.addForwardedField1(value, value)
         }
       }
 
-      val fieldSet = new FieldSet(notConstantSet1Annotation.value() :_*)
+      if (notConstantSet2Annotation != null) {
+        for (element <- notConstantSet2Annotation.value()) {
+          if (properties.getForwardedField2(element) != null) {
+            throw new RuntimeException("Field " + element + " cannot be forwarded and non constant at the same time.")
+          }
+        }
 
-      for(i <- 0 until scalaOp.getUDF().getOutputLength){
-        if(!fieldSet.contains(i)){
-          properties.addForwardedField1(i,i)
+        val fieldSet = new FieldSet(notConstantSet2Annotation.value(): _*)
+
+        for (i <- 0 until scalaOp.getUDF().getOutputLength) {
+          if (!fieldSet.contains(i)) {
+            properties.addForwardedField2(i, i)
+          }
+        }
+      } else if (constantSet2Annotation != null) {
+        for (value <- constantSet2Annotation.value) {
+          properties.addForwardedField2(value, value)
         }
       }
-    }else if(constantSet1Annotation != null){
-      for (value <- constantSet1Annotation.value) {
-        properties.addForwardedField1(value, value)
-      }
+
+      op.setSemanticProperties(properties)
     }
-
-    if (notConstantSet2Annotation != null) {
-      for(element <- notConstantSet2Annotation.value()){
-        if(properties.getForwardedField2(element) != null){
-          throw new RuntimeException("Field " + element + " cannot be forwarded and non constant at the same time.")
-        }
-      }
-
-      val fieldSet = new FieldSet(notConstantSet2Annotation.value(): _*)
-
-      for(i<-0 until scalaOp.getUDF().getOutputLength){
-        if(!fieldSet.contains(i)){
-          properties.addForwardedField2(i,i)
-        }
-      }
-    }else if(constantSet2Annotation != null){
-      for (value <- constantSet2Annotation.value) {
-        properties.addForwardedField2(value, value)
-      }
-    }
-
-    op.setSemanticProperties(properties)
   }
 
-  def updateSingleSemanticProperties(op: SingleInputOperator[_, _, _]){
-    val scalaOp = op.asInstanceOf[ScalaOperator[_,_]]
-    var properties = op.getSemanticProperties
+  def updateSingleSemanticProperties(op: SingleInputOperator[_, _, _]) {
+    if (op.isInstanceOf[ScalaOperator[_, _]]) {
+      val scalaOp = op.asInstanceOf[ScalaOperator[_, _]]
+      var properties = op.getSemanticProperties
 
-    if(properties == null){
-      properties = new SingleInputSemanticProperties()
-    }
+      if (properties == null) {
+        properties = new SingleInputSemanticProperties()
+      }
 
-    // get constantSet annotation from stub
-    val constantSet: FunctionAnnotation.ConstantFields = scalaOp.getUserCodeAnnotation(classOf[FunctionAnnotation
-    .ConstantFields])
-    val notConstantSet: FunctionAnnotation.ConstantFieldsExcept = scalaOp.getUserCodeAnnotation(
-      classOf[FunctionAnnotation.ConstantFieldsExcept])
+      // get constantSet annotation from stub
+      val constantSet: FunctionAnnotation.ConstantFields = scalaOp.getUserCodeAnnotation(classOf[FunctionAnnotation
+      .ConstantFields])
+      val notConstantSet: FunctionAnnotation.ConstantFieldsExcept = scalaOp.getUserCodeAnnotation(
+        classOf[FunctionAnnotation.ConstantFieldsExcept])
 
-    if (notConstantSet != null && constantSet != null) {
-      throw new RuntimeException("Either ConstantFields or ConstantFieldsExcept can be specified, not both.")
-    }
+      if (notConstantSet != null && constantSet != null) {
+        throw new RuntimeException("Either ConstantFields or ConstantFieldsExcept can be specified, not both.")
+      }
 
-    // extract notConstantSet from annotation
-    if (notConstantSet != null) {
-      val nonConstant: FieldSet = new FieldSet(notConstantSet.value:_*)
+      // extract notConstantSet from annotation
+      if (notConstantSet != null) {
+        val nonConstant: FieldSet = new FieldSet(notConstantSet.value: _*)
 
-      for(element <- nonConstant.iterator()){
-        if(properties.getForwardedField(element) != null){
-          throw new RuntimeException("Field " + element + " is non constant and at the same time forwarded. This " +
-            "cannot happen.")
+        for (element <- nonConstant.iterator()) {
+          if (properties.getForwardedField(element) != null) {
+            throw new RuntimeException("Field " + element + " is non constant and at the same time forwarded. This " +
+              "cannot happen.")
+          }
+        }
+
+        for (i <- 0 until scalaOp.getUDF().getOutputLength) {
+          if (!nonConstant.contains(i)) {
+            properties.addForwardedField(i, i)
+          }
+        }
+
+      } else if (constantSet != null) {
+        // extract constantSet from annotation
+        for (value <- constantSet.value) {
+          properties.addForwardedField(value, value)
         }
       }
 
-      for(i <- 0 until scalaOp.getUDF().getOutputLength){
-        if(!nonConstant.contains(i)){
-          properties.addForwardedField(i,i)
-        }
-      }
-
-    }else if(constantSet != null) {
-      // extract constantSet from annotation
-      for (value <- constantSet.value) {
-        properties.addForwardedField(value, value)
-      }
+      op.setSemanticProperties(properties)
     }
-
-    op.setSemanticProperties(properties)
   }
 }
