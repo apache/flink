@@ -75,7 +75,7 @@ The following __example__ illustrates the setup with three nodes (with IP addres
 
 <div class="row">
   <div class="col-md-6 text-center">
-    <img src="{{ site.baseurl }}/img/quickstart_cluster.png" style="width: 85%">
+    <img src="{{ site.baseurl }}img/quickstart_cluster.png" style="width: 85%">
   </div>
 <div class="col-md-6">
   <div class="row">
