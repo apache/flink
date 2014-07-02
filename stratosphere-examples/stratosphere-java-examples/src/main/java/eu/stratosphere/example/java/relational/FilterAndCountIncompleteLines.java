@@ -18,6 +18,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import eu.stratosphere.api.common.JobExecutionResult;
@@ -25,24 +26,19 @@ import eu.stratosphere.api.common.accumulators.Accumulator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.functions.FilterFunction;
-import eu.stratosphere.api.java.operators.DataSource;
 import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.configuration.Configuration;
 
 /**
- * This program filters lines from a CSV file with empty fields. In doing so, it
- * counts the number of empty fields per column within a CSV file using a custom
- * accumulator for vectors. In this context, empty fields are those, that at
+ * This program filters lines from a CSV file with empty fields. In doing so, it counts the number of empty fields per
+ * column within a CSV file using a custom accumulator for vectors. In this context, empty fields are those, that at
  * most contain whitespace characters like space and tab.
- * 
  * <p>
- * The input file is a plain text CSV file with the semicolon as field separator
- * and double quotes as field delimiters and 9 columns. See
- * {@link #getDataSet(ExecutionEnvironment)} for configuration.
- * 
+ * The input file is a plain text CSV file with the semicolon as field separator and double quotes as field delimiters
+ * and three columns. See {@link #getDataSet(ExecutionEnvironment)} for configuration.
  * <p>
- * Usage: <code>FilterAndCountIncompleteLines &lt;input file path&gt; &lt;result path&gt;</code> <br>
- * 
+ * Usage: <code>FilterAndCountIncompleteLines &lt;input file path or "example"&gt; &lt;result path&gt;</code> <br>
  * <p>
  * This example shows how to use:
  * <ul>
@@ -60,70 +56,63 @@ public class FilterAndCountIncompleteLines {
 
 	private static final String EMPTY_FIELD_ACCUMULATOR = "empty-fields";
 
-	public static void main(String[] args) throws Exception {
+	public static void main(final String[] args) throws Exception {
 
 		if (!parseParameters(args)) {
 			return;
 		}
 
-		final ExecutionEnvironment env = ExecutionEnvironment
-				.getExecutionEnvironment();
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		// get the data set
-		DataSet<Tuple> file = getDataSet(env);
+		final DataSet<Tuple> file = getDataSet(env);
 
 		// filter lines with empty fields
-		DataSet<Tuple> filteredLines = file.filter(new FilterFunction<Tuple>() {
+		final DataSet<Tuple> filteredLines = file
+				.filter(new FilterFunction<Tuple>() {
 
-			// create a new accumulator in each filter function instance
-			// accumulators can be merged later on
-			private VectorAccumulator emptyFieldCounter = new VectorAccumulator();
+					// create a new accumulator in each filter function instance
+					// accumulators can be merged later on
+					private final VectorAccumulator emptyFieldCounter = new VectorAccumulator();
 
-			/*
-			 * (non-Javadoc)
-			 * 
-			 * @see
-			 * eu.stratosphere.api.common.functions.AbstractFunction#open(eu
-			 * .stratosphere.configuration.Configuration)
-			 */
-			@Override
-			public void open(Configuration parameters) throws Exception {
-				super.open(parameters);
+					@Override
+					public void open(final Configuration parameters) throws Exception {
+						super.open(parameters);
 
-				// register the accumulator instance
-				getRuntimeContext().addAccumulator(EMPTY_FIELD_ACCUMULATOR,
-						this.emptyFieldCounter);
-			}
-
-			@Override
-			public boolean filter(Tuple t) {
-				boolean containsEmptyFields = false;
-
-				// iterate over the tuple fields looking for empty ones
-				for (int pos = 0; pos < t.getArity(); pos++) {
-
-					String field = t.getField(pos);
-					if (field == null || field.trim().isEmpty()) {
-						containsEmptyFields = true;
-
-						// if an empty field is encountered, update the
-						// accumulator
-						this.emptyFieldCounter.add(pos);
+						// register the accumulator instance
+						getRuntimeContext().addAccumulator(EMPTY_FIELD_ACCUMULATOR,
+								this.emptyFieldCounter);
 					}
-				}
 
-				return !containsEmptyFields;
-			}
-		});
+					@Override
+					public boolean filter(final Tuple t) {
+						boolean containsEmptyFields = false;
+
+						// iterate over the tuple fields looking for empty ones
+						for (int pos = 0; pos < t.getArity(); pos++) {
+
+							final String field = t.getField(pos);
+							if (field == null || field.trim().isEmpty()) {
+								containsEmptyFields = true;
+
+								// if an empty field is encountered, update the
+								// accumulator
+								this.emptyFieldCounter.add(pos);
+							}
+						}
+
+						return !containsEmptyFields;
+					}
+				});
 
 		// Here, we could do further processing with the filtered lines...
 		filteredLines.writeAsCsv(outputPath);
 
 		// execute program
-		JobExecutionResult result = env.execute("Accumulator example");
+		final JobExecutionResult result = env.execute("Accumulator example");
 
 		// get the accumulator result via its registration key
-		List<Integer> emptyFields = result.getAccumulatorResult(EMPTY_FIELD_ACCUMULATOR);
+		final List<Integer> emptyFields = result.getAccumulatorResult(EMPTY_FIELD_ACCUMULATOR);
 		System.out.format("Number of detected empty fields per column: %s\n",
 				emptyFields);
 
@@ -136,47 +125,58 @@ public class FilterAndCountIncompleteLines {
 	private static String filePath;
 	private static String outputPath;
 
-	private static boolean parseParameters(String[] programArguments) {
+	private static boolean parseParameters(final String[] programArguments) {
 
 		if (programArguments.length > 0) {
 			if (programArguments.length == 2) {
 				filePath = programArguments[0];
 				outputPath = programArguments[1];
 			} else {
-				System.err
-						.println("Usage: FilterAndCountIncompleteLines <input file path> <result path>");
+				System.err.println("Usage: FilterAndCountIncompleteLines <input file path or \"example\"> <result path>");
 				return false;
 			}
 		} else {
-			System.err
-					.println("This program expects a semicolon-delimited CSV file with nine columns.\n"
-							+ "  Usage: FilterAndCountIncompleteLines <input file path> <result path>");
+			System.err.println("This program expects a semicolon-delimited CSV file with nine columns.\n"
+					+ "  Usage: FilterAndCountIncompleteLines <input file path or \"example\"> <result path>");
 			return false;
 		}
 		return true;
 	}
 
 	@SuppressWarnings("unchecked")
-	private static DataSource<Tuple> getDataSet(ExecutionEnvironment env) {
+	private static DataSet<Tuple> getDataSet(final ExecutionEnvironment env) {
 
-		DataSource<? extends Tuple> source = env
-				.readCsvFile(filePath)
-				.fieldDelimiter(';')
-				.includeFields("111111111")
-				.types(String.class, String.class, String.class, String.class,
-						String.class, String.class, String.class, String.class,
-						String.class);
-		return (DataSource<Tuple>) source;
+		DataSet<? extends Tuple> source;
+		if ("example".equals(filePath)) {
+			source = env.fromCollection(getExampleInputTuples());
+
+		} else {
+			source = env
+					.readCsvFile(filePath)
+					.fieldDelimiter(';')
+					.types(String.class, String.class, String.class);
+
+		}
+
+		return (DataSet<Tuple>) source;
+	}
+
+	private static Collection<Tuple3<String, String, String>> getExampleInputTuples() {
+		Collection<Tuple3<String, String, String>> inputTuples = new ArrayList<Tuple3<String, String, String>>();
+		inputTuples.add(new Tuple3<String, String, String>("John", "Doe", "Foo Str."));
+		inputTuples.add(new Tuple3<String, String, String>("Joe", "Johnson", ""));
+		inputTuples.add(new Tuple3<String, String, String>(null, "Kate Morn", "Bar Blvd."));
+		inputTuples.add(new Tuple3<String, String, String>("Tim", "Rinny", ""));
+		inputTuples.add(new Tuple3<String, String, String>("Alicia", "Jackson", "  "));
+		return inputTuples;
 	}
 
 	/**
-	 * This accumulator lets you increase vector components distributedly. The
-	 * {@link #add(Integer)} method lets you increase the <i>n</i>-th vector
-	 * component by 1, whereat <i>n</i> is the methods parameter. The size of
-	 * the vector is automatically managed.
+	 * This accumulator lets you increase vector components distributedly. The {@link #add(Integer)} method lets you
+	 * increase the <i>n</i>-th vector component by 1, whereat <i>n</i> is the methods parameter. The size of the vector
+	 * is automatically managed.
 	 */
-	public static class VectorAccumulator implements
-			Accumulator<Integer, List<Integer>> {
+	public static class VectorAccumulator implements Accumulator<Integer, List<Integer>> {
 
 		/** Stores the accumulated vector components. */
 		private final List<Integer> resultVector = new ArrayList<Integer>();
@@ -185,94 +185,60 @@ public class FilterAndCountIncompleteLines {
 		 * Increases the result vector component at the specified position by 1.
 		 */
 		@Override
-		public void add(Integer position) {
+		public void add(final Integer position) {
 			updateResultVector(position, 1);
 		}
 
 		/**
-		 * Increases the result vector component at the specified position by
-		 * the specified delta.
+		 * Increases the result vector component at the specified position by the specified delta.
 		 */
-		private void updateResultVector(int position, int delta) {
+		private void updateResultVector(final int position, final int delta) {
 			// inflate the vector to contain the given position
-			while (resultVector.size() <= position) {
-				resultVector.add(0);
+			while (this.resultVector.size() <= position) {
+				this.resultVector.add(0);
 			}
 
 			// increment the component value
-			int component = resultVector.get(position);
+			final int component = this.resultVector.get(position);
 			this.resultVector.set(position, component + delta);
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see
-		 * eu.stratosphere.api.common.accumulators.Accumulator#getLocalValue()
-		 */
 		@Override
 		public List<Integer> getLocalValue() {
 			return this.resultVector;
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see eu.stratosphere.api.common.accumulators.Accumulator#resetLocal()
-		 */
 		@Override
 		public void resetLocal() {
 			// clear the result vector if the accumulator instance shall be reused
 			this.resultVector.clear();
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see
-		 * eu.stratosphere.api.common.accumulators.Accumulator#merge(eu.stratosphere
-		 * .api.common.accumulators.Accumulator)
-		 */
 		@Override
-		public void merge(Accumulator<Integer, List<Integer>> other) {
-			
+		public void merge(final Accumulator<Integer, List<Integer>> other) {
 			// merge two vector accumulators by adding their up their vector components
-			List<Integer> otherVector = other.getLocalValue();
+			final List<Integer> otherVector = other.getLocalValue();
 			for (int index = 0; index < otherVector.size(); index++) {
 				updateResultVector(index, otherVector.get(index));
 			}
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see
-		 * eu.stratosphere.core.io.IOReadableWritable#write(java.io.DataOutput)
-		 */
 		@Override
-		public void write(DataOutput out) throws IOException {
-			
+		public void write(final DataOutput out) throws IOException {
 			// binary serialization of the result vector:
 			// [number of components, component 0, component 1, ...]
 			out.writeInt(this.resultVector.size());
-			for (Integer component : this.resultVector) {
+			for (final Integer component : this.resultVector) {
 				out.writeInt(component);
 			}
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see
-		 * eu.stratosphere.core.io.IOReadableWritable#read(java.io.DataInput)
-		 */
 		@Override
-		public void read(DataInput in) throws IOException {
-			
+		public void read(final DataInput in) throws IOException {
 			// binary deserialization of the result vector
-			int size = in.readInt();
+			final int size = in.readInt();
 			for (int numReadComponents = 0; numReadComponents < size; numReadComponents++) {
-				int component = in.readInt();
+				final int component = in.readInt();
 				this.resultVector.add(component);
 			}
 		}
