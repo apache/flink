@@ -25,7 +25,7 @@ Add the following dependency to your `pom.xml` to use the Spargel.
 <dependency>
 	<groupId>eu.stratosphere</groupId>
 	<artifactId>spargel</artifactId>
-	<version>{{site.current_stable}}</version>
+	<version>{{site.FLINK_VERSION_STABLE}}</version>
 </dependency>
 ```
 

@@ -26,7 +26,7 @@ $ curl https://raw.githubusercontent.com/stratosphere/stratosphere-quickstart/ma
 $ mvn archetype:generate                             \
   -DarchetypeGroupId=eu.stratosphere               \
   -DarchetypeArtifactId=quickstart-scala           \
-  -DarchetypeVersion={{site.current_stable}}                  
+  -DarchetypeVersion={{site.FLINK_VERSION_STABLE}}                  
 {% endhighlight %}
     This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
     </div>

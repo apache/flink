@@ -25,7 +25,7 @@ If you are developing your program in a Maven project, you have to add the `stra
 <dependency>
   <groupId>eu.stratosphere</groupId>
   <artifactId>stratosphere-clients</artifactId>
-  <version>{{site.current_stable}}</version>
+  <version>{{site.FLINK_VERSION_STABLE}}</version>
 </dependency>
 ```
 

@@ -7,9 +7,9 @@ title:  "YARN Setup"
 Start YARN session with 4 Taskmanagers (each with 4 GB of Heapspace):
 
 ```bash
-wget {{ site.docs_05_yarn_archive }}
-tar xvzf stratosphere-dist-{{ site.docs_05_stable }}-yarn.tar.gz
-cd stratosphere-yarn-{{ site.docs_05_stable }}/
+wget {{ site.FLINK_DOWNLOAD_URL_YARN_STABLE }}
+tar xvzf stratosphere-dist-{{ site.FLINK_VERSION_STABLE }}-yarn.tar.gz
+cd stratosphere-yarn-{{ site.FLINK_VERSION_STABLE }}/
 ./bin/yarn-session.sh -n 4 -jm 1024 -tm 4096
 ```
 
@@ -22,7 +22,7 @@ Apache [Hadoop YARN](http://hadoop.apache.org/) is a cluster resource management
 - Apache Hadoop 2.2
 - HDFS
 
-If you have troubles using the Stratosphere YARN client, have a look in the [FAQ section]({{site.baseurl}}/docs/0.5/general/faq.html).
+If you have troubles using the Stratosphere YARN client, have a look in the [FAQ section](faq.html).
 
 ## Start Stratosphere Session
 
@@ -35,13 +35,13 @@ A session will start all required Stratosphere services (JobManager and TaskMana
 Download the YARN tgz package on the [download page]({{site.baseurl}}/downloads/#nightly). It contains the required files.
 
 
-If you want to build the YARN .tgz file from sources, follow the build instructions. Make sure to use the `-Dhadoop.profile=2` profile. You can find the file in `stratosphere-dist/target/stratosphere-dist-{{site.docs_05_stable}}-yarn.tar.gz` (*Note: The version might be different for you* ).
+If you want to build the YARN .tgz file from sources, follow the build instructions. Make sure to use the `-Dhadoop.profile=2` profile. You can find the file in `stratosphere-dist/target/stratosphere-dist-{{site.FLINK_VERSION_STABLE }}-yarn.tar.gz` (*Note: The version might be different for you* ).
 
 Extract the package using:
 
 ```bash
-tar xvzf stratosphere-dist-{{site.docs_05_stable}}-yarn.tar.gz
-cd stratosphere-yarn-{{site.docs_05_stable}}/
+tar xvzf stratosphere-dist-{{site.FLINK_VERSION_STABLE }}-yarn.tar.gz
+cd stratosphere-yarn-{{site.FLINK_VERSION_STABLE }}/
 ```
 
 ### Start a Session
@@ -75,7 +75,7 @@ Please note that the Client requires the `HADOOP_HOME` (or `YARN_CONF_DIR` or `H
 ./bin/yarn-session.sh -n 10 -tm 8192
 ```
 
-The system will use the configuration in `conf/stratosphere-config.yaml`. Please follow our [configuration guide]({{site.baseurl}}/docs/0.5/setup/config.html) if you want to change something. Stratosphere on YARN will overwrite the following configuration parameters `jobmanager.rpc.address` (because the JobManager is always allocated at different machines) and `taskmanager.tmp.dirs` (we are using the tmp directories given by YARN).
+The system will use the configuration in `conf/stratosphere-config.yaml`. Please follow our [configuration guide](config.html) if you want to change something. Stratosphere on YARN will overwrite the following configuration parameters `jobmanager.rpc.address` (because the JobManager is always allocated at different machines) and `taskmanager.tmp.dirs` (we are using the tmp directories given by YARN).
 
 The example invocation starts 11 containers, since there is one additional container for the ApplicationMaster and JobTracker.
 
@@ -96,7 +96,7 @@ Use the following command to submit a Stratosphere program to the YARN cluster:
 ./bin/stratosphere
 ```
 
-Please refer to the documentation of the [commandline client]({{site.baseurl}}/docs/0.5/program_execution/cli_client.html).
+Please refer to the documentation of the [commandline client](cli.html).
 
 The command will show you a help menu like this:
 
@@ -119,7 +119,7 @@ Use the *run* action to submit a job to YARN. The client is able to determine th
 ```bash
 wget -O apache-license-v2.txt http://www.apache.org/licenses/LICENSE-2.0.txt
 
-./bin/stratosphere run -j ./examples/stratosphere-java-examples-{{site.docs_05_stable}}-WordCount.jar \
+./bin/stratosphere run -j ./examples/stratosphere-java-examples-{{site.FLINK_VERSION_STABLE }}-WordCount.jar \
                        -a 1 file://`pwd`/apache-license-v2.txt file://`pwd`/wordcount-result.txt 
 ```
 
@@ -166,7 +166,7 @@ If you want to build HDFS for Hadoop 2 without YARN, use the following parameter
 
 Some Cloudera versions (such as `2.0.0-cdh4.2.0`) require this, since they have a new HDFS version with the old YARN API.
 
-Please post to the [Stratosphere mailinglist](https://groups.google.com/d/forum/stratosphere-dev) or create an issue on [Github](https://github.com/stratosphere/stratosphere/issues), if you have issues with your YARN setup and Stratosphere.
+
 
 # Background
 

@@ -24,33 +24,33 @@ The command line can be used to
 
 -   Run example program with no arguments.
 
-        ./bin/stratosphere run ./examples/stratosphere-java-examples-{{ site.FLINK_VERSION }}-WordCount.jar
+        ./bin/stratosphere run ./examples/stratosphere-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar
 
 -   Run example program with arguments for input and result files
 
-        ./bin/stratosphere run ./examples/stratosphere-java-examples-{{ site.FLINK_VERSION }}-WordCount.jar \
+        ./bin/stratosphere run ./examples/stratosphere-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar \
                                file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 -   Run example program with parallelism 16 and arguments for input and result files
 
-        ./bin/stratosphere run -p 16 ./examples/stratosphere-java-examples-{{ site.FLINK_VERSION }}-WordCount.jar \
+        ./bin/stratosphere run -p 16 ./examples/stratosphere-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar \
                                 file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 -   Run example program on a specific JobManager:
 
         ./bin/stratosphere run -m myJMHost:6123 \
-                               ./examples/stratosphere-java-examples-{{ site.FLINK_VERSION }}-WordCount.jar \
+                               ./examples/stratosphere-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar \
                                -file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 
 -   Display the expected arguments for the WordCount example program:
 
-        ./bin/stratosphere info -d ./examples/stratosphere-java-examples-{{ site.FLINK_VERSION }}-WordCount.jar
+        ./bin/stratosphere info -d ./examples/stratosphere-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar
 
 -   Display the optimized execution plan for the WordCount example program as JSON:
 
         ./bin/stratosphere info -e 
-                                ./examples/stratosphere-java-examples-{{ site.FLINK_VERSION }}-WordCount.jar \
+                                ./examples/stratosphere-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar \
                                 file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 -   List scheduled and running jobs (including their JobIDs):

@@ -26,7 +26,7 @@ Use one of the following commands to __create a project__:
     $ mvn archetype:generate                             \
       -DarchetypeGroupId=eu.stratosphere               \
       -DarchetypeArtifactId=quickstart-java            \
-      -DarchetypeVersion={{site.current_stable}}
+      -DarchetypeVersion={{site.FLINK_VERSION_STABLE}}
     {% endhighlight %}
         This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
     </div>

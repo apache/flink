@@ -97,12 +97,12 @@ following lines to your POM.
   <dependency>
     <groupId>eu.stratosphere</groupId>
     <artifactId>stratosphere-scala</artifactId>
-    <version>{{site.current_stable}}</version>
+    <version>{{site.FLINK_VERSION_STABLE}}</version>
   </dependency>
   <dependency>
     <groupId>eu.stratosphere</groupId>
     <artifactId>stratosphere-clients</artifactId>
-    <version>{{site.current_stable}}</version>
+    <version>{{site.FLINK_VERSION_STABLE}}</version>
   </dependency>
 </dependencies>
 ```
@@ -173,9 +173,9 @@ the primitive Scala types, case classes (which includes tuples), and custom
 data types.
 
 Custom data types must implement the interface
-[Value](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-core/src/main/java/eu/stratosphere/types/Value.java).
+[Value](https://github.com/stratosphere/stratosphere/blob/release-{{site.FLINK_VERSION_STABLE}}/stratosphere-core/src/main/java/eu/stratosphere/types/Value.java).
 For custom data types that should also be used as a grouping key or join key
-the [Key](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-core/src/main/java/eu/stratosphere/types/Key.java)
+the [Key](https://github.com/stratosphere/stratosphere/blob/release-{{site.FLINK_VERSION_STABLE}}/stratosphere-core/src/main/java/eu/stratosphere/types/Key.java)
 interface must be implemented.
 
 [Back to top](#top)
@@ -915,7 +915,7 @@ Executing Jobs
 --------------
 
 To execute a data flow graph the sinks need to be wrapped in a
-[ScalaPlan](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-scala/src/main/scala/eu/stratosphere/api/scala/ScalaPlan.scala)
+[ScalaPlan](https://github.com/stratosphere/stratosphere/blob/release-{{site.FLINK_VERSION_STABLE}}/stratosphere-scala/src/main/scala/eu/stratosphere/api/scala/ScalaPlan.scala)
 object like this:
 
 ```scala
@@ -951,7 +951,7 @@ Remote (or cluster) execution is a bit more complicated because you have
 to package your code in a jar file so that it can be distributed on the cluster.
 Have a look at the [scala quickstart](/quickstart/scala.html) to see how you
 can set up a maven project that does the packaging. Remote execution is done
-using the [RemoteExecutor](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-clients/src/main/java/eu/stratosphere/client/RemoteExecutor.java), like this:
+using the [RemoteExecutor](https://github.com/stratosphere/stratosphere/blob/release-{{site.FLINK_VERSION_STABLE}}/stratosphere-clients/src/main/java/eu/stratosphere/client/RemoteExecutor.java), like this:
 
 ```scala
 import eu.stratosphere.client.RemoteExecutor
@@ -1011,7 +1011,7 @@ instead of the anonymous class we used here.
 
 There are rich functions for all the various operator types. The basic
 template is the some, though. The common interface that they implement 
-is [Function](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-core/src/main/java/eu/stratosphere/api/common/functions/Function.java). The `open` and `close` methods can be overridden to run set-up
+is [Function](https://github.com/stratosphere/stratosphere/blob/release-{{site.FLINK_VERSION_STABLE}}/stratosphere-core/src/main/java/eu/stratosphere/api/common/functions/Function.java). The `open` and `close` methods can be overridden to run set-up
 and tear-down code. The other methods can be used in a rich function to
 work with the runtime context which gives information about the context
 of the operator. Your operation code must now reside in an `apply` method
