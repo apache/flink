@@ -38,7 +38,7 @@ import eu.stratosphere.configuration.Configuration;
  * The input file is a plain text CSV file with the semicolon as field separator and double quotes as field delimiters
  * and three columns. See {@link #getDataSet(ExecutionEnvironment)} for configuration.
  * <p>
- * Usage: <code>FilterAndCountIncompleteLines &lt;input file path or "example"&gt; &lt;result path&gt;</code> <br>
+ * Usage: <code>FilterAndCountIncompleteLines [&lt;input file path&gt; [&lt;result path&gt;]]</code> <br>
  * <p>
  * This example shows how to use:
  * <ul>
@@ -68,53 +68,55 @@ public class FilterAndCountIncompleteLines {
 		final DataSet<Tuple> file = getDataSet(env);
 
 		// filter lines with empty fields
-		final DataSet<Tuple> filteredLines = file
-				.filter(new FilterFunction<Tuple>() {
+		final DataSet<Tuple> filteredLines = file.filter(new FilterFunction<Tuple>() {
 
-					// create a new accumulator in each filter function instance
-					// accumulators can be merged later on
-					private final VectorAccumulator emptyFieldCounter = new VectorAccumulator();
+			// create a new accumulator in each filter function instance
+			// accumulators can be merged later on
+			private final VectorAccumulator emptyFieldCounter = new VectorAccumulator();
 
-					@Override
-					public void open(final Configuration parameters) throws Exception {
-						super.open(parameters);
+			@Override
+			public void open(final Configuration parameters) throws Exception {
+				super.open(parameters);
 
-						// register the accumulator instance
-						getRuntimeContext().addAccumulator(EMPTY_FIELD_ACCUMULATOR,
-								this.emptyFieldCounter);
+				// register the accumulator instance
+				getRuntimeContext().addAccumulator(EMPTY_FIELD_ACCUMULATOR,
+						this.emptyFieldCounter);
+			}
+
+			@Override
+			public boolean filter(final Tuple t) {
+				boolean containsEmptyFields = false;
+
+				// iterate over the tuple fields looking for empty ones
+				for (int pos = 0; pos < t.getArity(); pos++) {
+
+					final String field = t.getField(pos);
+					if (field == null || field.trim().isEmpty()) {
+						containsEmptyFields = true;
+
+						// if an empty field is encountered, update the
+						// accumulator
+						this.emptyFieldCounter.add(pos);
 					}
+				}
 
-					@Override
-					public boolean filter(final Tuple t) {
-						boolean containsEmptyFields = false;
-
-						// iterate over the tuple fields looking for empty ones
-						for (int pos = 0; pos < t.getArity(); pos++) {
-
-							final String field = t.getField(pos);
-							if (field == null || field.trim().isEmpty()) {
-								containsEmptyFields = true;
-
-								// if an empty field is encountered, update the
-								// accumulator
-								this.emptyFieldCounter.add(pos);
-							}
-						}
-
-						return !containsEmptyFields;
-					}
-				});
+				return !containsEmptyFields;
+			}
+		});
 
 		// Here, we could do further processing with the filtered lines...
-		filteredLines.writeAsCsv(outputPath);
+		if (outputPath == null) {
+			filteredLines.print();
+		} else {
+			filteredLines.writeAsCsv(outputPath);
+		}
 
 		// execute program
 		final JobExecutionResult result = env.execute("Accumulator example");
 
 		// get the accumulator result via its registration key
 		final List<Integer> emptyFields = result.getAccumulatorResult(EMPTY_FIELD_ACCUMULATOR);
-		System.out.format("Number of detected empty fields per column: %s\n",
-				emptyFields);
+		System.out.format("Number of detected empty fields per column: %s\n", emptyFields);
 
 	}
 
@@ -127,19 +129,18 @@ public class FilterAndCountIncompleteLines {
 
 	private static boolean parseParameters(final String[] programArguments) {
 
-		if (programArguments.length > 0) {
-			if (programArguments.length == 2) {
-				filePath = programArguments[0];
-				outputPath = programArguments[1];
-			} else {
-				System.err.println("Usage: FilterAndCountIncompleteLines <input file path or \"example\"> <result path>");
-				return false;
-			}
-		} else {
-			System.err.println("This program expects a semicolon-delimited CSV file with nine columns.\n"
-					+ "  Usage: FilterAndCountIncompleteLines <input file path or \"example\"> <result path>");
+		if (programArguments.length >= 3) {
+			System.err.println("Usage: FilterAndCountIncompleteLines [<input file path> [<result path>]]");
 			return false;
 		}
+
+		if (programArguments.length >= 1) {
+			filePath = programArguments[0];
+			if (programArguments.length == 2) {
+				outputPath = programArguments[1];
+			}
+		}
+
 		return true;
 	}
 
@@ -147,7 +148,7 @@ public class FilterAndCountIncompleteLines {
 	private static DataSet<Tuple> getDataSet(final ExecutionEnvironment env) {
 
 		DataSet<? extends Tuple> source;
-		if ("example".equals(filePath)) {
+		if (filePath == null) {
 			source = env.fromCollection(getExampleInputTuples());
 
 		} else {
