@@ -18,7 +18,7 @@ Use one of the following commands to __create a project__:
 <div class="tab-content">
     <div class="tab-pane active" id="quickstart-script">
     {% highlight bash %}
-    $ curl https://raw.githubusercontent.com/stratosphere/stratosphere-quickstart/master/quickstart.sh | bash
+    $ curl https://raw.githubusercontent.com/apache/incubator-flink/master/stratosphere-quickstart/quickstart.sh | bash
     {% endhighlight %}
     </div>
     <div class="tab-pane" id="maven-archetype">
