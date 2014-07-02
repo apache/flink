@@ -48,7 +48,7 @@ import eu.stratosphere.configuration.Configuration;
  * </ul>
  */
 @SuppressWarnings("serial")
-public class FilterAndCountIncompleteLines {
+public class EmptyFieldsCountAccumulator {
 
 	// *************************************************************************
 	// PROGRAM
@@ -68,43 +68,11 @@ public class FilterAndCountIncompleteLines {
 		final DataSet<Tuple> file = getDataSet(env);
 
 		// filter lines with empty fields
-		final DataSet<Tuple> filteredLines = file.filter(new FilterFunction<Tuple>() {
-
-			// create a new accumulator in each filter function instance
-			// accumulators can be merged later on
-			private final VectorAccumulator emptyFieldCounter = new VectorAccumulator();
-
-			@Override
-			public void open(final Configuration parameters) throws Exception {
-				super.open(parameters);
-
-				// register the accumulator instance
-				getRuntimeContext().addAccumulator(EMPTY_FIELD_ACCUMULATOR,
-						this.emptyFieldCounter);
-			}
-
-			@Override
-			public boolean filter(final Tuple t) {
-				boolean containsEmptyFields = false;
-
-				// iterate over the tuple fields looking for empty ones
-				for (int pos = 0; pos < t.getArity(); pos++) {
-
-					final String field = t.getField(pos);
-					if (field == null || field.trim().isEmpty()) {
-						containsEmptyFields = true;
-
-						// if an empty field is encountered, update the
-						// accumulator
-						this.emptyFieldCounter.add(pos);
-					}
-				}
-
-				return !containsEmptyFields;
-			}
-		});
+		final DataSet<Tuple> filteredLines = file.filter(new EmptyFieldFilter());
 
 		// Here, we could do further processing with the filtered lines...
+		
+		// output the filtered lines
 		if (outputPath == null) {
 			filteredLines.print();
 		} else {
@@ -170,6 +138,47 @@ public class FilterAndCountIncompleteLines {
 		inputTuples.add(new Tuple3<String, String, String>("Tim", "Rinny", ""));
 		inputTuples.add(new Tuple3<String, String, String>("Alicia", "Jackson", "  "));
 		return inputTuples;
+	}
+
+	/**
+	 * This function filters all incoming tuples that have one or more empty fields.
+	 * In doing so, it also counts the number of empty fields per attribute with an accumulator (registered under 
+	 * {@link EmptyFieldsCountAccumulator#EMPTY_FIELD_ACCUMULATOR}).
+	 */
+	public static final class EmptyFieldFilter extends FilterFunction<Tuple> {
+
+		// create a new accumulator in each filter function instance
+		// accumulators can be merged later on
+		private final VectorAccumulator emptyFieldCounter = new VectorAccumulator();
+
+		@Override
+		public void open(final Configuration parameters) throws Exception {
+			super.open(parameters);
+
+			// register the accumulator instance
+			getRuntimeContext().addAccumulator(EMPTY_FIELD_ACCUMULATOR,
+					this.emptyFieldCounter);
+		}
+
+		@Override
+		public boolean filter(final Tuple t) {
+			boolean containsEmptyFields = false;
+
+			// iterate over the tuple fields looking for empty ones
+			for (int pos = 0; pos < t.getArity(); pos++) {
+
+				final String field = t.getField(pos);
+				if (field == null || field.trim().isEmpty()) {
+					containsEmptyFields = true;
+
+					// if an empty field is encountered, update the
+					// accumulator
+					this.emptyFieldCounter.add(pos);
+				}
+			}
+
+			return !containsEmptyFields;
+		}
 	}
 
 	/**
