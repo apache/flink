@@ -73,7 +73,7 @@ The simplest way to do this is to use the [quickstart scripts]({{site.baseurl}}/
 mvn archetype:generate /
     -DarchetypeGroupId=eu.stratosphere /
     -DarchetypeArtifactId=quickstart-java /
-    -DarchetypeVersion={{site.docs_05_stable}}
+    -DarchetypeVersion={{site.FLINK_VERSION_STABLE }}
 ```
 
 If you want to add Stratosphere to an existing Maven project, add the following entry to your *dependencies* section in the *pom.xml* file of your project:
@@ -82,12 +82,12 @@ If you want to add Stratosphere to an existing Maven project, add the following 
 <dependency>
   <groupId>eu.stratosphere</groupId>
   <artifactId>stratosphere-java</artifactId>
-  <version>{{site.docs_05_stable}}</version>
+  <version>{{site.FLINK_VERSION_STABLE }}</version>
 </dependency>
 <dependency>
   <groupId>eu.stratosphere</groupId>
   <artifactId>stratosphere-clients</artifactId>
-  <version>{{site.docs_05_stable}}</version>
+  <version>{{site.FLINK_VERSION_STABLE }}</version>
 </dependency>
 ```
 

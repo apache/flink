@@ -28,7 +28,7 @@ If you are developing your program as a Maven project, you have to add the
 <dependency>
   <groupId>eu.stratosphere</groupId>
   <artifactId>stratosphere-clients</artifactId>
-  <version>{{ site.FLINK_VERSION }}</version>
+  <version>{{ site.FLINK_VERSION_STABLE }}</version>
 </dependency>
 ```
 
@@ -74,7 +74,7 @@ If you are developing your program in a Maven project, you have to add the
 <dependency>
   <groupId>eu.stratosphere</groupId>
   <artifactId>stratosphere-clients</artifactId>
-  <version>{{ site.FLINK_VERSION }}</version>
+  <version>{{ site.FLINK_VERSION_STABLE }}</version>
 </dependency>
 ```
 

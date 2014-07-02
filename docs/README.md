@@ -44,7 +44,7 @@ title of the page. This title is used as the top-level heading for the page.
 
 Furthermore, you can access variables found in `docs/_config.yml` as follows:
 
-    {{ site.FLINK_VERSION }}
+    {{ site.FLINK_VERSION_STABLE }}
 
 This will be replaced with the value of the variable when generating the docs.
 

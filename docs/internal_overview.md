@@ -15,7 +15,7 @@ or pull request that updates these documents as well.*
 
 ### Architectures and Components
 
-- [General Architecture and Process Model](general_arch.html)
+- [General Architecture and Process Model](internal_general_arch.html)
 
 <!--
 - [Life Cycle of a Program](program_life_cycle.html)
@@ -29,7 +29,7 @@ or pull request that updates these documents as well.*
 - [Program Optimizer](optimizer.html)
 -->
 
-- [How-to: Adding a new Operator](add_operator.html)
+- [How-to: Adding a new Operator](internal_add_operator.html)
 
 <!--
 - [Java API, Types, and Type Extraction](types.html)
