@@ -635,6 +635,19 @@ class TupleGenerator {
 		}
 		w.println("\t}");
 		w.println();
+		
+		// swap method only for Tuple2
+		if (numFields == 2) {
+			w.println("\t/**");
+			w.println("\t* Returns a shallow copy of the Tuple2 with swapped values.");
+			w.println("\t*");
+			w.println("\t* @return A Tuple2<T1, T0> shallow copy. Value0 and value1 are swapped.");
+			w.println("\t*/");
+			w.println("\tpublic Tuple2<T1, T0> swapValues() {");
+			w.println("\t\t// Swap values");
+			w.println("\t\treturn new Tuple2<T1, T0>(f1, f0);");
+			w.println("\t}");
+		}
 
 		// standard utilities (toString, equals, hashCode, copy)
 		w.println();

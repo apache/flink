@@ -99,6 +99,15 @@ public class Tuple2<T0, T1> extends Tuple {
 		this.f1 = value1;
 	}
 
+	/**
+	* Returns a shallow copy of the Tuple2 with swapped values.
+	*
+	* @return A Tuple2<T1, T0> shallow copy. Value0 and value1 are swapped.
+	*/
+	public Tuple2<T1, T0> swapValues() {
+		// Swap values
+		return new Tuple2<T1, T0>(f1, f0);
+	}
 
 	// -------------------------------------------------------------------------------------------------
 	// standard utilities
