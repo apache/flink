@@ -166,7 +166,7 @@ If you want to build HDFS for Hadoop 2 without YARN, use the following parameter
 
 Some Cloudera versions (such as `2.0.0-cdh4.2.0`) require this, since they have a new HDFS version with the old YARN API.
 
-Please post to the _Stratosphere mailinglist_(dev@flink.incubator.apache.org) or create an issue on [Jira](https://issues.apache.org/jira/browse/FLINK/), if you have issues with your YARN setup and Stratosphere.
+Please post to the _Stratosphere mailinglist_(dev@flink.incubator.apache.org) or create an issue on [Jira]({{site.FLINK_ISSUES_URL}}), if you have issues with your YARN setup and Stratosphere.
 
 # Background
 

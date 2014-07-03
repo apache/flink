@@ -1373,14 +1373,14 @@ Additionally, the Java API supports packaging programs as *Plans*. This method r
 The overall procedure to invoke a packaged program is as follows:
 
   1. The JAR's manifest is searched for a *main-class* or *program-class* attribute. If both attributes are found, the *program-class* attribute takes precedence over the *main-class* attribute. Both the command line and the web interface support a parameter to pass the entry point class name manually for cases where the JAR manifest contains neither attribute.
-  2. If the entry point class implements the `eu.stratosphere.api.common.Program`, then the system calls the `getPlan(String...)` method to obtain the program plan to execute. The `getPlan(String...)` method was the only possible way of defining a program in the *Record API* (see [0.4 docs]({{ site.baseurl }}/docs/0.4/)) and is also supported in the new Java API.
+  2. If the entry point class implements the `eu.stratosphere.api.common.Program`, then the system calls the `getPlan(String...)` method to obtain the program plan to execute. The `getPlan(String...)` method was the only possible way of defining a program in the *Record API* (see [0.4 docs](http://stratosphere.eu/docs/0.4/)) and is also supported in the new Java API.
   3. If the entry point class does not implement the `eu.stratosphere.api.common.Program` interface, the system will invoke the main method of the class.
 
 [Back to top](#top)
 
 
 <section id="accumulators_counters">
-Accumulators &amp; Counters
+Accumulators & Counters
 ---------------------------
 
 Accumulators are simple constructs with an **add operation** and a **final accumulated result**, which is available after the job ended.
@@ -1451,8 +1451,7 @@ To visualize the execution plan, do the following:
 
 After these steps, a detailed execution plan will be visualized.
 
-![alt text](http://stratosphere.eu/img/blog/plan_visualizer2.png "A stratosphere job execution graph.")
-
+<img alt="A stratosphere job execution graph." src="http://stratosphere.eu/img/blog/plan_visualizer2.png" width="80%">
 __Web Interface__
 
 Stratosphere offers a web interface for submitting and executing jobs. If you choose to use this interface to submit your packaged program, you have the option to also see the plan visualization.

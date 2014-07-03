@@ -7,10 +7,7 @@ Scala Programming Guide
 =======================
 
 This guide explains how to develop Stratosphere programs with the Scala
-programming interface. It assumes you are familiar with the general concepts of
-Stratosphere's [Programming Model](pmodel.html "Programming Model"). We
-recommend to learn about the basic concepts first, before continuing with the
-[Java](java.html "Java Programming Guide") or this Scala programming guide.
+programming interface. 
 
 Here we will look at the general structure of a Scala job. You will learn how to
 write data sources, data sinks, and operators to create data flows that can be
@@ -511,7 +508,7 @@ def filter(fun: In => Boolean): DataSet[Out]
 
 #### Reduce Operation
 
-As explained [here](pmodel.html#operators) Reduce is an operation that looks
+Reduce is an operation that looks
 at groups of elements at a time and can, for one group, output one or several
 elements. To specify how elements should be grouped you need to give
 a key selection function, as explained [above](#key-selectors).
@@ -947,7 +944,7 @@ This is all there is to it.
 
 Remote (or cluster) execution is a bit more complicated because you have
 to package your code in a jar file so that it can be distributed on the cluster.
-Have a look at the [scala quickstart](/quickstart/scala.html) to see how you
+Have a look at the [scala quickstart](scala_api_quickstart.html) to see how you
 can set up a maven project that does the packaging. Remote execution is done
 using the {% gh_link /stratosphere-clients/src/main/java/eu/stratosphere/client/RemoteExecutor.java "RemoteExecutor" %}, like this:
 

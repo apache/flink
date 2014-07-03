@@ -159,8 +159,7 @@ destage operations to disk, if necessary. By default, the system reserves around
 70% of the memory. If you frequently run applications that need more memory in
 the user-defined functions, you can reduce that value using the configuration
 entries `taskmanager.memory.fraction` or `taskmanager.memory.size`. See the
-[Configuration Reference](http://stratosphere.eu/docs/0.4/setup/config.html
-"Configuration Reference") for details. This will leave more memory to JVM heap,
+[Configuration Reference](config.html) for details. This will leave more memory to JVM heap,
 but may cause data processing tasks to go to disk more often.
 
 ## Why do the TaskManager log files become so huge?
