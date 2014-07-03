@@ -137,6 +137,6 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	@Override
 	protected eu.stratosphere.api.common.operators.SingleInputOperator<T, T, ?> translateToDataFlow(Operator<T> input) {
 		// All the translation magic happens when the iteration end is encountered.
-		throw new UnsupportedOperationException("This should never happen.");
+		throw new RuntimeException("Error while creating the data flow plan for an iteration: The iteration end was not specified correctly.");
 	}
 }
