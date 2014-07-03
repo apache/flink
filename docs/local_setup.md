@@ -30,7 +30,7 @@ Java HotSpot(TM) 64-Bit Server VM (build 17.1-b03, mixed mode)
 
 **For local mode Stratosphere is ready to go out of the box and you don't need to change the default configuration.**
 
-The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in `conf/stratosphere-conf.yaml` if you want to manually override the Java runtime to use. Consult the [configuration page]({{site.baseurl}}/docs/0.4/setup/config.html) for further details about configuring Stratosphere.
+The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in `conf/stratosphere-conf.yaml` if you want to manually override the Java runtime to use. Consult the [configuration page](config.html) for further details about configuring Stratosphere.
 
 # Starting Stratosphere
 

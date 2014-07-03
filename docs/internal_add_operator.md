@@ -16,7 +16,7 @@ new functionality does require a new runtime operator, or it is much more effici
 
 Many operators can be implemented as a specialization of another operator, or by means of a UDF.
 
-The simplest example are the `sum()`, `min()`, and `max()` functions on the [DataSet](https://github.com/apache/incubator-flink/blob/master/stratosphere-java/src/main/java/eu/stratosphere/api/java/DataSet.java). These functions simply call other operations
+The simplest example are the `sum()`, `min()`, and `max()` functions on the {% gh_link /stratosphere-java/src/main/java/eu/stratosphere/api/java/DataSet.java "DataSet" %}. These functions simply call other operations
 with some pre-defined parameters:
 ```
 public AggregateOperator<T> sum (int field) {
@@ -28,7 +28,7 @@ public AggregateOperator<T> sum (int field) {
 Some operations can be implemented as compositions of multiple other operators. An example is to implement a
 *count()* function through a combination of *map* and *aggregate*. 
 
-A simple way to do this is to define a function on the [DataSet](https://github.com/apache/incubator-flink/blob/master/stratosphere-java/src/main/java/eu/stratosphere/api/java/DataSet.java) that calls *map(...)* and *reduce(...)* in turn:
+A simple way to do this is to define a function on the {% gh_link /stratosphere-java/src/main/java/eu/stratosphere/api/java/DataSet.java "DataSet" %} that calls *map(...)* and *reduce(...)* in turn:
 ```
 public DataSet<Long> count() {
     return this.map(new MapFunction<T, Long>() {
@@ -54,9 +54,9 @@ public static <T>DataSet<Long> count(DataSet<T> data) {
 
 ### More Complex Operators
 
-A more complex example of an operation via specialization is the [Aggregation Operation](https://github.com/apache/incubator-flink/blob/master/stratosphere-java/src/main/java/eu/stratosphere/api/java/operators/AggregateOperator.java) in the Java API. It is implemented by means of a *GroupReduce* UDF.
+A more complex example of an operation via specialization is the {% gh_link /stratosphere-java/src/main/java/eu/stratosphere/api/java/operators/AggregateOperator.java "Aggregation Operation" %} in the Java API. It is implemented by means of a *GroupReduce* UDF.
 
-The Aggregate Operation comes with its own operator in the *Java API*, but translates itself into a [GroupReduceOperatorBase](https://github.com/apache/incubator-flink/blob/master/stratosphere-core/src/main/java/eu/stratosphere/api/common/operators/base/GroupReduceOperatorBase.java) in the *Common API*. (see [Program Life Cycle](program_life_cycle.html) for details of how an operation from the *Java API* becomes an operation of the *Common API* and finally a runtime operation.)
+The Aggregate Operation comes with its own operator in the *Java API*, but translates itself into a {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/operators/base/GroupReduceOperatorBase.java "GroupReduceOperatorBase" %} in the *Common API*. (see [Program Life Cycle](program_life_cycle.html) for details of how an operation from the *Java API* becomes an operation of the *Common API* and finally a runtime operation.)
 The Java API aggregation operator is only a builder that takes the types of aggregations and the field positions, and used that information to
 parameterize the GroupReduce UDF that performs the aggregations.
 
@@ -74,7 +74,7 @@ void setInput(DataSet<IN> inputData);
 DataSet<OUT> createResult();
 ```
 
-The [VertexCentricIteration](https://github.com/apache/incubator-flink/blob/master/stratosphere-addons/spargel/src/main/java/eu/stratosphere/spargel/java/VertexCentricIteration.java) operator is implemented that way. Below is an example how to implement the *count()* operator that way.
+The {% gh_link /stratosphere-addons/spargel/src/main/java/eu/stratosphere/spargel/java/VertexCentricIteration.java "VertexCentricIteration" %} operator is implemented that way. Below is an example how to implement the *count()* operator that way.
 
 ``` java
 public class Counter<T> implements CustomUnaryOperation<T, Long> {
@@ -109,7 +109,7 @@ function, but invoked only once per parallel partition.
 
 **Runtime**
 
-Runtime Operators are implemented using the [Driver](https://github.com/apache/incubator-flink/blob/master/stratosphere-runtime/src/main/java/eu/stratosphere/pact/runtime/task/PactDriver.java) interface. The interface defines the methods that describe the operator towards the runtime. The [MapDriver](https://github.com/apache/incubator-flink/blob/master/stratosphere-runtime/src/main/java/eu/stratosphere/pact/runtime/task/MapDriver.java) serves as a simple example of how those operators work.
+Runtime Operators are implemented using the {% gh_link /stratosphere-runtime/src/main/java/eu/stratosphere/pact/runtime/task/PactDriver.java "Driver" %} interface. The interface defines the methods that describe the operator towards the runtime. The {% gh_link /stratosphere-runtime/src/main/java/eu/stratosphere/pact/runtime/task/MapDriver.java "MapDriver" %} serves as a simple example of how those operators work.
 
 The runtime works with the `MutableObjectIterator`, which describes data streams with the ability to reuse objects, to reduce pressure on the garbage collector.
 
@@ -132,8 +132,8 @@ To increase efficiency, it is often beneficial to implement a *chained* version 
 operators run in the same thread as their preceding operator, and work with nested function calls.
 This is very efficient, because it saves serialization/deserialization overhead.
 
-To learn how to implement a chained operator, take a look at the [MapDriver](https://github.com/apache/incubator-flink/blob/master/stratosphere-runtime/src/main/java/eu/stratosphere/pact/runtime/task/MapDriver.java) (regular) and the
-[ChainedMapDriver](https://github.com/apache/incubator-flink/blob/master/stratosphere-runtime/src/main/java/eu/stratosphere/pact/runtime/task/chaining/ChainedMapDriver.java) (chained variant).
+To learn how to implement a chained operator, take a look at the {% gh_link /stratosphere-runtime/src/main/java/eu/stratosphere/pact/runtime/task/MapDriver.java "MapDriver" %} (regular) and the
+{% gh_link /stratosphere-runtime/src/main/java/eu/stratosphere/pact/runtime/task/chaining/ChainedMapDriver.java "ChainedMapDriver" %} (chained variant).
 
 
 **Optimizer/Compiler**
@@ -141,15 +141,15 @@ To learn how to implement a chained operator, take a look at the [MapDriver](htt
 This section does a minimal discussion of the important steps to add an operator. Please see the [Optimizer](optimizer.html) docs for more detail on how the optimizer works.
 To allow the optimizer to include a new operator in its planning, it needs a bit of information about it; in particular, the following information:
 
-- *[DriverStrategy](https://github.com/apache/incubator-flink/blob/master/stratosphere-runtime/src/main/java/eu/stratosphere/pact/runtime/task/DriverStrategy.java)*: The operation needs to be added to the Enum, to make it available to the optimizer. The parameters to the Enum entry define which class implements the runtime operator, its chained version, whether the operator accumulates records (and needs memory for that), and whether it requires a comparator (works on keys). For our example, we can add the entry
+- *{% gh_link /stratosphere-runtime/src/main/java/eu/stratosphere/pact/runtime/task/DriverStrategy.java "DriverStrategy" %}*: The operation needs to be added to the Enum, to make it available to the optimizer. The parameters to the Enum entry define which class implements the runtime operator, its chained version, whether the operator accumulates records (and needs memory for that), and whether it requires a comparator (works on keys). For our example, we can add the entry
 ``` java
 MAP_PARTITION(MapPartitionDriver.class, null /* or chained variant */, PIPELINED, false)
 ```
 
-- *Cost function*: The class [CostEstimator](https://github.com/apache/incubator-flink/blob/master/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/costs/CostEstimator.java) needs to know how expensive the operation is to the system. The costs here refer to the non-UDF part of the operator. Since the operator does essentially no work (it forwards the record stream to the UDF), the costs are zero. We change the `costOperator(...)` method by adding the *MAP_PARTITION* constant to the switch statement similar to the *MAP* constant such that no cost is accounted for it.
+- *Cost function*: The class {% gh_link /stratosphere-compiler/src/main/java/eu/stratosphere/compiler/costs/CostEstimator.java "CostEstimator" %} needs to know how expensive the operation is to the system. The costs here refer to the non-UDF part of the operator. Since the operator does essentially no work (it forwards the record stream to the UDF), the costs are zero. We change the `costOperator(...)` method by adding the *MAP_PARTITION* constant to the switch statement similar to the *MAP* constant such that no cost is accounted for it.
 
-- *OperatorDescriptor*: The operator descriptors define how an operation needs to be treated by the optimizer. They describe how the operation requires the input data to be (e.g., sorted or partitioned) and that way allows the optimizer to optimize the data movement, sorting, grouping in a global fashion. They do that by describing which [RequestedGlobalProperties](https://github.com/apache/incubator-flink/blob/master/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/dataproperties/RequestedGlobalProperties.java) (partitioning, replication, etc) and which [RequestedLocalProperties](https://github.com/apache/incubator-flink/blob/master/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/dataproperties/RequestedLocalProperties.java) (sorting, grouping, uniqueness) the operator has, as well as how the operator affects the existing [GlobalProperties](https://github.com/apache/incubator-flink/blob/master/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/dataproperties/GlobalProperties.java) and [LocalProperties](https://github.com/apache/incubator-flink/blob/master/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/dataproperties/LocalProperties.java). In addition, it defines a few utility methods, for example to instantiate an operator candidate.
-Since the *mapPartition()* function is very simple (no requirements on partitioning/grouping), the descriptor is very simple. Other operators have more complex requirements, for example the [GroupReduce](https://github.com/apache/incubator-flink/blob/master/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/operators/GroupReduceProperties.java). Some operators, like *join* have multiple ways in which they can be executed and therefore have multiple descriptors ([Hash Join 1](https://github.com/apache/incubator-flink/blob/master/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/operators/HashJoinBuildFirstProperties.java), [Hash Join 2](https://github.com/apache/incubator-flink/blob/master/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/operators/HashJoinBuildSecondProperties.java), [SortMerge Join](https://github.com/apache/incubator-flink/blob/master/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/operators/SortMergeJoinDescriptor.java)).
+- *OperatorDescriptor*: The operator descriptors define how an operation needs to be treated by the optimizer. They describe how the operation requires the input data to be (e.g., sorted or partitioned) and that way allows the optimizer to optimize the data movement, sorting, grouping in a global fashion. They do that by describing which {% gh_link /stratosphere-compiler/src/main/java/eu/stratosphere/compiler/dataproperties/RequestedGlobalProperties.java "RequestedGlobalProperties" %} (partitioning, replication, etc) and which {% gh_link /stratosphere-compiler/src/main/java/eu/stratosphere/compiler/dataproperties/RequestedLocalProperties.java "RequestedLocalProperties" %} (sorting, grouping, uniqueness) the operator has, as well as how the operator affects the existing {% gh_link /stratosphere-compiler/src/main/java/eu/stratosphere/compiler/dataproperties/GlobalProperties.java "GlobalProperties" %} and {% gh_link /stratosphere-compiler/src/main/java/eu/stratosphere/compiler/dataproperties/LocalProperties.java "LocalProperties" %}. In addition, it defines a few utility methods, for example to instantiate an operator candidate.
+Since the *mapPartition()* function is very simple (no requirements on partitioning/grouping), the descriptor is very simple. Other operators have more complex requirements, for example the {% gh_link /stratosphere-compiler/src/main/java/eu/stratosphere/compiler/operators/GroupReduceProperties.java "GroupReduce" %}. Some operators, like *join* have multiple ways in which they can be executed and therefore have multiple descriptors ({% gh_link /stratosphere-compiler/src/main/java/eu/stratosphere/compiler/operators/HashJoinBuildFirstProperties.java "Hash Join 1" %}, {% gh_link /stratosphere-compiler/src/main/java/eu/stratosphere/compiler/operators/HashJoinBuildSecondProperties.java "Hash Join 2" %}, {% gh_link /stratosphere-compiler/src/main/java/eu/stratosphere/compiler/operators/SortMergeJoinDescriptor.java "SortMerge Join" %}).
 The code sample below explains (with comments) how to create a descriptor for the *MapPartitionOperator*
 ``` java
     public DriverStrategy getStrategy() {
@@ -185,16 +185,16 @@ The code sample below explains (with comments) how to create a descriptor for th
     }
 ```
 
-- *OptimizerNode*: The optimizer node is the place where all comes together. It creates the list of *OperatorDescriptors*, implements the result data set size estimation, and assigns a name to the operation. It is a relatively small class and can be more or less copied again from the [MapNode](https://github.com/apache/incubator-flink/blob/master/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/dag/MapNode.java).
+- *OptimizerNode*: The optimizer node is the place where all comes together. It creates the list of *OperatorDescriptors*, implements the result data set size estimation, and assigns a name to the operation. It is a relatively small class and can be more or less copied again from the {% gh_link /stratosphere-compiler/src/main/java/eu/stratosphere/compiler/dag/MapNode.java "MapNode" %}.
 
 
 **Common API**
 
 To make the operation available to the higher-level APIs, it needs to be added to the Common API. The simplest way to do this is to add a
-base operator. Create a class `MapPartitionOperatorBase`, after the pattern of the [MapOperatorBase](https://github.com/apache/incubator-flink/blob/master/stratosphere-core/src/main/java/eu/stratosphere/api/common/operators/base/MapOperatorBase.java).
+base operator. Create a class `MapPartitionOperatorBase`, after the pattern of the {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/operators/base/MapOperatorBase.java "MapOperatorBase" %}.
 
 In addition, the optimizer needs to know which OptimizerNode how to create an OptimizerNode from the OperatorBase. This happens in the class
-`GraphCreatingVisitor` in the [Optimizer](https://github.com/apache/incubator-flink/blob/master/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/PactCompiler.java).
+`GraphCreatingVisitor` in the {% gh_link /stratosphere-compiler/src/main/java/eu/stratosphere/compiler/PactCompiler.java "Optimizer" %}.
 
 *Note:* A pending idea is to allow to skip this step by unifying the OptimizerNode and the Common API operator. They essentially fulfill the
 same function. The Common API operator exists only in order for the `flink-java` and `flink-scala` packages to not have a dependency on the
@@ -203,7 +203,7 @@ optimizer.
 
 **Java API**
 
-Create a Java API operator that is constructed in the same way as the [MapOperator](https://github.com/apache/incubator-flink/blob/master/stratosphere-java/src/main/java/eu/stratosphere/api/java/operators/MapOperator.java). The core method is the `translateToDataFlow(...)` method, which creates the Common API operator for the Java API operator.
+Create a Java API operator that is constructed in the same way as the {% gh_link /stratosphere-java/src/main/java/eu/stratosphere/api/java/operators/MapOperator.java "MapOperator" %}. The core method is the `translateToDataFlow(...)` method, which creates the Common API operator for the Java API operator.
 
 The final step is to add a function to the `DataSet` class:
 ``` java

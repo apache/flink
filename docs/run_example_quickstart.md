@@ -61,7 +61,7 @@ The Stratosphere webclient allows to submit Stratosphere programs using a graphi
 
 <div class="row" style="padding-top:15px">
 	<div class="col-md-6">
-		<a data-lightbox="compiler" href="{{site.baseurl}}/img/quickstart-example/run-webclient.png" data-lightbox="example-1"><img class="img-responsive" src="{{site.baseurl}}/img/quickstart-example/run-webclient.png" /></a>
+		<a data-lightbox="compiler" href="img/quickstart-example/run-webclient.png" data-lightbox="example-1"><img class="img-responsive" src="img/quickstart-example/run-webclient.png" /></a>
 	</div>
 	<div class="col-md-6">
 		1. <a href="http://localhost:8080/launch.html">Open webclient on localhost:8080</a> <br>
@@ -83,7 +83,7 @@ The Stratosphere webclient allows to submit Stratosphere programs using a graphi
 <hr>
 <div class="row" style="padding-top:15px">
 	<div class="col-md-6">
-		<a data-lightbox="compiler" href="{{site.baseurl}}/img/quickstart-example/compiler-webclient-new.png" data-lightbox="example-1"><img class="img-responsive" src="{{site.baseurl}}/img/quickstart-example/compiler-webclient-new.png" /></a>
+		<a data-lightbox="compiler" href="img/quickstart-example/compiler-webclient-new.png" data-lightbox="example-1"><img class="img-responsive" src="img/quickstart-example/compiler-webclient-new.png" /></a>
 	</div>
 
 	<div class="col-md-6">
@@ -94,7 +94,7 @@ The Stratosphere webclient allows to submit Stratosphere programs using a graphi
 <hr>
 <div class="row" style="padding-top:15px">
 	<div class="col-md-6">
-		<a data-lightbox="compiler" href="{{site.baseurl}}/img/quickstart-example/jobmanager-running-new.png" data-lightbox="example-1"><img class="img-responsive" src="{{site.baseurl}}/img/quickstart-example/jobmanager-running-new.png" /></a>
+		<a data-lightbox="compiler" href="img/quickstart-example/jobmanager-running-new.png" data-lightbox="example-1"><img class="img-responsive" src="img/quickstart-example/jobmanager-running-new.png" /></a>
 	</div>
 	<div class="col-md-6">
 		1. Press the <b>Continue</b> button to start executing the job. <br>
@@ -106,7 +106,7 @@ The Stratosphere webclient allows to submit Stratosphere programs using a graphi
 
 # Analyze the Result
 
-Use the [Python Script]({{site.baseurl}}/quickstart/plotPoints.py) again to visualize the result
+Use the [Python Script](quickstart/plotPoints.py) again to visualize the result
 
 ```bash
 python2.7 plotPoints.py result result result-pdf

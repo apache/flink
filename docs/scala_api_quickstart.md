@@ -1,5 +1,5 @@
 ---
-title: "Quick Start: Scala API"
+title: "Quickstart: Scala API"
 ---
 
 Start working on your Stratosphere Scala program in a few simple steps.

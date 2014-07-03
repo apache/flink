@@ -22,7 +22,7 @@ Apache [Hadoop YARN](http://hadoop.apache.org/) is a cluster resource management
 - Apache Hadoop 2.2
 - HDFS
 
-If you have troubles using the Stratosphere YARN client, have a look in the [FAQ section](faq.html).
+If you have troubles using the Stratosphere YARN client, have a look in the [FAQ section]({{site.baseurl}}/docs/0.5/general/faq.html).
 
 ## Start Stratosphere Session
 
@@ -35,7 +35,7 @@ A session will start all required Stratosphere services (JobManager and TaskMana
 Download the YARN tgz package on the [download page]({{site.baseurl}}/downloads/#nightly). It contains the required files.
 
 
-If you want to build the YARN .tgz file from sources, follow the build instructions. Make sure to use the `-Dhadoop.profile=2` profile. You can find the file in `stratosphere-dist/target/stratosphere-dist-{{site.FLINK_VERSION_STABLE }}-yarn.tar.gz` (*Note: The version might be different for you* ).
+If you want to build the YARN .tgz file from sources, follow the build instructions. Make sure to use the `-Dhadoop.profile=2` profile. You can find the file in `stratosphere-dist/target/stratosphere-dist-{{site.docs_05_stable}}-yarn.tar.gz` (*Note: The version might be different for you* ).
 
 Extract the package using:
 
@@ -166,7 +166,7 @@ If you want to build HDFS for Hadoop 2 without YARN, use the following parameter
 
 Some Cloudera versions (such as `2.0.0-cdh4.2.0`) require this, since they have a new HDFS version with the old YARN API.
 
-
+Please post to the _Stratosphere mailinglist_(dev@flink.incubator.apache.org) or create an issue on [Jira]({{site.FLINK_ISSUES_URL}}), if you have issues with your YARN setup and Stratosphere.
 
 # Background
 

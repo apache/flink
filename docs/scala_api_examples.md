@@ -25,7 +25,7 @@ val counts = words.groupBy { case (word, _) => word }
 val output = counts.write(wordsOutput, CsvOutputFormat()))
 ```
 
-The [WordCount example](https://github.com/apache/incubator-flink/blob/b746f452e7187dad08340b9cfdc2fa18a516a6c7/stratosphere-examples/stratosphere-scala-examples/src/main/scala/eu/stratosphere/examples/scala/wordcount/WordCount.scala) implements the above described algorithm with input parameters: `<degree of parallelism>, <text input path>, <output path>`. As test data, any text file will do.
+The {% gh_link /stratosphere-examples/stratosphere-scala-examples/src/main/scala/eu/stratosphere/examples/scala/wordcount/WordCount.scala "WordCount example" %} implements the above described algorithm with input parameters: `<degree of parallelism>, <text input path>, <output path>`. As test data, any text file will do.
 
 # Page Rank
 
@@ -71,7 +71,7 @@ val output = finalRanks.write(outputPath, CsvOutputFormat())
 
 
 
-The [PageRank program](https://github.com/apache/incubator-flink/blob/b746f452e7187dad08340b9cfdc2fa18a516a6c7/stratosphere-examples/stratosphere-scala-examples/src/main/scala/eu/stratosphere/examples/scala/graph/PageRank.scala) implements the above example.
+The {% gh_link /stratosphere-examples/stratosphere-scala-examples/src/main/scala/eu/stratosphere/examples/scala/graph/PageRank.scala "PageRank program" %} implements the above example.
 It requires the following parameters to run: `<pages input path>, <link input path>, <output path>, <num pages>, <num iterations>`.
 
 Input files are plain text files and must be formatted as follows:
@@ -123,7 +123,7 @@ val components = initialComponents.iterateWithDelta(initialComponents, { _.verte
 val output = components.write(componentsOutput, CsvOutputFormat())
 ```
 
-The [ConnectedComponents program](https://github.com/apache/incubator-flink/blob/b746f452e7187dad08340b9cfdc2fa18a516a6c7/stratosphere-examples/stratosphere-scala-examples/src/main/scala/eu/stratosphere/examples/scala/graph/ConnectedComponents.scala) implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
+The {% gh_link /stratosphere-examples/stratosphere-scala-examples/src/main/scala/eu/stratosphere/examples/scala/graph/ConnectedComponents.scala "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
 
 Input files are plain text files and must be formatted as follows:
 - Vertices represented as IDs and separated by new-line characters.
@@ -171,7 +171,7 @@ val prioritizedOrders = prioritizedItems
 val output = prioritizedOrders.write(ordersOutput, CsvOutputFormat(formatOutput))
 ```
 
-The [Relational Query program](https://github.com/apache/incubator-flink/blob/b746f452e7187dad08340b9cfdc2fa18a516a6c7/stratosphere-examples/stratosphere-scala-examples/src/main/scala/eu/stratosphere/examples/scala/relational/RelationalQuery.scala) implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>, <degree of parallelism>`.
+The {% gh_link /stratosphere-examples/stratosphere-scala-examples/src/main/scala/eu/stratosphere/examples/scala/relational/RelationalQuery.scala "Relational Query program" %} implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>, <degree of parallelism>`.
 
 The orders and lineitem files can be generated using the [TPC-H benchmark](http://www.tpc.org/tpch/) suite's data generator tool (DBGEN). 
 Take the following steps to generate arbitrary large input files for the provided Stratosphere programs:
