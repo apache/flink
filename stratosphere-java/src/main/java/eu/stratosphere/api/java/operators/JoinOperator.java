@@ -21,6 +21,7 @@ import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.functions.GenericJoiner;
 import eu.stratosphere.api.common.functions.GenericMap;
 import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
+import eu.stratosphere.api.common.operators.DualInputSemanticProperties;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
@@ -29,6 +30,7 @@ import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.DeltaIteration.SolutionSetPlaceHolder;
 import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.functions.KeySelector;
+import eu.stratosphere.api.java.functions.SemanticPropUtil;
 import eu.stratosphere.api.java.operators.Keys.FieldPositionKeys;
 import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
 import eu.stratosphere.api.java.operators.translation.PlanUnwrappingJoinOperator;
@@ -163,9 +165,19 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			}
 			
 			this.function = function;
-			extractSemanticAnnotationsFromUdf(function.getClass());
+
+			if (!(function instanceof ProjectJoinFunction)) {
+				extractSemanticAnnotationsFromUdf(function.getClass());
+			} else {
+				generateProjectionProperties(((ProjectJoinFunction) function));
+			}
 		}
-		
+
+		public void generateProjectionProperties(ProjectJoinFunction pjf) {
+			DualInputSemanticProperties props = SemanticPropUtil.createProjectionPropertiesDual(pjf.getFields(), pjf.getIsFromFirst());
+			setSemanticProperties(props);
+		}
+
 		// TODO
 //		public EquiJoin<I1, I2, OUT> leftOuter() {
 //			this.preserve1 = true;
@@ -512,6 +524,16 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 					new ProjectJoinFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer().createInstance()), 
 					returnType, hint);
 		}
+
+		@Override
+		public JoinOperator<I1, I2, OUT> withConstantSetFirst(String... constantSetFirst) {
+			throw new RuntimeException("Please do not use ConstantFields on ProjectJoins. The Fields are automatically calculated.");
+		}
+
+		@Override
+		public JoinOperator<I1, I2, OUT> withConstantSetSecond(String... constantSetSecond) {
+			throw new RuntimeException("Please do not use ConstantFields on ProjectJoins. The Fields are automatically calculated.");
+		}
 	}
 	
 //	@SuppressWarnings("unused")
@@ -824,7 +846,15 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			this.isFromFirst = isFromFirst;
 			this.outTuple = outTupleInstance;
 		}
-		
+
+		protected int[] getFields() {
+			return fields;
+		}
+
+		protected boolean[] getIsFromFirst() {
+			return isFromFirst;
+		}
+
 		public R join(T1 in1, T2 in2) {
 			for(int i=0; i<fields.length; i++) {
 				if(isFromFirst[i]) {
