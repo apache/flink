@@ -10,13 +10,13 @@ On the way, you will see the compiler, the status interface and the result of th
 Stratosphere contains a data generator for K-Means.
 
 	# Download Stratosphere
-	wget {{ site.current_stable_dl }}
+	wget {{ site.FLINK_VERSION_STABLE_dl }}
 	tar xzf stratosphere-*.tgz 
 	cd stratosphere-*
 	mkdir kmeans
 	cd kmeans
 	# Run data generator
-	java -cp  ../examples/stratosphere-java-examples-{{ site.current_stable }}-KMeans.jar eu.stratosphere.example.java.clustering.util.KMeansDataGenerator 500 10 0.08
+	java -cp  ../examples/stratosphere-java-examples-{{ site.FLINK_VERSION_STABLE }}-KMeans.jar eu.stratosphere.example.java.clustering.util.KMeansDataGenerator 500 10 0.08
 	cp /tmp/points .
 	cp /tmp/centers .
 

@@ -97,12 +97,12 @@ following lines to your POM.
   <dependency>
     <groupId>eu.stratosphere</groupId>
     <artifactId>stratosphere-scala</artifactId>
-    <version>{{site.current_stable}}</version>
+    <version>{{site.FLINK_VERSION_STABLE}}</version>
   </dependency>
   <dependency>
     <groupId>eu.stratosphere</groupId>
     <artifactId>stratosphere-clients</artifactId>
-    <version>{{site.current_stable}}</version>
+    <version>{{site.FLINK_VERSION_STABLE}}</version>
   </dependency>
 </dependencies>
 ```

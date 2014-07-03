@@ -5,7 +5,7 @@
 #     {{ site.CONFIG_KEY }}
 #------------------------------------------------------------------------------
 
-FLINK_VERSION: 0.6-SNAPSHOT
+FLINK_VERSION_STABLE: 0.6-SNAPSHOT # this variable can point to a SNAPSHOT version in the git source.
 FLINK_VERSION_SHORT: 0.6
 FLINK_ISSUES_URL: https://issues.apache.org/jira/browse/FLINK
 FLINK_GITHUB_URL:  https://github.com/apache/incubator-flink

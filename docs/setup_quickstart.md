@@ -16,10 +16,10 @@ Download the ready to run binary package. Choose the Stratosphere distribution t
  </ul>
  <div class="tab-content text-center">
    <div class="tab-pane active" id="bin-hadoop1">
-     <a class="btn btn-info btn-lg" onclick="_gaq.push(['_trackEvent','Action','download-quickstart-setup-1',this.href]);" href="{{site.current_stable_dl}}"><i class="icon-download"> </i> Download Stratosphere for Hadoop 1.2</a>
+     <a class="btn btn-info btn-lg" onclick="_gaq.push(['_trackEvent','Action','download-quickstart-setup-1',this.href]);" href="{{site.FLINK_DOWNLOAD_URL_HADOOP_1_STABLE}}"><i class="icon-download"> </i> Download Stratosphere for Hadoop 1.2</a>
    </div>
    <div class="tab-pane" id="bin-hadoop2">
-     <a class="btn btn-info btn-lg" onclick="_gaq.push(['_trackEvent','Action','download-quickstart-setup-2',this.href]);" href="{{site.current_stable_dl_yarn}}"><i class="icon-download"> </i> Download Stratosphere for Hadoop 2 (YARN)</a>
+     <a class="btn btn-info btn-lg" onclick="_gaq.push(['_trackEvent','Action','download-quickstart-setup-2',this.href]);" href="{{site.FLINK_DOWNLOAD_URL_HADOOP_2_STABLE}}"><i class="icon-download"> </i> Download Stratosphere for Hadoop 2</a>
    </div>
  </div>
 </p>
@@ -54,7 +54,8 @@ $ wget -O hamlet.txt http://www.gutenberg.org/cache/epub/1787/pg1787.txt
 * __Start the example program__:
 ```bash
 $ bin/stratosphere run \
-    --jarfile ./examples/stratosphere-java-examples-{{site.current_stable}}-WordCount.jar \
+    --jarfile ./examples/stratosphere-java-examples-{{site.FLINK_VERSION_STABLE}}-WordCount.jar \
+
     --arguments file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
 ```
 * You will find a file called __wordcount-result.txt__ in your current directory.
@@ -89,8 +90,7 @@ The following __example__ illustrates the setup with three nodes (with IP addres
     /path/to/<strong>stratosphere/<br>conf/slaves</strong>
   <pre>
     10.0.0.2
-    10.0.0.3
-  </pre>
+    10.0.0.3</pre>
   </p>
 </div>
 </div>
@@ -99,7 +99,7 @@ The following __example__ illustrates the setup with three nodes (with IP addres
 # Stratosphere on YARN
 You can easily deploy Stratosphere on your existing __YARN cluster__. 
 
-1. Download the __Stratosphere YARN package__ with the YARN client: [Stratosphere for YARN]({{site.current_stable_uberjar}})
+1. Download the __Stratosphere YARN package__ with the YARN client: [Stratosphere for YARN]({{site.FLINK_DOWNLOAD_URL_YARN_STABLE}})
 2. Make sure your __HADOOP_HOME__ (or _YARN_CONF_DIR_ or _HADOOP_CONF_DIR_) __environment variable__ is set to read your YARN and HDFS configuration.
 3. Run the __YARN client__ with: `./bin/yarn-session.sh`. You can run the client with options `-n 10 -tm 8192` to allocate 10 TaskManagers with 8GB of memory each.
 

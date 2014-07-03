@@ -24,8 +24,8 @@ Hadoop client libraries with Stratosphere by default.
 
 Additionally, we provide a special YARN Enabled download of Stratosphere for
 users with an existing Hadoop YARN cluster. [Apache Hadoop
-YARN](http://hadoop.apache.org/docs/r2.2.0/hadoop-yarn/hadoop-yarn-
-site/YARN.html) is Hadoop's cluster resource manager that allows to use
+YARN](http://hadoop.apache.org/docs/r2.2.0/hadoop-yarn/hadoop-yarn-site/YARN.html) 
+is Hadoop's cluster resource manager that allows to use
 different execution engines next to each other on a cluster.
 
 # Usage

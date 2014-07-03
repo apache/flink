@@ -7,9 +7,9 @@ title:  "YARN Setup"
 Start YARN session with 4 Taskmanagers (each with 4 GB of Heapspace):
 
 ```bash
-wget {{ site.docs_05_yarn_archive }}
-tar xvzf stratosphere-dist-{{ site.docs_05_stable }}-yarn.tar.gz
-cd stratosphere-yarn-{{ site.docs_05_stable }}/
+wget {{ site.FLINK_DOWNLOAD_URL_YARN_STABLE }}
+tar xvzf stratosphere-dist-{{ site.FLINK_VERSION_STABLE }}-yarn.tar.gz
+cd stratosphere-yarn-{{ site.FLINK_VERSION_STABLE }}/
 ./bin/yarn-session.sh -n 4 -jm 1024 -tm 4096
 ```
 
@@ -35,13 +35,13 @@ A session will start all required Stratosphere services (JobManager and TaskMana
 Download the YARN tgz package on the [download page](downloads/#nightly). It contains the required files.
 
 
-If you want to build the YARN .tgz file from sources, follow the build instructions. Make sure to use the `-Dhadoop.profile=2` profile. You can find the file in `stratosphere-dist/target/stratosphere-dist-{{site.docs_05_stable}}-yarn.tar.gz` (*Note: The version might be different for you* ).
+If you want to build the YARN .tgz file from sources, follow the build instructions. Make sure to use the `-Dhadoop.profile=2` profile. You can find the file in `stratosphere-dist/target/stratosphere-dist-{{site.FLINK_VERSION_STABLE }}-yarn.tar.gz` (*Note: The version might be different for you* ).
 
 Extract the package using:
 
 ```bash
-tar xvzf stratosphere-dist-{{site.docs_05_stable}}-yarn.tar.gz
-cd stratosphere-yarn-{{site.docs_05_stable}}/
+tar xvzf stratosphere-dist-{{site.FLINK_VERSION_STABLE }}-yarn.tar.gz
+cd stratosphere-yarn-{{site.FLINK_VERSION_STABLE }}/
 ```
 
 ### Start a Session
@@ -119,7 +119,7 @@ Use the *run* action to submit a job to YARN. The client is able to determine th
 ```bash
 wget -O apache-license-v2.txt http://www.apache.org/licenses/LICENSE-2.0.txt
 
-./bin/stratosphere run -j ./examples/stratosphere-java-examples-{{site.docs_05_stable}}-WordCount.jar \
+./bin/stratosphere run -j ./examples/stratosphere-java-examples-{{site.FLINK_VERSION_STABLE }}-WordCount.jar \
                        -a 1 file://`pwd`/apache-license-v2.txt file://`pwd`/wordcount-result.txt 
 ```
 
