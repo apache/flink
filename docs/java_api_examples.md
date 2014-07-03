@@ -42,7 +42,7 @@ public static final class Tokenizer extends FlatMapFunction<String, Tuple2<Strin
 }
 ```
 
-The [WordCount example](https://github.com/apache/incubator-flink/blob/cd665b9e8abec2bbfecf384fe7273bd50f22ce67/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/wordcount/WordCount.java) implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
+The {% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/wordcount/WordCount.java  "WordCount example" %} implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
 
 # Page Rank
 
@@ -118,7 +118,7 @@ public static final class EpsilonFilter
 }
 ```
 
-The [PageRank program](https://github.com/apache/incubator-flink/blob/ca2b287a7a78328ebf43766b9fdf39b56fb5fd4f/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/graph/PageRankBasic.java) implements the above example.
+The {% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/graph/PageRankBasic.java "PageRank program" %} implements the above example.
 It requires the following parameters to run: `<pages input path>, <links input path>, <output path>, <num pages>, <num iterations>`.
 
 Input files are plain text files and must be formatted as follows:
@@ -209,7 +209,7 @@ public static final class ComponentIdFilter
 }
 ```
 
-The [ConnectedComponents program](https://github.com/apache/incubator-flink/blob/ca2b287a7a78328ebf43766b9fdf39b56fb5fd4f/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/graph/ConnectedComponents.java) implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
+The {% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/graph/ConnectedComponents.java "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
 
 Input files are plain text files and must be formatted as follows:
 - Vertices represented as IDs and separated by new-line characters.
@@ -280,7 +280,7 @@ DataSet<Tuple3<Integer, Integer, Double>> priceSums =
 priceSums.writeAsCsv(outputPath);
 ```
 
-The [Relational Query program](https://github.com/apache/incubator-flink/blob/ca2b287a7a78328ebf43766b9fdf39b56fb5fd4f/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/relational/RelationalQuery.java) implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>`.
+The {% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/relational/RelationalQuery.java "Relational Query program" %} implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>`.
 
 The orders and lineitem files can be generated using the [TPC-H benchmark](http://www.tpc.org/tpch/) suite's data generator tool (DBGEN). 
 Take the following steps to generate arbitrary large input files for the provided Stratosphere programs:

@@ -67,7 +67,7 @@ Linking with Stratosphere
 
 To write programs with Stratosphere, you need to include Stratosphere’s Java API library in your project.
 
-The simplest way to do this is to use the [quickstart scripts]({{site.baseurl}}/quickstart/java.html). They create a blank project from a template (a Maven Archetype), which sets up everything for you. To manually create the project, you can use the archetype and create a project by calling:
+The simplest way to do this is to use the [quickstart scripts](java_api_quickstart.html). They create a blank project from a template (a Maven Archetype), which sets up everything for you. To manually create the project, you can use the archetype and create a project by calling:
 
 ```bash
 mvn archetype:generate /
@@ -91,10 +91,10 @@ If you want to add Stratosphere to an existing Maven project, add the following 
 </dependency>
 ```
 
-In order to link against the latest SNAPSHOT versions of the code, please follow [this guide]({{site.baseurl}}/downloads/#nightly).
+In order to link against the latest SNAPSHOT versions of the code, please follow [this guide](downloads/#nightly).
 
 The *stratosphere-clients* dependency is only necessary to invoke the Stratosphere program locally (for example to run it standalone for testing and debugging). 
-If you intend to only export the program as a JAR file and [run it on a cluster]({{site.baseurl}}/docs/0.5/program_execution/cluster_execution.html), you can skip that dependency.
+If you intend to only export the program as a JAR file and [run it on a cluster](cluster_execution.html), you can skip that dependency.
 
 [Back to top](#top)
 
@@ -112,8 +112,7 @@ programs with a `main()` method. Each program consists of the same basic parts:
 5. Execute your program.
 
 We will now give an overview of each of those steps but please refer
-to the respective sections for more details. Note that all [core classes
-of the Java API](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-java/src/main/java/eu/stratosphere/api/java) are found in the package `eu.stratosphere.api.java`.
+to the respective sections for more details. Note that all {% gh_link /stratosphere-java/src/main/java/eu/stratosphere/api/java "core classes of the Java API" %} are found in the package `eu.stratosphere.api.java`.
 
 The `ExecutionEnvironment` is the basis for all Stratosphere programs. You can
 obtain one using these static methods on class `ExecutionEnvironment`:
@@ -132,8 +131,8 @@ Typically, you only need to use `getExecutionEnvironment()`, since this
 will do the right thing depending on the context: if you are executing
 your program inside an IDE or as a regular Java program it will create
 a local environment that will execute your program on your local machine. If
-you created a JAR file from you program, and invoke it through the [command line]({{site.baseurl}}/docs/0.5/program_execution/cli_client.html)
-or the [web interface]({{site.baseurl}}/docs/0.5/program_execution/web_interface.html),
+you created a JAR file from you program, and invoke it through the [command line](cli.html)
+or the [web interface](web_client.html),
 the Stratosphere cluster manager will
 execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
@@ -312,7 +311,7 @@ wordCounts
     .reduce(new MyReduceFunction());
 ```
 
-In order to access fields more intuitively and to generate more readable code, it is also possible to extend a subclass of `Tuple`. You can add getters and setters with custom names that delegate to the field positions. See this [example](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/relational/TPCHQuery3.java) for an illustration how to make use of that mechanism.
+In order to access fields more intuitively and to generate more readable code, it is also possible to extend a subclass of `Tuple`. You can add getters and setters with custom names that delegate to the field positions. See this {% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/relational/TPCHQuery3.java "example" %} for an illustration how to make use of that mechanism.
 
 
 #### Values
@@ -337,7 +336,7 @@ Stratosphere requires type information at the time when it prepares the program 
 
 The type inference has its limits and needs the "cooperation" of the programmer in some cases. Examples for that are methods that create data sets from collections, such as `ExecutionEnvironment.fromCollection(),` where you can pass an argument that describes the type. But also generic functions like `MapFunction<I, O>` may need extra type information.
 
-The [ResultTypeQueryable](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-java/src/main/java/eu/stratosphere/api/java/typeutils/ResultTypeQueryable.java) interface can be implemented by input formats and functions to tell the API explicitly about their return type. The *input types* that the functions are invoked with can usually be inferred by the result types of the previous operations.
+The {% gh_link /stratosphere-java/src/main/java/eu/stratosphere/api/java/typeutils/ResultTypeQueryable.java "ResultTypeQueryable" %} interface can be implemented by input formats and functions to tell the API explicitly about their return type. The *input types* that the functions are invoked with can usually be inferred by the result types of the previous operations.
 
 [Back to top](#top)
 
@@ -992,7 +991,7 @@ DataSet<Tuple2<String, Integer>> unioned = vals1.union(vals2)
 Data Sources
 ------------
 
-Data sources create the initial data sets, such as from files or from Java collections. The general mechanism of of creating data sets is abstracted behind an [InputFormat](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-core/src/main/java/eu/stratosphere/api/common/io/InputFormat.java). Stratosphere comes with several built-in formats to create data sets from common file formats. Many of them have shortcut methods on the *ExecutionEnvironment*.
+Data sources create the initial data sets, such as from files or from Java collections. The general mechanism of of creating data sets is abstracted behind an {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/io/InputFormat.java "InputFormat" %}. Stratosphere comes with several built-in formats to create data sets from common file formats. Many of them have shortcut methods on the *ExecutionEnvironment*.
 
 File-based:
 
@@ -1061,7 +1060,7 @@ DataSet<Tuple2<String, Integer> dbData =
 Data Sinks
 ----------
 
-Data sinks consume DataSets and are used to store or return them. Data sink operations are described using an [OutputFormat](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-core/src/main/java/eu/stratosphere/api/common/io/OutputFormat.java). Stratosphere comes with a variety of built-in output formats that
+Data sinks consume DataSets and are used to store or return them. Data sink operations are described using an {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/io/OutputFormat.java "OutputFormat" %}. Stratosphere comes with a variety of built-in output formats that
 are encapsulated behind operations on the DataSet type:
 
 - `writeAsText()` / `TextOuputFormat` - Writes for each element as a String in a line. The String are obtained by calling the *toString()* method.
@@ -1187,7 +1186,7 @@ Iteration Operators
 
 Iterations implement loops in Stratosphere programs. The iteration operators encapsulate a part of the program and execute it repeatedly, feeding back the result of one iteration (the partial solution) into the next iteration. There are two types of iterations in Stratosphere: **BulkIteration** and **DeltaIteration**.
 
-This section provides quick examples on how to use both operators. Check out the [Introduction to Iterations]({{site.baseurl}}/docs/0.5/programming_guides/iterations.html) page for a more detailed introduction.
+This section provides quick examples on how to use both operators. Check out the [Introduction to Iterations](iterations.html) page for a more detailed introduction.
 
 #### Bulk Iterations
 
@@ -1226,13 +1225,13 @@ count.map(new MapFunction<Integer, Double>() {
 env.execute("Iterative Pi Example");
 {% endhighlight %}
 
-You can also check out the [K-Means example](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/clustering/KMeans.java), which uses a BulkIteration to cluster a set of unlabeled points.
+You can also check out the {% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/clustering/KMeans.java "K-Means example" %}, which uses a BulkIteration to cluster a set of unlabeled points.
 
 #### Delta Iterations
 
 Delta iterations exploit the fact that certain algorithms do not change every data point of the solution in each iteration.
 
-In addition to the partial solution that is fed back (called workset) in every iteration, delta iterations maintain state across iterations (called solution set), which can be updated through deltas. The result of the iterative computation is the state after the last iteration. Please refer to the [Introduction to Iterations]({{site.baseurl}}/docs/0.5/programming_guides/iterations.html) for an overview of the basic principle of delta iterations.
+In addition to the partial solution that is fed back (called workset) in every iteration, delta iterations maintain state across iterations (called solution set), which can be updated through deltas. The result of the iterative computation is the state after the last iteration. Please refer to the [Introduction to Iterations](iterations.html) for an overview of the basic principle of delta iterations.
 
 Defining a DeltaIteration is similar to defining a BulkIteration. For delta iterations, two data sets form the input to each iteration (workset and solution set), and two data sets are produced as the result (new workset, solution set delta) in each iteration.
 
@@ -1343,7 +1342,8 @@ data.map(new MapFunction<String, String>() {
 }).withBroadcastSet(toBroadcast, "broadcastSetName"); // 2. Broadcast the DataSet
 ```
 
-Make sure that the names (`broadcastSetName` in the previous example) match when registering and accessing broadcasted data sets. For a complete example program, have a look at [KMeans Algorithm](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/clustering/KMeans.java#L96).
+Make sure that the names (`broadcastSetName` in the previous example) match when registering and accessing broadcasted data sets. For a complete example program, have a look at
+{% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/clustering/KMeans.java#L96 "KMeans Algorithm" %}.
 
 **Note**: As the content of broadcast variables is kept in-memory on each node, it should not become too large. For simpler things like scalar values you can simply make parameters part of the closure of a function, or use the `withParameters(...)` method to pass in a configuration.
 
@@ -1354,7 +1354,7 @@ Make sure that the names (`broadcastSetName` in the previous example) match when
 Program Packaging & Distributed Execution
 -----------------------------------------
 
-As described in the [program skeleton](#skeleton) section, Stratosphere programs can be executed on clusters by using the `RemoteEnvironment`. Alternatively, programs can be packaged into JAR Files (Java Archives) for execution. Packaging the program is a prerequisite to executing them through the [command line interface]({{ site.baseurl }}/docs/0.5/program_execution/cli_client.html) or the [web interface]({{ site.baseurl }}/docs/0.5/program_execution/web_interface.html).
+As described in the [program skeleton](#skeleton) section, Stratosphere programs can be executed on clusters by using the `RemoteEnvironment`. Alternatively, programs can be packaged into JAR Files (Java Archives) for execution. Packaging the program is a prerequisite to executing them through the [command line interface](cli.html) or the [web interface](web_client.html).
 
 #### Packaging Programs
 
@@ -1387,10 +1387,10 @@ Accumulators are simple constructs with an **add operation** and a **final accum
 
 The most straightforward accumulator is a **counter**: You can increment it using the ```Accumulator.add(V value)``` method. At the end of the job Stratosphere will sum up (merge) all partial results and send the result to the client. Since accumulators are very easy to use, they can be useful during debugging or if you quickly want to find out more about your data.
 
-Stratosphere currently has the following **built-in accumulators**. Each of them implements the [Accumulator](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/Accumulator.java) interface.
+Stratosphere currently has the following **built-in accumulators**. Each of them implements the {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/Accumulator.java "Accumulator" %} interface.
 
-- [__IntCounter__](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/IntCounter.java), [__LongCounter__](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/LongCounter.java) and [__DoubleCounter__](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/DoubleCounter.java): See below for an example using a counter.
-- [__Histogram__](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/Histogram.java): A histogram implementation for a discrete number of bins. Internally it is just a map from Integer to Integer. You can use this to compute distributions of values, e.g. the distribution of words-per-line for a word count program.
+- {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/IntCounter.java "__IntCounter__" %}, {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/LongCounter.java "__LongCounter__" %} and {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/DoubleCounter.java "__DoubleCounter__" %}: See below for an example using a counter.
+- {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/Histogram.java "__Histogram__" %}: A histogram implementation for a discrete number of bins. Internally it is just a map from Integer to Integer. You can use this to compute distributions of values, e.g. the distribution of words-per-line for a word count program.
 
 __How to use accumulators:__
 
@@ -1413,13 +1413,13 @@ The overall result will be stored in the ```JobExecutionResult``` object which i
 
 All accumulators share a single namespace per job. Thus you can use the same accumulator in different operator functions of your job. Stratosphere will internally merge all accumulators with the same name.
 
-A note on accumulators and iterations: Currently the result of accumulators is only available after the overall job ended. We plan to also make the result of the previous iteration available in the next iteration. You can use [Aggregators](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-java/src/main/java/eu/stratosphere/api/java/IterativeDataSet.java#L98) to compute per-iteration statistics and base the termination of iterations on such statistics.
+A note on accumulators and iterations: Currently the result of accumulators is only available after the overall job ended. We plan to also make the result of the previous iteration available in the next iteration. You can use {% gh_link /stratosphere-java/src/main/java/eu/stratosphere/api/java/IterativeDataSet.java#L98 "Aggregators" %} to compute per-iteration statistics and base the termination of iterations on such statistics.
 
 __Custom accumulators:__
 
 To implement your own accumulator you simply have to write your implementation of the Accumulator interface. Feel free to create a pull request if you think your custom accumulator should be shipped with Stratosphere.
 
-You have the choice to implement either [Accumulator](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/Accumulator.java) or [SimpleAccumulator](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/SimpleAccumulator.java). ```Accumulator<V,R>``` is most flexible: It defines a type ```V``` for the value to add, and a result type ```R``` for the final result. E.g. for a histogram, ```V``` is a number and ```R``` is a histogram. ```SimpleAccumulator``` is for the cases where both types are the same, e.g. for counters.
+You have the choice to implement either {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/Accumulator.java "Accumulator" %} or {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/SimpleAccumulator.java "SimpleAccumulator" %}. ```Accumulator<V,R>``` is most flexible: It defines a type ```V``` for the value to add, and a result type ```R``` for the final result. E.g. for a histogram, ```V``` is a number and ```R``` is a histogram. ```SimpleAccumulator``` is for the cases where both types are the same, e.g. for counters.
 
 [Back to top](#top)
 

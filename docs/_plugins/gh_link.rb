@@ -7,8 +7,8 @@ module Jekyll
     end
 
     def render(context)
-      input = @input.split
-      name = @input.split.drop(2).join(" ")
+      input = @input.sub(/".*"/, "").split
+      name = @input.match(/".*"/).to_s.gsub(/"/, "")#@input.split.drop(2).join(" ")
       config = context.registers[:site].config
 
       path = input[0]

@@ -100,7 +100,7 @@ Call to <host:port> failed on local exception: java.io.EOFException
 ```
 
 Please refer to the [download page](http://stratosphere.eu/downloads/#maven) and
-the {% gh_link README.md master build instructions %}
+the {% gh_link README.md master "build instructions" %}
 for details on how to set up Stratosphere for different Hadoop and HDFS versions.
 
 ## My program does not compute the correct result. Why are my custom key types
@@ -277,9 +277,9 @@ open source project in the next versions.
 
 ## Are Hadoop-like utilities, such as Counters and the DistributedCache supported?
 
-[Stratosphere's Accumulators](java_api_guide.html) work very similar like
+[Stratosphere's Accumulators](java_api_guide.html#accumulators-&-counters) work very similar like
 [Hadoop's counters, but are more powerful.
 
-Stratosphere has a [Distributed Cache](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-core/src/main/java/eu/stratosphere/api/common/cache/DistributedCache.java) that is deeply integrated with the APIs. Please refer to the [JavaDocs](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-java/src/main/java/eu/stratosphere/api/java/ExecutionEnvironment.java#L561) for details on how to use it.
+Stratosphere has a {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/cache/DistributedCache.java "Distributed Cache" %} that is deeply integrated with the APIs. Please refer to the {% gh_link /stratosphere-java/src/main/java/eu/stratosphere/api/java/ExecutionEnvironment.java#L561 "JavaDocs" %} for details on how to use it.
 
-In order to make data sets available on all tasks, we encourage you to use [Broadcast Variables]({{site.baseurl}}/docs/0.5/programming_guides/java.html#broadcast_variables) instead. They are more efficient and easier to use than the distributed cache.
+In order to make data sets available on all tasks, we encourage you to use [Broadcast Variables](java_api_guide.html#broadcast_variables) instead. They are more efficient and easier to use than the distributed cache.
