@@ -359,4 +359,8 @@ public class Instance extends NetworkNode {
 
 		return slots;
 	}
+
+	public long getLastHeartBeat() {
+		return this.lastReceivedHeartBeat;
+	}
 }

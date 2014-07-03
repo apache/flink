@@ -27,14 +27,25 @@
 	<script type="text/javascript" src="js/helpers.js"></script>
 	<script type="text/javascript" src="js/jobmanagerFrontend.js"></script>
 	<script type="text/javascript" src="js/jcanvas.min.js"></script>
+  
+  	<!-- Load Menu -->
+	<script type="text/javascript">
+	$(document).ready(function() {
+		$.ajax({ url : "menu?get=history", type : "GET", cache: false, success : function(html) {
+			$("#side-menu").empty();
+			$("#side-menu").append(html);
+		}, dataType : "html",
+		});
+	});
+  	</script>
   </head>
 
   <body>
 
     <div id="wrapper">
-
+	  
       <!-- Sidebar -->
-      <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+	  <nav class='navbar navbar-inverse navbar-fixed-top' role='navigation'>
         <!-- Brand and toggle get grouped for better mobile display -->
         <div class="navbar-header">
           <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
@@ -45,15 +56,12 @@
           </button>
           <a class="navbar-brand" href="index.html">Stratosphere</a>
         </div>
-
+	 
         <!-- Collect the nav links, forms, and other content for toggling -->
         <div class="collapse navbar-collapse navbar-ex1-collapse">
-          <ul class="nav navbar-nav side-nav">
-            <li><a href="index.html"><i class="fa fa-dashboard"></i> Dashboard</a></li>
-            <li class="active"><a href="history.html"><i class="fa fa-bar-chart-o"></i> History</a></li>
-            <li><a href="configuration.html"><i class="fa fa-keyboard-o"></i> Configuration</a></li>
+          <ul id="side-menu" class="nav navbar-nav side-nav"> 
+          <!-- Filled via script -->
           </ul>
-
           <ul class="nav navbar-nav navbar-right navbar-user">
             <li class="dropdown user-dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-archive"></i> Log Files<b class="caret"></b></a>

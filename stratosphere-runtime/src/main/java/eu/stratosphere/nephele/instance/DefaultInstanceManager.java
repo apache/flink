@@ -18,6 +18,7 @@ import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -390,4 +391,10 @@ public class DefaultInstanceManager implements InstanceManager {
 
 		return slots;
 	}
+	
+	@Override
+	public Map<InstanceConnectionInfo, Instance> getInstances() {
+		return this.registeredHosts;
+	}
+	
 }

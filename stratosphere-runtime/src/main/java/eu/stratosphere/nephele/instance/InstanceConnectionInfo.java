@@ -199,6 +199,10 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 
 		return this.domainName;
 	}
+	
+	public String getInetAdress() {
+		return this.inetAddress.toString();
+	}
 
 
 	@Override
