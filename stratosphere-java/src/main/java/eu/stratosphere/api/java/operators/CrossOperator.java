@@ -16,6 +16,7 @@ package eu.stratosphere.api.java.operators;
 
 import java.util.Arrays;
 
+import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.functions.GenericCrosser;
 import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
 import eu.stratosphere.api.common.operators.DualInputSemanticProperties;
@@ -55,11 +56,11 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		if (!(function instanceof ProjectCrossFunction)) {
 			extractSemanticAnnotationsFromUdf(function.getClass());
 		} else {
-			generateProjectionProperties(((ProjectCrossFunction) function));
+			generateProjectionProperties(((ProjectCrossFunction<?, ?, ?>) function));
 		}
 	}
 
-	public void generateProjectionProperties(ProjectCrossFunction pcf) {
+	public void generateProjectionProperties(ProjectCrossFunction<?, ?, ?> pcf) {
 		DualInputSemanticProperties props = SemanticPropUtil.createProjectionPropertiesDual(pcf.getFields(), pcf.getIsFromFirst());
 		setSemanticProperties(props);
 	}
@@ -92,7 +93,6 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	 * 
 	 * @param <I1> The type of the first input DataSet of the Cross transformation.
 	 * @param <I2> The type of the second input DataSet of the Cross transformation.
-	 * @param <OUT> The type of the result of the Cross transformation.
 	 * 
 	 * @see Tuple2
 	 * @see DataSet
@@ -140,18 +140,20 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * If the first cross input is not a Tuple DataSet, no parameters should be passed.<br/>
 		 *
 		 * Fields of the first and second input can be added by chaining the method calls of
-		 * {@link CrossProjection#projectFirst(int...)} and {@link CrossProjection#projectSecond(int...)}.
+		 * {@link eu.stratosphere.api.java.operators.CrossOperator.CrossProjection#projectFirst(int...)} and
+		 * {@link eu.stratosphere.api.java.operators.CrossOperator.CrossProjection#projectSecond(int...)}.
 		 *
-		 * @param fieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields.
+		 * @param firstFieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields.
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
-		 * @return A CrossProjection that needs to be converted into a {@link ProjectCross} to complete the
+		 * @return A CrossProjection that needs to be converted into a 
+		 *           {@link eu.stratosphere.api.java.operators.CrossOperator.ProjectCross} to complete the
 		 *           Cross transformation by calling {@link CrossProjection#types()}.
 		 *
 		 * @see Tuple
 		 * @see DataSet
-		 * @see CrossProjection
-		 * @see ProjectCross
+		 * @see eu.stratosphere.api.java.operators.CrossOperator.CrossProjection
+		 * @see eu.stratosphere.api.java.operators.CrossOperator.ProjectCross
 		 */
 		public CrossProjection<I1, I2> projectFirst(int... firstFieldIndexes) {
 			return new CrossProjection<I1, I2>(input1, input2, firstFieldIndexes, null);
@@ -163,18 +165,20 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * If the second cross input is not a Tuple DataSet, no parameters should be passed.<br/>
 		 *
 		 * Fields of the first and second input can be added by chaining the method calls of
-		 * {@link CrossProjection#projectFirst(int...)} and {@link CrossProjection#projectSecond(int...)}.
+		 * {@link eu.stratosphere.api.java.operators.CrossOperator.CrossProjection#projectFirst(int...)} and
+		 * {@link eu.stratosphere.api.java.operators.CrossOperator.CrossProjection#projectSecond(int...)}.
 		 *
-		 * @param fieldIndexes If the second input is a Tuple DataSet, the indexes of the selected fields.
+		 * @param secondFieldIndexes If the second input is a Tuple DataSet, the indexes of the selected fields.
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
-		 * @return A CrossProjection that needs to be converted into a {@link ProjectCross} to complete the
+		 * @return A CrossProjection that needs to be converted into a
+		 *           {@link eu.stratosphere.api.java.operators.CrossOperator.ProjectCross} to complete the
 		 *           Cross transformation by calling {@link CrossProjection#types()}.
 		 *
 		 * @see Tuple
 		 * @see DataSet
-		 * @see CrossProjection
-		 * @see ProjectCross
+		 * @see eu.stratosphere.api.java.operators.CrossOperator.CrossProjection
+		 * @see eu.stratosphere.api.java.operators.CrossOperator.ProjectCross
 		 */
 		public CrossProjection<I1, I2> projectSecond(int... secondFieldIndexes) {
 			return new CrossProjection<I1, I2>(input1, input2, null, secondFieldIndexes);
@@ -202,12 +206,12 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 
 		@Override
 		public CrossOperator<I1, I2, OUT> withConstantSetFirst(String... constantSetFirst) {
-			throw new RuntimeException("Please do not use ConstantFields on ProjectCross. The Fields are automatically calculated.");
+			throw new InvalidProgramException("The semantic properties (constant fields and forwarded fields) are automatically calculated.");
 		}
 
 		@Override
 		public CrossOperator<I1, I2, OUT> withConstantSetSecond(String... constantSetSecond) {
-			throw new RuntimeException("Please do not use ConstantFields on ProjectCross. The Fields are automatically calculated.");
+			throw new InvalidProgramException("The semantic properties (constant fields and forwarded fields) are automatically calculated.");
 		}
 	}
 
@@ -364,9 +368,10 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * If the first cross input is not a Tuple DataSet, no parameters should be passed.<br/>
 		 *
 		 * Fields of the first and second input can be added by chaining the method calls of
-		 * {@link CrossProjection#projectFirst(int...)} and {@link CrossProjection#projectSecond(int...)}.
+		 * {@link eu.stratosphere.api.java.operators.CrossOperator.CrossProjection#projectFirst(int...)} and
+		 * {@link eu.stratosphere.api.java.operators.CrossOperator.CrossProjection#projectSecond(int...)}.
 		 *
-		 * @param fieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields.
+		 * @param firstFieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields.
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
 		 * @return A CrossProjection that needs to be converted into a {@link ProjectOperator} to complete the
@@ -374,8 +379,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 *
 		 * @see Tuple
 		 * @see DataSet
-		 * @see CrossProjection
-		 * @see ProjectCross
+		 * @see eu.stratosphere.api.java.operators.CrossOperator.CrossProjection
+		 * @see eu.stratosphere.api.java.operators.CrossOperator.ProjectCross
 		 */
 		public CrossProjection<I1, I2> projectFirst(int... firstFieldIndexes) {
 
@@ -431,9 +436,10 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * If the second cross input is not a Tuple DataSet, no parameters should be passed.<br/>
 		 *
 		 * Fields of the first and second input can be added by chaining the method calls of
-		 * {@link CrossProjection#projectFirst(int...)} and {@link CrossProjection#projectSecond(int...)}.
+		 * {@link eu.stratosphere.api.java.operators.CrossOperator.CrossProjection#projectFirst(int...)} and
+		 * {@link eu.stratosphere.api.java.operators.CrossOperator.CrossProjection#projectSecond(int...)}.
 		 *
-		 * @param fieldIndexes If the second input is a Tuple DataSet, the indexes of the selected fields.
+		 * @param secondFieldIndexes If the second input is a Tuple DataSet, the indexes of the selected fields.
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
 		 * @return A CrossProjection that needs to be converted into a {@link ProjectOperator} to complete the
@@ -441,8 +447,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 *
 		 * @see Tuple
 		 * @see DataSet
-		 * @see CrossProjection
-		 * @see ProjectCross
+		 * @see eu.stratosphere.api.java.operators.CrossOperator.CrossProjection
+		 * @see eu.stratosphere.api.java.operators.CrossOperator.ProjectCross
 		 */
 		public CrossProjection<I1, I2> projectSecond(int... secondFieldIndexes) {
 

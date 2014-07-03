@@ -30,7 +30,8 @@ import eu.stratosphere.configuration.Configuration;
 /**
  * The <tt>SingleInputUdfOperator</tt> is the base class of all unary operators that execute
  * user-defined functions (UDFs). The UDFs encapsulated by this operator are naturally UDFs that
- * have one input (such as {@link MapFunction} or {@link ReduceFunction}).
+ * have one input (such as {@link eu.stratosphere.api.java.functions.MapFunction} or
+ * {@link eu.stratosphere.api.java.functions.ReduceFunction}).
  * <p>
  * This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization
  * through configuration objects, and semantic properties.
@@ -98,7 +99,8 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 * <p>
 	 * Constant set annotations are used by the optimizer to infer the existence of data properties (sorted, partitioned, grouped).
 	 * In certain cases, these annotations allow the optimizer to generate a more efficient execution plan which can lead to improved performance.
-	 * Constant set annotations can only be specified if the second input and the output type of the UDF are of {@link Tuple} data types.
+	 * Constant set annotations can only be specified if the second input and the output type of the UDF are of
+	 * {@link eu.stratosphere.api.java.tuple.Tuple} data types.
 	 * 
 	 * <p>
 	 * A constant-set annotation is a set of constant field specifications. The constant field specification String "4->3" specifies, that this UDF copies the fourth field of 
