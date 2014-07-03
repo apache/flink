@@ -44,10 +44,9 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 	private TypeSerializer<T> serializer;
 
 	private transient Collection<T> dataSet; // input data as collection. transient, because it will be serialized in a custom way
-	
+
 	private transient Iterator<T> iterator;
 
-	
 	public CollectionInputFormat(Collection<T> dataSet, TypeSerializer<T> serializer) {
 		if (dataSet == null) {
 			throw new NullPointerException();
@@ -58,7 +57,6 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 		this.dataSet = dataSet;
 	}
 
-	
 	@Override
 	public boolean reachedEnd() throws IOException {
 		return !this.iterator.hasNext();
