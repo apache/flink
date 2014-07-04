@@ -2,15 +2,12 @@
 title: "Scala API Programming Guide"
 ---
 
-
+<section id="top">
 Scala Programming Guide
 =======================
 
 This guide explains how to develop Stratosphere programs with the Scala
-programming interface. It assumes you are familiar with the general concepts of
-Stratosphere's [Programming Model](pmodel.html "Programming Model"). We
-recommend to learn about the basic concepts first, before continuing with the
-[Java](java.html "Java Programming Guide") or this Scala programming guide.
+programming interface. 
 
 Here we will look at the general structure of a Scala job. You will learn how to
 write data sources, data sinks, and operators to create data flows that can be
@@ -20,6 +17,8 @@ Writing Scala jobs requires an understanding of Scala, there is excellent
 documentation available [here](http://scala-lang.org/documentation/). Most
 of the examples can be understood by someone with a good understanding
 of programming in general, though.
+
+[Back to top](#top)
 
 <section id="intro-example">
 Word Count Example
@@ -77,6 +76,8 @@ which can then be executed on a cluster using `RemoteExecutor`. Here, the
 `LocalExecutor` is used to run the flow on the local computer. This is useful
 for debugging your job before running it on an actual cluster.
 
+[Back to top](#top)
+
 <section id="intro-example">
 Project Setup
 -------------
@@ -93,18 +94,18 @@ following lines to your POM.
   <dependency>
     <groupId>eu.stratosphere</groupId>
     <artifactId>stratosphere-scala</artifactId>
-    <version>{{site.current_stable}}</version>
+    <version>{{site.FLINK_VERSION_STABLE}}</version>
   </dependency>
   <dependency>
     <groupId>eu.stratosphere</groupId>
     <artifactId>stratosphere-clients</artifactId>
-    <version>{{site.current_stable}}</version>
+    <version>{{site.FLINK_VERSION_STABLE}}</version>
   </dependency>
 </dependencies>
 ```
 
 To quickly get started you can use the Stratosphere Scala quickstart available
-[here]({{site.baseurl}}/quickstart/scala.html). This will give you a
+[here](scala_api_quickstart.html). This will give you a
 completeMaven project with some working example code that you can use to explore
 the system or as basis for your own projects.
 
@@ -121,6 +122,8 @@ import eu.stratosphere.client.RemoteExecutor
 The first two imports contain things like `DataSet`, `Plan`, data sources, data
 sinks, and the operations. The last two imports are required if you want to run
 a data flow on your local machine, respectively cluster.
+
+[Back to top](#top)
 
 <section id="dataset">
 The DataSet Abstraction
@@ -155,6 +158,8 @@ val mapped = input map { a => (a._1, a._2 + 1)}
 
 The anonymous function would retrieve in `a` tuples of type `(String, Int)`.
 
+[Back to top](#top)
+
 <section id="datatypes">
 Data Types
 ----------
@@ -165,12 +170,12 @@ the primitive Scala types, case classes (which includes tuples), and custom
 data types.
 
 Custom data types must implement the interface
-[Value](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-core/src/main/java/eu/stratosphere/types/Value.java).
+{% gh_link /stratosphere-core/src/main/java/eu/stratosphere/types/Value.java "Value" %}.
 For custom data types that should also be used as a grouping key or join key
-the [Key](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-core/src/main/java/eu/stratosphere/types/Key.java)
+the {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/types/Key.java "Key" %}
 interface must be implemented.
 
-
+[Back to top](#top)
 
 <section id="data-sources">
 Creating Data Sources
@@ -201,6 +206,8 @@ formats are:
 We will now have a look at each of them and show how they are employed and in
 which situations.
 
+[Back to top](#top)
+
 <section id="text-input-format">
 #### TextInputFormat
 
@@ -219,6 +226,8 @@ val input = TextFile("<file-path>")
 ```
 
 The `input` would then be a `DataSet[String]`.
+
+[Back to top](#top)
 
 <section id="csv-input-format">
 #### CsvInputFormat
@@ -259,6 +268,8 @@ val input = DataSource("file:///some/file", CsvInputFormat[(Int, Int, String)](S
 Here only the specified fields would be read and 3-tuples created for you.
 The type of input would be `DataSet[(Int, Int, String)]`.
 
+[Back to top](#top)
+
 <section id="delimited-input-format">
 #### DelimitedInputFormat
 
@@ -290,6 +301,8 @@ In this example EdgeInputPattern is some regular expression used for parsing
 a line of text and `Path` is a custom case class that is used to represent
 the data. The type of input would in this case be `DataSet[Path]`.
 
+[Back to top](#top)
+
 <section id="binary-input-format">
 #### BinaryInputFormat
 
@@ -320,6 +333,8 @@ val input = DataSource("file:///some/file", BinaryInputFormat( { input =>
 
 Here `input` would be of type `DataSet[(Int, Double)]`.
 
+[Back to top](#top)
+
 <section id="binary-serialized-input-format">
 #### BinarySerializedInputFormat
 
@@ -340,6 +355,7 @@ could use:
 ```scala
 val input = DataSource("file:///some/file", BinarySerializedInputFormat[(String, Int)]())
 ```
+[Back to top](#top)
 
 <section id="fixed-length-input-format">
 #### FixedLengthInputFormat
@@ -357,6 +373,7 @@ FixedLengthInputFormat[Out](readFunction: (Array[Byte], Int) => Out, recordLengt
 The specified function gets an array and a position at which it must start
 reading the array and returns the element read from the binary data.
 
+[Back to top](#top)
 
 <section id="operations">
 Operations on DataSet
@@ -387,6 +404,8 @@ a data flow graph that processes data only when executed.
 There are operations on `DataSet` that correspond to all the types of operators
 that the Stratosphere system supports. We will shortly go trough all of them with
 some examples.
+
+[Back to top](#top)
 
 <section id="operator-templates">
 #### Basic Operator Templates
@@ -438,6 +457,7 @@ val input: DataSet[(String, Int)]
 
 val mapped = input.filter { x => x._2 >= 3 }
 ```
+[Back to top](#top)
 
 <section id="key-selectors">
 #### Field/Key Selectors
@@ -488,7 +508,7 @@ def filter(fun: In => Boolean): DataSet[Out]
 
 #### Reduce Operation
 
-As explained [here](pmodel.html#operators) Reduce is an operation that looks
+Reduce is an operation that looks
 at groups of elements at a time and can, for one group, output one or several
 elements. To specify how elements should be grouped you need to give
 a key selection function, as explained [above](#key-selectors).
@@ -660,6 +680,8 @@ def union(secondInput: DataSet[A])
 
 Where `A` is the generic type of the `DataSet` on which you execute the `union`.
 
+[Back to top](#top)
+
 <section id="iterations">
 Iterations
 ----------
@@ -729,6 +751,7 @@ refer to [iterations](iterations.html). A working example job is
 available here:
 [Scala Connected Components Example](examples_scala.html#connected_components) 
 
+[Back to top](#top)
 
 <section id="data-sinks">
 Creating Data Sinks
@@ -756,6 +779,8 @@ builtin formats or a custom output format. The builtin formats are:
 
 We will now have a look at each of them and show how they are employed and in
 which situations.
+
+[Back to top](#top)
 
 <section id="delimited-output-format">
 #### DelimitedOutputFormat
@@ -785,6 +810,8 @@ Here we use Scala String formatting to write the two fields of the tuple
 separated by a pipe character. The default newline delimiter will be inserted
 between the elements in the output files.
 
+[Back to top](#top)
+
 <section id="csv-output-format">
 #### CsvOutputFormat
 
@@ -809,6 +836,8 @@ val sink = out.write("file:///some/file", CsvOutputFormat())
 ```
 
 Notice how we don't need to specify the generic type here, it is inferred.
+
+[Back to top](#top)
 
 <section id="raw-output-format">
 #### RawOutputFormat
@@ -850,6 +879,7 @@ A `BinaryOutputFormat` is created like this:
 BinaryOutputFormat[In](writeFunction: (In, DataOutput) => Unit)
 BinaryOutputFormat[In](writeFunction: (In, DataOutput) => Unit, blockSize: Long)
 ```
+[Back to top](#top)
 
 <section id="binary-serialized-output-format">
 #### BinarySerializedOutputFormat
@@ -875,13 +905,13 @@ val sink = out.write("file:///some/file", BinarySerializedInputFormat())
 As you can see the type of the elements need not be specified, it is inferred
 by Scala.
 
+[Back to top](#top)
+
 <section id="execution">
 Executing Jobs
 --------------
 
-To execute a data flow graph the sinks need to be wrapped in a
-[ScalaPlan](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-scala/src/main/scala/eu/stratosphere/api/scala/ScalaPlan.scala)
-object like this:
+To execute a data flow graph the sinks need to be wrapped in a {% gh_link /stratosphere-scala/src/main/scala/eu/stratosphere/api/scala/ScalaPlan.scala "ScalaPlan" %} object like this:
 
 ```scala
 val out: DataSet[(String, Int)]
@@ -914,9 +944,9 @@ This is all there is to it.
 
 Remote (or cluster) execution is a bit more complicated because you have
 to package your code in a jar file so that it can be distributed on the cluster.
-Have a look at the [scala quickstart](/quickstart/scala.html) to see how you
+Have a look at the [scala quickstart](scala_api_quickstart.html) to see how you
 can set up a maven project that does the packaging. Remote execution is done
-using the [RemoteExecutor](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-clients/src/main/java/eu/stratosphere/client/RemoteExecutor.java), like this:
+using the {% gh_link /stratosphere-clients/src/main/java/eu/stratosphere/client/RemoteExecutor.java "RemoteExecutor" %}, like this:
 
 ```scala
 import eu.stratosphere.client.RemoteExecutor
@@ -933,6 +963,8 @@ setup. Have a look at [cluster quickstart](/quickstart/setup.html) for a quick
 guide about how to set up a cluster. The default cluster port is 6123, so
 if you run a job manger on your local computer you can give this and "localhost"
 as the first to parameters to the `RemoteExecutor` constructor.
+
+[Back to top](#top)
 
 <section id="rich-functions">
 Rich Functions
@@ -974,7 +1006,7 @@ instead of the anonymous class we used here.
 
 There are rich functions for all the various operator types. The basic
 template is the some, though. The common interface that they implement 
-is [Function](https://github.com/stratosphere/stratosphere/blob/release-{{site.current_stable}}/stratosphere-core/src/main/java/eu/stratosphere/api/common/functions/Function.java). The `open` and `close` methods can be overridden to run set-up
+is {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/functions/Function.java "Function" %}. The `open` and `close` methods can be overridden to run set-up
 and tear-down code. The other methods can be used in a rich function to
 work with the runtime context which gives information about the context
 of the operator. Your operation code must now reside in an `apply` method
@@ -1006,3 +1038,5 @@ abstract class FlatCrossFunction[LeftIn, RightIn, Out]
 
 Note that for all the rich stubs, you need to specify the generic type of
 the input (or inputs) and the output type.
+
+[Back to top](#top)

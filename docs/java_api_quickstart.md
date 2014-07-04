@@ -18,7 +18,7 @@ Use one of the following commands to __create a project__:
 <div class="tab-content">
     <div class="tab-pane active" id="quickstart-script">
     {% highlight bash %}
-    $ curl https://raw.githubusercontent.com/stratosphere/stratosphere-quickstart/master/quickstart.sh | bash
+    $ curl https://raw.githubusercontent.com/apache/incubator-flink/master/stratosphere-quickstart/quickstart.sh | bash
     {% endhighlight %}
     </div>
     <div class="tab-pane" id="maven-archetype">
@@ -26,7 +26,7 @@ Use one of the following commands to __create a project__:
     $ mvn archetype:generate                             \
       -DarchetypeGroupId=eu.stratosphere               \
       -DarchetypeArtifactId=quickstart-java            \
-      -DarchetypeVersion={{site.current_stable}}
+      -DarchetypeVersion={{site.FLINK_VERSION_STABLE}}
     {% endhighlight %}
         This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
     </div>
@@ -114,6 +114,6 @@ public class LineSplitter extends FlatMapFunction<String, Tuple2<String, Integer
   }
 }
 ```
-[Check GitHub](https://github.com/apache/incubator-flink/blob/master/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/wordcount/WordCount.java) for the full example code.
+{% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/wordcount/WordCount.java "Check GitHub" %} for the full example code.
 
 For a complete overview over our Java API, have a look at the [API Documentation](java_api_guide.html) and [further example programs](java_api_examples.html). If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/incubator-flink-dev/). We are happy to provide help.

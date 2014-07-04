@@ -24,8 +24,8 @@ Hadoop client libraries with Stratosphere by default.
 
 Additionally, we provide a special YARN Enabled download of Stratosphere for
 users with an existing Hadoop YARN cluster. [Apache Hadoop
-YARN](http://hadoop.apache.org/docs/r2.2.0/hadoop-yarn/hadoop-yarn-
-site/YARN.html) is Hadoop's cluster resource manager that allows to use
+YARN](http://hadoop.apache.org/docs/r2.2.0/hadoop-yarn/hadoop-yarn-site/YARN.html) 
+is Hadoop's cluster resource manager that allows to use
 different execution engines next to each other on a cluster.
 
 # Usage
@@ -77,7 +77,7 @@ As a rule-of-thumb, the number of buffers should be at least
 
 ## My job fails early with a java.io.EOFException. What could be the cause?
 
-Note: In version <em>0.4</em>, the delta iterations limit the solution set to
+Note: In version _0.4_, the delta iterations limit the solution set to
 records with fixed-length data types. We will  in the next version.
 
 The most common case for these exception is when Stratosphere is set up with the
@@ -100,7 +100,7 @@ Call to <host:port> failed on local exception: java.io.EOFException
 ```
 
 Please refer to the [download page](http://stratosphere.eu/downloads/#maven) and
-the [build instructions](https://github.com/stratosphere/stratosphere/blob/master/README.md)
+the {% gh_link README.md master "build instructions" %}
 for details on how to set up Stratosphere for different Hadoop and HDFS versions.
 
 ## My program does not compute the correct result. Why are my custom key types
@@ -159,8 +159,7 @@ destage operations to disk, if necessary. By default, the system reserves around
 70% of the memory. If you frequently run applications that need more memory in
 the user-defined functions, you can reduce that value using the configuration
 entries `taskmanager.memory.fraction` or `taskmanager.memory.size`. See the
-[Configuration Reference](http://stratosphere.eu/docs/0.4/setup/config.html
-"Configuration Reference") for details. This will leave more memory to JVM heap,
+[Configuration Reference](config.html) for details. This will leave more memory to JVM heap,
 but may cause data processing tasks to go to disk more often.
 
 ## Why do the TaskManager log files become so huge?
@@ -277,9 +276,9 @@ open source project in the next versions.
 
 ## Are Hadoop-like utilities, such as Counters and the DistributedCache supported?
 
-[Stratosphere's Accumulators](java_api_guide.html) work very similar like
+[Stratosphere's Accumulators](java_api_guide.html#accumulators-&-counters) work very similar like
 [Hadoop's counters, but are more powerful.
 
-Stratosphere has a [Distributed Cache](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-core/src/main/java/eu/stratosphere/api/common/cache/DistributedCache.java) that is deeply integrated with the APIs. Please refer to the [JavaDocs](https://github.com/stratosphere/stratosphere/blob/{{ site.docs_05_stable_gh_tag }}/stratosphere-java/src/main/java/eu/stratosphere/api/java/ExecutionEnvironment.java#L561) for details on how to use it.
+Stratosphere has a {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/cache/DistributedCache.java "Distributed Cache" %} that is deeply integrated with the APIs. Please refer to the {% gh_link /stratosphere-java/src/main/java/eu/stratosphere/api/java/ExecutionEnvironment.java#L561 "JavaDocs" %} for details on how to use it.
 
-In order to make data sets available on all tasks, we encourage you to use [Broadcast Variables]({{site.baseurl}}/docs/0.5/programming_guides/java.html#broadcast_variables) instead. They are more efficient and easier to use than the distributed cache.
+In order to make data sets available on all tasks, we encourage you to use [Broadcast Variables](java_api_guide.html#broadcast_variables) instead. They are more efficient and easier to use than the distributed cache.

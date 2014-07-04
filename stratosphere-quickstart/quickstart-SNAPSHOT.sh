@@ -17,8 +17,8 @@ PACKAGE=quickstart
 
 mvn archetype:generate								\
   -DarchetypeGroupId=eu.stratosphere 				\
-  -DarchetypeArtifactId=quickstart-java-SNAPSHOT				\
-  -DarchetypeVersion=0.5-SNAPSHOT					\
+  -DarchetypeArtifactId=quickstart-java				\
+  -DarchetypeVersion=0.6-SNAPSHOT					\
   -DgroupId=eu.stratosphere 						\
   -DartifactId=$PACKAGE								\
   -Dversion=0.1										\
