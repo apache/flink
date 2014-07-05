@@ -277,6 +277,13 @@ public abstract class DataSet<T> {
 		}
 		return new ReduceOperator<T>(this, reducer);
 	}
+
+	public ReduceOperator<T> reduce(ReduceFunction<T> reducer, T initialValue) {
+		if (reducer == null) {
+			throw new NullPointerException("Reduce function must not be null.");
+		}
+		return new ReduceOperator<T>(this, reducer, initialValue);
+	}
 	
 	/**
 	 * Applies a GroupReduce transformation on a non-grouped {@link DataSet}.<br/>

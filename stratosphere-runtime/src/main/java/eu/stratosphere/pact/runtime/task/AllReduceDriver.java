@@ -90,20 +90,27 @@ public class AllReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
 		}
 
 		final GenericReduce<T> stub = this.taskContext.getStub();
+		final T initialValue = (stub == null) ? null : stub.getInitialValue();
 		final MutableObjectIterator<T> input = this.input;
 		final TypeSerializer<T> serializer = this.serializer;
-		
+
 		T val1 = serializer.createInstance();
-		
+
 		if ((val1 = input.next(val1)) == null) {
-			return;
+			if (initialValue == null) {
+				return;
+			}
+
+			val1 = initialValue;
+		} else if (running && initialValue != null) {
+			val1 = stub.reduce(initialValue, val1);
 		}
-		
+
 		T val2;
 		while (running && (val2 = input.next(serializer.createInstance())) != null) {
 			val1 = stub.reduce(val1, val2);
 		}
-		
+
 		this.taskContext.getOutputCollector().collect(val1);
 	}
 

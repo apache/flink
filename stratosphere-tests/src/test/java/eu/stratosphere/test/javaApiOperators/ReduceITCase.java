@@ -16,9 +16,12 @@ package eu.stratosphere.test.javaApiOperators;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 
+import eu.stratosphere.api.java.functions.FilterFunction;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -37,7 +40,7 @@ import eu.stratosphere.test.util.JavaProgramTestBase;
 @RunWith(Parameterized.class)
 public class ReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 8;
+	private static int NUM_PROGRAMS = 11;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -67,7 +70,7 @@ public class ReduceITCase extends JavaProgramTestBase {
 
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
+		for(int i = 1; i <= NUM_PROGRAMS; i++) {
 			Configuration config = new Configuration();
 			config.setInteger("ProgramId", i);
 			tConfigs.add(config);
@@ -267,12 +270,78 @@ public class ReduceITCase extends JavaProgramTestBase {
 						"65,5,Hi again!\n" +
 						"111,6,Hi again!\n";
 			}
+			case 9: {
+				// reduce with initial value
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+				final int n = 10;
+				final int initialValue = 1;
+
+				List<Integer> ones = new ArrayList<Integer>(n);
+				for (int i = 0; i < n; i++) {
+					ones.add(i, 1);
+				}
+
+				DataSet<Integer> input = env.fromCollection(ones);
+
+				input.reduce(new ReduceFunction<Integer>() {
+					@Override
+					public Integer reduce(Integer value1, Integer value2) throws Exception {
+						return value1 + value2;
+					}
+				}, initialValue).writeAsText(resultPath);
+
+				env.execute();
+
+				return Long.toString(n + initialValue) + "\n";
+			}
+			case 10: {
+				// reduce with initial value (empty input)
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+				final int initialValue = 1;
+
+				DataSet<Integer> input = env.fromElements(1).filter(new FilterFunction<Integer>() {
+					@Override
+					public boolean filter(Integer value) throws Exception {
+						return false;
+					}
+				});
+
+				input.reduce(new ReduceFunction<Integer>() {
+					@Override
+					public Integer reduce(Integer value1, Integer value2) throws Exception {
+						return value1 + value2;
+					}
+				}, initialValue).writeAsText(resultPath);
+
+				env.execute();
+
+				return Long.toString(initialValue) + "\n";
+			}
+			case 11: {
+				// reduce with initial value (single value input)
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+				final int initialValue = 1;
+
+				DataSet<Integer> input = env.fromElements(1);
+
+				input.reduce(new ReduceFunction<Integer>() {
+					@Override
+					public Integer reduce(Integer value1, Integer value2) throws Exception {
+						return value1 + value2;
+					}
+				}, initialValue).writeAsText(resultPath);
+
+				env.execute();
+
+				return Long.toString(1 + initialValue) + "\n";
+			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
 			}
-			
 		}
-	
 	}
 	
 	public static class Tuple3Reduce extends ReduceFunction<Tuple3<Integer, Long, String>> {
@@ -287,7 +356,6 @@ public class ReduceITCase extends JavaProgramTestBase {
 		public Tuple3Reduce(String f2Replace) { 
 			this.f2Replace = f2Replace;
 		}
-		
 
 		@Override
 		public Tuple3<Integer, Long, String> reduce(

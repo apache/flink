@@ -39,7 +39,8 @@ public class PlanUnwrappingReduceOperator<T, K> extends ReduceOperatorBase<Tuple
 		implements GenericReduce<Tuple2<K, T>>
 	{
 		private static final long serialVersionUID = 1L;
-		
+
+		private Tuple2<K, T> initialValue;
 
 		private ReduceWrapper(ReduceFunction<T> wrapped) {
 			super(wrapped);
@@ -49,6 +50,16 @@ public class PlanUnwrappingReduceOperator<T, K> extends ReduceOperatorBase<Tuple
 		public Tuple2<K, T> reduce(Tuple2<K, T> value1, Tuple2<K, T> value2) throws Exception {
 			value1.f1 = this.wrappedFunction.reduce(value1.f1, value2.f1);
 			return value1;
+		}
+
+		@Override
+		public void setInitialValue(Tuple2<K, T> value) {
+			initialValue = value;
+		}
+
+		@Override
+		public Tuple2<K, T> getInitialValue() {
+			return initialValue;
 		}
 	}
 }
