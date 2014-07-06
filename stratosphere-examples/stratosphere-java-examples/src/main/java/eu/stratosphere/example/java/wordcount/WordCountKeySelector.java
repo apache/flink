@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -25,7 +25,7 @@ import eu.stratosphere.util.Collector;
 
 /**
  * Implements a "WordCount" program that computes a simple word occurrence histogram
- * over hard coded examples or text files. This example demonstrates how to use KeySelectors, ReduceFunction and FlatMapFunction.
+ * over a hard coded example or text files. This example demonstrates how to use KeySelectors, ReduceFunction and FlatMapFunction.
  */
 @SuppressWarnings("serial")
 public class WordCountKeySelector {
@@ -41,14 +41,14 @@ public class WordCountKeySelector {
 			System.out.println("You can specify: WordCountKeySelector <input path> <result path>, in order to work with files.");
 		}
 		
-		// Input and output path [optional]
+		// Input and output path [optional].
 		String inputPath = null;
 		String outputPath = null;
 		
-		// Get the environment as starting point
+		// Get the environment as starting point.
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
-		// Read the text file from given input path or hard coded
+		// Read the text file from given input path or use a hard coded example.
 		DataSet<String> text = null;
 		if(args.length >= 1) {
 			inputPath = args[0];
@@ -59,17 +59,17 @@ public class WordCountKeySelector {
 			text = env.fromElements("To be", "or not to be", "or to be still", "and certainly not to be not at all", "is that the question?");
 		}
 		
-		// Split up the lines in pairs (2-tuples) containing: (word,1)
+		// Split up the lines in CustomizedWord containing: (word,1)
 		DataSet<CustomizedWord> words = text.flatMap(new Tokenizer());
 		
 		// Group by the tuple field "0" and sum up tuple field "1". Create KeySelector to be able to group CustomizedWord. Instantiate customized reduce function. 
 		DataSet<CustomizedWord> result = words.groupBy(new CustomizedWordKeySelector())
 				.reduce(new CustomizedWordReducer());
 		
-		// Print result
+		// Write result into text file if output file is specified. Otherwise print to console.
 		if( args.length >= 2) {
 			outputPath = args[1];
-			// write out the result
+			// Write out the result
 			result.writeAsText(outputPath);
 		}
 		else {
@@ -83,15 +83,16 @@ public class WordCountKeySelector {
 	}
 	
 	/**
-	 * Implements the string tokenizer that splits sentences into words as a user-defined
+	 * Implements a string tokenizer that splits sentences into words as a user-defined
 	 * FlatMapFunction. The function takes a line (String) and splits it into 
-	 * multiple pairs in the form of "(word,1)" CustomizedWord).
+	 * multiple pairs in the form of CustomizedWord(word,1) ).
 	 */
 	public static final class Tokenizer extends FlatMapFunction<String, CustomizedWord> {
 
 		@Override
 		public void flatMap(String value, Collector<CustomizedWord> out) {
-			// Normalize and split the line
+			// Normalize (convert words to lower case, so that e.g. "Hello" 
+			// and "hello" become the same) and split the line.
 			String[] tokens = value.toLowerCase().split("\\W+");
 			
 			// Emit the pairs
@@ -104,13 +105,14 @@ public class WordCountKeySelector {
 	}
 	
 	/**
-	 * Customized reducer for CustomizedWord.
+	 * Customized reducer for CustomizedWord. When the keys of two CustomizedWord classes are the same,
+	 * both are reduced into one CustomizedWord class.
 	 */
 	public static class CustomizedWordReducer extends ReduceFunction<CustomizedWord>{
 
 		/**
-		 * This function is applied to all members of a group/ Hence to all words which to match.
-		 * Only the count needs to be adjusted.
+		 * This method is applied to all members of a group. Hence to all CustomizedWord instances which have 
+		 * the same key. One CustomizedWord instance is returned in which the count is increased by one.
 		 */
 		@Override
 		public CustomizedWord reduce(CustomizedWord value1,
@@ -123,7 +125,7 @@ public class WordCountKeySelector {
 	
 	/**
 	 * This class is a customized word and count class. It represents a Tuple with two entries (word,count). 
-	 * For this example a customized class is used in order to show how to use KeySelectors
+	 * For this example a customized class is used in order to show how to use KeySelectors.
 	 */
 	public static class CustomizedWord{
 		// Word
@@ -160,17 +162,17 @@ public class WordCountKeySelector {
 	
 	/**
 	 * KeySelector written for CustomizedWord.
-	 * This implementation extracts the KEY out of CustomizedWord.
+	 * This KeySelector extracts the KEY out of CustomizedWord.
 	 * 
 	 */
 	public static class CustomizedWordKeySelector extends KeySelector<CustomizedWord, String> {
-
+		
 		/**
-		 * Extract the KEY out of CustomizedWord.
+		 * This method is called in order to extract the KEY out of CustomizedWord.
 		 */
 		@Override
 		public String getKey(CustomizedWord value) {
-			// Access the word (String) , which is key.
+			// Return the word (String), which is key.
 			return value.word;
 		}
 		
