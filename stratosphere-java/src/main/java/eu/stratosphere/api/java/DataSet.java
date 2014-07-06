@@ -283,7 +283,7 @@ public abstract class DataSet<T> {
 	 * @see GroupReduceOperator
 	 * @see DataSet
 	 */
-	public <K extends Comparable<K>> Grouping<T> groupBy(KeySelector<T, K> keyExtractor) {
+	public <K> Grouping<T> groupBy(KeySelector<T, K> keyExtractor) {
 		return new Grouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
 	}
 	
