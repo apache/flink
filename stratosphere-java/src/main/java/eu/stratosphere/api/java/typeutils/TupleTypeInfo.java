@@ -113,7 +113,7 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 		}
 		
 		// special case for tuples where field zero is the key field
-		if (logicalKeyFields.length == 1 && logicalKeyFields[0] == 0) {
+		if (logicalKeyFields.length == 1 && logicalKeyFields[0] == 0 && !types[0].isTupleType()) {
 			return createLeadingFieldComparator(orders[0], types[0]);
 		}
 		
@@ -134,8 +134,19 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 			int keyPos = logicalKeyFields[i];
 			if (types[keyPos].isKeyType() && types[keyPos] instanceof AtomicType) {
 				fieldComparators[i] = ((AtomicType<?>) types[keyPos]).createComparator(orders[i]);
+			} else if(types[keyPos].isTupleType() && types[keyPos] instanceof TupleTypeInfo){ // Check for tuple
+				TupleTypeInfo<?> tupleType = (TupleTypeInfo<?>) types[keyPos];
+				// All fields are key
+				int[] allFieldsKey = new int[tupleType.types.length];
+				for(int h = 0; h <tupleType.types.length; h++){
+					allFieldsKey[h]=h;
+				}
+				// Prepare order
+				boolean[] tupleOrders = new boolean[tupleType.types.length];
+				Arrays.fill(tupleOrders, orders[i]);
+				fieldComparators[i] = tupleType.createComparator(allFieldsKey, tupleOrders);
 			} else {
-				throw new IllegalArgumentException("The field at position " + i + " (" + types[keyPos] + ") is no atomic key type.");
+				throw new IllegalArgumentException("The field at position " + i + " (" + types[keyPos] + ") is no atomic key type nor tuple type.");
 			}
 		}
 		
