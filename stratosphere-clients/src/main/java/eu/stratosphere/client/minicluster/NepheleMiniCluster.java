@@ -49,7 +49,7 @@ public class NepheleMiniCluster {
 
 	private static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = -1;
 
-	private static final SchedulingStrategy DEFAULT_SCHEDULING_STRATEGY = SchedulingStrategy.FILLFIRST;
+	private static final SchedulingStrategy DEFAULT_SCHEDULING_STRATEGY = SchedulingStrategy.FillFirst;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -308,7 +308,7 @@ public class NepheleMiniCluster {
 
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
 
-		config.setInteger(ConfigConstants.SCHEDULING_STRATEGY, schedulingStrategy.ordinal());
+		config.setString(ConfigConstants.SCHEDULING_STRATEGY, schedulingStrategy.name());
 		
 		return config;
 	}

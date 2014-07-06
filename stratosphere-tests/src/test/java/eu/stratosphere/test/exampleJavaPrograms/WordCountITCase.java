@@ -28,7 +28,7 @@ public class WordCountITCase extends JavaProgramTestBase {
 		setDegreeOfParallelism(4);
 		setNumTaskTracker(2);
 		setTaskManagerNumSlots(4);
-		setSchedulingStrategy(SchedulingStrategy.SPREADOUT);
+		setSchedulingStrategy(SchedulingStrategy.SpreadOut);
 	}
 
 	@Override

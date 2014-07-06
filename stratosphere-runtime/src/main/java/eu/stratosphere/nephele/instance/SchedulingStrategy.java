@@ -14,5 +14,5 @@
 package eu.stratosphere.nephele.instance;
 
 public enum SchedulingStrategy {
-	FILLFIRST, SPREADOUT
+	FillFirst, SpreadOut
 }

@@ -160,6 +160,9 @@ public final class ConfigConstants {
 	 */
 	public static final String JOBCLIENT_POLLING_INTERVAL_KEY = "jobclient.polling.interval";
 
+	/**
+	 * The parameter defining the scheduling strategy. Valid options are "FillFirst" and "SpreadOut"
+	 */
 	public static final String SCHEDULING_STRATEGY = "jobmanager.scheduling-strategy";
 
 	// ------------------------ Hadoop Configuration ------------------------
@@ -395,6 +398,11 @@ public final class ConfigConstants {
 	 * The default timeout for filesystem stream opening: infinite (means max long milliseconds).
 	 */
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
+
+	/**
+	 * The default scheduling strategy
+	 */
+	public static final String DEFAULT_SCHEDULING_STRATEGY = "FillFirst";
 
 	// ------------------------ File System Bahavior ------------------------
 

@@ -54,7 +54,7 @@ public abstract class AbstractTestBase {
 
 	protected static final int DEFAULT_NUM_TASK_TRACKER = 1;
 
-	protected static final SchedulingStrategy DEFAULT_SCHEDULING_STRATEGY = SchedulingStrategy.FILLFIRST;
+	protected static final SchedulingStrategy DEFAULT_SCHEDULING_STRATEGY = SchedulingStrategy.FillFirst;
 
 	protected final Configuration config;
 	

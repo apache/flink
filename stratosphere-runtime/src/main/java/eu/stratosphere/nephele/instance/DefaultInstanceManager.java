@@ -178,16 +178,20 @@ public class DefaultInstanceManager implements InstanceManager {
 		final boolean runTimerAsDaemon = true;
 		new Timer(runTimerAsDaemon).schedule(cleanupStaleMachines, 1000, 1000);
 
-		int schedulingStrategyOrdinal = GlobalConfiguration.getInteger(ConfigConstants.SCHEDULING_STRATEGY, -1);
+		String schedulingStrategyStr = GlobalConfiguration.getString(ConfigConstants.SCHEDULING_STRATEGY,
+				ConfigConstants.DEFAULT_SCHEDULING_STRATEGY);
 
-		SchedulingStrategy resolvedStrategy = SchedulingStrategy.FILLFIRST;
+		SchedulingStrategy resolvedStrategy = null;
 
-		if(schedulingStrategyOrdinal != -1){
-			for(SchedulingStrategy s : SchedulingStrategy.values()){
-				if(s.ordinal() == schedulingStrategyOrdinal){
-					resolvedStrategy = s;
-				}
+		for(SchedulingStrategy s : SchedulingStrategy.values()){
+			if(s.name().equals(schedulingStrategyStr)){
+				resolvedStrategy = s;
+				break;
 			}
+		}
+
+		if(resolvedStrategy == null){
+			throw new RuntimeException("Scheduling strategy: " + schedulingStrategyStr + " is not supported.");
 		}
 
 		schedulingStrategy = resolvedStrategy;
@@ -343,7 +347,7 @@ public class DefaultInstanceManager implements InstanceManager {
 			int allocatedSlots = 0;
 
 			switch(schedulingStrategy){
-				case FILLFIRST:
+				case FillFirst:
 					while(clusterIterator.hasNext()) {
 						instance = clusterIterator.next();
 						while(instance.getNumberOfAvailableSlots() >0  && allocatedSlots < requiredSlots){
@@ -353,7 +357,7 @@ public class DefaultInstanceManager implements InstanceManager {
 						}
 					}
 					break;
-				case SPREADOUT:
+				case SpreadOut:
 					List<Instance> increasingLoad = new ArrayList<Instance>(this.registeredHosts.values());
 
 					if(increasingLoad.size() == 0){
