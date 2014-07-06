@@ -938,7 +938,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 		if(this.availableMemory.size() < additionalSegments) {
 			for(int i = 0; i < numPartitions; i++) {
 				compactPartition(i);
-				if(this.availableMemory.size() < additionalSegments) {
+				if(this.availableMemory.size() >= additionalSegments) {
 					break;
 				}
 			}
