@@ -160,6 +160,8 @@ public final class ConfigConstants {
 	 */
 	public static final String JOBCLIENT_POLLING_INTERVAL_KEY = "jobclient.polling.interval";
 
+	public static final String SCHEDULING_STRATEGY = "jobmanager.scheduling-strategy";
+
 	// ------------------------ Hadoop Configuration ------------------------
 
 	/**
@@ -393,8 +395,7 @@ public final class ConfigConstants {
 	 * The default timeout for filesystem stream opening: infinite (means max long milliseconds).
 	 */
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
-	
-	
+
 	// ------------------------ File System Bahavior ------------------------
 
 	/**

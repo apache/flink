@@ -15,6 +15,7 @@
 package eu.stratosphere.test.exampleJavaPrograms;
 
 import eu.stratosphere.example.java.wordcount.WordCount;
+import eu.stratosphere.nephele.instance.SchedulingStrategy;
 import eu.stratosphere.test.testdata.WordCountData;
 import eu.stratosphere.test.util.JavaProgramTestBase;
 
@@ -26,7 +27,8 @@ public class WordCountITCase extends JavaProgramTestBase {
 	public WordCountITCase(){
 		setDegreeOfParallelism(4);
 		setNumTaskTracker(2);
-		setTaskManagerNumSlots(2);
+		setTaskManagerNumSlots(4);
+		setSchedulingStrategy(SchedulingStrategy.SPREADOUT);
 	}
 
 	@Override

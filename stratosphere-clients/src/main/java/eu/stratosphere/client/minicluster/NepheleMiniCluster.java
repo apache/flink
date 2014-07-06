@@ -17,6 +17,7 @@ import java.lang.reflect.Method;
 
 import eu.stratosphere.nephele.ExecutionMode;
 import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
+import eu.stratosphere.nephele.instance.SchedulingStrategy;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -48,6 +49,8 @@ public class NepheleMiniCluster {
 
 	private static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = -1;
 
+	private static final SchedulingStrategy DEFAULT_SCHEDULING_STRATEGY = SchedulingStrategy.FILLFIRST;
+
 	// --------------------------------------------------------------------------------------------
 	
 	private final Object startStopLock = new Object();
@@ -63,6 +66,8 @@ public class NepheleMiniCluster {
 	private int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 	
 	private long memorySize = DEFAULT_MEMORY_SIZE;
+
+	private SchedulingStrategy schedulingStrategy = DEFAULT_SCHEDULING_STRATEGY;
 	
 	private String configDir;
 
@@ -161,6 +166,10 @@ public class NepheleMiniCluster {
 
 	public int getTaskManagerNumSlots() { return taskManagerNumSlots; }
 
+	public void setSchedulingStrategy(SchedulingStrategy strategy) { this.schedulingStrategy = strategy; }
+
+	public SchedulingStrategy getSchedulingStrategy() { return this.schedulingStrategy; }
+
 	// ------------------------------------------------------------------------
 	// Life cycle and Job Submission
 	// ------------------------------------------------------------------------
@@ -180,7 +189,7 @@ public class NepheleMiniCluster {
 			} else {
 				Configuration conf = getMiniclusterDefaultConfig(jobManagerRpcPort, taskManagerRpcPort,
 					taskManagerDataPort, memorySize, hdfsConfigFile, lazyMemoryAllocation, defaultOverwriteFiles,
-						defaultAlwaysCreateDirectory, taskManagerNumSlots, numTaskTracker);
+						defaultAlwaysCreateDirectory, taskManagerNumSlots, numTaskTracker, schedulingStrategy);
 				GlobalConfiguration.includeConfiguration(conf);
 			}
 
@@ -245,7 +254,7 @@ public class NepheleMiniCluster {
 	public static Configuration getMiniclusterDefaultConfig(int jobManagerRpcPort, int taskManagerRpcPort,
 			int taskManagerDataPort, long memorySize, String hdfsConfigFile, boolean lazyMemory,
 			boolean defaultOverwriteFiles, boolean defaultAlwaysCreateDirectory,
-			int taskManagerNumSlots, int numTaskManager)
+			int taskManagerNumSlots, int numTaskManager, SchedulingStrategy schedulingStrategy)
 	{
 		final Configuration config = new Configuration();
 		
@@ -298,6 +307,8 @@ public class NepheleMiniCluster {
 		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManager);
 
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
+
+		config.setInteger(ConfigConstants.SCHEDULING_STRATEGY, schedulingStrategy.ordinal());
 		
 		return config;
 	}

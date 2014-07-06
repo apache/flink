@@ -30,6 +30,7 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 
+import eu.stratosphere.nephele.instance.SchedulingStrategy;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.log4j.Level;
@@ -53,6 +54,8 @@ public abstract class AbstractTestBase {
 
 	protected static final int DEFAULT_NUM_TASK_TRACKER = 1;
 
+	protected static final SchedulingStrategy DEFAULT_SCHEDULING_STRATEGY = SchedulingStrategy.FILLFIRST;
+
 	protected final Configuration config;
 	
 	protected NepheleMiniCluster executor;
@@ -62,6 +65,8 @@ public abstract class AbstractTestBase {
 	protected int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 
 	protected int numTaskTracker = DEFAULT_NUM_TASK_TRACKER;
+
+	protected SchedulingStrategy schedulingStrategy = DEFAULT_SCHEDULING_STRATEGY;
 
 	public AbstractTestBase(Configuration config) {
 		verifyJvmOptions();
@@ -88,6 +93,7 @@ public abstract class AbstractTestBase {
 		this.executor.setMemorySize(TASK_MANAGER_MEMORY_SIZE);
 		this.executor.setTaskManagerNumSlots(taskManagerNumSlots);
 		this.executor.setNumTaskTracker(this.numTaskTracker);
+		this.executor.setSchedulingStrategy(this.schedulingStrategy);
 		this.executor.start();
 	}
 
@@ -116,6 +122,11 @@ public abstract class AbstractTestBase {
 	public int getNumTaskTracker() { return numTaskTracker; }
 
 	public void setNumTaskTracker(int numTaskTracker) { this.numTaskTracker = numTaskTracker; }
+
+	public void setSchedulingStrategy(SchedulingStrategy schedulingStrategy) { this.schedulingStrategy =
+			schedulingStrategy; }
+
+	public SchedulingStrategy getSchedulingStrategy() { return this.schedulingStrategy; }
 
 	
 	// --------------------------------------------------------------------------------------------
