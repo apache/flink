@@ -236,8 +236,7 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 		try {
 			for (; i < keyPositions.length; i++) {
 				int keyPos = keyPositions[i];
-				@SuppressWarnings("unchecked")
-				int cmp = comparators[i].compare((T)first.getFieldNotNull(keyPos), (T)second.getFieldNotNull(keyPos));
+				int cmp = comparators[i].compare(first.getFieldNotNull(keyPos), second.getFieldNotNull(keyPos));
 
 				if (cmp != 0) {
 					return cmp;

@@ -756,7 +756,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see KeySelector
 		 * @see DataSet
 		 */
-		public <K extends Comparable<K>> JoinOperatorSetsPredicate where(KeySelector<I1, K> keySelector) {
+		public <K> JoinOperatorSetsPredicate where(KeySelector<I1, K> keySelector) {
 			return new JoinOperatorSetsPredicate(new Keys.SelectorFunctionKeys<I1, K>(keySelector, input1.getType()));
 		}
 		
