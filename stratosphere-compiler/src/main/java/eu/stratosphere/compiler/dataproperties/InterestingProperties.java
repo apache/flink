@@ -90,13 +90,13 @@ public class InterestingProperties implements Cloneable
 		InterestingProperties iProps = new InterestingProperties();
 		
 		for (RequestedGlobalProperties rgp : this.globalProps) {
-			RequestedGlobalProperties filtered = rgp.filterByNodesConstantSet(node, input);
+			RequestedGlobalProperties filtered = rgp.filterBySemanticProperties(node, input);
 			if (filtered != null && !filtered.isTrivial()) {
 				iProps.addGlobalProperties(filtered);
 			}
 		}
 		for (RequestedLocalProperties rlp : this.localProps) {
-			RequestedLocalProperties filtered = rlp.filterByNodesConstantSet(node, input);
+			RequestedLocalProperties filtered = rlp.filterBySemanticProperties(node, input);
 			if (filtered != null && !filtered.isTrivial()) {
 				iProps.addLocalProperties(filtered);
 			}

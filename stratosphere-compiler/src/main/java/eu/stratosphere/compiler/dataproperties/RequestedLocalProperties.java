@@ -136,9 +136,9 @@ public class RequestedLocalProperties implements Cloneable {
 	 * @param node The optimizer node that potentially modifies the properties.
 	 * @param input The input of the node which is relevant.
 	 * 
-	 * @return True, if the resulting properties are non trivial.
+	 * @return The filtered RequestedLocalProperties
 	 */
-	public RequestedLocalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
+	public RequestedLocalProperties filterBySemanticProperties(OptimizerNode node, int input) {
 		FieldList sourceList;
 		RequestedLocalProperties returnProps = this;
 

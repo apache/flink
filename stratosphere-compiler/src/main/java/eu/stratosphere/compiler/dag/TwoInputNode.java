@@ -534,12 +534,12 @@ public abstract class TwoInputNode extends OptimizerNode {
 			DualInputPlanNode node = operator.instantiate(in1, in2, this);
 			node.setBroadcastInputs(broadcastChannelsCombination);
 			
-			GlobalProperties gp1 = in1.getGlobalProperties().clone().filterByNodesConstantSet(this, 0);
-			GlobalProperties gp2 = in2.getGlobalProperties().clone().filterByNodesConstantSet(this, 1);
+			GlobalProperties gp1 = in1.getGlobalProperties().clone().filterBySemanticProperties(this, 0);
+			GlobalProperties gp2 = in2.getGlobalProperties().clone().filterBySemanticProperties(this, 1);
 			GlobalProperties combined = operator.computeGlobalProperties(gp1, gp2);
 
-			LocalProperties lp1 = in1.getLocalProperties().clone().filterByNodesConstantSet(this, 0);
-			LocalProperties lp2 = in2.getLocalProperties().clone().filterByNodesConstantSet(this, 1);
+			LocalProperties lp1 = in1.getLocalProperties().clone().filterBySemanticProperties(this, 0);
+			LocalProperties lp2 = in2.getLocalProperties().clone().filterBySemanticProperties(this, 1);
 			LocalProperties locals = operator.computeLocalProperties(lp1, lp2);
 			
 			node.initProperties(combined, locals);

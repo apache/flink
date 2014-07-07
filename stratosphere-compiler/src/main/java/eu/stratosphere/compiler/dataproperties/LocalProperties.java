@@ -124,9 +124,9 @@ public class LocalProperties implements Cloneable {
 	 * @param node The optimizer node that potentially modifies the properties.
 	 * @param input The input of the node which is relevant.
 	 * 
-	 * @return True, if the resulting properties are non trivial.
+	 * @return The filtered LocalProperties
 	 */
-	public LocalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
+	public LocalProperties filterBySemanticProperties(OptimizerNode node, int input) {
 		// check, whether the local order is preserved
 		Ordering no = this.ordering;
 		FieldList ngf = this.groupedFields;

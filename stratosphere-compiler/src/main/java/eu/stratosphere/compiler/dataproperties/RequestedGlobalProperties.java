@@ -166,9 +166,9 @@ public final class RequestedGlobalProperties implements Cloneable {
 	 * 
 	 * @param node The node representing the contract.
 	 * @param input The index of the input.
-	 * @return True, if any non-default value is preserved, false otherwise.
+	 * @return The filtered RequestedGlobalProperties
 	 */
-	public RequestedGlobalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
+	public RequestedGlobalProperties filterBySemanticProperties(OptimizerNode node, int input) {
 		FieldList sourceList;
 		RequestedGlobalProperties returnProps = this;
 

@@ -203,13 +203,13 @@ public class GlobalProperties implements Cloneable
 	}
 
 	/**
-	 * Filters these properties by what can be preserved through the given output contract.
-	 * 
-	 * @param contract
-	 *        The output contract.
-	 * @return True, if any non-default value is preserved, false otherwise.
+	 * Filters these GlobalProperties by the fields that are constant or forwarded to another output field.
+	 *
+	 * @param node The node representing the contract.
+	 * @param input The index of the input.
+	 * @return The filtered GlobalProperties
 	 */
-	public GlobalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
+	public GlobalProperties filterBySemanticProperties(OptimizerNode node, int input) {
 		// check if partitioning survives
 		FieldList forwardFields = null;
 		GlobalProperties returnProps = this;

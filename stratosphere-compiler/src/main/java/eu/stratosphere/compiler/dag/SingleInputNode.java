@@ -457,8 +457,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 			lProps = dps.computeLocalProperties(lProps);
 			
 			// filter by the user code field copies
-			gProps = gProps.filterByNodesConstantSet(this, 0);
-			lProps = lProps.filterByNodesConstantSet(this, 0);
+			gProps = gProps.filterBySemanticProperties(this, 0);
+			lProps = lProps.filterBySemanticProperties(this, 0);
 			
 			// apply
 			node.initProperties(gProps, lProps);
