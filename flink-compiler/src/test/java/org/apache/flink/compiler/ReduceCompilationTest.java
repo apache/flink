@@ -117,9 +117,9 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			assertEquals(sourceNode, combineNode.getInput().getSource());
 			assertEquals(reduceNode, sinkNode.getInput().getSource());
 			
-			// check that both reduce and combiner have the same strategy
+			// check that both reduce and combiner have different strategies
 			assertEquals(DriverStrategy.ALL_REDUCE, reduceNode.getDriverStrategy());
-			assertEquals(DriverStrategy.ALL_REDUCE, combineNode.getDriverStrategy());
+			assertEquals(DriverStrategy.ALL_REDUCE_COMBINE, combineNode.getDriverStrategy());
 			
 			// check DOP
 			assertEquals(8, sourceNode.getDegreeOfParallelism());

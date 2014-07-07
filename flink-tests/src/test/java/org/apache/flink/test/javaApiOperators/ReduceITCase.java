@@ -20,8 +20,10 @@ package org.apache.flink.test.javaApiOperators;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.ReduceFunction;
@@ -39,17 +41,17 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 
 @RunWith(Parameterized.class)
 public class ReduceITCase extends JavaProgramTestBase {
-	
-	private static int NUM_PROGRAMS = 8;
-	
+
+	private static int NUM_PROGRAMS = 11;
+
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
 	private String expectedResult;
-	
+
 	public ReduceITCase(Configuration config) {
 		super(config);
 	}
-	
+
 	@Override
 	protected void preSubmit() throws Exception {
 		resultPath = getTempDirPath("result");
@@ -59,45 +61,45 @@ public class ReduceITCase extends JavaProgramTestBase {
 	protected void testProgram() throws Exception {
 		expectedResult = ReduceProgs.runProgram(curProgId, resultPath);
 	}
-	
+
 	@Override
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(expectedResult, resultPath);
 	}
-	
+
 	@Parameters
 	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
 
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
+		for(int i = 1; i <= NUM_PROGRAMS; i++) {
 			Configuration config = new Configuration();
 			config.setInteger("ProgramId", i);
 			tConfigs.add(config);
 		}
-		
+
 		return toParameterList(tConfigs);
 	}
-	
+
 	private static class ReduceProgs {
-		
+
 		public static String runProgram(int progId, String resultPath) throws Exception {
-			
+
 			switch(progId) {
 			case 1: {
 				/*
 				 * Reduce on tuples with key field selector
 				 */
-				
+
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
+
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 						groupBy(1).reduce(new Tuple3Reduce("B-)"));
-				
+
 				reduceDs.writeAsCsv(resultPath);
 				env.execute();
-				
+
 				// return expected result
 				return "1,1,Hi\n" +
 						"5,2,B-)\n" +
@@ -110,16 +112,16 @@ public class ReduceITCase extends JavaProgramTestBase {
 				/*
 				 * Reduce on tuples with multiple key field selectors
 				 */
-				
+
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
+
 				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
 				DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
 						groupBy(4,0).reduce(new Tuple5Reduce());
-				
+
 				reduceDs.writeAsCsv(resultPath);
 				env.execute();
-				
+
 				// return expected result
 				return "1,1,0,Hallo,1\n" +
 						"2,3,2,Hallo Welt wie,1\n" +
@@ -131,14 +133,14 @@ public class ReduceITCase extends JavaProgramTestBase {
 						"5,11,10,GHI,1\n" +
 						"5,29,0,P-),2\n" +
 						"5,25,0,P-),3\n";
-			} 
+			}
 			case 3: {
 				/*
 				 * Reduce on tuples with key extractor
 				 */
-				
+
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
+
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 						groupBy(new KeySelector<Tuple3<Integer,Long,String>, Long>() {
@@ -148,10 +150,10 @@ public class ReduceITCase extends JavaProgramTestBase {
 										return in.f1;
 									}
 								}).reduce(new Tuple3Reduce("B-)"));
-				
+
 				reduceDs.writeAsCsv(resultPath);
 				env.execute();
-				
+
 				// return expected result
 				return "1,1,Hi\n" +
 						"5,2,B-)\n" +
@@ -159,15 +161,15 @@ public class ReduceITCase extends JavaProgramTestBase {
 						"34,4,B-)\n" +
 						"65,5,B-)\n" +
 						"111,6,B-)\n";
-				
+
 			}
 			case 4: {
 				/*
 				 * Reduce on custom type with key extractor
 				 */
-				
+
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
+
 				DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
 				DataSet<CustomType> reduceDs = ds.
 						groupBy(new KeySelector<CustomType, Integer>() {
@@ -177,10 +179,10 @@ public class ReduceITCase extends JavaProgramTestBase {
 										return in.myInt;
 									}
 								}).reduce(new CustomTypeReduce());
-				
+
 				reduceDs.writeAsText(resultPath);
 				env.execute();
-				
+
 				// return expected result
 				return "1,0,Hi\n" +
 						"2,3,Hello!\n" +
@@ -195,14 +197,14 @@ public class ReduceITCase extends JavaProgramTestBase {
 				 */
 
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
+
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 						reduce(new AllAddingTuple3Reduce());
-				
+
 				reduceDs.writeAsCsv(resultPath);
 				env.execute();
-				
+
 				// return expected result
 				return "231,91,Hello World\n";
 			}
@@ -210,16 +212,16 @@ public class ReduceITCase extends JavaProgramTestBase {
 				/*
 				 * All-reduce for custom types
 				 */
-				
+
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
+
 				DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
 				DataSet<CustomType> reduceDs = ds.
 						reduce(new AllAddingCustomTypeReduce());
-				
+
 				reduceDs.writeAsText(resultPath);
 				env.execute();
-				
+
 				// return expected result
 				return "91,210,Hello!";
 			}
@@ -228,18 +230,18 @@ public class ReduceITCase extends JavaProgramTestBase {
 				/*
 				 * Reduce with broadcast set
 				 */
-				
+
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
+
 				DataSet<Integer> intDs = CollectionDataSets.getIntegerDataSet(env);
-				
+
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 						groupBy(1).reduce(new BCTuple3Reduce()).withBroadcastSet(intDs, "ints");
-				
+
 				reduceDs.writeAsCsv(resultPath);
 				env.execute();
-				
+
 				// return expected result
 				return "1,1,Hi\n" +
 						"5,2,55\n" +
@@ -252,16 +254,16 @@ public class ReduceITCase extends JavaProgramTestBase {
 				/*
 				 * Reduce with UDF that returns the second input object (check mutable object handling)
 				 */
-				
+
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
+
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 						groupBy(1).reduce(new InputReturningTuple3Reduce());
-				
+
 				reduceDs.writeAsCsv(resultPath);
 				env.execute();
-				
+
 				// return expected result
 				return "1,1,Hi\n" +
 						"5,2,Hi again!\n" +
@@ -270,27 +272,92 @@ public class ReduceITCase extends JavaProgramTestBase {
 						"65,5,Hi again!\n" +
 						"111,6,Hi again!\n";
 			}
-			default: 
+			case 9: {
+				// all reduce with initial value
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+				final int n = 10;
+				final int initialValue = 1;
+
+				List<Integer> ones = new ArrayList<Integer>(n);
+				for (int i = 0; i < n; i++) {
+					ones.add(i, 1);
+				}
+
+				DataSet<Integer> input = env.fromCollection(ones);
+
+				input.reduce(new ReduceFunction<Integer>() {
+					@Override
+					public Integer reduce(Integer value1, Integer value2) throws Exception {
+						return value1 + value2;
+					}
+				}, initialValue).writeAsText(resultPath);
+
+				env.execute();
+
+				return Long.toString(n + initialValue) + "\n";
+			}
+			case 10: {
+				// all reduce with initial value (empty input)
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+				final int initialValue = 1;
+
+				DataSet<Integer> input = env.fromElements(1).filter(new FilterFunction<Integer>() {
+					@Override
+					public boolean filter(Integer value) throws Exception {
+						return false;
+					}
+				});
+
+				input.reduce(new ReduceFunction<Integer>() {
+					@Override
+					public Integer reduce(Integer value1, Integer value2) throws Exception {
+						return value1 + value2;
+					}
+				}, initialValue).writeAsText(resultPath);
+
+				env.execute();
+
+				return Long.toString(initialValue) + "\n";
+			}
+			case 11: {
+				// all reduce with initial value (single value input)
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+				final int initialValue = 1;
+
+				DataSet<Integer> input = env.fromElements(1);
+
+				input.reduce(new ReduceFunction<Integer>() {
+					@Override
+					public Integer reduce(Integer value1, Integer value2) throws Exception {
+						return value1 + value2;
+					}
+				}, initialValue).writeAsText(resultPath);
+
+				env.execute();
+
+				return Long.toString(1 + initialValue) + "\n";
+			}
+			default:
 				throw new IllegalArgumentException("Invalid program id");
 			}
-			
 		}
-	
 	}
-	
+
 	public static class Tuple3Reduce extends ReduceFunction<Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 		private final Tuple3<Integer, Long, String> out = new Tuple3<Integer, Long, String>();
 		private final String f2Replace;
-		
-		public Tuple3Reduce() { 
+
+		public Tuple3Reduce() {
 			this.f2Replace = null;
 		}
-		
-		public Tuple3Reduce(String f2Replace) { 
+
+		public Tuple3Reduce(String f2Replace) {
 			this.f2Replace = f2Replace;
 		}
-		
 
 		@Override
 		public Tuple3<Integer, Long, String> reduce(
@@ -305,37 +372,37 @@ public class ReduceITCase extends JavaProgramTestBase {
 			return out;
 		}
 	}
-	
+
 	public static class Tuple5Reduce extends ReduceFunction<Tuple5<Integer, Long, Integer, String, Long>> {
 		private static final long serialVersionUID = 1L;
 		private final Tuple5<Integer, Long, Integer, String, Long> out = new Tuple5<Integer, Long, Integer, String, Long>();
-		
+
 		@Override
 		public Tuple5<Integer, Long, Integer, String, Long> reduce(
 				Tuple5<Integer, Long, Integer, String, Long> in1,
 				Tuple5<Integer, Long, Integer, String, Long> in2)
 				throws Exception {
-			
+
 			out.setFields(in1.f0, in1.f1+in2.f1, 0, "P-)", in1.f4);
 			return out;
 		}
 	}
-	
+
 	public static class CustomTypeReduce extends ReduceFunction<CustomType> {
 		private static final long serialVersionUID = 1L;
 		private final CustomType out = new CustomType();
-		
+
 		@Override
 		public CustomType reduce(CustomType in1, CustomType in2)
 				throws Exception {
-			
+
 			out.myInt = in1.myInt;
 			out.myLong = in1.myLong + in2.myLong;
 			out.myString = "Hello!";
 			return out;
 		}
 	}
-	
+
 	public static class InputReturningTuple3Reduce extends ReduceFunction<Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 
@@ -349,11 +416,11 @@ public class ReduceITCase extends JavaProgramTestBase {
 			return in2;
 		}
 	}
-	
+
 	public static class AllAddingTuple3Reduce extends ReduceFunction<Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 		private final Tuple3<Integer, Long, String> out = new Tuple3<Integer, Long, String>();
-		
+
 		@Override
 		public Tuple3<Integer, Long, String> reduce(
 				Tuple3<Integer, Long, String> in1,
@@ -363,37 +430,37 @@ public class ReduceITCase extends JavaProgramTestBase {
 			return out;
 		}
 	}
-	
+
 	public static class AllAddingCustomTypeReduce extends ReduceFunction<CustomType> {
 		private static final long serialVersionUID = 1L;
 		private final CustomType out = new CustomType();
-		
+
 		@Override
 		public CustomType reduce(CustomType in1, CustomType in2)
 				throws Exception {
-			
+
 			out.myInt = in1.myInt + in2.myInt;
 			out.myLong = in1.myLong + in2.myLong;
 			out.myString = "Hello!";
 			return out;
 		}
 	}
-	
+
 	public static class BCTuple3Reduce extends ReduceFunction<Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 		private final Tuple3<Integer, Long, String> out = new Tuple3<Integer, Long, String>();
 		private String f2Replace = "";
-		
+
 		@Override
 		public void open(Configuration config) {
-			
+
 			Collection<Integer> ints = this.getRuntimeContext().getBroadcastVariable("ints");
 			int sum = 0;
 			for(Integer i : ints) {
 				sum += i;
 			}
 			f2Replace = sum+"";
-			
+
 		}
 
 		@Override
@@ -405,5 +472,5 @@ public class ReduceITCase extends JavaProgramTestBase {
 			return out;
 		}
 	}
-	
+
 }

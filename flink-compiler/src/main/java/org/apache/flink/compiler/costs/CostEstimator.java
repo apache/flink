@@ -165,12 +165,13 @@ public abstract class CostEstimator {
 		switch (n.getDriverStrategy()) {
 		case NONE:
 		case UNARY_NO_OP:
-		case BINARY_NO_OP:	
+		case BINARY_NO_OP:
 		case COLLECTOR_MAP:
 		case MAP:
 		case FLAT_MAP:
 			
 		case ALL_GROUP_REDUCE:
+		case ALL_REDUCE_COMBINE:
 		case ALL_REDUCE:
 			// this operations does not do any actual grouping, since every element is in the same single group
 			

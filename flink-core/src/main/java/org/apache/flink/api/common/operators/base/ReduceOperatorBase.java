@@ -38,6 +38,9 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
  */
 public class ReduceOperatorBase<T, FT extends GenericReduce<T>> extends SingleInputOperator<T, T, FT> {
 
+	// config key for the serialized initial value
+	public final static String INITIAL_VALUE_KEY = "reduce.initial-value";
+
 	/**
 	 * Creates a grouped reduce data flow operator.
 	 * 
@@ -109,5 +112,22 @@ public class ReduceOperatorBase<T, FT extends GenericReduce<T>> extends SingleIn
 	 */
 	public ReduceOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<T, T> operatorInfo, String name) {
 		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
+	}
+
+	public void setInitialValue(TypeSerializer<T> serializer, T initialValue) {
+		if (serializer == null) {
+			throw new NullPointerException("Serializer must not be null.");
+		}
+		if (initialValue == null) {
+			throw new NullPointerException("Initial value must not be null.");
+		}
+
+		try {
+			byte[] initialValueBuf = InstantiationUtil.serializeToByteArray(serializer, initialValue);
+
+			getParameters().setBytes(ReduceOperatorBase.INITIAL_VALUE_KEY, initialValueBuf);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }

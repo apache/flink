@@ -45,7 +45,7 @@ import org.apache.flink.api.common.functions.GenericReduce;
  * @param <T> Type of the elements that this function processes.
  */
 public abstract class ReduceFunction<T> extends AbstractFunction implements GenericReduce<T> {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	/**
@@ -60,4 +60,5 @@ public abstract class ReduceFunction<T> extends AbstractFunction implements Gene
 	 *                   to fail and may trigger recovery.
 	 */
 	public abstract T reduce(T value1, T value2) throws Exception;
+
 }
