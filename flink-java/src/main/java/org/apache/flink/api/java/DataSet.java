@@ -326,6 +326,17 @@ public abstract class DataSet<T> {
 		return new ReduceGroupOperator<T, R>(this, reducer);
 	}
 
+	/**
+	 * Counts the number of elements in the DataSet.
+	 * <p>
+	 * The transformation results in a new data set of type DataSet<Long> with the count of elements.
+	 *
+	 * @return A CountOperator that represents a counted DataSet.
+	 */
+	public CountOperator<T> count() {
+		return new CountOperator<T>(this);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  distinct
 	// --------------------------------------------------------------------------------------------
