@@ -48,10 +48,15 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 	}
 	
 	@Override
+	public T copy(T from) {
+		checkKryoInitialized();
+		return this.kryo.copy(from);
+	}
+	
+	@Override
 	public T copy(T from, T reuse) {
 		checkKryoInitialized();
-		reuse = this.kryo.copy(from);
-		return reuse;
+		return this.kryo.copy(from);
 	}
 	
 	@Override
@@ -62,6 +67,11 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {
 		record.write(target);
+	}
+	
+	@Override
+	public T deserialize(DataInputView source) throws IOException {
+		return deserialize(createInstance(), source);
 	}
 	
 	@Override
@@ -100,6 +110,22 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 			this.kryo = new Kryo();
 			this.kryo.setAsmEnabled(true);
 			this.kryo.register(typeClass);
+		}
+	}
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int hashCode() {
+		return this.typeClass.hashCode() + 177;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj.getClass() == WritableSerializer.class) {
+			WritableSerializer<?> other = (WritableSerializer<?>) obj;
+			return this.typeClass == other.typeClass;
+		} else {
+			return false;
 		}
 	}
 }

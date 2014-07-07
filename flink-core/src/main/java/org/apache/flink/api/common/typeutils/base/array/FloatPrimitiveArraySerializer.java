@@ -20,14 +20,14 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 /**
- * A serializer for long arrays.
+ * A serializer for float arrays.
  */
-public class FloatPrimitiveArraySerializer extends TypeSerializer<float[]>{
+public final class FloatPrimitiveArraySerializer extends TypeSerializerSingleton<float[]>{
 
 	private static final long serialVersionUID = 1L;
 	
@@ -52,10 +52,15 @@ public class FloatPrimitiveArraySerializer extends TypeSerializer<float[]>{
 	}
 
 	@Override
-	public float[] copy(float[] from, float[] reuse) {
+	public float[] copy(float[] from) {
 		float[] copy = new float[from.length];
 		System.arraycopy(from, 0, copy, 0, from.length);
 		return copy;
+	}
+	
+	@Override
+	public float[] copy(float[] from, float[] reuse) {
+		return copy(from);
 	}
 
 	@Override
@@ -77,17 +82,21 @@ public class FloatPrimitiveArraySerializer extends TypeSerializer<float[]>{
 		}
 	}
 
-
 	@Override
-	public float[] deserialize(float[] reuse, DataInputView source) throws IOException {
+	public float[] deserialize(DataInputView source) throws IOException {
 		final int len = source.readInt();
-		reuse = new float[len];
+		float[] result = new float[len];
 		
 		for (int i = 0; i < len; i++) {
-			reuse[i] = source.readFloat();
+			result[i] = source.readFloat();
 		}
 		
-		return reuse;
+		return result;
+	}
+	
+	@Override
+	public float[] deserialize(float[] reuse, DataInputView source) throws IOException {
+		return deserialize(source);
 	}
 
 	@Override

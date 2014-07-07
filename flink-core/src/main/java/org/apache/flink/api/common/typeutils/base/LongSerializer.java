@@ -20,12 +20,11 @@ package org.apache.flink.api.common.typeutils.base;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 
-public class LongSerializer extends TypeSerializer<Long> {
+public final class LongSerializer extends TypeSerializerSingleton<Long> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -50,6 +49,11 @@ public class LongSerializer extends TypeSerializer<Long> {
 	}
 
 	@Override
+	public Long copy(Long from) {
+		return from;
+	}
+	
+	@Override
 	public Long copy(Long from, Long reuse) {
 		return from;
 	}
@@ -65,8 +69,13 @@ public class LongSerializer extends TypeSerializer<Long> {
 	}
 
 	@Override
-	public Long deserialize(Long reuse, DataInputView source) throws IOException {
+	public Long deserialize(DataInputView source) throws IOException {
 		return Long.valueOf(source.readLong());
+	}
+	
+	@Override
+	public Long deserialize(Long reuse, DataInputView source) throws IOException {
+		return deserialize(source);
 	}
 
 	@Override

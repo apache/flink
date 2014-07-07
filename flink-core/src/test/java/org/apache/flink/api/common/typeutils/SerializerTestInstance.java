@@ -69,11 +69,13 @@ public class
 	public void testAll() {
 		testInstantiate();
 		testGetLength();
+		testCopy();
 		testCopyIntoNewElements();
 		testCopyIntoReusedElements();
 		testSerializeIndividually();
 		testSerializeIndividuallyReusingValues();
-		testSerializeAsSequence();
+		testSerializeAsSequenceNoReuse();
+		testSerializeAsSequenceReusingValues();
 		testSerializedCopyIndividually();
 		testSerializedCopyAsSequence();
 		testSerializabilityAndEquals();

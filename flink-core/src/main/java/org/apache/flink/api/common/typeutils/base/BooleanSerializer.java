@@ -20,12 +20,10 @@ package org.apache.flink.api.common.typeutils.base;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-
-public class BooleanSerializer extends TypeSerializer<Boolean> {
+public final class BooleanSerializer extends TypeSerializerSingleton<Boolean> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -49,6 +47,11 @@ public class BooleanSerializer extends TypeSerializer<Boolean> {
 	}
 
 	@Override
+	public Boolean copy(Boolean from) {
+		return from;
+	}
+	
+	@Override
 	public Boolean copy(Boolean from, Boolean reuse) {
 		return from;
 	}
@@ -63,6 +66,11 @@ public class BooleanSerializer extends TypeSerializer<Boolean> {
 		target.writeBoolean(record.booleanValue());
 	}
 
+	@Override
+	public Boolean deserialize(DataInputView source) throws IOException {
+		return Boolean.valueOf(source.readBoolean());
+	}
+	
 	@Override
 	public Boolean deserialize(Boolean reuse, DataInputView source) throws IOException {
 		return Boolean.valueOf(source.readBoolean());

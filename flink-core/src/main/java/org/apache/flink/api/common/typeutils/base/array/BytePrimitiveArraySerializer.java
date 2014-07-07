@@ -20,14 +20,14 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 /**
- * A serializer for long arrays.
+ * A serializer for byte arrays.
  */
-public class BytePrimitiveArraySerializer extends TypeSerializer<byte[]>{
+public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<byte[]>{
 
 	private static final long serialVersionUID = 1L;
 	
@@ -51,10 +51,15 @@ public class BytePrimitiveArraySerializer extends TypeSerializer<byte[]>{
 	}
 
 	@Override
-	public byte[] copy(byte[] from, byte[] reuse) {
+	public byte[] copy(byte[] from) {
 		byte[] copy = new byte[from.length];
 		System.arraycopy(from, 0, copy, 0, from.length);
 		return copy;
+	}
+	
+	@Override
+	public byte[] copy(byte[] from, byte[] reuse) {
+		return copy(from);
 	}
 
 	@Override
@@ -74,13 +79,17 @@ public class BytePrimitiveArraySerializer extends TypeSerializer<byte[]>{
 		target.write(record);
 	}
 
-
+	@Override
+	public byte[] deserialize(DataInputView source) throws IOException {
+		final int len = source.readInt();
+		byte[] result = new byte[len];
+		source.readFully(result);
+		return result;
+	}
+	
 	@Override
 	public byte[] deserialize(byte[] reuse, DataInputView source) throws IOException {
-		final int len = source.readInt();
-		reuse = new byte[len];
-		source.readFully(reuse);
-		return reuse;
+		return deserialize(source);
 	}
 
 	@Override

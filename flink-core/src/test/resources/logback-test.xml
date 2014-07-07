@@ -26,4 +26,8 @@
     <root level="WARN">
         <appender-ref ref="STDOUT"/>
     </root>
+    
+    <logger name="org.apache.flink.api.common.io.DelimitedInputFormat" level="OFF"/>
+    <logger name="org.apache.flink.api.common.io.FileInputFormat" level="OFF"/>
+    <logger name="org.apache.flink.configuration.GlobalConfiguration" level="OFF"/>
 </configuration>
