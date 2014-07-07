@@ -134,39 +134,11 @@ You can check the number of TaskManagers in the JobManager web interface. The ad
 
 If the TaskManagers do not show up after a minute, you should investigate the issue using the log files.
 
-# Build Stratosphere for a specific Hadoop Version
 
-This section covers building Stratosphere for a specific Hadoop version. Most users do not need to do this manually.
-The problem is that Stratosphere uses HDFS and YARN which are both from Apache Hadoop. There exist many different builds of Hadoop (from both the upstream project and the different Hadoop distributions). Typically errors arise with the RPC services. An error could look like this:
+# Build YARN client for a specific Hadoop version
 
-```
-ERROR: The job was not successfully submitted to the nephele job manager:
-    eu.stratosphere.nephele.executiongraph.GraphConversionException: Cannot compute input splits for TSV:
-    java.io.IOException: Failed on local exception: com.google.protobuf.InvalidProtocolBufferException:
-    Protocol message contained an invalid tag (zero).; Host Details :
-```
+Users using Hadoop distributions from companies like Hortonworks, Cloudera or MapR might have to build Stratosphere against their specific versions of Hadoop (HDFS) and YARN. Please read the [build instructions](building.html) for more details.
 
-**Example**
-
-```
-mvn -Dhadoop.profile=2 -Pcdh-repo -Dhadoop.version=2.2.0-cdh5.0.0-beta-2 -DskipTests package
-```
-
-The commands in detail:
-
-*  `-Dhadoop.profile=2` activates the Hadoop YARN profile of Stratosphere. This will enable all components of Stratosphere that are compatible with Hadoop 2.2
-*  `-Pcdh-repo` activates the Cloudera Hadoop dependencies. If you want other vendor's Hadoop dependencies (not in maven central) add the repository to your local maven configuration in `~/.m2/`.
-* `-Dhadoop.version=2.2.0-cdh5.0.0-beta-2` sets a special version of the Hadoop dependencies. Make sure that the specified Hadoop version is compatible with the profile you activated.
-
-If you want to build HDFS for Hadoop 2 without YARN, use the following parameter:
-
-```
--P!include-yarn
-```
-
-Some Cloudera versions (such as `2.0.0-cdh4.2.0`) require this, since they have a new HDFS version with the old YARN API.
-
-Please post to the _Stratosphere mailinglist_(dev@flink.incubator.apache.org) or create an issue on [Jira]({{site.FLINK_ISSUES_URL}}), if you have issues with your YARN setup and Stratosphere.
 
 # Background
 
