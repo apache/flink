@@ -31,8 +31,11 @@ abstract class CaseClassSerializer[T <: Product](
     scalaFieldSerializers: Array[TypeSerializer[_]])
   extends TupleSerializerBase[T](clazz, scalaFieldSerializers) {
 
+  @transient var fields : Array[AnyRef] = _
+  
+  
   def createInstance: T = {
-    val fields: Array[AnyRef] = new Array(arity)
+    initArray()
     for (i <- 0 until arity) {
       fields(i) = fieldSerializers(i).createInstance()
     }
@@ -40,7 +43,11 @@ abstract class CaseClassSerializer[T <: Product](
   }
 
   def copy(from: T, reuse: T): T = {
-    val fields: Array[AnyRef] = new Array(arity)
+    copy(from)
+  }
+  
+  def copy(from: T): T = {
+    initArray()
     for (i <- 0 until arity) {
       fields(i) = from.productElement(i).asInstanceOf[AnyRef]
     }
@@ -55,11 +62,25 @@ abstract class CaseClassSerializer[T <: Product](
   }
 
   def deserialize(reuse: T, source: DataInputView): T = {
-    val fields: Array[AnyRef] = new Array(arity)
+    initArray()
     for (i <- 0 until arity) {
       val field = reuse.productElement(i).asInstanceOf[AnyRef]
       fields(i) = fieldSerializers(i).deserialize(field, source)
     }
     createInstance(fields)
+  }
+  
+  def deserialize(source: DataInputView): T = {
+    initArray()
+    for (i <- 0 until arity) {
+      fields(i) = fieldSerializers(i).deserialize(source)
+    }
+    createInstance(fields)
+  }
+  
+  def initArray() = {
+    if (fields == null) {
+      fields = new Array[AnyRef](arity)
+    }
   }
 }

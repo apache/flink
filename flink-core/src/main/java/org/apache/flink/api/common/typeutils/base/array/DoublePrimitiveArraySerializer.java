@@ -20,14 +20,14 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 /**
- * A serializer for long arrays.
+ * A serializer for double arrays.
  */
-public class DoublePrimitiveArraySerializer extends TypeSerializer<double[]>{
+public final class DoublePrimitiveArraySerializer extends TypeSerializerSingleton<double[]>{
 
 	private static final long serialVersionUID = 1L;
 	
@@ -50,12 +50,17 @@ public class DoublePrimitiveArraySerializer extends TypeSerializer<double[]>{
 	public double[] createInstance() {
 		return EMPTY;
 	}
-
+	
 	@Override
-	public double[] copy(double[] from, double[] reuse) {
+	public double[] copy(double[] from) {
 		double[] copy = new double[from.length];
 		System.arraycopy(from, 0, copy, 0, from.length);
 		return copy;
+	}
+
+	@Override
+	public double[] copy(double[] from, double[] reuse) {
+		return copy(from);
 	}
 
 	@Override
@@ -77,17 +82,21 @@ public class DoublePrimitiveArraySerializer extends TypeSerializer<double[]>{
 		}
 	}
 
-
 	@Override
-	public double[] deserialize(double[] reuse, DataInputView source) throws IOException {
+	public double[] deserialize(DataInputView source) throws IOException {
 		final int len = source.readInt();
-		reuse = new double[len];
+		double[] result = new double[len];
 		
 		for (int i = 0; i < len; i++) {
-			reuse[i] = source.readDouble();
+			result[i] = source.readDouble();
 		}
 		
-		return reuse;
+		return result;
+	}
+	
+	@Override
+	public double[] deserialize(double[] reuse, DataInputView source) throws IOException {
+		return deserialize(source);
 	}
 
 	@Override

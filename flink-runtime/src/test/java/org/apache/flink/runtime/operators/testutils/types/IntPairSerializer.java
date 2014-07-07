@@ -46,6 +46,11 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 	public IntPair createInstance() {
 		return new IntPair();
 	}
+	
+	@Override
+	public IntPair copy(IntPair from) {
+		return new IntPair(from.getKey(), from.getValue());
+	}
 
 	@Override
 	public IntPair copy(IntPair from, IntPair reuse) {
@@ -66,6 +71,11 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 		target.writeInt(record.getValue());
 	}
 
+	@Override
+	public IntPair deserialize(DataInputView source) throws IOException {
+		return new IntPair(source.readInt(), source.readInt());
+	}
+	
 	@Override
 	public IntPair deserialize(IntPair reuse, DataInputView source) throws IOException {
 		reuse.setKey(source.readInt());

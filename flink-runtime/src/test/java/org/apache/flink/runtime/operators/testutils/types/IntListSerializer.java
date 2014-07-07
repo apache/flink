@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.testutils.types;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -44,9 +45,14 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 	}
 	
 	@Override
+	public IntList copy(IntList from) {
+		return new IntList(from.getKey(), Arrays.copyOf(from.getValue(), from.getValue().length));
+	}
+	
+	@Override
 	public IntList copy(IntList from, IntList reuse) {
 		reuse.setKey(from.getKey());
-		reuse.setValue(from.getValue());
+		reuse.setValue(Arrays.copyOf(from.getValue(), from.getValue().length));
 		return reuse;
 	}
 	
@@ -73,6 +79,11 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 		}
 	}
 
+	@Override
+	public IntList deserialize(DataInputView source) throws IOException {
+		return deserialize(new IntList(), source);
+	}
+	
 	@Override
 	public IntList deserialize(IntList record, DataInputView source) throws IOException {
 		int key = source.readInt();

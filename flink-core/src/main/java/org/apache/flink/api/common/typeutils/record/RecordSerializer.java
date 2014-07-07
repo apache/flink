@@ -67,12 +67,16 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 	}
 
 	@Override
+	public Record copy(Record from) {
+		return from.createCopy();
+	}
+	
+	@Override
 	public Record copy(Record from, Record reuse) {
 		from.copyTo(reuse);
 		return reuse;
 	}
 	
-
 	@Override
 	public int getLength() {
 		return -1;
@@ -85,6 +89,11 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 		record.serialize(target);
 	}
 
+	@Override
+	public Record deserialize(DataInputView source) throws IOException {
+		return deserialize(new Record(), source);
+	}
+	
 	@Override
 	public Record deserialize(Record target, DataInputView source) throws IOException {
 		target.deserialize(source);

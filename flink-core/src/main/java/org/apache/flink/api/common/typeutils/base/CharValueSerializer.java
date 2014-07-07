@@ -20,13 +20,11 @@ package org.apache.flink.api.common.typeutils.base;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.CharValue;
 
-
-public class CharValueSerializer extends TypeSerializer<CharValue> {
+public class CharValueSerializer extends TypeSerializerSingleton<CharValue> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -47,6 +45,11 @@ public class CharValueSerializer extends TypeSerializer<CharValue> {
 	public CharValue createInstance() {
 		return new CharValue();
 	}
+	
+	@Override
+	public CharValue copy(CharValue from) {
+		return copy(from, new CharValue());
+	}
 
 	@Override
 	public CharValue copy(CharValue from, CharValue reuse) {
@@ -62,6 +65,11 @@ public class CharValueSerializer extends TypeSerializer<CharValue> {
 	@Override
 	public void serialize(CharValue record, DataOutputView target) throws IOException {
 		record.write(target);
+	}
+	
+	@Override
+	public CharValue deserialize(DataInputView source) throws IOException {
+		return deserialize(new CharValue(), source);
 	}
 
 	@Override

@@ -28,6 +28,8 @@ import java.util.Arrays;
 
 public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
+	private static final long serialVersionUID = 1L;
+
 	protected final Class<T> tupleClass;
 
 	protected final TypeSerializer<Object>[] fieldSerializers;

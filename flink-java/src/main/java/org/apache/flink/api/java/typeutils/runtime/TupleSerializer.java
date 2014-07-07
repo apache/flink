@@ -31,7 +31,6 @@ public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<
 
 	private static final long serialVersionUID = 1L;
 	
-	@SuppressWarnings("unchecked")
 	public TupleSerializer(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
 		super(tupleClass, fieldSerializers);
 	}
@@ -69,6 +68,11 @@ public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<
 	}
 
 	@Override
+	public T copy(T from) {
+		return copy(from, instantiateRaw());
+	}
+	
+	@Override
 	public T copy(T from, T reuse) {
 		for (int i = 0; i < arity; i++) {
 			Object copy = fieldSerializers[i].copy(from.getField(i), reuse.getField(i));
@@ -91,11 +95,30 @@ public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<
 	}
 
 	@Override
+	public T deserialize(DataInputView source) throws IOException {
+		T tuple = instantiateRaw();
+		for (int i = 0; i < arity; i++) {
+			Object field = fieldSerializers[i].deserialize(source);
+			tuple.setField(field, i);
+		}
+		return tuple;
+	}
+	
+	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
 		for (int i = 0; i < arity; i++) {
 			Object field = fieldSerializers[i].deserialize(reuse.getField(i), source);
 			reuse.setField(field, i);
 		}
 		return reuse;
+	}
+	
+	private T instantiateRaw() {
+		try {
+			return tupleClass.newInstance();
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Cannot instantiate tuple.", e);
+		}
 	}
 }

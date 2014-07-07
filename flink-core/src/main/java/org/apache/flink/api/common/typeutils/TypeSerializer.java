@@ -73,10 +73,21 @@ public abstract class TypeSerializer<T> implements Serializable {
 	public abstract T createInstance();
 
 	/**
-	 * Creates a copy from the given element, storing the copied result in the given reuse element if type is mutable.
+	 * Creates a deep copy of the given element in a new element.
 	 * 
 	 * @param from The element reuse be copied.
-	 * @param reuse The element to be reused.
+	 * @return A deep copy of the element.
+	 */
+	public abstract T copy(T from);
+	
+	/**
+	 * Creates a copy from the given element.
+	 * The method makes an attempt to store the copy in the given reuse element, if the type is mutable.
+	 * This is, however, not guaranteed.
+	 * 
+	 * @param from The element to be copied.
+	 * @param reuse The element to be reused. May or may not be used.
+	 * @return A deep copy of the element.
 	 */
 	public abstract T copy(T from, T reuse);
 	
@@ -103,10 +114,22 @@ public abstract class TypeSerializer<T> implements Serializable {
 	public abstract void serialize(T record, DataOutputView target) throws IOException;
 
 	/**
+	 * De-serializes a record from the given source input view.
+	 * 
+	 * @param source The input view from which to read the data.
+	 * @result The deserialized element.
+	 * 
+	 * @throws IOException Thrown, if the de-serialization encountered an I/O related error. Typically raised by the
+	 *                     input view, which may have an underlying I/O channel from which it reads.
+	 */
+	public abstract T deserialize(DataInputView source) throws IOException;
+	
+	/**
 	 * De-serializes a record from the given source input view into the given reuse record instance if mutable.
 	 * 
 	 * @param reuse The record instance into which to de-serialize the data.
 	 * @param source The input view from which to read the data.
+	 * @result The deserialized element.
 	 * 
 	 * @throws IOException Thrown, if the de-serialization encountered an I/O related error. Typically raised by the
 	 *                     input view, which may have an underlying I/O channel from which it reads.
@@ -126,19 +149,4 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * @throws IOException Thrown if any of the two views raises an exception.
 	 */
 	public abstract void copy(DataInputView source, DataOutputView target) throws IOException;
-	
-	// --------------------------------------------------------------------------------------------
-	//  Default Utilities: Hash code and equals are pre-defined for singleton serializers, where
-	//                     all instances are equal
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public int hashCode() {
-		return getClass().hashCode();
-	}
-	
-	@Override
-	public boolean equals(Object obj) {
-		return obj != null && obj.getClass() == this.getClass();
-	}
 }

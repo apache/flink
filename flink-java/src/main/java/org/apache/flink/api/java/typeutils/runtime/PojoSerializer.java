@@ -131,6 +131,28 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
+	public T copy(T from) {
+		T target;
+		try {
+			target = clazz.newInstance();
+		}
+		catch (Throwable t) {
+			throw new RuntimeException("Cannot instantiate class.", t);
+		}
+		
+		try {
+			for (int i = 0; i < numFields; i++) {
+				Object copy = fieldSerializers[i].copy(fields[i].get(from));
+				fields[i].set(target, copy);
+			}
+		}
+		catch (IllegalAccessException e) {
+			throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields before.");
+		}
+		return target;
+	}
+	
+	@Override
 	public T copy(T from, T reuse) {
 		try {
 			for (int i = 0; i < numFields; i++) {
@@ -164,6 +186,28 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		}
 	}
 
+	@Override
+	public T deserialize(DataInputView source) throws IOException {
+		T target;
+		try {
+			target = clazz.newInstance();
+		}
+		catch (Throwable t) {
+			throw new RuntimeException("Cannot instantiate class.", t);
+		}
+		
+		try {
+			for (int i = 0; i < numFields; i++) {
+				Object field = fieldSerializers[i].deserialize(source);
+				fields[i].set(target, field);
+			}
+		} catch (IllegalAccessException e) {
+			throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" +
+					"before.");
+		}
+		return target;
+	}
+	
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
 		try {

@@ -45,6 +45,10 @@ public class StringPairSerializer extends TypeSerializer<StringPair> {
 	}
 	
 	@Override
+	public StringPair copy(StringPair from) {
+		return new StringPair(from.getKey(), from.getValue());
+	}
+	@Override
 	public StringPair copy(StringPair from, StringPair reuse) {
 		reuse.setKey(from.getKey());
 		reuse.setValue(from.getValue());
@@ -62,6 +66,11 @@ public class StringPairSerializer extends TypeSerializer<StringPair> {
 		StringValue.writeString(record.getValue(), target);
 	}
 
+	@Override
+	public StringPair deserialize(DataInputView source) throws IOException {
+		return new StringPair(StringValue.readString(source), StringValue.readString(source));
+	}
+	
 	@Override
 	public StringPair deserialize(StringPair record, DataInputView source) throws IOException {
 		record.setKey(StringValue.readString(source));

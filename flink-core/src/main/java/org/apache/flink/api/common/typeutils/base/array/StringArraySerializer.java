@@ -20,7 +20,7 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.StringValue;
@@ -29,7 +29,7 @@ import org.apache.flink.types.StringValue;
 /**
  * A serializer for String arrays. Specialized for efficiency.
  */
-public class StringArraySerializer extends TypeSerializer<String[]>{
+public final class StringArraySerializer extends TypeSerializerSingleton<String[]>{
 
 	private static final long serialVersionUID = 1L;
 	
@@ -54,17 +54,21 @@ public class StringArraySerializer extends TypeSerializer<String[]>{
 	}
 
 	@Override
+	public String[] copy(String[] from) {
+		String[] target = new String[from.length];
+		System.arraycopy(from, 0, target, 0, from.length);
+		return target;
+	}
+	
+	@Override
 	public String[] copy(String[] from, String[] reuse) {
-		reuse = new String[from.length];
-		System.arraycopy(from, 0, reuse, 0, from.length);
-		return reuse;
+		return copy(from);
 	}
 
 	@Override
 	public int getLength() {
 		return -1;
 	}
-
 
 	@Override
 	public void serialize(String[] record, DataOutputView target) throws IOException {
@@ -79,17 +83,21 @@ public class StringArraySerializer extends TypeSerializer<String[]>{
 		}
 	}
 
-
 	@Override
-	public String[] deserialize(String[] reuse, DataInputView source) throws IOException {
+	public String[] deserialize(DataInputView source) throws IOException {
 		final int len = source.readInt();
-		reuse = new String[len];
+		String[] array = new String[len];
 		
 		for (int i = 0; i < len; i++) {
-			reuse[i] = StringValue.readString(source);
+			array[i] = StringValue.readString(source);
 		}
 		
-		return reuse;
+		return array;
+	}
+	
+	@Override
+	public String[] deserialize(String[] reuse, DataInputView source) throws IOException {
+		return deserialize(source);
 	}
 
 	@Override

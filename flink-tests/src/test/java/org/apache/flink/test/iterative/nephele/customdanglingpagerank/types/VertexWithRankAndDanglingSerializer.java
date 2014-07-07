@@ -20,11 +20,11 @@ package org.apache.flink.test.iterative.nephele.customdanglingpagerank.types;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-public final class VertexWithRankAndDanglingSerializer extends TypeSerializer<VertexWithRankAndDangling> {
+public final class VertexWithRankAndDanglingSerializer extends TypeSerializerSingleton<VertexWithRankAndDangling> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -44,6 +44,11 @@ public final class VertexWithRankAndDanglingSerializer extends TypeSerializer<Ve
 		return new VertexWithRankAndDangling();
 	}
 
+	@Override
+	public VertexWithRankAndDangling copy(VertexWithRankAndDangling from) {
+		return new VertexWithRankAndDangling(from.getVertexID(), from.getRank(), from.isDangling());
+	}
+	
 	@Override
 	public VertexWithRankAndDangling copy(VertexWithRankAndDangling from, VertexWithRankAndDangling reuse) {
 		reuse.setVertexID(from.getVertexID());
@@ -65,6 +70,11 @@ public final class VertexWithRankAndDanglingSerializer extends TypeSerializer<Ve
 	}
 
 	@Override
+	public VertexWithRankAndDangling deserialize(DataInputView source) throws IOException {
+		return new VertexWithRankAndDangling(source.readLong(), source.readDouble(), source.readBoolean());
+	}
+	
+	@Override
 	public VertexWithRankAndDangling deserialize(VertexWithRankAndDangling target, DataInputView source) throws IOException {
 		target.setVertexID(source.readLong());
 		target.setRank(source.readDouble());
@@ -75,17 +85,5 @@ public final class VertexWithRankAndDanglingSerializer extends TypeSerializer<Ve
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.write(source, 17);
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public int hashCode() {
-		return 2;
-	}
-	
-	@Override
-	public boolean equals(Object obj) {
-		return obj != null && obj.getClass() == VertexWithRankAndDanglingSerializer.class;
 	}
 }

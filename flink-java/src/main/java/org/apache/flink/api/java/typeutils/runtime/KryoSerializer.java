@@ -21,6 +21,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -75,10 +76,15 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
+	public T copy(T from) {
+		checkKryoInitialized();
+		return kryo.copy(from);
+	}
+	
+	@Override
 	public T copy(T from, T reuse) {
 		checkKryoInitialized();
-		reuse = kryo.copy(from);
-		return reuse;
+		return kryo.copy(from);
 	}
 
 	@Override
@@ -100,15 +106,19 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public T deserialize(T reuse, DataInputView source) throws IOException {
+	public T deserialize(DataInputView source) throws IOException {
 		checkKryoInitialized();
 		if (source != previousIn) {
 			DataInputViewStream inputStream = new DataInputViewStream(source);
 			input = new NoFetchingInput(inputStream);
 			previousIn = source;
 		}
-		reuse = kryo.readObject(input, typeToInstantiate);
-		return reuse;
+		return kryo.readObject(input, typeToInstantiate);
+	}
+	
+	@Override
+	public T deserialize(T reuse, DataInputView source) throws IOException {
+		return deserialize(source);
 	}
 
 	@Override
@@ -121,6 +131,25 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		T tmp = deserialize(copyInstance, source);
 		serialize(tmp, target);
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int hashCode() {
+		return type.hashCode() + 31 * typeToInstantiate.hashCode();
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj != null && obj instanceof KryoSerializer) {
+			KryoSerializer<?> other = (KryoSerializer<?>) obj;
+			return other.type == this.type && other.typeToInstantiate == this.typeToInstantiate;
+		} else {
+			return false;
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	private final void checkKryoInitialized() {
 		if (this.kryo == null) {
