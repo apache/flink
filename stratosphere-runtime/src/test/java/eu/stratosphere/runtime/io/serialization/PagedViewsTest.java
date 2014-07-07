@@ -21,10 +21,13 @@ import eu.stratosphere.runtime.io.serialization.types.SerializationTestTypeFacto
 import eu.stratosphere.runtime.io.serialization.types.Util;
 import org.junit.Test;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.util.*;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class PagedViewsTest {
@@ -68,6 +71,260 @@ public class PagedViewsTest {
 			fail("Test encountered an unexpected exception.");
 		}
 	}
+
+	@Test
+	public void testReadFully() {
+		int bufferSize = 100;
+		byte[] expected = new byte[bufferSize];
+		new Random().nextBytes(expected);
+
+		TestOutputView outputView = new TestOutputView(bufferSize);
+
+		try {
+			outputView.write(expected);
+		}catch(Exception e){
+			e.printStackTrace();
+			fail("Unexpected exception: Could not write to TestOutputView.");
+		}
+
+		outputView.close();
+
+		TestInputView inputView = new TestInputView(outputView.segments);
+		byte[] buffer = new byte[bufferSize];
+
+		try {
+			inputView.readFully(buffer);
+		} catch (IOException e) {
+			e.printStackTrace();
+			fail("Unexpected exception: Could not read TestInputView.");
+		}
+
+		assertEquals(inputView.getCurrentPositionInSegment(), bufferSize);
+		assertArrayEquals(expected, buffer);
+	}
+
+	@Test
+	public void testReadFullyAcrossSegments() {
+		int bufferSize = 100;
+		int segmentSize = 30;
+		byte[] expected = new byte[bufferSize];
+		new Random().nextBytes(expected);
+
+		TestOutputView outputView = new TestOutputView(segmentSize);
+
+		try {
+			outputView.write(expected);
+		}catch(Exception e){
+			e.printStackTrace();
+			fail("Unexpected exception: Could not write to TestOutputView.");
+		}
+
+		outputView.close();
+
+		TestInputView inputView = new TestInputView(outputView.segments);
+		byte[] buffer = new byte[bufferSize];
+
+		try {
+			inputView.readFully(buffer);
+		} catch (IOException e) {
+			e.printStackTrace();
+			fail("Unexpected exception: Could not read TestInputView.");
+		}
+
+		assertEquals(inputView.getCurrentPositionInSegment(), bufferSize % segmentSize);
+		assertArrayEquals(expected, buffer);
+	}
+
+	@Test
+	public void testReadAcrossSegments() {
+		int bufferSize = 100;
+		int bytes2Write = 75;
+		int segmentSize = 30;
+		byte[] expected = new byte[bytes2Write];
+		new Random().nextBytes(expected);
+
+		TestOutputView outputView = new TestOutputView(segmentSize);
+
+		try {
+			outputView.write(expected);
+		}catch(Exception e){
+			e.printStackTrace();
+			fail("Unexpected exception: Could not write to TestOutputView.");
+		}
+
+		outputView.close();
+
+		TestInputView inputView = new TestInputView(outputView.segments);
+		byte[] buffer = new byte[bufferSize];
+		int bytesRead = 0;
+
+		try {
+			bytesRead = inputView.read(buffer);
+		} catch (IOException e) {
+			e.printStackTrace();
+			fail("Unexpected exception: Could not read TestInputView.");
+		}
+
+		assertEquals(bytes2Write, bytesRead);
+		assertEquals(inputView.getCurrentPositionInSegment(), bytes2Write % segmentSize);
+
+		byte[] tempBuffer = new byte[bytesRead];
+		System.arraycopy(buffer,0,tempBuffer,0,bytesRead);
+		assertArrayEquals(expected, tempBuffer);
+	}
+
+	@Test
+	public void testEmptyingInputView() {
+		int bufferSize = 100;
+		int bytes2Write = 75;
+		int segmentSize = 30;
+		byte[] expected = new byte[bytes2Write];
+		new Random().nextBytes(expected);
+
+		TestOutputView outputView = new TestOutputView(segmentSize);
+
+		try {
+			outputView.write(expected);
+		}catch(Exception e){
+			e.printStackTrace();
+			fail("Unexpected exception: Could not write to TestOutputView.");
+		}
+
+		outputView.close();
+
+		TestInputView inputView = new TestInputView(outputView.segments);
+		byte[] buffer = new byte[bufferSize];
+		int bytesRead = 0;
+
+		try {
+			bytesRead = inputView.read(buffer);
+		} catch (IOException e) {
+			e.printStackTrace();
+			fail("Unexpected exception: Could not read TestInputView.");
+		}
+
+		assertEquals(bytes2Write, bytesRead);
+
+		byte[] tempBuffer = new byte[bytesRead];
+		System.arraycopy(buffer,0,tempBuffer,0,bytesRead);
+		assertArrayEquals(expected, tempBuffer);
+
+		try{
+			bytesRead = inputView.read(buffer);
+		}catch(IOException e){
+			e.printStackTrace();
+			fail("Unexpected exception: Input view should be empty and thus return -1.");
+		}
+
+		assertEquals(-1, bytesRead);
+		assertEquals(inputView.getCurrentPositionInSegment(), bytes2Write % segmentSize);
+	}
+
+	@Test
+	public void testReadFullyWithNotEnoughData() {
+		int bufferSize = 100;
+		int bytes2Write = 99;
+		int segmentSize = 30;
+		byte[] expected = new byte[bytes2Write];
+		new Random().nextBytes(expected);
+
+		TestOutputView outputView = new TestOutputView(segmentSize);
+
+		try {
+			outputView.write(expected);
+		}catch(Exception e){
+			e.printStackTrace();
+			fail("Unexpected exception: Could not write to TestOutputView.");
+		}
+
+		outputView.close();
+
+		TestInputView inputView = new TestInputView(outputView.segments);
+		byte[] buffer = new byte[bufferSize];
+		boolean eofException = false;
+
+		try {
+			inputView.readFully(buffer);
+		}catch(EOFException e){
+			//Expected exception
+			eofException = true;
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+			fail("Unexpected exception: Could not read TestInputView.");
+		}
+
+		assertTrue("EOFException should have occurred.", eofException);
+
+		int bytesRead = 0;
+
+		try{
+			bytesRead =inputView.read(buffer);
+		}catch(Exception e){
+			e.printStackTrace();
+			fail("Unexpected exception: Could not read TestInputView.");
+		}
+
+		assertEquals(-1, bytesRead);
+	}
+
+	@Test
+	public void testReadFullyWithOffset(){
+		int bufferSize = 100;
+		int segmentSize = 30;
+		byte[] expected = new byte[bufferSize];
+		new Random().nextBytes(expected);
+
+		TestOutputView outputView = new TestOutputView(segmentSize);
+
+		try {
+			outputView.write(expected);
+		}catch(Exception e){
+			e.printStackTrace();
+			fail("Unexpected exception: Could not write to TestOutputView.");
+		}
+
+		outputView.close();
+
+		TestInputView inputView = new TestInputView(outputView.segments);
+		byte[] buffer = new byte[2*bufferSize];
+
+		try {
+			inputView.readFully(buffer, bufferSize, bufferSize);
+		} catch (IOException e) {
+			e.printStackTrace();
+			fail("Unexpected exception: Could not read TestInputView.");
+		}
+
+		assertEquals(inputView.getCurrentPositionInSegment(), bufferSize % segmentSize);
+		byte[] tempBuffer = new byte[bufferSize];
+		System.arraycopy(buffer, bufferSize, tempBuffer,0, bufferSize);
+		assertArrayEquals(expected, tempBuffer);
+	}
+
+	@Test
+	public void testReadFullyEmptyView(){
+		int segmentSize = 30;
+		TestOutputView outputView = new TestOutputView(segmentSize);
+		outputView.close();
+
+		TestInputView inputView = new TestInputView(outputView.segments);
+		byte[] buffer = new byte[segmentSize];
+		boolean eofException = false;
+
+		try{
+			inputView.readFully(buffer);
+		}catch(EOFException e){
+			//expected Exception
+			eofException = true;
+		}catch(Exception e){
+			e.printStackTrace();
+			fail("Unexpected exception: Could not read TestInputView.");
+		}
+
+		assertTrue("EOFException expected.", eofException);
+	}
+
 
 	private static void testSequenceOfTypes(Iterable<SerializationTestType> sequence, int segmentSize) throws Exception {
 
@@ -148,7 +405,7 @@ public class PagedViewsTest {
 			if (num < segments.size()) {
 				return segments.get(num).segment;
 			} else {
-				return null;
+				throw new EOFException();
 			}
 		}
 

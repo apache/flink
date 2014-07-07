@@ -222,6 +222,7 @@ public abstract class AbstractPagedInputView implements DataInputView {
 					try {
 						advance();
 					}catch(EOFException eof){
+						this.positionInSegment += toRead;
 						return bytesRead;
 					}
 					remaining = this.limitInSegment - this.positionInSegment;
@@ -244,8 +245,8 @@ public abstract class AbstractPagedInputView implements DataInputView {
 	public void readFully(byte[] b, int off, int len) throws IOException {
 		int bytesRead = read(b,off,len);
 
-		if(bytesRead == -1){
-			throw new EOFException("There is no more data left in the DataInputView.");
+		if(bytesRead < len){
+			throw new EOFException("There is no enough data left in the DataInputView.");
 		}
 	}
 
