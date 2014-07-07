@@ -15,9 +15,10 @@ package eu.stratosphere.compiler.dataproperties;
 
 
 import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.SemanticProperties;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.operators.util.FieldSet;
-import eu.stratosphere.compiler.dag.OptimizerNode;
+
 import java.util.Set;
 import java.util.HashSet;
 
@@ -121,12 +122,12 @@ public class LocalProperties implements Cloneable {
 	/**
 	 * Filters these properties by what can be preserved through a user function's constant fields set.
 	 * 
-	 * @param node The optimizer node that potentially modifies the properties.
+	 * @param props The optimizer node that potentially modifies the properties.
 	 * @param input The input of the node which is relevant.
-	 * 
+	 *
 	 * @return The filtered LocalProperties
 	 */
-	public LocalProperties filterBySemanticProperties(OptimizerNode node, int input) {
+	public LocalProperties filterBySemanticProperties(SemanticProperties props, int input) {
 		// check, whether the local order is preserved
 		Ordering no = this.ordering;
 		FieldList ngf = this.groupedFields;
@@ -136,7 +137,7 @@ public class LocalProperties implements Cloneable {
 		if (this.ordering != null) {
 			final FieldList involvedIndexes = this.ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
-				forwardList = node.getForwardField(input, involvedIndexes.get(i)) == null ? null : node.getForwardField(input, involvedIndexes.get(i)).toFieldList();
+				forwardList = props.getForwardFields(input, involvedIndexes.get(i)) == null ? null : props.getForwardFields(input, involvedIndexes.get(i)).toFieldList();
 
 				if (forwardList == null) {
 					if (i == 0) {
@@ -156,7 +157,7 @@ public class LocalProperties implements Cloneable {
 		else if (this.groupedFields != null) {
 			// check, whether the local key grouping is preserved
 			for (Integer index : this.groupedFields) {
-				forwardList = node.getForwardField(input, index) == null ? null : node.getForwardField(input, index).toFieldList();
+				forwardList = props.getForwardFields(input, index) == null ? null : props.getForwardFields(input, index).toFieldList();
 				if (forwardList == null) {
 					ngf = null;
 					break;
@@ -179,7 +180,7 @@ public class LocalProperties implements Cloneable {
 			Set<FieldSet> s = new HashSet<FieldSet>(this.uniqueFields);
 			for (FieldSet fields : this.uniqueFields) {
 				for (Integer index : fields) {
-					forwardList = node.getForwardField(input, index) == null ? null : node.getForwardField(input, index).toFieldList();
+					forwardList = props.getForwardFields(input, index) == null ? null : props.getForwardFields(input, index).toFieldList();
 					if (forwardList == null) {
 						s.remove(fields);
 						modified = true;

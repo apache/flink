@@ -238,7 +238,29 @@ public class DualInputSemanticProperties extends SemanticProperties {
 	public FieldSet getReadFields1() {
 		return this.readFields1;
 	}
-	
+
+	@Override
+	public FieldSet getForwardFields(int input, int field) {
+		if (input == 0) {
+			return this.getForwardedField1(field);
+		} else if (input == 1) {
+			return this.getForwardedField2(field);
+		}
+		return null;
+	}
+
+	@Override
+	public FieldSet getSourceField(int input, int field) {
+		switch(input) {
+			case 0:
+				return this.getForwardedField1(field) != null ? this.getForwardedField1(field) : this.forwardedFrom1(field);
+			case 1:
+				return this.getForwardedField2(field) != null ? this.getForwardedField2(field) : this.forwardedFrom2(field);
+			default:
+				throw new IndexOutOfBoundsException();
+		}
+	}
+
 	/**
 	 * Adds, to the existing information, field(s) that are read in
 	 * the source record(s) from the second input.

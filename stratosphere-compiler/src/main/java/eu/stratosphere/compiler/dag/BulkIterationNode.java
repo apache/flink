@@ -21,7 +21,6 @@ import java.util.Set;
 
 import eu.stratosphere.api.common.operators.base.BulkIterationBase;
 import eu.stratosphere.api.common.operators.util.FieldList;
-import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler.InterestingPropertyVisitor;
@@ -180,11 +179,6 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	@Override
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		return false;
-	}
-
-	@Override
-	public FieldSet getForwardField(int input, int fieldNumber) {
-		return null;
 	}
 
 	protected void readStubAnnotations() {}

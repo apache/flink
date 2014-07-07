@@ -516,6 +516,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 		try {
 			for (Map.Entry<Integer, X> entry : sourceSchema) {
 				Integer pos = entry.getKey();
+
 				if (optNode.isFieldConstant(input, pos)) {
 					targetSchema.addType(pos, entry.getValue());
 				}

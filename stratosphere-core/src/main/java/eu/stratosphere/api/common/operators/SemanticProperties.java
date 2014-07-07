@@ -42,16 +42,20 @@ public abstract class SemanticProperties implements Serializable {
 			this.writtenFields = this.writtenFields.addFields(writtenFields);
 		}
 	}
-	
+
+	public abstract FieldSet getForwardFields(int input, int field);
+
+	public abstract FieldSet getSourceField(int input, int field);
+
 	/**
 	 * Sets the field(s) that are written in the destination record(s).
-	 * 
+	 *
 	 * @param writtenFields the position(s) in the destination record(s)
 	 */
 	public void setWrittenFields(FieldSet writtenFields) {
 		this.writtenFields = writtenFields;
 	}
-	
+
 	/**
 	 * Gets the field(s) in the destination record(s) that are written.
 	 * 

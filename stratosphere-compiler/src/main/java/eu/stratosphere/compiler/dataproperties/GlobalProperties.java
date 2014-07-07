@@ -19,10 +19,10 @@ import java.util.Set;
 
 import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.SemanticProperties;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
-import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.util.Utils;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
@@ -205,18 +205,18 @@ public class GlobalProperties implements Cloneable
 	/**
 	 * Filters these GlobalProperties by the fields that are constant or forwarded to another output field.
 	 *
-	 * @param node The node representing the contract.
+	 * @param props The node representing the contract.
 	 * @param input The index of the input.
 	 * @return The filtered GlobalProperties
 	 */
-	public GlobalProperties filterBySemanticProperties(OptimizerNode node, int input) {
+	public GlobalProperties filterBySemanticProperties(SemanticProperties props, int input) {
 		// check if partitioning survives
 		FieldList forwardFields = null;
 		GlobalProperties returnProps = this;
 
 		if (this.ordering != null) {
 			for (int index : this.ordering.getInvolvedIndexes()) {
-				forwardFields = node.getForwardField(input, index) == null ? null: node.getForwardField(input, index).toFieldList();
+				forwardFields = props.getForwardFields(input, index) == null ? null: props.getForwardFields(input, index).toFieldList();
 				if (forwardFields == null) {
 					returnProps = new GlobalProperties();
 				} else if (!forwardFields.contains(index)) {
@@ -227,7 +227,7 @@ public class GlobalProperties implements Cloneable
 		}
 		if (this.partitioningFields != null) {
 			for (int index : this.partitioningFields) {
-				forwardFields = node.getForwardField(input, index) == null ? null: node.getForwardField(input, index).toFieldList();
+				forwardFields = props.getForwardFields(input, index) == null ? null: props.getForwardFields(input, index).toFieldList();
 				if (forwardFields == null) {
 					returnProps = new GlobalProperties();
 				} else if (!forwardFields.contains(index)) {
@@ -251,7 +251,7 @@ public class GlobalProperties implements Cloneable
 			for (Iterator<FieldSet> combos = newSet.iterator(); combos.hasNext(); ){
 				FieldSet current = combos.next();
 				for (Integer field : current) {
-					if (!node.isFieldConstant(input, field)) {
+					if (!props.getForwardFields(input, field).contains(field)) {
 						combos.remove();
 						break;
 					}

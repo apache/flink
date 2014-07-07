@@ -17,7 +17,12 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
+import eu.stratosphere.api.common.operators.DualInputOperator;
+import eu.stratosphere.api.common.operators.SemanticProperties;
+import eu.stratosphere.api.common.operators.SingleInputOperator;
 import eu.stratosphere.compiler.dag.OptimizerNode;
+import eu.stratosphere.compiler.dag.SingleInputNode;
+import eu.stratosphere.compiler.dag.TwoInputNode;
 
 /**
  * The interesting properties that a node in the optimizer plan hands to its predecessors. It has the
@@ -40,9 +45,7 @@ public class InterestingProperties implements Cloneable
 
 	/**
 	 * Private constructor for cloning purposes.
-	 * 
-	 * @param maxCostsGlobal The maximal costs for the global properties.
-	 * @param maxCostsLocal The maximal costs for the local properties.
+	 *
 	 * @param globalProps  The global properties for this new object.
 	 * @param localProps The local properties for this new object.
 	 */
@@ -88,15 +91,21 @@ public class InterestingProperties implements Cloneable
 	public InterestingProperties filterByCodeAnnotations(OptimizerNode node, int input)
 	{
 		InterestingProperties iProps = new InterestingProperties();
-		
+		SemanticProperties props = null;
+		if (node instanceof SingleInputNode) {
+			props = ((SingleInputOperator<?, ?, ?>) node.getPactContract()).getSemanticProperties();
+		} else if (node instanceof TwoInputNode) {
+			props = ((DualInputOperator<?, ?, ?, ?>) node.getPactContract()).getSemanticProperties();
+		}
+
 		for (RequestedGlobalProperties rgp : this.globalProps) {
-			RequestedGlobalProperties filtered = rgp.filterBySemanticProperties(node, input);
+			RequestedGlobalProperties filtered = rgp.filterBySemanticProperties(props, input);
 			if (filtered != null && !filtered.isTrivial()) {
 				iProps.addGlobalProperties(filtered);
 			}
 		}
 		for (RequestedLocalProperties rlp : this.localProps) {
-			RequestedLocalProperties filtered = rlp.filterBySemanticProperties(node, input);
+			RequestedLocalProperties filtered = rlp.filterBySemanticProperties(props, input);
 			if (filtered != null && !filtered.isTrivial()) {
 				iProps.addLocalProperties(filtered);
 			}

@@ -29,6 +29,7 @@ import com.google.common.collect.Sets;
 import eu.stratosphere.api.common.operators.DualInputOperator;
 import eu.stratosphere.api.common.operators.DualInputSemanticProperties;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.SemanticProperties;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
@@ -533,13 +534,14 @@ public abstract class TwoInputNode extends OptimizerNode {
 			
 			DualInputPlanNode node = operator.instantiate(in1, in2, this);
 			node.setBroadcastInputs(broadcastChannelsCombination);
-			
-			GlobalProperties gp1 = in1.getGlobalProperties().clone().filterBySemanticProperties(this, 0);
-			GlobalProperties gp2 = in2.getGlobalProperties().clone().filterBySemanticProperties(this, 1);
+
+			SemanticProperties props = this.getPactContract().getSemanticProperties();
+			GlobalProperties gp1 = in1.getGlobalProperties().clone().filterBySemanticProperties(props, 0);
+			GlobalProperties gp2 = in2.getGlobalProperties().clone().filterBySemanticProperties(props, 1);
 			GlobalProperties combined = operator.computeGlobalProperties(gp1, gp2);
 
-			LocalProperties lp1 = in1.getLocalProperties().clone().filterBySemanticProperties(this, 0);
-			LocalProperties lp2 = in2.getLocalProperties().clone().filterBySemanticProperties(this, 1);
+			LocalProperties lp1 = in1.getLocalProperties().clone().filterBySemanticProperties(props, 0);
+			LocalProperties lp2 = in2.getLocalProperties().clone().filterBySemanticProperties(props, 1);
 			LocalProperties locals = operator.computeLocalProperties(lp1, lp2);
 			
 			node.initProperties(combined, locals);
@@ -674,22 +676,22 @@ public abstract class TwoInputNode extends OptimizerNode {
 	public boolean isFieldConstant(int input, int fieldNumber) {
 		DualInputOperator<?, ?, ?, ?> c = getPactContract();
 		DualInputSemanticProperties semanticProperties = c.getSemanticProperties();
-		
+
+		if (semanticProperties == null) {
+			return false;
+		}
+
 		switch(input) {
 		case 0:
-			if (semanticProperties != null) {
-				FieldSet fs;
-				if ((fs = semanticProperties.getForwardedField1(fieldNumber)) != null) {
-					return fs.contains(fieldNumber);
-				}
+			FieldSet fs;
+			if ((fs = semanticProperties.getForwardedField1(fieldNumber)) != null) {
+				return fs.contains(fieldNumber);
 			}
 			break;
 		case 1:
-			if(semanticProperties != null) {
-				FieldSet fs;
-				if ((fs = semanticProperties.getForwardedField2(fieldNumber)) != null) {
-					return fs.contains(fieldNumber);
-				}
+			FieldSet fs;
+			if ((fs = semanticProperties.getForwardedField2(fieldNumber)) != null) {
+				return fs.contains(fieldNumber);
 			}
 			break;
 		default:
@@ -697,49 +699,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 		}
 		
 		return false;
-	}
-
-	@Override
-	public FieldSet getForwardField(int input, int fieldNumber) {
-		DualInputOperator<?, ?, ?, ?> c = getPactContract();
-		DualInputSemanticProperties semanticProperties = c.getSemanticProperties();
-
-		if (semanticProperties == null) {
-			return null;
-		}
-
-		switch(input) {
-			case 0:
-					return semanticProperties.getForwardedField1(fieldNumber);
-			case 1:
-					return semanticProperties.getForwardedField2(fieldNumber);
-			default:
-				throw new IndexOutOfBoundsException();
-		}
-	}
-
-	@Override
-	public FieldSet getSourceField(int input, int fieldNumber) {
-		DualInputOperator<?, ?, ?, ?> c = getPactContract();
-		DualInputSemanticProperties semanticProperties = c.getSemanticProperties();
-
-		switch(input) {
-			case 0:
-				if (semanticProperties != null) {
-					return semanticProperties.getForwardedField1(fieldNumber) != null ? semanticProperties.getForwardedField1(fieldNumber) : semanticProperties.forwardedFrom1(fieldNumber);
-
-				}
-				break;
-			case 1:
-				if(semanticProperties != null) {
-					return semanticProperties.getForwardedField2(fieldNumber) != null ? semanticProperties.getForwardedField2(fieldNumber) : semanticProperties.forwardedFrom2(fieldNumber);
-				}
-				break;
-			default:
-				throw new IndexOutOfBoundsException();
-		}
-
-		return null;
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -15,10 +15,10 @@ package eu.stratosphere.compiler.dataproperties;
 
 import eu.stratosphere.api.common.distributions.DataDistribution;
 import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.SemanticProperties;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
-import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.util.Utils;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
@@ -164,18 +164,19 @@ public final class RequestedGlobalProperties implements Cloneable {
 	 * Filters these properties by what can be preserved by the given node when propagated down
 	 * to the given input.
 	 * 
-	 * @param node The node representing the contract.
+	 * @param props The node representing the contract.
 	 * @param input The index of the input.
 	 * @return The filtered RequestedGlobalProperties
 	 */
-	public RequestedGlobalProperties filterBySemanticProperties(OptimizerNode node, int input) {
+	public RequestedGlobalProperties filterBySemanticProperties(SemanticProperties props, int input) {
 		FieldList sourceList;
 		RequestedGlobalProperties returnProps = this;
+
 
 		// check if partitioning survives
 		if (this.ordering != null) {
 			for (int index : this.ordering.getInvolvedIndexes()) {
-				sourceList = node.getSourceField(input, index) == null ? null : node.getSourceField(input, index).toFieldList();
+				sourceList = props.getSourceField(input, index) == null ? null : props.getSourceField(input, index).toFieldList();
 				if (sourceList != null) {
 					if (!sourceList.contains(index)) {
 						returnProps = returnProps == this ? this.clone() : returnProps;
@@ -187,7 +188,7 @@ public final class RequestedGlobalProperties implements Cloneable {
 			}
 		} else if (this.partitioningFields != null) {
 			for (Integer index : this.partitioningFields) {
-				sourceList = node.getSourceField(input, index) == null ? null : node.getSourceField(input, index).toFieldList();
+				sourceList = props.getSourceField(input, index) == null ? null : props.getSourceField(input, index).toFieldList();
 				if (sourceList != null) {
 					if (!sourceList.contains(index)) {
 						returnProps = returnProps == this ? this.clone() : returnProps;

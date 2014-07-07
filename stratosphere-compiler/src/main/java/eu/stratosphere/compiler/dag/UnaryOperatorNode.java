@@ -57,14 +57,6 @@ public class UnaryOperatorNode extends SingleInputNode {
 	}
 
 	@Override
-	public FieldSet getForwardField(int input, int fieldNumber) {
-		if (input != 0) {
-			throw new IndexOutOfBoundsException();
-		}
-		return new FieldSet(fieldNumber);
-	}
-
-	@Override
 	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
 		// we have no estimates by default
 	}

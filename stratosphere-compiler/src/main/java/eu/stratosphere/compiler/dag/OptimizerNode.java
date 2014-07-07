@@ -25,6 +25,7 @@ import java.util.Set;
 import eu.stratosphere.api.common.operators.AbstractUdfOperator;
 import eu.stratosphere.api.common.operators.CompilerHints;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.SemanticProperties;
 import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
@@ -262,20 +263,17 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 */
 	@Override
 	public abstract void accept(Visitor<OptimizerNode> visitor);
-	
-	/**
-	 * Checks whether a field is modified by the user code or whether it is kept unchanged.
-	 * 
-	 * @param input The input number.
-	 * @param fieldNumber The position of the field.
-	 * 
-	 * @return True if the field is not changed by the user function, false otherwise.
-	 */
+
+	/*
+     * Checks whether a field is modified by the user code or whether it is kept unchanged.
+     *
+     * @param input The input number.
+     * @param fieldNumber The position of the field.
+     *
+     * @return True if the field is not changed by the user function, false otherwise.
+     */
 	public abstract boolean isFieldConstant(int input, int fieldNumber);
 
-	public abstract FieldSet getSourceField(int input, int fieldNumber);
-
-	public abstract FieldSet getForwardField(int input, int fieldNumber);
 	// ------------------------------------------------------------------------
 	//                          Getters / Setters
 	// ------------------------------------------------------------------------
@@ -681,7 +679,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 				}
 				for (int keyColumn : keyColumns) {
 					if (!isFieldConstant(input, keyColumn)) {
-						return null;	
+						return null;
 					}
 				}
 				return keyColumns;

@@ -27,6 +27,7 @@ import java.util.Set;
 import com.google.common.collect.Sets;
 
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.SemanticProperties;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
 import eu.stratosphere.api.common.operators.SingleInputSemanticProperties;
 import eu.stratosphere.api.common.operators.util.FieldSet;
@@ -154,37 +155,6 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 		
 		return false;
-	}
-
-
-	@Override
-	public FieldSet getForwardField(int input, int fieldNumber) {
-		if (input != 0) {
-			throw new IndexOutOfBoundsException();
-		}
-
-		SingleInputOperator<?, ?, ?> c = getPactContract();
-		SingleInputSemanticProperties semanticProperties = c.getSemanticProperties();
-
-		if (semanticProperties != null) {
-			return semanticProperties.getForwardedField(fieldNumber);
-		}
-		return null;
-	}
-
-	@Override
-	public FieldSet getSourceField(int input, int fieldNumber) {
-		if (input != 0) {
-			throw new IndexOutOfBoundsException();
-		}
-
-		SingleInputOperator<?, ?, ?> c = getPactContract();
-		SingleInputSemanticProperties semanticProperties = c.getSemanticProperties();
-
-		if (semanticProperties != null) {
-			return semanticProperties.getForwardedField(fieldNumber) != null ? semanticProperties.getForwardedField(fieldNumber) : semanticProperties.forwardedFrom(fieldNumber);
-		}
-		return null;
 	}
 
 	@Override
@@ -455,10 +425,11 @@ public abstract class SingleInputNode extends OptimizerNode {
 			LocalProperties lProps = in.getLocalProperties().clone();
 			gProps = dps.computeGlobalProperties(gProps);
 			lProps = dps.computeLocalProperties(lProps);
-			
+
+			SemanticProperties props = this.getPactContract().getSemanticProperties();
 			// filter by the user code field copies
-			gProps = gProps.filterBySemanticProperties(this, 0);
-			lProps = lProps.filterBySemanticProperties(this, 0);
+			gProps = gProps.filterBySemanticProperties(props, 0);
+			lProps = lProps.filterBySemanticProperties(props, 0);
 			
 			// apply
 			node.initProperties(gProps, lProps);

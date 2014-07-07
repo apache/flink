@@ -16,9 +16,9 @@ package eu.stratosphere.compiler.dataproperties;
 import java.util.Arrays;
 
 import eu.stratosphere.api.common.operators.Ordering;
+import eu.stratosphere.api.common.operators.SemanticProperties;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.common.operators.util.FieldSet;
-import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.util.Utils;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
@@ -133,18 +133,18 @@ public class RequestedLocalProperties implements Cloneable {
 	 * Since interesting properties are filtered top-down, anything that partially destroys the ordering
 	 * makes the properties uninteresting.
 	 * 
-	 * @param node The optimizer node that potentially modifies the properties.
+	 * @param props The optimizer node that potentially modifies the properties.
 	 * @param input The input of the node which is relevant.
-	 * 
+	 *
 	 * @return The filtered RequestedLocalProperties
 	 */
-	public RequestedLocalProperties filterBySemanticProperties(OptimizerNode node, int input) {
+	public RequestedLocalProperties filterBySemanticProperties(SemanticProperties props, int input) {
 		FieldList sourceList;
 		RequestedLocalProperties returnProps = this;
 
 		if (this.ordering != null) {
 			for (int index: this.ordering.getInvolvedIndexes()) {
-				sourceList = node.getSourceField(input, index) == null ? null : node.getSourceField(input, index).toFieldList();
+				sourceList = props.getSourceField(input, index) == null ? null : props.getSourceField(input, index).toFieldList();
 				if (sourceList != null) {
 					if (!sourceList.contains(index)) {
 						returnProps = returnProps == this ? this.clone() : returnProps;
@@ -157,7 +157,7 @@ public class RequestedLocalProperties implements Cloneable {
 		} else if (this.groupedFields != null) {
 			// check, whether the local key grouping is preserved
 			for (Integer index : this.groupedFields) {
-				sourceList = node.getSourceField(input, index) == null ? null : node.getSourceField(input, index).toFieldList();
+				sourceList = props.getSourceField(input, index) == null ? null : props.getSourceField(input, index).toFieldList();
 				if (sourceList != null) {
 					if (!sourceList.contains(index)) {
 						returnProps = returnProps == this ? this.clone() : returnProps;

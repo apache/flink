@@ -35,7 +35,23 @@ public class SingleInputSemanticProperties extends SemanticProperties {
 	 */
 	private FieldSet readFields;
 
-	
+	@Override
+	public FieldSet getForwardFields(int input, int field) {
+		if (input != 0) {
+			throw new IndexOutOfBoundsException();
+		}
+		return this.getForwardedField(field);
+	}
+
+	@Override
+	public FieldSet getSourceField(int input, int field) {
+		if (input != 0) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		return this.getForwardedField(field) != null ? this.getForwardedField(field) : this.forwardedFrom(field);
+	}
+
 	public SingleInputSemanticProperties() {
 		super();
 		this.init();
