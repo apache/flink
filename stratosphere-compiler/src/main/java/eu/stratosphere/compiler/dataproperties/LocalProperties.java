@@ -134,6 +134,10 @@ public class LocalProperties implements Cloneable {
 		Set<FieldSet> nuf = this.uniqueFields;
 		FieldList forwardList = null;
 
+		if (props == null) {
+			return new LocalProperties();
+		}
+
 		if (this.ordering != null) {
 			final FieldList involvedIndexes = this.ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {

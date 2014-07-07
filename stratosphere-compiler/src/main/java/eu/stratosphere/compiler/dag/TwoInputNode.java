@@ -680,16 +680,15 @@ public abstract class TwoInputNode extends OptimizerNode {
 		if (semanticProperties == null) {
 			return false;
 		}
-
+		FieldSet fs;
 		switch(input) {
 		case 0:
-			FieldSet fs;
 			if ((fs = semanticProperties.getForwardedField1(fieldNumber)) != null) {
 				return fs.contains(fieldNumber);
 			}
 			break;
 		case 1:
-			FieldSet fs;
+
 			if ((fs = semanticProperties.getForwardedField2(fieldNumber)) != null) {
 				return fs.contains(fieldNumber);
 			}

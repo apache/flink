@@ -214,6 +214,10 @@ public class GlobalProperties implements Cloneable
 		FieldList forwardFields = null;
 		GlobalProperties returnProps = this;
 
+		if (props == null) {
+			return new GlobalProperties();
+		}
+
 		if (this.ordering != null) {
 			for (int index : this.ordering.getInvolvedIndexes()) {
 				forwardFields = props.getForwardFields(input, index) == null ? null: props.getForwardFields(input, index).toFieldList();

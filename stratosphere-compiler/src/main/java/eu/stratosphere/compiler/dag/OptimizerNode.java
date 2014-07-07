@@ -25,7 +25,6 @@ import java.util.Set;
 import eu.stratosphere.api.common.operators.AbstractUdfOperator;
 import eu.stratosphere.api.common.operators.CompilerHints;
 import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.operators.SemanticProperties;
 import eu.stratosphere.api.common.operators.util.FieldSet;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
