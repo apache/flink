@@ -14,6 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java;
 
+
 import org.apache.commons.lang3.Validate;
 
 import eu.stratosphere.api.common.io.FileOutputFormat;
@@ -22,6 +23,7 @@ import eu.stratosphere.api.java.aggregation.Aggregations;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
 import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
+import eu.stratosphere.api.java.functions.MapPartitionFunction;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.KeySelector;
 import eu.stratosphere.api.java.functions.MapFunction;
@@ -39,6 +41,7 @@ import eu.stratosphere.api.java.operators.DataSink;
 import eu.stratosphere.api.java.operators.DistinctOperator;
 import eu.stratosphere.api.java.operators.FilterOperator;
 import eu.stratosphere.api.java.operators.FlatMapOperator;
+import eu.stratosphere.api.java.operators.MapPartitionOperator;
 import eu.stratosphere.api.java.operators.Grouping;
 import eu.stratosphere.api.java.operators.JoinOperator;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinHint;
@@ -59,6 +62,7 @@ import eu.stratosphere.api.java.typeutils.InputTypeConfigurable;
 import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.core.fs.FileSystem.WriteMode;
 import eu.stratosphere.core.fs.Path;
+
 
 /**
  * A DataSet represents a collection of elements of the same type.<br/>
@@ -135,6 +139,27 @@ public abstract class DataSet<T> {
 			throw new NullPointerException("Map function must not be null.");
 		}
 		return new MapOperator<T, R>(this, mapper);
+	}
+
+
+
+    /**
+     * Applies a Map transformation on a {@link DataSet} by using an iterator.<br/>
+     * The transformation calls a {@link MapPartitionFunction} for the full DataSet.
+     * Each MapPartitionFunction call returns elements.
+     *
+     * @param mapPartition The MapPartitionFunction that is called for the full DataSet.
+     * @return A MapPartitionOperator that represents the transformed DataSet.
+     *
+     * @see MapPartitionFunction
+     * @see MapPartitionOperator
+     * @see DataSet
+     */
+	public <R> MapPartitionOperator<T, R> mapPartition(MapPartitionFunction<T, R> mapPartition ){
+		if (mapPartition == null) {
+			throw new NullPointerException("MapPartition function must not be null.");
+		}
+		return new MapPartitionOperator<T, R>(this, mapPartition);
 	}
 	
 	/**

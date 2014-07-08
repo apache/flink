@@ -40,8 +40,10 @@ import eu.stratosphere.api.java.functions.InvalidTypesException;
 import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.functions.KeySelector;
 import eu.stratosphere.api.java.functions.MapFunction;
+import eu.stratosphere.api.java.functions.MapPartitionFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.types.Value;
+
 
 public class TypeExtractor {
 
@@ -61,7 +63,16 @@ public class TypeExtractor {
 		}
 		return new TypeExtractor().privateCreateTypeInfo(MapFunction.class, mapFunction.getClass(), 1, inType, null);
 	}
-	
+
+	@SuppressWarnings("unchecked")
+	public static <IN, OUT> TypeInformation<OUT> getMapPartitionReturnTypes(MapPartitionFunction<IN, OUT> mapPartitionFunction, TypeInformation<IN> inType) {
+		validateInputType(MapPartitionFunction.class, mapPartitionFunction.getClass(), 0, inType);
+		if(mapPartitionFunction instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) mapPartitionFunction).getProducedType();
+		}
+		return createTypeInfo(MapPartitionFunction.class, mapPartitionFunction.getClass(), 1, inType, null);
+	}
+
 	@SuppressWarnings("unchecked")
 	public static <IN, OUT> TypeInformation<OUT> getFlatMapReturnTypes(FlatMapFunction<IN, OUT> flatMapFunction, TypeInformation<IN> inType) {
 		validateInputType(FlatMapFunction.class, flatMapFunction.getClass(), 0, inType);
