@@ -19,7 +19,7 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
- * The CrossFunction is the base class for functions that are invoked by a {@link CrossOperator}.
+ * The CrossFunction is the base class for functions that are invoked by a {@link eu.stratosphere.api.java.operators.CrossOperator}.
  */
 public abstract class CrossFunction extends AbstractFunction implements GenericCrosser<Record, Record, Record> {
 	

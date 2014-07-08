@@ -31,7 +31,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Applies an Aggregate transformation on a grouped {@link Tuple} {@link DataSet}.<br/>
+	 * Applies an Aggregate transformation on a grouped {@link eu.stratosphere.api.java.tuple.Tuple} {@link DataSet}.<br/>
 	 * <b>Note: Only Tuple DataSets can be aggregated.</b>
 	 * The transformation applies a built-in {@link Aggregations Aggregation} on a specified field 
 	 *   of a Tuple group. Additional aggregation functions can be added to the resulting 
@@ -41,7 +41,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @param field The index of the Tuple field on which the aggregation function is applied.
 	 * @return An AggregateOperator that represents the aggregated DataSet. 
 	 * 
-	 * @see Tuple
+	 * @see eu.stratosphere.api.java.tuple.Tuple
 	 * @see Aggregations
 	 * @see AggregateOperator
 	 * @see DataSet
@@ -128,7 +128,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Sorts {@link Tuple} elements within a group on the specified field in the specified {@link Order}.</br>
+	 * Sorts {@link eu.stratosphere.api.java.tuple.Tuple} elements within a group on the specified field in the specified {@link Order}.</br>
 	 * <b>Note: Only groups of Tuple elements can be sorted.</b><br/>
 	 * Groups can be sorted by multiple fields by chaining {@link #sortGroup(int, Order)} calls.
 	 * 
@@ -136,7 +136,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @param order The Order in which the specified Tuple field is sorted.
 	 * @return A SortedGrouping with specified order of group element.
 	 * 
-	 * @see Tuple
+	 * @see eu.stratosphere.api.java.tuple.Tuple
 	 * @see Order
 	 */
 	public SortedGrouping<T> sortGroup(int field, Order order) {

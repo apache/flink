@@ -75,8 +75,8 @@ public abstract class JoinFunction<IN1, IN2, OUT> extends AbstractFunction imple
 	 * By default, this method delegates to the method {@link #join(Object, Object)}. If this method
 	 * is overridden, that method will no longer be called.
 	 * 
-	 * @param first The element from first input.
-	 * @param second The element from second input.
+	 * @param value1 The element from first input.
+	 * @param value2 The element from second input.
 	 * @param out A collector to emit resulting element (zero, one, or many).
 	 * 
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation

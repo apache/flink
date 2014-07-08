@@ -177,7 +177,7 @@ public class FunctionAnnotation {
 	 * <p>
 	 * The annotation takes one String array specifying the positions of the input types that do not remain constant.
 	 * When this annotation is used, it is assumed that all other values remain at the same position in input and output.
-	 * To model more complex situations use the {@link @ConstantFields}s annotation.
+	 * To model more complex situations use the {@link ConstantFields}s annotation.
 	 * <p>
 	 * This annotation is mutually exclusive with the {@link ConstantFields} annotation.
 	 * <p>
@@ -212,7 +212,7 @@ public class FunctionAnnotation {
 	 * <p>
 	 * The annotation takes one String array specifying the positions of the input types that do not remain constant.
 	 * When this annotation is used, it is assumed that all other values remain at the same position in input and output.
-	 * To model more complex situations use the {@link @ConstantFields}s annotation.
+	 * To model more complex situations use the {@link ConstantFields}s annotation.
 	 * <p>
 	 * This annotation is mutually exclusive with the {@link ConstantFieldsFirst}
 	 * <p>
@@ -249,7 +249,7 @@ public class FunctionAnnotation {
 	 * <p>
 	 * The annotation takes one String array specifying the positions of the input types that do not remain constant.
 	 * When this annotation is used, it is assumed that all other values remain at the same position in input and output.
-	 * To model more complex situations use the {@link @ConstantFields}s annotation.
+	 * To model more complex situations use the {@link ConstantFields}s annotation.
 	 * <p>
 	 * This annotation is mutually exclusive with the {@link ConstantFieldsSecond}
 	 * <p>

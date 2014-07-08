@@ -21,7 +21,7 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
- * The CoGroupFunction is the base class for functions that are invoked by a {@link CoGroupOperator}.
+ * The CoGroupFunction is the base class for functions that are invoked by a {@link eu.stratosphere.api.java.operators.CoGroupOperator}.
  */
 public abstract class CoGroupFunction extends AbstractFunction implements GenericCoGrouper<Record, Record, Record> {
 

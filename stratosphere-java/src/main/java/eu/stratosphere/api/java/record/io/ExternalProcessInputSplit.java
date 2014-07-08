@@ -21,7 +21,7 @@ import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.DataOutputView;
 
 /**
- * The ExternalProcessInputSplit contains all informations for {@link InputFormat} that read their data from external processes.
+ * The ExternalProcessInputSplit contains all informations for {@link eu.stratosphere.api.common.io.InputFormat} that read their data from external processes.
  * Each parallel instance of an InputFormat starts an external process and reads its output.
  * The command to start the external process must be executable on all nodes.
  * 

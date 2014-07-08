@@ -38,7 +38,7 @@ import eu.stratosphere.api.common.functions.GenericReduce;
  * <p>
  * Like all functions, the ReduceFunction needs to be serializable, as defined in {@link java.io.Serializable}.
  * 
- * @param <IN> Type of the elements that this function processes.
+ * @param <T> Type of the elements that this function processes.
  */
 public abstract class ReduceFunction<T> extends AbstractFunction implements GenericReduce<T> {
 	

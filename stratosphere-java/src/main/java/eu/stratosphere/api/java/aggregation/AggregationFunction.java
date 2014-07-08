@@ -16,7 +16,6 @@ package eu.stratosphere.api.java.aggregation;
 
 
 /**
- * @param <R> The type of the running aggregate.
  * @param <T> The type to be aggregated.
  */
 public abstract class AggregationFunction<T> implements java.io.Serializable {

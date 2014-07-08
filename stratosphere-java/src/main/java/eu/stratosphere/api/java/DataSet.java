@@ -288,7 +288,7 @@ public abstract class DataSet<T> {
 	 * @return A GroupReduceOperator that represents the reduced DataSet.
 	 * 
 	 * @see GroupReduceFunction
-	 * @see GroupReduceOperator
+	 * @see ReduceGroupOperator
 	 * @see DataSet
 	 */
 	public <R> ReduceGroupOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
@@ -383,9 +383,9 @@ public abstract class DataSet<T> {
 	 *   can be applied. 
 	 * <ul>
 	 *   <li>{@link UnsortedGrouping#sortGroup(int, eu.stratosphere.api.common.operators.Order)} to get a {@link SortedGrouping}. 
-	 *   <li>{@link Grouping#aggregate(Aggregations, int)} to apply an Aggregate transformation.
-	 *   <li>{@link Grouping#reduce(ReduceFunction)} to apply a Reduce transformation.
-	 *   <li>{@link Grouping#reduceGroup(GroupReduceFunction)} to apply a GroupReduce transformation.
+	 *   <li>{@link UnsortedGrouping#aggregate(Aggregations, int)} to apply an Aggregate transformation.
+	 *   <li>{@link UnsortedGrouping#reduce(ReduceFunction)} to apply a Reduce transformation.
+	 *   <li>{@link UnsortedGrouping#reduceGroup(GroupReduceFunction)} to apply a GroupReduce transformation.
 	 * </ul> 
 	 * 
 	 * @param fields One or more field positions on which the DataSet will be grouped. 
@@ -412,9 +412,9 @@ public abstract class DataSet<T> {
 	 *   can be applied.
 	 * <ul>
 	 *   <li>{@link UnsortedGrouping#sortGroup(int, eu.stratosphere.api.common.operators.Order)} to get a {@link SortedGrouping}.
-	 *   <li>{@link Grouping#aggregate(Aggregations, int)} to apply an Aggregate transformation.
-	 *   <li>{@link Grouping#reduce(ReduceFunction)} to apply a Reduce transformation.
-	 *   <li>{@link Grouping#reduceGroup(GroupReduceFunction)} to apply a GroupReduce transformation.
+	 *   <li>{@link UnsortedGrouping#aggregate(Aggregations, int)} to apply an Aggregate transformation.
+	 *   <li>{@link UnsortedGrouping#reduce(ReduceFunction)} to apply a Reduce transformation.
+	 *   <li>{@link UnsortedGrouping#reduceGroup(GroupReduceFunction)} to apply a GroupReduce transformation.
 	 * </ul>
 	 *
 	 * @param fields One or more field expressions on which the DataSet will be grouped.
@@ -516,7 +516,7 @@ public abstract class DataSet<T> {
 	 * The CoGroupFunction can iterate over the elements of both groups and return any number 
 	 *   of elements including none.</br>
 	 * This method returns a {@link CoGroupOperatorSets} on which 
-	 *   {@link CoGroupOperatorSets#where(} needs to be called to define the grouping key of the first 
+	 *   {@link CoGroupOperatorSets#where()} needs to be called to define the grouping key of the first 
 	 *   (i.e., this) DataSet.
 	 * 
 	 * @param other The other DataSet of the CoGroup transformation.
@@ -794,8 +794,8 @@ public abstract class DataSet<T> {
 	 * Writes a {@link Tuple} DataSet as a CSV file to the specified location.<br/>
 	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br/>
 	 * For each Tuple field the result of {@link Object#toString()} is written.
-	 * Tuple fields are separated by the default field delimiter {@link CsvOutputFormat.DEFAULT_FIELD_DELIMITER}.<br/>
-	 * Tuples are are separated by the default line delimiter {@link CsvOutputFormat.DEFAULT_LINE_DELIMITER}.
+	 * Tuple fields are separated by the default field delimiter {@code "comma" (,)}.<br/>
+	 * Tuples are are separated by the newline character ({@code \n}).
 	 * 
 	 * @param filePath The path pointing to the location the CSV file is written to.
 	 * @return The DataSink that writes the DataSet.

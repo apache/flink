@@ -19,7 +19,7 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 
 /**
- * The JoinFunction must implementation by functions of a {@link JoinOperator}.
+ * The JoinFunction must implementation by functions of a {@link eu.stratosphere.api.java.operators.JoinOperator}.
  * It resembles an equality join of both inputs on their key fields.
  */
 public abstract class JoinFunction extends AbstractFunction implements GenericJoiner<Record, Record, Record> {

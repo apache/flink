@@ -22,7 +22,7 @@ import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
 
 /**
- * A factory for a {@link TypeComparator} for {@link Record}. The comparator uses a subset of
+ * A factory for a {@link eu.stratosphere.api.common.typeutils.TypeComparator} for {@link Record}. The comparator uses a subset of
  * the fields for the comparison. That subset of fields (positions and types) is read from the
  * supplied configuration.
  */

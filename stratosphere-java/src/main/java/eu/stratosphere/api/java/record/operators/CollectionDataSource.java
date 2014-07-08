@@ -28,13 +28,13 @@ import eu.stratosphere.types.Record;
  * Use this operator if you want to pass data from the application submitting the
  * Stratosphere job to the cluster.
  * There are two main ways to use the CollectionDataSource:
- * * Using a @link {@link SerializableIterator}
  * 
+ * Using an {@link java.util.Iterator} that is also {@link java.io.Serializable}.
  * <pre>
- * CollectionDataSource source = new CollectionDataSource(new SerializableIteratorTest(), &quot;IterSource&quot;);
+ * CollectionDataSource source = new CollectionDataSource(mySerializableIterator, &quot;IterSource&quot;);
  * </pre>
  * 
- * * Using a Collection of Java Objects.
+ * Using a Collection of Java Objects.
  * 
  * <pre>
  * CollectionDataSource source2 = new CollectionDataSource(new List&lt;String&gt;(), &quot;Collection source&quot;);

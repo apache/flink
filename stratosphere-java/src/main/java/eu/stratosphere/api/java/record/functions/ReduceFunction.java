@@ -23,7 +23,7 @@ import eu.stratosphere.util.Collector;
 
 /**
  * The ReduceFunction must be extended to provide a reducer implementation, as invoked by a
- * {@link ReduceOperator}.
+ * {@link eu.stratosphere.api.java.operators.ReduceOperator}.
  */
 public abstract class ReduceFunction extends AbstractFunction implements GenericGroupReduce<Record, Record>, GenericCombine<Record> {
 	

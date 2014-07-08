@@ -22,7 +22,8 @@ import eu.stratosphere.configuration.Configuration;
 
 /**
  * This interface marks operators as operators that execute user-defined functions (UDFs), such as
- * {@link MapFunction}, {@link ReduceFunction} or {@link CoGroupFunction}.
+ * {@link eu.stratosphere.api.java.functions.MapFunction}, {@link eu.stratosphere.api.java.functions.ReduceFunction},
+ * or {@link eu.stratosphere.api.java.functions.CoGroupFunction}.
  * The UDF operators stand in contrast to operators that execute built-in operations, like aggregations.
  */
 public interface UdfOperator<O extends UdfOperator<O>> {
@@ -33,7 +34,8 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 	
 	/**
 	 * Gets the configuration parameters that will be passed to the UDF's open method
-	 * {@link AbstractFunction#open(Configuration)}. The configuration is set via the {@link #withParameters(Configuration)}
+	 * {@link eu.stratosphere.api.common.functions.AbstractFunction#open(Configuration)}. 
+	 * The configuration is set via the {@link #withParameters(Configuration)}
 	 * method.
 	 * 
 	 * @return The configuration parameters for the UDF.
@@ -62,7 +64,7 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 	
 	/**
 	 * Sets the configuration parameters for the UDF. These are optional parameters that are passed
-	 * to the UDF in the {@link AbstractFunction#open(Configuration)} method.
+	 * to the UDF in the {@link eu.stratosphere.api.common.functions.AbstractFunction#open(Configuration)} method.
 	 * 
 	 * @param parameters The configuration parameters for the UDF.
 	 * @return The operator itself, to allow chaining function calls.
@@ -72,8 +74,11 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 	/**
 	 * Adds a certain data set as a broadcast set to this operator. Broadcasted data sets are available at all
 	 * parallel instances of this operator. A broadcast data set is registered under a certain name, and can be
-	 * retrieved under that name from the operators runtime context via {@link RuntimeContext#getBroadcastVariable(String)}.
-	 * The runtime context itself is available in all UDFs via {@link AbstractFunction#getRuntimeContext()}.
+	 * retrieved under that name from the operators runtime context via
+	 * {@link eu.stratosphere.api.common.functions.RuntimeContext#getBroadcastVariable(String)}.
+	 * 
+	 * The runtime context itself is available in all UDFs via
+	 * {@link eu.stratosphere.api.common.functions.AbstractFunction#getRuntimeContext()}.
 	 * 
 	 * @param data The data set to be broadcasted.
 	 * @param name The name under which the broadcast data set retrieved.

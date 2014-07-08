@@ -21,9 +21,9 @@ import eu.stratosphere.api.java.DataSet;
  * Grouping is an intermediate step for a transformation on a grouped DataSet.<br/>
  * The following transformation can be applied on Grouping:
  * <ul>
- * 	<li>{@link Grouping#reduce(ReduceFunction)},</li>
- * <li>{@link Grouping#reduceGroup(GroupReduceFunction)}, and</li>
- * <li>{@link Grouping#aggregate(Aggregations, int)}.</li>
+ * 	<li>{@link UnsortedGrouping#reduce(eu.stratosphere.api.java.functions.ReduceFunction)},</li>
+ * <li>{@link UnsortedGrouping#reduceGroup(eu.stratosphere.api.java.functions.GroupReduceFunction)}, and</li>
+ * <li>{@link UnsortedGrouping#aggregate(eu.stratosphere.api.java.aggregation.Aggregations, int)}.</li>
  * </ul>
  *
  * @param <T> The type of the elements of the grouped DataSet.

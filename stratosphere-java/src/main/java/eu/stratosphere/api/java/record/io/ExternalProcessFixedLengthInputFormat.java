@@ -28,10 +28,8 @@ import eu.stratosphere.types.Record;
  * The input format requires ({@link ExternalProcessInputSplit} objects that hold the command to execute.
  * 
  * <b>Warning:</b> This format does not consume the standard error stream (stderr) of the started process. This might cause deadlocks. 
- * 
  *
- * @param <T>, The type of the input split (must extend ExternalProcessInputSplit)
- * 
+ * @param <T> The type of the input split (must extend ExternalProcessInputSplit)
  */
 public abstract class ExternalProcessFixedLengthInputFormat<T extends ExternalProcessInputSplit> extends ExternalProcessInputFormat<T> {
 
