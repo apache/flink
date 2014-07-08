@@ -56,7 +56,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	
 	private boolean lenient;
 	
-	private boolean skipFirstLineAsHeader;
+	private int skippedLinesAsHeader = 0;
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -102,11 +102,19 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	}
 	
 	public boolean isSkippingFirstLineAsHeader() {
-		return skipFirstLineAsHeader;
+		return (skippedLinesAsHeader == 1);
 	}
 
 	public void setSkipFirstLineAsHeader(boolean skipFirstLine) {
-		this.skipFirstLineAsHeader = skipFirstLine;
+		this.skippedLinesAsHeader = 1;
+	}
+	
+	public int getSkippedLinesAsHeader() {
+		return this.skippedLinesAsHeader;
+	}
+
+	public void setSkippedLinesAsHeader(int skippedLines) {
+		this.skippedLinesAsHeader = skippedLines;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -256,8 +264,10 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		this.fieldParsers = parsers;
 		
 		// skip the first line, if we are at the beginning of a file and have the option set
-		if (this.skipFirstLineAsHeader && this.splitStart == 0) {
-			readLine(); // read and ignore
+		if (this.skippedLinesAsHeader > 0 && this.splitStart == 0) {
+			for(int i = 0; i < skippedLinesAsHeader; i++) {
+				readLine(); // read and ignore
+			}
 		}
 	}
 	

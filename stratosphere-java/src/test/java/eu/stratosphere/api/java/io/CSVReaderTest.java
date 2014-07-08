@@ -39,7 +39,14 @@ public class CSVReaderTest {
 	public void testIgnoreHeaderConfigure() {
 		CsvReader reader = getCsvReader();
 		reader.ignoreFirstLine();
-		Assert.assertTrue(reader.skipFirstLineAsHeader);
+		Assert.assertTrue(reader.skippedLinesAsHeader == 1);
+	}
+	
+	@Test
+	public void testIgnoreHeaderMultipleLinesConfigure() {
+		CsvReader reader = getCsvReader();
+		reader.ignoreFirstLines(3);
+		Assert.assertTrue(reader.skippedLinesAsHeader == 3);
 	}
 	
 	@Test
