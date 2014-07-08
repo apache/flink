@@ -39,7 +39,6 @@ import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.ExecutionMode;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
-import eu.stratosphere.nephele.execution.RuntimeEnvironment;
 import eu.stratosphere.nephele.jobgraph.DistributionPattern;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
@@ -315,10 +314,11 @@ public class JobManagerITCase {
 			jobClient = new JobClient(jg, configuration);
 			
 			// deactivate logging of expected test exceptions
-			Logger rtLogger = Logger.getLogger(Task.class);
-			rtLogger.setLevel(Level.OFF);
-			Logger envLogger = Logger.getLogger(RuntimeEnvironment.class);
-			envLogger.setLevel(Level.DEBUG);
+			Logger taskLogger = Logger.getLogger(Task.class);
+			taskLogger.setLevel(Level.OFF);
+			
+			Logger jmLogger = Logger.getLogger(JobManager.class);
+			jmLogger.setLevel(Level.OFF);
 			
 			try {
 				jobClient.submitJobAndWait();
@@ -409,8 +409,11 @@ public class JobManagerITCase {
 			
 			// deactivate logging of expected test exceptions
 			Logger jcLogger = Logger.getLogger(JobClient.class);
-			Level jcLevel = jcLogger.getEffectiveLevel();
 			jcLogger.setLevel(Level.OFF);
+			Logger tmLogger = Logger.getLogger(TaskManager.class);
+			tmLogger.setLevel(Level.OFF);
+			
+			
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -425,9 +428,6 @@ public class JobManagerITCase {
 
 				// Check if the correct error message is encapsulated in the exception
 				return;
-			}
-			finally {
-				jcLogger.setLevel(jcLevel);
 			}
 
 			fail("Expected exception but did not receive it");
@@ -515,9 +515,12 @@ public class JobManagerITCase {
 			jobClient = new JobClient(jg, configuration);
 
 			// deactivate logging of expected test exceptions
+			// deactivate logging of expected test exceptions
 			Logger jcLogger = Logger.getLogger(JobClient.class);
-			Level jcLevel = jcLogger.getEffectiveLevel();
 			jcLogger.setLevel(Level.OFF);
+			Logger tmLogger = Logger.getLogger(TaskManager.class);
+			tmLogger.setLevel(Level.OFF);
+			
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -533,9 +536,6 @@ public class JobManagerITCase {
 
 				// Check if the correct error message is encapsulated in the exception
 				return;
-			}
-			finally {
-				jcLogger.setLevel(jcLevel);
 			}
 
 			fail("Expected exception but did not receive it");
