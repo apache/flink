@@ -15,6 +15,7 @@ package eu.stratosphere.api.common.operators.base;
 
 import eu.stratosphere.api.common.functions.GenericFlatMap;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
@@ -23,17 +24,17 @@ import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 /**
  * @see GenericFlatMap
  */
-public class FlatMapOperatorBase<T extends GenericFlatMap<?, ?>> extends SingleInputOperator<T> {
+public class FlatMapOperatorBase<IN, OUT, FT extends GenericFlatMap<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 	
-	public FlatMapOperatorBase(UserCodeWrapper<T> udf, String name) {
-		super(udf, name);
+	public FlatMapOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+		super(udf, operatorInfo, name);
 	}
 	
-	public FlatMapOperatorBase(T udf, String name) {
-		super(new UserCodeObjectWrapper<T>(udf), name);
+	public FlatMapOperatorBase(FT udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
 	}
 	
-	public FlatMapOperatorBase(Class<? extends T> udf, String name) {
-		super(new UserCodeClassWrapper<T>(udf), name);
+	public FlatMapOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
 	}
 }

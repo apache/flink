@@ -64,12 +64,14 @@ public class CopyableValueComparator<T extends CopyableValue<T> & Comparable<T>>
 	@Override
 	public int compareToReference(TypeComparator<T> referencedComparator) {
 		T otherRef = ((CopyableValueComparator<T>) referencedComparator).reference;
-		return otherRef.compareTo(reference);
+		int comp = otherRef.compareTo(reference);
+		return ascendingComparison ? comp : -comp;
 	}
 	
 	@Override
 	public int compare(T first, T second) {
-		return first.compareTo(second);
+		int comp = first.compareTo(second);
+		return ascendingComparison ? comp : -comp;
 	}
 	
 	@Override
@@ -80,7 +82,8 @@ public class CopyableValueComparator<T extends CopyableValue<T> & Comparable<T>>
 		
 		reference.read(firstSource);
 		tempReference.read(secondSource);
-		return reference.compareTo(tempReference);
+		int comp = reference.compareTo(tempReference);
+		return ascendingComparison ? comp : -comp;
 	}
 
 	@Override

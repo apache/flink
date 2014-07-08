@@ -33,7 +33,7 @@ import eu.stratosphere.compiler.plan.SolutionSetPlanNode;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.test.compiler.CompilerTestBase;
+import eu.stratosphere.test.compiler.util.CompilerTestBase;
 import eu.stratosphere.util.Collector;
 
 @SuppressWarnings("serial")
@@ -94,7 +94,7 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 				.groupBy(0).aggregate(Aggregations.MIN, 1).map(new Expander())
 				.join(iteration.getSolutionSet()).where(0).equalTo(0).with(new SummingJoinProject()).name(JOIN_2);
 		
-		DataSet<Tuple2<Long, Double>> changes = delta.groupBy(0).aggregate(Aggregations.AVG, 1);
+		DataSet<Tuple2<Long, Double>> changes = delta.groupBy(0).aggregate(Aggregations.SUM, 1);
 		
 		DataSet<Tuple2<Long, Double>> result = iteration.closeWith(delta, changes);
 		

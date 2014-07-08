@@ -16,10 +16,13 @@ package eu.stratosphere.test.testdata;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.util.List;
 import java.util.Random;
 import java.util.regex.Pattern;
 
 import org.junit.Assert;
+
+import eu.stratosphere.api.java.tuple.Tuple2;
 
 
 public class ConnectedComponentsData {
@@ -97,6 +100,22 @@ public class ConnectedComponentsData {
 				int component = Integer.parseInt(res[1]);
 
 				int should = vertex % 2;
+				if (should == 0) {
+					should = 2;
+				}
+				Assert.assertEquals("Vertex is in wrong component.", should, component);
+			} catch (NumberFormatException e) {
+				Assert.fail("Malformed result.");
+			}
+		}
+	}
+	
+	public static void checkOddEvenResult(List<Tuple2<Long, Long>> lines) throws IOException {
+		for (Tuple2<Long, Long> line : lines) {
+			try {
+				long vertex = line.f0;
+				long component = line.f1;
+				long should = vertex % 2;
 				if (should == 0) {
 					should = 2;
 				}

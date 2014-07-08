@@ -18,17 +18,17 @@ import eu.stratosphere.example.java.wordcount.WordCount;
 import eu.stratosphere.test.testdata.WordCountData;
 import eu.stratosphere.test.util.JavaProgramTestBase;
 
-
 public class WordCountITCase extends JavaProgramTestBase {
-	
+
 	protected String textPath;
 	protected String resultPath;
 
 	public WordCountITCase(){
-		setNumTaskManager(2);
+		setDegreeOfParallelism(4);
+		setNumTaskTracker(2);
+		setTaskManagerNumSlots(2);
 	}
 
-	
 	@Override
 	protected void preSubmit() throws Exception {
 		textPath = createTempFile("text.txt", WordCountData.TEXT);
@@ -37,9 +37,9 @@ public class WordCountITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WordCountData.COUNTS_AS_TUPLES, resultPath);
+		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
 	}
-	
+
 	@Override
 	protected void testProgram() throws Exception {
 		WordCount.main(new String[] { textPath, resultPath });

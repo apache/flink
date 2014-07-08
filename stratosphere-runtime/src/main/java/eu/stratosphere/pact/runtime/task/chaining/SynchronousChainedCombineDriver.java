@@ -81,7 +81,7 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		// ----------------- Set up the asynchronous sorter -------------------------
 
 		this.memManager = this.parent.getEnvironment().getMemoryManager();
-		final int numMemoryPages = memManager.computeNumberOfPages(this.config.getMemoryDriver());
+		final int numMemoryPages = memManager.computeNumberOfPages(this.config.getRelativeMemoryDriver());
 
 		// instantiate the serializer / comparator
 		final TypeSerializerFactory<T> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
@@ -165,6 +165,8 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		} catch (Exception e) {
 			throw new ExceptionInChainedStubException(this.taskName, e);
 		}
+
+		this.outputCollector.close();
 	}
 
 	private void sortAndCombine() throws Exception {

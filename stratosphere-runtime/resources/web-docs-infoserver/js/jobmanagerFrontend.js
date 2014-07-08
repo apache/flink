@@ -243,7 +243,7 @@ function progressBar(maximum, input, classVal) {
 	if (input != 0) {
 		return "<td class=\""+classVal+"\" val=\""+input+"\"><div class=\"progress\"><div class=\"progress-bar progress-bar-success\" role=\"progressbar\""
 		 			+ "aria-valuemin=\"0\" aria-valuemax=\""+widthProgressbar+"\" style=\"width:"
-					+ (input / maximum)*100+"%;\">"
+					+ (20 + 80*input/maximum) + "%;\">"
 					+ input
 					+ "</div></div></td>";
 	} else {
@@ -260,7 +260,7 @@ function progressBar2(maximum, input) {
 	if (input != 0) {
 		return "<div class=\"progress\"><div class=\"progress-bar progress-bar-success\" role=\"progressbar\""
 		 			+ "aria-valuemin=\"0\" aria-valuemax=\""+widthProgressbar+"\" style=\"width:"
-					+ (input / maximum)*100+"%;\">"
+					+ (20 + 80*input/maximum) + "%;\">"
 					+ input
 					+ "</div></div>";
 	}
@@ -270,7 +270,7 @@ function progressBar2(maximum, input) {
  * Returns the new width for a progress bar
  */
 function newWidth(maximum, val) {
-	return (val / maximum)*100;	
+	return (20 + 80*val/maximum);
 }
 	
 

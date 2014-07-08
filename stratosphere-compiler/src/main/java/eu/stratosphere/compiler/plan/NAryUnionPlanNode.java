@@ -21,6 +21,7 @@ import eu.stratosphere.compiler.dag.BinaryUnionNode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
+import eu.stratosphere.util.IterableIterator;
 import eu.stratosphere.util.Visitor;
 
 /**
@@ -55,14 +56,14 @@ public class NAryUnionPlanNode extends PlanNode {
 	}
 
 	@Override
-	public Iterator<Channel> getInputs() {
-		return Collections.unmodifiableList(this.inputs).iterator();
+	public Iterable<Channel> getInputs() {
+		return Collections.unmodifiableList(this.inputs);
 	}
 
 	@Override
-	public Iterator<PlanNode> getPredecessors() {
+	public Iterable<PlanNode> getPredecessors() {
 		final Iterator<Channel> channels = this.inputs.iterator();
-		return new Iterator<PlanNode>() {
+		return new IterableIterator<PlanNode>() {
 
 			@Override
 			public boolean hasNext() {
@@ -77,6 +78,11 @@ public class NAryUnionPlanNode extends PlanNode {
 			@Override
 			public void remove() {
 				throw new UnsupportedOperationException();
+			}
+			
+			@Override
+			public Iterator<PlanNode> iterator() {
+				return this;
 			}
 		};
 	}

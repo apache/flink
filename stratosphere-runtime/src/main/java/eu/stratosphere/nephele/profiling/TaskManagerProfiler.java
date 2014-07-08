@@ -15,7 +15,7 @@ package eu.stratosphere.nephele.profiling;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
+import eu.stratosphere.nephele.taskmanager.Task;
 
 /**
  * This interface must be implemented by profiling components
@@ -32,8 +32,7 @@ public interface TaskManagerProfiler {
 	 * @param jobConfiguration
 	 *        the job configuration sent with the task
 	 */
-	void registerExecutionListener(RuntimeTask task, Configuration jobConfiguration);
-
+	void registerExecutionListener(Task task, Configuration jobConfiguration);
 
 	/**
 	 * Unregisters all previously register {@link ExecutionListener} objects for

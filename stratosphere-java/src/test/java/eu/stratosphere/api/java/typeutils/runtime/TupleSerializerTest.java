@@ -27,11 +27,11 @@ import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple5;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.api.java.typeutils.runtime.GenericSerializerTest.Book;
-import eu.stratosphere.api.java.typeutils.runtime.GenericSerializerTest.BookAuthor;
-import eu.stratosphere.api.java.typeutils.runtime.GenericSerializerTest.ComplexNestedObject1;
-import eu.stratosphere.api.java.typeutils.runtime.GenericSerializerTest.ComplexNestedObject2;
-import eu.stratosphere.api.java.typeutils.runtime.GenericSerializerTest.SimpleTypes;
+import eu.stratosphere.api.java.typeutils.runtime.GenericTypeSerializerTest.Book;
+import eu.stratosphere.api.java.typeutils.runtime.GenericTypeSerializerTest.BookAuthor;
+import eu.stratosphere.api.java.typeutils.runtime.GenericTypeSerializerTest.ComplexNestedObject1;
+import eu.stratosphere.api.java.typeutils.runtime.GenericTypeSerializerTest.ComplexNestedObject2;
+import eu.stratosphere.api.java.typeutils.runtime.GenericTypeSerializerTest.SimpleTypes;
 import eu.stratosphere.util.StringUtils;
 
 public class TupleSerializerTest {

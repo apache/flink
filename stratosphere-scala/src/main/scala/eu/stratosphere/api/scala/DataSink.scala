@@ -15,12 +15,12 @@ package eu.stratosphere.api.scala
 
 import java.net.URI
 import eu.stratosphere.api.scala.analysis._
-import eu.stratosphere.api.common.operators.FileDataSink
 import eu.stratosphere.api.common.io.OutputFormat
-import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.configuration.Configuration
 import eu.stratosphere.api.common.io.FileOutputFormat
-import eu.stratosphere.api.common.operators.GenericDataSink
+import eu.stratosphere.types.Record
+import eu.stratosphere.api.common.operators.base.GenericDataSinkBase
+import eu.stratosphere.api.java.record.operators.FileDataSink
 
 object DataSinkOperator {
   val DEFAULT_DATASINKOPERATOR_NAME = "<Unnamed Scala Data Sink>"
@@ -31,8 +31,8 @@ object DataSinkOperator {
     val uri = getUri(url)
 
     val ret = uri.getScheme match {
-      case "file" | "hdfs" => new FileDataSink(format.asInstanceOf[FileOutputFormat[_]], uri.toString,
-        input.contract, name) with OneInputScalaOperator[In, Nothing] {
+      case "file" | "hdfs" => new FileDataSink(format.asInstanceOf[FileOutputFormat[Record]], uri.toString,
+        input.contract, name) with ScalaOutputOperator[In] {
 
         def getUDF = format.getUDF
         override def persistConfiguration() = format.persistConfiguration(this.getParameters())
@@ -50,7 +50,7 @@ object DataSinkOperator {
   }
 }
 
-class ScalaSink[In] private[scala] (private[scala] val sink: GenericDataSink)
+class ScalaSink[In] private[scala] (private[scala] val sink: GenericDataSinkBase[Record])
 
 trait ScalaOutputFormat[In] { this: OutputFormat[_] =>
   def getUDF: UDF1[In, Nothing]

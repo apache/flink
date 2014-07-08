@@ -21,6 +21,7 @@ import eu.stratosphere.api.common.operators.util.FieldSet;
  * Container for the semantic properties associated to an operator.
  */
 public abstract class SemanticProperties implements Serializable {
+	
 	private static final long serialVersionUID = 1L;
 
 	/**
@@ -36,9 +37,9 @@ public abstract class SemanticProperties implements Serializable {
 	 */
 	public void addWrittenFields(FieldSet writtenFields) {
 		if(this.writtenFields == null) {
-			this.writtenFields = new FieldSet(writtenFields);
+			this.writtenFields = writtenFields;
 		} else {
-			this.writtenFields.addAll(writtenFields);
+			this.writtenFields = this.writtenFields.addFields(writtenFields);
 		}
 	}
 	

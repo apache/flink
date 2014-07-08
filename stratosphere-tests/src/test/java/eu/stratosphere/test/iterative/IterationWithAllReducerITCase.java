@@ -20,9 +20,9 @@ import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.Assert;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.BulkIteration;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.BulkIteration;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.io.TextInputFormat;
@@ -40,7 +40,9 @@ public class IterationWithAllReducerITCase extends RecordAPITestBase {
 	protected String dataPath;
 	protected String resultPath;
 
-	
+	public IterationWithAllReducerITCase(){
+		setTaskManagerNumSlots(4);
+	}
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -55,7 +57,7 @@ public class IterationWithAllReducerITCase extends RecordAPITestBase {
 
 	@Override
 	protected Plan getTestJob() {
-		Plan plan = getTestPlanPlan(4, dataPath, resultPath);
+		Plan plan = getTestPlanPlan(DOP, dataPath, resultPath);
 		return plan;
 	}
 

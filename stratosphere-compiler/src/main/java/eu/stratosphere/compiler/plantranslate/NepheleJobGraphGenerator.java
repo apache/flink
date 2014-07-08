@@ -22,14 +22,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.common.aggregators.AggregatorWithName;
 import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
 import eu.stratosphere.api.common.aggregators.LongSumAggregator;
 import eu.stratosphere.api.common.cache.DistributedCache;
+import eu.stratosphere.api.common.cache.DistributedCache.DistributedCacheEntry;
 import eu.stratosphere.api.common.distributions.DataDistribution;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.compiler.CompilerException;
@@ -52,8 +50,8 @@ import eu.stratosphere.compiler.plan.WorksetPlanNode;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
-import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.jobgraph.DistributionPattern;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -61,7 +59,6 @@ import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
@@ -100,7 +97,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	
 	private static final boolean mergeIterationAuxTasks = GlobalConfiguration.getBoolean(MERGE_ITERATION_AUX_TASKS_KEY, true);
 	
-	private static final Log LOG = LogFactory.getLog(NepheleJobGraphGenerator.class);
+//	private static final Log LOG = LogFactory.getLog(NepheleJobGraphGenerator.class);
 	
 	private static final TaskInChain ALREADY_VISITED_PLACEHOLDER = new TaskInChain(null, null, null);
 	
@@ -185,13 +182,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			t.addChainedTask(tic.getChainedTask(), tic.getTaskConfig(), tic.getTaskName());
 		}
 
-		// now that all have been created, make sure that all share their instances with the one
-		// with the highest degree of parallelism
-		if (program.getInstanceTypeName() != null) {
-			this.maxDegreeVertex.setInstanceType(program.getInstanceTypeName());
-		} else {
-			LOG.warn("No instance type assigned to JobVertex.");
-		}
 		for (AbstractJobVertex vertex : this.vertices.values()) {
 			if (vertex != this.maxDegreeVertex) {
 				vertex.setVertexToShareInstancesWith(this.maxDegreeVertex);
@@ -205,8 +195,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		}
 
 		// add registered cache file into job configuration
-		for (Entry<String, String> e: program.getOriginalPactPlan().getCachedFiles()) {
-			DistributedCache.addCachedFile(e.getKey(), e.getValue(), this.jobGraph.getJobConfiguration());
+		for (Entry<String, DistributedCacheEntry> e : program.getOriginalPactPlan().getCachedFiles()) {
+			DistributedCache.writeFileInfoToConfig(e.getKey(), e.getValue(), this.jobGraph.getJobConfiguration());
 		}
 		JobGraph graph = this.jobGraph;
 
@@ -230,7 +220,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	 * @param node
 	 *        The node that is currently processed.
 	 * @return True, if the visitor should descend to the node's children, false if not.
-	 * @see eu.stratosphere.util.Visitor#preVisit(eu.stratosphere.pact.common.plan.Visitable)
+	 * @see eu.stratosphere.util.Visitor#preVisit(eu.stratosphere.util.Visitable)
 	 */
 	@Override
 	public boolean preVisit(PlanNode node) {
@@ -259,8 +249,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				// operator with the tail, if they have the same DOP. not merging is currently not
 				// implemented
 				PlanNode root = iterationNode.getRootOfStepFunction();
-				if (root.getDegreeOfParallelism() != node.getDegreeOfParallelism() || 
-						root.getSubtasksPerInstance() != node.getSubtasksPerInstance()) 
+				if (root.getDegreeOfParallelism() != node.getDegreeOfParallelism())
 				{
 					throw new CompilerException("Error: The final operator of the step " +
 							"function has a different degree of parallelism than the iteration operator itself.");
@@ -277,14 +266,12 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				PlanNode nextWorkSet = iterationNode.getNextWorkSetPlanNode();
 				PlanNode solutionSetDelta  = iterationNode.getSolutionSetDeltaPlanNode();
 				
-				if (nextWorkSet.getDegreeOfParallelism() != node.getDegreeOfParallelism() || 
-					nextWorkSet.getSubtasksPerInstance() != node.getSubtasksPerInstance())
+				if (nextWorkSet.getDegreeOfParallelism() != node.getDegreeOfParallelism())
 				{
 					throw new CompilerException("It is currently not supported that the final operator of the step " +
 							"function has a different degree of parallelism than the iteration operator itself.");
 				}
-				if (solutionSetDelta.getDegreeOfParallelism() != node.getDegreeOfParallelism() || 
-					solutionSetDelta.getSubtasksPerInstance() != node.getSubtasksPerInstance())
+				if (solutionSetDelta.getDegreeOfParallelism() != node.getDegreeOfParallelism())
 				{
 					throw new CompilerException("It is currently not supported that the final operator of the step " +
 							"function has a different degree of parallelism than the iteration operator itself.");
@@ -363,11 +350,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			if (this.maxDegreeVertex == null || this.maxDegreeVertex.getNumberOfSubtasks() < pd) {
 				this.maxDegreeVertex = vertex;
 			}
-	
-			// set the number of tasks per instance
-			if (node.getSubtasksPerInstance() >= 1) {
-				vertex.setNumberOfSubtasksPerInstance(node.getSubtasksPerInstance());
-			}
 			
 			// check whether this vertex is part of an iteration step function
 			if (this.currentIteration != null) {
@@ -376,10 +358,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				if (iterationNode.getDegreeOfParallelism() < pd) {
 					throw new CompilerException("Error: All functions that are part of an iteration must have the same, or a lower, degree-of-parallelism than the iteration operator.");
 				}
-				if (iterationNode.getSubtasksPerInstance() < node.getSubtasksPerInstance()) {
-					throw new CompilerException("Error: All functions that are part of an iteration must have the same, or a lower, number of subtasks-per-node than the iteration operator.");
-				}
-				
+
 				// store the id of the iterations the step functions participate in
 				IterationDescriptor descr = this.iterations.get(this.currentIteration);
 				new TaskConfig(vertex.getConfiguration()).setIterationId(descr.getId());
@@ -400,7 +379,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	 * 
 	 * @param node
 	 *        The node currently processed during the post-visit.
-	 * @see eu.stratosphere.util.Visitor#postVisit(eu.stratosphere.pact.common.plan.Visitable)
+	 * @see eu.stratosphere.util.Visitor#postVisit(eu.stratosphere.util.Visitable) t
 	 */
 	@Override
 	public void postVisit(PlanNode node) {
@@ -454,7 +433,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				final TaskInChain chainedTask;
 				if ((chainedTask = this.chainedTasks.get(node)) != null) {
 					// Chained Task. Sanity check first...
-					final Iterator<Channel> inConns = node.getInputs();
+					final Iterator<Channel> inConns = node.getInputs().iterator();
 					if (!inConns.hasNext()) {
 						throw new CompilerException("Bug: Found chained task with no input.");
 					}
@@ -521,7 +500,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// enclosing iteration node, because the inputs are the initial inputs to the iteration.
 			final Iterator<Channel> inConns;
 			if (node instanceof BulkPartialSolutionPlanNode) {
-				inConns = ((BulkPartialSolutionPlanNode) node).getContainingIterationNode().getInputs();
+				inConns = ((BulkPartialSolutionPlanNode) node).getContainingIterationNode().getInputs().iterator();
 				// because the partial solution has its own vertex, is has only one (logical) input.
 				// note this in the task configuration
 				targetVertexConfig.setIterationHeadPartialSolutionOrWorksetInputIndex(0);
@@ -535,7 +514,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				targetVertexConfig.setIterationHeadPartialSolutionOrWorksetInputIndex(0);
 				targetVertexConfig.setIterationHeadSolutionSetInputIndex(1);
 			} else {
-				inConns = node.getInputs();
+				inConns = node.getInputs().iterator();
 			}
 			if (!inConns.hasNext()) {
 				throw new CompilerException("Bug: Found a non-source task with no input.");
@@ -577,7 +556,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				
 				// check if the iteration's input is a union
 				if (iterationNode.getInput().getSource() instanceof NAryUnionPlanNode) {
-					allInChannels = ((NAryUnionPlanNode) iterationNode.getInput().getSource()).getInputs();
+					allInChannels = ((NAryUnionPlanNode) iterationNode.getInput().getSource()).getInputs().iterator();
 				} else {
 					allInChannels = Collections.singletonList(iterationNode.getInput()).iterator();
 				}
@@ -596,7 +575,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				
 				// check if the iteration's input is a union
 				if (iterationNode.getInput2().getSource() instanceof NAryUnionPlanNode) {
-					allInChannels = ((NAryUnionPlanNode) iterationNode.getInput2().getSource()).getInputs();
+					allInChannels = ((NAryUnionPlanNode) iterationNode.getInput2().getSource()).getInputs().iterator();
 				} else {
 					allInChannels = Collections.singletonList(iterationNode.getInput2()).iterator();
 				}
@@ -738,7 +717,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					inConn.getLocalStrategy() == LocalStrategy.NONE &&
 					pred.getOutgoingChannels().size() == 1 &&
 					node.getDegreeOfParallelism() == pred.getDegreeOfParallelism() && 
-					node.getSubtasksPerInstance() == pred.getSubtasksPerInstance() &&
 					node.getBroadcastInputs().isEmpty();
 			
 			// cannot chain the nodes that produce the next workset or the next solution set, if they are not the
@@ -774,7 +752,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		} else {
 			// create task vertex
 			vertex = new JobTaskVertex(taskName, this.jobGraph);
-			vertex.setTaskClass( (this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediatePactTask.class : RegularPactTask.class);
+			vertex.setInvokableClass((this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediatePactTask.class : RegularPactTask.class);
 			
 			config = new TaskConfig(vertex.getConfiguration());
 			config.setDriver(ds.getDriverClass());
@@ -800,7 +778,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		final DriverStrategy ds = node.getDriverStrategy();
 		final JobTaskVertex vertex = new JobTaskVertex(taskName, this.jobGraph);
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
-		vertex.setTaskClass( (this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediatePactTask.class : RegularPactTask.class);
+		vertex.setInvokableClass( (this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediatePactTask.class : RegularPactTask.class);
 		
 		// set user code
 		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
@@ -827,16 +805,13 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	private JobInputVertex createDataSourceVertex(SourcePlanNode node) throws CompilerException {
 		final JobInputVertex vertex = new JobInputVertex(node.getNodeName(), this.jobGraph);
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
-		
-		// set task class
-		@SuppressWarnings("unchecked")
-		final Class<AbstractInputTask<?>> clazz = (Class<AbstractInputTask<?>>) (Class<?>) DataSourceTask.class;
-		vertex.setInputClass(clazz);
+
+		vertex.setInvokableClass(DataSourceTask.class);
 
 		// set user code
 		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
 		config.setStubParameters(node.getPactContract().getParameters());
-		
+
 		config.setOutputSerializer(node.getSerializer());
 		return vertex;
 	}
@@ -844,14 +819,14 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	private AbstractJobOutputVertex createDataSinkVertex(SinkPlanNode node) throws CompilerException {
 		final JobOutputVertex vertex = new JobOutputVertex(node.getNodeName(), this.jobGraph);
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
-		
-		vertex.setOutputClass(DataSinkTask.class);
+
+		vertex.setInvokableClass(DataSinkTask.class);
 		vertex.getConfiguration().setInteger(DataSinkTask.DEGREE_OF_PARALLELISM_KEY, node.getDegreeOfParallelism());
-		
+
 		// set user code
 		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
 		config.setStubParameters(node.getPactContract().getParameters());
-		
+
 		return vertex;
 	}
 	
@@ -878,7 +853,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					c.getLocalStrategy() == LocalStrategy.NONE &&
 					c.getTempMode() == TempMode.NONE &&
 					successor.getDegreeOfParallelism() == pspn.getDegreeOfParallelism() &&
-					successor.getSubtasksPerInstance() == pspn.getSubtasksPerInstance() &&
 					!(successor instanceof NAryUnionPlanNode) &&
 					successor != iteration.getRootOfStepFunction() &&
 					iteration.getInput().getLocalStrategy() == LocalStrategy.NONE;
@@ -900,7 +874,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			}
 			
 			// reset the vertex type to iteration head
-			headVertex.setTaskClass(IterationHeadPactTask.class);
+			headVertex.setInvokableClass(IterationHeadPactTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			toReturn = null;
 		} else {
@@ -908,7 +882,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
 			headVertex = new JobTaskVertex("PartialSolution ("+iteration.getNodeName()+")", this.jobGraph);
-			headVertex.setTaskClass(IterationHeadPactTask.class);
+			headVertex.setInvokableClass(IterationHeadPactTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			headConfig.setDriver(NoOpDriver.class);
 			toReturn = headVertex;
@@ -947,7 +921,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					c.getLocalStrategy() == LocalStrategy.NONE &&
 					c.getTempMode() == TempMode.NONE &&
 					successor.getDegreeOfParallelism() == wspn.getDegreeOfParallelism() &&
-					successor.getSubtasksPerInstance() == wspn.getSubtasksPerInstance() &&
 					!(successor instanceof NAryUnionPlanNode) &&
 					successor != iteration.getNextWorkSetPlanNode() &&
 					iteration.getInitialWorksetInput().getLocalStrategy() == LocalStrategy.NONE;
@@ -969,7 +942,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			}
 			
 			// reset the vertex type to iteration head
-			headVertex.setTaskClass(IterationHeadPactTask.class);
+			headVertex.setInvokableClass(IterationHeadPactTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			toReturn = null;
 		} else {
@@ -977,7 +950,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
 			headVertex = new JobTaskVertex("IterationHead("+iteration.getNodeName()+")", this.jobGraph);
-			headVertex.setTaskClass(IterationHeadPactTask.class);
+			headVertex.setInvokableClass(IterationHeadPactTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			headConfig.setDriver(NoOpDriver.class);
 			toReturn = headVertex;
@@ -994,17 +967,17 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	}
 	
 	private void assignDriverResources(PlanNode node, TaskConfig config) {
-		final long mem = node.getMemoryPerSubTask();
-		if (mem > 0) {
-			config.setMemoryDriver(mem);
+		final double relativeMem = node.getRelativeMemoryPerSubTask();
+		if (relativeMem > 0) {
+			config.setRelativeMemoryDriver(relativeMem);
 			config.setFilehandlesDriver(this.defaultMaxFan);
 			config.setSpillingThresholdDriver(this.defaultSortSpillingThreshold);
 		}
 	}
 	
 	private void assignLocalStrategyResources(Channel c, TaskConfig config, int inputNum) {
-		if (c.getMemoryLocalStrategy() > 0) {
-			config.setMemoryInput(inputNum, c.getMemoryLocalStrategy());
+		if (c.getRelativeMemoryLocalStrategy() > 0) {
+			config.setRelativeMemoryInput(inputNum, c.getRelativeMemoryLocalStrategy());
 			config.setFilehandlesInput(inputNum, this.defaultMaxFan);
 			config.setSpillingThresholdInput(inputNum, this.defaultSortSpillingThreshold);
 		}
@@ -1019,13 +992,13 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	 * channel is then the channel into the union node, the local strategy channel the one from the union to the
 	 * actual target operator.
 	 *
-	 * @param channelForGlobalStrategy
-	 * @param channelForLocalStrategy
+	 * @param channel
 	 * @param inputNumber
 	 * @param sourceVertex
 	 * @param sourceConfig
 	 * @param targetVertex
 	 * @param targetConfig
+	 * @param isBroadcast
 	 * @throws JobGraphDefinitionException
 	 * @throws CompilerException
 	 */
@@ -1040,7 +1013,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 
 		switch (channel.getShipStrategy()) {
 			case FORWARD:
-			case PARTITION_LOCAL_HASH:
 				distributionPattern = DistributionPattern.POINTWISE;
 				channelType = ChannelType.NETWORK;
 				break;
@@ -1133,10 +1105,10 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			
 			if (needsMemory) {
 				// sanity check
-				if (tm == null || tm == TempMode.NONE || channel.getTempMemory() < 1) {
+				if (tm == null || tm == TempMode.NONE || channel.getRelativeTempMemory() <= 0) {
 					throw new CompilerException("Bug in compiler: Inconsistent description of input materialization.");
 				}
-				config.setInputMaterializationMemory(inputNum, channel.getTempMemory());
+				config.setRelativeInputMaterializationMemory(inputNum, channel.getRelativeTempMemory());
 			}
 		}
 	}
@@ -1153,16 +1125,16 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		final int numFinalOuts = headFinalOutputConfig.getNumOutputs();
 		headConfig.setIterationHeadFinalOutputConfig(headFinalOutputConfig);
 		headConfig.setIterationHeadIndexOfSyncOutput(numStepFunctionOuts + numFinalOuts);
-		final long memForBackChannel = bulkNode.getMemoryPerSubTask();
-		if (memForBackChannel <= 0) {
+		final double relativeMemForBackChannel = bulkNode.getRelativeMemoryPerSubTask();
+		if (relativeMemForBackChannel <= 0) {
 			throw new CompilerException("Bug: No memory has been assigned to the iteration back channel.");
 		}
-		headConfig.setBackChannelMemory(memForBackChannel);
+		headConfig.setRelativeBackChannelMemory(relativeMemForBackChannel);
 		
 		// --------------------------- create the sync task ---------------------------
 		final JobOutputVertex sync = new JobOutputVertex("Sync(" +
 					bulkNode.getNodeName() + ")", this.jobGraph);
-		sync.setOutputClass(IterationSynchronizationSinkTask.class);
+		sync.setInvokableClass(IterationSynchronizationSinkTask.class);
 		sync.setNumberOfSubtasks(1);
 		this.auxVertices.add(sync);
 		
@@ -1210,21 +1182,20 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// No following termination criterion
 		if(rootOfStepFunction.getOutgoingChannels().isEmpty()) {
 			
-			rootOfStepFunctionVertex.setTaskClass(IterationTailPactTask.class);
+			rootOfStepFunctionVertex.setInvokableClass(IterationTailPactTask.class);
 			
 			tailConfig.setOutputSerializer(bulkNode.getSerializerForIterationChannel());
 			tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 			
 			// create the fake output task
 			JobOutputVertex fakeTail = new JobOutputVertex("Fake Tail", this.jobGraph);
-			fakeTail.setOutputClass(FakeOutputTask.class);
+			fakeTail.setInvokableClass(FakeOutputTask.class);
 			fakeTail.setNumberOfSubtasks(headVertex.getNumberOfSubtasks());
-			fakeTail.setNumberOfSubtasksPerInstance(headVertex.getNumberOfSubtasksPerInstance());
 			this.auxVertices.add(fakeTail);
 			
 			// connect the fake tail
 			try {
-				rootOfStepFunctionVertex.connectTo(fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+				rootOfStepFunctionVertex.connectTo(fakeTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 			} catch (JobGraphDefinitionException e) {
 				throw new CompilerException("Bug: Cannot connect iteration tail vertex fake tail task");
 			}
@@ -1253,21 +1224,20 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				tailConfigOfTerminationCriterion = new TaskConfig(rootOfTerminationCriterionVertex.getConfiguration());
 			}
 			
-			rootOfTerminationCriterionVertex.setTaskClass(IterationTailPactTask.class);
+			rootOfTerminationCriterionVertex.setInvokableClass(IterationTailPactTask.class);
 			// Hack
 			tailConfigOfTerminationCriterion.setIsSolutionSetUpdate();
 			tailConfigOfTerminationCriterion.setOutputSerializer(bulkNode.getSerializerForIterationChannel());
 			tailConfigOfTerminationCriterion.addOutputShipStrategy(ShipStrategyType.FORWARD);
 			
 			JobOutputVertex fakeTailTerminationCriterion = new JobOutputVertex("Fake Tail for Termination Criterion", this.jobGraph);
-			fakeTailTerminationCriterion.setOutputClass(FakeOutputTask.class);
+			fakeTailTerminationCriterion.setInvokableClass(FakeOutputTask.class);
 			fakeTailTerminationCriterion.setNumberOfSubtasks(headVertex.getNumberOfSubtasks());
-			fakeTailTerminationCriterion.setNumberOfSubtasksPerInstance(headVertex.getNumberOfSubtasksPerInstance());
 			this.auxVertices.add(fakeTailTerminationCriterion);
 		
 			// connect the fake tail
 			try {
-				rootOfTerminationCriterionVertex.connectTo(fakeTailTerminationCriterion, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+				rootOfTerminationCriterionVertex.connectTo(fakeTailTerminationCriterion, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 			} catch (JobGraphDefinitionException e) {
 				throw new CompilerException("Bug: Cannot connect iteration tail vertex fake tail task for termination criterion");
 			}
@@ -1284,7 +1254,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		syncConfig.addIterationAggregators(allAggregators);
 		
 		String convAggName = aggs.getConvergenceCriterionAggregatorName();
-		Class<? extends ConvergenceCriterion<?>> convCriterion = aggs.getConvergenceCriterion();
+		ConvergenceCriterion<?> convCriterion = aggs.getConvergenceCriterion();
 		
 		if (convCriterion != null || convAggName != null) {
 			if (convCriterion == null) {
@@ -1310,14 +1280,14 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			final int numFinalOuts = headFinalOutputConfig.getNumOutputs();
 			headConfig.setIterationHeadFinalOutputConfig(headFinalOutputConfig);
 			headConfig.setIterationHeadIndexOfSyncOutput(numStepFunctionOuts + numFinalOuts);
-			final long mem = iterNode.getMemoryPerSubTask();
-			if (mem <= 0) {
+			final double relativeMemory = iterNode.getRelativeMemoryPerSubTask();
+			if (relativeMemory <= 0) {
 				throw new CompilerException("Bug: No memory has been assigned to the workset iteration.");
 			}
 			
 			headConfig.setIsWorksetIteration();
-			headConfig.setBackChannelMemory(mem / 2);
-			headConfig.setSolutionSetMemory(mem / 2);
+			headConfig.setRelativeBackChannelMemory(relativeMemory / 2);
+			headConfig.setRelativeSolutionSetMemory(relativeMemory / 2);
 			
 			// set the solution set serializer and comparator
 			headConfig.setSolutionSetSerializer(iterNode.getSolutionSetSerializer());
@@ -1329,7 +1299,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		{
 			final JobOutputVertex sync = new JobOutputVertex("Sync (" +
 						iterNode.getNodeName() + ")", this.jobGraph);
-			sync.setOutputClass(IterationSynchronizationSinkTask.class);
+			sync.setInvokableClass(IterationSynchronizationSinkTask.class);
 			sync.setNumberOfSubtasks(1);
 			this.auxVertices.add(sync);
 			
@@ -1387,21 +1357,20 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				worksetTailConfig.setIsWorksetUpdate();
 				
 				if (hasWorksetTail) {
-					nextWorksetVertex.setTaskClass(IterationTailPactTask.class);
+					nextWorksetVertex.setInvokableClass(IterationTailPactTask.class);
 					
 					worksetTailConfig.setOutputSerializer(iterNode.getWorksetSerializer());
 					worksetTailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 					
 					// create the fake output task
 					JobOutputVertex fakeTail = new JobOutputVertex("Fake Tail", this.jobGraph);
-					fakeTail.setOutputClass(FakeOutputTask.class);
+					fakeTail.setInvokableClass(FakeOutputTask.class);
 					fakeTail.setNumberOfSubtasks(headVertex.getNumberOfSubtasks());
-					fakeTail.setNumberOfSubtasksPerInstance(headVertex.getNumberOfSubtasksPerInstance());
 					this.auxVertices.add(fakeTail);
 					
 					// connect the fake tail
 					try {
-						nextWorksetVertex.connectTo(fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+						nextWorksetVertex.connectTo(fakeTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 					} catch (JobGraphDefinitionException e) {
 						throw new CompilerException("Bug: Cannot connect iteration tail vertex fake tail task");
 					}
@@ -1426,21 +1395,20 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				solutionDeltaConfig.setIsSolutionSetUpdate();
 				
 				if (hasSolutionSetTail) {
-					solutionDeltaVertex.setTaskClass(IterationTailPactTask.class);
+					solutionDeltaVertex.setInvokableClass(IterationTailPactTask.class);
 					
 					solutionDeltaConfig.setOutputSerializer(iterNode.getSolutionSetSerializer());
 					solutionDeltaConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 	
 					// create the fake output task
 					JobOutputVertex fakeTail = new JobOutputVertex("Fake Tail", this.jobGraph);
-					fakeTail.setOutputClass(FakeOutputTask.class);
+					fakeTail.setInvokableClass(FakeOutputTask.class);
 					fakeTail.setNumberOfSubtasks(headVertex.getNumberOfSubtasks());
-					fakeTail.setNumberOfSubtasksPerInstance(headVertex.getNumberOfSubtasksPerInstance());
 					this.auxVertices.add(fakeTail);
 					
 					// connect the fake tail
 					try {
-						solutionDeltaVertex.connectTo(fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+						solutionDeltaVertex.connectTo(fakeTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 					} catch (JobGraphDefinitionException e) {
 						throw new CompilerException("Bug: Cannot connect iteration tail vertex fake tail task");
 					}
@@ -1473,15 +1441,15 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		syncConfig.addIterationAggregators(allAggregators);
 		
 		String convAggName = aggs.getConvergenceCriterionAggregatorName();
-		Class<? extends ConvergenceCriterion<?>> convCriterion = aggs.getConvergenceCriterion();
+		ConvergenceCriterion<?> convCriterion = aggs.getConvergenceCriterion();
 		
 		if (convCriterion != null || convAggName != null) {
 			throw new CompilerException("Error: Cannot use custom convergence criterion with workset iteration. Workset iterations have implicit convergence criterion where workset is empty.");
 		}
 		
-		headConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, LongSumAggregator.class);
-		syncConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, LongSumAggregator.class);
-		syncConfig.setConvergenceCriterion(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, WorksetEmptyConvergenceCriterion.class);
+		headConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new LongSumAggregator());
+		syncConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new LongSumAggregator());
+		syncConfig.setConvergenceCriterion(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new WorksetEmptyConvergenceCriterion());
 	}
 
 	// -------------------------------------------------------------------------------------
@@ -1502,9 +1470,9 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		
 		private AbstractJobVertex containingVertex;
 
-		@SuppressWarnings("unchecked")
-		TaskInChain(@SuppressWarnings("rawtypes") Class<? extends ChainedDriver> chainedTask, TaskConfig taskConfig, String taskName) {
-			this.chainedTask = (Class<? extends ChainedDriver<?, ?>>) chainedTask;
+		TaskInChain(Class<? extends ChainedDriver<?, ?>> chainedTask, TaskConfig taskConfig,
+					String taskName) {
+			this.chainedTask = chainedTask;
 			this.taskConfig = taskConfig;
 			this.taskName = taskName;
 		}

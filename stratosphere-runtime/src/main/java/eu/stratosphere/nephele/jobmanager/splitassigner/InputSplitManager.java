@@ -31,13 +31,11 @@ import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertexIterator;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.splitassigner.file.FileInputSplitAssigner;
-import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.util.StringUtils;
 
 /**
  * The input split manager is responsible for serving input splits to {@link AbstractInputTask} objects at runtime.
- * Before passed on to the {@link AbstractScheduler}, an {@link ExecutionGraph} is registered with the input split
+ * Before passed on to the {@link eu.stratosphere.nephele.jobmanager.scheduler.DefaultScheduler}, an {@link ExecutionGraph} is registered with the input split
  * manager and all included input vertices of the graph register their generated input splits with the manager. Each
  * type of input split can be assigned to a specific {@link InputSplitAssigner} which is loaded by the input split
  * manager at runtime.
@@ -102,18 +100,7 @@ public final class InputSplitManager {
 				continue;
 			}
 
-			final AbstractInvokable invokable = groupVertex.getEnvironment().getInvokable();
-			if (!(invokable instanceof AbstractInputTask)) {
-				LOG.error(groupVertex.getName() + " has " + inputSplits.length
-					+ " input splits, but is not of typt AbstractInputTask, ignoring...");
-				continue;
-			}
-
-			@SuppressWarnings("unchecked")
-			final AbstractInputTask<? extends InputSplit> inputTask = (AbstractInputTask<? extends InputSplit>) invokable;
-			final Class<? extends InputSplit> splitType = inputTask.getInputSplitType();
-
-			final InputSplitAssigner assigner = getAssignerByType(splitType, true);
+			final InputSplitAssigner assigner = getAssignerByType(groupVertex.getInputSplitType(), true);
 			// Add entry to cache for fast retrieval during the job execution
 			this.assignerCache.put(groupVertex, assigner);
 

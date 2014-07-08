@@ -22,7 +22,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponents;
+import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents;
 
 @RunWith(Parameterized.class)
 public class DeltaPageRankITCase extends RecordAPITestBase {
@@ -36,6 +36,7 @@ public class DeltaPageRankITCase extends RecordAPITestBase {
 	
 	public DeltaPageRankITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 	
 	@Override
@@ -66,7 +67,7 @@ public class DeltaPageRankITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config1 = new Configuration();
-		config1.setInteger("NumSubtasks", 4);
+		config1.setInteger("NumSubtasks", DOP);
 		config1.setInteger("NumIterations", 3);
 		return toParameterList(config1);
 	}

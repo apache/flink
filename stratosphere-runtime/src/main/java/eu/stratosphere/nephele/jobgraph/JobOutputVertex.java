@@ -13,40 +13,36 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.api.common.io.OutputFormat;
+import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
- * A JobOutputVertex is a specific subtype of a {@link AbstractJobOutputVertex} and is designed
+ * A JobOutputVertex is a specific sub-type of a {@link AbstractJobOutputVertex} and is designed
  * for Nephele tasks which sink data in a not further specified way. As every job output vertex,
  * a JobOutputVertex must not have any further output.
- * 
  */
 public class JobOutputVertex extends AbstractJobOutputVertex {
+	/**
+	 * Contains the output format associated to this output vertex. It can be <pre>null</pre>.
+	 */
+	private OutputFormat<?> outputFormat;
+
 
 	/**
 	 * Creates a new job file output vertex with the specified name.
 	 * 
 	 * @param name
 	 *        the name of the new job file output vertex
-	 * @param id
-	 *        the ID of this vertex
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobOutputVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
-		super(name, id, jobGraph);
+	public JobOutputVertex(String name, JobGraph jobGraph) {
+		this(name, null, jobGraph);
 	}
-
-	/**
-	 * Creates a new job file output vertex with the specified name.
-	 * 
-	 * @param name
-	 *        the name of the new job file output vertex
-	 * @param jobGraph
-	 *        the job graph this vertex belongs to
-	 */
-	public JobOutputVertex(final String name, final JobGraph jobGraph) {
-		super(name, null, jobGraph);
+	
+	public JobOutputVertex(String name, JobVertexID id, JobGraph jobGraph) {
+		super(name, id, jobGraph);
 	}
 
 	/**
@@ -55,27 +51,28 @@ public class JobOutputVertex extends AbstractJobOutputVertex {
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	public JobOutputVertex(final JobGraph jobGraph) {
-		super(null, null, jobGraph);
+	public JobOutputVertex(JobGraph jobGraph) {
+		this(null, jobGraph);
+	}
+	
+	public void setOutputFormat(OutputFormat<?> format) {
+		this.outputFormat = format;
+	}
+	
+	public void initializeOutputFormatFromTaskConfig(ClassLoader cl) {
+		TaskConfig cfg = new TaskConfig(getConfiguration());
+		UserCodeWrapper<OutputFormat<?>> wrapper = cfg.<OutputFormat<?>>getStubWrapper(cl);
+		
+		if (wrapper != null) {
+			this.outputFormat = wrapper.getUserCodeObject(OutputFormat.class, cl);
+			this.outputFormat.configure(cfg.getStubParameters());
+		}
 	}
 
 	/**
-	 * Sets the class of the vertex's output task.
-	 * 
-	 * @param outputClass
-	 *        The class of the vertex's output task.
+	 * Returns the output format. It can also be <pre>null</pre>.
+	 *
+	 * @return output format or <pre>null</pre>
 	 */
-	public void setOutputClass(final Class<? extends AbstractOutputTask> outputClass) {
-		this.invokableClass = outputClass;
-	}
-
-	/**
-	 * Returns the class of the vertex's output task.
-	 * 
-	 * @return The class of the vertex's output task or <code>null</code> if no task has yet been set.
-	 */
-	@SuppressWarnings("unchecked")
-	public Class<? extends AbstractOutputTask> getOutputClass() {
-		return (Class<? extends AbstractOutputTask>) this.invokableClass;
-	}
+	public OutputFormat<?> getOutputFormat() { return outputFormat; }
 }

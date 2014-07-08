@@ -47,4 +47,12 @@ public class ExceptionInChainedStubException extends RuntimeException
 	public Exception getWrappedException() {
 		return exception;
 	}
+
+	public static Exception exceptionUnwrap(Exception e) {
+		if (e instanceof ExceptionInChainedStubException) {
+			return exceptionUnwrap(((ExceptionInChainedStubException) e).getWrappedException());
+		}
+
+		return e;
+	}
 }

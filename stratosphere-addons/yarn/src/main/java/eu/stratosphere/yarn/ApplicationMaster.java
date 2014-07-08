@@ -82,7 +82,7 @@ public class ApplicationMaster {
 		final int memoryPerTaskManager = Integer.valueOf(envs.get(Client.ENV_TM_MEMORY));
 		final int coresPerTaskManager = Integer.valueOf(envs.get(Client.ENV_TM_CORES));
 		
-		final int heapLimit = (int)((float)memoryPerTaskManager*0.7);
+		int heapLimit = Utils.calculateHeapSize(memoryPerTaskManager);
 		
 		if(currDir == null) {
 			throw new RuntimeException("Current directory unknown");

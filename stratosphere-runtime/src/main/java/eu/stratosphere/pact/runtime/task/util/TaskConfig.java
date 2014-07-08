@@ -246,6 +246,10 @@ public class TaskConfig {
 	public String getTaskName() {
 		return this.config.getString(TASK_NAME, null);
 	}
+
+	public boolean hasStubWrapper() {
+		return this.config.containsKey(STUB_OBJECT);
+	}
 	
 	
 	public void setStubWrapper(UserCodeWrapper<?> wrapper) {
@@ -454,12 +458,12 @@ public class TaskConfig {
 		return this.config.getBoolean(INPUT_REPLAYABLE_PREFIX + inputNum, false);
 	}
 	
-	public void setInputMaterializationMemory(int inputNum, long memory) {
-		this.config.setLong(INPUT_DAM_MEMORY_PREFIX + inputNum, memory);
+	public void setRelativeInputMaterializationMemory(int inputNum, double relativeMemory) {
+		this.config.setDouble(INPUT_DAM_MEMORY_PREFIX + inputNum, relativeMemory);
 	}
 	
-	public long getInputMaterializationMemory(int inputNum) {
-		return this.config.getLong(INPUT_DAM_MEMORY_PREFIX + inputNum, -1);
+	public double getRelativeInputMaterializationMemory(int inputNum) {
+		return this.config.getDouble(INPUT_DAM_MEMORY_PREFIX + inputNum, 0);
 	}
 	
 	public void setBroadcastInputName(String name, int groupIndex) {
@@ -577,20 +581,20 @@ public class TaskConfig {
 	//                       Parameters to configure the memory and I/O behavior
 	// --------------------------------------------------------------------------------------------
 
-	public void setMemoryDriver(long memorySize) {
-		this.config.setLong(MEMORY_DRIVER, memorySize);
+	public void setRelativeMemoryDriver(double relativeMemorySize) {
+		this.config.setDouble(MEMORY_DRIVER, relativeMemorySize);
 	}
 
-	public long getMemoryDriver() {
-		return this.config.getLong(MEMORY_DRIVER, -1);
+	public double getRelativeMemoryDriver() {
+		return this.config.getDouble(MEMORY_DRIVER, 0);
 	}
 	
-	public void setMemoryInput(int inputNum, long memorySize) {
-		this.config.setLong(MEMORY_INPUT_PREFIX + inputNum, memorySize);
+	public void setRelativeMemoryInput(int inputNum, double relativeMemorySize) {
+		this.config.setDouble(MEMORY_INPUT_PREFIX + inputNum, relativeMemorySize);
 	}
 
-	public long getMemoryInput(int inputNum) {
-		return this.config.getLong(MEMORY_INPUT_PREFIX + inputNum, -1);
+	public double getRelativeMemoryInput(int inputNum) {
+		return this.config.getDouble(MEMORY_INPUT_PREFIX + inputNum, 0);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -732,30 +736,30 @@ public class TaskConfig {
 		return index;
 	}
 	
-	public void setBackChannelMemory(long memory) {
-		if (memory < 0) {
+	public void setRelativeBackChannelMemory(double relativeMemory) {
+		if (relativeMemory < 0) {
 			throw new IllegalArgumentException();
 		}
-		this.config.setLong(ITERATION_HEAD_BACKCHANNEL_MEMORY, memory);
+		this.config.setDouble(ITERATION_HEAD_BACKCHANNEL_MEMORY, relativeMemory);
 	}
 
-	public long getBackChannelMemory() {
-		long backChannelMemory = this.config.getLong(ITERATION_HEAD_BACKCHANNEL_MEMORY, 0);
-		if (backChannelMemory <= 0) {
+	public double getRelativeBackChannelMemory() {
+		double relativeBackChannelMemory = this.config.getDouble(ITERATION_HEAD_BACKCHANNEL_MEMORY, 0);
+		if (relativeBackChannelMemory <= 0) {
 			throw new IllegalArgumentException();
 		}
-		return backChannelMemory;
+		return relativeBackChannelMemory;
 	}
 	
-	public void setSolutionSetMemory(long memory) {
-		if (memory < 0) {
+	public void setRelativeSolutionSetMemory(double relativeMemory) {
+		if (relativeMemory < 0) {
 			throw new IllegalArgumentException();
 		}
-		this.config.setLong(ITERATION_HEAD_SOLUTION_SET_MEMORY, memory);
+		this.config.setDouble(ITERATION_HEAD_SOLUTION_SET_MEMORY, relativeMemory);
 	}
 
-	public long getSolutionSetMemory() {
-		long backChannelMemory = this.config.getLong(ITERATION_HEAD_SOLUTION_SET_MEMORY, 0);
+	public double getRelativeSolutionSetMemory() {
+		double backChannelMemory = this.config.getDouble(ITERATION_HEAD_SOLUTION_SET_MEMORY, 0);
 		if (backChannelMemory <= 0) {
 			throw new IllegalArgumentException();
 		}
@@ -866,10 +870,14 @@ public class TaskConfig {
 			ITERATION_SOLUTION_SET_COMPARATOR_PARAMETERS, cl);
 	}
 
-	public void addIterationAggregator(String name, Class<? extends Aggregator<?>> aggregator) {
+	public void addIterationAggregator(String name, Aggregator<?> aggregator) {
 		int num = this.config.getInteger(ITERATION_NUM_AGGREGATORS, 0);
 		this.config.setString(ITERATION_AGGREGATOR_NAME_PREFIX + num, name);
-		this.config.setClass(ITERATION_AGGREGATOR_PREFIX + num, aggregator);
+		try {
+				InstantiationUtil.writeObjectToConfig(aggregator, this.config, ITERATION_AGGREGATOR_PREFIX + num);
+		} catch (IOException e) {
+				throw new RuntimeException("Error while writing the aggregator object to the task configuration.");
+		}
 		this.config.setInteger(ITERATION_NUM_AGGREGATORS, num + 1);
 	}
 	
@@ -877,12 +885,17 @@ public class TaskConfig {
 		int num = this.config.getInteger(ITERATION_NUM_AGGREGATORS, 0);
 		for (AggregatorWithName<?> awn : aggregators) {
 			this.config.setString(ITERATION_AGGREGATOR_NAME_PREFIX + num, awn.getName());
-			this.config.setClass(ITERATION_AGGREGATOR_PREFIX + num, awn.getAggregator());
+			try {
+				InstantiationUtil.writeObjectToConfig(awn.getAggregator(), this.config, ITERATION_AGGREGATOR_PREFIX + num);
+			} catch (IOException e) {
+				throw new RuntimeException("Error while writing the aggregator object to the task configuration.");
+			}
 			num++;
 		}
 		this.config.setInteger(ITERATION_NUM_AGGREGATORS, num);
 	}
 	
+	@SuppressWarnings("unchecked")
 	public Collection<AggregatorWithName<?>> getIterationAggregators() {
 		final int numAggs = this.config.getInteger(ITERATION_NUM_AGGREGATORS, 0);
 		if (numAggs == 0) {
@@ -891,33 +904,53 @@ public class TaskConfig {
 		
 		List<AggregatorWithName<?>> list = new ArrayList<AggregatorWithName<?>>(numAggs);
 		for (int i = 0; i < numAggs; i++) {
-			@SuppressWarnings("unchecked")
-			Class<Aggregator<Value>> aggClass = (Class<Aggregator<Value>>) (Class<?>) this.config.getClass(ITERATION_AGGREGATOR_PREFIX + i, null);
-			if (aggClass == null) {
+			Aggregator<Value> aggObj;
+			try {
+				aggObj = (Aggregator<Value>) InstantiationUtil.readObjectFromConfig(
+						this.config, ITERATION_AGGREGATOR_PREFIX + i, getConfiguration().getClassLoader());
+			} catch (IOException e) {
+					throw new RuntimeException("Error while reading the aggregator object from the task configuration.");
+			} catch (ClassNotFoundException e) {
+					throw new RuntimeException("Error while reading the aggregator object from the task configuration. " +
+				"Aggregator class not found.");
+			}
+			if (aggObj == null) {
 				throw new RuntimeException("Missing config entry for aggregator.");
 			}
 			String name = this.config.getString(ITERATION_AGGREGATOR_NAME_PREFIX + i, null);
 			if (name == null) {
 				throw new RuntimeException("Missing config entry for aggregator.");
 			}
-			list.add(new AggregatorWithName<Value>(name, aggClass));
+			list.add(new AggregatorWithName<Value>(name, aggObj));
 		}
 		return list;
 	}
 	
-	public void setConvergenceCriterion(String aggregatorName, Class<? extends ConvergenceCriterion<?>> convergenceCriterionClass) {
-		this.config.setClass(ITERATION_CONVERGENCE_CRITERION, convergenceCriterionClass);
+	public void setConvergenceCriterion(String aggregatorName, ConvergenceCriterion<?> convCriterion) {
+		try {
+			InstantiationUtil.writeObjectToConfig(convCriterion, this.config, ITERATION_CONVERGENCE_CRITERION);
+		} catch (IOException e) {
+			throw new RuntimeException("Error while writing the convergence criterion object to the task configuration.");
+		}
 		this.config.setString(ITERATION_CONVERGENCE_CRITERION_AGG_NAME, aggregatorName);
 	}
 
-	public <T extends Value> Class<? extends ConvergenceCriterion<T>> getConvergenceCriterion() {
-		@SuppressWarnings("unchecked")
-		Class<? extends ConvergenceCriterion<T>> clazz = (Class<? extends ConvergenceCriterion<T>>) (Class<?>) 
-							this.config.getClass(ITERATION_CONVERGENCE_CRITERION, null, ConvergenceCriterion.class);
-		if (clazz == null) {
+	@SuppressWarnings("unchecked")
+	public <T extends Value> ConvergenceCriterion<T> getConvergenceCriterion() {
+		ConvergenceCriterion<T> convCriterionObj = null;
+		try {
+			convCriterionObj = (ConvergenceCriterion<T>) InstantiationUtil.readObjectFromConfig(
+			this.config, ITERATION_CONVERGENCE_CRITERION, getConfiguration().getClassLoader());
+		} catch (IOException e) {
+			throw new RuntimeException("Error while reading the covergence criterion object from the task configuration.");
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException("Error while reading the covergence criterion object from the task configuration. " +
+					"ConvergenceCriterion class not found.");
+		}
+		if (convCriterionObj == null) {
 			throw new NullPointerException();
 		}
-		return clazz;
+		return convCriterionObj;
 	}
 
 	public boolean usesConvergenceCriterion() {
@@ -1069,8 +1102,10 @@ public class TaskConfig {
 	/**
 	 * A configuration that manages a subset of keys with a common prefix from a given configuration.
 	 */
-	public static final class DelegatingConfiguration extends Configuration
-	{
+	public static final class DelegatingConfiguration extends Configuration {
+		
+		private static final long serialVersionUID = 1L;
+
 		private final Configuration backingConfig;		// the configuration actually storing the data
 		
 		private String prefix;							// the prefix key by which keys for this config are marked
@@ -1169,6 +1204,16 @@ public class TaskConfig {
 		public void setFloat(String key, float value) {
 			this.backingConfig.setFloat(this.prefix + key, value);
 		}
+
+		@Override
+		public double getDouble(String key, double defaultValue) {
+			return this.backingConfig.getDouble(this.prefix + key, defaultValue);
+		}
+
+		@Override
+		public void setDouble(String key, double value) {
+			this.backingConfig.setDouble(this.prefix + key, value);
+		}
 		
 		@Override
 		public byte[] getBytes(final String key, final byte[] defaultValue) {
@@ -1181,8 +1226,23 @@ public class TaskConfig {
 		}
 		
 		@Override
+		public void addAll(Configuration other) {
+			this.addAll(other, "");
+		}
+		
+		@Override
 		public void addAll(Configuration other, String prefix) {
 			this.backingConfig.addAll(other, this.prefix + prefix);
+		}
+		
+		@Override
+		public String toString() {
+			return backingConfig.toString();
+		}
+		
+		@Override
+		public void setClassLoader(ClassLoader classLoader) {
+			backingConfig.setClassLoader(classLoader);
 		}
 		
 		@Override

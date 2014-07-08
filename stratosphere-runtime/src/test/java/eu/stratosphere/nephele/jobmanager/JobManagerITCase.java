@@ -30,26 +30,33 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import eu.stratosphere.api.common.io.OutputFormat;
+import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.core.fs.Path;
+import eu.stratosphere.nephele.ExecutionMode;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
-import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.io.library.FileLineReader;
-import eu.stratosphere.nephele.io.library.FileLineWriter;
-import eu.stratosphere.nephele.jobgraph.JobFileInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobFileOutputVertex;
+import eu.stratosphere.nephele.execution.RuntimeEnvironment;
+import eu.stratosphere.nephele.jobgraph.DistributionPattern;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
+import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.nephele.jobmanager.JobManager.ExecutionMode;
+import eu.stratosphere.nephele.taskmanager.Task;
 import eu.stratosphere.nephele.taskmanager.TaskManager;
-import eu.stratosphere.nephele.taskmanager.runtime.RuntimeTask;
 import eu.stratosphere.nephele.util.JarFileCreator;
 import eu.stratosphere.nephele.util.ServerTestUtils;
+import eu.stratosphere.nephele.util.tasks.DoubleSourceTask;
+import eu.stratosphere.nephele.util.tasks.FileLineReader;
+import eu.stratosphere.nephele.util.tasks.FileLineWriter;
+import eu.stratosphere.nephele.util.tasks.JobFileInputVertex;
+import eu.stratosphere.nephele.util.tasks.JobFileOutputVertex;
+import eu.stratosphere.pact.runtime.task.DataSinkTask;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.util.LogUtils;
 
 /**
@@ -58,7 +65,8 @@ import eu.stratosphere.util.LogUtils;
 public class JobManagerITCase {
 
 	static {
-		LogUtils.initializeDefaultTestConsoleLogger();
+		// no logging, because the tests create expected exception
+		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
 	}
 	
 	/**
@@ -76,7 +84,13 @@ public class JobManagerITCase {
 	@BeforeClass
 	public static void startNephele() {
 		try {
-			GlobalConfiguration.loadConfiguration(ServerTestUtils.getConfigDir());
+			Configuration cfg = new Configuration();
+			cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "127.0.0.1");
+			cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 6123);
+			cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 1);
+			cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+			
+			GlobalConfiguration.includeConfiguration(cfg);
 			
 			configuration = GlobalConfiguration.getConfiguration(new String[] { ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY });
 			
@@ -162,21 +176,25 @@ public class JobManagerITCase {
 
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
-			i1.setFileInputClass(FileLineReader.class);
+			i1.setInvokableClass(FileLineReader.class);
 			i1.setFilePath(new Path(new File(testDirectory).toURI()));
+			i1.setNumberOfSubtasks(1);
 
 			// task vertex 1
 			final JobTaskVertex t1 = new JobTaskVertex("Task 1", jg);
-			t1.setTaskClass(ForwardTask.class);
+			t1.setInvokableClass(ForwardTask.class);
+			t1.setNumberOfSubtasks(1);
 
 			// task vertex 2
 			final JobTaskVertex t2 = new JobTaskVertex("Task 2", jg);
-			t2.setTaskClass(ForwardTask.class);
+			t2.setInvokableClass(ForwardTask.class);
+			t2.setNumberOfSubtasks(1);
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
-			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setInvokableClass(FileLineWriter.class);
 			o1.setFilePath(new Path(outputFile.toURI()));
+			o1.setNumberOfSubtasks(1);
 
 			t1.setVertexToShareInstancesWith(i1);
 			t2.setVertexToShareInstancesWith(i1);
@@ -185,8 +203,8 @@ public class JobManagerITCase {
 			// connect vertices
 			try {
 				i1.connectTo(t1, ChannelType.NETWORK);
-				t1.connectTo(t2, ChannelType.INMEMORY);
-				t2.connectTo(o1, ChannelType.INMEMORY);
+				t1.connectTo(t2, ChannelType.IN_MEMORY);
+				t2.connectTo(o1, ChannelType.IN_MEMORY);
 			} catch (JobGraphDefinitionException e) {
 				e.printStackTrace();
 			}
@@ -270,24 +288,24 @@ public class JobManagerITCase {
 
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
-			i1.setFileInputClass(FileLineReader.class);
+			i1.setInvokableClass(FileLineReader.class);
 			i1.setFilePath(new Path(inputFile.toURI()));
 
 			// task vertex 1
 			final JobTaskVertex t1 = new JobTaskVertex("Task with Exception", jg);
-			t1.setTaskClass(ExceptionTask.class);
+			t1.setInvokableClass(ExceptionTask.class);
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
-			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setInvokableClass(FileLineWriter.class);
 			o1.setFilePath(new Path(outputFile.toURI()));
 
 			t1.setVertexToShareInstancesWith(i1);
 			o1.setVertexToShareInstancesWith(i1);
 
 			// connect vertices
-			i1.connectTo(t1, ChannelType.INMEMORY);
-			t1.connectTo(o1, ChannelType.INMEMORY);
+			i1.connectTo(t1, ChannelType.IN_MEMORY);
+			t1.connectTo(o1, ChannelType.IN_MEMORY);
 
 			// add jar
 			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + exceptionClassName + ".jar")
@@ -297,9 +315,10 @@ public class JobManagerITCase {
 			jobClient = new JobClient(jg, configuration);
 			
 			// deactivate logging of expected test exceptions
-			Logger rtLogger = Logger.getLogger(RuntimeTask.class);
-			Level rtLevel = rtLogger.getEffectiveLevel();
+			Logger rtLogger = Logger.getLogger(Task.class);
 			rtLogger.setLevel(Level.OFF);
+			Logger envLogger = Logger.getLogger(RuntimeEnvironment.class);
+			envLogger.setLevel(Level.DEBUG);
 			
 			try {
 				jobClient.submitJobAndWait();
@@ -314,16 +333,12 @@ public class JobManagerITCase {
 
 				return;
 			}
-			finally {
-				rtLogger.setLevel(rtLevel);
-			}
 
 			fail("Expected exception but did not receive it");
 
-		} catch (JobGraphDefinitionException jgde) {
-			fail(jgde.getMessage());
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		} finally {
 
 			// Remove temporary files
@@ -357,7 +372,7 @@ public class JobManagerITCase {
 
 		try {
 
-			inputFile = ServerTestUtils.createInputFile(0);
+			inputFile = ServerTestUtils.createInputFile(100);
 			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
 			jarFile = ServerTestUtils.createJarFile(runtimeExceptionClassName);
 
@@ -366,24 +381,24 @@ public class JobManagerITCase {
 
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
-			i1.setFileInputClass(FileLineReader.class);
+			i1.setInvokableClass(FileLineReader.class);
 			i1.setFilePath(new Path(inputFile.toURI()));
 
 			// task vertex 1
 			final JobTaskVertex t1 = new JobTaskVertex("Task with Exception", jg);
-			t1.setTaskClass(RuntimeExceptionTask.class);
+			t1.setInvokableClass(RuntimeExceptionTask.class);
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
-			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setInvokableClass(FileLineWriter.class);
 			o1.setFilePath(new Path(outputFile.toURI()));
 
 			t1.setVertexToShareInstancesWith(i1);
 			o1.setVertexToShareInstancesWith(i1);
 
 			// connect vertices
-			i1.connectTo(t1, ChannelType.INMEMORY);
-			t1.connectTo(o1, ChannelType.INMEMORY);
+			i1.connectTo(t1, ChannelType.IN_MEMORY);
+			t1.connectTo(o1, ChannelType.IN_MEMORY);
 
 			// add jar
 			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + runtimeExceptionClassName
@@ -406,6 +421,114 @@ public class JobManagerITCase {
 				}
 				if (!e.getMessage().contains(RuntimeExceptionTask.RUNTIME_EXCEPTION_MESSAGE)) {
 					fail("JobExecutionException does not contain the expected error message");
+				}
+
+				// Check if the correct error message is encapsulated in the exception
+				return;
+			}
+			finally {
+				jcLogger.setLevel(jcLevel);
+			}
+
+			fail("Expected exception but did not receive it");
+
+		} catch (JobGraphDefinitionException jgde) {
+			fail(jgde.getMessage());
+		} catch (IOException ioe) {
+			fail(ioe.getMessage());
+		} finally {
+
+			// Remove temporary files
+			if (inputFile != null) {
+				inputFile.delete();
+			}
+			if (outputFile != null) {
+				outputFile.delete();
+			}
+			if (jarFile != null) {
+				jarFile.delete();
+			}
+
+			if (jobClient != null) {
+				jobClient.close();
+			}
+		}
+	}
+
+	/**
+	 * Tests the Nephele execution when a runtime exception in the output format occurs.
+	 */
+	@Test
+	public void testExecutionWithRuntimeExceptionInOutputFormat() {
+
+		final String runtimeExceptionClassName = RuntimeExceptionTask.class.getSimpleName();
+		File inputFile = null;
+		File outputFile = null;
+		File jarFile = null;
+		JobClient jobClient = null;
+
+		try {
+
+			inputFile = ServerTestUtils.createInputFile(100);
+			outputFile = new File(ServerTestUtils.getTempDir() + File.separator + ServerTestUtils.getRandomFilename());
+			jarFile = ServerTestUtils.createJarFile(runtimeExceptionClassName);
+
+			// Create job graph
+			final JobGraph jg = new JobGraph("Job Graph for Exception Test");
+
+			// input vertex
+			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
+			i1.setInvokableClass(FileLineReader.class);
+			i1.setFilePath(new Path(inputFile.toURI()));
+			i1.setNumberOfSubtasks(1);
+
+			// task vertex 1
+			final JobTaskVertex t1 = new JobTaskVertex("Task with Exception", jg);
+			t1.setInvokableClass(ForwardTask.class);
+
+			// output vertex
+			JobOutputVertex o1 = new JobOutputVertex("Output 1", jg);
+			o1.setNumberOfSubtasks(1);
+			o1.setInvokableClass(DataSinkTask.class);
+			ExceptionOutputFormat outputFormat = new ExceptionOutputFormat();
+			o1.setOutputFormat(outputFormat);
+			TaskConfig outputConfig = new TaskConfig(o1.getConfiguration());
+			outputConfig.setStubWrapper(new UserCodeObjectWrapper<OutputFormat<?>>(outputFormat));
+//			outputConfig.addInputToGroup(0);
+//			
+//			ValueSerializer<StringRecord> serializer = new ValueSerializer<StringRecord>(StringRecord.class);
+//			RuntimeStatefulSerializerFactory<StringRecord> serializerFactory = new RuntimeStatefulSerializerFactory<StringRecord>(serializer, StringRecord.class);
+//			outputConfig.setInputSerializer(serializerFactory, 0);
+
+			t1.setVertexToShareInstancesWith(i1);
+			o1.setVertexToShareInstancesWith(i1);
+
+			// connect vertices
+			i1.connectTo(t1, ChannelType.IN_MEMORY);
+			t1.connectTo(o1, ChannelType.IN_MEMORY);
+
+			// add jar
+			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + runtimeExceptionClassName
+					+ ".jar").toURI()));
+
+			// Create job client and launch job
+			jobClient = new JobClient(jg, configuration);
+
+			// deactivate logging of expected test exceptions
+			Logger jcLogger = Logger.getLogger(JobClient.class);
+			Level jcLevel = jcLogger.getEffectiveLevel();
+			jcLogger.setLevel(Level.OFF);
+			try {
+				jobClient.submitJobAndWait();
+			} catch (JobExecutionException e) {
+
+				// Check if the correct error message is encapsulated in the exception
+				if (e.getMessage() == null) {
+					fail("JobExecutionException does not contain an error message");
+				}
+				if (!e.getMessage().contains(RuntimeExceptionTask.RUNTIME_EXCEPTION_MESSAGE)) {
+					fail("JobExecutionException does not contain the expected error message, " +
+							"but instead: " + e.getMessage());
 				}
 
 				// Check if the correct error message is encapsulated in the exception
@@ -469,21 +592,25 @@ public class JobManagerITCase {
 
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
-			i1.setFileInputClass(FileLineReader.class);
+			i1.setInvokableClass(FileLineReader.class);
 			i1.setFilePath(new Path(inputFile.toURI()));
+			i1.setNumberOfSubtasks(1);
 
 			// task vertex 1
 			final JobTaskVertex t1 = new JobTaskVertex("Task 1", jg);
-			t1.setTaskClass(ForwardTask.class);
+			t1.setInvokableClass(ForwardTask.class);
+			t1.setNumberOfSubtasks(1);
 
 			// task vertex 2
 			final JobTaskVertex t2 = new JobTaskVertex("Task 2", jg);
-			t2.setTaskClass(ForwardTask.class);
+			t2.setInvokableClass(ForwardTask.class);
+			t2.setNumberOfSubtasks(1);
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
-			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setInvokableClass(FileLineWriter.class);
 			o1.setFilePath(new Path(outputFile.toURI()));
+			o1.setNumberOfSubtasks(1);
 
 			t1.setVertexToShareInstancesWith(i1);
 			t2.setVertexToShareInstancesWith(i1);
@@ -492,10 +619,11 @@ public class JobManagerITCase {
 			// connect vertices
 			try {
 				i1.connectTo(t1, ChannelType.NETWORK);
-				t1.connectTo(t2, ChannelType.INMEMORY);
-				t2.connectTo(o1, ChannelType.INMEMORY);
-			} catch (JobGraphDefinitionException e) {
+				t1.connectTo(t2, ChannelType.IN_MEMORY);
+				t2.connectTo(o1, ChannelType.IN_MEMORY);
+			} catch (Exception e) {
 				e.printStackTrace();
+				fail(e.getMessage());
 			}
 
 			// add jar
@@ -567,25 +695,25 @@ public class JobManagerITCase {
 
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input with two Outputs", jg);
-			i1.setFileInputClass(DoubleSourceTask.class);
+			i1.setInvokableClass(DoubleSourceTask.class);
 			i1.setFilePath(new Path(inputFile.toURI()));
 
 			// task vertex 1
 			final JobTaskVertex t1 = new JobTaskVertex("Task with two Inputs", jg);
-			t1.setTaskClass(DoubleTargetTask.class);
+			t1.setInvokableClass(DoubleTargetTask.class);
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output 1", jg);
-			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setInvokableClass(FileLineWriter.class);
 			o1.setFilePath(new Path(outputFile.toURI()));
 
 			t1.setVertexToShareInstancesWith(i1);
 			o1.setVertexToShareInstancesWith(i1);
 
 			// connect vertices
-			i1.connectTo(t1, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+			i1.connectTo(t1, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 			i1.connectTo(t1, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-			t1.connectTo(o1, ChannelType.INMEMORY);
+			t1.connectTo(o1, ChannelType.IN_MEMORY);
 
 			// add jar
 			jg.addJar(new Path(jarFile.toURI()));
@@ -594,12 +722,9 @@ public class JobManagerITCase {
 			jobClient = new JobClient(jg, configuration);
 			jobClient.submitJobAndWait();
 
-		} catch (JobExecutionException e) {
+		} catch (Exception e) {
+			e.printStackTrace();
 			fail(e.getMessage());
-		} catch (JobGraphDefinitionException jgde) {
-			fail(jgde.getMessage());
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
 		} finally {
 
 			// Remove temporary files
@@ -646,18 +771,18 @@ public class JobManagerITCase {
 
 			// input vertex
 			final JobFileInputVertex i1 = new JobFileInputVertex(jg);
-			i1.setFileInputClass(FileLineReader.class);
+			i1.setInvokableClass(FileLineReader.class);
 			i1.setFilePath(new Path(inputFile.toURI()));
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex(jg);
-			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setInvokableClass(FileLineWriter.class);
 			o1.setFilePath(new Path(outputFile.toURI()));
 
 			o1.setVertexToShareInstancesWith(i1);
 
 			// connect vertices
-			i1.connectTo(o1, ChannelType.INMEMORY);
+			i1.connectTo(o1, ChannelType.IN_MEMORY);
 
 			// add jar
 			jg.addJar(new Path(jarFile.toURI()));
@@ -665,13 +790,9 @@ public class JobManagerITCase {
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration);
 			jobClient.submitJobAndWait();
-
-		} catch (JobExecutionException e) {
+		} catch (Exception e) {
+			e.printStackTrace();
 			fail(e.getMessage());
-		} catch (JobGraphDefinitionException jgde) {
-			fail(jgde.getMessage());
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
 		} finally {
 
 			// Remove temporary files
@@ -729,31 +850,32 @@ public class JobManagerITCase {
 
 			// input vertex 1
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
-			i1.setFileInputClass(FileLineReader.class);
+			i1.setInvokableClass(FileLineReader.class);
 			i1.setFilePath(new Path(inputFile1.toURI()));
 
 			// input vertex 2
 			final JobFileInputVertex i2 = new JobFileInputVertex("Input 2", jg);
-			i2.setFileInputClass(FileLineReader.class);
+			i2.setInvokableClass(FileLineReader.class);
 			i2.setFilePath(new Path(inputFile2.toURI()));
 
 			// union task
 			final JobTaskVertex u1 = new JobTaskVertex("Union", jg);
-			u1.setTaskClass(UnionTask.class);
+			u1.setInvokableClass(UnionTask.class);
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output", jg);
-			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setInvokableClass(FileLineWriter.class);
 			o1.setFilePath(new Path(outputFile.toURI()));
+			o1.setNumberOfSubtasks(1);
 
 			i1.setVertexToShareInstancesWith(o1);
 			i2.setVertexToShareInstancesWith(o1);
 			u1.setVertexToShareInstancesWith(o1);
 
 			// connect vertices
-			i1.connectTo(u1, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
-			i2.connectTo(u1, ChannelType.INMEMORY);
-			u1.connectTo(o1, ChannelType.INMEMORY);
+			i1.connectTo(u1, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+			i2.connectTo(u1, ChannelType.IN_MEMORY);
+			u1.connectTo(o1, ChannelType.IN_MEMORY);
 
 			// add jar
 			jg.addJar(new Path(jarFile.toURI()));
@@ -872,30 +994,26 @@ public class JobManagerITCase {
 
 			// input vertex 1
 			final JobFileInputVertex i1 = new JobFileInputVertex("Input 1", jg);
-			i1.setFileInputClass(FileLineReader.class);
+			i1.setInvokableClass(FileLineReader.class);
 			i1.setFilePath(new Path(inputFile1.toURI()));
 			i1.setNumberOfSubtasks(numberOfSubtasks);
-			i1.setNumberOfSubtasksPerInstance(numberOfSubtasks);
 
 			// input vertex 2
 			final JobFileInputVertex i2 = new JobFileInputVertex("Input 2", jg);
-			i2.setFileInputClass(FileLineReader.class);
+			i2.setInvokableClass(FileLineReader.class);
 			i2.setFilePath(new Path(inputFile2.toURI()));
 			i2.setNumberOfSubtasks(numberOfSubtasks);
-			i2.setNumberOfSubtasksPerInstance(numberOfSubtasks);
 
 			// union task
 			final JobTaskVertex f1 = new JobTaskVertex("Forward 1", jg);
-			f1.setTaskClass(DoubleTargetTask.class);
+			f1.setInvokableClass(DoubleTargetTask.class);
 			f1.setNumberOfSubtasks(numberOfSubtasks);
-			f1.setNumberOfSubtasksPerInstance(numberOfSubtasks);
 
 			// output vertex
 			JobFileOutputVertex o1 = new JobFileOutputVertex("Output", jg);
-			o1.setFileOutputClass(FileLineWriter.class);
+			o1.setInvokableClass(FileLineWriter.class);
 			o1.setFilePath(new Path(outputFile.toURI()));
 			o1.setNumberOfSubtasks(numberOfSubtasks);
-			o1.setNumberOfSubtasksPerInstance(numberOfSubtasks);
 
 			i1.setVertexToShareInstancesWith(o1);
 			i2.setVertexToShareInstancesWith(o1);
@@ -928,6 +1046,9 @@ public class JobManagerITCase {
 			} catch (JobExecutionException e) {
 				// Job execution should lead to an error due to lack of resources
 				return;
+			} catch (Exception e) {
+				e.printStackTrace();
+				fail(e.getMessage());
 			}
 			finally {
 				tmLogger.setLevel(tmLevel);

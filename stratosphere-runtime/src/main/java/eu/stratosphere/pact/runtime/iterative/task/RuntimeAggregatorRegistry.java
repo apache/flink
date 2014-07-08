@@ -19,7 +19,6 @@ import java.util.Map;
 import eu.stratosphere.api.common.aggregators.Aggregator;
 import eu.stratosphere.api.common.aggregators.AggregatorWithName;
 import eu.stratosphere.types.Value;
-import eu.stratosphere.util.InstantiationUtil;
 
 
 /**
@@ -36,8 +35,7 @@ public class RuntimeAggregatorRegistry {
 		this.previousGlobalAggregate = new HashMap<String, Value>();
 		
 		for (AggregatorWithName<?> agg : aggs) {
-			Aggregator<?> aggregator = InstantiationUtil.instantiate(agg.getAggregator(), Aggregator.class);
-			this.aggregators.put(agg.getName(), aggregator);
+			this.aggregators.put(agg.getName(), agg.getAggregator());
 		}
 	}
 	

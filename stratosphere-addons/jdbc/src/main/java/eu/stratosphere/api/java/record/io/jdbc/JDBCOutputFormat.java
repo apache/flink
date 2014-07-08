@@ -22,7 +22,7 @@ import java.sql.SQLException;
 
 import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.common.io.OutputFormat;
-import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.java.record.operators.GenericDataSink;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.types.BooleanValue;
 import eu.stratosphere.types.ByteValue;

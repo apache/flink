@@ -25,8 +25,8 @@ import eu.stratosphere.api.common.functions.GenericCollectorMap;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparatorFactory;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.CollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
@@ -43,6 +43,10 @@ import eu.stratosphere.util.LogUtils;
 
 
 public class ChainTaskTest extends TaskTestBase {
+	
+	private static final int MEMORY_MANAGER_SIZE = 1024 * 1024 * 3;
+
+	private static final int NETWORK_BUFFER_SIZE = 1024;
 	
 	private final List<Record> outList = new ArrayList<Record>();
 	
@@ -63,11 +67,13 @@ public class ChainTaskTest extends TaskTestBase {
 	public void testMapTask() {
 		final int keyCnt = 100;
 		final int valCnt = 20;
+
+		final double memoryFraction = 1.0;
 		
 		try {
 		
 			// environment
-			initEnvironment(3*1024*1024);
+			initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 			addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
 			addOutput(this.outList);
 			
@@ -86,7 +92,7 @@ public class ChainTaskTest extends TaskTestBase {
 				// driver
 				combineConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
 				combineConfig.setDriverComparator(compFact, 0);
-				combineConfig.setMemoryDriver(3 * 1024 * 1024);
+				combineConfig.setRelativeMemoryDriver(memoryFraction);
 				
 				// udf
 				combineConfig.setStubWrapper(new UserCodeClassWrapper<MockReduceStub>(MockReduceStub.class));
@@ -120,10 +126,14 @@ public class ChainTaskTest extends TaskTestBase {
 	public void testFailingMapTask() {
 		int keyCnt = 100;
 		int valCnt = 20;
+
+		final long memorySize = 1024 * 1024 * 3;
+		final int bufferSize = 1014*1024;
+		final double memoryFraction = 1.0;
 		
 		try {
 			// environment
-			initEnvironment(3*1024*1024);
+			initEnvironment(memorySize, bufferSize);
 			addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
 			addOutput(this.outList);
 	
@@ -142,7 +152,7 @@ public class ChainTaskTest extends TaskTestBase {
 				// driver
 				combineConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
 				combineConfig.setDriverComparator(compFact, 0);
-				combineConfig.setMemoryDriver(3 * 1024 * 1024);
+				combineConfig.setRelativeMemoryDriver(memoryFraction);
 				
 				// udf
 				combineConfig.setStubWrapper(new UserCodeClassWrapper<MockFailingCombineStub>(MockFailingCombineStub.class));

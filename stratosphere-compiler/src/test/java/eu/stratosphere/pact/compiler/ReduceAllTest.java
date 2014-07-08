@@ -18,8 +18,8 @@ import static org.junit.Assert.fail;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -32,6 +32,7 @@ import eu.stratosphere.pact.compiler.util.IdentityReduce;
  * This test case has been created to validate a bug that occurred when
  * the ReduceOperator was used without a grouping key.
  */
+@SuppressWarnings("serial")
 public class ReduceAllTest extends CompilerTestBase {
 
 	@Test

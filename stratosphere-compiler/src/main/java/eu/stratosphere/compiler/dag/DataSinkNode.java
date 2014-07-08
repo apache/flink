@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.api.common.distributions.DataDistribution;
-import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.compiler.CompilerException;
@@ -31,7 +31,6 @@ import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.SinkPlanNode;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.util.Visitor;
 
 /**
@@ -46,7 +45,7 @@ public class DataSinkNode extends OptimizerNode {
 	 * 
 	 * @param sink The data sink contract object.
 	 */
-	public DataSinkNode(GenericDataSink sink) {
+	public DataSinkNode(GenericDataSinkBase<?> sink) {
 		super(sink);
 	}
 
@@ -78,18 +77,13 @@ public class DataSinkNode extends OptimizerNode {
 	 * @return The contract.
 	 */
 	@Override
-	public GenericDataSink getPactContract() {
-		return (GenericDataSink) super.getPactContract();
+	public GenericDataSinkBase<?> getPactContract() {
+		return (GenericDataSinkBase<?>) super.getPactContract();
 	}
 
 	@Override
 	public String getName() {
 		return "Data Sink";
-	}
-
-	@Override
-	public boolean isMemoryConsumer() {
-		return getPactContract().getPartitionOrdering() != null || getPactContract().getLocalOrder() != null;
 	}
 
 	@Override
@@ -102,8 +96,8 @@ public class DataSinkNode extends OptimizerNode {
 	}
 
 	@Override
-	public void setInput(Map<Operator, OptimizerNode> contractToNode) {
-		Operator children = getPactContract().getInput();
+	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode) {
+		Operator<?> children = getPactContract().getInput();
 
 		final OptimizerNode pred;
 		final PactConnection conn;
@@ -167,6 +161,8 @@ public class DataSinkNode extends OptimizerNode {
 			return;
 		}
 
+		// we need to track open branches even in the sinks, because they get "closed" when
+		// we build a single "roor" for the data flow plan
 		addClosedBranches(getPredecessorNode().closedBranchingNodes);
 		this.openBranches = getPredecessorNode().getBranchesForParent(this.input);
 	}
@@ -193,27 +189,19 @@ public class DataSinkNode extends OptimizerNode {
 		List<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
 		final int dop = getDegreeOfParallelism();
-		final int subPerInstance = getSubtasksPerInstance();
 		final int inDop = getPredecessorNode().getDegreeOfParallelism();
-		final int inSubPerInstance = getPredecessorNode().getSubtasksPerInstance();
-		final int numInstances = dop / subPerInstance + (dop % subPerInstance == 0 ? 0 : 1);
-		final int inNumInstances = inDop / inSubPerInstance + (inDop % inSubPerInstance == 0 ? 0 : 1);
-		
-		final boolean globalDopChange = numInstances != inNumInstances;
-		final boolean localDopChange = numInstances == inNumInstances & subPerInstance != inSubPerInstance;
-		
+
+		final boolean dopChange = dop != inDop;
+
 		InterestingProperties ips = this.input.getInterestingProperties();
 		for (PlanNode p : subPlans) {
 			for (RequestedGlobalProperties gp : ips.getGlobalProperties()) {
 				for (RequestedLocalProperties lp : ips.getLocalProperties()) {
 					Channel c = new Channel(p);
-					gp.parameterizeChannel(c, globalDopChange, localDopChange);
-
-					if (lp.isMetBy(c.getLocalPropertiesAfterShippingOnly())) {
-						c.setLocalStrategy(LocalStrategy.NONE);
-					} else {
-						lp.parameterizeChannel(c);
-					}
+					gp.parameterizeChannel(c, dopChange);
+					lp.parameterizeChannel(c);
+					c.setRequiredLocalProps(lp);
+					c.setRequiredGlobalProps(gp);
 					
 					// no need to check whether the created properties meet what we need in case
 					// of ordering or global ordering, because the only interesting properties we have

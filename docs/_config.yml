@@ -1,0 +1,33 @@
+#------------------------------------------------------------------------------
+# VARIABLES
+#------------------------------------------------------------------------------
+# Variables specified in this file can be used in the documentation via:
+#     {{ site.CONFIG_KEY }}
+#------------------------------------------------------------------------------
+
+FLINK_VERSION: 0.6-SNAPSHOT
+FLINK_VERSION_SHORT: 0.6
+FLINK_ISSUES_URL: https://issues.apache.org/jira/browse/FLINK
+FLINK_GITHUB_URL:  https://github.com/apache/incubator-flink
+
+#------------------------------------------------------------------------------
+# BUILD CONFIG
+#------------------------------------------------------------------------------
+# These variables configure the jekyll build (./build_docs.sh). You don't need
+# to change anything here.
+#------------------------------------------------------------------------------
+
+defaults:
+  -
+    scope:
+      path: ""
+    values:
+      layout: docs
+
+highlighter: pygments
+markdown: redcarpet
+redcarpet:
+  # https://help.github.com/articles/github-flavored-markdown
+  extensions: ["no_intra_emphasis", "fenced_code_blocks", "autolink",
+               "tables", "with_toc_data", "strikethrough", "superscript",
+               "lax_spacing"]

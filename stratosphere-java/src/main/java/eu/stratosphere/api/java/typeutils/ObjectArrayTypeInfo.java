@@ -22,6 +22,7 @@ import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.java.functions.InvalidTypesException;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.runtime.GenericArraySerializer;
+import eu.stratosphere.types.TypeInformation;
 
 public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 

@@ -19,7 +19,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.api.common.operators.BulkIteration;
+import eu.stratosphere.api.common.operators.base.BulkIterationBase;
+import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler.InterestingPropertyVisitor;
@@ -37,6 +38,9 @@ import eu.stratosphere.compiler.plan.BulkPartialSolutionPlanNode;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.NamedChannel;
 import eu.stratosphere.compiler.plan.PlanNode;
+import eu.stratosphere.compiler.plan.SingleInputPlanNode;
+import eu.stratosphere.compiler.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.util.Visitor;
 
 /**
@@ -61,11 +65,11 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Creates a new node with a single input for the optimizer plan.
+	 * Creates a new node for the bulk iteration.
 	 * 
-	 * @param pactContract The PACT that the node represents.
+	 * @param iteration The bulk iteration the node represents.
 	 */
-	public BulkIterationNode(BulkIteration iteration) {
+	public BulkIterationNode(BulkIterationBase<?> iteration) {
 		super(iteration);
 		
 		if (iteration.getMaximumNumberOfIterations() <= 0) {
@@ -80,8 +84,8 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 
 	// --------------------------------------------------------------------------------------------
 	
-	public BulkIteration getIterationContract() {
-		return (BulkIteration) getPactContract();
+	public BulkIterationBase<?> getIterationContract() {
+		return (BulkIterationBase<?>) getPactContract();
 	}
 	
 	/**
@@ -120,14 +124,12 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	public void setNextPartialSolution(OptimizerNode nextPartialSolution, OptimizerNode terminationCriterion) {
 		
 		// check if the root of the step function has the same DOP as the iteration
-		if (nextPartialSolution.getDegreeOfParallelism() != getDegreeOfParallelism() ||
-			nextPartialSolution.getSubtasksPerInstance() != getSubtasksPerInstance() )
+		if (nextPartialSolution.getDegreeOfParallelism() != getDegreeOfParallelism())
 		{
 			// add a no-op to the root to express the re-partitioning
 			NoOpNode noop = new NoOpNode();
 			noop.setDegreeOfParallelism(getDegreeOfParallelism());
-			noop.setSubtasksPerInstance(getSubtasksPerInstance());
-			
+
 			PactConnection noOpConn = new PactConnection(nextPartialSolution, noop);
 			noop.setIncomingConnection(noOpConn);
 			nextPartialSolution.addOutgoingConnection(noOpConn);
@@ -194,12 +196,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
 		return Collections.<OperatorDescriptorSingle>singletonList(new NoOpDescriptor());
 	}
-	
-	@Override
-	public boolean isMemoryConsumer() {
-		return true;
-	}
-	
+
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		final InterestingProperties intProps = getInterestingProperties().clone();
@@ -248,18 +245,10 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 			return;
 		}
 
-		// handle the data flow branching for the regular inputs
-		addClosedBranches(getPredecessorNode().closedBranchingNodes);
-		addClosedBranches(getNextPartialSolution().closedBranchingNodes);
-
-		List<UnclosedBranchDescriptor> result1 = getPredecessorNode().getBranchesForParent(this.inConn);
-		List<UnclosedBranchDescriptor> result2 = getSingleRootOfStepFunction().openBranches;
-
-		ArrayList<UnclosedBranchDescriptor> inputsMerged = new ArrayList<UnclosedBranchDescriptor>();
-		mergeLists(result1, result2, inputsMerged);
-
-		// handle the data flow branching for the broadcast inputs
-		List<UnclosedBranchDescriptor> result = computeUnclosedBranchStackForBroadcastInputs(inputsMerged);
+		// the resulting branches are those of the step function
+		// because the BulkPartialSolution takes the input's branches
+		addClosedBranches(getSingleRootOfStepFunction().closedBranchingNodes);
+		List<UnclosedBranchDescriptor> result = getSingleRootOfStepFunction().openBranches;
 
 		this.openBranches = (result == null || result.isEmpty()) ? Collections.<UnclosedBranchDescriptor>emptyList() : result;
 	}
@@ -280,21 +269,64 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		// 1) Because we enumerate multiple times, we may need to clean the cached plans
 		//    before starting another enumeration
 		this.nextPartialSolution.accept(PlanCacheCleaner.INSTANCE);
+		if (this.terminationCriterion != null) {
+			this.terminationCriterion.accept(PlanCacheCleaner.INSTANCE);
+		}
 		
 		// 2) Give the partial solution the properties of the current candidate for the initial partial solution
-		this.partialSolution.setCandidateProperties(in.getGlobalProperties(), in.getLocalProperties());
+		this.partialSolution.setCandidateProperties(in.getGlobalProperties(), in.getLocalProperties(), in);
 		final BulkPartialSolutionPlanNode pspn = this.partialSolution.getCurrentPartialSolutionPlanNode();
 		
 		// 3) Get the alternative plans
 		List<PlanNode> candidates = this.nextPartialSolution.getAlternativePlans(estimator);
 		
-		// 4) Throw away all that are not compatible with the properties currently requested to the
-		//    initial partial solution
-		for (Iterator<PlanNode> planDeleter = candidates.iterator(); planDeleter.hasNext(); ) {
-			PlanNode candidate = planDeleter.next();
-			if (!(globPropsReq.isMetBy(candidate.getGlobalProperties()) && locPropsReq.isMetBy(candidate.getLocalProperties()))) {
-				planDeleter.remove();
+		// 4) Make sure that the beginning of the step function does not assume properties that 
+		//    are not also produced by the end of the step function.
+
+		{
+			List<PlanNode> newCandidates = new ArrayList<PlanNode>();
+			
+			for (Iterator<PlanNode> planDeleter = candidates.iterator(); planDeleter.hasNext(); ) {
+				PlanNode candidate = planDeleter.next();
+				
+				GlobalProperties atEndGlobal = candidate.getGlobalProperties();
+				LocalProperties atEndLocal = candidate.getLocalProperties();
+				
+				FeedbackPropertiesMeetRequirementsReport report = candidate.checkPartialSolutionPropertiesMet(pspn, atEndGlobal, atEndLocal);
+				if (report == FeedbackPropertiesMeetRequirementsReport.NO_PARTIAL_SOLUTION) {
+					; // depends only through broadcast variable on the partial solution
+				}
+				else if (report == FeedbackPropertiesMeetRequirementsReport.NOT_MET) {
+					// attach a no-op node through which we create the properties of the original input
+					Channel toNoOp = new Channel(candidate);
+					globPropsReq.parameterizeChannel(toNoOp, false);
+					locPropsReq.parameterizeChannel(toNoOp);
+					
+					UnaryOperatorNode rebuildPropertiesNode = new UnaryOperatorNode("Rebuild Partial Solution Properties", FieldList.EMPTY_LIST);
+					rebuildPropertiesNode.setDegreeOfParallelism(candidate.getDegreeOfParallelism());
+					
+					SingleInputPlanNode rebuildPropertiesPlanNode = new SingleInputPlanNode(rebuildPropertiesNode, "Rebuild Partial Solution Properties", toNoOp, DriverStrategy.UNARY_NO_OP);
+					rebuildPropertiesPlanNode.initProperties(toNoOp.getGlobalProperties(), toNoOp.getLocalProperties());
+					estimator.costOperator(rebuildPropertiesPlanNode);
+						
+					GlobalProperties atEndGlobalModified = rebuildPropertiesPlanNode.getGlobalProperties();
+					LocalProperties atEndLocalModified = rebuildPropertiesPlanNode.getLocalProperties();
+						
+					if (!(atEndGlobalModified.equals(atEndGlobal) && atEndLocalModified.equals(atEndLocal))) {
+						FeedbackPropertiesMeetRequirementsReport report2 = candidate.checkPartialSolutionPropertiesMet(pspn, atEndGlobalModified, atEndLocalModified);
+						
+						if (report2 != FeedbackPropertiesMeetRequirementsReport.NOT_MET) {
+							newCandidates.add(rebuildPropertiesPlanNode);
+						}
+					}
+					
+					planDeleter.remove();
+				}
 			}
+		}
+		
+		if (candidates.isEmpty()) {
+			return;
 		}
 		
 		// 5) Create a candidate for the Iteration Node for every remaining plan of the step function.
@@ -307,13 +339,14 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 				target.add(node);
 			}
 		}
-		else if(candidates.size() > 0) {
+		else if (candidates.size() > 0) {
 			List<PlanNode> terminationCriterionCandidates = this.terminationCriterion.getAlternativePlans(estimator);
 
+			SingleRootJoiner singleRoot = (SingleRootJoiner) this.singleRoot;
+			
 			for (PlanNode candidate : candidates) {
-				for(PlanNode terminationCandidate : terminationCriterionCandidates) {
-					if (this.singleRoot.areBranchCompatible(candidate, terminationCandidate)) {
-						
+				for (PlanNode terminationCandidate : terminationCriterionCandidates) {
+					if (singleRoot.areBranchCompatible(candidate, terminationCandidate)) {
 						BulkIterationPlanNode node = new BulkIterationPlanNode(this, "BulkIteration ("+this.getPactContract().getName()+")", in, pspn, candidate, terminationCandidate);
 						GlobalProperties gProps = candidate.getGlobalProperties().clone();
 						LocalProperties lProps = candidate.getLocalProperties().clone();

@@ -22,7 +22,7 @@ public class ConnectedComponentsITCase extends eu.stratosphere.test.iterative.Co
 	protected Plan getTestJob() {
 		ConnectedComponents cc = new ConnectedComponents();
 		Plan plan = cc.getScalaPlan(verticesPath, edgesPath, resultPath, 100);
-		plan.setDefaultParallelism(4);
+		plan.setDefaultParallelism(DOP);
 		return plan;
 	}
 }

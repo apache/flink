@@ -17,13 +17,8 @@ package eu.stratosphere.examples.scala.graph;
 
 import eu.stratosphere.client.LocalExecutor
 import eu.stratosphere.api.common.Program
-import eu.stratosphere.api.common.ProgramDescription
-import eu.stratosphere.api.scala.analysis.GlobalSchemaPrinter
-import eu.stratosphere.api.common.operators.DeltaIteration
-import scala.math._
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
-import eu.stratosphere.api.common.Plan
 
 /**
  * An example program computing the page rank for each vertex in a graph.
@@ -95,7 +90,7 @@ object RunPageRank {
 
   def main(args: Array[String]) {
     if (args.size < 5) {
-      println("PageRank <vertices> <edges> <result> <numVertices> <numIterations> [<parallelism=1>]")
+      println("PageRank <pages input path> <links input path> <result path> <num pages> <num iterations> [<parallelism=1>]")
       return
     }
 

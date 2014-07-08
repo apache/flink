@@ -15,7 +15,6 @@ package eu.stratosphere.compiler.plan;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,7 +29,9 @@ import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.compiler.plandump.DumpableConnection;
 import eu.stratosphere.compiler.plandump.DumpableNode;
+import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
+import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.util.Visitable;
 
 /**
@@ -64,11 +65,9 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 
 	protected Costs cumulativeCosts;					// the cumulative costs of all operators in the sub-tree
 	
-	private long memoryPerSubTask;					// the amount of memory dedicated to each task, in bytes
+	private double relativeMemoryPerSubTask;					// the amount of memory dedicated to each task, in bytes
 	
 	private int degreeOfParallelism;
-	
-	private int subtasksPerInstance;
 	
 	private boolean pFlag;							// flag for the internal pruning algorithm
 	
@@ -82,8 +81,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		this.driverStrategy = strategy;
 		
 		this.degreeOfParallelism = template.getDegreeOfParallelism();
-		this.subtasksPerInstance = template.getSubtasksPerInstance();
-		
+
 		// check, if there is branch at this node. if yes, this candidate must be associated with
 		// the branching template node.
 		if (template.isBranching()) {
@@ -116,13 +114,11 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 					// predecessor 2 has branching children, see if it got the branch we are looking for
 					selectedCandidate = branchPlan2.get(brancher);
 				}
-	
-				if (selectedCandidate == null) {
-					throw new CompilerException(
-						"Candidates for a node with open branches are missing information about the selected candidate ");
-				}
 				
-				this.branchPlan.put(brancher, selectedCandidate);
+				// it may be that the branch candidate is only found once the broadcast variables are set
+				if (selectedCandidate != null) {
+					this.branchPlan.put(brancher, selectedCandidate);
+				}
 			}
 		}
 	}
@@ -145,7 +141,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	 * 
 	 * @return The pact contract this node represents in the plan.
 	 */
-	public Operator getPactContract() {
+	public Operator<?> getPactContract() {
 		return this.template.getPactContract();
 	}
 	
@@ -167,17 +163,17 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	 * 
 	 * @return The memory per task, in bytes.
 	 */
-	public long getMemoryPerSubTask() {
-		return this.memoryPerSubTask;
+	public double getRelativeMemoryPerSubTask() {
+		return this.relativeMemoryPerSubTask;
 	}
 
 	/**
 	 * Sets the memory dedicated to each task for this node.
 	 * 
-	 * @param memoryPerTask The memory per sub-task, in bytes.
+	 * @param relativeMemoryPerSubtask The relative memory per sub-task
 	 */
-	public void setMemoryPerSubTask(long memoryPerTask) {
-		this.memoryPerSubTask = memoryPerTask;
+	public void setRelativeMemoryPerSubtask(double relativeMemoryPerSubtask) {
+		this.relativeMemoryPerSubTask = relativeMemoryPerSubtask;
 	}
 	
 	/**
@@ -246,13 +242,13 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	}
 
 	public Costs getCumulativeCostsShare() {
-		if(this.cumulativeCosts == null){
+		if (this.cumulativeCosts == null){
 			return null;
-		}else{
+		} else {
 			Costs result = cumulativeCosts.clone();
-			if(this.template != null && this.template.getOutgoingConnections() != null){
+			if (this.template != null && this.template.getOutgoingConnections() != null) {
 				int outDegree = this.template.getOutgoingConnections().size();
-				if(outDegree > 0) {
+				if (outDegree > 0) {
 					result.divideBy(outDegree);
 				}
 			}
@@ -263,22 +259,39 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 
 	
 	/**
-	 * Sets the basic cost for this {@code OptimizerNode}
+	 * Sets the basic cost for this node to the given value, and sets the cumulative costs
+	 * to those costs plus the cost shares of all inputs (regular and broadcast).
 	 * 
-	 * @param nodeCosts		The already knows costs for this node
+	 * @param nodeCosts	 The already knows costs for this node
 	 * 						(this cost a produces by a concrete {@code OptimizerNode} subclass.
 	 */
 	public void setCosts(Costs nodeCosts) {
 		// set the node costs
 		this.nodeCosts = nodeCosts;
+		
 		// the cumulative costs are the node costs plus the costs of all inputs
 		this.cumulativeCosts = nodeCosts.clone();
-		for (Iterator<PlanNode> preds = getPredecessors(); preds.hasNext();) {
-			Costs parentCosts = preds.next().getCumulativeCostsShare();
+		
+		// add all the normal inputs
+		for (PlanNode pred : getPredecessors()) {
+			
+			Costs parentCosts = pred.getCumulativeCostsShare();
 			if (parentCosts != null) {
 				this.cumulativeCosts.addCosts(parentCosts);
 			} else {
-				throw new CompilerException();
+				throw new CompilerException("Trying to set the costs of an operator before the predecessor costs are computed.");
+			}
+		}
+		
+		// add all broadcast variable inputs
+		if (this.broadcastInputs != null) {
+			for (NamedChannel nc : this.broadcastInputs) {
+				Costs bcInputCost = nc.getSource().getCumulativeCostsShare();
+				if (bcInputCost != null) {
+					this.cumulativeCosts.addCosts(bcInputCost);
+				} else {
+					throw new CompilerException("Trying to set the costs of an operator before the broadcast input costs are computed.");
+				}
 			}
 		}
 	}
@@ -287,45 +300,54 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		this.degreeOfParallelism = parallelism;
 	}
 	
-	public void setSubtasksPerInstance(int subTasksPerInstance) {
-		this.subtasksPerInstance = subTasksPerInstance;
-	}
-	
 	public int getDegreeOfParallelism() {
 		return this.degreeOfParallelism;
-	}
-	
-	public int getSubtasksPerInstance() {
-		return this.subtasksPerInstance;
 	}
 	
 	public long getGuaranteedAvailableMemory() {
 		return this.template.getMinimalMemoryAcrossAllSubTasks();
 	}
 
+	public Map<OptimizerNode, PlanNode> getBranchPlan() {
+		return branchPlan;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//                               Input, Predecessors, Successors
 	// --------------------------------------------------------------------------------------------
 	
-	public abstract Iterator<Channel> getInputs();
+	public abstract Iterable<Channel> getInputs();
 	
 	@Override
-	public abstract Iterator<PlanNode> getPredecessors();
+	public abstract Iterable<PlanNode> getPredecessors();
 	
 	/**
 	 * Sets a list of all broadcast inputs attached to this node.
 	 */
 	public void setBroadcastInputs(List<NamedChannel> broadcastInputs) {
-		if (broadcastInputs == null) {
-			return;
-		}
-		this.broadcastInputs = broadcastInputs;
-		
-		// update the branch map
-		for (NamedChannel nc : broadcastInputs) {
-			PlanNode source = nc.getSource();
+		if (broadcastInputs != null) {
+			this.broadcastInputs = broadcastInputs;
 			
-			mergeBranchPlanMaps(branchPlan, source.branchPlan);
+			// update the branch map
+			for (NamedChannel nc : broadcastInputs) {
+				PlanNode source = nc.getSource();
+				
+				mergeBranchPlanMaps(branchPlan, source.branchPlan);
+			}
+		}
+		
+		// do a sanity check that if we are branching, we have now candidates for each branch point
+		if (this.template.hasUnclosedBranches()) {
+			if (this.branchPlan == null) {
+				throw new CompilerException("Branching and rejoining logic did not find a candidate for the branching point.");
+			}
+	
+			for (UnclosedBranchDescriptor uc : this.template.getOpenBranches()) {
+				OptimizerNode brancher = uc.getBranchingNode();
+				if (this.branchPlan.get(brancher) == null) {
+					throw new CompilerException("Branching and rejoining logic did not find a candidate for the branching point.");
+				}
+			}
 		}
 	}
 	
@@ -365,7 +387,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		}
 		for (FieldSet fields : uniqueFieldCombinations) {
 			this.globalProps.addUniqueFieldCombination(fields);
-			this.localProps.addUniqueFields(fields);
+			this.localProps = this.localProps.addUniqueFields(fields);
 		}
 	}
 
@@ -403,7 +425,84 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Checks whether this node has a dam on the way down to the given source node. This method
+	 * returns either that (a) the source node is not found as a (transitive) child of this node,
+	 * (b) the node is found, but no dam is on the path, or (c) the node is found and a dam is on
+	 * the path.
+	 * 
+	 * @param source The node on the path to which the dam is sought.
+	 * @return The result whether the node is found and whether a dam is on the path.
+	 */
 	public abstract SourceAndDamReport hasDamOnPathDownTo(PlanNode source);
+	
+	public FeedbackPropertiesMeetRequirementsReport checkPartialSolutionPropertiesMet(PlanNode partialSolution, GlobalProperties feedbackGlobal, LocalProperties feedbackLocal) {
+		if (this == partialSolution) {
+			return FeedbackPropertiesMeetRequirementsReport.PENDING;
+		}
+		
+		boolean found = false;
+		boolean allMet = true;
+		boolean allLocallyMet = true;
+		
+		for (Channel input : getInputs()) {
+			FeedbackPropertiesMeetRequirementsReport inputState = input.getSource().checkPartialSolutionPropertiesMet(partialSolution, feedbackGlobal, feedbackLocal);
+			
+			if (inputState == FeedbackPropertiesMeetRequirementsReport.NO_PARTIAL_SOLUTION) {
+				continue;
+			}
+			else if (inputState == FeedbackPropertiesMeetRequirementsReport.MET) {
+				found = true;
+				continue;
+			}
+			else if (inputState == FeedbackPropertiesMeetRequirementsReport.NOT_MET) {
+				return FeedbackPropertiesMeetRequirementsReport.NOT_MET;
+			}
+			else {
+				found = true;
+				
+				// the partial solution was on the path here. check whether the channel requires
+				// certain properties that are met, or whether the channel introduces new properties
+				
+				// if the plan introduces new global properties, then we can stop looking whether
+				// the feedback properties are sufficient to meet the requirements
+				if (input.getShipStrategy() != ShipStrategyType.FORWARD && input.getShipStrategy() != ShipStrategyType.NONE) {
+					continue;
+				}
+				
+				// first check whether this channel requires something that is not met
+				if (input.getRequiredGlobalProps() != null && !input.getRequiredGlobalProps().isMetBy(feedbackGlobal)) {
+					return FeedbackPropertiesMeetRequirementsReport.NOT_MET;
+				}
+				
+				// in general, not everything is met here already
+				allMet = false;
+				
+				// if the plan introduces new local properties, we can stop checking for matching local properties
+				if (inputState != FeedbackPropertiesMeetRequirementsReport.PENDING_LOCAL_MET) {
+					
+					if (input.getLocalStrategy() == LocalStrategy.NONE) {
+						
+						if (input.getRequiredLocalProps() != null && !input.getRequiredLocalProps().isMetBy(feedbackLocal)) {
+							return FeedbackPropertiesMeetRequirementsReport.NOT_MET;
+						}
+						
+						allLocallyMet = false;
+					}
+				}
+			}
+		}
+		
+		if (!found) {
+			return FeedbackPropertiesMeetRequirementsReport.NO_PARTIAL_SOLUTION;
+		} else if (allMet) {
+			return FeedbackPropertiesMeetRequirementsReport.MET;
+		} else if (allLocallyMet) {
+			return FeedbackPropertiesMeetRequirementsReport.PENDING_LOCAL_MET;
+		} else {
+			return FeedbackPropertiesMeetRequirementsReport.PENDING;
+		}
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -416,35 +515,55 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	
 	// --------------------------------------------------------------------------------------------
 	
-
 	@Override
 	public OptimizerNode getOptimizerNode() {
 		return this.template;
 	}
-
 
 	@Override
 	public PlanNode getPlanNode() {
 		return this;
 	}
 
-
 	@Override
-	public Iterator<DumpableConnection<PlanNode>> getDumpableInputs() {
+	public Iterable<DumpableConnection<PlanNode>> getDumpableInputs() {
 		List<DumpableConnection<PlanNode>> allInputs = new ArrayList<DumpableConnection<PlanNode>>();
 		
-		for (Iterator<Channel> inputs = getInputs(); inputs.hasNext();) {
-			allInputs.add(inputs.next());
+		for (Channel c : getInputs()) {
+			allInputs.add(c);
 		}
 		
 		for (NamedChannel c : getBroadcastInputs()) {
 			allInputs.add(c);
 		}
 		
-		return allInputs.iterator();
+		return allInputs;
 	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	public static enum SourceAndDamReport {
 		NOT_FOUND, FOUND_SOURCE, FOUND_SOURCE_AND_DAM;
+	}
+	
+	
+	
+	public static enum FeedbackPropertiesMeetRequirementsReport {
+		/** Indicates that the path is irrelevant */
+		NO_PARTIAL_SOLUTION,
+		
+		/** Indicates that the question whether the properties are met has been determined pending
+		 * dependent on global and local properties */
+		PENDING,
+		
+		/** Indicates that the question whether the properties are met has been determined pending
+		 * dependent on global properties only */
+		PENDING_LOCAL_MET,
+		
+		/** Indicates that the question whether the properties are met has been determined true */
+		MET,
+		
+		/** Indicates that the question whether the properties are met has been determined false */
+		NOT_MET;
 	}
 }

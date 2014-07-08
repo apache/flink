@@ -40,6 +40,7 @@ public final class ClassUtils {
 			throws ClassNotFoundException {
 
 		if (!className.contains("Protocol")) {
+			System.out.println(className);
 			throw new ClassNotFoundException("Only use this method for protocols!");
 		}
 

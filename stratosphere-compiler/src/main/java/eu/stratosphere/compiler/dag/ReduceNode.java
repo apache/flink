@@ -30,13 +30,12 @@ public class ReduceNode extends SingleInputNode {
 	private ReduceNode preReduceUtilityNode;
 	
 
-	public ReduceNode(ReduceOperatorBase<?> operator) {
+	public ReduceNode(ReduceOperatorBase<?, ?> operator) {
 		super(operator);
 		
 		if (this.keys == null) {
 			// case of a key-less reducer. force a parallelism of 1
 			setDegreeOfParallelism(1);
-			setSubtasksPerInstance(1);
 		}
 	}
 	
@@ -47,8 +46,8 @@ public class ReduceNode extends SingleInputNode {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public ReduceOperatorBase<?> getPactContract() {
-		return (ReduceOperatorBase<?>) super.getPactContract();
+	public ReduceOperatorBase<?, ?> getPactContract() {
+		return (ReduceOperatorBase<?, ?>) super.getPactContract();
 	}
 
 	@Override

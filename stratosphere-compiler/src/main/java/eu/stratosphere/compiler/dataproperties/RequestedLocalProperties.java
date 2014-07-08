@@ -33,9 +33,9 @@ public class RequestedLocalProperties implements Cloneable {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	Ordering ordering;			// order inside a partition, null if not ordered
+	private Ordering ordering;			// order inside a partition, null if not ordered
 
-	FieldSet groupedFields;		// fields by which the stream is grouped. null if not grouped.
+	private FieldSet groupedFields;		// fields by which the stream is grouped. null if not grouped.
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -187,12 +187,22 @@ public class RequestedLocalProperties implements Cloneable {
 	 * @param channel The channel to parameterize.
 	 */
 	public void parameterizeChannel(Channel channel) {
-		if (this.ordering != null) {
+		LocalProperties current = channel.getLocalProperties();
+		
+		if (isMetBy(current)) {
+			// we are met, all is good
+			channel.setLocalStrategy(LocalStrategy.NONE);
+		}
+		else if (this.ordering != null) {
 			channel.setLocalStrategy(LocalStrategy.SORT, this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections());
-		} else if (this.groupedFields != null) {
+		}
+		else if (this.groupedFields != null) {
 			boolean[] dirs = new boolean[this.groupedFields.size()];
 			Arrays.fill(dirs, true);
 			channel.setLocalStrategy(LocalStrategy.SORT, Utils.createOrderedFromSet(this.groupedFields), dirs);
+		}
+		else {
+			channel.setLocalStrategy(LocalStrategy.NONE);
 		}
 	}
 	

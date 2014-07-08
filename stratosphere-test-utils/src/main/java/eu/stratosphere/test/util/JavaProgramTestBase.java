@@ -45,11 +45,13 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	
 	public JavaProgramTestBase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(degreeOfParallelism);
 	}
 	
 	
 	public void setDegreeOfParallelism(int degreeOfParallelism) {
 		this.degreeOfParallelism = degreeOfParallelism;
+		setTaskManagerNumSlots(degreeOfParallelism);
 	}
 	
 	public JobExecutionResult getLatestExecutionResult() {
@@ -163,7 +165,6 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 		
 		private OptimizedPlan compileProgram(String jobName) {
 			Plan p = createProgramPlan(jobName);
-			p.setDefaultParallelism(getDegreeOfParallelism());
 			
 			PactCompiler pc = new PactCompiler(new DataStatistics());
 			return pc.compile(p);

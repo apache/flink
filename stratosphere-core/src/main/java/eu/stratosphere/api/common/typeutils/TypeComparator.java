@@ -138,6 +138,11 @@ public abstract class TypeComparator<T> implements Serializable {
 	 * @see #setReference(Object)
 	 */
 	public abstract int compareToReference(TypeComparator<T> referencedComparator);
+
+	// These are two special case methods that the runtime uses for special "PactRecord" support
+	public boolean supportsCompareAgainstReference() {
+		return false;
+	}
 	
 	/**
 	 * Compares two records in serialized from. The return value indicates the order of the two in the same way
@@ -214,7 +219,7 @@ public abstract class TypeComparator<T> implements Serializable {
 	 * character, either {@code 0} or {@code 0xff}, depending on whether shorter values are sorted to the beginning or
 	 * the end. 
 	 * <p>
-	 * This method is similar to {@link NormalizableKey#copyNormalizedKey(MemorySegment, int, int)}. In the case that
+	 * This method is similar to {@link eu.stratosphere.types.NormalizableKey#copyNormalizedKey(MemorySegment, int, int)}. In the case that
 	 * multiple fields of a record contribute to the normalized key, it is crucial that the fields align on the
 	 * byte field, i.e. that every field always takes up the exact same number of bytes.
 	 * 
@@ -223,7 +228,7 @@ public abstract class TypeComparator<T> implements Serializable {
 	 * @param offset The offset in the byte array, where to start writing the normalized key bytes.
 	 * @param numBytes The number of bytes to be written exactly. 
 	 * 
-	 * @see NormalizableKey#copyNormalizedKey(MemorySegment, int, int)
+	 * @see eu.stratosphere.types.NormalizableKey#copyNormalizedKey(MemorySegment, int, int)
 	 */
 	public abstract void putNormalizedKey(T record, MemorySegment target, int offset, int numBytes);
 
@@ -237,7 +242,7 @@ public abstract class TypeComparator<T> implements Serializable {
 	 *
 	 * @see #supportsSerializationWithKeyNormalization()
 	 * @see #readWithKeyDenormalization(Object, DataInputView)
-	 * @see NormalizableKey#copyNormalizedKey(MemorySegment, int, int)
+	 * @see eu.stratosphere.types.NormalizableKey#copyNormalizedKey(MemorySegment, int, int)
 	 */
 	public abstract void writeWithKeyNormalization(T record, DataOutputView target) throws IOException;
 	
@@ -251,7 +256,7 @@ public abstract class TypeComparator<T> implements Serializable {
 	 *
 	 * @see #supportsSerializationWithKeyNormalization()
 	 * @see #writeWithKeyNormalization(Object, DataOutputView)
-	 * @see NormalizableKey#copyNormalizedKey(MemorySegment, int, int)
+	 * @see eu.stratosphere.types.NormalizableKey#copyNormalizedKey(MemorySegment, int, int)
 	 */
 	public abstract T readWithKeyDenormalization(T reuse, DataInputView source) throws IOException;
 
@@ -273,4 +278,11 @@ public abstract class TypeComparator<T> implements Serializable {
 	 * @return A deep copy of this comparator instance.
 	 */
 	public abstract TypeComparator<T> duplicate();
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@SuppressWarnings("rawtypes")
+	public int compareAgainstReference(Comparable[] keys) {
+		throw new UnsupportedOperationException("Workaround hack.");
+	}
 }

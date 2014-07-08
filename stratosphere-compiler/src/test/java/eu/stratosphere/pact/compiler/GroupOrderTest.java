@@ -19,8 +19,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.common.operators.Order;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.common.operators.util.FieldList;
@@ -48,6 +48,7 @@ import eu.stratosphere.types.StringValue;
  * This test case has been created to validate that correct strategies are used if orders within groups are
  * requested.
  */
+@SuppressWarnings("serial")
 public class GroupOrderTest extends CompilerTestBase  {
 
 	@Test
@@ -86,8 +87,7 @@ public class GroupOrderTest extends CompilerTestBase  {
 		Assert.assertEquals(LocalStrategy.SORT, c.getLocalStrategy());
 		
 		FieldList ship = new FieldList(2);
-		FieldList local = new FieldList(2);
-		local.add(5);
+		FieldList local = new FieldList(2, 5);
 		Assert.assertEquals(ship, c.getShipStrategyKeys());
 		Assert.assertEquals(local, c.getLocalStrategyKeys());
 		Assert.assertTrue(c.getLocalStrategySortOrder()[0] == reducer.getSortOrders()[0]);

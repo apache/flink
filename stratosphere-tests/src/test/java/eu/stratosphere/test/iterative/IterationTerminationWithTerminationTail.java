@@ -20,9 +20,9 @@ import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.Assert;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.BulkIteration;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.BulkIteration;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
@@ -40,6 +40,10 @@ public class IterationTerminationWithTerminationTail extends RecordAPITestBase {
 
 	protected String dataPath;
 	protected String resultPath;
+
+	public IterationTerminationWithTerminationTail(){
+		setTaskManagerNumSlots(DOP);
+	}
 	
 	@Override
 	protected void preSubmit() throws Exception {
@@ -54,7 +58,7 @@ public class IterationTerminationWithTerminationTail extends RecordAPITestBase {
 
 	@Override
 	protected Plan getTestJob() {
-		return getTestPlanPlan(4, dataPath, resultPath);
+		return getTestPlanPlan(DOP, dataPath, resultPath);
 	}
 	
 	private static Plan getTestPlanPlan(int numSubTasks, String input, String output) {

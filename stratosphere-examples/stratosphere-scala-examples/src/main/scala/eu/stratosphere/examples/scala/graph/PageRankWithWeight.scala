@@ -19,11 +19,11 @@ import eu.stratosphere.client.LocalExecutor
 import eu.stratosphere.api.common.Program
 import eu.stratosphere.api.common.ProgramDescription
 import eu.stratosphere.api.scala.analysis.GlobalSchemaPrinter
-import eu.stratosphere.api.common.operators.DeltaIteration
 import scala.math._
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
 import eu.stratosphere.api.common.Plan
+import eu.stratosphere.api.java.record.operators.DeltaIteration
 
 /**
  * An implementation of the PageRank algorithm for graph vertex ranking. Runs a specified fix number

@@ -18,48 +18,29 @@ import java.util.Iterator;
 
 import eu.stratosphere.api.common.functions.GenericCombine;
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
 import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.GroupReduceFunction.Combinable;
 import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.util.Collector;
 
 /**
- *
+ * A reduce operator that takes 2-tuples (key-value pairs), and applies the group reduce operation only
+ * on the unwrapped values.
  */
-public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOperatorBase<GenericGroupReduce<Tuple2<K, IN>,OUT>>
-	implements UnaryJavaPlanNode<Tuple2<K, IN>, OUT>
-{
-	private final TypeInformation<OUT> outputType;
-	
-	private final TypeInformation<Tuple2<K, IN>> typeInfoWithKey;
-
+public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOperatorBase<Tuple2<K, IN>, OUT, GenericGroupReduce<Tuple2<K, IN>,OUT>> {
 
 	public PlanUnwrappingReduceGroupOperator(GroupReduceFunction<IN, OUT> udf, Keys.SelectorFunctionKeys<IN, K> key, String name,
-			TypeInformation<IN> inType, TypeInformation<OUT> outType, TypeInformation<Tuple2<K, IN>> typeInfoWithKey,
-			boolean combinable)
+			TypeInformation<OUT> outType, TypeInformation<Tuple2<K, IN>> typeInfoWithKey, boolean combinable)
 	{
 		super(combinable ? new TupleUnwrappingCombinableGroupReducer<IN, OUT, K>(udf) : new TupleUnwrappingNonCombinableGroupReducer<IN, OUT, K>(udf),
-				key.computeLogicalKeyPositions(), name);
+				new UnaryOperatorInformation<Tuple2<K, IN>, OUT>(typeInfoWithKey, outType), key.computeLogicalKeyPositions(), name);
 		
-		this.outputType = outType;
-		this.typeInfoWithKey = typeInfoWithKey;
-		super.setCombinable(udf.getClass().getAnnotation(Combinable.class) != null);
+		super.setCombinable(combinable);
 	}
-	
-	
-	@Override
-	public TypeInformation<OUT> getReturnType() {
-		return this.outputType;
-	}
-
-	@Override
-	public TypeInformation<Tuple2<K, IN>> getInputType() {
-		return this.typeInfoWithKey;
-	}
-	
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -105,7 +86,7 @@ public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOp
 	
 		private static final long serialVersionUID = 1L;
 		
-		private TupleUnwrappingIterator<IN, K> iter; 
+		private final TupleUnwrappingIterator<IN, K> iter; 
 		
 		private TupleUnwrappingNonCombinableGroupReducer(GroupReduceFunction<IN, OUT> wrapped) {
 			super(wrapped);

@@ -16,6 +16,7 @@ package eu.stratosphere.nephele.jobmanager.splitassigner.file;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import eu.stratosphere.nephele.instance.Instance;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -23,10 +24,7 @@ import eu.stratosphere.core.fs.FileInputSplit;
 import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.instance.AbstractInstance;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitAssigner;
-import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.nephele.template.AbstractInvokable;
 
 /**
  * The file input split assigner is a specific implementation of the {@link InputSplitAssigner} interface for
@@ -50,18 +48,8 @@ public final class FileInputSplitAssigner implements InputSplitAssigner {
 	@Override
 	public void registerGroupVertex(final ExecutionGroupVertex groupVertex) {
 
-		// Do some sanity checks first
-		final AbstractInvokable invokable = groupVertex.getEnvironment().getInvokable();
-
-		// if (!(invokable instanceof AbstractFileInputTask)) {
-		// LOG.error(groupVertex.getName() + " is not an input vertex, ignoring vertex...");
-		// return;
-		// }
-
-		@SuppressWarnings("unchecked")
-		final AbstractInputTask<? extends InputSplit> inputTask = (AbstractInputTask<? extends InputSplit>) invokable;
-		if (!FileInputSplit.class.equals(inputTask.getInputSplitType())) {
-			LOG.error(groupVertex.getName() + " produces input splits of type " + inputTask.getInputSplitType()
+		if (!FileInputSplit.class.equals(groupVertex.getInputSplitType())) {
+			LOG.error(groupVertex.getName() + " produces input splits of type " + groupVertex.getInputSplitType()
 				+ " and cannot be handled by this split assigner");
 			return;
 		}
@@ -99,13 +87,10 @@ public final class FileInputSplitAssigner implements InputSplitAssigner {
 		}
 	}
 
-
 	@Override
 	public void unregisterGroupVertex(final ExecutionGroupVertex groupVertex) {
-		
 		this.vertexMap.remove(groupVertex);
 	}
-
 
 	@Override
 	public InputSplit getNextInputSplit(final ExecutionVertex vertex) {
@@ -117,7 +102,7 @@ public final class FileInputSplitAssigner implements InputSplitAssigner {
 			return null;
 		}
 
-		final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+		final Instance instance = vertex.getAllocatedResource().getInstance();
 		if (instance == null) {
 			LOG.error("Instance is null, returning random split");
 			return null;

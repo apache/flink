@@ -14,11 +14,11 @@
 package eu.stratosphere.nephele.jobmanager;
 
 import eu.stratosphere.core.io.StringRecord;
-import eu.stratosphere.nephele.io.RecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.runtime.io.api.RecordReader;
+import eu.stratosphere.runtime.io.api.RecordWriter;
 
-public class ForwardTask extends AbstractTask {
+public class ForwardTask extends AbstractInvokable {
 
 	private RecordReader<StringRecord> input = null;
 	private RecordWriter<StringRecord> output = null;
@@ -26,16 +26,20 @@ public class ForwardTask extends AbstractTask {
 	@Override
 	public void invoke() throws Exception {
 
+		this.output.initializeSerializers();
+
 		while (this.input.hasNext()) {
 
 			StringRecord s = input.next();
 			this.output.emit(s);
 		}
+
+		this.output.flush();
 	}
 
 	@Override
 	public void registerInputOutput() {
 		this.input = new RecordReader<StringRecord>(this, StringRecord.class);
-		this.output = new RecordWriter<StringRecord>(this, StringRecord.class);
+		this.output = new RecordWriter<StringRecord>(this);
 	}
 }

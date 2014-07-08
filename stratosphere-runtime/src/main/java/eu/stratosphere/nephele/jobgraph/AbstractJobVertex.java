@@ -18,20 +18,19 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import org.apache.commons.lang.Validate;
+
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.configuration.IllegalConfigurationException;
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.util.EnumUtils;
 import eu.stratosphere.util.StringUtils;
 
 /**
- * An abstract base class for a job vertex in Nephele.
- * 
+ * An abstract base class for a job vertex.
  */
 public abstract class AbstractJobVertex implements IOReadableWritable {
 
@@ -68,16 +67,6 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	private int numberOfSubtasks = -1;
 
 	/**
-	 * The type of instance to be assigned to this task at runtime.
-	 */
-	private String instanceType = null;
-
-	/**
-	 * Number of subtasks to share the same instance at runtime.
-	 */
-	private int numberOfSubtasksPerInstance = -1;
-
-	/**
 	 * Number of retries in case of an error before the task represented by this vertex is considered as failed.
 	 */
 	private int numberOfExecutionRetries = -1;
@@ -97,19 +86,30 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 */
 	protected Class<? extends AbstractInvokable> invokableClass = null;
 
+	
 	/**
 	 * Constructs a new job vertex and assigns it with the given name.
 	 * 
 	 * @param name
 	 *        the name of the new job vertex
-	 * @param id
-	 *        the ID of this vertex
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	protected AbstractJobVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
+	protected AbstractJobVertex(String name, JobGraph jobGraph) {
+		this(name, null, jobGraph);
+	}
+	
+	/**
+	 * Constructs a new job vertex and assigns it with the given name.
+	 * 
+	 * @param name
+	 *        the name of the new job vertex
+	 * @param jobGraph
+	 *        the job graph this vertex belongs to
+	 */
+	protected AbstractJobVertex(String name, JobVertexID id, JobGraph jobGraph) {
 		this.name = name == null ? DEFAULT_NAME : name;
-		this.id = (id == null) ? new JobVertexID() : id;
+		this.id = id == null ? new JobVertexID() : id;
 		this.jobGraph = jobGraph;
 	}
 
@@ -151,8 +151,6 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *        the vertex this vertex should connect to
 	 * @param channelType
 	 *        the channel type the two vertices should be connected by at runtime
-	 * @param compressionLevel
-	 *        the compression level the corresponding channel should have at runtime
 	 * @throws JobGraphDefinitionException
 	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
 	 */
@@ -167,8 +165,8 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *        the vertex this vertex should connect to
 	 * @param channelType
 	 *        the channel type the two vertices should be connected by at runtime
-	 * @param compressionLevel
-	 *        the compression level the corresponding channel should have at runtime
+	 * @param distributionPattern
+	 *        the distribution pattern between the two job vertices
 	 * @throws JobGraphDefinitionException
 	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
 	 */
@@ -185,14 +183,14 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *        the vertex this vertex should connect to
 	 * @param channelType
 	 *        the channel type the two vertices should be connected by at runtime
-	 * @param compressionLevel
-	 *        the compression level the corresponding channel should have at runtime
 	 * @param indexOfOutputGate
 	 *        index of the producing task's output gate to be used, <code>-1</code> will determine the next free index
 	 *        number
 	 * @param indexOfInputGate
 	 *        index of the consuming task's input gate to be used, <code>-1</code> will determine the next free index
 	 *        number
+	 * @param distributionPattern
+	 * 		  the distribution pattern between the two job vertices
 	 * @throws JobGraphDefinitionException
 	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
 	 */
@@ -275,12 +273,12 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 *        the job vertex to connect to
 	 * @param channelType
 	 *        the channel type the two vertices should be connected by at runtime
-	 * @param compressionLevel
-	 *        the compression level the corresponding channel should have at runtime
 	 * @param indexOfOutputGate
 	 *        index of the producing task's output gate to be used
 	 * @param indexOfInputGate
 	 *        index of the consuming task's input gate to be used
+	 * @param distributionPattern
+	 * 		  the distribution pattern between the two job vertices
 	 */
 	private void connectBacklink(final AbstractJobVertex vertex, final ChannelType channelType,
 			final int indexOfOutputGate, final int indexOfInputGate,
@@ -365,32 +363,6 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	}
 
 	/**
-	 * Returns the index of the edge which is used to connect the given job vertex to this job vertex.
-	 * 
-	 * @param jv
-	 *        the connected job vertex
-	 * @return the index of the edge which is used to connect the given job vertex to this job vertex or -1 if the given
-	 *         vertex is not connected to this job vertex
-	 */
-	/*
-	 * public int getBackwardConnectionIndex(AbstractJobVertex jv) {
-	 * if(jv == null) {
-	 * return -1;
-	 * }
-	 * final Iterator<JobEdge> it = this.backwardEdges.iterator();
-	 * int i = 0;
-	 * while(it.hasNext()) {
-	 * final JobEdge edge = it.next();
-	 * if(edge.getConnectedVertex() == jv) {
-	 * return i;
-	 * }
-	 * i++;
-	 * }
-	 * return -1;
-	 * }
-	 */
-
-	/**
 	 * Returns the ID of this job vertex.
 	 * 
 	 * @return the ID of this job vertex
@@ -408,14 +380,8 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 			throw new IOException("jobGraph is null, cannot deserialize");
 		}
 
-		// Read instance type
-		this.instanceType = StringRecord.readString(in);
-
 		// Read number of subtasks
 		this.numberOfSubtasks = in.readInt();
-
-		// Read number of subtasks per instance
-		this.numberOfSubtasksPerInstance = in.readInt();
 
 		// Number of execution retries
 		this.numberOfExecutionRetries = in.readInt();
@@ -490,14 +456,8 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	@Override
 	public void write(final DataOutput out) throws IOException {
 
-		// Instance type
-		StringRecord.writeString(out, this.instanceType);
-
 		// Number of subtasks
 		out.writeInt(this.numberOfSubtasks);
-
-		// Number of subtasks per instance
-		out.writeInt(this.numberOfSubtasksPerInstance);
 
 		// Number of execution retries
 		out.writeInt(this.numberOfExecutionRetries);
@@ -596,44 +556,6 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	}
 
 	/**
-	 * Sets the instance type the task this vertex represents should run on.
-	 * 
-	 * @param instanceType
-	 *        the instance type the task this vertex represents should run on
-	 */
-	public void setInstanceType(final String instanceType) {
-		this.instanceType = instanceType;
-	}
-
-	/**
-	 * Returns the instance type the task this vertex represents should run on.
-	 * 
-	 * @return the instance type the task this vertex represents should run on, <code>null</code> if unspecified
-	 */
-	public String getInstanceType() {
-		return this.instanceType;
-	}
-
-	/**
-	 * Sets the number of subtasks that should be assigned to the same instance.
-	 * 
-	 * @param numberOfSubtasksPerInstance
-	 *        the number of subtasks that should be assigned to the same instance
-	 */
-	public void setNumberOfSubtasksPerInstance(final int numberOfSubtasksPerInstance) {
-		this.numberOfSubtasksPerInstance = numberOfSubtasksPerInstance;
-	}
-
-	/**
-	 * Returns the number of subtasks that should be assigned to the same instance, <code>-1</code> if undefined.
-	 * 
-	 * @return the number of subtasks that should be assigned to the same instance, <code>-1</code> if undefined
-	 */
-	public int getNumberOfSubtasksPerInstance() {
-		return this.numberOfSubtasksPerInstance;
-	}
-
-	/**
 	 * Sets the vertex this vertex should share its instances with at runtime.
 	 * 
 	 * @param vertex
@@ -661,75 +583,17 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 		return this.configuration;
 	}
 
-	/**
-	 * Performs task specific checks if the
-	 * respective task has been configured properly.
-	 * 
-	 * @param invokable
-	 *        an instance of the task this vertex represents
-	 * @throws IllegalConfigurationException
-	 *         thrown if the respective tasks is not configured properly
-	 */
-	public void checkConfiguration(final AbstractInvokable invokable) throws IllegalConfigurationException {
-
-		if (invokable == null) {
-			throw new IllegalArgumentException("Argument invokable is null");
-		}
-
-		// see if the task itself has a valid configuration
-		// because this is user code running on the master, we embed it in a catch-all block
-		try {
-			invokable.checkConfiguration();
-		} catch (IllegalConfigurationException icex) {
-			throw icex; // simply forward
-		} catch (Throwable t) {
-			throw new IllegalConfigurationException("Checking the invokable's configuration caused an error: "
-				+ StringUtils.stringifyException(t));
-		}
+	public void setInvokableClass(Class<? extends AbstractInvokable> invokable) {
+		Validate.notNull(invokable);
+		this.invokableClass = invokable;
 	}
-
-	/**
-	 * Returns the minimum number of subtasks the respective task
-	 * must be split into at runtime.
-	 * 
-	 * @param invokable
-	 *        an instance of the task this vertex represents
-	 * @return the minimum number of subtasks the respective task must be split into at runtime
-	 */
-	public int getMinimumNumberOfSubtasks(final AbstractInvokable invokable) {
-
-		if (invokable == null) {
-			throw new IllegalArgumentException("Argument invokable is null");
-		}
-
-		return invokable.getMinimumNumberOfSubtasks();
-	}
-
-	/**
-	 * Returns the maximum number of subtasks the respective task
-	 * can be split into at runtime.
-	 * 
-	 * @param invokable
-	 *        an instance of the task this vertex represents
-	 * @return the maximum number of subtasks the respective task can be split into at runtime, <code>-1</code> for
-	 *         infinity
-	 */
-	public int getMaximumNumberOfSubtasks(final AbstractInvokable invokable) {
-
-		if (invokable == null) {
-			throw new IllegalArgumentException("Argument invokable is null");
-		}
-
-		return invokable.getMaximumNumberOfSubtasks();
-	}
-
+	
 	/**
 	 * Returns the invokable class which represents the task of this vertex
 	 * 
 	 * @return the invokable class, <code>null</code> if it is not set
 	 */
 	public Class<? extends AbstractInvokable> getInvokableClass() {
-
 		return this.invokableClass;
 	}
 	

@@ -23,9 +23,9 @@ import java.util.List;
 
 import org.junit.Test;
 
-import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.runtime.io.gates.GateID;
+import eu.stratosphere.runtime.io.channels.ChannelID;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.nephele.util.ServerTestUtils;
 import eu.stratosphere.util.StringUtils;
 
@@ -42,7 +42,7 @@ public class GateDeploymentDescriptorTest {
 	public void testConstructorWithValidArguments() {
 
 		final GateID gateID = new GateID();
-		final ChannelType channelType = ChannelType.INMEMORY;
+		final ChannelType channelType = ChannelType.IN_MEMORY;
 		final List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(0);
 
 		final GateDeploymentDescriptor gdd = new GateDeploymentDescriptor(gateID, channelType, channels);
@@ -59,7 +59,7 @@ public class GateDeploymentDescriptorTest {
 	public void testConstructorWithInvalidArguments() {
 
 		final GateID gateID = new GateID();
-		final ChannelType channelType = ChannelType.INMEMORY;
+		final ChannelType channelType = ChannelType.IN_MEMORY;
 		final List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(0);
 
 		boolean firstExceptionCaught = false;
@@ -105,7 +105,7 @@ public class GateDeploymentDescriptorTest {
 	public void testSerialization() {
 
 		final GateID gateID = new GateID();
-		final ChannelType channelType = ChannelType.INMEMORY;
+		final ChannelType channelType = ChannelType.IN_MEMORY;
 		final List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(0);
 		final ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(new ChannelID(), new ChannelID());
 		channels.add(cdd);

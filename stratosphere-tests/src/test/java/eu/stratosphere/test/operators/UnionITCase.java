@@ -14,8 +14,8 @@
 package eu.stratosphere.test.operators;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;
@@ -96,7 +96,7 @@ public class UnionITCase extends RecordAPITestBase {
 		}
 	}
 
-	@SuppressWarnings("deprecation")
+	@SuppressWarnings({ "deprecation", "unchecked" })
 	@Override
 	protected Plan getTestJob() {
 		String input1Path = config.getString("UnionTest#Input1Path", "").equals("empty") ? emptyInPath : inPath;

@@ -13,24 +13,21 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
-import eu.stratosphere.nephele.template.AbstractInputTask;
+import java.io.IOException;
+
+import eu.stratosphere.api.common.io.InputFormat;
+import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
+import eu.stratosphere.core.io.InputSplit;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 public class JobInputVertex extends AbstractJobInputVertex {
 
-	/**
-	 * Creates a new job input vertex with the specified name.
-	 * 
-	 * @param name
-	 *        The name of the new job file input vertex.
-	 * @param id
-	 *        The ID of this vertex.
-	 * @param jobGraph
-	 *        The job graph this vertex belongs to.
-	 */
-	public JobInputVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
+	private InputFormat<?, ?> inputFormat;
+	
+	public JobInputVertex(String name, JobVertexID id, JobGraph jobGraph) {
 		super(name, id, jobGraph);
 	}
-
+	
 	/**
 	 * Creates a new job file input vertex with the specified name.
 	 * 
@@ -39,8 +36,8 @@ public class JobInputVertex extends AbstractJobInputVertex {
 	 * @param jobGraph
 	 *        The job graph this vertex belongs to.
 	 */
-	public JobInputVertex(final String name, final JobGraph jobGraph) {
-		super(name, null, jobGraph);
+	public JobInputVertex(String name, JobGraph jobGraph) {
+		this(name, null, jobGraph);
 	}
 
 	/**
@@ -49,27 +46,52 @@ public class JobInputVertex extends AbstractJobInputVertex {
 	 * @param jobGraph
 	 *        The job graph this vertex belongs to.
 	 */
-	public JobInputVertex(final JobGraph jobGraph) {
-		super(null, null, jobGraph);
+	public JobInputVertex(JobGraph jobGraph) {
+		this(null, jobGraph);
+	}
+	
+	public void setInputFormat(InputFormat<?, ?> format) {
+		this.inputFormat = format;
+	}
+	
+	public void initializeInputFormatFromTaskConfig(ClassLoader cl) {
+		TaskConfig cfg = new TaskConfig(getConfiguration());
+		
+		UserCodeWrapper<InputFormat<?, ?>> wrapper = cfg.<InputFormat<?, ?>>getStubWrapper(cl);
+		
+		if (wrapper != null) {
+			this.inputFormat = wrapper.getUserCodeObject(InputFormat.class, cl);
+			this.inputFormat.configure(cfg.getStubParameters());
+		}
 	}
 
 	/**
-	 * Sets the class of the vertex's input task.
-	 * 
-	 * @param inputClass
-	 *        The class of the vertex's input task.
+	 * Gets the input split type class
+	 *
+	 * @return Input split type class
 	 */
-	public void setInputClass(final Class<? extends AbstractInputTask<?>> inputClass) {
-		this.invokableClass = inputClass;
+	@Override
+	public Class<? extends InputSplit> getInputSplitType() {
+		if(inputFormat == null){
+			throw new RuntimeException("No input format has been set for job vertex: "+ this.getID());
+		}
+
+		return inputFormat.getInputSplitType();
 	}
 
 	/**
-	 * Returns the class of the vertex's input task.
-	 * 
-	 * @return the class of the vertex's input task or <code>null</code> if no task has yet been set
+	 * Gets the input splits from the input format.
+	 *
+	 * @param minNumSplits Number of minimal input splits
+	 * @return Array of input splits
+	 * @throws IOException
 	 */
-	@SuppressWarnings("unchecked")
-	public Class<? extends AbstractInputTask<?>> getInputClass() {
-		return (Class<? extends AbstractInputTask<?>>) this.invokableClass;
+	@Override
+	public InputSplit[] getInputSplits(int minNumSplits) throws IOException {
+		if (inputFormat == null){
+			throw new RuntimeException("No input format has been set for job vertex: "+ this.getID());
+		}
+
+		return inputFormat.createInputSplits(minNumSplits);
 	}
 }

@@ -19,18 +19,18 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.client.program.Client.ProgramAbortException;
+import eu.stratosphere.client.program.PackagedProgram.PreviewPlanEnvironment;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
-import eu.stratosphere.example.java.graph.ConnectedComponents;
-import eu.stratosphere.example.java.record.kmeans.KMeans;
-import eu.stratosphere.example.java.record.relational.TPCHQuery3;
-import eu.stratosphere.example.java.record.relational.WebLogAnalysis;
-import eu.stratosphere.example.java.record.wordcount.WordCount;
-import eu.stratosphere.test.compiler.CompilerTestBase;
-import eu.stratosphere.test.testPrograms.KMeansSingleStep;
+import eu.stratosphere.example.java.clustering.KMeans;
+import eu.stratosphere.test.compiler.util.CompilerTestBase;
+import eu.stratosphere.test.recordJobs.graph.DeltaPageRankWithInitialDeltas;
+import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast;
+import eu.stratosphere.test.recordJobs.kmeans.KMeansSingleStep;
+import eu.stratosphere.test.recordJobs.relational.TPCHQuery3;
+import eu.stratosphere.test.recordJobs.relational.WebLogAnalysis;
+import eu.stratosphere.test.recordJobs.wordcount.WordCount;
 
 /*
  * The tests in this class simply invokes the JSON dump code for the optimized plan.
@@ -53,26 +53,35 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 	}
 	
 	@Test
+	public void dumpIterativeKMeans() {
+		// prepare the test environment
+		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
+		env.setAsContext();
+		try {
+			// <points path> <centers path> <result path> <num iterations
+			KMeans.main(new String[] {IN_FILE, IN_FILE, OUT_FILE, "123"});
+		} catch(ProgramAbortException pae) {
+			// all good.
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("KMeans failed with an exception");
+		}
+		dump(env.getPlan());
+	}
+	
+	@Test
 	public void dumpWebLogAnalysis() {
 		dump(new WebLogAnalysis().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, IN_FILE, OUT_FILE));
 	}
 
 	@Test
 	public void dumpBulkIterationKMeans() {
-		dump(new KMeans().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
+		dump(new KMeansBroadcast().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, OUT_FILE));
 	}
 	
 	@Test
-	public void dumpConnectedComponents() {
-		// take the core program and create dummy sources and sinks around it
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		
-		DataSet<Long> vertices = env.fromElements(1L);
-		@SuppressWarnings("unchecked")
-		DataSet<Tuple2<Long, Long>> edges = env.fromElements(new Tuple2<Long, Long>(1l, 2l));
-		
-		ConnectedComponents.doConnectedComponents(vertices, edges, 10).print();
-		dump(env.createProgramPlan());
+	public void dumpDeltaPageRank() {
+		dump(new DeltaPageRankWithInitialDeltas().getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, IN_FILE, OUT_FILE, "10"));
 	}
 	
 	private void dump(Plan p) {

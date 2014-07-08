@@ -221,6 +221,7 @@ public class NetUtils {
 	 * @return InputStream for reading from the socket.
 	 * @throws IOException
 	 */
+	@SuppressWarnings("resource")
 	public static InputStream getInputStream(Socket socket, long timeout) throws IOException {
 		return (socket.getChannel() == null) ? socket.getInputStream() : new SocketInputStream(socket, timeout);
 	}
@@ -266,6 +267,7 @@ public class NetUtils {
 	 * @return OutputStream for writing to the socket.
 	 * @throws IOException
 	 */
+	@SuppressWarnings("resource")
 	public static OutputStream getOutputStream(Socket socket, long timeout) throws IOException {
 		return (socket.getChannel() == null) ? socket.getOutputStream() : new SocketOutputStream(socket, timeout);
 	}

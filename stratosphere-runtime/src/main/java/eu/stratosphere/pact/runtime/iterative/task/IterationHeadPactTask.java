@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.runtime.io.api.BufferWriter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -25,11 +26,8 @@ import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
-import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.memory.DataInputView;
 import eu.stratosphere.core.memory.MemorySegment;
-import eu.stratosphere.nephele.io.AbstractRecordWriter;
-import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.pact.runtime.hash.CompactingHashTable;
 import eu.stratosphere.pact.runtime.io.InputViewIterator;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
@@ -78,13 +76,13 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	private Collector<X> finalOutputCollector;
 
-	private List<AbstractRecordWriter<?>> finalOutputWriters;
+	private List<BufferWriter> finalOutputWriters;
 
-	private TypeSerializer<Y> feedbackTypeSerializer;
+	private TypeSerializerFactory<Y> feedbackTypeSerializer;
 
-	private TypeSerializer<X> solutionTypeSerializer;
+	private TypeSerializerFactory<X> solutionTypeSerializer;
 
-	private RecordWriter<?> toSync;
+	private BufferWriter toSync;
 
 	private int initialSolutionSetInput; // undefined for bulk iterations
 
@@ -108,7 +106,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 		// at this time, the outputs to the step function are created
 		// add the outputs for the final solution
-		this.finalOutputWriters = new ArrayList<AbstractRecordWriter<?>>();
+		this.finalOutputWriters = new ArrayList<BufferWriter>();
 		final TaskConfig finalOutConfig = this.config.getIterationHeadFinalOutputConfig();
 		this.finalOutputCollector = RegularPactTask.getOutputCollector(this, finalOutConfig,
 			this.userCodeClassLoader, this.finalOutputWriters, finalOutConfig.getNumOutputs());
@@ -122,7 +120,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			throw new Exception("Error: Inconsistent head task setup - wrong mapping of output gates.");
 		}
 		// now, we can instantiate the sync gate
-		this.toSync = new RecordWriter<IOReadableWritable>(this, IOReadableWritable.class);
+		this.toSync = new BufferWriter(this);
 	}
 
 	/**
@@ -132,7 +130,8 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	private BlockingBackChannel initBackChannel() throws Exception {
 
 		/* get the size of the memory available to the backchannel */
-		int backChannelMemoryPages = getMemoryManager().computeNumberOfPages(this.config.getBackChannelMemory());
+		int backChannelMemoryPages = getMemoryManager().computeNumberOfPages(this.config.getRelativeBackChannelMemory
+				());
 
 		/* allocate the memory available to the backchannel */
 		List<MemorySegment> segments = new ArrayList<MemorySegment>();
@@ -152,7 +151,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	
 	private <BT> CompactingHashTable<BT> initCompactingHashTable() throws Exception {
 		// get some memory
-		long hashjoinMemorySize = config.getSolutionSetMemory();
+		double hashjoinMemorySize = config.getRelativeSolutionSetMemory();
 
 		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
 		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator(userCodeClassLoader);
@@ -203,6 +202,8 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	@Override
 	public void run() throws Exception {
+		// initialize the serializers (one per channel) of the record writers
+		RegularPactTask.initOutputWriters(this.finalOutputWriters);
 
 		final String brokerKey = brokerKey();
 		final int workerIndex = getEnvironment().getIndexInSubtaskGroup();
@@ -220,13 +221,13 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			SolutionSetUpdateBarrier solutionSetUpdateBarrier = null;
 
 			feedbackDataInput = config.getIterationHeadPartialSolutionOrWorksetInputIndex();
-			feedbackTypeSerializer = this.<Y>getInputSerializer(feedbackDataInput).getSerializer();
+			feedbackTypeSerializer = this.<Y>getInputSerializer(feedbackDataInput);
 			excludeFromReset(feedbackDataInput);
 
 			if (isWorksetIteration) {
 				initialSolutionSetInput = config.getIterationHeadSolutionSetInputIndex();
 				TypeSerializerFactory<X> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
-				solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
+				solutionTypeSerializer = solutionTypeSerializerFactory;
 
 				// setup the index for the solution set
 				//solutionSet = initHashTable();
@@ -249,7 +250,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 				initialSolutionSetInput = -1;
 
 				@SuppressWarnings("unchecked")
-				TypeSerializer<X> solSer = (TypeSerializer<X>) feedbackTypeSerializer;
+				TypeSerializerFactory<X> solSer = (TypeSerializerFactory<X>) feedbackTypeSerializer;
 				solutionTypeSerializer = solSer;
 				
 				// = termination Criterion tail
@@ -327,8 +328,10 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			if (isWorksetIteration) {
 				streamSolutionSetToFinalOutput(solutionSet);
 			} else {
-				streamOutFinalOutputBulk(new InputViewIterator<X>(superstepResult, this.solutionTypeSerializer));
+				streamOutFinalOutputBulk(new InputViewIterator<X>(superstepResult, this.solutionTypeSerializer.getSerializer()));
 			}
+
+			this.finalOutputCollector.close();
 
 		} finally {
 			// make sure we unregister everything from the broker:
@@ -352,7 +355,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	private void streamOutFinalOutputBulk(MutableObjectIterator<X> results) throws IOException {
 		final Collector<X> out = this.finalOutputCollector;
-		X record = this.solutionTypeSerializer.createInstance();
+		X record = this.solutionTypeSerializer.getSerializer().createInstance();
 
 		while ((record = results.next(record)) != null) {
 			out.collect(record);
@@ -362,7 +365,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	private void streamSolutionSetToFinalOutput(CompactingHashTable<X> hashTable) throws IOException {
 		final MutableObjectIterator<X> results = hashTable.getEntryIterator();
 		final Collector<X> output = this.finalOutputCollector;
-		X record = solutionTypeSerializer.createInstance();
+		X record = solutionTypeSerializer.getSerializer().createInstance();
 
 		while ((record = results.next(record)) != null) {
 			output.collect(record);
@@ -371,7 +374,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	private void feedBackSuperstepResult(DataInputView superstepResult) {
 		this.inputs[this.feedbackDataInput] =
-			new InputViewIterator<Y>(superstepResult, this.feedbackTypeSerializer);
+			new InputViewIterator<Y>(superstepResult, this.feedbackTypeSerializer.getSerializer());
 	}
 
 	private void sendEndOfSuperstepToAllIterationOutputs() throws IOException, InterruptedException {
@@ -388,7 +391,8 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		if (log.isInfoEnabled()) {
 			log.info(formatLogString("sending " + WorkerDoneEvent.class.getSimpleName() + " to sync"));
 		}
-		this.toSync.publishEvent(event);
+
+		this.toSync.broadcastEvent(event);
 	}
 
 }

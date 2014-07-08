@@ -36,9 +36,9 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
+import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
@@ -66,7 +66,7 @@ public class CombiningUnilateralSortMergerITCase {
 
 	public static final int MEMORY_SIZE = 1024 * 1024 * 256;
 
-	private final AbstractTask parentTask = new DummyInvokable();
+	private final AbstractInvokable parentTask = new DummyInvokable();
 	
 	private IOManager ioManager;
 
@@ -85,7 +85,7 @@ public class CombiningUnilateralSortMergerITCase {
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
 		this.ioManager = new IOManager();
 		
 		this.serializerFactory = RecordSerializerFactory.get();
@@ -121,7 +121,7 @@ public class CombiningUnilateralSortMergerITCase {
 		
 		Sorter<Record> merger = new CombiningUnilateralSortMerger<Record>(comb, 
 				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory, this.comparator,
-				64 * 1024 * 1024, 64, 0.7f);
+				0.25, 64, 0.7f);
 
 		final Record rec = new Record();
 		rec.setField(1, new IntValue(1));
@@ -162,7 +162,7 @@ public class CombiningUnilateralSortMergerITCase {
 		
 		Sorter<Record> merger = new CombiningUnilateralSortMerger<Record>(comb, 
 				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory, this.comparator,
-				3 * 1024 * 1024, 64, 0.005f);
+				0.01, 64, 0.005f);
 
 		final Record rec = new Record();
 		rec.setField(1, new IntValue(1));
@@ -211,7 +211,7 @@ public class CombiningUnilateralSortMergerITCase {
 		
 		Sorter<Record> merger = new CombiningUnilateralSortMerger<Record>(comb, 
 				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory, this.comparator,
-				64 * 1024 * 1024, 2, 0.7f);
+				0.25, 2, 0.7f);
 
 		// emit data
 		LOG.debug("emitting data");

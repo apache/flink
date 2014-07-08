@@ -16,38 +16,18 @@ package eu.stratosphere.api.java.operators.translation;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.functions.GenericMap;
-import eu.stratosphere.api.common.operators.base.PlainMapOperatorBase;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
+import eu.stratosphere.api.common.operators.base.MapOperatorBase;
 import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 
-public class PlanProjectOperator<T, R extends Tuple> 
-	extends PlainMapOperatorBase<GenericMap<T, R>>
-	implements UnaryJavaPlanNode<T, R>
-{
-	private final TypeInformation<T> inType;
-	private final TypeInformation<R> outType;
-	
-	
+public class PlanProjectOperator<T, R extends Tuple> extends MapOperatorBase<T, R, GenericMap<T, R>> {
+
 	public PlanProjectOperator(int[] fields, String name, TypeInformation<T> inType, TypeInformation<R> outType) {
-		super(new MapProjector<T, R>(fields, outType.createSerializer().createInstance()), name);
-		this.inType = inType;
-		this.outType = outType;
+		super(new MapProjector<T, R>(fields, outType.createSerializer().createInstance()), new UnaryOperatorInformation<T, R>(inType, outType), name);
 	}
 	
-	@Override
-	public TypeInformation<R> getReturnType() {
-		return this.outType;
-	}
-
-	@Override
-	public TypeInformation<T> getInputType() {
-		return this.inType;
-	}
-	
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public static final class MapProjector<T, R extends Tuple> 
+	public static final class MapProjector<T, R extends Tuple>
 		extends AbstractFunction
 		implements GenericMap<T, R>
 	{

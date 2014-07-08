@@ -15,9 +15,8 @@ package eu.stratosphere.pact.runtime.shipping;
 
 import eu.stratosphere.api.common.distributions.DataDistribution;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
-import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.runtime.io.api.ChannelSelector;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
-
 
 public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T>> {
 	
@@ -79,7 +78,6 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		switch (strategy) {
 		case FORWARD:
 		case PARTITION_HASH:
-		case PARTITION_LOCAL_HASH:
 		case PARTITION_RANGE:
 		case PARTITION_RANDOM:
 		case BROADCAST:
@@ -104,7 +102,6 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		case PARTITION_RANDOM:
 			return robin(numberOfChannels);
 		case PARTITION_HASH:
-		case PARTITION_LOCAL_HASH:
 			return hashPartitionDefault(record.getInstance(), numberOfChannels);
 		case PARTITION_RANGE:
 			return rangePartition(record.getInstance(), numberOfChannels);
@@ -145,13 +142,42 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		if (channels == null || channels.length != 1) {
 			channels = new int[1];
 		}
-		
+
 		int hash = this.comparator.hash(record);
+
+		hash = murmurHash(hash);
+
+		if (hash >= 0) {
+			this.channels[0] = hash % numberOfChannels;
+		}
+		else if (hash != Integer.MIN_VALUE) {
+			this.channels[0] = -hash % numberOfChannels;
+		}
+		else {
+			this.channels[0] = 0;
+		}
 	
-		this.channels[0] = (hash < 0) ? -hash % numberOfChannels : hash % numberOfChannels;
 		return this.channels;
 	}
-	
+
+	private final int murmurHash(int k) {
+		k *= 0xcc9e2d51;
+		k = Integer.rotateLeft(k, 15);
+		k *= 0x1b873593;
+		
+		k = Integer.rotateLeft(k, 13);
+		k *= 0xe6546b64;
+
+		k ^= 4;
+		k ^= k >>> 16;
+		k *= 0x85ebca6b;
+		k ^= k >>> 13;
+		k *= 0xc2b2ae35;
+		k ^= k >>> 16;
+
+		return k;
+	}
+
 	private final int[] rangePartition(T record, int numberOfChannels) {
 		throw new UnsupportedOperationException();
 	}

@@ -37,8 +37,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable.HashBucketIterator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.UniformIntPairGenerator;
 import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
@@ -91,7 +91,7 @@ public class HashTableITCase {
 		this.pairProbeSideComparator = new IntPairComparator();
 		this.pairComparator = new IntPairPairComparator();
 		
-		this.memManager = new DefaultMemoryManager(32 * 1024 * 1024);
+		this.memManager = new DefaultMemoryManager(32 * 1024 * 1024,1);
 		this.ioManager = new IOManager();
 	}
 	

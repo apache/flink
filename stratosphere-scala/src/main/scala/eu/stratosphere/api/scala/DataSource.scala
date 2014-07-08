@@ -18,9 +18,7 @@ import eu.stratosphere.api.scala.functions._
 import eu.stratosphere.types._
 import eu.stratosphere.types.parser._
 import eu.stratosphere.api.common.io.InputFormat
-import eu.stratosphere.api.common.operators.GenericDataSource
-import eu.stratosphere.api.common.operators.FileDataSource
-import eu.stratosphere.api.java.record.operators.{CollectionDataSource => JavaCollectionDataSource}
+import eu.stratosphere.api.java.record.operators.{CollectionDataSource => JavaCollectionDataSource, FileDataSource}
 import eu.stratosphere.configuration.Configuration
 import eu.stratosphere.api.common.io.FileInputFormat
 import eu.stratosphere.api.common.io.GenericInputFormat
@@ -34,20 +32,20 @@ object DataSource {
     
     val ret = uri.getScheme match {
 
-      case "file" | "hdfs" => new FileDataSource(format.asInstanceOf[FileInputFormat[_]], uri.toString)
-          with ScalaOperator[Out] {
+      case "file" | "hdfs" => new FileDataSource(format.asInstanceOf[FileInputFormat[Record]], uri.toString)
+          with ScalaOperator[Out, Record] {
 
         override def getUDF = format.getUDF
 
         override def persistConfiguration() = format.persistConfiguration(this.getParameters())
       }
 
-      case "ext" => new GenericDataSource[GenericInputFormat[_]](format.asInstanceOf[GenericInputFormat[_]], uri.toString)
-          with ScalaOperator[Out] {
-
-        override def getUDF = format.getUDF
-        override def persistConfiguration() = format.persistConfiguration(this.getParameters())
-      }
+//      case "ext" => new GenericDataSource[GenericInputFormat[_]](format.asInstanceOf[GenericInputFormat[_]], uri.toString)
+//          with ScalaOperator[Out] {
+//
+//        override def getUDF = format.getUDF
+//        override def persistConfiguration() = format.persistConfiguration(this.getParameters())
+//      }
     }
     
     new DataSet[Out](ret) with OutputHintable[Out] {}
@@ -72,7 +70,7 @@ object CollectionDataSource {
     */
     val js:java.util.Collection[Out] = data
     val ret = new JavaCollectionDataSource(js)
-    	with ScalaOperator[Out]{
+    	with ScalaOperator[Out, Record]{
        
        val udf = new UDF0(implicitly[UDT[Out]])
        override def getUDF = udf
@@ -91,7 +89,7 @@ object CollectionDataSource {
     reuse the java implementation of collection data by adding scala operator
      */
     val ret = new JavaCollectionDataSource(data)
-    	with ScalaOperator[Out]{
+    	with ScalaOperator[Out, Record]{
        
        val udf = new UDF0(implicitly[UDT[Out]])
        override def getUDF = udf

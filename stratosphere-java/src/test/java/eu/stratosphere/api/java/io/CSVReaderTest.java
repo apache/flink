@@ -25,7 +25,7 @@ import eu.stratosphere.api.java.tuple.Tuple4;
 import eu.stratosphere.api.java.tuple.Tuple5;
 import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.api.java.typeutils.ValueTypeInfo;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;

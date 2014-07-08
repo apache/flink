@@ -13,27 +13,31 @@
 
 package eu.stratosphere.api.common.operators.base;
 
-import eu.stratosphere.api.common.functions.GenericCollectorMap;
+import eu.stratosphere.api.common.functions.GenericMap;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 
 
 /**
- * @see GenericCollectorMap
+ *
+ * @param <IN> The input type.
+ * @param <OUT> The result type.
+ * @param <FT> The type of the user-defined function.
  */
-public class MapOperatorBase<T extends GenericCollectorMap<?, ?>> extends SingleInputOperator<T> {
+public class MapOperatorBase<IN, OUT, FT extends GenericMap<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 	
-	public MapOperatorBase(UserCodeWrapper<T> udf, String name) {
-		super(udf, name);
+	public MapOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+		super(udf, operatorInfo, name);
 	}
 	
-	public MapOperatorBase(T udf, String name) {
-		super(new UserCodeObjectWrapper<T>(udf), name);
+	public MapOperatorBase(FT udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
 	}
 	
-	public MapOperatorBase(Class<? extends T> udf, String name) {
-		super(new UserCodeClassWrapper<T>(udf), name);
+	public MapOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
 	}
 }

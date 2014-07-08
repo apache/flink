@@ -24,8 +24,8 @@ import org.apache.avro.reflect.Nullable;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.io.OutputFormat;
-import eu.stratosphere.api.common.operators.GenericDataSink;
-import eu.stratosphere.api.common.operators.GenericDataSource;
+import eu.stratosphere.api.java.record.operators.GenericDataSink;
+import eu.stratosphere.api.java.record.operators.GenericDataSource;
 import eu.stratosphere.api.java.record.functions.CoGroupFunction;
 import eu.stratosphere.api.java.record.io.GenericInputFormat;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator;

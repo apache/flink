@@ -67,7 +67,7 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 		TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = 
 				this.taskContext.getTaskConfig().getPairComparatorFactory(this.taskContext.getUserCodeClassLoader());
 
-		int numMemoryPages = this.taskContext.getMemoryManager().computeNumberOfPages(config.getMemoryDriver());
+		int numMemoryPages = this.taskContext.getMemoryManager().computeNumberOfPages(config.getRelativeMemoryDriver());
 		List<MemorySegment> memSegments = this.taskContext.getMemoryManager().allocatePages(
 			this.taskContext.getOwningNepheleTask(), numMemoryPages);
 

@@ -15,7 +15,7 @@
 package eu.stratosphere.api.java;
 
 import eu.stratosphere.api.java.operators.Keys;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 
 public class DeltaIterationResultSet<ST, WT> extends DataSet<ST> {
 

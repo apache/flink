@@ -23,11 +23,14 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.BulkIteration;
-import eu.stratosphere.api.common.operators.DeltaIteration;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.ExecutionEnvironment;
+import eu.stratosphere.api.java.IterativeDataSet;
+import eu.stratosphere.api.java.functions.JoinFunction;
+import eu.stratosphere.api.java.record.operators.BulkIteration;
+import eu.stratosphere.api.java.record.operators.DeltaIteration;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator;
 import eu.stratosphere.api.java.record.operators.CrossOperator;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
@@ -37,6 +40,10 @@ import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.SinkPlanNode;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
+import eu.stratosphere.pact.compiler.testfunctions.IdentityGroupReducer;
+import eu.stratosphere.pact.compiler.testfunctions.IdentityKeyExtractor;
+import eu.stratosphere.pact.compiler.testfunctions.IdentityMapper;
+import eu.stratosphere.pact.compiler.testfunctions.Top1GroupReducer;
 import eu.stratosphere.pact.compiler.util.DummyCoGroupStub;
 import eu.stratosphere.pact.compiler.util.DummyCrossStub;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
@@ -48,8 +55,7 @@ import eu.stratosphere.pact.compiler.util.IdentityReduce;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.LongValue;
 
-/**
- */
+@SuppressWarnings("serial")
 public class BranchingPlansCompilerTest extends CompilerTestBase {
 	
 	
@@ -58,7 +64,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		final int SINKS = 5;
 	
 		try {
-			List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+			List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 	
 			// construct the plan
 			final String out1Path = "file:///test/1";
@@ -125,7 +131,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			FileDataSink sinkB = new FileDataSink(DummyOutputFormat.class, out2Path, mapC, "Sink B");
 			FileDataSink sinkC = new FileDataSink(DummyOutputFormat.class, out3Path, mapC, "Sink C");
 			
-			List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+			List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 			sinks.add(sinkA);
 			sinks.add(sinkB);
 			sinks.add(sinkC);
@@ -313,7 +319,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			FileDataSink sinkB = new FileDataSink(new DummyOutputFormat(), out2Path, mat2);
 			FileDataSink sinkC = new FileDataSink(new DummyOutputFormat(), out3Path, mat2);
 			
-			List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+			List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 			sinks.add(sinkA);
 			sinks.add(sinkB);
 			sinks.add(sinkC);
@@ -364,6 +370,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 				.name("Reduce 1")
 				.build();
 			
+			@SuppressWarnings("unchecked")
 			JoinOperator match1 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(sourceB, sourceB, sourceC)
 				.input2(sourceC)
@@ -473,6 +480,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			
 			MapOperator ma3 = MapOperator.builder(new IdentityMap()).input(ma2).name("Map 3").build();
 			
+			@SuppressWarnings("unchecked")
 			JoinOperator mat2 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(r1, r2, ma2, ma3)
 				.input2(ma2)
@@ -518,7 +526,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			FileDataSink sinkA = new FileDataSink(DummyOutputFormat.class, out1Path, sourceA);
 			FileDataSink sinkB = new FileDataSink(DummyOutputFormat.class, out2Path, sourceA);
 			
-			List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+			List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 			sinks.add(sinkA);
 			sinks.add(sinkB);
 			
@@ -572,7 +580,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		FileDataSink sinkA = new FileDataSink(DummyOutputFormat.class, out1Path, sourceA);
 		FileDataSink sinkB = new FileDataSink(DummyOutputFormat.class, out2Path, sourceB);
 		
-		List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+		List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 		sinks.add(sinkA);
 		sinks.add(sinkB);
 		
@@ -615,7 +623,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		FileDataSink sink4 = new FileDataSink(DummyOutputFormat.class, out4Path, sourceB, "4");
 		
 		
-		List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+		List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 		sinks.add(sink1);
 		sinks.add(sink2);
 		sinks.add(sink3);
@@ -651,11 +659,47 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		
 		FileDataSink sink2 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, postMap, "Sink 2");
 		
-		List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+		List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 		sinks.add(sink1);
 		sinks.add(sink2);
 		
 		Plan plan = new Plan(sinks);
+		
+		try {
+			compileNoStats(plan);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testBranchBeforeIteration() {
+		FileDataSource source1 = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 1");
+		FileDataSource source2 = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 2");
+		
+		BulkIteration iteration = new BulkIteration("Loop");
+		iteration.setInput(source2);
+		iteration.setMaximumNumberOfIterations(10);
+		
+		MapOperator inMap = MapOperator.builder(new IdentityMap())
+				                       .input(source1)
+				                       .name("In Iteration Map")
+				                       .setBroadcastVariable("BC", iteration.getPartialSolution())
+				                       .build();
+		
+		iteration.setNextPartialSolution(inMap);
+		
+		MapOperator postMap = MapOperator.builder(new IdentityMap())
+										 .input(source1)
+										 .name("Post Iteration Map")
+										 .setBroadcastVariable("BC", iteration)
+										 .build();
+		
+		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, postMap, "Sink");
+		
+		Plan plan = new Plan(sink);
 		
 		try {
 			compileNoStats(plan);
@@ -699,7 +743,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 
 		FileDataSink sink3 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, iteration, "Sink 3");
 
-		List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+		List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 		sinks.add(sink1);
 		sinks.add(sink2);
 		sinks.add(sink3);
@@ -755,7 +799,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 
 		FileDataSink sink3 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, iteration, "Sink 3");
 
-		List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+		List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 		sinks.add(sink1);
 		sinks.add(sink2);
 		sinks.add(sink3);
@@ -823,7 +867,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		iteration.setSolutionSetDelta(solutionSetDelta);
 
 		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, iteration, "Iteration sink");
-		List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+		List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 		sinks.add(sink);
 
 		Plan plan = new Plan(sinks);
@@ -838,7 +882,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 
 	/**
 	 * <prev>
-	 *             +----Delta Iteration------+
+	 *             +---------Iteration-------+
 	 *             |                         |
 	 *    /--map--< >----\                   |
 	 *   /         |      \         /-------< >---sink
@@ -877,11 +921,135 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		iteration.setNextPartialSolution(nextPartialSolution);
 
 		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, iteration, "Iteration sink");
-		List<GenericDataSink> sinks = new ArrayList<GenericDataSink>();
+		List<FileDataSink> sinks = new ArrayList<FileDataSink>();
 		sinks.add(sink);
 
 		Plan plan = new Plan(sinks);
 
+		try{
+			compileNoStats(plan);
+		}catch(Exception e){
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testBranchingBroadcastVariable() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		DataSet<String> input1 = env.readTextFile(IN_FILE).name("source1");
+		DataSet<String> input2 = env.readTextFile(IN_FILE).name("source2");
+		DataSet<String> input3 = env.readTextFile(IN_FILE).name("source3");
+		
+		DataSet<String> result1 = input1
+				.map(new IdentityMapper<String>())
+				.reduceGroup(new Top1GroupReducer<String>())
+					.withBroadcastSet(input3, "bc");
+		
+		DataSet<String> result2 = input2
+				.map(new IdentityMapper<String>())
+				.reduceGroup(new Top1GroupReducer<String>())
+					.withBroadcastSet(input3, "bc");
+		
+		result1.join(result2)
+				.where(new IdentityKeyExtractor<String>())
+				.equalTo(new IdentityKeyExtractor<String>())
+				.with(new JoinFunction<String, String, String>() {
+					@Override
+					public String join(String first, String second) {
+						return null;
+					}
+				})
+				.withBroadcastSet(input3, "bc1")
+				.withBroadcastSet(input1, "bc2")
+				.withBroadcastSet(result1, "bc3")
+			.print();
+		
+		Plan plan = env.createProgramPlan();
+		
+		try{
+			compileNoStats(plan);
+		}catch(Exception e){
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testBCVariableClosure() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		DataSet<String> input = env.readTextFile(IN_FILE).name("source1");
+		
+		DataSet<String> reduced = input
+				.map(new IdentityMapper<String>())
+				.reduceGroup(new Top1GroupReducer<String>());
+		
+		
+		DataSet<String> initialSolution = input.map(new IdentityMapper<String>()).withBroadcastSet(reduced, "bc");
+		
+		
+		IterativeDataSet<String> iteration = initialSolution.iterate(100);
+		
+		iteration.closeWith(iteration.map(new IdentityMapper<String>()).withBroadcastSet(reduced, "red"))
+				.print();
+		
+		Plan plan = env.createProgramPlan();
+		
+		try{
+			compileNoStats(plan);
+		}catch(Exception e){
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testMultipleIterations() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		DataSet<String> input = env.readTextFile(IN_FILE).name("source1");
+		
+		DataSet<String> reduced = input
+				.map(new IdentityMapper<String>())
+				.reduceGroup(new Top1GroupReducer<String>());
+			
+		IterativeDataSet<String> iteration1 = input.iterate(100);
+		IterativeDataSet<String> iteration2 = input.iterate(20);
+		IterativeDataSet<String> iteration3 = input.iterate(17);
+		
+		iteration1.closeWith(iteration1.map(new IdentityMapper<String>()).withBroadcastSet(reduced, "bc1")).print();
+		iteration2.closeWith(iteration2.reduceGroup(new Top1GroupReducer<String>()).withBroadcastSet(reduced, "bc2")).print();
+		iteration3.closeWith(iteration3.reduceGroup(new IdentityGroupReducer<String>()).withBroadcastSet(reduced, "bc3")).print();
+		
+		Plan plan = env.createProgramPlan();
+		
+		try{
+			compileNoStats(plan);
+		}catch(Exception e){
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testMultipleIterationsWithClosueBCVars() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		DataSet<String> input = env.readTextFile(IN_FILE).name("source1");
+			
+		IterativeDataSet<String> iteration1 = input.iterate(100);
+		IterativeDataSet<String> iteration2 = input.iterate(20);
+		IterativeDataSet<String> iteration3 = input.iterate(17);
+		
+		
+		iteration1.closeWith(iteration1.map(new IdentityMapper<String>())).print();
+		iteration2.closeWith(iteration2.reduceGroup(new Top1GroupReducer<String>())).print();
+		iteration3.closeWith(iteration3.reduceGroup(new IdentityGroupReducer<String>())).print();
+		
+		Plan plan = env.createProgramPlan();
+		
 		try{
 			compileNoStats(plan);
 		}catch(Exception e){

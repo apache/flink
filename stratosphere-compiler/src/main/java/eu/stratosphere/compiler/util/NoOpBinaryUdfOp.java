@@ -12,18 +12,18 @@
  **********************************************************************************************************************/
 package eu.stratosphere.compiler.util;
 
+import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
 import eu.stratosphere.api.common.operators.DualInputOperator;
 import eu.stratosphere.api.common.operators.RecordOperator;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.types.Key;
+import eu.stratosphere.types.TypeInformation;
 
 
-public class NoOpBinaryUdfOp extends DualInputOperator<NoOpFunction> implements RecordOperator {
-	
-	public static final NoOpBinaryUdfOp INSTANCE = new NoOpBinaryUdfOp();
-	
-	private NoOpBinaryUdfOp() {
-		super(new UserCodeClassWrapper<NoOpFunction>(NoOpFunction.class), "NoContract");
+public class NoOpBinaryUdfOp<OUT> extends DualInputOperator<OUT, OUT, OUT, NoOpFunction> implements RecordOperator {
+
+	public NoOpBinaryUdfOp(TypeInformation<OUT> type) {
+		super(new UserCodeClassWrapper<NoOpFunction>(NoOpFunction.class), new BinaryOperatorInformation<OUT, OUT, OUT>(type, type, type), "NoContract");
 	}
 
 	@SuppressWarnings("unchecked")

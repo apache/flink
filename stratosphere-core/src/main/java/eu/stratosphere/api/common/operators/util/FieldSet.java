@@ -15,67 +15,153 @@ package eu.stratosphere.api.common.operators.util;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 
 /**
- *
+ * Immutable unordered collection of fields IDs.
  */
 public class FieldSet implements Iterable<Integer> {
+	
+	public static final FieldSet EMPTY_SET = new FieldSet();
 	
 	protected final Collection<Integer> collection;
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Creates a new empty set of fields.
+	 */
 	public FieldSet() {
-		this.collection = initCollection();
+		this.collection = Collections.emptySet();
 	}
 	
-	public FieldSet(int columnIndex) {
-		this();
-		add(columnIndex);
+	/**
+	 * Creates a set with one field.
+	 * 
+	 * @param fieldID The id of the field.
+	 */
+	public FieldSet(Integer fieldID) {
+		if (fieldID == null) {
+			throw new IllegalArgumentException("Field ID must not be null.");
+		}
+		
+		this.collection = Collections.singleton(fieldID);
 	}
 	
-	public FieldSet(int[] columnIndexes) {
-		this();
-		addAll(columnIndexes);
+	/**
+	 * Creates a set with the given fields.
+	 * 
+	 * @param fieldIDs The IDs of the fields.
+	 */
+	public FieldSet(int... fieldIDs) {
+		if (fieldIDs == null || fieldIDs.length == 0) {
+			this.collection = Collections.emptySet();
+		} else {
+			HashSet<Integer> set = new HashSet<Integer>(2 * fieldIDs.length);
+			for (int i = 0; i < fieldIDs.length; i++) {
+				set.add(fieldIDs[i]);
+			}
+			
+			this.collection = Collections.unmodifiableSet(set);
+		}
 	}
 	
-	public FieldSet(Collection<Integer> o) {
-		this();
-		addAll(o);
+	/**
+	 * Creates a set with the given fields.
+	 * 
+	 * @param fieldIDs The IDs of the fields.
+	 */
+	public FieldSet(int[] fieldIDs, boolean marker) {
+		if (fieldIDs == null || fieldIDs.length == 0) {
+			this.collection = Collections.emptySet();
+		} else {
+			HashSet<Integer> set = new HashSet<Integer>(2 * fieldIDs.length);
+			for (int i = 0; i < fieldIDs.length; i++) {
+				set.add(fieldIDs[i]);
+			}
+			
+			this.collection = Collections.unmodifiableSet(set);
+		}
 	}
 	
-	public FieldSet(Collection<Integer> o1, Collection<Integer> o2) {
-		this();
-		addAll(o1);
-		addAll(o2);
+	protected FieldSet(Collection<Integer> fields) {
+		this.collection = fields;
 	}
 	
-	public FieldSet(FieldSet toCopy) {
-		this();
-		addAll(toCopy);
+	/**
+	 * @param fieldSet The first part of the new set, NOT NULL!
+	 * @param fieldID The ID to be added, NOT NULL!
+	 */
+	private FieldSet(FieldSet fieldSet, Integer fieldID) {
+		if (fieldSet.size() == 0) {
+			this.collection = Collections.singleton(fieldID);
+		}
+		else {
+			HashSet<Integer> set = new HashSet<Integer>(2 * (fieldSet.collection.size() + 1));
+			set.addAll(fieldSet.collection);
+			set.add(fieldID);
+			this.collection = Collections.unmodifiableSet(set);
+		}
+	}
+	
+	private FieldSet(FieldSet fieldSet, int... fieldIDs) {
+		if (fieldIDs == null || fieldIDs.length == 0) {
+			this.collection = fieldSet.collection;
+		} else {
+			HashSet<Integer> set = new HashSet<Integer>(2 * (fieldSet.collection.size() + fieldIDs.length));
+			set.addAll(fieldSet.collection);
+			
+			for (int i = 0; i < fieldIDs.length; i++) {
+				set.add(fieldIDs[i]);
+			}
+			
+			this.collection = Collections.unmodifiableSet(set);
+		}
+	}
+	
+	private FieldSet(FieldSet fieldSet1, FieldSet fieldSet2) {
+		if (fieldSet2.size() == 0) {
+			this.collection = fieldSet1.collection;
+		}
+		else if (fieldSet1.size() == 0) {
+			this.collection = fieldSet2.collection;
+		}
+		else {
+			HashSet<Integer> set = new HashSet<Integer>(2 * (fieldSet1.size() + fieldSet2.size()));
+			set.addAll(fieldSet1.collection);
+			set.addAll(fieldSet2.collection);
+			this.collection = Collections.unmodifiableSet(set);
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public void add(Integer columnIndex) {
-		this.collection.add(columnIndex);
-	}
-
-	public void addAll(int[] columnIndexes) {
-		for (int i = 0; i < columnIndexes.length; i++) {
-			add(columnIndexes[i]);
+	public FieldSet addField(Integer fieldID) {
+		if (fieldID == null) {
+			throw new IllegalArgumentException("Field ID must not be null.");
 		}
+		return new FieldSet(this, fieldID);
 	}
 
-	public void addAll(Collection<Integer> columnIndexes) {
-		this.collection.addAll(columnIndexes);
+	public FieldSet addFields(int... fieldIDs) {
+		return new FieldSet(this, fieldIDs);
 	}
 	
-	public void addAll(FieldSet set) {
-		for (Integer i : set) {
-			add(i);
+	public FieldSet addFields(FieldSet set) {
+		if (set == null) {
+			throw new IllegalArgumentException("FieldSet to add must not be null.");
+		}
+		
+		if (set.size() == 0) {
+			return this;
+		}
+		else if (this.size() == 0) {
+			return set;
+		}
+		else {
+			return new FieldSet(this, set);
 		}
 	}
 	
@@ -87,18 +173,28 @@ public class FieldSet implements Iterable<Integer> {
 		return this.collection.size();
 	}
 	
-
 	@Override
 	public Iterator<Integer> iterator() {
 		return this.collection.iterator();
 	}
 	
+	/**
+	 * Turns the FieldSet into an ordered FieldList.
+	 * 
+	 * @return An ordered FieldList.
+	 */
 	public FieldList toFieldList() {
 		int[] pos = toArray();
 		Arrays.sort(pos);
 		return new FieldList(pos);
 	}
 	
+	/**
+	 * Transforms the field set into an array of field IDs. Whether the IDs are ordered
+	 * or unordered depends on the specific subclass of the field set.
+	 * 
+	 * @return An array of all contained field IDs.
+	 */
 	public int[] toArray() {
 		int[] a = new int[this.collection.size()];
 		int i = 0;
@@ -134,12 +230,10 @@ public class FieldSet implements Iterable<Integer> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-
 	@Override
 	public int hashCode() {
 		return this.collection.hashCode();
 	}
-
 
 	@Override
 	public boolean equals(Object obj) {
@@ -171,17 +265,17 @@ public class FieldSet implements Iterable<Integer> {
 	}
 	
 
+	/**
+	 * Since instances of FieldSet are strictly immutable, this method does not actually clone,
+	 * but it only returns the original instance.
+	 * 
+	 * @return This objects reference, unmodified.
+	 */
 	public FieldSet clone() {
-		FieldSet set = new FieldSet();
-		set.addAll(this.collection);
-		return set;
+		return this;
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
-	protected Collection<Integer> initCollection() {
-		return new HashSet<Integer>();
-	}
 	
 	protected String getDescriptionPrefix() {
 		return "(";
@@ -190,6 +284,4 @@ public class FieldSet implements Iterable<Integer> {
 	protected String getDescriptionSuffix() {
 		return ")";
 	}
-	
-	public static final FieldSet EMPTY_SET = new FieldSet();
 }

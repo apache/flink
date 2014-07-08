@@ -21,7 +21,7 @@ public class AggregatorWithName<T extends Value> {
 
 	private final String name;
 	
-	private final Class<? extends Aggregator<T>> aggregator;
+	private final Aggregator<T> aggregator;
 
 	/**
 	 * Creates a new instance for the given aggregator and name.
@@ -29,7 +29,7 @@ public class AggregatorWithName<T extends Value> {
 	 * @param name The name that the aggregator is registered under.
 	 * @param aggregator The aggregator.
 	 */
-	public AggregatorWithName(String name, Class<Aggregator<T>> aggregator) {
+	public AggregatorWithName(String name, Aggregator<T> aggregator) {
 		this.name = name;
 		this.aggregator = aggregator;
 	}
@@ -48,7 +48,7 @@ public class AggregatorWithName<T extends Value> {
 	 * 
 	 * @return The aggregator.
 	 */
-	public Class<? extends Aggregator<T>> getAggregator() {
+	public Aggregator<T> getAggregator() {
 		return aggregator;
 	}
 }

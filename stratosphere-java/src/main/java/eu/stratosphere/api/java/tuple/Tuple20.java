@@ -332,4 +332,89 @@ public class Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13,
 			+ ", " + StringUtils.arrayAwareToString(this.f19)
 			+ ")";
 	}
+
+	/**
+	 * Deep equality for tuples by calling equals() on the tuple members
+	 * @param o the object checked for equality
+	 * @return true if this is equal to o.
+	 */
+	@Override
+	public boolean equals(Object o) {
+		if(this == o) { return true; }
+		if (!(o instanceof Tuple20)) { return false; }
+		Tuple20 tuple = (Tuple20) o;
+		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) { return false; }
+		if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) { return false; }
+		if (f2 != null ? !f2.equals(tuple.f2) : tuple.f2 != null) { return false; }
+		if (f3 != null ? !f3.equals(tuple.f3) : tuple.f3 != null) { return false; }
+		if (f4 != null ? !f4.equals(tuple.f4) : tuple.f4 != null) { return false; }
+		if (f5 != null ? !f5.equals(tuple.f5) : tuple.f5 != null) { return false; }
+		if (f6 != null ? !f6.equals(tuple.f6) : tuple.f6 != null) { return false; }
+		if (f7 != null ? !f7.equals(tuple.f7) : tuple.f7 != null) { return false; }
+		if (f8 != null ? !f8.equals(tuple.f8) : tuple.f8 != null) { return false; }
+		if (f9 != null ? !f9.equals(tuple.f9) : tuple.f9 != null) { return false; }
+		if (f10 != null ? !f10.equals(tuple.f10) : tuple.f10 != null) { return false; }
+		if (f11 != null ? !f11.equals(tuple.f11) : tuple.f11 != null) { return false; }
+		if (f12 != null ? !f12.equals(tuple.f12) : tuple.f12 != null) { return false; }
+		if (f13 != null ? !f13.equals(tuple.f13) : tuple.f13 != null) { return false; }
+		if (f14 != null ? !f14.equals(tuple.f14) : tuple.f14 != null) { return false; }
+		if (f15 != null ? !f15.equals(tuple.f15) : tuple.f15 != null) { return false; }
+		if (f16 != null ? !f16.equals(tuple.f16) : tuple.f16 != null) { return false; }
+		if (f17 != null ? !f17.equals(tuple.f17) : tuple.f17 != null) { return false; }
+		if (f18 != null ? !f18.equals(tuple.f18) : tuple.f18 != null) { return false; }
+		if (f19 != null ? !f19.equals(tuple.f19) : tuple.f19 != null) { return false; }
+		return true;
+	}
+
+	@Override
+	public int hashCode() {
+		int result = f0 != null ? f0.hashCode() : 0;
+		result = 31 * result + (f1 != null ? f1.hashCode() : 0);
+		result = 31 * result + (f2 != null ? f2.hashCode() : 0);
+		result = 31 * result + (f3 != null ? f3.hashCode() : 0);
+		result = 31 * result + (f4 != null ? f4.hashCode() : 0);
+		result = 31 * result + (f5 != null ? f5.hashCode() : 0);
+		result = 31 * result + (f6 != null ? f6.hashCode() : 0);
+		result = 31 * result + (f7 != null ? f7.hashCode() : 0);
+		result = 31 * result + (f8 != null ? f8.hashCode() : 0);
+		result = 31 * result + (f9 != null ? f9.hashCode() : 0);
+		result = 31 * result + (f10 != null ? f10.hashCode() : 0);
+		result = 31 * result + (f11 != null ? f11.hashCode() : 0);
+		result = 31 * result + (f12 != null ? f12.hashCode() : 0);
+		result = 31 * result + (f13 != null ? f13.hashCode() : 0);
+		result = 31 * result + (f14 != null ? f14.hashCode() : 0);
+		result = 31 * result + (f15 != null ? f15.hashCode() : 0);
+		result = 31 * result + (f16 != null ? f16.hashCode() : 0);
+		result = 31 * result + (f17 != null ? f17.hashCode() : 0);
+		result = 31 * result + (f18 != null ? f18.hashCode() : 0);
+		result = 31 * result + (f19 != null ? f19.hashCode() : 0);
+		return result;
+	}
+	/**
+	* Shallow tuple copy.
+	* @returns A new Tuple with the same fields as this.
+	 */
+	public Tuple20<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,T13,T14,T15,T16,T17,T18,T19> copy(){ 
+		return new Tuple20<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,T13,T14,T15,T16,T17,T18,T19>(this.f0,
+			this.f1,
+			this.f2,
+			this.f3,
+			this.f4,
+			this.f5,
+			this.f6,
+			this.f7,
+			this.f8,
+			this.f9,
+			this.f10,
+			this.f11,
+			this.f12,
+			this.f13,
+			this.f14,
+			this.f15,
+			this.f16,
+			this.f17,
+			this.f18,
+			this.f19);
+	}
+
 }

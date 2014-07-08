@@ -38,8 +38,8 @@ import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
 import eu.stratosphere.api.common.accumulators.DoubleCounter;
 import eu.stratosphere.api.common.accumulators.Histogram;
 import eu.stratosphere.api.common.accumulators.IntCounter;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields;
@@ -71,13 +71,14 @@ public class AccumulatorITCase extends RecordAPITestBase {
 	private static final String INPUT = "one\n" + "two two\n" + "three three three\n";
 	private static final String EXPECTED = "one 1\ntwo 2\nthree 3\n";
 	
-	private static final int NUM_SUBTASKS = 2;
+	private static final int DOP = 2;
 
 	protected String dataPath;
 	protected String resultPath;
 	
 	public AccumulatorITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 
 	@Override
@@ -97,7 +98,7 @@ public class AccumulatorITCase extends RecordAPITestBase {
 		
 		Assert.assertEquals(new Integer(3), (Integer) res.getAccumulatorResult("num-lines"));
 
-		Assert.assertEquals(new Double(NUM_SUBTASKS), (Double)res.getAccumulatorResult("open-close-counter"));
+		Assert.assertEquals(new Double(DOP), (Double)res.getAccumulatorResult("open-close-counter"));
 		
 		// Test histogram (words per line distribution)
 		Map<Integer, Integer> dist = Maps.newHashMap();
@@ -121,7 +122,7 @@ public class AccumulatorITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config1 = new Configuration();
-		config1.setInteger("IterationAllReducer#NoSubtasks", NUM_SUBTASKS);
+		config1.setInteger("IterationAllReducer#NoSubtasks", DOP);
 		return toParameterList(config1);
 	}
 	

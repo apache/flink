@@ -15,11 +15,13 @@
 package eu.stratosphere.api.java.operators;
 
 import eu.stratosphere.api.common.io.OutputFormat;
-import eu.stratosphere.api.common.operators.GenericDataSink;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
+import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
 import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.operators.translation.PlanDataSink;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.Nothing;
+import eu.stratosphere.types.NothingTypeInfo;
+import eu.stratosphere.types.TypeInformation;
 
 
 public class DataSink<T> {
@@ -73,10 +75,10 @@ public class DataSink<T> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	protected GenericDataSink translateToDataFlow(Operator input) {
+	protected GenericDataSinkBase<T> translateToDataFlow(Operator<T> input) {
 		// select the name (or create a default one)
 		String name = this.name != null ? this.name : this.format.toString();
-		PlanDataSink<T> sink = new PlanDataSink<T>(this.format, name, this.type);
+		GenericDataSinkBase<T> sink = new GenericDataSinkBase<T>(this.format, new UnaryOperatorInformation<T, Nothing>(this.type, new NothingTypeInfo()), name);
 		// set input
 		sink.setInput(input);
 		// set dop

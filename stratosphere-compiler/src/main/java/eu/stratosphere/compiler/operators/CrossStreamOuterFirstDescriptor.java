@@ -40,9 +40,9 @@ public class CrossStreamOuterFirstDescriptor extends CartesianProductDescriptor 
 		if ((in1.getGroupedFields() == null || in1.getGroupedFields().size() == 0) &&
 				in1.getUniqueFields() != null && in1.getUniqueFields().size() > 0)
 		{
-			in1.setGroupedFields(in1.getUniqueFields().iterator().next().toFieldList());
+			return LocalProperties.forGrouping(in1.getUniqueFields().iterator().next().toFieldList());
+		} else {
+			return in1.clearUniqueFieldSets();
 		}
-		in1.clearUniqueFieldSets();
-		return in1;
 	}
 }

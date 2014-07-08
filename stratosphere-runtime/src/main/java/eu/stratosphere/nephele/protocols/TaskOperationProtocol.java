@@ -23,9 +23,9 @@ import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileRequest
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheProfileResponse;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheUpdate;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
-import eu.stratosphere.nephele.io.channels.ChannelID;
-import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskKillResult;
+import eu.stratosphere.runtime.io.channels.ChannelID;
+import eu.stratosphere.nephele.taskmanager.TaskCancelResult;
 import eu.stratosphere.nephele.taskmanager.TaskSubmissionResult;
 
 /**
@@ -60,7 +60,7 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 
 	/**
 	 * Advises the task manager to kill the task with the given ID.
-	 * 
+	 *
 	 * @param id
 	 *        the ID of the task to kill
 	 * @return the result of the task kill attempt

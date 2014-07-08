@@ -62,7 +62,7 @@ public class IOManagerITCase {
 
 	@Before
 	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(NUMBER_OF_SEGMENTS * SEGMENT_SIZE);
+		memoryManager = new DefaultMemoryManager(NUMBER_OF_SEGMENTS * SEGMENT_SIZE, 1);
 		ioManager = new IOManager();
 	}
 

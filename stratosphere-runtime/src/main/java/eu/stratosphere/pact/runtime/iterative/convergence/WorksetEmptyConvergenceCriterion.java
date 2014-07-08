@@ -24,6 +24,8 @@ import eu.stratosphere.types.LongValue;
  */
 public class WorksetEmptyConvergenceCriterion implements ConvergenceCriterion<LongValue> {
 
+	private static final long serialVersionUID = 1L;
+
 	private static final Log log = LogFactory.getLog(WorksetEmptyConvergenceCriterion.class);
 	
 	public static final String AGGREGATOR_NAME = "pact.runtime.workset-empty-aggregator";

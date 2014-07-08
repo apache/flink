@@ -20,6 +20,8 @@ import java.lang.reflect.Modifier;
 
 import com.google.common.base.Preconditions;
 
+import eu.stratosphere.api.common.NonSerializableUserCodeException;
+
 /**
  * This holds an actual object containing user defined code.
  */
@@ -73,13 +75,17 @@ public class UserCodeObjectWrapper<T> implements UserCodeWrapper<T> {
 					
 					Object fieldContents = f.get(current);
 					if (fieldContents != null &&  !(fieldContents instanceof Serializable)) {
-						throw new RuntimeException("User-defined object " + userCodeObject + " (" + 
+						throw new NonSerializableUserCodeException("User-defined object " + userCodeObject + " (" + 
 							userCodeObject.getClass().getName() + ") contains non-serializable field " +
 							f.getName() + " = " + f.get(current));
 					}
 				}
 				current = newCurrent;
 			}
+		}
+		catch (NonSerializableUserCodeException e) {
+			// forward those
+			throw e;
 		}
 		catch (Exception e) {
 			// should never happen, since we make the fields accessible.

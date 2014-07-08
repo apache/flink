@@ -12,6 +12,14 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.iterative.nephele;
 
+import java.util.Collection;
+import java.util.Iterator;
+
+import eu.stratosphere.nephele.jobgraph.DistributionPattern;
+import eu.stratosphere.runtime.io.channels.ChannelType;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
@@ -19,33 +27,29 @@ import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.functions.ReduceFunction;
 import eu.stratosphere.api.java.record.io.FileOutputFormat;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.java.record.kmeans.udfs.CoordVector;
-import eu.stratosphere.example.java.record.kmeans.udfs.PointInFormat;
-import eu.stratosphere.example.java.record.kmeans.udfs.PointOutFormat;
-import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.jobgraph.*;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
+import eu.stratosphere.nephele.jobgraph.JobInputVertex;
+import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
+import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparatorFactory;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.CollectorMapDriver;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.GroupReduceDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedCollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.test.recordJobs.kmeans.udfs.CoordVector;
+import eu.stratosphere.test.recordJobs.kmeans.udfs.PointInFormat;
+import eu.stratosphere.test.recordJobs.kmeans.udfs.PointOutFormat;
 import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
-
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
-import java.util.Collection;
-import java.util.Iterator;
 
 /**
  * Tests chained iteration tails.
@@ -71,6 +75,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 
 	public IterationWithChainingNepheleITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 
 	@Override
@@ -90,7 +95,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 	@Parameterized.Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("ChainedMapperNepheleITCase#NoSubtasks", 2);
+		config.setInteger("ChainedMapperNepheleITCase#NoSubtasks", DOP);
 		config.setInteger("ChainedMapperNepheleITCase#MaxIterations", 2);
 		return toParameterList(config);
 	}
@@ -114,8 +119,6 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		final TypeComparatorFactory<Record> comparator =
 			new RecordComparatorFactory(new int[] { 0 }, new Class[] { IntValue.class });
 
-		final long MEM_PER_CONSUMER = 2;
-
 		final int ITERATION_ID = 1;
 
 		// --------------------------------------------------------------------------------------------------------------
@@ -124,7 +127,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 
 		// - input -----------------------------------------------------------------------------------------------------
 		JobInputVertex input = JobGraphUtils.createInput(
-			new PointInFormat(), inputPath, "Input", jobGraph, numSubTasks, numSubTasks);
+			new PointInFormat(), inputPath, "Input", jobGraph, numSubTasks);
 		TaskConfig inputConfig = new TaskConfig(input.getConfiguration());
 		{
 			inputConfig.setOutputSerializer(serializer);
@@ -133,7 +136,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 
 		// - head ------------------------------------------------------------------------------------------------------
 		JobTaskVertex head = JobGraphUtils.createTask(
-			IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks, numSubTasks);
+			IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks);
 		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
 		{
 			headConfig.setIterationId(ITERATION_ID);
@@ -164,12 +167,12 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 			headConfig.setStubWrapper(new UserCodeClassWrapper<DummyMapper>(DummyMapper.class));
 
 			// back channel
-			headConfig.setBackChannelMemory(MEM_PER_CONSUMER * JobGraphUtils.MEGABYTE);
+			headConfig.setRelativeBackChannelMemory(1.0);
 		}
 
 		// - tail ------------------------------------------------------------------------------------------------------
 		JobTaskVertex tail = JobGraphUtils.createTask(
-			IterationTailPactTask.class, "Chained Iteration Tail", jobGraph, numSubTasks, numSubTasks);
+			IterationTailPactTask.class, "Chained Iteration Tail", jobGraph, numSubTasks);
 		TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
 		{
 			tailConfig.setIterationId(ITERATION_ID);
@@ -206,7 +209,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		}
 
 		// - output ----------------------------------------------------------------------------------------------------
-		JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "Output", numSubTasks, numSubTasks);
+		JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "Output", numSubTasks);
 		TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
 		{
 			outputConfig.addInputToGroup(0);
@@ -217,7 +220,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		}
 
 		// - fake tail -------------------------------------------------------------------------------------------------
-		JobOutputVertex fakeTail = JobGraphUtils.createFakeOutput(jobGraph, "Fake Tail", numSubTasks, numSubTasks);
+		JobOutputVertex fakeTail = JobGraphUtils.createFakeOutput(jobGraph, "Fake Tail", numSubTasks);
 
 		// - sync ------------------------------------------------------------------------------------------------------
 		JobOutputVertex sync = JobGraphUtils.createSync(jobGraph, numSubTasks);
@@ -228,16 +231,16 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		// --------------------------------------------------------------------------------------------------------------
 		// 2. EDGES
 		// --------------------------------------------------------------------------------------------------------------
-		JobGraphUtils.connect(input, head, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(input, head, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(head, tail, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(head, tail, ChannelType.IN_MEMORY, DistributionPattern.BIPARTITE);
 		tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 
-		JobGraphUtils.connect(head, output, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, output, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(tail, fakeTail, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(tail, fakeTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 
 		// --------------------------------------------------------------------------------------------------------------
 		// 3. INSTANCE SHARING

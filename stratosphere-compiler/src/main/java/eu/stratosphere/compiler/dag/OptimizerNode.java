@@ -51,7 +51,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	//                                      Members
 	// --------------------------------------------------------------------------------------------
 
-	private final Operator pactContract; // The operator (Reduce / Join / DataSource / ...)
+	private final Operator<?> pactContract; // The operator (Reduce / Join / DataSource / ...)
 	
 	private List<String> broadcastConnectionNames = new ArrayList<String>(); // the broadcast inputs names of this node
 	
@@ -67,8 +67,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	protected Set<OptimizerNode> closedBranchingNodes; 	// stack of branching nodes which have already been closed
 	
-	protected List<OptimizerNode> hereJoinedBranchers;	// the branching nodes (node with multiple outputs)
-														// that at least two children share and that are at least partially joined
+	protected List<OptimizerNode> hereJoinedBranches;	// the branching nodes (node with multiple outputs)
+	// 										that are partially joined (through multiple inputs or broadcast vars)
 
 	// ---------------------------- Estimates and Annotations -------------------------------------
 	
@@ -105,12 +105,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @param op The operator that the node represents.
 	 */
-	public OptimizerNode(Operator op) {
+	public OptimizerNode(Operator<?> op) {
 		this.pactContract = op;
 		readStubAnnotations();
 		
 		if (this.pactContract instanceof AbstractUdfOperator) {
-			final AbstractUdfOperator<?> pact = (AbstractUdfOperator<?>) this.pactContract;
+			final AbstractUdfOperator<?, ?> pact = (AbstractUdfOperator<?, ?>) this.pactContract;
 			this.remappedKeys = new int[pact.getNumberOfInputs()][];
 			for (int i = 0; i < this.remappedKeys.length; i++) {
 				final int[] keys = pact.getKeyColumns(i);
@@ -166,7 +166,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @param contractToNode
 	 *        The map to translate the contracts to their corresponding optimizer nodes.
 	 */
-	public abstract void setInput(Map<Operator, OptimizerNode> contractToNode);
+	public abstract void setInput(Map<Operator<?>, OptimizerNode> contractToNode);
 
 	/**
 	 * This function is for plan translation purposes. Upon invocation, this method creates a {@link PactConnection}
@@ -178,18 +178,18 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 *        The map associating operators with their corresponding optimizer nodes.
 	 * @throws CompilerException
 	 */
-	public void setBroadcastInputs(Map<Operator, OptimizerNode> operatorToNode) throws CompilerException {
+	public void setBroadcastInputs(Map<Operator<?>, OptimizerNode> operatorToNode) throws CompilerException {
 
 		// skip for Operators that don't support broadcast variables 
-		if (!(getPactContract() instanceof AbstractUdfOperator<?>)) {
+		if (!(getPactContract() instanceof AbstractUdfOperator<?, ?>)) {
 			return;
 		}
 
 		// get all broadcast inputs
-		AbstractUdfOperator<?> operator = ((AbstractUdfOperator<?>) getPactContract());
+		AbstractUdfOperator<?, ?> operator = ((AbstractUdfOperator<?, ?>) getPactContract());
 
 		// create connections and add them
-		for (Map.Entry<String, Operator> input: operator.getBroadcastInputs().entrySet()) {
+		for (Map.Entry<String, Operator<?>> input : operator.getBroadcastInputs().entrySet()) {
 			OptimizerNode predecessor = operatorToNode.get(input.getValue());
 			PactConnection connection = new PactConnection(predecessor, this, ShipStrategyType.BROADCAST);
 			addBroadcastConnection(input.getKey(), connection);
@@ -262,13 +262,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 */
 	@Override
 	public abstract void accept(Visitor<OptimizerNode> visitor);
-
-	/**
-	 * Checks, whether this node requires memory for its tasks or not.
-	 * 
-	 * @return True, if this node contains logic that requires memory usage, false otherwise.
-	 */
-	public abstract boolean isMemoryConsumer();
 	
 	/**
 	 * Checks whether a field is modified by the user code or whether it is kept unchanged.
@@ -285,7 +278,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	// ------------------------------------------------------------------------
 
 	@Override
-	public Iterator<OptimizerNode> getPredecessors() {
+	public Iterable<OptimizerNode> getPredecessors() {
 		List<OptimizerNode> allPredecessors = new ArrayList<OptimizerNode>();
 		
 		for (Iterator<PactConnection> inputs = getIncomingConnections().iterator(); inputs.hasNext(); ){
@@ -296,7 +289,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			allPredecessors.add(conn.getSource());
 		}
 		
-		return allPredecessors.iterator();
+		return allPredecessors;
 	}
 	
 	/**
@@ -383,7 +376,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @return This node's contract.
 	 */
-	public Operator getPactContract() {
+	public Operator<?> getPactContract() {
 		return this.pactContract;
 	}
 
@@ -408,55 +401,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @param degreeOfParallelism
 	 *        The degree of parallelism to set.
 	 * @throws IllegalArgumentException
-	 *         If the degree of parallelism is smaller than one.
+	 *         If the degree of parallelism is smaller than one and not -1.
 	 */
 	public void setDegreeOfParallelism(int degreeOfParallelism) {
 		if (degreeOfParallelism < 1) {
 			throw new IllegalArgumentException();
 		}
 		this.degreeOfParallelism = degreeOfParallelism;
-	}
-
-	/**
-	 * Gets the number of parallel instances of the contract that are
-	 * to be executed on the same compute instance (logical machine).
-	 * 
-	 * @return The number of subtask instances per machine.
-	 */
-	public int getSubtasksPerInstance() {
-		return this.subtasksPerInstance;
-	}
-
-	/**
-	 * Sets the number of parallel task instances of the contract that are
-	 * to be executed on the same computing instance (logical machine).
-	 * 
-	 * @param instancesPerMachine The instances per machine.
-	 * @throws IllegalArgumentException If the number of instances per machine is smaller than one.
-	 */
-	public void setSubtasksPerInstance(int instancesPerMachine) {
-		if (instancesPerMachine < 1) {
-			throw new IllegalArgumentException();
-		}
-		this.subtasksPerInstance = instancesPerMachine;
-	}
-	
-	/**
-	 * Gets the minimal guaranteed memory per subtask for tasks represented by this OptimizerNode.
-	 *
-	 * @return The minimal guaranteed memory per subtask, in bytes.
-	 */
-	public long getMinimalMemoryPerSubTask() {
-		return this.minimalMemoryPerSubTask;
-	}
-	
-	/**
-	 * Sets the minimal guaranteed memory per subtask for tasks represented by this OptimizerNode.
-	 *
-	 * @param minimalGuaranteedMemory The minimal guaranteed memory per subtask, in bytes.
-	 */
-	public void setMinimalMemoryPerSubTask(long minimalGuaranteedMemory) {
-		this.minimalMemoryPerSubTask = minimalGuaranteedMemory;
 	}
 	
 	/**
@@ -630,6 +581,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		// let every operator do its computation
 		computeOperatorSpecificDefaultEstimates(statistics);
 		
+		if (this.estimatedOutputSize < 0) {
+			this.estimatedOutputSize = -1;
+		}
+		if (this.estimatedNumRecords < 0) {
+			this.estimatedNumRecords = -1;
+		}
+		
 		// overwrite default estimates with hints, if given
 		if (getPactContract() == null || getPactContract().getCompilerHints() == null) {
 			return ;
@@ -710,9 +668,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @return
 	 */
 	protected int[] getConstantKeySet(int input) {
-		Operator contract = getPactContract();
-		if (contract instanceof AbstractUdfOperator<?>) {
-			AbstractUdfOperator<?> abstractPact = (AbstractUdfOperator<?>) contract;
+		Operator<?> contract = getPactContract();
+		if (contract instanceof AbstractUdfOperator<?, ?>) {
+			AbstractUdfOperator<?, ?> abstractPact = (AbstractUdfOperator<?, ?>) contract;
 			int[] keyColumns = abstractPact.getKeyColumns(input);
 			if (keyColumns != null) {
 				if (keyColumns.length == 0) {
@@ -944,10 +902,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public boolean hasUnclosedBranches() {
 		return this.openBranches != null && !this.openBranches.isEmpty();
 	}
-	
-	public List<OptimizerNode> getJoinedBranchers() {
-		return this.hereJoinedBranchers;
-	}
 
 	public Set<OptimizerNode> getClosedBranchingNodes() {
 		return this.closedBranchingNodes;
@@ -955,38 +909,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	public List<UnclosedBranchDescriptor> getOpenBranches() {
 		return this.openBranches;
-	}
-	
-	/**
-	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
-	 * alternative plans are comparable, if
-	 * 
-	 * a) There is no branch in the sub-plan of this node
-	 * b) Both candidates have the same candidate as the child at the last open branch. 
-	 * 
-	 * @param subPlan1
-	 * @param subPlan2
-	 * @return
-	 */
-	protected boolean areBranchCompatible(PlanNode plan1, PlanNode plan2) {
-		if (plan1 == null || plan2 == null) {
-			throw new NullPointerException();
-		}
-		
-		// if there is no open branch, the children are always compatible.
-		// in most plans, that will be the dominant case
-		if (this.hereJoinedBranchers == null || this.hereJoinedBranchers.isEmpty()) {
-			return true;
-		}
-
-		for (OptimizerNode joinedBrancher : hereJoinedBranchers) {
-			final PlanNode branch1Cand = plan1.getCandidateAtBranchPoint(joinedBrancher);
-			final PlanNode branch2Cand = plan2.getCandidateAtBranchPoint(joinedBrancher);
-			if (branch1Cand != branch2Cand) {
-				return false;
-			}
-		}
-		return true;
 	}
 
 	/**
@@ -1028,7 +950,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		}
 		else {
 			throw new CompilerException(
-				"Error in compiler: Cannot get branch info for parent in a node with no parents.");
+				"Error in compiler: Cannot get branch info for successor in a node with no successors.");
 		}
 	}
 
@@ -1064,6 +986,39 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			this.closedBranchingNodes = new HashSet<OptimizerNode>();
 		}
 		this.closedBranchingNodes.add(alreadyClosed);
+	}
+	
+	/**
+	 * Checks whether to candidate plans for the sub-plan of this node are comparable. The two
+	 * alternative plans are comparable, if
+	 * 
+	 * a) There is no branch in the sub-plan of this node
+	 * b) Both candidates have the same candidate as the child at the last open branch. 
+	 * 
+	 * @param subPlan1
+	 * @param subPlan2
+	 * @return True if the nodes are branch compatible in the inputs.
+	 */
+	protected boolean areBranchCompatible(PlanNode plan1, PlanNode plan2) {
+		if (plan1 == null || plan2 == null) {
+			throw new NullPointerException();
+		}
+		
+		// if there is no open branch, the children are always compatible.
+		// in most plans, that will be the dominant case
+		if (this.hereJoinedBranches == null || this.hereJoinedBranches.isEmpty()) {
+			return true;
+		}
+
+		for (OptimizerNode joinedBrancher : hereJoinedBranches) {
+			final PlanNode branch1Cand = plan1.getCandidateAtBranchPoint(joinedBrancher);
+			final PlanNode branch2Cand = plan2.getCandidateAtBranchPoint(joinedBrancher);
+			
+			if (branch1Cand != null && branch2Cand != null && branch1Cand != branch2Cand) {
+				return false;
+			}
+		}
+		return true;
 	}
 	
 	/**
@@ -1130,10 +1085,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 				if (vector1 == vector2) {
 					result.add(child1open.get(index1));
 				} else {
-					if (this.hereJoinedBranchers == null) {
-						this.hereJoinedBranchers = new ArrayList<OptimizerNode>(2);
+					if (this.hereJoinedBranches == null) {
+						this.hereJoinedBranches = new ArrayList<OptimizerNode>(2);
 					}
-					this.hereJoinedBranchers.add(currBanchingNode);
+					this.hereJoinedBranches.add(currBanchingNode);
 
 					// see, if this node closes the branch
 					long joinedInputs = vector1 | vector2;
@@ -1204,13 +1159,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	}
 	
 	@Override
-	public Iterator<DumpableConnection<OptimizerNode>> getDumpableInputs() {
+	public Iterable<DumpableConnection<OptimizerNode>> getDumpableInputs() {
 		List<DumpableConnection<OptimizerNode>> allInputs = new ArrayList<DumpableConnection<OptimizerNode>>();
 		
 		allInputs.addAll(getIncomingConnections());
 		allInputs.addAll(getBroadcastConnections());
 		
-		return allInputs.iterator();
+		return allInputs;
 	}
 	
 	@Override

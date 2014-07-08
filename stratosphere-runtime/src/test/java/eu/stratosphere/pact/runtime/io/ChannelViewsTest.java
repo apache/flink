@@ -31,7 +31,7 @@ import eu.stratosphere.nephele.services.iomanager.ChannelWriterOutputView;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
-import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
@@ -63,7 +63,7 @@ public class ChannelViewsTest
 	
 	private static final int NUM_MEMORY_SEGMENTS = 3;
 	
-	private final AbstractTask parentTask = new DummyInvokable();
+	private final AbstractInvokable parentTask = new DummyInvokable();
 
 	private IOManager ioManager;
 
@@ -73,7 +73,7 @@ public class ChannelViewsTest
 
 	@Before
 	public void beforeTest() {
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, MEMORY_PAGE_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1, MEMORY_PAGE_SIZE);
 		this.ioManager = new IOManager();
 	}
 
@@ -189,7 +189,7 @@ public class ChannelViewsTest
 		List<MemorySegment> memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
 		final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
 		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_PAGE_SIZE);
-		
+
 		// write a number of pairs
 		final Record rec = new Record();
 		for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
@@ -197,13 +197,13 @@ public class ChannelViewsTest
 			rec.write(outView);
 		}
 		this.memoryManager.release(outView.close());
-		
+
 		// create the reader input view
 		memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
 		final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel);
 		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount(), true);
 		generator.reset();
-		
+
 		// read and re-generate all records and compare them
 		try {
 			final Record readRec = new Record();

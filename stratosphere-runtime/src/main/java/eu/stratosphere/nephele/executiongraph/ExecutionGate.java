@@ -16,8 +16,8 @@ package eu.stratosphere.nephele.executiongraph;
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import eu.stratosphere.nephele.io.GateID;
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.runtime.io.gates.GateID;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 
 /**
  * Objects of this class represent either an {@link InputGate} or {@link OutputGate} within an {@link ExecutionGraph},

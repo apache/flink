@@ -17,14 +17,12 @@ package eu.stratosphere.api.java.functions;
 
 /**
  * The {@link KeySelector} allows to use arbitrary objects for operations such as
- * sorting, grouping or hashing.
- * The framework needs to know which fields in an object act as a key for 
- * these operations.
+ * reduce, reduceGroup, join, coGoup, etc.
  * 
- * The user can provide an extractor that returns the key for each object.
+ * The extractor takes an object and returns the key for that object.
  *
- * @param <IN> Type of incoming objects
- * @param <KEY> Type of key
+ * @param <IN> Type of objects to extract the key from.
+ * @param <KEY> Type of key.
  */
 public abstract class KeySelector<IN, KEY> implements java.io.Serializable {
 	
@@ -50,8 +48,8 @@ public abstract class KeySelector<IN, KEY> implements java.io.Serializable {
 	 * 	}
 	 * </pre>
 	 * 
-	 * @param value incoming object
-	 * @return extracted key from the incoming object
+	 * @param value The object to get the key from.
+	 * @return The extracted key.
 	 */
 	public abstract KEY getKey(IN value);
 }

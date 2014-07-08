@@ -13,9 +13,11 @@
 
 package eu.stratosphere.api.common.operators.base;
 
+import eu.stratosphere.api.common.functions.GenericCombine;
 import eu.stratosphere.api.common.functions.GenericGroupReduce;
 import eu.stratosphere.api.common.operators.Ordering;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
@@ -24,8 +26,7 @@ import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 /**
  * @see GenericGroupReduce
  */
-public class GroupReduceOperatorBase<T extends GenericGroupReduce<?, ?>> extends SingleInputOperator<T> {
-	
+public class GroupReduceOperatorBase<IN, OUT, FT extends GenericGroupReduce<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 
 	/**
 	 * The ordering for the order inside a reduce group.
@@ -35,34 +36,28 @@ public class GroupReduceOperatorBase<T extends GenericGroupReduce<?, ?>> extends
 	private boolean combinable;
 	
 	
-	public GroupReduceOperatorBase(UserCodeWrapper<T> udf, int[] keyPositions, String name) {
-		super(udf, keyPositions, name);
-		this.combinable = false;
+	public GroupReduceOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, int[] keyPositions, String name) {
+		super(udf, operatorInfo, keyPositions, name);
 	}
 	
-	public GroupReduceOperatorBase(T udf, int[] keyPositions, String name) {
-		super(new UserCodeObjectWrapper<T>(udf), keyPositions, name);
-		this.combinable = false;
+	public GroupReduceOperatorBase(FT udf, UnaryOperatorInformation<IN, OUT> operatorInfo, int[] keyPositions, String name) {
+		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, keyPositions, name);
 	}
 	
-	public GroupReduceOperatorBase(Class<? extends T> udf, int[] keyPositions, String name) {
-		super(new UserCodeClassWrapper<T>(udf), keyPositions, name);
-		this.combinable = false;
+	public GroupReduceOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, int[] keyPositions, String name) {
+		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, keyPositions, name);
 	}
 	
-	public GroupReduceOperatorBase(UserCodeWrapper<T> udf, String name) {
-		super(udf, name);
-		this.combinable = false;
+	public GroupReduceOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+		super(udf, operatorInfo, name);
 	}
 	
-	public GroupReduceOperatorBase(T udf, String name) {
-		super(new UserCodeObjectWrapper<T>(udf), name);
-		this.combinable = false;
+	public GroupReduceOperatorBase(FT udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
 	}
 	
-	public GroupReduceOperatorBase(Class<? extends T> udf, String name) {
-		super(new UserCodeClassWrapper<T>(udf), name);
-		this.combinable = false;
+	public GroupReduceOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
+		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
 	}
 	
 
@@ -87,10 +82,30 @@ public class GroupReduceOperatorBase<T extends GenericGroupReduce<?, ?>> extends
 	
 	// --------------------------------------------------------------------------------------------
 	
+	/**
+	 * Marks the group reduce operation as combinable. Combinable operations may pre-reduce the
+	 * data before the actual group reduce operations. Combinable user-defined functions
+	 * must implement the interface {@link GenericCombine}.
+	 * 
+	 * @param combinable Flag to mark the group reduce operation as combinable.
+	 */
 	public void setCombinable(boolean combinable) {
-		this.combinable = combinable;
+		// sanity check
+		if (combinable && !GenericCombine.class.isAssignableFrom(this.userFunction.getUserCodeClass())) {
+			throw new IllegalArgumentException("Cannot set a UDF as combinable if it does not implement the interface " + 
+					GenericCombine.class.getName());
+		} else {
+			this.combinable = combinable;
+		}
 	}
 	
+	/**
+	 * Checks whether the operation is combinable.
+	 * 
+	 * @return True, if the UDF is combinable, false if not.
+	 * 
+	 * @see #setCombinable(boolean)
+	 */
 	public boolean isCombinable() {
 		return this.combinable;
 	}

@@ -14,14 +14,18 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import eu.stratosphere.api.common.functions.GenericFlatMap;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
+import eu.stratosphere.api.common.operators.base.FlatMapOperatorBase;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
-import eu.stratosphere.api.java.operators.translation.PlanFlatMapOperator;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 
 /**
- *
+ * This operator represents the application of a "flatMap" function on a data set, and the
+ * result data set produced by the function.
+ * 
  * @param <IN> The type of the data set consumed by the operator.
  * @param <OUT> The type of the data set created by the operator.
  */
@@ -33,19 +37,16 @@ public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, Fl
 	public FlatMapOperator(DataSet<IN> input, FlatMapFunction<IN, OUT> function) {
 		super(input, TypeExtractor.getFlatMapReturnTypes(function, input.getType()));
 		
-		if (function == null) {
-			throw new NullPointerException("FlatMap function must not be null.");
-		}
-		
 		this.function = function;
+		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 
 	@Override
-	protected Operator translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.base.FlatMapOperatorBase<IN, OUT, GenericFlatMap<IN,OUT>> translateToDataFlow(Operator<IN> input) {
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator
-		PlanFlatMapOperator<IN, OUT> po = new PlanFlatMapOperator<IN, OUT>(function, name, getInputType(), getResultType());
+		FlatMapOperatorBase<IN, OUT, GenericFlatMap<IN, OUT>> po = new FlatMapOperatorBase<IN, OUT, GenericFlatMap<IN, OUT>>(function, new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType()), name);
 		// set input
 		po.setInput(input);
 		// set dop

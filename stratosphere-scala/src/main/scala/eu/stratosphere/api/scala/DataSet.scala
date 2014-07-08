@@ -24,8 +24,9 @@ import eu.stratosphere.api.scala.operators.ReduceMacros
 import eu.stratosphere.api.scala.operators.UnionOperator
 import eu.stratosphere.api.scala.operators.IterateMacros
 import eu.stratosphere.api.scala.operators.WorksetIterateMacros
+import eu.stratosphere.types.Record
 
-class DataSet[T] (val contract: Operator with ScalaOperator[T]) {
+class DataSet[T] (val contract: Operator[Record] with ScalaOperator[T, Record]) {
   
   def cogroup[RightIn](rightInput: DataSet[RightIn]) = new CoGroupDataSet[T, RightIn](this, rightInput)
   def cross[RightIn](rightInput: DataSet[RightIn]) = new CrossDataSet[T, RightIn](this, rightInput)

@@ -21,7 +21,10 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 
+import eu.stratosphere.types.TypeInformation;
+
 import org.apache.commons.lang3.Validate;
+import org.apache.hadoop.io.Writable;
 
 import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.java.functions.CoGroupFunction;
@@ -37,50 +40,82 @@ import eu.stratosphere.types.Value;
 
 public class TypeExtractor {
 	
+	@SuppressWarnings("unchecked")
 	public static <IN, OUT> TypeInformation<OUT> getMapReturnTypes(MapFunction<IN, OUT> mapFunction, TypeInformation<IN> inType) {
 		validateInputType(MapFunction.class, mapFunction.getClass(), 0, inType);
+		if(mapFunction instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) mapFunction).getProducedType();
+		}
 		return createTypeInfo(MapFunction.class, mapFunction.getClass(), 1, inType, null);
 	}
 	
+	@SuppressWarnings("unchecked")
 	public static <IN, OUT> TypeInformation<OUT> getFlatMapReturnTypes(FlatMapFunction<IN, OUT> flatMapFunction, TypeInformation<IN> inType) {
 		validateInputType(FlatMapFunction.class, flatMapFunction.getClass(), 0, inType);
+		if(flatMapFunction instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) flatMapFunction).getProducedType();
+		}
 		return createTypeInfo(FlatMapFunction.class, flatMapFunction.getClass(), 1, inType, null);
 	}
 	
+	@SuppressWarnings("unchecked")
 	public static <IN, OUT> TypeInformation<OUT> getGroupReduceReturnTypes(GroupReduceFunction<IN, OUT> groupReduceFunction,
 			TypeInformation<IN> inType) {
 		validateInputType(GroupReduceFunction.class, groupReduceFunction.getClass(), 0, inType);
+		if(groupReduceFunction instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) groupReduceFunction).getProducedType();
+		}
 		return createTypeInfo(GroupReduceFunction.class, groupReduceFunction.getClass(), 1, inType, null);
 	}
 	
+	@SuppressWarnings("unchecked")
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(JoinFunction<IN1, IN2, OUT> joinFunction,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		validateInputType(JoinFunction.class, joinFunction.getClass(), 0, in1Type);
 		validateInputType(JoinFunction.class, joinFunction.getClass(), 1, in2Type);
+		if(joinFunction instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) joinFunction).getProducedType();
+		}
 		return createTypeInfo(JoinFunction.class, joinFunction.getClass(), 2, in1Type, in2Type);
 	}
 	
+	@SuppressWarnings("unchecked")
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getCoGroupReturnTypes(CoGroupFunction<IN1, IN2, OUT> coGroupFunction,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		validateInputType(CoGroupFunction.class, coGroupFunction.getClass(), 0, in1Type);
 		validateInputType(CoGroupFunction.class, coGroupFunction.getClass(), 1, in2Type);
+		if(coGroupFunction instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) coGroupFunction).getProducedType();
+		}
 		return createTypeInfo(CoGroupFunction.class, coGroupFunction.getClass(), 2, in1Type, in2Type);
 	}
 	
+	@SuppressWarnings("unchecked")
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getCrossReturnTypes(CrossFunction<IN1, IN2, OUT> crossFunction,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		validateInputType(CrossFunction.class, crossFunction.getClass(), 0, in1Type);
 		validateInputType(CrossFunction.class, crossFunction.getClass(), 1, in2Type);
+		if(crossFunction instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) crossFunction).getProducedType();
+		}
 		return createTypeInfo(CrossFunction.class, crossFunction.getClass(), 2, in1Type, in2Type);
 	}
 	
-	public static <IN, OUT> TypeInformation<OUT> getKeyExtractorType(KeySelector<IN, OUT> selector, TypeInformation<IN> inType) {
+	@SuppressWarnings("unchecked")
+	public static <IN, OUT> TypeInformation<OUT> getKeySelectorTypes(KeySelector<IN, OUT> selector, TypeInformation<IN> inType) {
 		validateInputType(KeySelector.class, selector.getClass(), 0, inType);
+		if(selector instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) selector).getProducedType();
+		}
 		return createTypeInfo(KeySelector.class, selector.getClass(), 1, inType, null);
 	}
 	
-	public static <IN> TypeInformation<IN> extractInputFormatTypes(InputFormat<IN, ?> format) {
-		throw new UnsupportedOperationException("not implemented yet");
+	@SuppressWarnings("unchecked")
+	public static <IN> TypeInformation<IN> getInputFormatTypes(InputFormat<IN, ?> inputFormat) {
+		if(inputFormat instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<IN>) inputFormat).getProducedType();
+		}
+		return createTypeInfo(InputFormat.class, inputFormat.getClass(), 0, null, null);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -201,6 +236,21 @@ public class TypeExtractor {
 				
 				for (int i = 0; i < subTypes.length; i++) {
 					validateInfo(new ArrayList<Type>(typeHierarchy), subTypes[i], ((TupleTypeInfo<?>) typeInfo).getTypeAt(i));
+				}
+			}
+			// check for Writable
+			else if (typeInfo instanceof WritableTypeInfo<?>) {
+				// check if writable at all
+				if (!(type instanceof Class<?> && Writable.class.isAssignableFrom((Class<?>) type))) {
+					throw new InvalidTypesException("Writable type expected.");
+				}
+				
+				// check writable type contents
+				Class<?> clazz = null;
+				if (((WritableTypeInfo<?>) typeInfo).getTypeClass() != (clazz = (Class<?>) type)) {
+					throw new InvalidTypesException("Writable type '"
+							+ ((WritableTypeInfo<?>) typeInfo).getTypeClass().getCanonicalName() + "' expected but was '"
+							+ clazz.getCanonicalName() + "'.");
 				}
 			}
 			// check for basic array
@@ -396,9 +446,11 @@ public class TypeExtractor {
 					
 					// variable could not be determined
 					if (tupleSubTypes[i] == null) {
-						throw new InvalidTypesException("Type of TypeVariable '" + ((TypeVariable<?>) t).getName() + "' in '"
-								+ ((TypeVariable<?>) t).getGenericDeclaration()
-								+ "' could not be determined. This is most likely a type erasure problem.");
+						throw new InvalidTypesException("Type of TypeVariable '" + ((TypeVariable<?>) subtypes[i]).getName() + "' in '"
+								+ ((TypeVariable<?>) subtypes[i]).getGenericDeclaration()
+								+ "' could not be determined. This is most likely a type erasure problem. "
+								+ "The type extraction currently supports types with generic variables only in cases where "
+								+ "all variables in the return type can be deduced from the input type(s).");
 					}
 				} else {
 					tupleSubTypes[i] = createTypeInfoWithTypeHierarchy(new ArrayList<Type>(typeHierarchy), subtypes[i], in1Type, in2Type);
@@ -432,17 +484,40 @@ public class TypeExtractor {
 					return typeInfo;
 				} else {
 					throw new InvalidTypesException("Type of TypeVariable '" + ((TypeVariable<?>) t).getName() + "' in '"
-							+ ((TypeVariable<?>) t).getGenericDeclaration() + "' could not be determined. "
+							+ ((TypeVariable<?>) t).getGenericDeclaration() + "' could not be determined. This is most likely a type erasure problem. "
 							+ "The type extraction currently supports types with generic variables only in cases where "
 							+ "all variables in the return type can be deduced from the input type(s).");
 				}
 			}
 		}
 		// arrays with generics 
-		// (due to a Java 6 bug, it is possible that BasicArrayTypes also get classified as ObjectArrayTypes
-		// since the JVM classifies e.g. String[] as GenericArrayType instead of Class)
 		else if (t instanceof GenericArrayType) {
 			GenericArrayType genericArray = (GenericArrayType) t;
+			
+			Type componentType = genericArray.getGenericComponentType();
+			
+			// due to a Java 6 bug, it is possible that the JVM classifies e.g. String[] or int[] as GenericArrayType instead of Class
+			if (componentType instanceof Class) {
+				
+				Class<?> componentClass = (Class<?>) componentType;
+				String className;
+				// for int[], double[] etc.
+				if(componentClass.isPrimitive()) {
+					className = encodePrimitiveClass(componentClass);
+				}
+				// for String[], Integer[] etc.
+				else {
+					className = "L" + componentClass.getName() + ";";
+				}
+				
+				Class<OUT> classArray = null;
+				try {
+					classArray = (Class<OUT>) Class.forName("[" + className);
+				} catch (ClassNotFoundException e) {
+					throw new InvalidTypesException("Could not convert GenericArrayType to Class.");
+				}
+				return getForClass(classArray);
+			}
 			
 			TypeInformation<?> componentInfo = createTypeInfoWithTypeHierarchy(typeHierarchy, genericArray.getGenericComponentType(),
 					in1Type, in2Type);
@@ -458,6 +533,35 @@ public class TypeExtractor {
 		}
 		
 		throw new InvalidTypesException("Type Information could not be created.");
+	}
+	
+	private static String encodePrimitiveClass(Class<?> primitiveClass) {
+		final String name = primitiveClass.getName();
+		if (name.equals("boolean")) {
+			return "Z";
+		}
+		else if (name.equals("byte")) {
+			return "B";
+		}
+		else if (name.equals("char")) {
+			return "C";
+		}
+		else if (name.equals("double")) {
+			return "D";
+		}
+		else if (name.equals("float")) {
+			return "F";
+		}
+		else if (name.equals("int")) {
+			return "I";
+		}
+		else if (name.equals("long")) {
+			return "J";
+		}
+		else if (name.equals("short")) {
+			return "S";
+		}
+		throw new InvalidTypesException();
 	}
 	
 	private static <IN1, IN2> TypeInformation<?> createTypeInfoWithImmediateBaseChildInput(ParameterizedType baseChild,
@@ -564,6 +668,11 @@ public class TypeExtractor {
 			else {
 				return ObjectArrayTypeInfo.getInfoFor(clazz);
 			}
+		}
+		
+		// check for writable types
+		if(Writable.class.isAssignableFrom(clazz)) {
+			return (TypeInformation<X>) WritableTypeInfo.getWritableTypeInfo((Class<? extends Writable>) clazz);
 		}
 		
 		// check for basic types

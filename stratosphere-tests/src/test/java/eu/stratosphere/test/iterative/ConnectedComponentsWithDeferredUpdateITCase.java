@@ -23,9 +23,9 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.DeltaIteration;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.DeltaIteration;
 import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
@@ -34,9 +34,9 @@ import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.DuplicateLongMap;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.MinimumComponentIDReduce;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.NeighborWithComponentIDJoin;
+import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.DuplicateLongMap;
+import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.MinimumComponentIDReduce;
+import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.test.testdata.ConnectedComponentsData;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
@@ -59,6 +59,7 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends RecordAPITestBa
 	
 	public ConnectedComponentsWithDeferredUpdateITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 	
 	@Override
@@ -71,7 +72,7 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends RecordAPITestBa
 	@Override
 	protected Plan getTestJob() {
 		boolean extraMapper = config.getBoolean("ExtraMapper", false);
-		return getPlan(4, verticesPath, edgesPath, resultPath, 100, extraMapper);
+		return getPlan(DOP, verticesPath, edgesPath, resultPath, 100, extraMapper);
 	}
 
 	@Override

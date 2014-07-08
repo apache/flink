@@ -28,8 +28,8 @@ import eu.stratosphere.api.common.aggregators.AggregatorWithName;
 import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.MutableRecordReader;
-import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.runtime.io.api.MutableRecordReader;
+import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.nephele.types.IntegerRecord;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
@@ -37,7 +37,6 @@ import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.types.Value;
-import eu.stratosphere.util.InstantiationUtil;
 
 /**
  * The task responsible for synchronizing all iteration heads, implemented as an {@link AbstractOutputTask}. This task
@@ -45,7 +44,7 @@ import eu.stratosphere.util.InstantiationUtil;
  * In each superstep, it simply waits until it has receiced a {@link WorkerDoneEvent} from each head and will send back
  * an {@link AllWorkersDoneEvent} to signal that the next superstep can begin.
  */
-public class IterationSynchronizationSinkTask extends AbstractOutputTask implements Terminable {
+public class IterationSynchronizationSinkTask extends AbstractInvokable implements Terminable {
 
 	private static final Log log = LogFactory.getLog(IterationSynchronizationSinkTask.class);
 
@@ -80,17 +79,15 @@ public class IterationSynchronizationSinkTask extends AbstractOutputTask impleme
 		userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
 		TaskConfig taskConfig = new TaskConfig(getTaskConfiguration());
 		
-		// instantiate all aggregators
+		// store all aggregators
 		this.aggregators = new HashMap<String, Aggregator<?>>();
 		for (AggregatorWithName<?> aggWithName : taskConfig.getIterationAggregators()) {
-			Aggregator<?> agg = InstantiationUtil.instantiate(aggWithName.getAggregator(), Aggregator.class);
-			aggregators.put(aggWithName.getName(), agg);
+			aggregators.put(aggWithName.getName(), aggWithName.getAggregator());
 		}
 		
-		// instantiate the aggregator convergence criterion
+		// store the aggregator convergence criterion
 		if (taskConfig.usesConvergenceCriterion()) {
-			Class<? extends ConvergenceCriterion<Value>> convClass = taskConfig.getConvergenceCriterion();
-			convergenceCriterion = InstantiationUtil.instantiate(convClass, ConvergenceCriterion.class);
+			convergenceCriterion = taskConfig.getConvergenceCriterion();
 			convergenceAggregatorName = taskConfig.getConvergenceCriterionAggregatorName();
 			Preconditions.checkNotNull(convergenceAggregatorName);
 		}

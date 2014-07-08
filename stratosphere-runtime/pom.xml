@@ -7,7 +7,7 @@
 	<parent>
 		<groupId>eu.stratosphere</groupId>
 		<artifactId>stratosphere</artifactId>
-		<version>0.5-SNAPSHOT</version>
+		<version>0.6-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -52,7 +52,13 @@
 			<artifactId>aws-java-sdk</artifactId>
 			<version>1.2.1</version>
 		</dependency>
-		
+
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-all</artifactId>
+			<version>4.0.20.Final</version>
+		</dependency>
+
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-java</artifactId>
@@ -112,6 +118,7 @@
 					<dotGitDirectory>${project.basedir}/../../.git</dotGitDirectory>
 					<generateGitPropertiesFile>true</generateGitPropertiesFile>
 					<skipPoms>false</skipPoms>
+					<failOnNoGitDirectory>false</failOnNoGitDirectory>
 					<generateGitPropertiesFilename>src/main/resources/.version.properties</generateGitPropertiesFilename>
 				</configuration>
 			</plugin>

@@ -30,9 +30,8 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
 import eu.stratosphere.pact.runtime.test.util.TestData.Generator.KeyMode;
@@ -41,10 +40,9 @@ import eu.stratosphere.pact.runtime.test.util.TestData.Value;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
-/**
- */
-public class AsynchonousPartialSorterITCase
-{
+
+public class AsynchonousPartialSorterITCase {
+	
 	private static final Log LOG = LogFactory.getLog(AsynchonousPartialSorterITCase.class);
 
 	private static final long SEED = 649180756312423613L;
@@ -57,7 +55,7 @@ public class AsynchonousPartialSorterITCase
 
 	public static final int MEMORY_SIZE = 1024 * 1024 * 32;
 	
-	private final AbstractTask parentTask = new DummyInvokable();
+	private final AbstractInvokable parentTask = new DummyInvokable();
 
 	private IOManager ioManager;
 
@@ -72,7 +70,7 @@ public class AsynchonousPartialSorterITCase
 	@Before
 	public void beforeTest()
 	{
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE,1);
 		this.ioManager = new IOManager();
 		this.serializer = RecordSerializerFactory.get();
 		this.comparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});
@@ -107,7 +105,7 @@ public class AsynchonousPartialSorterITCase
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
 			Sorter<Record> sorter = new AsynchronousPartialSorter<Record>(this.memoryManager, source,
-				this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
+				this.parentTask, this.serializer, this.comparator, 1.0);
 	
 			runPartialSorter(sorter, NUM_RECORDS, 0);
 		}
@@ -130,7 +128,7 @@ public class AsynchonousPartialSorterITCase
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
 			Sorter<Record> sorter = new AsynchronousPartialSorter<Record>(this.memoryManager, source,
-				this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
+				this.parentTask, this.serializer, this.comparator, 1.0);
 	
 			runPartialSorter(sorter, NUM_RECORDS, 2);
 		}
@@ -153,7 +151,7 @@ public class AsynchonousPartialSorterITCase
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
 			Sorter<Record> sorter = new AsynchronousPartialSorter<Record>(this.memoryManager, source,
-				this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
+				this.parentTask, this.serializer, this.comparator, 1.0);
 	
 			runPartialSorter(sorter, NUM_RECORDS, 28);
 		}
@@ -178,7 +176,7 @@ public class AsynchonousPartialSorterITCase
 				// merge iterator
 				LOG.debug("Initializing sortmerger...");
 				sorter = new ExceptionThrowingAsynchronousPartialSorter<Record>(this.memoryManager, source,
-						this.parentTask, this.serializer, this.comparator, 32 * 1024 * 1024);
+						this.parentTask, this.serializer, this.comparator, 1.0);
 		
 				runPartialSorter(sorter, NUM_RECORDS, 0);
 				
@@ -283,10 +281,10 @@ public class AsynchonousPartialSorterITCase
 		public ExceptionThrowingAsynchronousPartialSorter(MemoryManager memoryManager,
 				MutableObjectIterator<E> input, AbstractInvokable parentTask, 
 				TypeSerializerFactory<E> serializer, TypeComparator<E> comparator,
-				long totalMemory)
+				double memoryFraction)
 		throws IOException, MemoryAllocationException
 		{
-			super(memoryManager, input, parentTask, serializer, comparator, totalMemory);
+			super(memoryManager, input, parentTask, serializer, comparator, memoryFraction);
 		}
 
 

@@ -16,14 +16,14 @@ package eu.stratosphere.api.common.operators;
 import eu.stratosphere.types.Key;
 
 /**
- * Interface marking contract classes to be referring to the {@link Record} data model.
+ * Interface marking operators to be referring to the {@link eu.stratosphere.types.Record} data model.
  */
 public interface RecordOperator {
 	
 	/**
-	 * Gets the key classes that this record works on.
+	 * Gets the key classes that this operator works on.
 	 * 
-	 * @return The key classes that this record works on.
+	 * @return The key classes that this operator works on.
 	 */
 	Class<? extends Key<?>>[] getKeyClasses();
 }

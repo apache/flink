@@ -13,6 +13,10 @@
 
 package eu.stratosphere.compiler.dag;
 
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
+import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.NOT_FOUND;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -39,10 +43,10 @@ import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.NamedChannel;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
+import eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport;
 import eu.stratosphere.compiler.util.NoOpUnaryUdfOp;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.util.Visitor;
 
 /**
@@ -65,7 +69,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * 
 	 * @param pactContract The PACT that the node represents.
 	 */
-	protected SingleInputNode(SingleInputOperator<?> pactContract) {
+	protected SingleInputNode(SingleInputOperator<?, ?, ?> pactContract) {
 		super(pactContract);
 		
 		int[] k = pactContract.getKeyColumns(0);
@@ -91,8 +95,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public SingleInputOperator<?> getPactContract() {
-		return (SingleInputOperator<?>) super.getPactContract();
+	public SingleInputOperator<?, ?, ?> getPactContract() {
+		return (SingleInputOperator<?, ?, ?>) super.getPactContract();
 	}
 	
 	/**
@@ -107,7 +111,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	/**
 	 * Sets the <tt>PactConnection</tt> through which this node receives its input.
 	 * 
-	 * @param conn The input connection to set.
+	 * @param inConn The input connection to set.
 	 */
 	public void setIncomingConnection(PactConnection inConn) {
 		this.inConn = inConn;
@@ -139,7 +143,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 			throw new IndexOutOfBoundsException();
 		}
 		
-		SingleInputOperator<?> c = getPactContract();
+		SingleInputOperator<?, ?, ?> c = getPactContract();
 		SingleInputSemanticProperties semanticProperties = c.getSemanticProperties();
 		
 		if (semanticProperties != null) {
@@ -154,7 +158,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	
 
 	@Override
-	public void setInput(Map<Operator, OptimizerNode> contractToNode) throws CompilerException {
+	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode) throws CompilerException {
 		// see if an internal hint dictates the strategy to use
 		final Configuration conf = getPactContract().getParameters();
 		final String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
@@ -177,7 +181,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 		
 		// get the predecessor node
-		Operator children = ((SingleInputOperator<?>) getPactContract()).getInput();
+		Operator<?> children = ((SingleInputOperator<?, ?, ?>) getPactContract()).getInput();
 		
 		OptimizerNode pred;
 		PactConnection conn;
@@ -202,22 +206,6 @@ public abstract class SingleInputNode extends OptimizerNode {
 	
 	protected abstract List<OperatorDescriptorSingle> getPossibleProperties();
 	
-
-	@Override
-	public boolean isMemoryConsumer() {
-		for (OperatorDescriptorSingle dps : getPossibleProperties()) {
-			if (dps.getStrategy().firstDam().isMaterializing()) {
-				return true;
-			}
-			for (RequestedLocalProperties rlp : dps.getPossibleLocalProperties()) {
-				if (!rlp.isTrivial()) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		// get what we inherit and what is preserved by our user code 
@@ -280,30 +268,21 @@ public abstract class SingleInputNode extends OptimizerNode {
 		final ArrayList<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
 		final int dop = getDegreeOfParallelism();
-		final int subPerInstance = getSubtasksPerInstance();
 		final int inDop = getPredecessorNode().getDegreeOfParallelism();
-		final int inSubPerInstance = getPredecessorNode().getSubtasksPerInstance();
-		final int numInstances = dop / subPerInstance + (dop % subPerInstance == 0 ? 0 : 1);
-		final int inNumInstances = inDop / inSubPerInstance + (inDop % inSubPerInstance == 0 ? 0 : 1);
-		
-		final boolean globalDopChange = numInstances != inNumInstances;
-		final boolean localDopChange = numInstances == inNumInstances & subPerInstance != inSubPerInstance;
-		
+
+		final boolean dopChange = inDop != dop;
+
 		// create all candidates
 		for (PlanNode child : subPlans) {
 			if (this.inConn.getShipStrategy() == null) {
 				// pick the strategy ourselves
 				for (RequestedGlobalProperties igps: intGlobal) {
 					final Channel c = new Channel(child, this.inConn.getMaterializationMode());
-					igps.parameterizeChannel(c, globalDopChange, localDopChange);
+					igps.parameterizeChannel(c, dopChange);
 					
 					// if the DOP changed, make sure that we cancel out properties, unless the
 					// ship strategy preserves/establishes them even under changing DOPs
-					if (globalDopChange && !c.getShipStrategy().isNetworkStrategy()) {
-						c.getGlobalProperties().reset();
-					}
-					if (localDopChange && !(c.getShipStrategy().isNetworkStrategy() || 
-								c.getShipStrategy().compensatesForLocalDOPChanges())) {
+					if (dopChange && !c.getShipStrategy().isNetworkStrategy()) {
 						c.getGlobalProperties().reset();
 					}
 					
@@ -313,6 +292,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 					// requested properties
 					for (RequestedGlobalProperties rgps: allValidGlobals) {
 						if (rgps.isMetBy(c.getGlobalProperties())) {
+							c.setRequiredGlobalProps(rgps);
 							addLocalCandidates(c, broadcastPlanChannels, igps, outputPlans, estimator);
 							break;
 						}
@@ -327,12 +307,10 @@ public abstract class SingleInputNode extends OptimizerNode {
 					c.setShipStrategy(this.inConn.getShipStrategy());
 				}
 				
-				if (globalDopChange) {
+				if (dopChange) {
 					c.adjustGlobalPropertiesForFullParallelismChange();
-				} else if (localDopChange) {
-					c.adjustGlobalPropertiesForLocalParallelismChange();
 				}
-				
+
 				// check whether we meet any of the accepted properties
 				for (RequestedGlobalProperties rgps: allValidGlobals) {
 					if (rgps.isMetBy(c.getGlobalProperties())) {
@@ -357,21 +335,18 @@ public abstract class SingleInputNode extends OptimizerNode {
 	protected void addLocalCandidates(Channel template, List<Set<? extends NamedChannel>> broadcastPlanChannels, RequestedGlobalProperties rgps,
 			List<PlanNode> target, CostEstimator estimator)
 	{
-		final LocalProperties lp = template.getLocalPropertiesAfterShippingOnly();
 		for (RequestedLocalProperties ilp : this.inConn.getInterestingProperties().getLocalProperties()) {
 			final Channel in = template.clone();
-			if (ilp.isMetBy(lp)) {
-				in.setLocalStrategy(LocalStrategy.NONE);
-			} else {
-				ilp.parameterizeChannel(in);
-			}
+			ilp.parameterizeChannel(in);
 			
 			// instantiate a candidate, if the instantiated local properties meet one possible local property set
+			outer:
 			for (OperatorDescriptorSingle dps: getPossibleProperties()) {
 				for (RequestedLocalProperties ilps : dps.getPossibleLocalProperties()) {
 					if (ilps.isMetBy(in.getLocalProperties())) {
+						in.setRequiredLocalProps(ilps);
 						instantiateCandidate(dps, in, broadcastPlanChannels, target, estimator, rgps, ilp);
-						break;
+						break outer;
 					}
 				}
 			}
@@ -381,15 +356,65 @@ public abstract class SingleInputNode extends OptimizerNode {
 	protected void instantiateCandidate(OperatorDescriptorSingle dps, Channel in, List<Set<? extends NamedChannel>> broadcastPlanChannels,
 			List<PlanNode> target, CostEstimator estimator, RequestedGlobalProperties globPropsReq, RequestedLocalProperties locPropsReq)
 	{
+		final PlanNode inputSource = in.getSource();
+		
 		for (List<NamedChannel> broadcastChannelsCombination: Sets.cartesianProduct(broadcastPlanChannels)) {
+			
+			boolean validCombination = true;
+			boolean requiresPipelinebreaker = false;
+			
 			// check whether the broadcast inputs use the same plan candidate at the branching point
-			for (NamedChannel nc : broadcastChannelsCombination) {
+			for (int i = 0; i < broadcastChannelsCombination.size(); i++) {
+				NamedChannel nc = broadcastChannelsCombination.get(i);
 				PlanNode bcSource = nc.getSource();
-				PlanNode inputSource = in.getSource();
 				
+				// check branch compatibility against input
 				if (!areBranchCompatible(bcSource, inputSource)) {
-					return;
+					validCombination = false;
+					break;
 				}
+				
+				// check branch compatibility against all other broadcast variables
+				for (int k = 0; k < i; k++) {
+					PlanNode otherBcSource = broadcastChannelsCombination.get(k).getSource();
+					
+					if (!areBranchCompatible(bcSource, otherBcSource)) {
+						validCombination = false;
+						break;
+					}
+				}
+				
+				// check if there is a common predecessor and whether there is a dam on the way to all common predecessors
+				if (this.hereJoinedBranches != null) {
+					for (OptimizerNode brancher : this.hereJoinedBranches) {
+						PlanNode candAtBrancher = in.getSource().getCandidateAtBranchPoint(brancher);
+						
+						if (candAtBrancher == null) {
+							// closed branch between two broadcast variables
+							continue;
+						}
+						
+						SourceAndDamReport res = in.getSource().hasDamOnPathDownTo(candAtBrancher);
+						if (res == NOT_FOUND) {
+							throw new CompilerException("Bug: Tracing dams for deadlock detection is broken.");
+						} else if (res == FOUND_SOURCE) {
+							requiresPipelinebreaker = true;
+							break;
+						} else if (res == FOUND_SOURCE_AND_DAM) {
+							// good
+						} else {
+							throw new CompilerException();
+						}
+					}
+				}
+			}
+			
+			if (!validCombination) {
+				continue;
+			}
+			
+			if (requiresPipelinebreaker) {
+				in.setTempMode(in.getTempMode().makePipelineBreaker());
 			}
 			
 			final SingleInputPlanNode node = dps.instantiate(in, this);

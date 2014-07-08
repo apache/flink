@@ -14,8 +14,8 @@
 package eu.stratosphere.test.operators;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
 import eu.stratosphere.api.java.record.operators.MapOperator;

@@ -19,14 +19,14 @@ import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.operators.SingleInputOperator;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.types.Value;
 
 /**
  * The IterativeDataSet represents the start of an iteration. It is created from the DataSet that 
  * represents the initial solution set via the {@link DataSet#iterate(int)} method.
  * 
- * @param<T> The data type of set that is the input and feedback of the iteration.
+ * @param <T> The data type of set that is the input and feedback of the iteration.
  *
  * @see DataSet#iterate(int)
  */
@@ -95,7 +95,7 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	 * 
 	 * @return The IterativeDataSet itself, to allow chaining function calls.
 	 */
-	public <X> IterativeDataSet<T> registerAggregator(String name, Class<? extends Aggregator<?>> aggregator) {
+	public IterativeDataSet<T> registerAggregator(String name, Aggregator<?> aggregator) {
 		this.aggregators.registerAggregator(name, aggregator);
 		return this;
 	}
@@ -115,7 +115,7 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	 * @return The IterativeDataSet itself, to allow chaining function calls.
 	 */
 	public <X extends Value> IterativeDataSet<T> registerAggregationConvergenceCriterion(
-			String name, Class<? extends Aggregator<X>> aggregator, Class<? extends ConvergenceCriterion<X>> convergenceCheck)
+			String name, Aggregator<X> aggregator, ConvergenceCriterion<X> convergenceCheck)
 	{
 		this.aggregators.registerAggregationConvergenceCriterion(name, aggregator, convergenceCheck);
 		return this;
@@ -135,7 +135,7 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	protected Operator translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.SingleInputOperator<T, T, ?> translateToDataFlow(Operator<T> input) {
 		// All the translation magic happens when the iteration end is encountered.
 		throw new UnsupportedOperationException("This should never happen.");
 	}

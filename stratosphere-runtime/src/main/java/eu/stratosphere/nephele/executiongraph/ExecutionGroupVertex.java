@@ -13,6 +13,15 @@
 
 package eu.stratosphere.nephele.executiongraph;
 
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.io.InputSplit;
+import eu.stratosphere.nephele.instance.AllocatedResource;
+import eu.stratosphere.nephele.instance.DummyInstance;
+import eu.stratosphere.nephele.jobgraph.JobVertexID;
+import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.runtime.io.channels.ChannelType;
+import eu.stratosphere.nephele.jobgraph.DistributionPattern;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -22,17 +31,6 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.io.InputSplit;
-import eu.stratosphere.nephele.execution.RuntimeEnvironment;
-import eu.stratosphere.nephele.instance.AllocatedResource;
-import eu.stratosphere.nephele.instance.DummyInstance;
-import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.channels.ChannelType;
-import eu.stratosphere.nephele.jobgraph.JobVertexID;
-import eu.stratosphere.nephele.template.AbstractInvokable;
 
 /**
  * An ExecutionGroupVertex is created for every JobVertex of the initial job graph. It represents a number of execution
@@ -69,39 +67,9 @@ public final class ExecutionGroupVertex {
 	private final CopyOnWriteArrayList<ExecutionVertex> groupMembers = new CopyOnWriteArrayList<ExecutionVertex>();
 
 	/**
-	 * Maximum number of execution vertices this group vertex can manage.
-	 */
-	private volatile int maxMemberSize = 1;
-
-	/**
-	 * Minimum number of execution vertices this group vertex can manage.
-	 */
-	private volatile int minMemberSize = 1;
-
-	/**
 	 * The user defined number of execution vertices, -1 if the user has not specified it.
 	 */
 	private final int userDefinedNumberOfMembers;
-
-	/**
-	 * The instance type to be used for execution vertices this group vertex manages.
-	 */
-	private volatile InstanceType instanceType = null;
-
-	/**
-	 * Stores whether the instance type is user defined.
-	 */
-	private final boolean userDefinedInstanceType;
-
-	/**
-	 * Stores the number of subtasks per instance.
-	 */
-	private volatile int numberOfSubtasksPerInstance = -1;
-
-	/**
-	 * Stores whether the number of subtasks per instance is user defined.
-	 */
-	private final boolean userDefinedNumberOfSubtasksPerInstance;
 
 	/**
 	 * Number of retries in case of an error before the task represented by this vertex is considered as failed.
@@ -145,6 +113,11 @@ public final class ExecutionGroupVertex {
 	private volatile InputSplit[] inputSplits = null;
 
 	/**
+	 * Input split type
+	 */
+	private volatile Class<? extends InputSplit> inputSplitType = null;
+
+	/**
 	 * The execution stage this vertex belongs to.
 	 */
 	private volatile ExecutionStage executionStage = null;
@@ -160,11 +133,6 @@ public final class ExecutionGroupVertex {
 	private final Class<? extends AbstractInvokable> invokableClass;
 
 	/**
-	 * The environment created to execute the vertex's task.
-	 */
-	private final RuntimeEnvironment environment;
-
-	/**
 	 * Constructs a new group vertex.
 	 * 
 	 * @param name
@@ -175,12 +143,6 @@ public final class ExecutionGroupVertex {
 	 *        the execution graph is group vertex belongs to
 	 * @param userDefinedNumberOfMembers
 	 *        the user defined number of subtasks, -1 if the user did not specify the number
-	 * @param instanceType
-	 *        the instance type to be used for execution vertices this group vertex manages.
-	 * @param userDefinedInstanceType
-	 *        <code>true</code> if the instance type is user defined, <code>false</code> otherwise
-	 * @param numberOfSubtasksPerInstance
-	 *        the user defined number of subtasks per instance, -1 if the user did not specify the number
 	 * @param userDefinedVertexToShareInstanceWith
 	 *        <code>true</code> if the user specified another vertex to share instances with, <code>false</code>
 	 *        otherwise
@@ -197,24 +159,13 @@ public final class ExecutionGroupVertex {
 	 *         throws if an error occurs while instantiating the {@link AbstractInvokable}
 	 */
 	public ExecutionGroupVertex(final String name, final JobVertexID jobVertexID, final ExecutionGraph executionGraph,
-			final int userDefinedNumberOfMembers, final InstanceType instanceType,
-			final boolean userDefinedInstanceType, final int numberOfSubtasksPerInstance,
-			final boolean userDefinedVertexToShareInstanceWith, final int numberOfExecutionRetries,
-			final Configuration configuration, final ExecutionSignature signature,
+			final int userDefinedNumberOfMembers, final boolean userDefinedVertexToShareInstanceWith,
+			final int numberOfExecutionRetries, final Configuration configuration, final ExecutionSignature signature,
 			final Class<? extends AbstractInvokable> invokableClass) throws Exception {
 
 		this.name = (name != null) ? name : "";
 		this.jobVertexID = jobVertexID;
 		this.userDefinedNumberOfMembers = userDefinedNumberOfMembers;
-		this.instanceType = instanceType;
-		this.userDefinedInstanceType = userDefinedInstanceType;
-		if (numberOfSubtasksPerInstance != -1) {
-			this.numberOfSubtasksPerInstance = numberOfSubtasksPerInstance;
-			this.userDefinedNumberOfSubtasksPerInstance = true;
-		} else {
-			this.numberOfSubtasksPerInstance = 1;
-			this.userDefinedNumberOfSubtasksPerInstance = false;
-		}
 		if (numberOfExecutionRetries >= 0) {
 			this.numberOfExecutionRetries = numberOfExecutionRetries;
 		} else {
@@ -225,9 +176,6 @@ public final class ExecutionGroupVertex {
 		this.executionSignature = signature;
 
 		this.invokableClass = invokableClass;
-
-		this.environment = new RuntimeEnvironment(executionGraph.getJobID(), name, invokableClass, configuration,
-			executionGraph.getJobConfiguration());
 	}
 
 	/**
@@ -237,16 +185,6 @@ public final class ExecutionGroupVertex {
 	 */
 	public String getName() {
 		return this.name;
-	}
-
-	/**
-	 * Returns the environment of the instantiated {@link AbstractInvokable} object.
-	 * 
-	 * @return the environment of the instantiated {@link AbstractInvokable} object
-	 */
-	public RuntimeEnvironment getEnvironment() {
-
-		return this.environment;
 	}
 
 	/**
@@ -309,32 +247,6 @@ public final class ExecutionGroupVertex {
 	}
 
 	/**
-	 * Sets the maximum number of members this group vertex can have.
-	 * 
-	 * @param maxSize
-	 *        the maximum number of members this group vertex can have
-	 */
-	void setMaxMemberSize(final int maxSize) {
-
-		// TODO: Add checks here
-
-		this.maxMemberSize = maxSize;
-	}
-
-	/**
-	 * Sets the minimum number of members this group vertex must have.
-	 * 
-	 * @param minSize
-	 *        the minimum number of members this group vertex must have
-	 */
-	void setMinMemberSize(final int minSize) {
-
-		// TODO: Add checks here
-
-		this.minMemberSize = minSize;
-	}
-
-	/**
 	 * Returns the current number of members this group vertex has.
 	 * 
 	 * @return the current number of members this group vertex has
@@ -342,24 +254,6 @@ public final class ExecutionGroupVertex {
 	public int getCurrentNumberOfGroupMembers() {
 
 		return this.groupMembers.size();
-	}
-
-	/**
-	 * Returns the maximum number of members this group vertex can have.
-	 * 
-	 * @return the maximum number of members this group vertex can have
-	 */
-	public int getMaximumNumberOfGroupMembers() {
-		return this.maxMemberSize;
-	}
-
-	/**
-	 * Returns the minimum number of members this group vertex must have.
-	 * 
-	 * @return the minimum number of members this group vertex must have
-	 */
-	public int getMinimumNumberOfGroupMember() {
-		return this.minMemberSize;
 	}
 
 	/**
@@ -376,10 +270,6 @@ public final class ExecutionGroupVertex {
 	 *        the channel type to be used for this edge
 	 * @param userDefinedChannelType
 	 *        <code>true</code> if the channel type is user defined, <code>false</code> otherwise
-	 * @param compressionLevel
-	 *        the compression level to be used for this edge
-	 * @param userDefinedCompressionLevel
-	 *        <code>true</code> if the compression level is user defined, <code>false</code> otherwise
 	 * @param distributionPattern
 	 *        the distribution pattern to create the wiring between the group members
 	 * @param isBroadcast
@@ -388,7 +278,7 @@ public final class ExecutionGroupVertex {
 	 */
 	ExecutionGroupEdge wireTo(final ExecutionGroupVertex groupVertex, final int indexOfInputGate,
 			final int indexOfOutputGate, final ChannelType channelType, final boolean userDefinedChannelType,
-			final DistributionPattern distributionPattern, final boolean isBroadcast) throws GraphConversionException {
+			final DistributionPattern distributionPattern) throws GraphConversionException {
 
 		try {
 			final ExecutionGroupEdge previousEdge = this.forwardLinks.get(indexOfOutputGate);
@@ -401,8 +291,7 @@ public final class ExecutionGroupVertex {
 		}
 
 		final ExecutionGroupEdge edge = new ExecutionGroupEdge(this, indexOfOutputGate, groupVertex, indexOfInputGate,
-			channelType, userDefinedChannelType, distributionPattern,
-			isBroadcast);
+			channelType, userDefinedChannelType, distributionPattern);
 
 		this.forwardLinks.add(edge);
 
@@ -481,10 +370,10 @@ public final class ExecutionGroupVertex {
 	 * @throws GraphConversionException
 	 *         thrown if the number of execution vertices for this group vertex cannot be set to the desired value
 	 */
-	void createInitialExecutionVertices(final int initalNumberOfVertices) throws GraphConversionException {
+	void createInitialExecutionVertices(final int initialNumberOfVertices) throws GraphConversionException {
 
 		// If the requested number of group vertices does not change, do nothing
-		if (initalNumberOfVertices == this.getCurrentNumberOfGroupMembers()) {
+		if (initialNumberOfVertices == this.getCurrentNumberOfGroupMembers()) {
 			return;
 		}
 
@@ -504,39 +393,14 @@ public final class ExecutionGroupVertex {
 			}
 		}
 
-		// Make sure the value of newNumber is valid
-		// TODO: Move these checks to some other place
-		/*
-		 * if (this.getMinimumNumberOfGroupMember() < 1) {
-		 * throw new GraphConversionException("The minimum number of members is below 1 for group vertex "
-		 * + this.getName());
-		 * }
-		 * if ((this.getMaximumNumberOfGroupMembers() != -1)
-		 * && (this.getMaximumNumberOfGroupMembers() < this.getMinimumNumberOfGroupMember())) {
-		 * throw new GraphConversionException(
-		 * "The maximum number of members is smaller than the minimum for group vertex " + this.getName());
-		 * }
-		 */
-
-		if (initalNumberOfVertices < this.getMinimumNumberOfGroupMember()) {
-			throw new GraphConversionException("Number of members must be at least "
-				+ this.getMinimumNumberOfGroupMember());
-		}
-
-		if ((this.getMaximumNumberOfGroupMembers() != -1)
-			&& (initalNumberOfVertices > this.getMaximumNumberOfGroupMembers())) {
-			throw new GraphConversionException("Number of members cannot exceed "
-				+ this.getMaximumNumberOfGroupMembers());
-		}
-
 		final ExecutionVertex originalVertex = this.getGroupMember(0);
 		int currentNumberOfExecutionVertices = this.getCurrentNumberOfGroupMembers();
 
-		while (currentNumberOfExecutionVertices++ < initalNumberOfVertices) {
+		while (currentNumberOfExecutionVertices++ < initialNumberOfVertices) {
 
 			final ExecutionVertex vertex = originalVertex.splitVertex();
 			vertex.setAllocatedResource(new AllocatedResource(DummyInstance
-				.createDummyInstance(this.instanceType), this.instanceType, null));
+				.createDummyInstance(), null));
 			this.groupMembers.add(vertex);
 		}
 
@@ -561,6 +425,14 @@ public final class ExecutionGroupVertex {
 	}
 
 	/**
+	 * Sets the input split type class
+	 *
+	 * @param inputSplitType Input split type class
+	 */
+	public void setInputSplitType(final Class<? extends InputSplit> inputSplitType) { this.inputSplitType =
+			inputSplitType; }
+
+	/**
 	 * Returns the input splits assigned to this group vertex.
 	 * 
 	 * @return the input splits, possibly <code>null</code> if the group vertex does not represent an input vertex
@@ -569,6 +441,14 @@ public final class ExecutionGroupVertex {
 
 		return this.inputSplits;
 	}
+
+	/**
+	 * Returns the input split type class
+	 *
+	 * @return the input split type class, possibly <code>null</code> if the group vertex does not represent an input
+	 * vertex
+	 */
+	public Class<? extends InputSplit> getInputSplitType() { return this.inputSplitType; }
 
 	public ExecutionGroupEdge getForwardEdge(int index) {
 
@@ -646,53 +526,6 @@ public final class ExecutionGroupVertex {
 		return this.userDefinedNumberOfMembers;
 	}
 
-	boolean isInstanceTypeUserDefined() {
-
-		return this.userDefinedInstanceType;
-	}
-
-	void setInstanceType(final InstanceType instanceType) throws GraphConversionException {
-
-		if (instanceType == null) {
-			throw new IllegalArgumentException("Argument instanceType must not be null");
-		}
-
-		if (this.userDefinedInstanceType) {
-			throw new GraphConversionException("Cannot overwrite user defined instance type "
-				+ instanceType.getIdentifier());
-		}
-
-		this.instanceType = instanceType;
-
-		// Reset instance allocation of all members and let reassignInstances do the work
-		for (int i = 0; i < this.groupMembers.size(); i++) {
-			final ExecutionVertex vertex = this.groupMembers.get(i);
-			vertex.setAllocatedResource(null);
-		}
-	}
-
-	InstanceType getInstanceType() {
-		return this.instanceType;
-	}
-
-	boolean isNumberOfSubtasksPerInstanceUserDefined() {
-
-		return this.userDefinedNumberOfSubtasksPerInstance;
-	}
-
-	void setNumberOfSubtasksPerInstance(final int numberOfSubtasksPerInstance) throws GraphConversionException {
-
-		if (this.userDefinedNumberOfSubtasksPerInstance
-			&& (numberOfSubtasksPerInstance != this.numberOfSubtasksPerInstance)) {
-			throw new GraphConversionException("Cannot overwrite user defined number of subtasks per instance");
-		}
-
-		this.numberOfSubtasksPerInstance = numberOfSubtasksPerInstance;
-	}
-
-	int getNumberOfSubtasksPerInstance() {
-		return this.numberOfSubtasksPerInstance;
-	}
 
 	/**
 	 * Returns the number of retries in case of an error before the task represented by this vertex is considered as
@@ -767,27 +600,13 @@ public final class ExecutionGroupVertex {
 
 	}
 
-	void repairSubtasksPerInstance() {
-
-		final Iterator<ExecutionVertex> it = this.groupMembers.iterator();
-		int count = 0;
-		while (it.hasNext()) {
-
-			final ExecutionVertex v = it.next();
-			v.setAllocatedResource(this.groupMembers.get(
-				(count++ / this.numberOfSubtasksPerInstance) * this.numberOfSubtasksPerInstance)
-				.getAllocatedResource());
-		}
-	}
-
 	void repairInstanceSharing(final Set<AllocatedResource> availableResources) {
 
 		// Number of required resources by this group vertex
-		final int numberOfRequiredInstances = (this.groupMembers.size() / this.numberOfSubtasksPerInstance)
-			+ (((this.groupMembers.size() % this.numberOfSubtasksPerInstance) != 0) ? 1 : 0);
+		final int numberOfRequiredSlots = this.groupMembers.size();
 
 		// Number of resources to be replaced
-		final int resourcesToBeReplaced = Math.min(availableResources.size(), numberOfRequiredInstances);
+		final int resourcesToBeReplaced = Math.min(availableResources.size(), numberOfRequiredSlots);
 
 		// Build the replacement map if necessary
 		final Map<AllocatedResource, AllocatedResource> replacementMap = new HashMap<AllocatedResource, AllocatedResource>();

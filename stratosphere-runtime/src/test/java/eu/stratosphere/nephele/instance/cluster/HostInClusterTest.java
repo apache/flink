@@ -16,30 +16,22 @@ package eu.stratosphere.nephele.instance.cluster;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
+import eu.stratosphere.nephele.instance.*;
 import org.junit.Test;
 
 import eu.stratosphere.configuration.ConfigConstants;
-import eu.stratosphere.nephele.instance.HardwareDescription;
-import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
-import eu.stratosphere.nephele.instance.InstanceConnectionInfo;
-import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkTopology;
 
 /**
- * Tests for {@link ClusterInstance}.
+ * Tests for {@link eu.stratosphere.nephele.instance.Instance}.
  * 
  */
 public class HostInClusterTest {
@@ -49,7 +41,7 @@ public class HostInClusterTest {
 	 * 
 	 * @return a cluster instance of a special test type
 	 */
-	private ClusterInstance createTestClusterInstance() {
+	private Instance createTestClusterInstance() {
 
 		final int ipcPort = ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT;
 		final int dataPort = ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT;
@@ -60,16 +52,8 @@ public class HostInClusterTest {
 			fail(e.getMessage());
 		}
 
-		final String identifier = "testtype";
-		final int numComputeUnits = 8;
 		final int numCores = 8;
 		final int memorySize = 32 * 1024;
-		final int diskCapacity = 200;
-		final int pricePerHour = 10;
-
-		final InstanceType capacity = InstanceTypeFactory.construct(identifier, numComputeUnits, numCores, memorySize,
-			diskCapacity,
-			pricePerHour);
 
 		final InstanceConnectionInfo instanceConnectionInfo = new InstanceConnectionInfo(inetAddress, ipcPort, dataPort);
 
@@ -77,8 +61,8 @@ public class HostInClusterTest {
 			memorySize * 1024L * 1024L, memorySize * 1024L * 1024L);
 
 		final NetworkTopology topology = NetworkTopology.createEmptyTopology();
-		ClusterInstance host = new ClusterInstance(instanceConnectionInfo, capacity, topology.getRootNode(), topology,
-			hardwareDescription);
+		Instance host = new Instance(instanceConnectionInfo, topology.getRootNode(), topology,
+			hardwareDescription, 8);
 
 		return host;
 	}
@@ -90,7 +74,7 @@ public class HostInClusterTest {
 	public void testHeartBeat() {
 		// check that heart beat is triggered correctly.
 
-		ClusterInstance host = createTestClusterInstance();
+		Instance host = createTestClusterInstance();
 
 		host.reportHeartBeat();
 
@@ -111,33 +95,33 @@ public class HostInClusterTest {
 	@Test
 	public void testAccounting() {
 		// check whether the accounting of capacity works correctly
-		final ClusterInstance host = createTestClusterInstance();
+		final Instance host = createTestClusterInstance();
 		final JobID jobID = new JobID();
-		final int numComputeUnits = 8 / 8;
-		final int numCores = 8 / 8;
-		final int memorySize = 32 * 1024 / 8;
-		final int diskCapacity = 200 / 8;
-		final InstanceType type = InstanceTypeFactory.construct("dummy", numComputeUnits, numCores, memorySize,
-			diskCapacity, -1);
 		for (int run = 0; run < 2; ++run) {
 			// do this twice to check that everything is correctly freed
-			AllocatedSlice[] slices = new AllocatedSlice[8];
+			AllocatedResource[] allocatedSlots = new AllocatedResource[8];
 			for (int i = 0; i < 8; ++i) {
-				slices[i] = host.createSlice(type, jobID);
-				assertNotNull(slices[i]);
-				assertEquals(numComputeUnits, slices[i].getType().getNumberOfComputeUnits());
-				assertEquals(numCores, slices[i].getType().getNumberOfCores());
-				assertEquals(memorySize, slices[i].getType().getMemorySize());
-				assertEquals(diskCapacity, slices[i].getType().getDiskCapacity());
+				try {
+					allocatedSlots[i] = host.allocateSlot(jobID);
+				}catch(InstanceException ex){
+					fail(ex.getMessage());
+				}
+
+				assertNotNull(allocatedSlots[i]);
 			}
 			// now no resources should be left
-			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 1, 0, 0, 0, 0), jobID));
-			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 0, 1, 0, 0, 0), jobID));
-			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 0, 0, 1, 0, 0), jobID));
-			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 0, 0, 0, 1, 0), jobID));
+			boolean instanceException = false;
+
+			try{
+				host.allocateSlot(jobID);
+			}catch(InstanceException ex){
+				instanceException = true;
+			}
+
+			assertTrue(instanceException);
 
 			for (int i = 0; i < 8; ++i) {
-				host.removeAllocatedSlice(slices[i].getAllocationID());
+				host.releaseSlot(allocatedSlots[i].getAllocationID());
 			}
 		}
 	}
@@ -149,47 +133,51 @@ public class HostInClusterTest {
 	public void testTermination() {
 		
 		// check whether the accounting of capacity works correctly if terminateAllInstances is called
-		final ClusterInstance host = createTestClusterInstance();
+		final Instance host = createTestClusterInstance();
 		final JobID jobID = new JobID();
-		final int numComputeUnits = 8 / 8;
-		final int numCores = 8 / 8;
-		final int memorySize = 32 * 1024 / 8;
-		final int diskCapacity = 200 / 8;
-		final InstanceType type = InstanceTypeFactory.construct("dummy", numComputeUnits, numCores, memorySize,
-			diskCapacity, -1);
 		for (int run = 0; run < 2; ++run) {
 			// do this twice to check that everything is correctly freed
-			AllocatedSlice[] slices = new AllocatedSlice[8];
+			AllocatedResource[] allocatedResources = new AllocatedResource[8];
 			for (int i = 0; i < 8; ++i) {
-				slices[i] = host.createSlice(type, jobID);
-				assertNotNull(slices[i]);
-				assertEquals(numComputeUnits, slices[i].getType().getNumberOfComputeUnits());
-				assertEquals(numCores, slices[i].getType().getNumberOfCores());
-				assertEquals(memorySize, slices[i].getType().getMemorySize());
-				assertEquals(diskCapacity, slices[i].getType().getDiskCapacity());
-			}
-			// now no resources should be left
-			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 1, 0, 0, 0, 0), jobID));
-			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 0, 1, 0, 0, 0), jobID));
-			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 0, 0, 1, 0, 0), jobID));
-			assertNull(host.createSlice(InstanceTypeFactory.construct("dummy", 0, 0, 0, 1, 0), jobID));
-			List<AllocatedSlice> removedSlices = host.removeAllAllocatedSlices();
+				try {
+					allocatedResources[i] = host.allocateSlot(jobID);
+				}catch (InstanceException ex){
+					fail(ex.getMessage());
+				}
 
-			final Set<AllocatedSlice> slicesSet = new HashSet<AllocatedSlice>();
-			for(int i = 0; i < slices.length; ++i) {
-				slicesSet.add(slices[i]);
+				assertNotNull(allocatedResources[i]);
+			}
+
+			boolean instanceException = false;
+			// now no resources should be left
+			try {
+				host.allocateSlot(jobID);
+			} catch (InstanceException ex){
+				instanceException = true;
+			}
+
+			assertTrue(instanceException);
+			Collection<AllocatedSlot> allocatedSlots = host.removeAllocatedSlots();
+			Set<AllocationID> removedAllocationIDs = new HashSet<AllocationID>();
+
+			for(AllocatedSlot slot: allocatedSlots){
+				removedAllocationIDs.add(slot.getAllocationID());
+			}
+
+			final Set<AllocationID> allocationIDs = new HashSet<AllocationID>();
+			for(int i = 0; i < allocatedResources.length; ++i) {
+				allocationIDs.add(allocatedResources[i].getAllocationID());
 			}
 			
-			final Set<AllocatedSlice> removedSlicesSet = new HashSet<AllocatedSlice>(removedSlices);
-			
+
 			//Check if both sets are equal
-			assertEquals(slicesSet.size(), removedSlices.size());
-			final Iterator<AllocatedSlice> it = slicesSet.iterator();
+			assertEquals(allocationIDs.size(), removedAllocationIDs.size());
+			final Iterator<AllocationID> it = allocationIDs.iterator();
 			while(it.hasNext()) {
-				assertTrue(removedSlicesSet.remove(it.next()));
+				assertTrue(removedAllocationIDs.remove(it.next()));
 			}
 			
-			assertEquals(0, removedSlicesSet.size());
+			assertEquals(0, removedAllocationIDs.size());
 		}
 	}
 }

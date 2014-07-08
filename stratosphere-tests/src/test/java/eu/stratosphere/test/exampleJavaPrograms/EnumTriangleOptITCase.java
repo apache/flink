@@ -14,7 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.exampleJavaPrograms;
 
-import eu.stratosphere.example.java.triangles.EnumTrianglesOpt;
+import eu.stratosphere.example.java.graph.EnumTrianglesOpt;
 import eu.stratosphere.test.testdata.EnumTriangleData;
 import eu.stratosphere.test.util.JavaProgramTestBase;
 

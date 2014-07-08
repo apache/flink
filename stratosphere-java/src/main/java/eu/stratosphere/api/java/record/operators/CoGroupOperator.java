@@ -13,14 +13,12 @@
 
 package eu.stratosphere.api.java.record.operators;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.commons.lang3.Validate;
 
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.Ordering;
@@ -32,6 +30,7 @@ import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.api.java.record.functions.CoGroupFunction;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation;
 import eu.stratosphere.types.Key;
+import eu.stratosphere.types.Record;
 
 /**
  * CoGroupOperator that applies a {@link CoGroupFunction} to groups of records sharing
@@ -39,7 +38,7 @@ import eu.stratosphere.types.Key;
  * 
  * @see CoGroupFunction
  */
-public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implements RecordOperator {
+public class CoGroupOperator extends CoGroupOperatorBase<Record, Record, Record, CoGroupFunction> implements RecordOperator {
 	
 	/**
 	 * The types of the keys that the operator groups on.
@@ -79,7 +78,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 	 * @param builder
 	 */
 	protected CoGroupOperator(Builder builder) {
-		super(builder.udf, builder.getKeyColumnsArray1(), builder.getKeyColumnsArray2(), builder.name);
+		super(builder.udf, OperatorInfoHelper.binary(), builder.getKeyColumnsArray1(), builder.getKeyColumnsArray2(), builder.name);
 		this.keyTypes = builder.getKeyClassesArray();
 		
 		if (builder.inputs1 != null && !builder.inputs1.isEmpty()) {
@@ -102,26 +101,6 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		return this.keyTypes;
 	}
 	
-	// ---------------------------------------------------------------------------------------
-	
-	@Override
-	public boolean isCombinableFirst() {
-		return super.isCombinableFirst() || getUserCodeWrapper().getUserCodeAnnotation(CombinableFirst.class) != null;
-	}
-	
-	@Override
-	public boolean isCombinableSecond() {
-		return super.isCombinableSecond() || getUserCodeWrapper().getUserCodeAnnotation(CombinableSecond.class) != null;
-	}
-	
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target(ElementType.TYPE)
-	public static @interface CombinableFirst {};
-	
-	@Retention(RetentionPolicy.RUNTIME)
-	@Target(ElementType.TYPE)
-	public static @interface CombinableSecond {};
-	
 	// --------------------------------------------------------------------------------------------
 
 	
@@ -137,9 +116,9 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		private final List<Integer> keyColumns2;
 		
 		/* The optional parameters */
-		private List<Operator> inputs1;
-		private List<Operator> inputs2;
-		private Map<String, Operator> broadcastInputs;
+		private List<Operator<Record>> inputs1;
+		private List<Operator<Record>> inputs2;
+		private Map<String, Operator<Record>> broadcastInputs;
 		private Ordering secondaryOrder1;
 		private Ordering secondaryOrder2;
 		private String name;
@@ -162,13 +141,13 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 			this.keyColumns1.add(keyColumn1);
 			this.keyColumns2 = new ArrayList<Integer>();
 			this.keyColumns2.add(keyColumn2);
-			this.inputs1 = new ArrayList<Operator>();
-			this.inputs2 = new ArrayList<Operator>();
-			this.broadcastInputs = new HashMap<String, Operator>();
+			this.inputs1 = new ArrayList<Operator<Record>>();
+			this.inputs2 = new ArrayList<Operator<Record>>();
+			this.broadcastInputs = new HashMap<String, Operator<Record>>();
 		}
 		
 		/**
-		 * Creates a Builder with the provided {@link JoinFunction} implementation. This method is intended 
+		 * Creates a Builder with the provided {@link CoGroupFunction} implementation. This method is intended
 		 * for special case sub-types only.
 		 * 
 		 * @param udf The {@link CoGroupFunction} implementation for this CoGroup operator.
@@ -178,9 +157,9 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 			this.keyClasses = new ArrayList<Class<? extends Key<?>>>();
 			this.keyColumns1 = new ArrayList<Integer>();
 			this.keyColumns2 = new ArrayList<Integer>();
-			this.inputs1 = new ArrayList<Operator>();
-			this.inputs2 = new ArrayList<Operator>();
-			this.broadcastInputs = new HashMap<String, Operator>();
+			this.inputs1 = new ArrayList<Operator<Record>>();
+			this.inputs2 = new ArrayList<Operator<Record>>();
+			this.broadcastInputs = new HashMap<String, Operator<Record>>();
 		}
 		
 		private int[] getKeyColumnsArray1() {
@@ -238,15 +217,41 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		}
 		
 		/**
+		 * Sets the input operator for input 1.
+		 * 
+		 * @param input The input operator for input 1. 
+		 */
+		public Builder input1(Operator<Record> input) {
+			Validate.notNull(input, "The input must not be null");
+			
+			this.inputs1.clear();
+			this.inputs1.add(input);
+			return this;
+		}
+		
+		/**
 		 * Sets one or several inputs (union) for input 1.
 		 * 
 		 * @param inputs
 		 */
-		public Builder input1(Operator ...inputs) {
+		public Builder input1(Operator<Record>...inputs) {
 			this.inputs1.clear();
-			for (Operator c : inputs) {
+			for (Operator<Record> c : inputs) {
 				this.inputs1.add(c);
 			}
+			return this;
+		}
+		
+		/**
+		 * Sets the input operator for input 2.
+		 * 
+		 * @param input The input operator for input 2. 
+		 */
+		public Builder input2(Operator<Record> input) {
+			Validate.notNull(input, "The input must not be null");
+			
+			this.inputs2.clear();
+			this.inputs2.add(input);
 			return this;
 		}
 		
@@ -255,9 +260,9 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		 * 
 		 * @param inputs
 		 */
-		public Builder input2(Operator ...inputs) {
+		public Builder input2(Operator<Record>...inputs) {
 			this.inputs2.clear();
-			for (Operator c : inputs) {
+			for (Operator<Record> c : inputs) {
 				this.inputs2.add(c);
 			}
 			return this;
@@ -268,7 +273,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		 * 
 		 * @param inputs
 		 */
-		public Builder inputs1(List<Operator> inputs) {
+		public Builder inputs1(List<Operator<Record>> inputs) {
 			this.inputs1 = inputs;
 			return this;
 		}
@@ -278,7 +283,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		 * 
 		 * @param inputs
 		 */
-		public Builder inputs2(List<Operator> inputs) {
+		public Builder inputs2(List<Operator<Record>> inputs) {
 			this.inputs2 = inputs;
 			return this;
 		}
@@ -287,7 +292,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		 * Binds the result produced by a plan rooted at {@code root} to a 
 		 * variable used by the UDF wrapped in this operator.
 		 */
-		public Builder setBroadcastVariable(String name, Operator input) {
+		public Builder setBroadcastVariable(String name, Operator<Record> input) {
 			this.broadcastInputs.put(name, input);
 			return this;
 		}
@@ -295,7 +300,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<CoGroupFunction> implem
 		/**
 		 * Binds multiple broadcast variables.
 		 */
-		public Builder setBroadcastVariables(Map<String, Operator> inputs) {
+		public Builder setBroadcastVariables(Map<String, Operator<Record>> inputs) {
 			this.broadcastInputs.clear();
 			this.broadcastInputs.putAll(inputs);
 			return this;

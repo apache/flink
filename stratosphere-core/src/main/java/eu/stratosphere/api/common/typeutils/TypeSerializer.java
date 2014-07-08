@@ -27,7 +27,7 @@ import eu.stratosphere.core.memory.DataOutputView;
  * implementations of the methods may lead to unpredictable side effects and will compromise both stability and
  * correctness of the program.
  * 
- * @param T The data type that the serializer serializes.
+ * @param <T> The data type that the serializer serializes.
  */
 public abstract class TypeSerializer<T> implements Serializable {
 	

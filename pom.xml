@@ -12,7 +12,7 @@
 
 	<groupId>eu.stratosphere</groupId>
 	<artifactId>stratosphere</artifactId>
-	<version>0.5-SNAPSHOT</version>
+	<version>0.6-SNAPSHOT</version>
 
 	<name>stratosphere</name>
 	<packaging>pom</packaging>
@@ -47,6 +47,7 @@
 		<module>stratosphere-tests</module>
 		<module>stratosphere-test-utils</module>
 		<module>stratosphere-addons</module>
+		<module>stratosphere-quickstart</module>
 		<module>stratosphere-dist</module>
 	</modules>
 
@@ -320,6 +321,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
+				<version>2.4</version>
 				<configuration>
 					<archive>
 						<manifest>
@@ -353,7 +355,7 @@
 						<!-- Configuration Files. -->
 						<exclude>**/stratosphere-bin/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
-						<exclude>README.md</exclude>
+						<exclude>**/README.md</exclude>
 						<exclude>tools/checkstyle.xml</exclude>
 						<exclude>CHANGELOG</exclude>
 						<exclude>**/*.creole</exclude>
@@ -366,6 +368,8 @@
 						<exclude>**/*.iml</exclude>
 						<!-- Generated content -->
 						<exclude>**/target/**</exclude>
+						<!-- Documentation -->
+						<exclude>**/docs/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
@@ -539,7 +543,20 @@
 										</goals>
 									</pluginExecutionFilter>
 									<action>
-										<ignore></ignore>
+										<ignore />
+									</action>
+								</pluginExecution>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>org.apache.maven.plugins</groupId>
+										<artifactId>maven-enforcer-plugin</artifactId>
+										<versionRange>[1.0.0,)</versionRange>
+										<goals>
+											<goal>enforce</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
 									</action>
 								</pluginExecution>
 							</pluginExecutions>

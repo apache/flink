@@ -27,6 +27,7 @@ import eu.stratosphere.api.common.typeutils.base.array.IntPrimitiveArraySerializ
 import eu.stratosphere.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 import eu.stratosphere.api.common.typeutils.base.array.ShortPrimitiveArraySerializer;
 import eu.stratosphere.api.java.functions.InvalidTypesException;
+import eu.stratosphere.types.TypeInformation;
 
 public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> {
 

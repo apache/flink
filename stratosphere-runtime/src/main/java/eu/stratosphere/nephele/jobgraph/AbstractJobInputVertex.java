@@ -13,12 +13,25 @@
 
 package eu.stratosphere.nephele.jobgraph;
 
+import eu.stratosphere.core.io.InputSplit;
+
 /**
- * An abstract base class for input vertices in Nephele.
- * 
+ * An abstract base class for input vertices.
  */
 public abstract class AbstractJobInputVertex extends AbstractJobVertex {
 
+	/**
+	 * Constructs a new job input vertex with the given name.
+	 * 
+	 * @param name
+	 *        the name of the new job input vertex
+	 * @param jobGraph
+	 *        the job graph this vertex belongs to
+	 */
+	protected AbstractJobInputVertex(String name, JobGraph jobGraph) {
+		this(name, null, jobGraph);
+	}
+	
 	/**
 	 * Constructs a new job input vertex with the given name.
 	 * 
@@ -29,9 +42,25 @@ public abstract class AbstractJobInputVertex extends AbstractJobVertex {
 	 * @param jobGraph
 	 *        the job graph this vertex belongs to
 	 */
-	protected AbstractJobInputVertex(final String name, final JobVertexID id, final JobGraph jobGraph) {
+	protected AbstractJobInputVertex(String name, JobVertexID id, JobGraph jobGraph) {
 		super(name, id, jobGraph);
 
 		jobGraph.addVertex(this);
 	}
+
+	/**
+	 * Returns the input split type of the input splits created by this input vertex
+	 *
+	 * @return input split type class
+	 */
+	public abstract Class<? extends InputSplit> getInputSplitType();
+
+	/**
+	 * Computes the input splits created by this input vertex
+	 *
+	 * @param minNumSplits Number of minimal input splits
+	 * @return Array of input splits
+	 * @throws Exception
+	 */
+	public abstract InputSplit[] getInputSplits(int minNumSplits) throws Exception;
 }

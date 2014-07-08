@@ -34,17 +34,19 @@ import eu.stratosphere.core.io.StringRecord;
  * This class is thread-safe.
  * 
  */
-public class Configuration implements IOReadableWritable {
+public class Configuration implements IOReadableWritable, java.io.Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * Stores the concrete key/value pairs of this configuration object.
 	 */
-	private Map<String, String> confData = new HashMap<String, String>();
+	private final Map<String, String> confData = new HashMap<String, String>();
 
 	/**
 	 * The class loader to be used for the <code>getClass</code> method.
 	 */
-	private ClassLoader classLoader;
+	private transient ClassLoader classLoader;
 
 	/**
 	 * Constructs a new configuration object.
@@ -405,6 +407,18 @@ public class Configuration implements IOReadableWritable {
 			}
 		}
 	}
+
+	/**
+	 * Checks whether there is an entry with the specified key
+	 *
+	 * @param key key of entry
+	 * @return true if the key is stored, false otherwise
+	 */
+	public boolean containsKey(String key){
+		synchronized (this.confData){
+			return this.confData.containsKey(key);
+		}
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -433,7 +447,6 @@ public class Configuration implements IOReadableWritable {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-
 
 	@Override
 	public void read(final DataInput in) throws IOException {
@@ -467,6 +480,13 @@ public class Configuration implements IOReadableWritable {
 			}
 		}
 	}
+	
+	private void readObject(java.io.ObjectInputStream s) throws java.io.IOException, ClassNotFoundException {
+		s.defaultReadObject();
+		this.classLoader = getClass().getClassLoader();
+	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {

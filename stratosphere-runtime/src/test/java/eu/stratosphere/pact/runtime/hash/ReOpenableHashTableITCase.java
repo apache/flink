@@ -38,14 +38,13 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryAllocationException;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.runtime.hash.HashMatchIteratorITCase.RecordMatch;
 import eu.stratosphere.pact.runtime.hash.HashMatchIteratorITCase.RecordMatchRemovingJoin;
 import eu.stratosphere.pact.runtime.hash.HashTableITCase.ConstantsKeyValuePairsIterator;
 import eu.stratosphere.pact.runtime.hash.MutableHashTable.HashBucketIterator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordPairComparator;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
@@ -75,7 +74,7 @@ public class ReOpenableHashTableITCase {
 	
 	private static final int NUM_PROBES = 3; // number of reopenings of hash join
 	
-	private final AbstractTask parentTask = new DummyInvokable();
+	private final AbstractInvokable parentTask = new DummyInvokable();
 
 	private IOManager ioManager;
 	private MemoryManager memoryManager;
@@ -116,7 +115,7 @@ public class ReOpenableHashTableITCase {
 		this.recordProbeSideComparator = new RecordComparator(keyPos, keyType);
 		this.pactRecordComparator = new HashTableITCase.RecordPairComparatorFirstInt();
 		
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, PAGE_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE,1, PAGE_SIZE);
 		this.ioManager = new IOManager();
 	}
 
@@ -238,7 +237,7 @@ public class ReOpenableHashTableITCase {
 				new BuildFirstReOpenableHashMatchIterator<Record, Record, Record>(
 						buildInput, probeInput, this.recordSerializer, this.record1Comparator, 
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
-					this.memoryManager, ioManager, this.parentTask, MEMORY_SIZE);
+					this.memoryManager, ioManager, this.parentTask, 1.0);
 		
 		iterator.open();
 		// do first join with both inputs

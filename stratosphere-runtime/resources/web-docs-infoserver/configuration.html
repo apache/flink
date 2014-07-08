@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Dashboard - Stratosphere</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="css/bootstrap.css" rel="stylesheet">
+
+    <!-- Add custom CSS here -->
+    <link href="css/sb-admin.css" rel="stylesheet">
+    <link rel="stylesheet" href="font-awesome/css/font-awesome.min.css">
+    
+    <!-- Page Specific CSS -->
+    <link rel="stylesheet" type="text/css" href="css/nephelefrontend.css" />
+    
+    <!-- Scripts from Bootstrap -->
+    <script src="js/jquery-1.10.2.js"></script>
+    <script src="js/bootstrap.js"></script>
+    
+    <!-- Scripts from Stratosphere -->
+	<script type="text/javascript" src="js/jquery.flot.min.js"></script>
+	<script type="text/javascript" src="js/helpers.js"></script>
+	<script type="text/javascript" src="js/configuration.js"></script>
+	<script type="text/javascript" src="js/jcanvas.min.js"></script>
+  </head>
+
+  <body>
+
+    <div id="wrapper">
+
+      <!-- Sidebar -->
+      <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="index.html">Stratosphere</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse navbar-ex1-collapse">
+          <ul class="nav navbar-nav side-nav">
+            <li><a href="index.html"><i class="fa fa-dashboard"></i> Dashboard</a></li>
+            <li><a href="history.html"><i class="fa fa-bar-chart-o"></i> History</a></li>
+            <li class="active"><a href="configuration.html"><i class="fa fa-keyboard-o"></i> Configuration</a></li>
+          </ul>
+
+          <ul class="nav navbar-nav navbar-right navbar-user">
+            <li class="dropdown user-dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-archive"></i> Log Files<b class="caret"></b></a>
+              <ul class="dropdown-menu">
+                <li><a href="logInfo"><i class="fa fa-keyboard-o"></i> Log Info</a></li>
+                <li><a href="logInfo?get=stdout"><i class="fa fa-keyboard-o"></i> Stdout</a></li>
+              </ul>
+            </li>
+          </ul>
+        </div><!-- /.navbar-collapse -->
+      </nav>
+
+      <div id="page-wrapper">
+
+        <div class="row">
+          <div class="col-lg-12">
+            <h1>Configuration <small>Overview about the configuration settings of Stratosphere</small></h1>
+            <ol class="breadcrumb">
+              <li><a href="index.html"><i class="icon-dashboard"></i> Dashboard</a></li>
+              <li class="active"><i class="icon-file-alt"></i> Configuration</li>
+            </ol>
+          </div>
+          <div class="col-lg-12"><h3>Global Configuration</h2></div>
+		  <div class="col-lg-12">
+	          <div class="table-responsive" id="confTable">
+	          
+	          
+	          
+	          
+	          </div>
+	       </div>
+        </div><!-- /.row -->
+
+      </div><!-- /#page-wrapper -->
+
+    </div><!-- /#wrapper -->
+
+  </body>
+</html>

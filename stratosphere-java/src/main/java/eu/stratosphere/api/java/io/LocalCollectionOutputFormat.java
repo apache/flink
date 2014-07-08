@@ -24,7 +24,7 @@ import java.util.Map;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.java.typeutils.InputTypeConfigurable;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.configuration.Configuration;
 
 /**

@@ -17,11 +17,11 @@ import eu.stratosphere.api.common.Plan;
 
 import eu.stratosphere.examples.scala.wordcount.WordCount;
 
-public class WordCountITCase extends eu.stratosphere.test.exampleRecordPrograms.WordCountITCase {
+public class WordCountITCase extends eu.stratosphere.test.recordJobTests.WordCountITCase {
 
 	@Override
 	protected Plan getTestJob() {
 		WordCount wc = new WordCount();
-		return wc.getScalaPlan(4, textPath, resultPath);
+		return wc.getScalaPlan(DOP, textPath, resultPath);
 	}
 }

@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import eu.stratosphere.api.common.operators.CompilerHints;
@@ -131,20 +132,22 @@ public class PlanJSONDumpGenerator {
 		writer.println("\n\t]\n}");
 	}
 
-	private void visit(DumpableNode<?> node, PrintWriter writer, boolean first) {
+	private boolean visit(DumpableNode<?> node, PrintWriter writer, boolean first) {
 		// check for duplicate traversal
 		if (this.nodeIds.containsKey(node)) {
-			return;
+			return false;
 		}
 		
 		// assign an id first
 		this.nodeIds.put(node, this.nodeCnt++);
 		
 		// then recurse
-		for (Iterator<? extends DumpableNode<?>> children = node.getPredecessors(); children.hasNext(); ) {
-			final DumpableNode<?> child = children.next();
-			visit(child, writer, first);
-			first = false;
+		for (DumpableNode<?> child : node.getPredecessors()) {
+			//This is important, because when the node was already in the graph it is not allowed
+			//to set first to false!
+			if (visit(child, writer, first)) {
+				first = false;
+			};
 		}
 		
 		// check if this node should be skipped from the dump
@@ -153,7 +156,7 @@ public class PlanJSONDumpGenerator {
 		// ------------------ dump after the ascend ---------------------
 		// start a new node and output node id
 		if (!first) {
-			writer.print(",\n");
+			writer.print(",\n");	
 		}
 		// open the node
 		writer.print("\t{\n");
@@ -249,11 +252,8 @@ public class PlanJSONDumpGenerator {
 		writer.print(",\n\t\t\"parallelism\": \""
 			+ (n.getDegreeOfParallelism() >= 1 ? n.getDegreeOfParallelism() : "default") + "\"");
 		
-		writer.print(",\n\t\t\"subtasks_per_instance\": \""
-				+ (n.getSubtasksPerInstance() >= 1 ? n.getSubtasksPerInstance() : "default") + "\"");
-
 		// output node predecessors
-		Iterator<? extends DumpableConnection<?>> inConns = node.getDumpableInputs();
+		Iterator<? extends DumpableConnection<?>> inConns = node.getDumpableInputs().iterator();
 		String child1name = "", child2name = "";
 
 		if (inConns != null && inConns.hasNext()) {
@@ -269,8 +269,8 @@ public class PlanJSONDumpGenerator {
 				if (conn.getSource() instanceof NAryUnionPlanNode) {
 					inConnsForInput = new ArrayList<DumpableConnection<?>>();
 					
-					for (Iterator<? extends DumpableConnection<?>> inputOfUnion = conn.getSource().getDumpableInputs(); inputOfUnion.hasNext();) {
-						inConnsForInput.add(inputOfUnion.next());
+					for (DumpableConnection<?> inputOfUnion : conn.getSource().getDumpableInputs()) {
+						inConnsForInput.add(inputOfUnion);
 					}
 				}
 				else {
@@ -317,9 +317,6 @@ public class PlanJSONDumpGenerator {
 							break;
 						case PARTITION_RANGE:
 							shipStrategy = "Range Partition";
-							break;
-						case PARTITION_LOCAL_HASH:
-							shipStrategy = "Hash Partition (local)";
 							break;
 						case PARTITION_RANDOM:
 							shipStrategy = "Redistribute";
@@ -388,41 +385,58 @@ public class PlanJSONDumpGenerator {
 		if (p == null) {
 			// finish node
 			writer.print("\n\t}");
-			return;
+			return true;
 		}
 		// local strategy
 		String locString = null;
 		if (p.getDriverStrategy() != null) {
 			switch (p.getDriverStrategy()) {
 			case NONE:
-			case UNARY_NO_OP:
+			case BINARY_NO_OP:
 				break;
+				
+			case UNARY_NO_OP:
+				locString = "No-Op";
+				break;
+				
 			case COLLECTOR_MAP:
 			case MAP:
 			case FLAT_MAP:
 				locString = "Map";
 				break;
-			case SORTED_GROUP_COMBINE:
-				locString = "Sorted Combine";
+			
+			case ALL_REDUCE:
+				locString = "Reduce All";
 				break;
+			
+			case ALL_GROUP_REDUCE:
+			case ALL_GROUP_COMBINE:
+				locString = "Group Reduce All";
+				break;
+				
+			case SORTED_REDUCE:
+				locString = "Sorted Reduce";
+				break;
+				
+			case SORTED_PARTIAL_REDUCE:
+				locString = "Sorted Combine/Reduce";
+				break;
+
 			case SORTED_GROUP_REDUCE:
 				locString = "Sorted Group Reduce";
 				break;
-			case ALL_GROUP_REDUCE: 
-				locString = "Group Reduce All";
+				
+			case SORTED_GROUP_COMBINE:
+				locString = "Sorted Combine";
 				break;
-			case SORTED_REDUCE:
-				locString = "Sorted Incremental Reduce";
-				break;
-			case ALL_REDUCE:
-				locString = "Incremental Reduce All";
-				break;
+
 			case HYBRIDHASH_BUILD_FIRST:
 				locString = "Hybrid Hash (build: " + child1name + ")";
 				break;
 			case HYBRIDHASH_BUILD_SECOND:
 				locString = "Hybrid Hash (build: " + child2name + ")";
 				break;
+
 			case NESTEDLOOP_BLOCKED_OUTER_FIRST:
 				locString = "Nested Loops (Blocked Outer: " + child1name + ")";
 				break;
@@ -435,12 +449,15 @@ public class PlanJSONDumpGenerator {
 			case NESTEDLOOP_STREAMED_OUTER_SECOND:
 				locString = "Nested Loops (Streamed Outer: " + child2name + ")";
 				break;
+
 			case MERGE:
 				locString = "Merge";
 				break;
+
 			case CO_GROUP:
 				locString = "Co-Group";
 				break;
+
 			default:
 				throw new CompilerException("Unknown local strategy '" + p.getDriverStrategy().name()
 					+ "' in JSON generator.");
@@ -562,6 +579,7 @@ public class PlanJSONDumpGenerator {
 
 		// finish node
 		writer.print("\n\t}");
+		return true;
 	}
 
 	private void addProperty(PrintWriter writer, String name, String value, boolean first) {
@@ -580,44 +598,29 @@ public class PlanJSONDumpGenerator {
 	}
 
 	public static final String formatNumber(double number, String suffix) {
-		final int fractionalDigits = 2;
-
-		StringBuilder bld = new StringBuilder();
-		bld.append(number);
-
-		int len = bld.length();
-
-		// get the power of 10 / 3
-		int pot = (len - (bld.charAt(0) == '-' ? 2 : 1)) / 3;
-		if (pot >= SIZE_SUFFIXES.length) {
-			pot = SIZE_SUFFIXES.length - 1;
-		} else if (pot < 0) {
-			pot = 0;
+		if (number <= 0.0) {
+			return String.valueOf(number);
 		}
 
-		int beforeDecimal = len - pot * 3;
-		if (len > beforeDecimal + fractionalDigits) {
-			bld.setLength(beforeDecimal + fractionalDigits);
+		int power = (int) Math.ceil(Math.log10(number));
+
+		int group = (power - 1) / 3;
+		if (group >= SIZE_SUFFIXES.length) {
+			group = SIZE_SUFFIXES.length - 1;
+		} else if (group < 0) {
+			group = 0;
 		}
 
-		// insert decimal point
-		if (pot > 0) {
-			bld.insert(beforeDecimal, '.');
+		// truncate fractional part
+		int beforeDecimal = power - group * 3;
+		if (power > beforeDecimal) {
+			for (int i = power - beforeDecimal; i > 0; i--) {
+				number /= 10;
+			}
 		}
-
-		// insert number grouping before decimal point
-		for (int pos = beforeDecimal - 3; pos > 0; pos -= 3) {
-			bld.insert(pos, ',');
-		}
-
-		// append the suffix
-		bld.append(' ');
-		if (pot > 0) {
-			bld.append(SIZE_SUFFIXES[pot]);
-		}
-		bld.append(suffix);
-
-		return bld.toString();
+		
+		return group > 0 ? String.format(Locale.US, "%.2f %s", number, SIZE_SUFFIXES[group]) :
+			String.format(Locale.US, "%.2f", number);
 	}
 
 	private static final char[] SIZE_SUFFIXES = { 0, 'K', 'M', 'G', 'T' };

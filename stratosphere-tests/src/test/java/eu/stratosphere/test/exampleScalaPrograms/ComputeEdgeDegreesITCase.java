@@ -17,7 +17,7 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.examples.scala.graph.ComputeEdgeDegrees;
 
-public class ComputeEdgeDegreesITCase extends eu.stratosphere.test.exampleRecordPrograms.ComputeEdgeDegreesITCase {
+public class ComputeEdgeDegreesITCase extends eu.stratosphere.test.recordJobTests.ComputeEdgeDegreesITCase {
 
 	public ComputeEdgeDegreesITCase(Configuration config) {
 		super(config);
@@ -27,7 +27,7 @@ public class ComputeEdgeDegreesITCase extends eu.stratosphere.test.exampleRecord
 	protected Plan getTestJob() {
 		ComputeEdgeDegrees computeDegrees = new ComputeEdgeDegrees();
 		return computeDegrees.getScalaPlan(
-				config.getInteger("ComputeEdgeDegreesTest#NumSubtasks", 4),
+				config.getInteger("ComputeEdgeDegreesTest#NumSubtasks", DOP),
 				edgesPath, resultPath);
 	}
 }

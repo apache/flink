@@ -32,7 +32,6 @@ object RunEnumTrianglesOnEdgesWithDegrees {
     }
     val plan = enumTriangles.getScalaPlan(args(0).toInt, args(1), args(2))
     LocalExecutor.execute(plan)
-    System.exit(0)
   }
 }
 

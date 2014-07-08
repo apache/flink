@@ -56,8 +56,7 @@ public final class ReduceProperties extends OperatorDescriptorSingle {
 			// create an input node for combine with same DOP as input node
 			ReduceNode combinerNode = ((ReduceNode) node).getCombinerUtilityNode();
 			combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
-			combinerNode.setSubtasksPerInstance(in.getSource().getSubtasksPerInstance());
-			
+
 			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, "Combine ("+node.getPactContract().getName()+")", toCombiner, DriverStrategy.SORTED_PARTIAL_REDUCE, this.keyList);
 			combiner.setCosts(new Costs(0, 0));
 			combiner.initProperties(toCombiner.getGlobalProperties(), toCombiner.getLocalProperties());
@@ -96,7 +95,6 @@ public final class ReduceProperties extends OperatorDescriptorSingle {
 
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties lProps) {
-		lProps.clearUniqueFieldSets();
-		return lProps;
+		return lProps.clearUniqueFieldSets();
 	}
 }

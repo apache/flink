@@ -134,9 +134,7 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 						this.closeLock.wait(1000);
 						checkErroneous();
 					}
-					catch (InterruptedException iex) {
-						throw new IOException("Block channel access was interrupted while closing.");
-					}
+					catch (InterruptedException iex) {}
 				}
 			}
 			finally {

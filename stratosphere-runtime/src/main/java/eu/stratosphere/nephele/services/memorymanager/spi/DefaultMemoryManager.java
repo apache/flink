@@ -13,7 +13,6 @@
 
 package eu.stratosphere.nephele.services.memorymanager.spi;
 
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -67,6 +66,13 @@ public class DefaultMemoryManager implements MemoryManager {
 	
 	private boolean isShutDown;				// flag whether the close() has already been invoked.
 
+	/**
+	 * Number of slots of the task manager
+	 */
+	private final int numberOfSlots;
+
+	private final long memorySize;
+
 	// ------------------------------------------------------------------------
 	// Constructors / Destructors
 	// ------------------------------------------------------------------------
@@ -76,8 +82,8 @@ public class DefaultMemoryManager implements MemoryManager {
 	 * 
 	 * @param memorySize The total size of the memory to be managed by this memory manager.
 	 */
-	public DefaultMemoryManager(long memorySize) {
-		this(memorySize, DEFAULT_PAGE_SIZE);
+	public DefaultMemoryManager(long memorySize, int numberOfSlots) {
+		this(memorySize, numberOfSlots, DEFAULT_PAGE_SIZE);
 	}
 
 	/**
@@ -86,7 +92,7 @@ public class DefaultMemoryManager implements MemoryManager {
 	 * @param memorySize The total size of the memory to be managed by this memory manager.
 	 * @param pageSize The size of the pages handed out by the memory manager.
 	 */
-	public DefaultMemoryManager(long memorySize, int pageSize) {
+	public DefaultMemoryManager(long memorySize, int numberOfSlots, int pageSize) {
 		// sanity checks
 		if (memorySize <= 0) {
 			throw new IllegalArgumentException("Size of total memory must be positive.");
@@ -98,6 +104,10 @@ public class DefaultMemoryManager implements MemoryManager {
 			// not a power of two
 			throw new IllegalArgumentException("The given page size is not a power of two.");
 		}
+
+		this.memorySize = memorySize;
+
+		this.numberOfSlots = numberOfSlots;
 		
 		// assign page size and bit utilities
 		this.pageSize = pageSize;
@@ -125,7 +135,6 @@ public class DefaultMemoryManager implements MemoryManager {
 		}
 	}
 
-
 	@Override
 	public void shutdown() {
 		// -------------------- BEGIN CRITICAL SECTION -------------------
@@ -150,7 +159,6 @@ public class DefaultMemoryManager implements MemoryManager {
 		}
 		// -------------------- END CRITICAL SECTION -------------------
 	}
-	
 
 	public boolean verifyEmpty() {
 		synchronized (this.lock) {
@@ -161,7 +169,7 @@ public class DefaultMemoryManager implements MemoryManager {
 	// ------------------------------------------------------------------------
 	//                 MemoryManager interface implementation
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public List<MemorySegment> allocatePages(AbstractInvokable owner, int numPages) throws MemoryAllocationException {
 		final ArrayList<MemorySegment> segs = new ArrayList<MemorySegment>(numPages);
@@ -212,7 +220,6 @@ public class DefaultMemoryManager implements MemoryManager {
 	}
 	
 	// ------------------------------------------------------------------------
-	
 
 	@Override
 	public void release(MemorySegment segment) {
@@ -253,7 +260,6 @@ public class DefaultMemoryManager implements MemoryManager {
 		}
 		// -------------------- END CRITICAL SECTION -------------------
 	}
-
 
 	@Override
 	public <T extends MemorySegment> void release(Collection<T> segments) {
@@ -317,7 +323,6 @@ public class DefaultMemoryManager implements MemoryManager {
 		// -------------------- END CRITICAL SECTION -------------------
 	}
 
-
 	@Override
 	public void releaseAll(AbstractInvokable owner) {
 		// -------------------- BEGIN CRITICAL SECTION -------------------
@@ -326,28 +331,27 @@ public class DefaultMemoryManager implements MemoryManager {
 			if (this.isShutDown) {
 				throw new IllegalStateException("Memory manager has been shut down.");
 			}
-			
+
 			// get all segments
 			final Set<DefaultMemorySegment> segments = this.allocatedSegments.remove(owner);
-			
+
 			// all segments may have been freed previously individually
 			if (segments == null || segments.isEmpty()) {
 				return;
 			}
-			
+
 			// free each segment
 			for (DefaultMemorySegment seg : segments) {
 				final byte[] buffer = seg.destroy();
 				this.freeSegments.add(buffer);
 			}
-			
+
 			segments.clear();
 		}
 		// -------------------- END CRITICAL SECTION -------------------
 	}
 	
 	// ------------------------------------------------------------------------
-	
 
 	@Override
 	public int getPageSize() {
@@ -355,8 +359,18 @@ public class DefaultMemoryManager implements MemoryManager {
 	}
 
 	@Override
-	public int computeNumberOfPages(long numBytes) {
-		return getNumPages(numBytes);
+	public long getMemorySize() {
+		return this.memorySize;
+	}
+
+	@Override
+	public int computeNumberOfPages(double fraction) {
+		return getRelativeNumPages(fraction);
+	}
+
+	@Override
+	public long computeMemorySize(double fraction) {
+		return this.pageSize*computeNumberOfPages(fraction);
 	}
 
 	@Override
@@ -377,6 +391,14 @@ public class DefaultMemoryManager implements MemoryManager {
 		} else {
 			throw new IllegalArgumentException("The given number of bytes correstponds to more than MAX_INT pages.");
 		}
+	}
+
+	private final int getRelativeNumPages(double fraction){
+		if(fraction < 0){
+			throw new IllegalArgumentException("The fraction of memory to allocate must not be negative.");
+		}
+
+		return (int)(this.totalNumPages * fraction / this.numberOfSlots);
 	}
 	
 	// ------------------------------------------------------------------------

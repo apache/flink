@@ -18,22 +18,25 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.Validate;
+
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.RecordOperator;
-import eu.stratosphere.api.common.operators.base.MapOperatorBase;
+import eu.stratosphere.api.common.operators.base.CollectorMapOperatorBase;
 import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
 import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation;
 import eu.stratosphere.api.java.record.functions.MapFunction;
 import eu.stratosphere.types.Key;
+import eu.stratosphere.types.Record;
 
 /**
  * MapOperator that applies a {@link MapFunction} to each record independently.
  * 
  * @see MapFunction
  */
-public class MapOperator extends MapOperatorBase<MapFunction> implements RecordOperator {
+public class MapOperator extends CollectorMapOperatorBase<Record, Record, MapFunction> implements RecordOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Mapper>";
 	
@@ -62,7 +65,7 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 	 * @param builder
 	 */
 	protected MapOperator(Builder builder) {
-		super(builder.udf, builder.name);
+		super(builder.udf, OperatorInfoHelper.unary(), builder.name);
 		
 		if (builder.inputs != null && !builder.inputs.isEmpty()) {
 			setInput(Operator.createUnionCascade(builder.inputs));
@@ -89,8 +92,8 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 		private final UserCodeWrapper<MapFunction> udf;
 		
 		/* The optional parameters */
-		private List<Operator> inputs;
-		private Map<String, Operator> broadcastInputs;
+		private List<Operator<Record>> inputs;
+		private Map<String, Operator<Record>> broadcastInputs;
 		private String name = DEFAULT_NAME;
 		
 		/**
@@ -100,8 +103,21 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 		 */
 		private Builder(UserCodeWrapper<MapFunction> udf) {
 			this.udf = udf;
-			this.inputs = new ArrayList<Operator>();
-			this.broadcastInputs = new HashMap<String, Operator>();
+			this.inputs = new ArrayList<Operator<Record>>();
+			this.broadcastInputs = new HashMap<String, Operator<Record>>();
+		}
+		
+		/**
+		 * Sets the input.
+		 * 
+		 * @param input The input.
+		 */
+		public Builder input(Operator<Record> input) {
+			Validate.notNull(input, "The input must not be null");
+			
+			this.inputs.clear();
+			this.inputs.add(input);
+			return this;
 		}
 		
 		/**
@@ -109,9 +125,9 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 		 * 
 		 * @param inputs
 		 */
-		public Builder input(Operator ...inputs) {
+		public Builder input(Operator<Record>...inputs) {
 			this.inputs.clear();
-			for (Operator c : inputs) {
+			for (Operator<Record> c : inputs) {
 				this.inputs.add(c);
 			}
 			return this;
@@ -122,7 +138,7 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 		 * 
 		 * @param inputs
 		 */
-		public Builder inputs(List<Operator> inputs) {
+		public Builder inputs(List<Operator<Record>> inputs) {
 			this.inputs = inputs;
 			return this;
 		}
@@ -131,7 +147,7 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 		 * Binds the result produced by a plan rooted at {@code root} to a 
 		 * variable used by the UDF wrapped in this operator.
 		 */
-		public Builder setBroadcastVariable(String name, Operator input) {
+		public Builder setBroadcastVariable(String name, Operator<Record> input) {
 			this.broadcastInputs.put(name, input);
 			return this;
 		}
@@ -139,7 +155,7 @@ public class MapOperator extends MapOperatorBase<MapFunction> implements RecordO
 		/**
 		 * Binds multiple broadcast variables.
 		 */
-		public Builder setBroadcastVariables(Map<String, Operator> inputs) {
+		public Builder setBroadcastVariables(Map<String, Operator<Record>> inputs) {
 			this.broadcastInputs.clear();
 			this.broadcastInputs.putAll(inputs);
 			return this;

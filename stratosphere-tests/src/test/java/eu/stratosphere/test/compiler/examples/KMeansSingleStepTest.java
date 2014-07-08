@@ -20,7 +20,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
@@ -28,8 +28,9 @@ import eu.stratosphere.compiler.plan.SinkPlanNode;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
-import eu.stratosphere.test.compiler.CompilerTestBase;
-import eu.stratosphere.test.testPrograms.KMeansSingleStep;
+import eu.stratosphere.test.compiler.util.CompilerTestBase;
+import eu.stratosphere.test.compiler.util.OperatorResolver;
+import eu.stratosphere.test.recordJobs.kmeans.KMeansSingleStep;
 
 
 public class KMeansSingleStepTest extends CompilerTestBase {
@@ -52,7 +53,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		Plan p = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM), IN_FILE, IN_FILE, OUT_FILE, String.valueOf(20));
 		
 		// set the statistics
-		ContractResolver cr = getContractResolver(p);
+		OperatorResolver cr = getContractResolver(p);
 		FileDataSource pointsSource = cr.getNode(DATAPOINTS);
 		FileDataSource centersSource = cr.getNode(CENTERS);
 		setSourceStatistics(pointsSource, 100l*1024*1024*1024, 32f);

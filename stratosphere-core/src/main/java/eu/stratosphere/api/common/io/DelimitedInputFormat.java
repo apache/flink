@@ -25,7 +25,7 @@ import org.apache.commons.logging.LogFactory;
 import com.google.common.base.Charsets;
 
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.common.operators.base.FileDataSourceBase;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
@@ -651,7 +651,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	 * 
 	 * @return A config builder for setting parameters.
 	 */
-	public static ConfigBuilder configureDelimitedFormat(FileDataSource target) {
+	public static ConfigBuilder configureDelimitedFormat(FileDataSourceBase<?> target) {
 		return new ConfigBuilder(target.getParameters());
 	}
 	

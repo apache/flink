@@ -14,11 +14,10 @@
 package eu.stratosphere.pact.runtime.shipping;
 
 import eu.stratosphere.api.common.distributions.DataDistribution;
-import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
+import eu.stratosphere.api.common.typeutils.TypeComparator;
+import eu.stratosphere.runtime.io.api.ChannelSelector;
 import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
-
 
 public class RecordOutputEmitter implements ChannelSelector<Record> {
 	
@@ -30,11 +29,11 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 	
 	private final ShipStrategyType strategy;			// the shipping strategy used by this output emitter
 	
-	private final RecordComparator comparator;	// the comparator for hashing / sorting
+	private final TypeComparator<Record> comparator;	// the comparator for hashing / sorting
 	
 	private int[] channels;							// the reused array defining target channels
 	
-	private Key[][] partitionBoundaries;		// the partition boundaries for range partitioning
+	private Key<?>[][] partitionBoundaries;		// the partition boundaries for range partitioning
 	
 	private final DataDistribution distribution; // the data distribution to create the partition boundaries for range partitioning
 	
@@ -60,7 +59,7 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 	 * @param strategy The distribution strategy to be used.
 	 * @param comparator The comparator used to hash / compare the records.
 	 */
-	public RecordOutputEmitter(ShipStrategyType strategy, RecordComparator comparator) {
+	public RecordOutputEmitter(ShipStrategyType strategy, TypeComparator<Record> comparator) {
 		this(strategy, comparator, null);
 	}
 
@@ -72,7 +71,7 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 	 * @param comparator The comparator used to hash / compare the records.
 	 * @param distr The distribution pattern used in the case of a range partitioning.
 	 */
-	public RecordOutputEmitter(ShipStrategyType strategy, RecordComparator comparator, DataDistribution distr) {
+	public RecordOutputEmitter(ShipStrategyType strategy, TypeComparator<Record> comparator, DataDistribution distr) {
 		if (strategy == null) { 
 			throw new NullPointerException();
 		}
@@ -84,7 +83,6 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 		switch (strategy) {
 		case FORWARD:
 		case PARTITION_HASH:
-		case PARTITION_LOCAL_HASH:
 		case PARTITION_RANGE:
 		case PARTITION_RANDOM:
 			this.channels = new int[1];
@@ -111,7 +109,6 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 		case PARTITION_RANDOM:
 			return robin(numberOfChannels);
 		case PARTITION_HASH:
-		case PARTITION_LOCAL_HASH:
 			return hashPartitionDefault(record, numberOfChannels);
 		case PARTITION_RANGE:
 			return rangePartition(record, numberOfChannels);
@@ -147,7 +144,16 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 		for (int i = 0; i < DEFAULT_SALT.length; i++) {
 			hash ^= ((hash << 5) + DEFAULT_SALT[i] + (hash >> 2));
 		}
-		this.channels[0] = (hash < 0) ? -hash % numberOfChannels : hash % numberOfChannels;
+		
+		if(hash < 0) {
+			if(hash == Integer.MIN_VALUE) {
+				this.channels[0] = Integer.MAX_VALUE % numberOfChannels;
+			} else {
+				this.channels[0] = -hash % numberOfChannels;
+			}
+		} else {
+			this.channels[0] = hash % numberOfChannels;
+		}
 		return this.channels;
 	}
 	
@@ -160,7 +166,7 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 		}
 		
 		if (numberOfChannels == this.partitionBoundaries.length + 1) {
-			final Key[][] boundaries = this.partitionBoundaries;
+			final Key<?>[][] boundaries = this.partitionBoundaries;
 			this.comparator.setReference(record);
 			
 			// bin search the bucket

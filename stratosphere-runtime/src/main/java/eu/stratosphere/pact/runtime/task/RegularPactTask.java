@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,14 +13,6 @@
 
 package eu.stratosphere.pact.runtime.task;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.api.common.accumulators.Accumulator;
 import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
 import eu.stratosphere.api.common.distributions.DataDistribution;
@@ -30,30 +22,23 @@ import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
-import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.nephele.execution.CancelTaskException;
 import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.AbstractRecordWriter;
-import eu.stratosphere.nephele.io.BroadcastRecordWriter;
-import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.MutableReader;
-import eu.stratosphere.nephele.io.MutableRecordReader;
-import eu.stratosphere.nephele.io.MutableUnionRecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.runtime.io.api.ChannelSelector;
+import eu.stratosphere.runtime.io.api.RecordWriter;
+import eu.stratosphere.runtime.io.api.MutableReader;
+import eu.stratosphere.runtime.io.api.MutableRecordReader;
+import eu.stratosphere.runtime.io.api.MutableUnionRecordReader;
+import eu.stratosphere.runtime.io.api.BufferWriter;
 import eu.stratosphere.nephele.services.accumulators.AccumulatorEvent;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
-import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
 import eu.stratosphere.pact.runtime.resettable.SpillingResettableMutableObjectIterator;
 import eu.stratosphere.pact.runtime.shipping.OutputCollector;
 import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
@@ -74,18 +59,22 @@ import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.InstantiationUtil;
 import eu.stratosphere.util.MutableObjectIterator;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * The abstract base class for all tasks. Encapsulated common behavior and implements the main life-cycle
  * of the user code.
  */
-public class RegularPactTask<S extends Function, OT> extends AbstractTask implements PactTaskContext<S, OT> {
-	
+public class RegularPactTask<S extends Function, OT> extends AbstractInvokable implements PactTaskContext<S, OT> {
+
 	protected static final Log LOG = LogFactory.getLog(RegularPactTask.class);
-	
-	private static final boolean USE_BROARDCAST_WRITERS = GlobalConfiguration.getBoolean(
-		ConfigConstants.USE_MULTICAST_FOR_BROADCAST, ConfigConstants.DEFAULT_USE_MULTICAST_FOR_BROADCAST);
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -98,7 +87,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	 * The instantiated user code of this task's main operator (driver). May be null if the operator has no udf.
 	 */
 	protected S stub;
-	
+
 	/**
 	 * The udf's runtime context.
 	 */
@@ -114,13 +103,13 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	 * The output writers for the data that this task forwards to the next task. The latest driver (the central, if no chained
 	 * drivers exist, otherwise the last chained driver) produces its output to these writers.
 	 */
-	protected List<AbstractRecordWriter<?>> eventualOutputs;
-	
+	protected List<BufferWriter> eventualOutputs;
+
 	/**
 	 * The input readers to this task.
 	 */
 	protected MutableReader<?>[] inputReaders;
-	
+
 	/**
 	 * The input readers for the configured broadcast variables for this task.
 	 */
@@ -130,7 +119,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	 * The inputs reader, wrapped in an iterator. Prior to the local strategies, etc...
 	 */
 	protected MutableObjectIterator<?>[] inputIterators;
-	
+
 	/**
 	 * The input readers for the configured broadcast variables, wrapped in an iterator. 
 	 * Prior to the local strategies, etc...
@@ -145,18 +134,18 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	 * The local strategies that are applied on the inputs.
 	 */
 	protected volatile CloseableInputProvider<?>[] localStrategies;
-	
+
 	/**
 	 * The optional temp barriers on the inputs for dead-lock breaking. Are
 	 * optionally resettable.
 	 */
 	protected volatile TempBarrier<?>[] tempBarriers;
-	
+
 	/**
 	 * The resettable inputs in the case where no temp barrier is needed.
 	 */
 	protected volatile SpillingResettableMutableObjectIterator<?>[] resettableInputs;
-	
+
 	/**
 	 * The inputs to the operator. Return the readers' data after the application of the local strategy
 	 * and the temp-table barrier.
@@ -171,7 +160,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	/**
 	 * The serializers for the broadcast input data types.
 	 */
-	protected TypeSerializer<?>[] broadcastInputSerializers;
+	protected TypeSerializerFactory<?>[] broadcastInputSerializers;
 
 	/**
 	 * The comparators for the central driver.
@@ -192,24 +181,24 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	 * A list of chained drivers, if there are any.
 	 */
 	protected ArrayList<ChainedDriver<?, ?>> chainedTasks;
-	
+
 	/**
 	 * Certain inputs may be excluded from resetting. For example, the initial partial solution
 	 * in an iteration head must not be reseted (it is read through the back channel), when all
 	 * others are reseted.
 	 */
 	private boolean[] excludeFromReset;
-	
+
 	/**
 	 * Flag indicating for each input whether it is cached and can be reseted.
 	 */
 	private boolean[] inputIsCached;
-			
+
 	/**
 	 * flag indicating for each input whether it must be asynchronously materialized.
 	 */
 	private boolean[] inputIsAsyncMaterialized;
-	
+
 	/**
 	 * The amount of memory per input that is dedicated to the materialization.
 	 */
@@ -286,16 +275,19 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	 */
 	@Override
 	public void invoke() throws Exception {
-		
+
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Start task code."));
 		}
-		
+
 		// whatever happens in this scope, make sure that the local strategies are cleaned up!
 		// note that the initialization of the local strategies is in the try-finally block as well,
 		// so that the thread that creates them catches its own errors that may happen in that process.
 		// this is especially important, since there may be asynchronous closes (such as through canceling).
 		try {
+			// initialize the serializers (one per channel) of the record writers
+			initOutputWriters(this.eventualOutputs);
+
 			// initialize the remaining data structures on the input and trigger the local processing
 			// the local processing includes building the dams / caches
 			try {
@@ -355,23 +347,23 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 				throw new RuntimeException("Initializing the input processing failed" +
 					e.getMessage() == null ? "." : ": " + e.getMessage(), e);
 			}
-			
+
 			if (!this.running) {
 				if (LOG.isDebugEnabled()) {
 					LOG.debug(formatLogString("Task cancelled before task code was started."));
 				}
 				return;
 			}
-			
+
 			// pre main-function initialization
 			initialize();
-			
+
 			// read the broadcast variables
 			for (int i = 0; i < this.config.getNumBroadcastInputs(); i++) {
 				final String name = this.config.getBroadcastInputName(i);
 				readAndSetBroadcastInput(i, name, this.runtimeUdfContext);
 			}
-	
+
 			// the work goes here
 			run();
 		}
@@ -379,7 +371,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			// clean up in any case!
 			closeLocalStrategiesAndCaches();
 		}
-		
+
 		if (this.running) {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug(formatLogString("Finished task code."));
@@ -390,15 +382,15 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			}
 		}
 	}
-	
+
 	@Override
 	public void cancel() throws Exception {
 		this.running = false;
-		
+
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Cancelling task code"));
 		}
-		
+
 		try {
 			if (this.driver != null) {
 				this.driver.cancel();
@@ -437,7 +429,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		// instantiate the UDF
 		try {
 			final Class<? super S> userCodeFunctionType = this.driver.getStubType();
-			// if the class is null, the driver has no user code 
+			// if the class is null, the driver has no user code
 			if (userCodeFunctionType != null) {
 				this.stub = initStub(userCodeFunctionType);
 			}
@@ -454,7 +446,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		final MutableObjectIterator<X> reader =  (MutableObjectIterator<X>) this.broadcastInputIterators[inputNum];
 		
 		@SuppressWarnings("unchecked")
-		final TypeSerializer<X> serializer =  (TypeSerializer<X>) this.broadcastInputSerializers[inputNum];
+		final TypeSerializer<X> serializer =  (TypeSerializer<X>) this.broadcastInputSerializers[inputNum].getSerializer();
 
 		ArrayList<X> collection = new ArrayList<X>();
 		
@@ -465,7 +457,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		}
 		context.setBroadcastVariable(bcVarName, collection);
 	}
-	
+
 	protected void run() throws Exception {
 		// ---------------------------- Now, the actual processing starts ------------------------
 		// check for asynchronous canceling
@@ -486,7 +478,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 				throw new Exception("The data preparation for task '" + this.getEnvironment().getTaskName() +
 					"' , caused an error: " + t.getMessage(), t);
 			}
-			
+
 			// check for canceling
 			if (!this.running) {
 				return;
@@ -520,7 +512,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 
 			// close all chained tasks letting them report failure
 			RegularPactTask.closeChainedTasks(this.chainedTasks, this);
-			
+
 			// Collect the accumulators of all involved UDFs and send them to the
 			// JobManager. close() has been called earlier for all involved UDFs
 			// (using this.stub.close() and closeChainedTasks()), so UDFs can no longer
@@ -542,8 +534,14 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 
 			RegularPactTask.cancelChainedTasks(this.chainedTasks);
 
-			// drop exception, if the task was canceled
-			if (this.running) {
+			ex = ExceptionInChainedStubException.exceptionUnwrap(ex);
+
+			if (ex instanceof CancelTaskException) {
+				// forward canceling exception
+				throw ex;
+			}
+			else if (this.running) {
+				// throw only if task was not cancelled. in the case of canceling, exceptions are expected 
 				RegularPactTask.logAndThrowException(ex, this);
 			}
 		}
@@ -556,9 +554,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	 * This method is called at the end of a task, receiving the accumulators of
 	 * the task and the chained tasks. It merges them into a single map of
 	 * accumulators and sends them to the JobManager.
-	 * 
-	 * @param stub
-	 *          The task stub which usually holds several accumulators
+	 *
 	 * @param chainedTasks
 	 *          Each chained task might have accumulators which will be merged
 	 *          with the accumulators of the stub.
@@ -569,7 +565,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		// We can merge here the accumulators from the stub and the chained
 		// tasks. Type conflicts can occur here if counters with same name but
 		// different type were used.
-		
+
 		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
 			Map<String, Accumulator<?, ?>> chainedAccumulators = chainedTask.getStub().getRuntimeContext().getAllAccumulators();
 			AccumulatorHelper.mergeInto(accumulators, chainedAccumulators);
@@ -635,8 +631,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		}
 	}
 
-	
-
 	// --------------------------------------------------------------------------------------------
 	//                                 Task Setup and Teardown
 	// --------------------------------------------------------------------------------------------
@@ -668,12 +662,12 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 
 		chainedTasks.get(numChained - 1).setOutputCollector(newOutputCollector);
 	}
-	
+
 	public TaskConfig getLastTasksConfig() {
 		int numChained = this.chainedTasks.size();
 		return (numChained == 0) ? config : chainedTasks.get(numChained - 1).getTaskConfig();
 	}
-	
+
 	protected S initStub(Class<? super S> stubSuperClass) throws Exception {
 		try {
 			S stub = config.<S>getStubWrapper(this.userCodeClassLoader).getUserCodeObject(stubSuperClass, this.userCodeClassLoader);
@@ -690,7 +684,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			throw new Exception("The stub class is not a proper subclass of " + stubSuperClass.getName(), ccex);
 		}
 	}
-	
+
 	/**
 	 * Creates the record readers for the number of inputs as defined by {@link #getNumTaskInputs()}.
 	 *
@@ -700,9 +694,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	protected void initInputReaders() throws Exception {
 		final int numInputs = getNumTaskInputs();
 		final MutableReader<?>[] inputReaders = new MutableReader[numInputs];
-		
+
 		int numGates = 0;
-		
+
 		for (int i = 0; i < numInputs; i++) {
 			//  ---------------- create the input readers ---------------------
 			// in case where a logical input unions multiple physical inputs, create a union reader
@@ -723,13 +717,13 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			}
 		}
 		this.inputReaders = inputReaders;
-		
+
 		// final sanity check
 		if (numGates != this.config.getNumInputs()) {
 			throw new Exception("Illegal configuration: Number of input gates and group sizes are not consistent.");
 		}
 	}
-	
+
 	/**
 	 * Creates the record readers for the extra broadcast inputs as configured by {@link TaskConfig#getNumBroadcastInputs()}.
 	 *
@@ -779,8 +773,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 				final TypeComparatorFactory<?> comparatorFactory = this.config.getDriverComparator(i, this.userCodeClassLoader);
 				this.inputComparators[i] = comparatorFactory.createComparator();
 			}
-			
-			this.inputIterators[i] = createInputIterator(this.inputReaders[i], this.inputSerializers[i].getSerializer());
+
+			this.inputIterators[i] = createInputIterator(this.inputReaders[i], this.inputSerializers[i]);
 		}
 	}
 	
@@ -788,45 +782,45 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	 * Creates all the serializers and iterators for the broadcast inputs.
 	 */
 	protected void initBroadcastInputsSerializers(int numBroadcastInputs) throws Exception {
-		this.broadcastInputSerializers = new TypeSerializer[numBroadcastInputs];
+		this.broadcastInputSerializers = new TypeSerializerFactory[numBroadcastInputs];
 		this.broadcastInputIterators = new MutableObjectIterator[numBroadcastInputs];
 
 		for (int i = 0; i < numBroadcastInputs; i++) {
 			//  ---------------- create the serializer first ---------------------
 			final TypeSerializerFactory<?> serializerFactory = this.config.getBroadcastInputSerializer(i, this.userCodeClassLoader);
-			this.broadcastInputSerializers[i] = serializerFactory.getSerializer();
+			this.broadcastInputSerializers[i] = serializerFactory;
 
 			this.broadcastInputIterators[i] = createInputIterator(this.broadcastInputReaders[i], this.broadcastInputSerializers[i]);
 		}
 	}
-	
+
 	/**
-	 * 
+	 *
 	 * NOTE: This method must be invoked after the invocation of {@code #initInputReaders()} and
 	 * {@code #initInputSerializersAndComparators(int)}!
-	 * 
+	 *
 	 * @param numInputs
 	 */
 	protected void initLocalStrategies(int numInputs) throws Exception {
-		
+
 		final MemoryManager memMan = getMemoryManager();
 		final IOManager ioMan = getIOManager();
-		
+
 		this.localStrategies = new CloseableInputProvider[numInputs];
 		this.inputs = new MutableObjectIterator[numInputs];
 		this.excludeFromReset = new boolean[numInputs];
 		this.inputIsCached = new boolean[numInputs];
 		this.inputIsAsyncMaterialized = new boolean[numInputs];
 		this.materializationMemory = new int[numInputs];
-		
+
 		// set up the local strategies first, such that the can work before any temp barrier is created
 		for (int i = 0; i < numInputs; i++) {
 			initInputLocalStrategy(i);
 		}
-		
+
 		// we do another loop over the inputs, because we want to instantiate all
 		// sorters, etc before requesting the first input (as this call may block)
-		
+
 		// we have two types of materialized inputs, and both are replayable (can act as a cache)
 		// The first variant materializes in a different thread and hence
 		// acts as a pipeline breaker. this one should only be there, if a pipeline breaker is needed.
@@ -834,17 +828,17 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		// in a pipelined fashion.
 		this.resettableInputs = new SpillingResettableMutableObjectIterator[numInputs];
 		this.tempBarriers = new TempBarrier[numInputs];
-		
+
 		for (int i = 0; i < numInputs; i++) {
 			final int memoryPages;
 			final boolean async = this.config.isInputAsynchronouslyMaterialized(i);
 			final boolean cached =  this.config.isInputCached(i);
-			
+
 			this.inputIsAsyncMaterialized[i] = async;
 			this.inputIsCached[i] = cached;
-			
+
 			if (async || cached) {
-				memoryPages = memMan.computeNumberOfPages(this.config.getInputMaterializationMemory(i));
+				memoryPages = memMan.computeNumberOfPages(this.config.getRelativeInputMaterializationMemory(i));
 				if (memoryPages <= 0) {
 					throw new Exception("Input marked as materialized/cached, but no memory for materialization provided.");
 				}
@@ -852,7 +846,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			} else {
 				memoryPages = 0;
 			}
-			
+
 			if (async) {
 				@SuppressWarnings({ "unchecked", "rawtypes" })
 				TempBarrier<?> barrier = new TempBarrier(this, getInput(i), this.inputSerializers[i], memMan, ioMan, memoryPages);
@@ -868,7 +862,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			}
 		}
 	}
-	
+
 	protected void resetAllInputs() throws Exception {
 		// close all local-strategies. they will either get re-initialized, or we have
 		// read them now and their data is cached
@@ -878,10 +872,10 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 				this.localStrategies[i] = null;
 			}
 		}
-		
+
 		final MemoryManager memMan = getMemoryManager();
 		final IOManager ioMan = getIOManager();
-		
+
 		// reset the caches, or re-run the input local strategy
 		for (int i = 0; i < this.inputs.length; i++) {
 			if (this.excludeFromReset[i]) {
@@ -895,7 +889,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			} else {
 				// make sure the input is not available directly, but are lazily fetched again
 				this.inputs[i] = null;
-				
+
 				if (this.inputIsCached[i]) {
 					if (this.tempBarriers[i] != null) {
 						this.inputs[i] = this.tempBarriers[i].getIterator();
@@ -911,10 +905,10 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 					if (this.tempBarriers[i] != null) {
 						this.tempBarriers[i].close();
 					}
-					
+
 					// recreate the local strategy
 					initInputLocalStrategy(i);
-					
+
 					if (this.inputIsAsyncMaterialized[i]) {
 						final int pages = this.materializationMemory[i];
 						@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -927,17 +921,17 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			}
 		}
 	}
-	
+
 	protected void excludeFromReset(int inputNum) {
 		this.excludeFromReset[inputNum] = true;
 	}
-	
+
 	private void initInputLocalStrategy(int inputNum) throws Exception {
 		// check if there is already a strategy
 		if (this.localStrategies[inputNum] != null) {
 			throw new IllegalStateException();
 		}
-		
+
 		// now set up the local strategy
 		final LocalStrategy localStrategy = this.config.getInputLocalStrategy(inputNum);
 		if (localStrategy != null) {
@@ -950,7 +944,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 				@SuppressWarnings({ "rawtypes", "unchecked" })
 				UnilateralSortMerger<?> sorter = new UnilateralSortMerger(getMemoryManager(), getIOManager(),
 					this.inputIterators[inputNum], this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
-					this.config.getMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
+					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
 					this.config.getSpillingThresholdInput(inputNum));
 				// set the input to null such that it will be lazily fetched from the input strategy
 				this.inputs[inputNum] = null;
@@ -963,7 +957,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 				if (inputNum != 0) {
 					throw new IllegalStateException("Performing combining sort outside a (group)reduce task!");
 				}
-				
+
 				// instantiate ourselves a combiner. we should not use the stub, because the sort and the
 				// subsequent (group)reduce would otherwise share it multi-threaded
 				final Class<S> userCodeFunctionType = this.driver.getStubType();
@@ -986,10 +980,10 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
 					(GenericCombine) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum], 
 					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
-					this.config.getMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
+					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
 					this.config.getSpillingThresholdInput(inputNum));
 				cSorter.setUdfConfiguration(this.config.getStubParameters());
-				
+
 				// set the input to null such that it will be lazily fetched from the input strategy
 				this.inputs[inputNum] = null;
 				this.localStrategies[inputNum] = cSorter;
@@ -1002,7 +996,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			this.inputs[inputNum] = this.inputIterators[inputNum];
 		}
 	}
-	
+
 	private <T> TypeComparator<T> getLocalStrategyComparator(int inputNum) throws Exception {
 		TypeComparatorFactory<T> compFact = this.config.getInputComparator(inputNum, this.userCodeClassLoader);
 		if (compFact == null) {
@@ -1011,8 +1005,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		return compFact.createComparator();
 	}
 	
-	protected MutableObjectIterator<?> createInputIterator(MutableReader<?> inputReader, TypeSerializer<?> serializer) {
-		if (serializer.getClass() == RecordSerializer.class) {
+	protected MutableObjectIterator<?> createInputIterator(MutableReader<?> inputReader, TypeSerializerFactory<?> serializerFactory) {
+
+		if (serializerFactory.getDataType().equals(Record.class)) {
 			// record specific deserialization
 			@SuppressWarnings("unchecked")
 			MutableReader<Record> reader = (MutableReader<Record>) inputReader;
@@ -1022,25 +1017,25 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 			@SuppressWarnings("unchecked")
 			MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
 			@SuppressWarnings({ "unchecked", "rawtypes" })
-			final MutableObjectIterator<?> iter = new ReaderIterator(reader, serializer);
+			final MutableObjectIterator<?> iter = new ReaderIterator(reader, serializerFactory.getSerializer());
 			return iter;
 		}
 	}
-	
+
 	protected int getNumTaskInputs() {
 		return this.driver.getNumberOfInputs();
 	}
-	
+
 	/**
 	 * Creates a writer for each output. Creates an OutputCollector which forwards its input to all writers.
 	 * The output collector applies the configured shipping strategies for each writer.
 	 */
 	protected void initOutputs() throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
-		this.eventualOutputs = new ArrayList<AbstractRecordWriter<?>>();
+		this.eventualOutputs = new ArrayList<BufferWriter>();
 		this.output = initOutputs(this, this.userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs);
 	}
-	
+
 	public RuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
 		return new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup(), env.getCopyTask());
@@ -1050,61 +1045,52 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	//                                   Task Context Signature
 	// -------------------------------------------------------------------------------------------
 
-
 	@Override
 	public TaskConfig getTaskConfig() {
 		return this.config;
 	}
-
 
 	@Override
 	public ClassLoader getUserCodeClassLoader() {
 		return this.userCodeClassLoader;
 	}
 
-
 	@Override
 	public MemoryManager getMemoryManager() {
 		return getEnvironment().getMemoryManager();
 	}
-
 
 	@Override
 	public IOManager getIOManager() {
 		return getEnvironment().getIOManager();
 	}
 
-
 	@Override
 	public S getStub() {
 		return this.stub;
 	}
-
 
 	@Override
 	public Collector<OT> getOutputCollector() {
 		return this.output;
 	}
 
-
 	@Override
 	public AbstractInvokable getOwningNepheleTask() {
 		return this;
 	}
-
 
 	@Override
 	public String formatLogString(String message) {
 		return constructLogString(message, getEnvironment().getTaskName(), this);
 	}
 
-
 	@Override
 	public <X> MutableObjectIterator<X> getInput(int index) {
 		if (index < 0 || index > this.driver.getNumberOfInputs()) {
 			throw new IndexOutOfBoundsException();
 		}
-		
+
 		// check for lazy assignment from input strategies
 		if (this.inputs[index] != null) {
 			@SuppressWarnings("unchecked")
@@ -1231,19 +1217,19 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	 *
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
-	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<AbstractRecordWriter<?>> eventualOutputs, int numOutputs)
+	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<BufferWriter> eventualOutputs, int numOutputs)
 	throws Exception
 	{
 		if (numOutputs <= 0) {
 			throw new Exception("BUG: The task must have at least one output");
 		}
-		
+
 		// get the factory for the serializer
 		final TypeSerializerFactory<T> serializerFactory = config.getOutputSerializer(cl);
 
 		// special case the Record
 		if (serializerFactory.getDataType().equals(Record.class)) {
-			final List<AbstractRecordWriter<Record>> writers = new ArrayList<AbstractRecordWriter<Record>>(numOutputs);
+			final List<RecordWriter<Record>> writers = new ArrayList<RecordWriter<Record>>(numOutputs);
 
 			// create a writer for each output
 			for (int i = 0; i < numOutputs; i++) {
@@ -1254,28 +1240,16 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 				if (compFact == null) {
 					oe = new RecordOutputEmitter(strategy);
 				} else {
-					if (compFact instanceof RecordComparatorFactory) {
-						final RecordComparator comparator = ((RecordComparatorFactory) compFact).createComparator();
-						final DataDistribution distribution = config.getOutputDataDistribution(i, cl);
-						oe = new RecordOutputEmitter(strategy, comparator, distribution);
-					} else {
+					@SuppressWarnings("unchecked")
+					TypeComparator<Record> comparator = (TypeComparator<Record>) compFact.createComparator();
+					if (!comparator.supportsCompareAgainstReference()) {
 						throw new Exception("Incompatibe serializer-/comparator factories.");
 					}
+					final DataDistribution distribution = config.getOutputDataDistribution(i, cl);
+					oe = new RecordOutputEmitter(strategy, comparator, distribution);
 				}
 
-				if (strategy == ShipStrategyType.BROADCAST && USE_BROARDCAST_WRITERS) {
-					if (task instanceof AbstractTask) {
-						writers.add(new BroadcastRecordWriter<Record>((AbstractTask) task, Record.class));
-					} else if (task instanceof AbstractInputTask<?>) {
-						writers.add(new BroadcastRecordWriter<Record>((AbstractInputTask<?>) task, Record.class));
-					}
-				} else {
-					if (task instanceof AbstractTask) {
-						writers.add(new RecordWriter<Record>((AbstractTask) task, Record.class, oe));
-					} else if (task instanceof AbstractInputTask<?>) {
-						writers.add(new RecordWriter<Record>((AbstractInputTask<?>) task, Record.class, oe));
-					}
-				}
+				writers.add(new RecordWriter<Record>(task, oe));
 			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);
@@ -1287,9 +1261,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 		}
 		else {
 			// generic case
-			final List<AbstractRecordWriter<SerializationDelegate<T>>> writers = new ArrayList<AbstractRecordWriter<SerializationDelegate<T>>>(numOutputs);
-			@SuppressWarnings("unchecked") // uncritical, simply due to broken generics
-			final Class<SerializationDelegate<T>> delegateClazz = (Class<SerializationDelegate<T>>) (Class<?>) SerializationDelegate.class;
+			final List<RecordWriter<SerializationDelegate<T>>> writers = new ArrayList<RecordWriter<SerializationDelegate<T>>>(numOutputs);
 
 			// create a writer for each output
 			for (int i = 0; i < numOutputs; i++)
@@ -1310,19 +1282,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 					oe = new OutputEmitter<T>(strategy, comparator, dataDist);
 				}
 
-				if (strategy == ShipStrategyType.BROADCAST && USE_BROARDCAST_WRITERS) {
-					if (task instanceof AbstractTask) {
-						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz));
-					} else if (task instanceof AbstractInputTask<?>) {
-						writers.add(new BroadcastRecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, delegateClazz));
-					}
-				} else {
-					if (task instanceof AbstractTask) {
-						writers.add(new RecordWriter<SerializationDelegate<T>>((AbstractTask) task, delegateClazz, oe));
-					} else if (task instanceof AbstractInputTask<?>) {
-						writers.add(new RecordWriter<SerializationDelegate<T>>((AbstractInputTask<?>) task, delegateClazz, oe));
-					}
-				}
+				writers.add(new RecordWriter<SerializationDelegate<T>>(task, oe));
 			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);
@@ -1337,7 +1297,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config,
-					List<ChainedDriver<?, ?>> chainedTasksTarget, List<AbstractRecordWriter<?>> eventualOutputs)
+					List<ChainedDriver<?, ?>> chainedTasksTarget, List<BufferWriter> eventualOutputs)
 	throws Exception
 	{
 		final int numOutputs = config.getNumOutputs();
@@ -1386,6 +1346,12 @@ public class RegularPactTask<S extends Function, OT> extends AbstractTask implem
 
 		// instantiate the output collector the default way from this configuration
 		return getOutputCollector(nepheleTask , config, cl, eventualOutputs, numOutputs);
+	}
+
+	public static void initOutputWriters(List<BufferWriter> writers) {
+		for (BufferWriter writer : writers) {
+			((RecordWriter<?>) writer).initializeSerializers();
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

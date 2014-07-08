@@ -337,6 +337,9 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 	}
 	
 	public final void insert(T record) throws IOException {
+		if(this.closed.get()) {
+			return;
+		}
 		final int hashCode = hash(this.buildSideComparator.hash(record));
 		final int posHashCode = hashCode % this.numBuckets;
 		
@@ -365,12 +368,14 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 				throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
 						" minPartition: " + getMinPartition() +
 						" maxPartition: " + getMaxPartition() +
+						" number of overflow segments: " + getOverflowSegmentCount() +
 						" bucketSize: " + this.buckets.length +
 						" Message: " + ex.getMessage());
 			} catch (IndexOutOfBoundsException ex) {
 				throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
 						" minPartition: " + getMinPartition() +
 						" maxPartition: " + getMaxPartition() +
+						" number of overflow segments: " + getOverflowSegmentCount() +
 						" bucketSize: " + this.buckets.length +
 						" Message: " + ex.getMessage());
 			}
@@ -383,12 +388,14 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 				throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
 						" minPartition: " + getMinPartition() +
 						" maxPartition: " + getMaxPartition() +
+						" number of overflow segments: " + getOverflowSegmentCount() +
 						" bucketSize: " + this.buckets.length +
 						" Message: " + ex.getMessage());
 			} catch (IndexOutOfBoundsException ex) {
 				throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
 						" minPartition: " + getMinPartition() +
 						" maxPartition: " + getMaxPartition() +
+						" number of overflow segments: " + getOverflowSegmentCount() +
 						" bucketSize: " + this.buckets.length +
 						" Message: " + ex.getMessage());
 			}
@@ -420,6 +427,9 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 	 * @throws IOException
 	 */
 	public void insertOrReplaceRecord(T record, T tempHolder) throws IOException {
+		if(this.closed.get()) {
+			return;
+		}
 		final int searchHashCode = hash(this.buildSideComparator.hash(record));
 		final int posHashCode = searchHashCode % this.numBuckets;
 		
@@ -480,12 +490,14 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 							throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
 									" minPartition: " + getMinPartition() +
 									" maxPartition: " + getMaxPartition() +
+									" number of overflow segments: " + getOverflowSegmentCount() +
 									" bucketSize: " + this.buckets.length +
 									" Message: " + ex.getMessage());
 						} catch (IndexOutOfBoundsException ex) {
 							throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
 									" minPartition: " + getMinPartition() +
 									" maxPartition: " + getMaxPartition() +
+									" number of overflow segments: " + getOverflowSegmentCount() +
 									" bucketSize: " + this.buckets.length +
 									" Message: " + ex.getMessage());
 						}
@@ -502,12 +514,14 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 							throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
 									" minPartition: " + getMinPartition() +
 									" maxPartition: " + getMaxPartition() +
+									" number of overflow segments: " + getOverflowSegmentCount() +
 									" bucketSize: " + this.buckets.length +
 									" Message: " + ex.getMessage());
 						} catch (IndexOutOfBoundsException ex) {
 							throw new RuntimeException("Memory ran out. Compaction failed. numPartitions: " + this.partitions.size() + 
 									" minPartition: " + getMinPartition() +
 									" maxPartition: " + getMaxPartition() +
+									" number of overflow segments: " + getOverflowSegmentCount() +
 									" bucketSize: " + this.buckets.length +
 									" Message: " + ex.getMessage());
 						}
@@ -766,8 +780,8 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 			throw new RuntimeException("Memory ran out. numPartitions: " + this.partitions.size() + 
 													" minPartition: " + getMinPartition() +
 													" maxPartition: " + getMaxPartition() + 
+													" number of overflow segments: " + getOverflowSegmentCount() +
 													" bucketSize: " + this.buckets.length);
-			//throw new RuntimeException("The hash table ran out of memory.");
 		}
 	}
 
@@ -807,6 +821,14 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 			}
 		}
 		return minPartition;
+	}
+	
+	private int getOverflowSegmentCount() {
+		int result = 0;
+		for(InMemoryPartition<T> p : this.partitions) {
+			result += p.numOverflowSegments;
+		}
+		return result;
 	}
 	
 	private static final int getInitialTableSize(int numBuffers, int bufferSize, int numPartitions, int recordLenBytes) {
@@ -853,8 +875,8 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 	 * @throws IOException 
 	 */
 	private void compactPartition(int partitionNumber) throws IOException {
-		// stop if no garbage exists
-		if(this.partitions.get(partitionNumber).isCompacted()) {
+		// stop if no garbage exists or table is closed
+		if(this.partitions.get(partitionNumber).isCompacted() || this.closed.get()) {
 			return;
 		}
 		// release all segments owned by compaction partition
@@ -998,7 +1020,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 
 		@Override
 		public T next(T reuse) throws IOException {
-			if(done) {
+			if(done || this.table.closed.get()) {
 				return null;
 			} else if(!cache.isEmpty()) {
 				reuse = cache.remove(cache.size()-1);
@@ -1084,6 +1106,9 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 		}
 		
 		public boolean getMatchFor(PT probeSideRecord, T targetForMatch) {
+			if(closed.get()) {
+				return false;
+			}
 			final int searchHashCode = hash(this.probeTypeComparator.hash(probeSideRecord));
 			
 			final int posHashCode = searchHashCode % numBuckets;
@@ -1154,6 +1179,9 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 		}
 		
 		public void updateMatch(T record) throws IOException {
+			if(closed.get()) {
+				return;
+			}
 			long newPointer = this.partition.appendRecord(record);
 			this.bucket.putLong(this.pointerOffsetInBucket, newPointer);
 			this.partition.setCompaction(false); //FIXME Do we really create garbage here?

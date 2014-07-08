@@ -14,12 +14,14 @@
 package eu.stratosphere.compiler.dag;
 
 import java.util.Collections;
+import java.util.List;
 
-import eu.stratosphere.api.common.operators.BulkIteration.PartialSolutionPlaceHolder;
+import eu.stratosphere.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.compiler.plan.BulkPartialSolutionPlanNode;
+import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.PlanNode;
 
 /**
@@ -30,18 +32,18 @@ public class BulkPartialSolutionNode extends AbstractPartialSolutionNode {
 	private final BulkIterationNode iterationNode;
 	
 	
-	public BulkPartialSolutionNode(PartialSolutionPlaceHolder psph, BulkIterationNode iterationNode) {
+	public BulkPartialSolutionNode(PartialSolutionPlaceHolder<?> psph, BulkIterationNode iterationNode) {
 		super(psph);
 		this.iterationNode = iterationNode;
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
-	public void setCandidateProperties(GlobalProperties gProps, LocalProperties lProps) {
+	public void setCandidateProperties(GlobalProperties gProps, LocalProperties lProps, Channel initialInput) {
 		if (this.cachedPlans != null) {
 			throw new IllegalStateException();
 		} else {
-			this.cachedPlans = Collections.<PlanNode>singletonList(new BulkPartialSolutionPlanNode(this, "BulkPartialSolution("+this.getPactContract().getName()+")", gProps, lProps));
+			this.cachedPlans = Collections.<PlanNode>singletonList(new BulkPartialSolutionPlanNode(this, "PartialSolution ("+this.getPactContract().getName()+")", gProps, lProps, initialInput));
 		}
 	}
 	
@@ -70,12 +72,25 @@ public class BulkPartialSolutionNode extends AbstractPartialSolutionNode {
 	 * @return The contract.
 	 */
 	@Override
-	public PartialSolutionPlaceHolder getPactContract() {
-		return (PartialSolutionPlaceHolder) super.getPactContract();
+	public PartialSolutionPlaceHolder<?> getPactContract() {
+		return (PartialSolutionPlaceHolder<?>) super.getPactContract();
 	}
 
 	@Override
 	public String getName() {
 		return "Bulk Partial Solution";
+	}
+
+	@Override
+	public void computeUnclosedBranchStack() {
+		if (this.openBranches != null) {
+			return;
+		}
+
+		OptimizerNode inputToIteration = this.iterationNode.getPredecessorNode();
+		
+		addClosedBranches(inputToIteration.closedBranchingNodes);
+		List<UnclosedBranchDescriptor> fromInput = inputToIteration.getBranchesForParent(this.iterationNode.getIncomingConnection());
+		this.openBranches = (fromInput == null || fromInput.isEmpty()) ? Collections.<UnclosedBranchDescriptor>emptyList() : fromInput;
 	}
 }

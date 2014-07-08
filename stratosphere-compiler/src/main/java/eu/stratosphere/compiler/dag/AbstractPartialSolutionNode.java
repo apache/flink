@@ -28,7 +28,7 @@ import eu.stratosphere.util.Visitor;
  */
 public abstract class AbstractPartialSolutionNode extends OptimizerNode {
 	
-	protected AbstractPartialSolutionNode(Operator contract) {
+	protected AbstractPartialSolutionNode(Operator<?> contract) {
 		super(contract);
 	}
 
@@ -42,11 +42,6 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode {
 	public abstract IterationNode getIterationNode();
 	
 	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public boolean isMemoryConsumer() {
-		return false;
-	}
 	
 	public boolean isOnDynamicPath() {
 		return true;
@@ -63,7 +58,7 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode {
 	}
 
 	@Override
-	public void setInput(Map<Operator, OptimizerNode> contractToNode) {}
+	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode) {}
 
 	@Override
 	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
@@ -73,11 +68,6 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode {
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		// no children, so nothing to compute
-	}
-
-	@Override
-	public void computeUnclosedBranchStack() {
-		// because there are no inputs, there are no unclosed branches.
 	}
 
 	@Override

@@ -24,7 +24,7 @@ import java.util.Map;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.execution.ExecutionState;
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.nephele.util.EnumUtils;
 import eu.stratosphere.util.StringUtils;
 

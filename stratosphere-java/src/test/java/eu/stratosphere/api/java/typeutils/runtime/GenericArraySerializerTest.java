@@ -25,11 +25,11 @@ import org.junit.Test;
 import eu.stratosphere.api.common.typeutils.SerializerTestInstance;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.base.StringSerializer;
-import eu.stratosphere.api.java.typeutils.runtime.GenericSerializerTest.Book;
-import eu.stratosphere.api.java.typeutils.runtime.GenericSerializerTest.BookAuthor;
-import eu.stratosphere.api.java.typeutils.runtime.GenericSerializerTest.ComplexNestedObject1;
-import eu.stratosphere.api.java.typeutils.runtime.GenericSerializerTest.ComplexNestedObject2;
-import eu.stratosphere.api.java.typeutils.runtime.GenericSerializerTest.SimpleTypes;
+import eu.stratosphere.api.java.typeutils.runtime.GenericTypeSerializerTest.Book;
+import eu.stratosphere.api.java.typeutils.runtime.GenericTypeSerializerTest.BookAuthor;
+import eu.stratosphere.api.java.typeutils.runtime.GenericTypeSerializerTest.ComplexNestedObject1;
+import eu.stratosphere.api.java.typeutils.runtime.GenericTypeSerializerTest.ComplexNestedObject2;
+import eu.stratosphere.api.java.typeutils.runtime.GenericTypeSerializerTest.SimpleTypes;
 import eu.stratosphere.util.StringUtils;
 
 public class GenericArraySerializerTest {

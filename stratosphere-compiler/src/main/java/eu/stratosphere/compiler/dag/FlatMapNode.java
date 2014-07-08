@@ -27,13 +27,13 @@ import eu.stratosphere.compiler.operators.OperatorDescriptorSingle;
 public class FlatMapNode extends SingleInputNode {
 	
 
-	public FlatMapNode(FlatMapOperatorBase<?> operator) {
+	public FlatMapNode(FlatMapOperatorBase<?, ?, ?> operator) {
 		super(operator);
 	}
 
 	@Override
-	public FlatMapOperatorBase<?> getPactContract() {
-		return (FlatMapOperatorBase<?>) super.getPactContract();
+	public FlatMapOperatorBase<?, ?, ?> getPactContract() {
+		return (FlatMapOperatorBase<?, ?, ?>) super.getPactContract();
 	}
 
 	@Override

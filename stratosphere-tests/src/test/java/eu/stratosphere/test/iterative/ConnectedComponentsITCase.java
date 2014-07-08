@@ -16,7 +16,7 @@ package eu.stratosphere.test.iterative;
 import java.io.BufferedReader;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponents;
+import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents;
 import eu.stratosphere.test.testdata.ConnectedComponentsData;
 import eu.stratosphere.test.util.RecordAPITestBase;
 
@@ -33,6 +33,10 @@ public class ConnectedComponentsITCase extends RecordAPITestBase {
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
+
+	public ConnectedComponentsITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
 	
 	
 	@Override
@@ -45,7 +49,7 @@ public class ConnectedComponentsITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		WorksetConnectedComponents cc = new WorksetConnectedComponents();
-		return cc.getPlan("4",  verticesPath, edgesPath, resultPath, "100");
+		return cc.getPlan(new Integer(DOP).toString(),  verticesPath, edgesPath, resultPath, "100");
 	}
 
 	@Override

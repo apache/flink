@@ -32,10 +32,10 @@ import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
-import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordPairComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
+import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordPairComparator;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.TestData;
@@ -47,10 +47,9 @@ import eu.stratosphere.types.Value;
 import eu.stratosphere.util.Collector;
 import eu.stratosphere.util.MutableObjectIterator;
 
-/**
- */
-public class SortMergeMatchIteratorITCase
-{
+
+public class SortMergeMatchIteratorITCase {
+	
 	// total memory
 	private static final int MEMORY_SIZE = 1024 * 1024 * 16;
 	private static final int PAGES_FOR_BNLJN = 2;
@@ -66,7 +65,7 @@ public class SortMergeMatchIteratorITCase
 	private static final long SEED2 = 231434613412342L;
 	
 	// dummy abstract task
-	private final AbstractTask parentTask = new DummyInvokable();
+	private final AbstractInvokable parentTask = new DummyInvokable();
 
 	private IOManager ioManager;
 	private MemoryManager memoryManager;
@@ -88,7 +87,7 @@ public class SortMergeMatchIteratorITCase
 		this.comparator2 = new RecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
 		this.pairComparator = new RecordPairComparator(new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class});
 		
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE);
+		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
 		this.ioManager = new IOManager();
 	}
 

@@ -128,7 +128,7 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 
 	@Override
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
-		boolean[] inputOrders = in1.getLocalProperties().getOrdering().getFieldSortDirections();
+		boolean[] inputOrders = in1.getLocalProperties().getOrdering() == null ? null : in1.getLocalProperties().getOrdering().getFieldSortDirections();
 		
 		if (inputOrders == null || inputOrders.length < this.keys1.size()) {
 			throw new CompilerException("BUG: The input strategy does not sufficiently describe the sort orders for a CoGroup operator.");
@@ -138,7 +138,7 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 			inputOrders = tmp;
 		}
 		
-		return new DualInputPlanNode(node, "CoGroup("+node.getPactContract().getName()+")", in1, in2, DriverStrategy.CO_GROUP, this.keys1, this.keys2, inputOrders);
+		return new DualInputPlanNode(node, "CoGroup ("+node.getPactContract().getName()+")", in1, in2, DriverStrategy.CO_GROUP, this.keys1, this.keys2, inputOrders);
 	}
 	
 	@Override
@@ -156,7 +156,6 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
 		LocalProperties comb = LocalProperties.combine(in1, in2);
-		comb.clearUniqueFieldSets();
-		return comb;
+		return comb.clearUniqueFieldSets();
 	}
 }

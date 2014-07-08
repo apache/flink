@@ -49,5 +49,5 @@ CC_CLASSPATH=`manglePathList $(constructCLIClientClassPath)`
 export STRATOSPHERE_CONF_DIR
 # $log_setting
 
-$JAVA_RUN $JVM_ARGS  -classpath $CC_CLASSPATH eu.stratosphere.yarn.Client -ship ship/ -confDir $STRATOSPHERE_CONF_DIR -j $STRATOSPHERE_LIB_DIR/*yarn-uberjar.jar $*
+$JAVA_RUN $JVM_ARGS  -classpath $CC_CLASSPATH eu.stratosphere.yarn.Client -ship $bin/../ship/ -confDir $STRATOSPHERE_CONF_DIR -j $STRATOSPHERE_LIB_DIR/*yarn-uberjar.jar $*
 

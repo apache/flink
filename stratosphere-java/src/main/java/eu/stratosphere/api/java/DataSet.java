@@ -19,6 +19,7 @@ import org.apache.commons.lang3.Validate;
 import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.java.aggregation.Aggregations;
+import eu.stratosphere.api.java.functions.CoGroupFunction;
 import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
@@ -32,22 +33,30 @@ import eu.stratosphere.api.java.operators.AggregateOperator;
 import eu.stratosphere.api.java.operators.CoGroupOperator;
 import eu.stratosphere.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
 import eu.stratosphere.api.java.operators.CrossOperator;
+import eu.stratosphere.api.java.operators.CrossOperator.DefaultCross;
 import eu.stratosphere.api.java.operators.CustomUnaryOperation;
 import eu.stratosphere.api.java.operators.DataSink;
+import eu.stratosphere.api.java.operators.DistinctOperator;
 import eu.stratosphere.api.java.operators.FilterOperator;
 import eu.stratosphere.api.java.operators.FlatMapOperator;
 import eu.stratosphere.api.java.operators.Grouping;
+import eu.stratosphere.api.java.operators.JoinOperator;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinHint;
 import eu.stratosphere.api.java.operators.JoinOperator.JoinOperatorSets;
 import eu.stratosphere.api.java.operators.Keys;
 import eu.stratosphere.api.java.operators.MapOperator;
+import eu.stratosphere.api.java.operators.ProjectOperator;
 import eu.stratosphere.api.java.operators.ProjectOperator.Projection;
 import eu.stratosphere.api.java.operators.ReduceGroupOperator;
 import eu.stratosphere.api.java.operators.ReduceOperator;
+import eu.stratosphere.api.java.operators.SortedGrouping;
 import eu.stratosphere.api.java.operators.UnionOperator;
+import eu.stratosphere.api.java.operators.UnsortedGrouping;
+import eu.stratosphere.api.java.record.functions.CrossFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.InputTypeConfigurable;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.core.fs.FileSystem.WriteMode;
 import eu.stratosphere.core.fs.Path;
 
@@ -122,6 +131,9 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> MapOperator<T, R> map(MapFunction<T, R> mapper) {
+		if (mapper == null) {
+			throw new NullPointerException("Map function must not be null.");
+		}
 		return new MapOperator<T, R>(this, mapper);
 	}
 	
@@ -138,6 +150,9 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> FlatMapOperator<T, R> flatMap(FlatMapFunction<T, R> flatMapper) {
+		if (flatMapper == null) {
+			throw new NullPointerException("FlatMap function must not be null.");
+		}
 		return new FlatMapOperator<T, R>(this, flatMapper);
 	}
 	
@@ -155,6 +170,9 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public FilterOperator<T> filter(FilterFunction<T> filter) {
+		if (filter == null) {
+			throw new NullPointerException("Filter function must not be null.");
+		}
 		return new FilterOperator<T>(this, filter);
 	}
 	
@@ -206,6 +224,39 @@ public abstract class DataSet<T> {
 	public AggregateOperator<T> aggregate(Aggregations agg, int field) {
 		return new AggregateOperator<T>(this, agg, field);
 	}
+
+	/**
+	 * Syntactic sugar for aggregate (SUM, field)
+	 * @param field The index of the Tuple field on which the aggregation function is applied.
+	 * @return An AggregateOperator that represents the summed DataSet.
+	 *
+	 * @see eu.stratosphere.api.java.operators.AggregateOperator
+	 */
+	public AggregateOperator<T> sum (int field) {
+		return this.aggregate (Aggregations.SUM, field);
+	}
+
+	/**
+	 * Syntactic sugar for aggregate (MAX, field)
+	 * @param field The index of the Tuple field on which the aggregation function is applied.
+	 * @return An AggregateOperator that represents the max'ed DataSet.
+	 *
+	 * @see eu.stratosphere.api.java.operators.AggregateOperator
+	 */
+	public AggregateOperator<T> max (int field) {
+		return this.aggregate (Aggregations.MAX, field);
+	}
+
+	/**
+	 * Syntactic sugar for aggregate (MIN, field)
+	 * @param field The index of the Tuple field on which the aggregation function is applied.
+	 * @return An AggregateOperator that represents the min'ed DataSet.
+	 *
+	 * @see eu.stratosphere.api.java.operators.AggregateOperator
+	 */
+	public AggregateOperator<T> min (int field) {
+		return this.aggregate (Aggregations.MIN, field);
+	}
 	
 	/**
 	 * Applies a Reduce transformation on a non-grouped {@link DataSet}.<br/>
@@ -221,6 +272,9 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public ReduceOperator<T> reduce(ReduceFunction<T> reducer) {
+		if (reducer == null) {
+			throw new NullPointerException("Reduce function must not be null.");
+		}
 		return new ReduceOperator<T>(this, reducer);
 	}
 	
@@ -238,6 +292,9 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> ReduceGroupOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
+		if (reducer == null) {
+			throw new NullPointerException("GroupReduce function must not be null.");
+		}
 		return new ReduceGroupOperator<T, R>(this, reducer);
 	}
 	
@@ -245,17 +302,45 @@ public abstract class DataSet<T> {
 	//  distinct
 	// --------------------------------------------------------------------------------------------
 	
-//	public <K extends Comparable<K>> DistinctOperator<T> distinct(KeySelector<T, K> keyExtractor) {
-//		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
-//	}
+	/**
+	 * Returns a distinct set of a {@link DataSet} using a {@link KeySelector} function.
+	 * <p/>
+	 * The KeySelector function is called for each element of the DataSet and extracts a single key value on which the
+	 * decision is made if two items are distinct or not.
+	 *  
+	 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet on which the
+	 *                     distinction of the DataSet is decided.
+	 * @return A DistinctOperator that represents the distinct DataSet.
+	 */
+	public <K extends Comparable<K>> DistinctOperator<T> distinct(KeySelector<T, K> keyExtractor) {
+		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
+	}
 	
-//	public DistinctOperator<T> distinct(String fieldExpression) {
-//		return new DistinctOperator<T>(this, new Keys.ExpressionKeys<T>(fieldExpression, getType()));
-//	}
+	/**
+	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using field position keys.
+	 * <p/>
+	 * The field position keys specify the fields of Tuples on which the decision is made if two Tuples are distinct or
+	 * not.
+	 * <p/>
+	 * Note: Field position keys can only be specified for Tuple DataSets.
+	 *
+	 * @param fields One or more field positions on which the distinction of the DataSet is decided. 
+	 * @return A DistinctOperator that represents the distinct DataSet.
+	 */
+	public DistinctOperator<T> distinct(int... fields) {
+		return new DistinctOperator<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), true));
+	}
 	
-//	public DistinctOperator<T> distinct(int... fields) {
-//		return new DistinctOperator<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), true));
-//	}
+	/**
+	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using all fields of the tuple.
+	 * <p/>
+	 * Note: This operator can only be applied to Tuple DataSets.
+	 * 
+	 * @return A DistinctOperator that represents the distinct DataSet.
+	 */
+	public DistinctOperator<T> distinct() {
+		return new DistinctOperator<T>(this, null);
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	//  Grouping
@@ -265,42 +350,42 @@ public abstract class DataSet<T> {
 	 * Groups a {@link DataSet} using a {@link KeySelector} function. 
 	 * The KeySelector function is called for each element of the DataSet and extracts a single 
 	 *   key value on which the DataSet is grouped. </br>
-	 * This method returns a {@link Grouping} on which one of the following grouping transformation 
-	 *   needs to be applied to obtain a transformed DataSet. 
+	 * This method returns an {@link UnsortedGrouping} on which one of the following grouping transformation 
+	 *   can be applied. 
 	 * <ul>
-	 *   <li>{@link Grouping#aggregate(Aggregations, int)}
-	 *   <li>{@link Grouping#reduce(ReduceFunction)}
-	 *   <li>{@link Grouping#reduceGroup(GroupReduceFunction)}
+	 *   <li>{@link UnsortedGrouping#sortGroup(int, eu.stratosphere.api.common.operators.Order)} to get a {@link SortedGrouping}. 
+	 *   <li>{@link Grouping#aggregate(Aggregations, int)} to apply an Aggregate transformation.
+	 *   <li>{@link Grouping#reduce(ReduceFunction)} to apply a Reduce transformation.
+	 *   <li>{@link Grouping#reduceGroup(GroupReduceFunction)} to apply a GroupReduce transformation.
 	 * </ul>
 	 *  
 	 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet on which it is grouped. 
-	 * @return A Grouping on which a transformation needs to be applied to obtain a transformed DataSet.
+	 * @return An UnsortedGrouping on which a transformation needs to be applied to obtain a transformed DataSet.
 	 * 
 	 * @see KeySelector
 	 * @see Grouping
+	 * @see UnsortedGrouping
+	 * @see SortedGrouping
 	 * @see AggregateOperator
 	 * @see ReduceOperator
 	 * @see GroupReduceOperator
 	 * @see DataSet
 	 */
-	public <K extends Comparable<K>> Grouping<T> groupBy(KeySelector<T, K> keyExtractor) {
-		return new Grouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
+	public <K extends Comparable<K>> UnsortedGrouping<T> groupBy(KeySelector<T, K> keyExtractor) {
+		return new UnsortedGrouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
 	}
-	
-//	public Grouping<T> groupBy(String fieldExpression) {
-//		return new Grouping<T>(this, new Keys.ExpressionKeys<T>(fieldExpression, getType()));
-//	}
 	
 	/**
 	 * Groups a {@link Tuple} {@link DataSet} using field position keys.<br/> 
 	 * <b>Note: Field position keys only be specified for Tuple DataSets.</b></br>
 	 * The field position keys specify the fields of Tuples on which the DataSet is grouped.
-	 * This method returns a {@link Grouping} on which one of the following grouping transformation 
-	 *   needs to be applied to obtain a transformed DataSet. 
+	 * This method returns an {@link UnsortedGrouping} on which one of the following grouping transformation 
+	 *   can be applied. 
 	 * <ul>
-	 *   <li>{@link Grouping#aggregate(Aggregations, int)}
-	 *   <li>{@link Grouping#reduce(ReduceFunction)}
-	 *   <li>{@link Grouping#reduceGroup(GroupReduceFunction)}
+	 *   <li>{@link UnsortedGrouping#sortGroup(int, eu.stratosphere.api.common.operators.Order)} to get a {@link SortedGrouping}. 
+	 *   <li>{@link Grouping#aggregate(Aggregations, int)} to apply an Aggregate transformation.
+	 *   <li>{@link Grouping#reduce(ReduceFunction)} to apply a Reduce transformation.
+	 *   <li>{@link Grouping#reduceGroup(GroupReduceFunction)} to apply a GroupReduce transformation.
 	 * </ul> 
 	 * 
 	 * @param fields One or more field positions on which the DataSet will be grouped. 
@@ -308,13 +393,15 @@ public abstract class DataSet<T> {
 	 * 
 	 * @see Tuple
 	 * @see Grouping
+	 * @see UnsortedGrouping
+	 * @see SortedGrouping
 	 * @see AggregateOperator
 	 * @see ReduceOperator
 	 * @see GroupReduceOperator
 	 * @see DataSet
 	 */
-	public Grouping<T> groupBy(int... fields) {
-		return new Grouping<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), false));
+	public UnsortedGrouping<T> groupBy(int... fields) {
+		return new UnsortedGrouping<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), false));
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -419,22 +506,40 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 
 	/**
+	 * Continues a Join transformation and defines the {@link Tuple} fields of the second join 
+	 * {@link DataSet} that should be used as join keys.<br/>
+	 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br/>
+	 * 
+	 * The resulting {@link DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with 
+	 * the element of the first input being the first field of the tuple and the element of the 
+	 * second input being the second field of the tuple. 
+	 * 
+	 * @param fields The indexes of the Tuple fields of the second join DataSet that should be used as keys.
+	 * @return A DefaultJoin that represents the joined DataSet.
+	 */
+	
+	/**
 	 * Initiates a Cross transformation.<br/>
 	 * A Cross transformation combines the elements of two 
 	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
-	 *   both DataSets, i.e., it builds a Cartesian product, and calls a {@link CrossFunction} for
-	 *   each pair of elements.</br>
-	 * The CrossFunction returns a exactly one element for each pair of input elements.</br>
-	 * This method returns a {@link CrossOperatorSets} on which 
-	 *   {@link CrossOperatorSets#with()} needs to be called to define the CrossFunction that 
-	 *   is applied.
+	 *   both DataSets, i.e., it builds a Cartesian product.
+	 * 
+	 * <p>
+	 * The resulting {@link DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
+	 * the element of the first input being the first field of the tuple and the element of the 
+	 * second input being the second field of the tuple.
+	 * 
+	 * <p>
+	 * Call {@link DefaultCross.with(CrossFunction)} to define a {@link CrossFunction} which is called for
+	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
-	 * @return A CrossOperatorSets to continue the definition of the Cross transformation.
+	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
 	 * 
+	 * @see DefaultCross
 	 * @see CrossFunction
-	 * @see CrossOperatorSets
 	 * @see DataSet
+	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> cross(DataSet<R> other) {
 		return new CrossOperator.DefaultCross<T, R>(this, other);
@@ -444,21 +549,26 @@ public abstract class DataSet<T> {
 	 * Initiates a Cross transformation.<br/>
 	 * A Cross transformation combines the elements of two 
 	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
-	 *   both DataSets, i.e., it builds a Cartesian product, and calls a {@link CrossFunction} for
-	 *   each pair of elements.</br>
-	 * The CrossFunction returns a exactly one element for each pair of input elements.</br>
+	 *   both DataSets, i.e., it builds a Cartesian product.
 	 * This method also gives the hint to the optimizer that the second DataSet to cross is much
-	 *   smaller than the first one.</br>
-	 * This method returns a {@link CrossOperatorSets CrossOperatorSet} on which 
-	 *   {@link CrossOperatorSets#with()} needs to be called to define the CrossFunction that 
-	 *   is applied.
+	 *   smaller than the first one.
+	 *   
+	 * <p>
+	 * The resulting {@link DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
+	 * the element of the first input being the first field of the tuple and the element of the 
+	 * second input being the second field of the tuple.
+	 *   
+	 * <p>
+	 * Call {@link DefaultCross.with(CrossFunction)} to define a {@link CrossFunction} which is called for
+	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
-	 * @return A CrossOperatorSets to continue the definition of the Cross transformation.
+	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
 	 * 
+	 * @see DefaultCross
 	 * @see CrossFunction
-	 * @see CrossOperatorSets
 	 * @see DataSet
+	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> crossWithTiny(DataSet<R> other) {
 		return new CrossOperator.DefaultCross<T, R>(this, other);
@@ -468,21 +578,26 @@ public abstract class DataSet<T> {
 	 * Initiates a Cross transformation.<br/>
 	 * A Cross transformation combines the elements of two 
 	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
-	 *   both DataSets, i.e., it builds a Cartesian product, and calls a {@link CrossFunction} for
-	 *   each pair of elements.</br>
-	 * The CrossFunction returns a exactly one element for each pair of input elements.</br>
+	 *   both DataSets, i.e., it builds a Cartesian product.
 	 * This method also gives the hint to the optimizer that the second DataSet to cross is much
-	 *   larger than the first one.</br>
-	 * This method returns a {@link CrossOperatorSets CrossOperatorSet} on which 
-	 *   {@link CrossOperatorSets#with()} needs to be called to define the CrossFunction that 
-	 *   is applied.
+	 *   larger than the first one.
+	 *   
+	 * <p>
+	 * The resulting {@link DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
+	 * the element of the first input being the first field of the tuple and the element of the 
+	 * second input being the second field of the tuple.
+	 *   
+	 * <p>
+	 * Call {@link DefaultCross.with(CrossFunction)} to define a {@link CrossFunction} which is called for
+	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
-	 * @return A CrossOperatorSets to continue the definition of the Cross transformation.
+	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
 	 * 
+	 * @see DefaultCross
 	 * @see CrossFunction
-	 * @see CrossOperatorSets
 	 * @see DataSet
+	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> crossWithHuge(DataSet<R> other) {
 		return new CrossOperator.DefaultCross<T, R>(this, other);
@@ -582,10 +697,17 @@ public abstract class DataSet<T> {
 	// -------------------------------------------------------------------------------------------
 	
 
+	/**
+	 * Runs a {@link CustomUnaryOperation} on the data set. Custom operations are typically complex
+	 * operators that are composed of multiple steps.
+	 * 
+	 * @param operation The operation to run.
+	 * @return The data set produced by the operation.
+	 */
 	public <X> DataSet<X> runOperation(CustomUnaryOperation<T, X> operation) {
 		Validate.notNull(operation, "The custom operator must not be null.");
 		operation.setInput(this);
-		return operation.createOperator();
+		return operation.createResult();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -624,6 +746,22 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
+	 * Writes a DataSet as a text file to the specified location.<br/>
+	 * For each element of the DataSet the result of {@link Object#toString()} is written.  
+	 * 
+	 * @param filePath The path pointing to the location the text file is written to.
+	 * @param writeMode Control the behavior for existing files. Options are NO_OVERWRITE and OVERWRITE.
+	 * @return The DataSink that writes the DataSet.
+	 * 
+	 * @see TextOutputFormat
+	 */
+	public DataSink<T> writeAsText(String filePath, WriteMode writeMode) {
+		TextOutputFormat<T> tof = new TextOutputFormat<T>(new Path(filePath));
+		tof.setWriteMode(writeMode);
+		return output(tof);
+	}
+	
+	/**
 	 * Writes a {@link Tuple} DataSet as a CSV file to the specified location.<br/>
 	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br/>
 	 * For each Tuple field the result of {@link Object#toString()} is written.
@@ -653,13 +791,34 @@ public abstract class DataSet<T> {
 	 * @see CsvOutputFormat
 	 */
 	public DataSink<T> writeAsCsv(String filePath, String rowDelimiter, String fieldDelimiter) {
-		Validate.isTrue(this.type.isTupleType(), "The writeAsCsv() method can only be used on data sets of tuples.");
-		return internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter);
+		return internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter, null);
 	}
 
+	/**
+	 * Writes a {@link Tuple} DataSet as a CSV file to the specified location with the specified field and line delimiters.<br/>
+	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br/>
+	 * For each Tuple field the result of {@link Object#toString()} is written.
+	 * 
+	 * @param filePath The path pointing to the location the CSV file is written to.
+	 * @param rowDelimiter The row delimiter to separate Tuples.
+	 * @param fieldDelimiter The field delimiter to separate Tuple fields.
+	 * @param writeMode Control the behavior for existing files. Options are NO_OVERWRITE and OVERWRITE.
+	 * 
+	 * @see Tuple
+	 * @see CsvOutputFormat
+	 */
+	public DataSink<T> writeAsCsv(String filePath, String rowDelimiter, String fieldDelimiter, WriteMode writeMode) {
+		return internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter, writeMode);
+	}
+	
 	@SuppressWarnings("unchecked")
-	private <X extends Tuple> DataSink<T> internalWriteAsCsv(Path filePath, String rowDelimiter, String fieldDelimiter) {
-		return output((OutputFormat<T>) new CsvOutputFormat<X>(filePath, rowDelimiter, fieldDelimiter));
+	private <X extends Tuple> DataSink<T> internalWriteAsCsv(Path filePath, String rowDelimiter, String fieldDelimiter, WriteMode wm) {
+		Validate.isTrue(this.type.isTupleType(), "The writeAsCsv() method can only be used on data sets of tuples.");
+		CsvOutputFormat<X> of = new CsvOutputFormat<X>(filePath, rowDelimiter, fieldDelimiter);
+		if(wm != null) {
+			of.setWriteMode(wm);
+		}
+		return output((OutputFormat<T>) of);
 	}
 	
 	/**
@@ -684,6 +843,7 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Writes a DataSet using a {@link FileOutputFormat} to a specified location.
+	 * This method adds a data sink to the program.
 	 * 
 	 * @param outputFormat The FileOutputFormat to write the DataSet.
 	 * @param filePath The path to the location where the DataSet is written.
@@ -701,6 +861,7 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Writes a DataSet using a {@link FileOutputFormat} to a specified location.
+	 * This method adds a data sink to the program.
 	 * 
 	 * @param outputFormat The FileOutputFormat to write the DataSet.
 	 * @param filePath The path to the location where the DataSet is written.
@@ -720,10 +881,12 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Writes a DataSet using an {@link OutputFormat}.
+	 * Emits a DataSet using an {@link OutputFormat}. This method adds a data sink to the program.
+	 * Programs may have multiple data sinks. A DataSet may also have multiple consumers (data sinks
+	 * or transformations) at the same time.
 	 * 
-	 * @param outputFormat The OutputFormat to write the DataSet.
-	 * @return The DataSink that writes the DataSet.
+	 * @param outputFormat The OutputFormat to process the DataSet.
+	 * @return The DataSink that processes the DataSet.
 	 * 
 	 * @see OutputFormat
 	 * @see DataSink

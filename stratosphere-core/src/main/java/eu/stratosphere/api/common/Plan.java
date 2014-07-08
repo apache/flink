@@ -15,6 +15,7 @@ package eu.stratosphere.api.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import eu.stratosphere.api.common.cache.DistributedCache.DistributedCacheEntry;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -25,12 +26,13 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import eu.stratosphere.api.common.operators.GenericDataSink;
+import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.core.fs.FileSystem;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.util.Visitable;
 import eu.stratosphere.util.Visitor;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -41,7 +43,7 @@ import java.net.URISyntaxException;
  * Parameters include the name and a default degree of parallelism. The job is referenced by the data sinks,
  * from which a traversal reaches all connected nodes of the job.
  */
-public class Plan implements Visitable<Operator> {
+public class Plan implements Visitable<Operator<?>> {
 
 	private static final int DEFAULT_PARALELLISM = -1;
 	
@@ -49,7 +51,7 @@ public class Plan implements Visitable<Operator> {
 	 * A collection of all sinks in the plan. Since the plan is traversed from the sinks to the sources, this
 	 * collection must contain all the sinks.
 	 */
-	protected final List<GenericDataSink> sinks = new ArrayList<GenericDataSink>(4);
+	protected final List<GenericDataSinkBase<?>> sinks = new ArrayList<GenericDataSinkBase<?>>(4);
 
 	/**
 	 * The name of the job.
@@ -60,13 +62,11 @@ public class Plan implements Visitable<Operator> {
 	 * The default parallelism to use for nodes that have no explicitly specified parallelism.
 	 */
 	protected int defaultParallelism = DEFAULT_PARALELLISM;
-	
-	/**
-	 * The maximal number of machines to use in the job.
-	 */
-	protected int maxNumberMachines;
 
-	protected HashMap<String, String> cacheFile = new HashMap<String, String>();
+	/**
+	 * Hash map for files in the distributed cache: registered name to cache entry.
+	 */
+	protected HashMap<String, DistributedCacheEntry> cacheFile = new HashMap<String, DistributedCacheEntry>();
 
 	// ------------------------------------------------------------------------
 
@@ -80,7 +80,7 @@ public class Plan implements Visitable<Operator> {
 	 * @param sinks The collection will the sinks of the job's data flow.
 	 * @param jobName The name to display for the job.
 	 */
-	public Plan(Collection<GenericDataSink> sinks, String jobName) {
+	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, String jobName) {
 		this(sinks, jobName, DEFAULT_PARALELLISM);
 	}
 
@@ -95,7 +95,7 @@ public class Plan implements Visitable<Operator> {
 	 * @param jobName The name to display for the job.
 	 * @param defaultParallelism The default degree of parallelism for the job.
 	 */
-	public Plan(Collection<GenericDataSink> sinks, String jobName, int defaultParallelism) {
+	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, String jobName, int defaultParallelism) {
 		this.sinks.addAll(sinks);
 		this.jobName = jobName;
 		this.defaultParallelism = defaultParallelism;
@@ -111,7 +111,7 @@ public class Plan implements Visitable<Operator> {
 	 * @param sink The data sink of the data flow.
 	 * @param jobName The name to display for the job.
 	 */
-	public Plan(GenericDataSink sink, String jobName) {
+	public Plan(GenericDataSinkBase<?> sink, String jobName) {
 		this(sink, jobName, DEFAULT_PARALELLISM);
 	}
 
@@ -127,8 +127,8 @@ public class Plan implements Visitable<Operator> {
 	 * @param jobName The name to display for the job.
 	 * @param defaultParallelism The default degree of parallelism for the job.
 	 */
-	public Plan(GenericDataSink sink, String jobName, int defaultParallelism) {
-		this(Collections.singletonList(sink), jobName, defaultParallelism);
+	public Plan(GenericDataSinkBase<?> sink, String jobName, int defaultParallelism) {
+		this(Collections.<GenericDataSinkBase<?>>singletonList(sink), jobName, defaultParallelism);
 	}
 
 	/**
@@ -141,7 +141,7 @@ public class Plan implements Visitable<Operator> {
 	 *  
 	 * @param sinks The collection will the sinks of the data flow.
 	 */
-	public Plan(Collection<GenericDataSink> sinks) {
+	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks) {
 		this(sinks, DEFAULT_PARALELLISM);
 	}
 
@@ -156,7 +156,7 @@ public class Plan implements Visitable<Operator> {
 	 * @param sinks The collection will the sinks of the data flow.
 	 * @param defaultParallelism The default degree of parallelism for the job.
 	 */
-	public Plan(Collection<GenericDataSink> sinks, int defaultParallelism) {
+	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, int defaultParallelism) {
 		this(sinks, "Stratosphere Job at " + Calendar.getInstance().getTime(), defaultParallelism);
 	}
 
@@ -169,7 +169,7 @@ public class Plan implements Visitable<Operator> {
 	 * 
 	 * @param sink The data sink of the data flow.
 	 */
-	public Plan(GenericDataSink sink) {
+	public Plan(GenericDataSinkBase<?> sink) {
 		this(sink, DEFAULT_PARALELLISM);
 	}
 
@@ -183,7 +183,7 @@ public class Plan implements Visitable<Operator> {
 	 * @param sink The data sink of the data flow.
 	 * @param defaultParallelism The default degree of parallelism for the job.
 	 */
-	public Plan(GenericDataSink sink, int defaultParallelism) {
+	public Plan(GenericDataSinkBase<?> sink, int defaultParallelism) {
 		this(sink, "Stratosphere Job at " + Calendar.getInstance().getTime(), defaultParallelism);
 	}
 
@@ -194,7 +194,7 @@ public class Plan implements Visitable<Operator> {
 	 * 
 	 * @param sink The data sink to add.
 	 */
-	public void addDataSink(GenericDataSink sink) {
+	public void addDataSink(GenericDataSinkBase<?> sink) {
 		checkNotNull(jobName, "The data sink must not be null.");
 		
 		if (!this.sinks.contains(sink)) {
@@ -207,7 +207,7 @@ public class Plan implements Visitable<Operator> {
 	 * 
 	 * @return All sinks of the program.
 	 */
-	public Collection<GenericDataSink> getDataSinks() {
+	public Collection<? extends GenericDataSinkBase<?>> getDataSinks() {
 		return this.sinks;
 	}
 
@@ -228,28 +228,6 @@ public class Plan implements Visitable<Operator> {
 	public void setJobName(String jobName) {
 		checkNotNull(jobName, "The job name must not be null.");
 		this.jobName = jobName;
-	}
-
-	/**
-	 * Gets the maximum number of machines to be used for this job.
-	 * 
-	 * @return The maximum number of machines to be used for this job.
-	 */
-	public int getMaxNumberMachines() {
-		return this.maxNumberMachines;
-	}
-
-	/**
-	 * Sets the maximum number of machines to be used for this job.
-	 * 
-	 * @param maxNumberMachines The the maximum number to set.
-	 */
-	public void setMaxNumberMachines(int maxNumberMachines) {
-		if (maxNumberMachines == 0 || maxNumberMachines < -1) {
-			throw new IllegalArgumentException("The maximum number of machines must be positive, or -1 if no limit is imposed.");
-		}
-		
-		this.maxNumberMachines = maxNumberMachines;
 	}
 	
 	/**
@@ -293,36 +271,36 @@ public class Plan implements Visitable<Operator> {
 	 * @see Visitable#accept(Visitor)
 	 */
 	@Override
-	public void accept(Visitor<Operator> visitor) {
-		for (GenericDataSink sink : this.sinks) {
+	public void accept(Visitor<Operator<?>> visitor) {
+		for (GenericDataSinkBase<?> sink : this.sinks) {
 			sink.accept(visitor);
 		}
 	}
 	
 	/**
 	 *  register cache files in program level
-	 * @param filePath The files must be stored in a place that can be accessed from all workers (most commonly HDFS)
+	 * @param entry contains all relevant information
 	 * @param name user defined name of that file
 	 * @throws java.io.IOException
 	 */
-	public void registerCachedFile(String filePath, String name) throws RuntimeException, IOException {
+	public void registerCachedFile(String name, DistributedCacheEntry entry) throws IOException {
 		if (!this.cacheFile.containsKey(name)) {
 			try {
-				URI u = new URI(filePath);
+				URI u = new URI(entry.filePath);
 				if (!u.getPath().startsWith("/")) {
-					u = new URI(new File(filePath).getAbsolutePath());
+					u = new File(entry.filePath).toURI();
 				}
 				FileSystem fs = FileSystem.get(u);
 				if (fs.exists(new Path(u.getPath()))) {
-					this.cacheFile.put(name, u.toString());
+					this.cacheFile.put(name, new DistributedCacheEntry(u.toString(), entry.isExecutable));
 				} else {
-					throw new RuntimeException("File " + u.toString() + " doesn't exist.");
+					throw new IOException("File " + u.toString() + " doesn't exist.");
 				}
 			} catch (URISyntaxException ex) {
-				throw new RuntimeException("Invalid path: " + filePath, ex);
+				throw new IOException("Invalid path: " + entry.filePath, ex);
 			}
 		} else {
-			throw new RuntimeException("cache file " + name + "already exists!");
+			throw new IOException("cache file " + name + "already exists!");
 		}
 	}
 
@@ -330,7 +308,29 @@ public class Plan implements Visitable<Operator> {
 	 * return the registered caches files
 	 * @return Set of (name, filePath) pairs
 	 */
-	public Set<Entry<String,String>> getCachedFiles() {
+	public Set<Entry<String,DistributedCacheEntry>> getCachedFiles() {
 		return this.cacheFile.entrySet();
+	}
+	
+	public int getMaximumParallelism() {
+		MaxDopVisitor visitor = new MaxDopVisitor();
+		accept(visitor);
+		return Math.max(visitor.maxDop, this.defaultParallelism);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private static final class MaxDopVisitor implements Visitor<Operator<?>> {
+
+		private int maxDop = -1;
+		
+		@Override
+		public boolean preVisit(Operator<?> visitable) {
+			this.maxDop = Math.max(this.maxDop, visitable.getDegreeOfParallelism());
+			return true;
+		}
+
+		@Override
+		public void postVisit(Operator<?> visitable) {}
 	}
 }

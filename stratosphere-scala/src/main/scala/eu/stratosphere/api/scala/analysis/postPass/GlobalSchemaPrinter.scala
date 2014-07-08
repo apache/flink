@@ -33,8 +33,8 @@ import eu.stratosphere.api.common.Plan
 import eu.stratosphere.api.common.operators.Operator
 import eu.stratosphere.api.common.operators.SingleInputOperator
 import eu.stratosphere.api.common.operators.DualInputOperator
-import eu.stratosphere.api.common.operators.GenericDataSink
 import org.apache.commons.logging.{LogFactory, Log}
+import eu.stratosphere.api.java.record.operators.GenericDataSink
 
 object GlobalSchemaPrinter {
 

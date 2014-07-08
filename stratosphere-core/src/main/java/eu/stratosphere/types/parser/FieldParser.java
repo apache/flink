@@ -64,9 +64,9 @@ public abstract class FieldParser<T> {
 	private ParseErrorState errorState = ParseErrorState.NONE;
 	
 	/**
-	 * Fills a given {@link Value} with the value of a field by parsing a byte array. 
+	 * Parses the value of a field from the byte array.
 	 * The start position within the byte array and the array's valid length is given. 
-	 * The content of the Value is delimited by a field delimiter.
+	 * The content of the value is delimited by a field delimiter.
 	 * 
 	 * @param bytes The byte array that holds the value.
 	 * @param startPos The index where the field starts

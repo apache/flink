@@ -26,7 +26,7 @@ import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializer;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializer;
 import eu.stratosphere.pact.runtime.test.util.DummyInvokable;
 import eu.stratosphere.pact.runtime.test.util.MutableObjectIteratorWrapper;
 import eu.stratosphere.types.IntValue;
@@ -52,7 +52,7 @@ public class BlockResettableMutableObjectIteratorTest
 	@Before
 	public void startup() {
 		// set up IO and memory manager
-		this.memman = new DefaultMemoryManager(MEMORY_CAPACITY);
+		this.memman = new DefaultMemoryManager(MEMORY_CAPACITY, 1);
 		
 		// create test objects
 		this.objects = new ArrayList<Record>(20000);

@@ -41,12 +41,19 @@ public class PlanDisplayServlet extends GUIServletStub {
 		
 		this.runtimeVisualizationPort = runtimePort;
 
-		addStyleSheet("css/js-graph-it.css");
+		addStyleSheet("css/nephelefrontend.css");
 		addStyleSheet("css/pactgraphs.css");
+		addStyleSheet("css/graph.css");
+		addStyleSheet("css/overlay.css");
+		addStyleSheet("css/bootstrap.css");
 
-		addJavascriptFile("js/js-graph-it.js");
-		addJavascriptFile("js/progressbar.js");
-		addJavascriptFile("js/pactgraph.js");
+		addJavascriptFile("js/jquery-2.1.0.js");
+		addJavascriptFile("js/graphCreator.js");
+		addJavascriptFile("js/d3.js");
+		addJavascriptFile("js/dagre-d3.js");
+		addJavascriptFile("js/bootstrap.min.js");
+		addJavascriptFile("js/jquery.tools.min.js");
+
 	}
 
 	@Override
@@ -80,9 +87,10 @@ public class PlanDisplayServlet extends GUIServletStub {
 
 		// write the canvas for the graph area
 		writer.println("    <div style=\"position: relative;\">\n"
-					+ "      <div id=\"mainCanvas\" class=\"canvas boxed\" style=\"height: 500px;\">\n"
-					+ "        <div align=\"center\" id=\"progressContainer\" style=\"margin: auto; margin-top: 200px;\"></div>\n"
-					+ "      </div>\n" + "      <div style=\"position: absolute; right: 20px; bottom: 20px;\">\n"
+					+ "      <div id=\"mainCanvas\" class=\"canvas boxed\">\n"
+					+ "      <div id=\"attach\"><svg id=\"svg-main\" width=500 height=500><g transform=\"translate(20, 20)\"/></svg></div>"
+					+ "      </div>\n"
+					+ "      <div style=\"position: absolute; right: 20px; bottom: 20px;\">\n"
 					+ "        <input id=\"back_button\" type=\"button\" value=\"&lt; Back\"/>");
 		if (suspended) {
 			writer.println("        <input id=\"run_button\" type=\"button\" value=\"Continue &gt;\"/>");
@@ -90,8 +98,9 @@ public class PlanDisplayServlet extends GUIServletStub {
 		writer.println("      </div>\n" + "    </div>");
 
 		// write the canvas for the properties area
-		writer.println("    <div id=\"propertyCanvas\" class=\"propertyCanvas\">\n"
-			+ "      <p class=\"fadedPropertiesText\">Click a node to show the properties...</p>\n" + "    </div>");
+		writer.println("    <div class=\"simple_overlay\" id=\"propertyO\">"
+				+ "<div id=\"propertyCanvas\" class=\"propertyCanvas\"></div>\n"
+				+ "    </div>");
 
 		// write the page initialization code
 		writer.println("    <script type=\"text/javascript\">\n" + "    <!--\n" + "      var maxColumnWidth = 350;\n"
@@ -120,9 +129,11 @@ public class PlanDisplayServlet extends GUIServletStub {
 		// "          alert(str);\n" +
 		// "        });\n");
 
-		writer.println("        // use jquery to asynchronously load the pact plan description\n"
+		writer.println("        //change height of mainCanvas to maximum"
+				+ "        $(\"#mainCanvas\").css(\"height\", $(document).height() - 15 - 105);\n"
+				+ "        // use jquery to asynchronously load the pact plan description\n"
 			+ "        $.getJSON(\"ajax-plans/" + uid
-			+ ".json\", function(data) { drawPactPlan(data, true, \"arr.gif\"); });" + "      });\n" + "    //-->\n"
+			+ ".json\", function(data) { drawGraph(data, \"#svg-main\"); });" + "      });\n" + "    //-->\n"
 			+ "    </script>");
 	}
 }

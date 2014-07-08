@@ -39,7 +39,6 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.Program;
 import eu.stratosphere.api.common.ProgramDescription;
 import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.client.program.Client.ProgramAbortException;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
@@ -74,7 +73,7 @@ public class PackagedProgram {
 	
 	private final List<File> extractedTempLibraries;
 	
-	private final ClassLoader userCodeClassLoader;
+	private ClassLoader userCodeClassLoader;
 	
 	private Plan plan;
 
@@ -160,6 +159,14 @@ public class PackagedProgram {
 		}
 	}
 	
+	public String[] getArguments() {
+		return this.args;
+	}
+	
+	public String getMainClassName() {
+		return this.mainClass.getName();
+	}
+	
 	public boolean isUsingInteractiveMode() {
 		return this.program == null;
 	}
@@ -197,25 +204,38 @@ public class PackagedProgram {
 	 *         missing parameters for generation.
 	 */
 	public String getPreviewPlan() throws ProgramInvocationException {
+		Thread.currentThread().setContextClassLoader(this.getUserCodeClassLoader());
 		List<DataSinkNode> previewPlan;
 		
 		if (isUsingProgramEntryPoint()) {
 			previewPlan = PactCompiler.createPreOptimizedPlan(getPlan());
 		}
 		else if (isUsingInteractiveMode()) {
-			// temporary hack to support the webclient
+			// temporary hack to support the web client
 			PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 			env.setAsContext();
 			try {
+				ContextEnvironment.disableLocalExecution();
 				invokeInteractiveModeForExecution();
-			} catch (ProgramAbortException e) {
-				// the invocation gets aborted with the preview plan
-			} catch (ProgramInvocationException e) {
-				throw e;
-			} catch (Throwable t) {
-				throw new ProgramInvocationException("Program invokation failed with " + t.getClass().getSimpleName() + ": " + t.getMessage(), t);
 			}
-			previewPlan =  env.previewPlan;
+			catch (ProgramInvocationException e) {
+				throw e;
+			}
+			catch (Throwable t) {
+				// the invocation gets aborted with the preview plan
+				if (env.previewPlan != null) {
+					previewPlan =  env.previewPlan;
+				} else {
+					throw new ProgramInvocationException("The program caused an error: ", t);
+				}
+			}
+			
+			if (env.previewPlan != null) {
+				previewPlan =  env.previewPlan;
+			} else {
+				throw new ProgramInvocationException(
+						"The program plan could not be fetched. The program silently swallowed the control flow exceptions.");
+			}
 		}
 		else {
 			throw new RuntimeException();
@@ -294,7 +314,7 @@ public class PackagedProgram {
 	public ClassLoader getUserCodeClassLoader() {
 		return this.userCodeClassLoader;
 	}
-	
+
 	public List<File> getAllLibraries() {
 		List<File> libs = new ArrayList<File>(this.extractedTempLibraries.size() + 1);
 		libs.add(jarFile);
@@ -618,13 +638,14 @@ public class PackagedProgram {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static final class PreviewPlanEnvironment extends ExecutionEnvironment {
+	public static final class PreviewPlanEnvironment extends ExecutionEnvironment {
 
 		private List<DataSinkNode> previewPlan;
+		private Plan plan;
 		
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {
-			Plan plan = createProgramPlan(jobName);
+			this.plan = createProgramPlan(jobName);
 			this.previewPlan = PactCompiler.createPreOptimizedPlan(plan);
 			
 			// do not go on with anything now!
@@ -640,8 +661,12 @@ public class PackagedProgram {
 			throw new Client.ProgramAbortException();
 		}
 		
-		private void setAsContext() {
+		public void setAsContext() {
 			initializeContextEnvironment(this);
+		}
+
+		public Plan getPlan() {
+			return this.plan;
 		}
 	}
 }

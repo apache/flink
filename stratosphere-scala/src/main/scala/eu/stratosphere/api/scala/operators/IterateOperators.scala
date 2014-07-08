@@ -22,18 +22,22 @@ import eu.stratosphere.api.scala.analysis.UDT
 import eu.stratosphere.types.Record
 import eu.stratosphere.api.java.record.functions.MapFunction
 import eu.stratosphere.util.Collector
-import eu.stratosphere.api.common.operators.Operator
+import eu.stratosphere.api.common.operators.{UnaryOperatorInformation, Operator}
 import eu.stratosphere.api.scala.analysis.UDF1
 import eu.stratosphere.api.scala.analysis.UDTSerializer
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.api.common.operators.BulkIteration
 import eu.stratosphere.api.scala.analysis.UDF0
 import eu.stratosphere.api.common.functions.AbstractFunction
 import eu.stratosphere.api.scala.analysis.FieldSelector
-import eu.stratosphere.api.common.operators.DeltaIteration
 import eu.stratosphere.api.scala.analysis.UDT.NothingUDT
-import eu.stratosphere.api.common.operators.BulkIteration.{TerminationCriterionAggregationConvergence, TerminationCriterionAggregator, TerminationCriterionMapper}
+import eu.stratosphere.api.java.record.operators.BulkIteration
+import eu.stratosphere.api.common.operators.base.BulkIterationBase
+import eu.stratosphere.api.java.record.operators.DeltaIteration
+import eu.stratosphere.api.common.operators.base.BulkIterationBase.{TerminationCriterionAggregationConvergence, TerminationCriterionAggregator, TerminationCriterionMapper}
 import eu.stratosphere.api.common.operators.base.MapOperatorBase
+import eu.stratosphere.types.NothingTypeInfo
+import eu.stratosphere.types.{Nothing => JavaNothing}
+import eu.stratosphere.api.java.typeutils.RecordTypeInfo
 
 object IterateMacros {
 
@@ -50,15 +54,15 @@ object IterateMacros {
       val contract = new BulkIteration with BulkIterationScalaOperator[SolutionItem] {
         val udf = new UDF0[SolutionItem](solutionUDT)
         override def getUDF = udf
-        private val inputPlaceHolder2 = new BulkIteration.PartialSolutionPlaceHolder(this) with ScalaOperator[SolutionItem] with Serializable {
+        private val inputPlaceHolder2 = new BulkIteration.PartialSolutionPlaceHolder(this) with ScalaOperator[SolutionItem, Record] with Serializable {
           val udf = new UDF0[SolutionItem](solutionUDT)
           override def getUDF = udf
           
         }
-        override def getPartialSolution: Operator = inputPlaceHolder2.asInstanceOf[Operator]
+        override def getPartialSolution: Operator[Record] = inputPlaceHolder2.asInstanceOf[Operator[Record]]
       }
       
-      val partialSolution = new DataSet(contract.getPartialSolution().asInstanceOf[Operator with ScalaOperator[SolutionItem]])
+      val partialSolution = new DataSet(contract.getPartialSolution().asInstanceOf[Operator[Record] with ScalaOperator[SolutionItem, Record]])
 
       val (output, term) = stepFunction.splice.apply(partialSolution)
 
@@ -88,15 +92,15 @@ object IterateMacros {
       val contract = new BulkIteration with BulkIterationScalaOperator[SolutionItem] {
         val udf = new UDF0[SolutionItem](solutionUDT)
         override def getUDF = udf
-        private val inputPlaceHolder2 = new BulkIteration.PartialSolutionPlaceHolder(this) with ScalaOperator[SolutionItem] with Serializable {
+        private val inputPlaceHolder2 = new BulkIteration.PartialSolutionPlaceHolder(this) with ScalaOperator[SolutionItem, Record] with Serializable {
           val udf = new UDF0[SolutionItem](solutionUDT)
           override def getUDF = udf
           
         }
-        override def getPartialSolution: Operator = inputPlaceHolder2.asInstanceOf[Operator]
+        override def getPartialSolution: Operator[Record] = inputPlaceHolder2.asInstanceOf[Operator[Record]]
       }
       
-      val partialSolution = new DataSet(contract.getPartialSolution().asInstanceOf[Operator with ScalaOperator[SolutionItem]])
+      val partialSolution = new DataSet(contract.getPartialSolution().asInstanceOf[Operator[Record] with ScalaOperator[SolutionItem, Record]])
 
       val output = stepFunction.splice.apply(partialSolution)
 
@@ -129,28 +133,15 @@ object IterateMacros {
       val contract = new BulkIteration with BulkIterationScalaOperator[SolutionItem] {
         val udf = new UDF0[SolutionItem](solutionUDT)
         override def getUDF = udf
-        private val inputPlaceHolder2 = new BulkIteration.PartialSolutionPlaceHolder(this) with ScalaOperator[SolutionItem] with Serializable {
+        private val inputPlaceHolder2 = new BulkIteration.PartialSolutionPlaceHolder(this) with ScalaOperator[SolutionItem, Record] with Serializable {
           val udf = new UDF0[SolutionItem](solutionUDT)
           override def getUDF = udf
 
         }
-        override def getPartialSolution: Operator = inputPlaceHolder2.asInstanceOf[Operator]
-
-        override def setTerminationCriterion(criterion: Operator) {
-          val mapper = new MapOperatorBase[TerminationCriterionMapper](classOf[TerminationCriterionMapper],
-            "Termination Criterion Aggregation Wrapper") with OneInputScalaOperator[TerminationItem,
-            Nothing] with Serializable {
-            val udf = new UDF1[TerminationItem, Nothing](terminationUDT, NothingUDT)
-            override def getUDF = udf
-          }
-          mapper.setInput(criterion)
-          terminationCriterion = mapper
-          getAggregators.registerAggregationConvergenceCriterion(BulkIteration.TERMINATION_CRITERION_AGGREGATOR_NAME,
-            classOf[TerminationCriterionAggregator], classOf[TerminationCriterionAggregationConvergence])
-        }
+        override def getPartialSolution: Operator[Record] = inputPlaceHolder2.asInstanceOf[Operator[Record]]
       }
 
-      val partialSolution = new DataSet(contract.getPartialSolution().asInstanceOf[Operator with ScalaOperator[SolutionItem]])
+      val partialSolution = new DataSet(contract.getPartialSolution().asInstanceOf[Operator[Record] with ScalaOperator[SolutionItem, Record]])
 
       val output = stepFunction.splice.apply(partialSolution)
       val terminationCriterion = terminationFunction.splice.apply(partialSolution, output)
@@ -198,23 +189,23 @@ object WorksetIterateMacros {
         val udf = new UDF0[SolutionItem](solutionUDT)     
         override def getUDF = udf
 
-        private val solutionSetPlaceHolder2 = new DeltaIteration.SolutionSetPlaceHolder(this) with ScalaOperator[SolutionItem] with Serializable {
+        private val solutionSetPlaceHolder2 = new DeltaIteration.SolutionSetPlaceHolder(this) with ScalaOperator[SolutionItem, Record] with Serializable {
           val udf = new UDF0[SolutionItem](solutionUDT)
           override def getUDF = udf
 
         }
-        override def getSolutionSet: Operator = solutionSetPlaceHolder2.asInstanceOf[Operator]
+        override def getSolutionSet: Operator[Record] = solutionSetPlaceHolder2.asInstanceOf[Operator[Record]]
         
-        private val worksetPlaceHolder2 = new DeltaIteration.WorksetPlaceHolder(this) with ScalaOperator[WorksetItem] with Serializable {
+        private val worksetPlaceHolder2 = new DeltaIteration.WorksetPlaceHolder(this) with ScalaOperator[WorksetItem, Record] with Serializable {
           val udf = new UDF0[WorksetItem](worksetUDT)
           override def getUDF = udf
 
         }
-        override def getWorkset: Operator = worksetPlaceHolder2.asInstanceOf[Operator]
+        override def getWorkset: Operator[Record] = worksetPlaceHolder2.asInstanceOf[Operator[Record]]
       }
 
-      val solutionInput = new DataSet(contract.getSolutionSet().asInstanceOf[Operator with ScalaOperator[SolutionItem]])
-      val worksetInput = new DataSet(contract.getWorkset().asInstanceOf[Operator with ScalaOperator[WorksetItem]])
+      val solutionInput = new DataSet(contract.getSolutionSet().asInstanceOf[Operator[Record] with ScalaOperator[SolutionItem, Record]])
+      val worksetInput = new DataSet(contract.getWorkset().asInstanceOf[Operator[Record] with ScalaOperator[WorksetItem, Record]])
 
 
       contract.setInitialSolutionSet(c.prefix.splice.contract)

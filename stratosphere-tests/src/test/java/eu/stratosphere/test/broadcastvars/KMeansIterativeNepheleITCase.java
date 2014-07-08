@@ -14,7 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.broadcastvars;
 
-import eu.stratosphere.test.util.RecordAPITestBase;
+import eu.stratosphere.nephele.jobgraph.DistributionPattern;
 import org.apache.log4j.Level;
 
 import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
@@ -23,12 +23,6 @@ import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.example.java.record.kmeans.KMeans.PointBuilder;
-import eu.stratosphere.example.java.record.kmeans.KMeans.PointOutFormat;
-import eu.stratosphere.example.java.record.kmeans.KMeans.RecomputeClusterCenter;
-import eu.stratosphere.example.java.record.kmeans.KMeans.SelectNearestCenter;
-import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
@@ -37,18 +31,24 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparatorFactory;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparatorFactory;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.CollectorMapDriver;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.NoOpDriver;
 import eu.stratosphere.pact.runtime.task.GroupReduceDriver;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedCollectorMapDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.test.iterative.nephele.JobGraphUtils;
+import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast.PointBuilder;
+import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast.RecomputeClusterCenter;
+import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast.SelectNearestCenter;
+import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast.PointOutFormat;
 import eu.stratosphere.test.testdata.KMeansData;
+import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.DoubleValue;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.util.LogUtils;
@@ -59,7 +59,11 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 	private static final int ITERATION_ID = 42;
 	
 	private static final int MEMORY_PER_CONSUMER = 2;
-	
+
+	private static final int DOP = 4;
+
+	private static final double MEMORY_FRACTION_PER_CONSUMER = (double)MEMORY_PER_CONSUMER/TASK_MANAGER_MEMORY_SIZE*DOP;
+
 	protected String dataPath;
 	protected String clusterPath;
 	protected String resultPath;
@@ -67,6 +71,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 	
 	public KMeansIterativeNepheleITCase() {
 		LogUtils.initializeDefaultConsoleLogger(Level.ERROR);
+		setTaskManagerNumSlots(DOP);
 	}
 	
 	@Override
@@ -83,7 +88,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
-		return createJobGraph(dataPath, clusterPath, this.resultPath, 4, 20);
+		return createJobGraph(dataPath, clusterPath, this.resultPath, DOP, 20);
 	}
 
 	// -------------------------------------------------------------------------------------------------------------
@@ -93,7 +98,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 	private static JobInputVertex createPointsInput(JobGraph jobGraph, String pointsPath, int numSubTasks, TypeSerializerFactory<?> serializer) {
 		@SuppressWarnings("unchecked")
 		CsvInputFormat pointsInFormat = new CsvInputFormat('|', IntValue.class, DoubleValue.class, DoubleValue.class, DoubleValue.class);
-		JobInputVertex pointsInput = JobGraphUtils.createInput(pointsInFormat, pointsPath, "[Points]", jobGraph, numSubTasks, numSubTasks);
+		JobInputVertex pointsInput = JobGraphUtils.createInput(pointsInFormat, pointsPath, "[Points]", jobGraph, numSubTasks);
 		{
 			TaskConfig taskConfig = new TaskConfig(pointsInput.getConfiguration());
 			taskConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
@@ -114,7 +119,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 	private static JobInputVertex createCentersInput(JobGraph jobGraph, String centersPath, int numSubTasks, TypeSerializerFactory<?> serializer) {
 		@SuppressWarnings("unchecked")
 		CsvInputFormat modelsInFormat = new CsvInputFormat('|', IntValue.class, DoubleValue.class, DoubleValue.class, DoubleValue.class);
-		JobInputVertex modelsInput = JobGraphUtils.createInput(modelsInFormat, centersPath, "[Models]", jobGraph, numSubTasks, numSubTasks);
+		JobInputVertex modelsInput = JobGraphUtils.createInput(modelsInFormat, centersPath, "[Models]", jobGraph, numSubTasks);
 
 		{
 			TaskConfig taskConfig = new TaskConfig(modelsInput.getConfiguration());
@@ -135,7 +140,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 
 	private static JobOutputVertex createOutput(JobGraph jobGraph, String resultPath, int numSubTasks, TypeSerializerFactory<?> serializer) {
 		
-		JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "Output", numSubTasks, numSubTasks);
+		JobOutputVertex output = JobGraphUtils.createFileOutput(jobGraph, "Output", numSubTasks);
 
 		{
 			TaskConfig taskConfig = new TaskConfig(output.getConfiguration());
@@ -152,7 +157,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 	}
 	
 	private static JobTaskVertex createIterationHead(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> serializer) {
-		JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks, numSubTasks);
+		JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks);
 
 		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
 		headConfig.setIterationId(ITERATION_ID);
@@ -163,7 +168,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		headConfig.setInputSerializer(serializer, 0);
 		
 		// back channel / iterations
-		headConfig.setBackChannelMemory(MEMORY_PER_CONSUMER * JobGraphUtils.MEGABYTE);
+		headConfig.setRelativeBackChannelMemory(MEMORY_FRACTION_PER_CONSUMER);
 		
 		// output into iteration. broadcasting the centers
 		headConfig.setOutputSerializer(serializer);
@@ -190,7 +195,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 			TypeComparatorFactory<?> outputComparator)
 	{
 		JobTaskVertex mapper = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
-			"Map (Select nearest center)", jobGraph, numSubTasks, numSubTasks);
+			"Map (Select nearest center)", jobGraph, numSubTasks);
 		
 		TaskConfig intermediateConfig = new TaskConfig(mapper.getConfiguration());
 		intermediateConfig.setIterationId(ITERATION_ID);
@@ -220,7 +225,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		// ---------------- the tail (co group) --------------------
 		
 		JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "Reduce / Iteration Tail", jobGraph,
-			numSubTasks, numSubTasks);
+			numSubTasks);
 		
 		TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
 		tailConfig.setIterationId(ITERATION_ID);
@@ -235,7 +240,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 
 		tailConfig.setInputLocalStrategy(0, LocalStrategy.SORT);
 		tailConfig.setInputComparator(inputComparator, 0);
-		tailConfig.setMemoryInput(0, MEMORY_PER_CONSUMER * JobGraphUtils.MEGABYTE);
+		tailConfig.setRelativeMemoryInput(0, MEMORY_FRACTION_PER_CONSUMER);
 		tailConfig.setFilehandlesInput(0, 128);
 		tailConfig.setSpillingThresholdInput(0, 0.9f);
 		
@@ -279,7 +284,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		
 		JobTaskVertex reducer = createReducer(jobGraph, numSubTasks, serializer, int0Comparator, serializer);
 		
-		JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", numSubTasks, numSubTasks);
+		JobOutputVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", numSubTasks);
 		
 		JobOutputVertex sync = createSync(jobGraph, numIterations, numSubTasks);
 		
@@ -293,7 +298,8 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		JobGraphUtils.connect(head, mapper, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
 		new TaskConfig(mapper.getConfiguration()).setBroadcastGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 		new TaskConfig(mapper.getConfiguration()).setInputCached(0, true);
-		new TaskConfig(mapper.getConfiguration()).setInputMaterializationMemory(0, MEMORY_PER_CONSUMER * JobGraphUtils.MEGABYTE);
+		new TaskConfig(mapper.getConfiguration()).setRelativeInputMaterializationMemory(0,
+				MEMORY_FRACTION_PER_CONSUMER);
 
 		JobGraphUtils.connect(mapper, reducer, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
 		new TaskConfig(reducer.getConfiguration()).setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
@@ -303,8 +309,6 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		JobGraphUtils.connect(head, output, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 		
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-		
-		
 
 		// -- instance sharing -------------------------------------------------------------------------------------
 		points.setVertexToShareInstancesWith(output);

@@ -18,6 +18,7 @@ import eu.stratosphere.types.DoubleValue;
 /**
  * An {@link Aggregator} that sums up {@link DoubleValue} values.
  */
+@SuppressWarnings("serial")
 public class DoubleSumAggregator implements Aggregator<DoubleValue> {
 
 	private DoubleValue wrapper = new DoubleValue();

@@ -23,8 +23,7 @@ import eu.stratosphere.util.InstantiationUtil;
 public final class RuntimeStatefulSerializerFactory<T> implements TypeSerializerFactory<T>, java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
-	
-	
+
 	private static final String CONFIG_KEY_SER = "SER_DATA";
 
 	private static final String CONFIG_KEY_CLASS = "CLASS_DATA";
@@ -36,7 +35,6 @@ public final class RuntimeStatefulSerializerFactory<T> implements TypeSerializer
 	private ClassLoader loader;
 
 	private Class<T> clazz;
-
 
 	public RuntimeStatefulSerializerFactory() {}
 

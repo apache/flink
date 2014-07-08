@@ -15,25 +15,23 @@ package eu.stratosphere.pact.runtime.task;
 
 import java.io.IOException;
 
+import eu.stratosphere.pact.runtime.task.chaining.ExceptionInChainedStubException;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.common.io.FileOutputFormat;
-import eu.stratosphere.api.common.io.FileOutputFormat.OutputDirectoryMode;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.fs.FileSystem;
-import eu.stratosphere.core.fs.FileSystem.WriteMode;
-import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.nephele.execution.CancelTaskException;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
-import eu.stratosphere.nephele.io.MutableReader;
-import eu.stratosphere.nephele.io.MutableRecordReader;
-import eu.stratosphere.nephele.io.MutableUnionRecordReader;
-import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.runtime.io.api.MutableReader;
+import eu.stratosphere.runtime.io.api.MutableRecordReader;
+import eu.stratosphere.runtime.io.api.MutableUnionRecordReader;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.util.CloseableInputProvider;
@@ -47,9 +45,9 @@ import eu.stratosphere.util.MutableObjectIterator;
  * DataSinkTask which is executed by a Nephele task manager.
  * The task hands the data to an output format.
  * 
- * @see eu.eu.stratosphere.pact.common.generic.io.OutputFormat
+ * @see OutputFormat
  */
-public class DataSinkTask<IT> extends AbstractOutputTask {
+public class DataSinkTask<IT> extends AbstractInvokable {
 	
 	public static final String DEGREE_OF_PARALLELISM_KEY = "sink.dop";
 	
@@ -136,7 +134,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 							getEnvironment().getMemoryManager(), 
 							getEnvironment().getIOManager(),
 							this.reader, this, this.inputTypeSerializerFactory, compFact.createComparator(),
-							this.config.getMemoryInput(0), this.config.getFilehandlesInput(0),
+							this.config.getRelativeMemoryInput(0), this.config.getFilehandlesInput(0),
 							this.config.getSpillingThresholdInput(0));
 					
 					this.localStrategy = sorter;
@@ -183,10 +181,16 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 			}
 		}
 		catch (Exception ex) {
+			ex = ExceptionInChainedStubException.exceptionUnwrap(ex);
+
+			if (ex instanceof CancelTaskException) {
+				// forward canceling exception
+				throw ex;
+			}
 			// drop, if the task was canceled
-			if (!this.taskCanceled) {
+			else if (!this.taskCanceled) {
 				if (LOG.isErrorEnabled()) {
-					LOG.error(getLogString("Error in Pact user code: " + ex.getMessage()), ex);
+					LOG.error(getLogString("Error in user code: " + ex.getMessage()), ex);
 				}
 				throw ex;
 			}
@@ -327,7 +331,7 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 		this.inputTypeSerializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
 		
 		if (this.inputTypeSerializerFactory.getDataType() == Record.class) {
-			// pact record specific deserialization
+			// record specific deserialization
 			MutableReader<Record> reader = (MutableReader<Record>) inputReader;
 			this.reader = (MutableObjectIterator<IT>)new RecordReaderIterator(reader);
 		} else {
@@ -341,64 +345,6 @@ public class DataSinkTask<IT> extends AbstractOutputTask {
 		// final sanity check
 		if (numGates != this.config.getNumInputs()) {
 			throw new Exception("Illegal configuration: Number of input gates and group sizes are not consistent.");
-		}
-	}
-	
-	// ------------------------------------------------------------------------
-	//                     Degree of parallelism & checks
-	// ------------------------------------------------------------------------
-	
-
-	@Override
-	public int getMaximumNumberOfSubtasks() {
-		if (!(this.format instanceof FileOutputFormat<?>)) {
-			return -1;
-		}
-		
-		final FileOutputFormat<?> fileOutputFormat = (FileOutputFormat<?>) this.format;
-		
-		// ----------------- This code applies only to file inputs ------------------
-		
-		final Path path = fileOutputFormat.getOutputFilePath();
-		final WriteMode writeMode = fileOutputFormat.getWriteMode();
-		final OutputDirectoryMode outDirMode = fileOutputFormat.getOutputDirectoryMode();
-
-		// Prepare output path and determine max DOP		
-		try {
-			
-			int dop = getTaskConfiguration().getInteger(DEGREE_OF_PARALLELISM_KEY, -1);
-			final FileSystem fs = path.getFileSystem();
-			
-			if(dop == 1 && outDirMode == OutputDirectoryMode.PARONLY) {
-				// output is not written in parallel and should be written to a single file.
-				
-				if(fs.isDistributedFS()) {
-					// prepare distributed output path
-					if(!fs.initOutPathDistFS(path, writeMode, false)) {
-						// output preparation failed! Cancel task.
-						throw new IOException("Output path could not be initialized.");
-					}
-				}
-				
-				return 1;
-				
-			} else {
-				// output should be written to a directory
-				
-				if(fs.isDistributedFS()) {
-					// only distributed file systems can be initialized at start-up time.
-					if(!fs.initOutPathDistFS(path, writeMode, true)) {
-						throw new IOException("Output directory could not be created.");
-					}
-				}
-				
-				return -1;
-				
-			}
-		}
-		catch (IOException e) {
-			LOG.error("Could not access the file system to detemine the status of the output.", e);
-			throw new RuntimeException("I/O Error while accessing file", e);
 		}
 	}
 

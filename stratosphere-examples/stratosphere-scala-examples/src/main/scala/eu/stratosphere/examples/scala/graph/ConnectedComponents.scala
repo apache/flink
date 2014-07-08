@@ -15,36 +15,30 @@ package eu.stratosphere.examples.scala.graph;
 
 import eu.stratosphere.client.LocalExecutor
 import eu.stratosphere.api.common.Program
-import eu.stratosphere.api.common.ProgramDescription
-import eu.stratosphere.api.scala.analysis.GlobalSchemaPrinter
-import eu.stratosphere.api.common.operators.DeltaIteration
-import scala.math._
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
-import eu.stratosphere.api.common.Plan
 
 object RunConnectedComponents {
  def main(pArgs: Array[String]) {
-    if (pArgs.size < 3) {
-      println("usage: -vertices <file> -edges <file> -output <file>")
+   
+    if (pArgs.size < 5) {
+      println("USAGE: <vertices input file> <edges input file> <output file> <max iterations> <degree of parallelism>")
       return
     }
-    val args = Args.parse(pArgs)
-    val plan = new ConnectedComponents().getPlan(args("vertices"), args("edges"), args("output"))
+    val plan = new ConnectedComponents().getPlan(pArgs(0), pArgs(1), pArgs(2), pArgs(3), pArgs(4))
     LocalExecutor.execute(plan)
-    System.exit(0)
   }
 }
 
 class ConnectedComponents extends Program with Serializable {
   
     override def getPlan(args: String*) = {
-      val plan = getScalaPlan(args(1), args(2), args(3), args(4).toInt)
-      plan.setDefaultParallelism(args(0).toInt)
+      val plan = getScalaPlan(args(0), args(1), args(2), args(3).toInt)
+      plan.setDefaultParallelism(args(4).toInt)
       plan
   }
   
-  def getScalaPlan(verticesInput: String, edgesInput: String, componentsOutput: String, maxIterations: Int = 10) = {
+  def getScalaPlan(verticesInput: String, edgesInput: String, componentsOutput: String, maxIterations: Int) = {
 
   val vertices = DataSource(verticesInput, DelimitedInputFormat(parseVertex))
   val directedEdges = DataSource(edgesInput, DelimitedInputFormat(parseEdge))
@@ -73,7 +67,6 @@ class ConnectedComponents extends Program with Serializable {
     val output = components.write(componentsOutput, DelimitedOutputFormat(formatOutput.tupled))
 
     val plan = new ScalaPlan(Seq(output), "Connected Components")
-    GlobalSchemaPrinter.printSchema(plan)
     plan
   }
 

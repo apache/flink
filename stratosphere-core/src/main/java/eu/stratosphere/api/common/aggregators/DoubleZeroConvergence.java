@@ -20,6 +20,7 @@ import eu.stratosphere.types.DoubleValue;
  * A {@link ConvergenceCriterion} over an {@link Aggregator} that defines convergence as reached once the aggregator
  * holds the value zero. The aggregated data type is a {@link DoubleValue}.
  */
+@SuppressWarnings("serial")
 public class DoubleZeroConvergence implements ConvergenceCriterion<DoubleValue> {
 
 	/**

@@ -43,6 +43,13 @@ public abstract class ComparatorTestBase<T> {
 
 	protected abstract TypeSerializer<T> createSerializer();
 
+	/**
+	 * Returns the sorted data set.
+	 * <p>
+	 * Note: every element needs to be *strictly greater* than the previous element.
+	 *
+	 * @return sorted test data set
+	 */
 	protected abstract T[] getSortedTestData();
 
 	// -------------------------------- test duplication ------------------------------------------
@@ -433,7 +440,7 @@ public abstract class ComparatorTestBase<T> {
 		assertTrue("No data available during deserialization.", in.available() > 0);
 
 		T deserialized = serializer.deserialize(serializer.createInstance(), in);
-		deepEquals("Deserialized value if wrong.", value, deserialized);
+		deepEquals("Deserialized value is wrong.", value, deserialized);
 
 	}
 

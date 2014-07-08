@@ -15,12 +15,14 @@ package eu.stratosphere.compiler.plan;
 
 import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
 import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE_AND_DAM;
+
+import java.util.HashMap;
+
 import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.BulkIterationNode;
 import eu.stratosphere.compiler.dag.OptimizerNode;
-import eu.stratosphere.compiler.dag.TwoInputNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.util.Visitor;
 
@@ -90,24 +92,10 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 		// add the costs from the step function
 		nodeCosts.addCosts(this.rootOfStepFunction.getCumulativeCosts());
 		
+		// add the costs for the termination criterion, if it exists
+		// the costs are divided at branches, so we can simply add them up
 		if (rootOfTerminationCriterion != null) {
-			// add the costs for the termination criterion
 			nodeCosts.addCosts(this.rootOfTerminationCriterion.getCumulativeCosts());
-		
-			// subtract the costs that were counted twice (there must be some, since both the
-			// next partial solution and the termination criterion depend on the partial solution,
-			// i.e. have a common subexpression)ranches
-			TwoInputNode auxJoiner = (TwoInputNode) getIterationNode().getSingleRootOfStepFunction();
-			if (auxJoiner.getJoinedBranchers() == null || auxJoiner.getJoinedBranchers().isEmpty()) {
-				throw new CompilerException("Error: No branch in step function between Solution Set Delta and Next Workset.");
-			}
-
-			// get the cumulative costs of the last joined branching node
-			for (OptimizerNode joinedBrancher : auxJoiner.getJoinedBranchers()) {
-				PlanNode lastCommonChild = this.rootOfStepFunction.branchPlan.get(joinedBrancher);
-				Costs doubleCounted = lastCommonChild.getCumulativeCosts();
-				nodeCosts.subtractCosts(doubleCounted);
-			}
 		}
 		
 		super.setCosts(nodeCosts);
@@ -120,6 +108,10 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {
+		if (source == this) {
+			return FOUND_SOURCE;
+		}
+		
 		SourceAndDamReport fromOutside = super.hasDamOnPathDownTo(source);
 
 		if (fromOutside == FOUND_SOURCE_AND_DAM) {
@@ -130,11 +122,9 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 			return FOUND_SOURCE_AND_DAM;
 		} else {
 			// check the step function for dams
-			SourceAndDamReport fromStepFunction = this.rootOfStepFunction.hasDamOnPathDownTo(source);
-			return fromStepFunction;
+			return this.rootOfStepFunction.hasDamOnPathDownTo(source);
 		}
 	}
-
 
 	@Override
 	public void acceptForStepFunction(Visitor<PlanNode> visitor) {
@@ -143,13 +133,16 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 		if(this.rootOfTerminationCriterion != null) {
 			this.rootOfTerminationCriterion.accept(visitor);
 		}
-		
 	}
 
 	private void mergeBranchPlanMaps() {
 		for(OptimizerNode.UnclosedBranchDescriptor desc: template.getOpenBranches()){
 			OptimizerNode brancher = desc.getBranchingNode();
 
+			if(branchPlan == null) {
+				branchPlan = new HashMap<OptimizerNode, PlanNode>(6);
+			}
+			
 			if(!branchPlan.containsKey(brancher)){
 				PlanNode selectedCandidate = null;
 

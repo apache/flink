@@ -15,15 +15,15 @@ package eu.stratosphere.test.iterative;
 
 import java.util.Collection;
 
-import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.java.record.pagerank.DanglingPageRank;
 import eu.stratosphere.test.iterative.nephele.DanglingPageRankNepheleITCase;
+import eu.stratosphere.test.recordJobs.graph.DanglingPageRank;
+import eu.stratosphere.test.util.RecordAPITestBase;
 
 @RunWith(Parameterized.class)
 public class DanglingPageRankITCase extends RecordAPITestBase {
@@ -35,6 +35,7 @@ public class DanglingPageRankITCase extends RecordAPITestBase {
 	
 	public DanglingPageRankITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 	
 	
@@ -63,7 +64,7 @@ public class DanglingPageRankITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config1 = new Configuration();
-		config1.setInteger("PageRankITCase#NoSubtasks", 4);
+		config1.setInteger("PageRankITCase#NoSubtasks", DOP);
 		config1.setString("PageRankITCase#NumIterations", "25");
 		return toParameterList(config1);
 	}

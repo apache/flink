@@ -31,7 +31,8 @@
 			<unpack>true</unpack>
 			<scope>runtime</scope>
 			<excludes>
-				<exclude>eu.stratosphere:stratosphere-examples:*</exclude>
+				<exclude>eu.stratosphere:stratosphere-java-examples:*</exclude>
+				<exclude>eu.stratosphere:stratosphere-scala-examples:*</exclude>
 			</excludes>
 		</dependencySet>
 	</dependencySets>

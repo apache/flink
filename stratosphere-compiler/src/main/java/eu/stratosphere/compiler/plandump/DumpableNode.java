@@ -12,8 +12,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.compiler.plandump;
 
-import java.util.Iterator;
-
 import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.plan.PlanNode;
 
@@ -27,9 +25,9 @@ public interface DumpableNode<T extends DumpableNode<T>> {
 	 * 
 	 * @return An iterator over the predecessors.
 	 */
-	Iterator<T> getPredecessors();
+	Iterable<T> getPredecessors();
 	
-	Iterator<DumpableConnection<T>> getDumpableInputs();
+	Iterable<DumpableConnection<T>> getDumpableInputs();
 	
 	OptimizerNode getOptimizerNode();
 	

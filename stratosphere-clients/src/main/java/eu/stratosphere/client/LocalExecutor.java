@@ -17,10 +17,12 @@ import java.util.List;
 
 import org.apache.log4j.Level;
 
+import eu.stratosphere.api.common.InvalidProgramException;
 import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.PlanExecutor;
 import eu.stratosphere.api.common.Program;
+import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -40,6 +42,8 @@ public class LocalExecutor extends PlanExecutor {
 	
 	private static boolean DEFAULT_OVERWRITE = false;
 
+	private static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = -1;
+
 	private final Object lock = new Object();	// we lock to ensure singleton execution
 	
 	private NepheleMiniCluster nephele;
@@ -52,6 +56,8 @@ public class LocalExecutor extends PlanExecutor {
 	
 	private int taskManagerDataPort = -1;
 
+	private int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
+
 	private String configDir;
 
 	private String hdfsConfigFile;
@@ -63,6 +69,10 @@ public class LocalExecutor extends PlanExecutor {
 	// --------------------------------------------------------------------------------------------
 	
 	public LocalExecutor() {
+		if (!ExecutionEnvironment.localExecutionIsAllowed()) {
+			throw new InvalidProgramException("The LocalEnvironment cannot be used when submitting a program through a client.");
+		}
+		
 		if (System.getProperty("log4j.configuration") == null) {
 			setLoggingLevel(Level.INFO);
 		}
@@ -123,6 +133,10 @@ public class LocalExecutor extends PlanExecutor {
 	public void setDefaultAlwaysCreateDirectory(boolean defaultAlwaysCreateDirectory) {
 		this.defaultAlwaysCreateDirectory = defaultAlwaysCreateDirectory;
 	}
+
+	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
+
+	public int getTaskManagerNumSlots() { return this.taskManagerNumSlots; }
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -151,6 +165,7 @@ public class LocalExecutor extends PlanExecutor {
 				}
 				nephele.setDefaultOverwriteFiles(defaultOverwriteFiles);
 				nephele.setDefaultAlwaysCreateDirectory(defaultAlwaysCreateDirectory);
+				nephele.setTaskManagerNumSlots(taskManagerNumSlots);
 				
 				// start it up
 				this.nephele.start();
@@ -199,6 +214,15 @@ public class LocalExecutor extends PlanExecutor {
 			if (this.nephele == null) {
 				// we start a session just for us now
 				shutDownAtEnd = true;
+				
+				// configure the number of local slots equal to the parallelism of the local plan
+				if (this.taskManagerNumSlots == DEFAULT_TASK_MANAGER_NUM_SLOTS) {
+					int maxParallelism = plan.getMaximumParallelism();
+					if (maxParallelism > 0) {
+						this.taskManagerNumSlots = maxParallelism;
+					}
+				}
+				
 				start();
 			} else {
 				// we use the existing session

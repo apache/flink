@@ -42,7 +42,7 @@ public class MinAggregationFunction<T extends Comparable<T>> extends Aggregation
 	
 	@Override
 	public String toString() {
-		return "MAX";
+		return "MIN";
 	}
 	
 	// --------------------------------------------------------------------------------------------

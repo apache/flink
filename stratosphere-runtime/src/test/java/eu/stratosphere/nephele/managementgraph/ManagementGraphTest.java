@@ -19,7 +19,7 @@ import java.util.Iterator;
 
 import org.junit.Test;
 
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.util.ManagementTestUtils;
 
@@ -131,7 +131,6 @@ public class ManagementGraphTest {
 		assertEquals(origVertex.getExecutionState(), copyVertex.getExecutionState());
 		assertEquals(origVertex.getIndexInGroup(), copyVertex.getIndexInGroup());
 		assertEquals(origVertex.getInstanceName(), copyVertex.getInstanceName());
-		assertEquals(origVertex.getInstanceType(), copyVertex.getInstanceType());
 		assertEquals(origVertex.getNumberOfInputGates(), copyVertex.getNumberOfInputGates());
 		assertEquals(origVertex.getNumberOfOutputGates(), copyVertex.getNumberOfOutputGates());
 
@@ -248,15 +247,15 @@ public class ManagementGraphTest {
 
 		// Vertices
 		final ManagementVertex vertex1_1 = new ManagementVertex(groupVertex1, new ManagementVertexID(), "Host 1",
-			"small", 0);
+			0);
 		final ManagementVertex vertex2_1 = new ManagementVertex(groupVertex2, new ManagementVertexID(), "Host 2",
-			"medium", 0);
+			0);
 		final ManagementVertex vertex2_2 = new ManagementVertex(groupVertex2, new ManagementVertexID(), "Host 2",
-			"medium", 1);
+			1);
 		final ManagementVertex vertex3_1 = new ManagementVertex(groupVertex3, new ManagementVertexID(), "Host 2",
-			"medium", 0);
+			0);
 		final ManagementVertex vertex4_1 = new ManagementVertex(groupVertex4, new ManagementVertexID(), "Host 2",
-			"medium", 0);
+			0);
 
 		// Input/output gates
 		final ManagementGate outputGate1_1 = new ManagementGate(vertex1_1, new ManagementGateID(), 0, false);
@@ -275,7 +274,7 @@ public class ManagementGraphTest {
 		// Group Edges
 		new ManagementGroupEdge(groupVertex1, 0, groupVertex2, 0, ChannelType.NETWORK);
 		new ManagementGroupEdge(groupVertex2, 0, groupVertex3, 0, ChannelType.NETWORK);
-		new ManagementGroupEdge(groupVertex3, 0, groupVertex4, 0, ChannelType.INMEMORY);
+		new ManagementGroupEdge(groupVertex3, 0, groupVertex4, 0, ChannelType.IN_MEMORY);
 
 		// Edges
 		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate1_1, 0, inputGate2_1, 0,
@@ -287,7 +286,7 @@ public class ManagementGraphTest {
 		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate2_2, 0, inputGate3_1, 1,
 			ChannelType.NETWORK);
 		new ManagementEdge(new ManagementEdgeID(), new ManagementEdgeID(), outputGate3_1, 0, inputGate4_1, 0,
-			ChannelType.INMEMORY);
+			ChannelType.IN_MEMORY);
 
 		return graph;
 	}

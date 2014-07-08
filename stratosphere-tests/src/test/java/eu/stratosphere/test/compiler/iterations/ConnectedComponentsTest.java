@@ -18,9 +18,9 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.DeltaIteration;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.DeltaIteration;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.api.java.record.functions.JoinFunction;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecond;
@@ -41,11 +41,11 @@ import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
-import eu.stratosphere.test.compiler.CompilerTestBase;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponents;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.DuplicateLongMap;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.MinimumComponentIDReduce;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.NeighborWithComponentIDJoin;
+import eu.stratosphere.test.compiler.util.CompilerTestBase;
+import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents;
+import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.DuplicateLongMap;
+import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.MinimumComponentIDReduce;
+import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.Collector;
@@ -102,7 +102,7 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 		Assert.assertEquals(DriverStrategy.NONE, vertexSource.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.NONE, edgesSource.getDriverStrategy());
 		
-//		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, neighborsJoin.getDriverStrategy());
+		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, neighborsJoin.getDriverStrategy());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput1());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput2());
 		
@@ -182,7 +182,7 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 		Assert.assertEquals(DriverStrategy.NONE, vertexSource.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.NONE, edgesSource.getDriverStrategy());
 		
-//		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, neighborsJoin.getDriverStrategy());
+		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, neighborsJoin.getDriverStrategy());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput1());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput2());
 		

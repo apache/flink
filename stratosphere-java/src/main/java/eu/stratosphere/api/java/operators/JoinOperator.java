@@ -18,13 +18,19 @@ import java.security.InvalidParameterException;
 import java.util.Arrays;
 
 import eu.stratosphere.api.common.InvalidProgramException;
+import eu.stratosphere.api.common.functions.GenericJoiner;
+import eu.stratosphere.api.common.functions.GenericMap;
+import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
+import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
+import eu.stratosphere.api.common.operators.base.MapOperatorBase;
 import eu.stratosphere.api.java.DataSet;
+import eu.stratosphere.api.java.DeltaIteration.SolutionSetPlaceHolder;
 import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.functions.KeySelector;
+import eu.stratosphere.api.java.operators.Keys.FieldPositionKeys;
 import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
-import eu.stratosphere.api.java.operators.translation.PlanJoinOperator;
-import eu.stratosphere.api.java.operators.translation.PlanMapOperator;
 import eu.stratosphere.api.java.operators.translation.PlanUnwrappingJoinOperator;
 import eu.stratosphere.api.java.operators.translation.TupleKeyExtractingMapper;
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
@@ -32,7 +38,7 @@ import eu.stratosphere.api.java.tuple.*;
 //CHECKSTYLE.ON: AvoidStarImport
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 
 /**
  * A {@link DataSet} that is the result of a Join transformation. 
@@ -157,6 +163,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			}
 			
 			this.function = function;
+			extractSemanticAnnotationsFromUdf(function.getClass());
 		}
 		
 		// TODO
@@ -179,7 +186,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 //		}
 		
 		@Override
-		protected Operator translateToDataFlow(Operator input1, Operator input2) {
+		protected eu.stratosphere.api.common.operators.base.JoinOperatorBase<?, ?, OUT, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
 			
 			String name = getName() != null ? getName() : function.getClass().getName();
 			
@@ -203,16 +210,20 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				
 			}
 			else if (super.keys1 instanceof Keys.FieldPositionKeys 
-						&& super.keys2 instanceof Keys.FieldPositionKeys 
-						&& super.keys1.areCompatibale(super.keys2)
-					) {
+						&& super.keys2 instanceof Keys.FieldPositionKeys)
+			{
+				if (!super.keys1.areCompatibale(super.keys2)) {
+					throw new InvalidProgramException("The types of the key fields do not match.");
+				}
 				
 				int[] logicalKeyPositions1 = super.keys1.computeLogicalKeyPositions();
 				int[] logicalKeyPositions2 = super.keys2.computeLogicalKeyPositions();
 				
-				PlanJoinOperator<I1, I2, OUT> po =
-						new PlanJoinOperator<I1, I2, OUT>(function, logicalKeyPositions1, logicalKeyPositions2, 
-								name, getInput1Type(), getInput2Type(), getResultType());
+				JoinOperatorBase<I1, I2, OUT, GenericJoiner<I1, I2, OUT>> po =
+						new JoinOperatorBase<I1, I2, OUT, GenericJoiner<I1, I2, OUT>>(function,
+								new BinaryOperatorInformation<I1, I2, OUT>(getInput1Type(), getInput2Type(), getResultType()),
+								logicalKeyPositions1, logicalKeyPositions2,
+								name);
 				
 				// set inputs
 				po.setFirstInput(input1);
@@ -270,7 +281,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				Keys.SelectorFunctionKeys<I1, ?> rawKeys1, Keys.SelectorFunctionKeys<I2, ?> rawKeys2, 
 				JoinFunction<I1, I2, OUT> function, 
 				TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
-				Operator input1, Operator input2)
+				Operator<I1> input1, Operator<I2> input2)
 		{
 			@SuppressWarnings("unchecked")
 			final Keys.SelectorFunctionKeys<I1, K> keys1 = (Keys.SelectorFunctionKeys<I1, K>) rawKeys1;
@@ -282,9 +293,11 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			
 			final KeyExtractingMapper<I1, K> extractor1 = new KeyExtractingMapper<I1, K>(keys1.getKeyExtractor());
 			final KeyExtractingMapper<I2, K> extractor2 = new KeyExtractingMapper<I2, K>(keys2.getKeyExtractor());
-			
-			final PlanMapOperator<I1, Tuple2<K, I1>> keyMapper1 = new PlanMapOperator<I1, Tuple2<K, I1>>(extractor1, "Key Extractor 1", inputType1, typeInfoWithKey1);
-			final PlanMapOperator<I2, Tuple2<K, I2>> keyMapper2 = new PlanMapOperator<I2, Tuple2<K, I2>>(extractor2, "Key Extractor 2", inputType2, typeInfoWithKey2);
+
+			final MapOperatorBase<I1, Tuple2<K, I1>, GenericMap<I1, Tuple2<K, I1>>> keyMapper1 =
+					new MapOperatorBase<I1, Tuple2<K, I1>, GenericMap<I1, Tuple2<K, I1>>>(extractor1, new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1), "Key Extractor 1");
+			final MapOperatorBase<I2, Tuple2<K, I2>, GenericMap<I2, Tuple2<K, I2>>> keyMapper2 =
+					new MapOperatorBase<I2, Tuple2<K, I2>, GenericMap<I2, Tuple2<K, I2>>>(extractor2, new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2), "Key Extractor 2");
 			final PlanUnwrappingJoinOperator<I1, I2, OUT, K> join = new PlanUnwrappingJoinOperator<I1, I2, OUT, K>(function, keys1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 			
 			join.setFirstInput(keyMapper1);
@@ -303,7 +316,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				int[] logicalKeyPositions1, Keys.SelectorFunctionKeys<I2, ?> rawKeys2, 
 				JoinFunction<I1, I2, OUT> function, 
 				TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
-				Operator input1, Operator input2)
+				Operator<I1> input1, Operator<I2> input2)
 		{
 			if(!inputType1.isTupleType()) {
 				throw new InvalidParameterException("Should not happen.");
@@ -317,9 +330,11 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			
 			final TupleKeyExtractingMapper<I1, K> extractor1 = new TupleKeyExtractingMapper<I1, K>(logicalKeyPositions1[0]);
 			final KeyExtractingMapper<I2, K> extractor2 = new KeyExtractingMapper<I2, K>(keys2.getKeyExtractor());
-			
-			final PlanMapOperator<I1, Tuple2<K, I1>> keyMapper1 = new PlanMapOperator<I1, Tuple2<K, I1>>(extractor1, "Key Extractor 1", inputType1, typeInfoWithKey1);
-			final PlanMapOperator<I2, Tuple2<K, I2>> keyMapper2 = new PlanMapOperator<I2, Tuple2<K, I2>>(extractor2, "Key Extractor 2", inputType2, typeInfoWithKey2);
+
+			final MapOperatorBase<I1, Tuple2<K, I1>, GenericMap<I1, Tuple2<K, I1>>> keyMapper1 =
+					new MapOperatorBase<I1, Tuple2<K, I1>, GenericMap<I1, Tuple2<K, I1>>>(extractor1, new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1), "Key Extractor 1");
+			final MapOperatorBase<I2, Tuple2<K, I2>, GenericMap<I2, Tuple2<K, I2>>> keyMapper2 =
+					new MapOperatorBase<I2, Tuple2<K, I2>, GenericMap<I2, Tuple2<K, I2>>>(extractor2, new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2), "Key Extractor 2");
 			
 			final PlanUnwrappingJoinOperator<I1, I2, OUT, K> join = new PlanUnwrappingJoinOperator<I1, I2, OUT, K>(function, logicalKeyPositions1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 			
@@ -339,7 +354,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				Keys.SelectorFunctionKeys<I1, ?> rawKeys1, int[] logicalKeyPositions2,
 				JoinFunction<I1, I2, OUT> function, 
 				TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
-				Operator input1, Operator input2)
+				Operator<I1> input1, Operator<I2> input2)
 		{
 			if(!inputType2.isTupleType()) {
 				throw new InvalidParameterException("Should not happen.");
@@ -353,9 +368,11 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			
 			final KeyExtractingMapper<I1, K> extractor1 = new KeyExtractingMapper<I1, K>(keys1.getKeyExtractor());
 			final TupleKeyExtractingMapper<I2, K> extractor2 = new TupleKeyExtractingMapper<I2, K>(logicalKeyPositions2[0]);
-			
-			final PlanMapOperator<I1, Tuple2<K, I1>> keyMapper1 = new PlanMapOperator<I1, Tuple2<K, I1>>(extractor1, "Key Extractor 1", inputType1, typeInfoWithKey1);
-			final PlanMapOperator<I2, Tuple2<K, I2>> keyMapper2 = new PlanMapOperator<I2, Tuple2<K, I2>>(extractor2, "Key Extractor 2", inputType2, typeInfoWithKey2);
+
+			final MapOperatorBase<I1, Tuple2<K, I1>, GenericMap<I1, Tuple2<K, I1>>> keyMapper1 =
+					new MapOperatorBase<I1, Tuple2<K, I1>, GenericMap<I1, Tuple2<K, I1>>>(extractor1, new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1), "Key Extractor 1");
+			final MapOperatorBase<I2, Tuple2<K, I2>, GenericMap<I2, Tuple2<K, I2>>> keyMapper2 =
+					new MapOperatorBase<I2, Tuple2<K, I2>, GenericMap<I2, Tuple2<K, I2>>>(extractor2, new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2), "Key Extractor 2");
 			
 			final PlanUnwrappingJoinOperator<I1, I2, OUT, K> join = new PlanUnwrappingJoinOperator<I1, I2, OUT, K>(function, keys1, logicalKeyPositions2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 			
@@ -378,8 +395,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	 * 
 	 * @param <I1> The type of the first input DataSet of the Join transformation.
 	 * @param <I2> The type of the second input DataSet of the Join transformation.
-	 * @param <OUT> The type of the result of the Join transformation.
-	 * 
+	 *
 	 * @see Tuple2
 	 * @see DataSet
 	 */
@@ -405,6 +421,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see DataSet
 		 */
 		public <R> EquiJoin<I1, I2, R> with(JoinFunction<I1, I2, R> function) {
+			if (function == null) {
+				throw new NullPointerException("Join function must not be null.");
+			}
 			TypeInformation<R> returnType = TypeExtractor.getJoinReturnTypes(function, getInput1Type(), getInput2Type());
 			return new EquiJoin<I1, I2, R>(getInput1(), getInput2(), getKeys1(), getKeys2(), function, returnType, getJoinHint());
 		}
@@ -417,7 +436,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * Fields of the first and second input can be added by chaining the method calls of
 		 * {@link JoinProjection#projectFirst(int...)} and {@link JoinProjection#projectSecond(int...)}.
 		 * 
-		 * @param fieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields. 
+		 * @param firstFieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields.
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
 		 * @return A JoinProjection that needs to be converted into a {@link ProjectJoin} to complete the 
@@ -484,7 +503,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	 * @see Tuple
 	 * @see DataSet
 	 */
-	private static final class ProjectJoin<I1, I2, OUT extends Tuple> extends EquiJoin<I1, I2, OUT> {
+	public static final class ProjectJoin<I1, I2, OUT extends Tuple> extends EquiJoin<I1, I2, OUT> {
 		
 		protected ProjectJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint, int[] fields, boolean[] isFromFirst, TupleTypeInfo<OUT> returnType) {
 			super(input1, input2, keys1, keys2, 
@@ -493,63 +512,63 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 	}
 	
-	@SuppressWarnings("unused")
-	private static final class LeftAntiJoin<I1, I2> extends JoinOperator<I1, I2, I1> {
-		
-		protected LeftAntiJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint) {
-			super(input1, input2, keys1, keys2, input1.getType(), hint);
-		}
-		
-		@Override
-		protected Operator translateToDataFlow(Operator input1, Operator input2) {
-			throw new UnsupportedOperationException("LeftAntiJoin operator currently not supported.");
-		}
-	}
+//	@SuppressWarnings("unused")
+//	private static final class LeftAntiJoin<I1, I2> extends JoinOperator<I1, I2, I1> {
+//		
+//		protected LeftAntiJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint) {
+//			super(input1, input2, keys1, keys2, input1.getType(), hint);
+//		}
+//		
+//		@Override
+//		protected Operator<I1> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
+//			throw new UnsupportedOperationException("LeftAntiJoin operator currently not supported.");
+//		}
+//	}
 	
-	@SuppressWarnings("unused")
-	private static final class RightAntiJoin<I1, I2> extends JoinOperator<I1, I2, I2> {
-		
-		protected RightAntiJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint) {
-			super(input1, input2, keys1, keys2, input2.getType(), hint);
-		}
-		
-		@Override
-		protected Operator translateToDataFlow(Operator input1, Operator input2) {
-			throw new UnsupportedOperationException("RightAntiJoin operator currently not supported.");
-		}
-	}
+//	@SuppressWarnings("unused")
+//	private static final class RightAntiJoin<I1, I2> extends JoinOperator<I1, I2, I2> {
+//		
+//		protected RightAntiJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint) {
+//			super(input1, input2, keys1, keys2, input2.getType(), hint);
+//		}
+//		
+//		@Override
+//		protected Operator<I2> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
+//			throw new UnsupportedOperationException("RightAntiJoin operator currently not supported.");
+//		}
+//	}
 	
-	@SuppressWarnings("unused")
-	private static final class LeftSemiJoin<I1, I2> extends EquiJoin<I1, I2, I1> {
-		
-		protected LeftSemiJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint) {
-			super(input1, input2, keys1, keys2, new LeftSemiJoinFunction<I1, I2>(), input1.getType(), hint);
-		}
-		
-		@Override
-		protected Operator translateToDataFlow(Operator input1, Operator input2) {
-			// TODO: Runtime support required. Each left tuple may be returned only once.
-			// 	     Special exec strategy (runtime + optimizer) based on hash join required. 
-			// 		 Either no duplicates of right side in HT or left tuples removed from HT after first match.
-			throw new UnsupportedOperationException("LeftSemiJoin operator currently not supported.");
-		}
-	}
+//	@SuppressWarnings("unused")
+//	private static final class LeftSemiJoin<I1, I2> extends EquiJoin<I1, I2, I1> {
+//		
+//		protected LeftSemiJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint) {
+//			super(input1, input2, keys1, keys2, new LeftSemiJoinFunction<I1, I2>(), input1.getType(), hint);
+//		}
+//		
+//		@Override
+//		protected Operator<I1> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
+//			// TODO: Runtime support required. Each left tuple may be returned only once.
+//			// 	     Special exec strategy (runtime + optimizer) based on hash join required. 
+//			// 		 Either no duplicates of right side in HT or left tuples removed from HT after first match.
+//			throw new UnsupportedOperationException("LeftSemiJoin operator currently not supported.");
+//		}
+//	}
 	
-	@SuppressWarnings("unused")
-	private static final class RightSemiJoin<I1, I2> extends EquiJoin<I1, I2, I2> {
-		
-		protected RightSemiJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint) {
-			super(input1, input2, keys1, keys2, new RightSemiJoinFunction<I1, I2>(), input2.getType(), hint);
-		}
-		
-		@Override
-		protected Operator translateToDataFlow(Operator input1, Operator input2) {
-			// TODO: Runtime support required. Each right tuple may be returned only once.
-			// 	     Special exec strategy (runtime + optimizer) based on hash join required. 
-			// 		 Either no duplicates of left side in HT or right tuples removed from HT after first match.
-			throw new UnsupportedOperationException("RightSemiJoin operator currently not supported.");
-		}
-	}
+//	@SuppressWarnings("unused")
+//	private static final class RightSemiJoin<I1, I2> extends EquiJoin<I1, I2, I2> {
+//		
+//		protected RightSemiJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint) {
+//			super(input1, input2, keys1, keys2, new RightSemiJoinFunction<I1, I2>(), input2.getType(), hint);
+//		}
+//		
+//		@Override
+//		protected Operator<I2> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
+//			// TODO: Runtime support required. Each right tuple may be returned only once.
+//			// 	     Special exec strategy (runtime + optimizer) based on hash join required. 
+//			// 		 Either no duplicates of left side in HT or right tuples removed from HT after first match.
+//			throw new UnsupportedOperationException("RightSemiJoin operator currently not supported.");
+//		}
+//	}
 	
 	// --------------------------------------------------------------------------------------------
 	// Builder classes for incremental construction
@@ -591,7 +610,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * 
 		 * @param fields The indexes of the Tuple fields of the first join DataSets that should be used as keys.
 		 * @return An incomplete Join transformation. 
-		 *           Call {@link JoinOperatorSetsPredicate#equalTo(int...)} to continue the Join. 
+		 *           Call {@link JoinOperatorSetsPredicate#equalTo(int...)} or {@link JoinOperatorSetsPredicate#equalTo(KeySelector)}
+		 *           to continue the Join. 
 		 * 
 		 * @see Tuple
 		 * @see DataSet
@@ -600,20 +620,29 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			return new JoinOperatorSetsPredicate(new Keys.FieldPositionKeys<I1>(fields, input1.getType()));
 		}
 		
-		public <K extends Comparable<K>> JoinOperatorSetsPredicate where(KeySelector<I1, K> keyExtractor) {
-			return new JoinOperatorSetsPredicate(new Keys.SelectorFunctionKeys<I1, K>(keyExtractor, input1.getType()));
+		/**
+		 * Continues a Join transformation and defines a {@link KeySelector} function for the first join {@link DataSet}.</br>
+		 * The KeySelector function is called for each element of the first DataSet and extracts a single 
+		 * key value on which the DataSet is joined. </br>
+		 * 
+		 * @param keySelector The KeySelector function which extracts the key values from the DataSet on which it is joined.
+		 * @return An incomplete Join transformation. 
+		 *           Call {@link JoinOperatorSetsPredicate#equalTo(int...)} or {@link JoinOperatorSetsPredicate#equalTo(KeySelector)}
+		 *           to continue the Join. 
+		 * 
+		 * @see KeySelector
+		 * @see DataSet
+		 */
+		public <K extends Comparable<K>> JoinOperatorSetsPredicate where(KeySelector<I1, K> keySelector) {
+			return new JoinOperatorSetsPredicate(new Keys.SelectorFunctionKeys<I1, K>(keySelector, input1.getType()));
 		}
 		
-//		public JoinOperatorSetsPredicate where(String keyExpression) {
-//			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(keyExpression, input1.getType()));
-//		}
-	
 		// ----------------------------------------------------------------------------------------
 		
 		/**
 		 * Intermediate step of a Join transformation. <br/>
 		 * To continue the Join transformation, select the join key of the second input {@link DataSet} by calling 
-		 * {@link JoinOperatorSetsPredicate#equalTo(int...)}.
+		 * {@link JoinOperatorSetsPredicate#equalTo(int...)} or {@link JoinOperatorSetsPredicate#equalTo(KeySelector)}.
 		 *
 		 */
 		public class JoinOperatorSetsPredicate {
@@ -641,7 +670,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			 * the element of the first input being the first field of the tuple and the element of the 
 			 * second input being the second field of the tuple. 
 			 * 
-			 * @param fields The indexes of the Tuple fields of the second join DataSets that should be used as keys.
+			 * @param fields The indexes of the Tuple fields of the second join DataSet that should be used as keys.
 			 * @return A DefaultJoin that represents the joined DataSet.
 			 */
 			public DefaultJoin<I1, I2> equalTo(int... fields) {
@@ -657,16 +686,12 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			 * the element of the first input being the first field of the tuple and the element of the 
 			 * second input being the second field of the tuple. 
 			 * 
-			 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet on which it is joined.
+			 * @param keySelector The KeySelector function which extracts the key values from the second DataSet on which it is joined.
 			 * @return A DefaultJoin that represents the joined DataSet.
 			 */
-			public <K> DefaultJoin<I1, I2> equalTo(KeySelector<I2, K> keyExtractor) {
-				return createJoinOperator(new Keys.SelectorFunctionKeys<I2, K>(keyExtractor, input2.getType()));
+			public <K> DefaultJoin<I1, I2> equalTo(KeySelector<I2, K> keySelector) {
+				return createJoinOperator(new Keys.SelectorFunctionKeys<I2, K>(keySelector, input2.getType()));
 			}
-			
-//			public DefaultJoin<I1, I2> equalTo(String keyExpression) {
-//				return createJoinOperator(new Keys.ExpressionKeys<I2>(keyExpression, input2.getType()));
-//			}
 			
 			protected DefaultJoin<I1, I2> createJoinOperator(Keys<I2> keys2) {
 				if (keys2 == null) {
@@ -680,6 +705,26 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				if (!keys1.areCompatibale(keys2)) {
 					throw new InvalidProgramException("The pair of join keys are not compatible with each other.");
 				}
+				
+				
+				// sanity check solution set key mismatches
+				if (input1 instanceof SolutionSetPlaceHolder) {
+					if (keys1 instanceof FieldPositionKeys) {
+						int[] positions = ((FieldPositionKeys<?>) keys1).computeLogicalKeyPositions();
+						((SolutionSetPlaceHolder<?>) input1).checkJoinKeyFields(positions);
+					} else {
+						throw new InvalidProgramException("Currently, the solution set may only be joined with using tuple field positions.");
+					}
+				}
+				if (input2 instanceof SolutionSetPlaceHolder) {
+					if (keys2 instanceof FieldPositionKeys) {
+						int[] positions = ((FieldPositionKeys<?>) keys2).computeLogicalKeyPositions();
+						((SolutionSetPlaceHolder<?>) input2).checkJoinKeyFields(positions);
+					} else {
+						throw new InvalidProgramException("Currently, the solution set may only be joined with using tuple field positions.");
+					}
+				}
+				
 				
 				return new DefaultJoin<I1, I2>(input1, input2, keys1, keys2, joinHint);
 			}
@@ -876,7 +921,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * Fields of the first and second input can be added by chaining the method calls of
 		 * {@link JoinProjection#projectFirst(int...)} and {@link JoinProjection#projectSecond(int...)}.
 		 * 
-		 * @param fieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields. 
+		 * @param firstFieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields.
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
 		 * @return A JoinProjection that needs to be converted into a {@link ProjectOperator} to complete the 

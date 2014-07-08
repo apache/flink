@@ -14,16 +14,22 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import eu.stratosphere.api.common.functions.GenericMap;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
+import eu.stratosphere.api.common.operators.base.MapOperatorBase;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.functions.MapFunction;
-import eu.stratosphere.api.java.operators.translation.PlanMapOperator;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 
 /**
- *
+ * This operator represents the application of a "map" function on a data set, and the
+ * result data set produced by the function.
+ * 
  * @param <IN> The type of the data set consumed by the operator.
  * @param <OUT> The type of the data set created by the operator.
+ * 
+ * @see MapFunction
  */
 public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOperator<IN, OUT>> {
 	
@@ -33,19 +39,16 @@ public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOpe
 	public MapOperator(DataSet<IN> input, MapFunction<IN, OUT> function) {
 		super(input, TypeExtractor.getMapReturnTypes(function, input.getType()));
 		
-		if (function == null) {
-			throw new NullPointerException("Map function must not be null.");
-		}
-		
 		this.function = function;
+		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 
 	@Override
-	protected Operator translateToDataFlow(Operator input) {
+	protected eu.stratosphere.api.common.operators.base.MapOperatorBase<IN, OUT, GenericMap<IN, OUT>> translateToDataFlow(Operator<IN> input) {
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator
-		PlanMapOperator<IN, OUT> po = new PlanMapOperator<IN, OUT>(function, name, getInputType(), getResultType());
+		MapOperatorBase<IN, OUT, GenericMap<IN, OUT>> po = new MapOperatorBase<IN, OUT, GenericMap<IN, OUT>>(function, new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType()), name);
 		// set input
 		po.setInput(input);
 		// set dop

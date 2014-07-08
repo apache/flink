@@ -26,7 +26,11 @@ if [ "$EXECUTIONMODE" = "local" ]; then
     STRATOSPHERE_JM_HEAP=`expr $STRATOSPHERE_JM_HEAP + $STRATOSPHERE_TM_HEAP`
 fi
 
-JVM_ARGS="$JVM_ARGS -Xms"$STRATOSPHERE_JM_HEAP"m -Xmx"$STRATOSPHERE_JM_HEAP"m"
+JVM_ARGS="$JVM_ARGS -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:MaxPermSize=256m"
+
+if [ "$STRATOSPHERE_JM_HEAP" -gt 0 ]; then
+    JVM_ARGS="$JVM_ARGS -Xms"$STRATOSPHERE_JM_HEAP"m -Xmx"$STRATOSPHERE_JM_HEAP"m"
+fi
 
 if [ "$STRATOSPHERE_IDENT_STRING" = "" ]; then
     STRATOSPHERE_IDENT_STRING="$USER"
@@ -68,7 +72,7 @@ case $STARTSTOP in
         rotateLogFile $out
 
         echo Starting job manager
-        $JAVA_RUN $JVM_ARGS $STRATOSPHERE_OPTS "${log_setting[@]}" -classpath "$STRATOSPHERE_JM_CLASSPATH" eu.stratosphere.nephele.jobmanager.JobManager -executionMode $EXECUTIONMODE -configDir "$STRATOSPHERE_CONF_DIR"  > "$out" 2>&1 < /dev/null &
+        $JAVA_RUN $JVM_ARGS ${STRATOSPHERE_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "$STRATOSPHERE_JM_CLASSPATH" eu.stratosphere.nephele.jobmanager.JobManager -executionMode $EXECUTIONMODE -configDir "$STRATOSPHERE_CONF_DIR"  > "$out" 2>&1 < /dev/null &
         echo $! > $pid
     ;;
 

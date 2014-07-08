@@ -24,7 +24,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.common.io.statistics.BaseStatistics;
-import eu.stratosphere.api.common.operators.GenericDataSource;
+import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
@@ -280,7 +280,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	/**
 	 * Configures the file input format by reading the file path from the configuration.
 	 * 
-	 * @see eu.stratosphere.api.io.InputFormat#configure(eu.stratosphere.configuration.Configuration)
+	 * @see eu.stratosphere.api.common.io.InputFormat#configure(eu.stratosphere.configuration.Configuration)
 	 */
 	@Override
 	public void configure(Configuration parameters) {
@@ -302,7 +302,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	/**
 	 * Obtains basic file statistics containing only file size. If the input is a directory, then the size is the sum of all contained files.
 	 * 
-	 * @see eu.stratosphere.api.io.InputFormat#getStatistics(eu.stratosphere.api.common.io.statistics.BaseStatistics)
+	 * @see eu.stratosphere.api.common.io.InputFormat#getStatistics(eu.stratosphere.api.common.io.statistics.BaseStatistics)
 	 */
 	@Override
 	public FileBaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
@@ -388,7 +388,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * @param minNumSplits The minimum desired number of file splits.
 	 * @return The computed file splits.
 	 * 
-	 * @see eu.stratosphere.api.io.InputFormat#createInputSplits(int)
+	 * @see eu.stratosphere.api.common.io.InputFormat#createInputSplits(int)
 	 */
 	@Override
 	public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException {
@@ -582,8 +582,6 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * <p>
 	 * The stream is actually opened in an asynchronous thread to make sure any interruptions to the thread 
 	 * working on the input format do not reach the file system.
-	 * 
-	 * @see eu.stratosphere.api.io.InputFormat#open(eu.stratosphere.nephele.template.InputSplit)
 	 */
 	@Override
 	public void open(FileInputSplit split) throws IOException {
@@ -844,7 +842,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * 
 	 * @return A config builder for setting parameters.
 	 */
-	public static ConfigBuilder configureFileFormat(GenericDataSource<?> target) {
+	public static ConfigBuilder configureFileFormat(GenericDataSourceBase<?, ?> target) {
 		return new ConfigBuilder(target.getParameters());
 	}
 	

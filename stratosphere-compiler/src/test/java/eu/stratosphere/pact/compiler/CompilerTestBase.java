@@ -12,7 +12,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.pact.compiler;
 
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,22 +26,16 @@ import org.junit.BeforeClass;
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.api.common.io.FileInputFormat.FileBaseStatistics;
-import eu.stratosphere.api.common.operators.BulkIteration;
-import eu.stratosphere.api.common.operators.DeltaIteration;
-import eu.stratosphere.api.common.operators.GenericDataSource;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
+import eu.stratosphere.api.java.record.operators.BulkIteration;
+import eu.stratosphere.api.java.record.operators.DeltaIteration;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
-import eu.stratosphere.nephele.instance.HardwareDescription;
-import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
-import eu.stratosphere.nephele.instance.InstanceType;
-import eu.stratosphere.nephele.instance.InstanceTypeDescription;
-import eu.stratosphere.nephele.instance.InstanceTypeDescriptionFactory;
-import eu.stratosphere.nephele.instance.InstanceTypeFactory;
 import eu.stratosphere.util.LogUtils;
 import eu.stratosphere.util.OperatingSystem;
 import eu.stratosphere.util.Visitor;
@@ -50,7 +43,9 @@ import eu.stratosphere.util.Visitor;
 /**
  *
  */
-public abstract class CompilerTestBase {
+public abstract class CompilerTestBase implements java.io.Serializable {
+	
+	private static final long serialVersionUID = 1L;
 
 	protected static final String IN_FILE = OperatingSystem.isWindows() ? "file:/c:/" : "file:///dev/random";
 	
@@ -64,15 +59,13 @@ public abstract class CompilerTestBase {
 	
 	// ------------------------------------------------------------------------
 	
-	protected DataStatistics dataStats;
+	protected transient DataStatistics dataStats;
 	
-	protected PactCompiler withStatsCompiler;
+	protected transient PactCompiler withStatsCompiler;
 	
-	protected PactCompiler noStatsCompiler;
+	protected transient PactCompiler noStatsCompiler;
 	
-	protected InstanceTypeDescription instanceType;
-	
-	private int statCounter;
+	private transient int statCounter;
 	
 	// ------------------------------------------------------------------------	
 	
@@ -83,44 +76,37 @@ public abstract class CompilerTestBase {
 	
 	@Before
 	public void setup() {
-		InetSocketAddress dummyAddr = new InetSocketAddress("localhost", 12345);
-		
 		this.dataStats = new DataStatistics();
-		this.withStatsCompiler = new PactCompiler(this.dataStats, new DefaultCostEstimator(), dummyAddr);
+		this.withStatsCompiler = new PactCompiler(this.dataStats, new DefaultCostEstimator());
 		this.withStatsCompiler.setDefaultDegreeOfParallelism(DEFAULT_PARALLELISM);
 		
-		this.noStatsCompiler = new PactCompiler(null, new DefaultCostEstimator(), dummyAddr);
+		this.noStatsCompiler = new PactCompiler(null, new DefaultCostEstimator());
 		this.noStatsCompiler.setDefaultDegreeOfParallelism(DEFAULT_PARALLELISM);
-		
-		// create the instance type description
-		InstanceType iType = InstanceTypeFactory.construct("standard", 6, 2, 4096, 100, 0);
-		HardwareDescription hDesc = HardwareDescriptionFactory.construct(2, 4096 * 1024 * 1024, 2000 * 1024 * 1024);
-		this.instanceType = InstanceTypeDescriptionFactory.construct(iType, hDesc, DEFAULT_PARALLELISM * 2);
 	}
 	
 	// ------------------------------------------------------------------------
 	
 	public OptimizedPlan compileWithStats(Plan p) {
-		return this.withStatsCompiler.compile(p, this.instanceType);
+		return this.withStatsCompiler.compile(p);
 	}
 	
 	public OptimizedPlan compileNoStats(Plan p) {
-		return this.noStatsCompiler.compile(p, this.instanceType);
+		return this.noStatsCompiler.compile(p);
 	}
 	
-	public void setSourceStatistics(GenericDataSource<?> source, long size, float recordWidth) {
+	public void setSourceStatistics(GenericDataSourceBase<?, ?> source, long size, float recordWidth) {
 		setSourceStatistics(source, new FileBaseStatistics(Long.MAX_VALUE, size, recordWidth));
 	}
 	
-	public void setSourceStatistics(GenericDataSource<?> source, FileBaseStatistics stats) {
+	public void setSourceStatistics(GenericDataSourceBase<?, ?> source, FileBaseStatistics stats) {
 		final String key = CACHE_KEY + this.statCounter++;
 		this.dataStats.cacheBaseStatistics(stats, key);
 		source.setStatisticsKey(key);
 	}
 	
 	// ------------------------------------------------------------------------
-	public static ContractResolver getContractResolver(Plan plan) {
-		return new ContractResolver(plan);
+	public static OperatorResolver getContractResolver(Plan plan) {
+		return new OperatorResolver(plan);
 	}
 	
 	public static OptimizerPlanNodeResolver getOptimizerPlanNodeResolver(OptimizedPlan plan) {
@@ -137,7 +123,7 @@ public abstract class CompilerTestBase {
 			HashMap<String, ArrayList<PlanNode>> map = new HashMap<String, ArrayList<PlanNode>>();
 			
 			for (PlanNode n : p.getAllNodes()) {
-				Operator c = n.getOriginalOptimizerNode().getPactContract();
+				Operator<?> c = n.getOriginalOptimizerNode().getPactContract();
 				String name = c.getName();
 				
 				ArrayList<PlanNode> list = map.get(name);
@@ -225,14 +211,14 @@ public abstract class CompilerTestBase {
 	
 	// ------------------------------------------------------------------------
 	
-	public static final class ContractResolver implements Visitor<Operator> {
+	public static final class OperatorResolver implements Visitor<Operator<?>> {
 		
-		private final Map<String, List<Operator>> map;
-		private Set<Operator> seen;
+		private final Map<String, List<Operator<?>>> map;
+		private Set<Operator<?>> seen;
 		
-		ContractResolver(Plan p) {
-			this.map = new HashMap<String, List<Operator>>();
-			this.seen = new HashSet<Operator>();
+		OperatorResolver(Plan p) {
+			this.map = new HashMap<String, List<Operator<?>>>();
+			this.seen = new HashSet<Operator<?>>();
 			
 			p.accept(this);
 			this.seen = null;
@@ -240,8 +226,8 @@ public abstract class CompilerTestBase {
 		
 		
 		@SuppressWarnings("unchecked")
-		public <T extends Operator> T getNode(String name) {
-			List<Operator> nodes = this.map.get(name);
+		public <T extends Operator<?>> T getNode(String name) {
+			List<Operator<?>> nodes = this.map.get(name);
 			if (nodes == null || nodes.isEmpty()) {
 				throw new RuntimeException("No nodes found with the given name.");
 			} else if (nodes.size() != 1) {
@@ -252,13 +238,13 @@ public abstract class CompilerTestBase {
 		}
 		
 		@SuppressWarnings("unchecked")
-		public <T extends Operator> T getNode(String name, Class<? extends Function> stubClass) {
-			List<Operator> nodes = this.map.get(name);
+		public <T extends Operator<?>> T getNode(String name, Class<? extends Function> stubClass) {
+			List<Operator<?>> nodes = this.map.get(name);
 			if (nodes == null || nodes.isEmpty()) {
 				throw new RuntimeException("No node found with the given name and stub class.");
 			} else {
-				Operator found = null;
-				for (Operator node : nodes) {
+				Operator<?> found = null;
+				for (Operator<?> node : nodes) {
 					if (node.getClass() == stubClass) {
 						if (found == null) {
 							found = node;
@@ -275,23 +261,23 @@ public abstract class CompilerTestBase {
 			}
 		}
 		
-		public List<Operator> getNodes(String name) {
-			List<Operator> nodes = this.map.get(name);
+		public List<Operator<?>> getNodes(String name) {
+			List<Operator<?>> nodes = this.map.get(name);
 			if (nodes == null || nodes.isEmpty()) {
 				throw new RuntimeException("No node found with the given name.");
 			} else {
-				return new ArrayList<Operator>(nodes);
+				return new ArrayList<Operator<?>>(nodes);
 			}
 		}
 
 		@Override
-		public boolean preVisit(Operator visitable) {
+		public boolean preVisit(Operator<?> visitable) {
 			if (this.seen.add(visitable)) {
 				// add to  the map
 				final String name = visitable.getName();
-				List<Operator> list = this.map.get(name);
+				List<Operator<?>> list = this.map.get(name);
 				if (list == null) {
-					list = new ArrayList<Operator>(2);
+					list = new ArrayList<Operator<?>>(2);
 					this.map.put(name, list);
 				}
 				list.add(visitable);
@@ -311,6 +297,6 @@ public abstract class CompilerTestBase {
 		}
 
 		@Override
-		public void postVisit(Operator visitable) {}
+		public void postVisit(Operator<?> visitable) {}
 	}
 }

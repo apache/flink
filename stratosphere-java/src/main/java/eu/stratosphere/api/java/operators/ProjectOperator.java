@@ -16,6 +16,7 @@ package eu.stratosphere.api.java.operators;
 
 import java.util.Arrays;
 
+import eu.stratosphere.api.common.functions.GenericMap;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.operators.translation.PlanProjectOperator;
@@ -23,10 +24,13 @@ import eu.stratosphere.api.java.operators.translation.PlanProjectOperator;
 import eu.stratosphere.api.java.tuple.*;
 //CHECKSTYLE.ON: AvoidStarImport
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
+
 
 /**
- *
+ * This operator represents the application of a projection operation on a data set, and the
+ * result data set produced by the function.
+ * 
  * @param <IN> The type of the data set projected by the operator.
  * @param <OUT> The type of data set that is the result of the projection.
  */
@@ -42,9 +46,8 @@ public class ProjectOperator<IN, OUT extends Tuple>
 	}
 
 	@Override
-	protected Operator translateToDataFlow(Operator input) {
-		
-		String name = getName() != null ? getName() : "Projection "+Arrays.toString(fields);
+	protected eu.stratosphere.api.common.operators.base.MapOperatorBase<IN, OUT, GenericMap<IN,OUT>> translateToDataFlow(Operator<IN> input) {		
+		String name = getName() != null ? getName() : "Projection " + Arrays.toString(fields);
 		// create operator
 		PlanProjectOperator<IN, OUT> ppo = new PlanProjectOperator<IN, OUT>(fields, name, getInputType(), getResultType());
 		// set input
@@ -69,8 +72,9 @@ public class ProjectOperator<IN, OUT extends Tuple>
 			
 			if(fieldIndexes.length == 0) {
 				throw new IllegalArgumentException("project() needs to select at least one (1) field.");
-			} else if(fieldIndexes.length > 22) {
-				throw new IllegalArgumentException("project() may select only up to twenty-two (22) fields.");
+			} else if(fieldIndexes.length > Tuple.MAX_ARITY - 1) {
+				throw new IllegalArgumentException(
+						"project() may select only up to (" + (Tuple.MAX_ARITY - 1) + ") fields.");
 			}
 			
 			int maxFieldIndex = ((TupleTypeInfo<?>)ds.getType()).getArity();

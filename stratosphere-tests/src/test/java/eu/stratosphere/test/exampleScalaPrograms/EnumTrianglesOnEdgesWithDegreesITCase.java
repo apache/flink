@@ -17,7 +17,7 @@ import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.examples.scala.graph.EnumTrianglesOnEdgesWithDegrees;
 
-public class EnumTrianglesOnEdgesWithDegreesITCase extends eu.stratosphere.test.exampleRecordPrograms.EnumTrianglesOnEdgesWithDegreesITCase {
+public class EnumTrianglesOnEdgesWithDegreesITCase extends eu.stratosphere.test.recordJobTests.EnumTrianglesOnEdgesWithDegreesITCase {
 
 	public EnumTrianglesOnEdgesWithDegreesITCase(Configuration config) {
 		super(config);
@@ -27,7 +27,7 @@ public class EnumTrianglesOnEdgesWithDegreesITCase extends eu.stratosphere.test.
 	protected Plan getTestJob() {
 		EnumTrianglesOnEdgesWithDegrees enumTriangles = new EnumTrianglesOnEdgesWithDegrees();
 		return enumTriangles.getScalaPlan(
-				config.getInteger("EnumTrianglesTest#NumSubtasks", 4),
+				config.getInteger("EnumTrianglesTest#NumSubtasks", DOP),
 				edgesPath, resultPath);
 	}
 }

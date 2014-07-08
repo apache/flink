@@ -14,24 +14,42 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.functions;
 
-import eu.stratosphere.api.common.accumulators.Accumulator;
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.common.functions.GenericMap;
 
 /**
- * This abstract class is the base for all user-defined "tuple-at-a-time"
- * operations.
- * The user has to implement the map()-method with custom code.
+ * The abstract base class for Map functions. Map functions take elements and transform them,
+ * element wise. A Map function always produces a single result element for each input element.
+ * Typical applications are parsing elements, converting data types, or projecting out fields.
+ * Operations that produce multiple result elements from a single input element can be implemented
+ * using the {@link FlatMapFunction}.
+ * <p>
+ * The basic syntax for using a MapFunction is as follows:
+ * <pre><blockquote>
+ * DataSet<X> input = ...;
  * 
- * The {@link AbstractFunction#open(eu.stratosphere.configuration.Configuration)} and
- * {@link AbstractFunction#close()} methods can be used for setup tasks (such as creating {@link Accumulator}s)
- *
- * @param <IN> Type of incoming objects
- * @param <OUT> Type of outgoing objects
+ * DataSet<Y> result = input.map(new MyMapFunction());
+ * </blockquote></pre>
+ * <p>
+ * Like all functions, the MapFunction needs to be serializable, as defined in {@link java.io.Serializable}.
+ * 
+ * @param <IN> Type of the input elements.
+ * @param <OUT> Type of the returned elements.
  */
 public abstract class MapFunction<IN, OUT> extends AbstractFunction implements GenericMap<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
+	/**
+	 * The core method of the MapFunction. Takes an element from the input data set and transforms
+	 * it into another element.
+	 * 
+	 * @param value The input value.
+	 * @return The value produced by the map function from the input value.
+	 * 
+	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
+	 *                   to fail and may trigger recovery.
+	 */
+	@Override
 	public abstract OUT map(IN value) throws Exception;
 }

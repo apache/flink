@@ -21,11 +21,11 @@ import static org.junit.Assert.fail;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.java.record.operators.CrossOperator;
 import eu.stratosphere.api.java.record.operators.CrossWithLargeOperator;
 import eu.stratosphere.api.java.record.operators.CrossWithSmallOperator;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
@@ -40,6 +40,7 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 * Tests that validate optimizer choices when using operators that are requesting certain specific execution
 * strategies.
 */
+@SuppressWarnings("serial")
 public class AdditionalOperatorsTest extends CompilerTestBase {
 
 	@Test

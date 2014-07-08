@@ -108,7 +108,7 @@ public class AggregateITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple2<Long, Integer>> aggregateDs = ds.groupBy(1)
-						.aggregate(Aggregations.AVG, 0)
+						.aggregate(Aggregations.SUM, 0)
 						.project(1, 0).types(Long.class, Integer.class);
 				
 				aggregateDs.writeAsCsv(resultPath);
@@ -116,11 +116,11 @@ public class AggregateITCase extends JavaProgramTestBase {
 				
 				// return expected result
 				return "1,1\n" +
-				"2,2\n" +
-				"3,5\n" +
-				"4,8\n" +
-				"5,13\n" +
-				"6,18\n";
+				"2,5\n" +
+				"3,15\n" +
+				"4,34\n" +
+				"5,65\n" +
+				"6,111\n";
 			} 
 			case 3: {
 				/*
@@ -131,7 +131,7 @@ public class AggregateITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple1<Integer>> aggregateDs = ds.groupBy(1)
-						.aggregate(Aggregations.AVG, 0)
+						.aggregate(Aggregations.MIN, 0)
 						.aggregate(Aggregations.MIN, 0)
 						.project(0).types(Integer.class);
 				

@@ -17,9 +17,14 @@ import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.api.common.operators.util.FieldList;
+import eu.stratosphere.compiler.CompilerException;
+import eu.stratosphere.compiler.dag.TwoInputNode;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
+import eu.stratosphere.compiler.plan.Channel;
+import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.util.Utils;
+import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * 
@@ -36,7 +41,22 @@ public class CoGroupWithSolutionSetFirstDescriptor extends CoGroupDescriptor {
 		RequestedLocalProperties sort = new RequestedLocalProperties(Utils.createOrdering(this.keys2));
 		return Collections.singletonList(new LocalPropertiesPair(none, sort));
 	}
-	
+
+	@Override
+	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
+		boolean[] inputOrders = in2.getLocalProperties().getOrdering() == null ? null : in2.getLocalProperties().getOrdering().getFieldSortDirections();
+
+		if (inputOrders == null || inputOrders.length < this.keys2.size()) {
+			throw new CompilerException("BUG: The input strategy does not sufficiently describe the sort orders for a CoGroup operator.");
+		} else if (inputOrders.length > this.keys2.size()) {
+			boolean[] tmp = new boolean[this.keys2.size()];
+			System.arraycopy(inputOrders, 0, tmp, 0, tmp.length);
+			inputOrders = tmp;
+		}
+
+		return new DualInputPlanNode(node, "CoGroup ("+node.getPactContract().getName()+")", in1, in2, DriverStrategy.CO_GROUP, this.keys1, this.keys2, inputOrders);
+	}
+
 	@Override
 	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
 			LocalProperties produced1, LocalProperties produced2)

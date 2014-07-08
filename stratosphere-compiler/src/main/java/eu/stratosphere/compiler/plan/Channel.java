@@ -22,6 +22,8 @@ import eu.stratosphere.compiler.dag.EstimateProvider;
 import eu.stratosphere.compiler.dag.TempMode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
+import eu.stratosphere.compiler.dataproperties.RequestedGlobalProperties;
+import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.compiler.plandump.DumpableConnection;
 import eu.stratosphere.compiler.util.Utils;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
@@ -48,6 +50,10 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	
 	private boolean[] localSortOrder;
 	
+	private RequestedGlobalProperties requiredGlobalProps;
+	
+	private RequestedLocalProperties requiredLocalProps;
+	
 	private GlobalProperties globalProps;
 	
 	private LocalProperties localProps;
@@ -62,11 +68,11 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	
 	private TempMode tempMode;
 	
-	private long tempMemory;
+	private double relativeTempMemory;
 	
-	private long memoryGlobalStrategy;
+	private double relativeMemoryGlobalStrategy;
 	
-	private long memoryLocalStrategy;
+	private double relativeMemoryLocalStrategy;
 	
 	private int replicationFactor = 1;
 	
@@ -194,17 +200,17 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	 *
 	 * @return The temp memory.
 	 */
-	public long getTempMemory() {
-		return this.tempMemory;
+	public double getRelativeTempMemory() {
+		return this.relativeTempMemory;
 	}
 	
 	/**
 	 * Sets the memory for materializing the channel's result from this Channel.
 	 *
-	 * @param tempMemory The memory for materialization.
+	 * @param relativeTempMemory The memory for materialization.
 	 */
-	public void setTempMemory(long tempMemory) {
-		this.tempMemory = tempMemory;
+	public void setRelativeTempMemory(double relativeTempMemory) {
+		this.relativeTempMemory = relativeTempMemory;
 	}
 	
 	/**
@@ -280,20 +286,20 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		this.localStrategyComparator = localStrategyComparator;
 	}
 	
-	public long getMemoryGlobalStrategy() {
-		return memoryGlobalStrategy;
+	public double getRelativeMemoryGlobalStrategy() {
+		return relativeMemoryGlobalStrategy;
 	}
 	
-	public void setMemoryGlobalStrategy(long memoryGlobalStrategy) {
-		this.memoryGlobalStrategy = memoryGlobalStrategy;
+	public void setRelativeMemoryGlobalStrategy(double relativeMemoryGlobalStrategy) {
+		this.relativeMemoryGlobalStrategy = relativeMemoryGlobalStrategy;
 	}
 	
-	public long getMemoryLocalStrategy() {
-		return memoryLocalStrategy;
+	public double getRelativeMemoryLocalStrategy() {
+		return relativeMemoryLocalStrategy;
 	}
 	
-	public void setMemoryLocalStrategy(long memoryLocalStrategy) {
-		this.memoryLocalStrategy = memoryLocalStrategy;
+	public void setRelativeMemoryLocalStrategy(double relativeMemoryLocalStrategy) {
+		this.relativeMemoryLocalStrategy = relativeMemoryLocalStrategy;
 	}
 	
 	public boolean isOnDynamicPath() {
@@ -329,6 +335,22 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	// --------------------------------------------------------------------------------------------
 	
 
+	public RequestedGlobalProperties getRequiredGlobalProps() {
+		return requiredGlobalProps;
+	}
+
+	public void setRequiredGlobalProps(RequestedGlobalProperties requiredGlobalProps) {
+		this.requiredGlobalProps = requiredGlobalProps;
+	}
+
+	public RequestedLocalProperties getRequiredLocalProps() {
+		return requiredLocalProps;
+	}
+
+	public void setRequiredLocalProps(RequestedLocalProperties requiredLocalProps) {
+		this.requiredLocalProps = requiredLocalProps;
+	}
+
 	public GlobalProperties getGlobalProperties() {
 		if (this.globalProps == null) {
 			this.globalProps = this.source.getGlobalProperties().clone();
@@ -348,19 +370,6 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 				case PARTITION_RANDOM:
 					this.globalProps.reset();
 					break;
-				case PARTITION_LOCAL_HASH:
-					if (getSource().getGlobalProperties().isPartitionedOnFields(this.shipKeys)) {
-						// after a local hash partitioning, we can only state that the data is somehow
-						// partitioned. even if we had a hash partitioning before over 8 partitions,
-						// locally rehashing that onto 16 partitions (each one partition into two) gives you
-						// a different result than directly hashing to 16 partitions. the hash-partitioning
-						// property is only valid, if the assumed built in hash function is directly used.
-						// hence, we can only state that this is some form of partitioning.
-						this.globalProps.setAnyPartitioning(this.shipKeys);
-					} else {
-						this.globalProps.reset();
-					}
-					break;
 				case NONE:
 					throw new CompilerException("Cannot produce GlobalProperties before ship strategy is set.");
 			}
@@ -371,13 +380,13 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	
 	public LocalProperties getLocalProperties() {
 		if (this.localProps == null) {
-			this.localProps = getLocalPropertiesAfterShippingOnly().clone();
+			computeLocalPropertiesAfterShippingOnly();
 			switch (this.localStrategy) {
 				case NONE:
 					break;
 				case SORT:
 				case COMBININGSORT:
-					this.localProps.setOrdering(Utils.createOrdering(this.localKeys, this.localSortOrder));
+					this.localProps = LocalProperties.forOrdering(Utils.createOrdering(this.localKeys, this.localSortOrder));
 					break;
 				default:
 					throw new CompilerException("Unsupported local strategy for channel.");
@@ -387,25 +396,19 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		return this.localProps;
 	}
 	
-	public LocalProperties getLocalPropertiesAfterShippingOnly() {
-		if (this.shipStrategy == ShipStrategyType.FORWARD) {
-			return this.source.getLocalProperties();
-		} else {
-			final LocalProperties props = this.source.getLocalProperties().clone();
-			switch (this.shipStrategy) {
-				case BROADCAST:
-				case PARTITION_HASH:
-				case PARTITION_RANGE:
-				case PARTITION_RANDOM:
-					props.reset();
-					break;
-				case PARTITION_LOCAL_HASH:
-				case FORWARD:
-					break;
-				case NONE:
-					throw new CompilerException("ShipStrategy has not yet been set.");
-			}
-			return props;
+	private void computeLocalPropertiesAfterShippingOnly() {
+		switch (this.shipStrategy) {
+			case BROADCAST:
+			case PARTITION_HASH:
+			case PARTITION_RANGE:
+			case PARTITION_RANDOM:
+				this.localProps = new LocalProperties();
+				break;
+			case FORWARD:
+				this.localProps = this.source.getLocalProperties();
+				break;
+			case NONE:
+				throw new CompilerException("ShipStrategy has not yet been set.");
 		}
 	}
 	
@@ -423,8 +426,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		// some strategies globally reestablish properties
 		switch (this.shipStrategy) {
 		case FORWARD:
-		case PARTITION_LOCAL_HASH:
-			throw new CompilerException("Cannot use FORWARD or LOCAL_HASH strategy between operations " +
+			throw new CompilerException("Cannot use FORWARD strategy between operations " +
 					"with different number of parallel instances.");
 		case NONE: // excluded by sanity check. lust here for verification check completion
 		case BROADCAST:
@@ -433,34 +435,6 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		case PARTITION_RANDOM:
 			return;
 		}
-		throw new CompilerException("Unrecognized Ship Strategy Type: " + this.shipStrategy);
-	}
-	
-	public void adjustGlobalPropertiesForLocalParallelismChange() {
-		if (this.shipStrategy == null || this.shipStrategy == ShipStrategyType.NONE) {
-			throw new IllegalStateException("Cannot adjust channel for degree of parallelism " +
-					"change before the ship strategy is set.");
-		}
-		
-		// make sure the properties are acquired
-		if (this.globalProps == null) {
-			getGlobalProperties();
-		}
-		
-		// some strategies globally reestablish properties
-		switch (this.shipStrategy) {
-		case FORWARD:
-			this.globalProps.reset();
-			return;
-		case NONE: // excluded by sanity check. lust here for verification check completion
-		case PARTITION_LOCAL_HASH:
-		case BROADCAST:
-		case PARTITION_HASH:
-		case PARTITION_RANGE:
-		case PARTITION_RANDOM:
-			return;
-		}
-		
 		throw new CompilerException("Unrecognized Ship Strategy Type: " + this.shipStrategy);
 	}
 

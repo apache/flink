@@ -16,6 +16,7 @@ package eu.stratosphere.nephele.jobmanager.splitassigner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import eu.stratosphere.nephele.instance.Instance;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -23,9 +24,6 @@ import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.core.io.LocatableInputSplit;
 import eu.stratosphere.nephele.executiongraph.ExecutionGroupVertex;
 import eu.stratosphere.nephele.executiongraph.ExecutionVertex;
-import eu.stratosphere.nephele.instance.AbstractInstance;
-import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.nephele.template.AbstractInvokable;
 
 /**
  * The locatable input split assigner is a specific implementation of the {@link InputSplitAssigner} interface for
@@ -49,18 +47,8 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 	@Override
 	public void registerGroupVertex(final ExecutionGroupVertex groupVertex) {
 
-		// Do some sanity checks first
-		final AbstractInvokable invokable = groupVertex.getEnvironment().getInvokable();
-
-		// if (!(invokable instanceof AbstractFileInputTask)) {
-		// LOG.error(groupVertex.getName() + " is not an input vertex, ignoring vertex...");
-		// return;
-		// }
-
-		@SuppressWarnings("unchecked")
-		final AbstractInputTask<? extends InputSplit> inputTask = (AbstractInputTask<? extends InputSplit>) invokable;
-		if (!LocatableInputSplit.class.isAssignableFrom(inputTask.getInputSplitType())) {
-			LOG.error(groupVertex.getName() + " produces input splits of type " + inputTask.getInputSplitType()
+		if (!LocatableInputSplit.class.isAssignableFrom(groupVertex.getInputSplitType())) {
+			LOG.error(groupVertex.getName() + " produces input splits of type " + groupVertex.getInputSplitType()
 				+ " and cannot be handled by this split assigner");
 			return;
 		}
@@ -115,7 +103,7 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 			return null;
 		}
 
-		final AbstractInstance instance = vertex.getAllocatedResource().getInstance();
+		final Instance instance = vertex.getAllocatedResource().getInstance();
 		if (instance == null) {
 			LOG.error("Instance is null, returning random split");
 			return null;

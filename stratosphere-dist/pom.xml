@@ -7,7 +7,7 @@
 	<parent>
 		<groupId>eu.stratosphere</groupId>
 		<artifactId>stratosphere</artifactId>
-		<version>0.5-SNAPSHOT</version>
+		<version>0.6-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -346,6 +346,7 @@
 				<configuration>
 					<dotGitDirectory>${project.basedir}/../.git</dotGitDirectory>
 					<generateGitPropertiesFile>true</generateGitPropertiesFile>
+					<failOnNoGitDirectory>false</failOnNoGitDirectory>
 					<skipPoms>false</skipPoms>
 					<generateGitPropertiesFilename>src/main/stratosphere-bin/.version.properties</generateGitPropertiesFilename>
 				</configuration>

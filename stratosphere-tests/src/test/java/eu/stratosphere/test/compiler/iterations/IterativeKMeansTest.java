@@ -12,7 +12,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.compiler.iterations;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 
@@ -20,18 +23,19 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.common.operators.util.FieldList;
 import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plan.SinkPlanNode;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.example.java.record.kmeans.KMeans;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
-import eu.stratosphere.test.compiler.CompilerTestBase;
+import eu.stratosphere.test.compiler.util.CompilerTestBase;
+import eu.stratosphere.test.compiler.util.OperatorResolver;
+import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast;
 
 
 public class IterativeKMeansTest extends CompilerTestBase {
@@ -55,11 +59,11 @@ public class IterativeKMeansTest extends CompilerTestBase {
 	@Test
 	public void testCompileKMeansSingleStepWithStats() {
 		
-		KMeans kmi = new KMeans();
+		KMeansBroadcast kmi = new KMeansBroadcast();
 		Plan p = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM), IN_FILE, IN_FILE, OUT_FILE, String.valueOf(20));
 		
 		// set the statistics
-		ContractResolver cr = getContractResolver(p);
+		OperatorResolver cr = getContractResolver(p);
 		FileDataSource pointsSource = cr.getNode(DATAPOINTS);
 		FileDataSource centersSource = cr.getNode(CENTERS);
 		setSourceStatistics(pointsSource, 100l*1024*1024*1024, 32f);
@@ -74,7 +78,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 	@Test
 	public void testCompileKMeansSingleStepWithOutStats() {
 		
-		KMeans kmi = new KMeans();
+		KMeansBroadcast kmi = new KMeansBroadcast();
 		Plan p = kmi.getPlan(String.valueOf(DEFAULT_PARALLELISM), IN_FILE, IN_FILE, OUT_FILE, String.valueOf(20));
 		
 		OptimizedPlan plan = compileNoStats(p);

@@ -50,7 +50,7 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E> {
 	 * @param parentTask The parent task, which owns all resources used by this sorter.
 	 * @param serializerFactory The type serializer.
 	 * @param comparator The type comparator establishing the order relation.
-	 * @param totalMemory The total amount of memory dedicated to sorting.
+	 * @param memoryFraction The fraction of memory dedicated to sorting.
 	 * 
 	 * @throws IOException Thrown, if an error occurs initializing the resources for external sorting.
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
@@ -59,12 +59,13 @@ public class AsynchronousPartialSorter<E> extends UnilateralSortMerger<E> {
 	public AsynchronousPartialSorter(MemoryManager memoryManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
-			long totalMemory)
+			double memoryFraction)
 	throws IOException, MemoryAllocationException
 	{
-		super(memoryManager, null, input, parentTask, serializerFactory, comparator, totalMemory,
-			totalMemory < 2 * MIN_NUM_SORT_MEM_SEGMENTS * memoryManager.getPageSize() ? 1 : 
-				Math.max((int) Math.ceil(((double) totalMemory) / MAX_MEM_PER_PARTIAL_SORT), 2),
+		super(memoryManager, null, input, parentTask, serializerFactory, comparator, memoryFraction,
+			memoryManager.computeNumberOfPages(memoryFraction) < 2 * MIN_NUM_SORT_MEM_SEGMENTS ? 1 :
+				Math.max((int) Math.ceil(((double) memoryManager.computeMemorySize(memoryFraction)) /
+						MAX_MEM_PER_PARTIAL_SORT),	2),
 			2, 0.0f, true);
 	}
 	

@@ -17,6 +17,7 @@ import eu.stratosphere.types.LongValue;
 /**
  * An {@link Aggregator} that sums up long values.
  */
+@SuppressWarnings("serial")
 public class LongSumAggregator implements Aggregator<LongValue> {
 
 	private long sum;	// the sum

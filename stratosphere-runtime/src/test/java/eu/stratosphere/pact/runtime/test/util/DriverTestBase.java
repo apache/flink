@@ -30,8 +30,8 @@ import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordComparator;
-import eu.stratosphere.pact.runtime.plugable.pactrecord.RecordSerializerFactory;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
+import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
@@ -64,6 +64,8 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	private final TaskConfig taskConfig;
 	
 	protected final long perSortMem;
+
+	protected final double perSortFractionMem;
 	
 	private Collector<Record> output;
 	
@@ -95,8 +97,9 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		final long totalMem = Math.max(memory, 0) + (Math.max(maxNumSorters, 0) * perSortMemory);
 		
 		this.perSortMem = perSortMemory;
+		this.perSortFractionMem = (double)perSortMemory/totalMem;
 		this.ioManager = new IOManager();
-		this.memManager = totalMem > 0 ? new DefaultMemoryManager(totalMem) : null;
+		this.memManager = totalMem > 0 ? new DefaultMemoryManager(totalMem,1) : null;
 		
 		this.inputs = new ArrayList<MutableObjectIterator<Record>>();
 		this.comparators = new ArrayList<TypeComparator<Record>>();
@@ -115,7 +118,8 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	
 	public void addInputSorted(MutableObjectIterator<Record> input, RecordComparator comp) throws Exception {
 		UnilateralSortMerger<Record> sorter = new UnilateralSortMerger<Record>(
-				this.memManager, this.ioManager, input, this.owner, RecordSerializerFactory.get(), comp, this.perSortMem, 32, 0.8f);
+				this.memManager, this.ioManager, input, this.owner, RecordSerializerFactory.get(), comp,
+				this.perSortFractionMem, 32, 0.8f);
 		this.sorters.add(sorter);
 		this.inputs.add(null);
 	}

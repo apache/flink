@@ -13,7 +13,8 @@
 
 package eu.stratosphere.api.scala.analysis
 
-import scala.reflect.ClassTag
+import scala.language.postfixOps
+import scala.language.implicitConversions
 
 abstract sealed class Field extends Serializable {
   val localPos: Int

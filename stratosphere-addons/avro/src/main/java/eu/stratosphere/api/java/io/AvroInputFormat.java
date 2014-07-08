@@ -32,7 +32,7 @@ import eu.stratosphere.api.avro.FSDataInputStreamWrapper;
 import eu.stratosphere.api.common.io.FileInputFormat;
 import eu.stratosphere.api.java.typeutils.ResultTypeQueryable;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.util.InstantiationUtil;
 
 

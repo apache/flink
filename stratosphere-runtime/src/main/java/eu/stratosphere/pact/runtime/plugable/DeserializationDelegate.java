@@ -19,7 +19,7 @@ import java.io.IOException;
 
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
 import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.core.memory.DataInputView;
+import eu.stratosphere.core.memory.InputViewDataInputWrapper;
 
 
 public class DeserializationDelegate<T> implements IOReadableWritable {
@@ -28,12 +28,12 @@ public class DeserializationDelegate<T> implements IOReadableWritable {
 	
 	private final TypeSerializer<T> serializer;
 	
-	private final InputViewWrapper wrapper;
+	private final InputViewDataInputWrapper wrapper;
 	
 	
 	public DeserializationDelegate(TypeSerializer<T> serializer) {
 		this.serializer = serializer;
-		this.wrapper = new InputViewWrapper();
+		this.wrapper = new InputViewDataInputWrapper();
 	}
 	
 	public void setInstance(T instance) {
@@ -53,101 +53,5 @@ public class DeserializationDelegate<T> implements IOReadableWritable {
 	public void read(DataInput in) throws IOException {
 		this.wrapper.setDelegate(in);
 		this.instance = this.serializer.deserialize(this.instance, this.wrapper);
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Utility class that wraps a {@link DataInput} as a {@link DataInputView}.
-	 */
-	private static final class InputViewWrapper implements DataInputView {
-		
-		private DataInput delegate;
-		
-		public void setDelegate(DataInput delegate) {
-			this.delegate = delegate;
-		}
-
-		@Override
-		public void readFully(byte[] b) throws IOException {
-			this.delegate.readFully(b);
-		}
-
-		@Override
-		public void readFully(byte[] b, int off, int len) throws IOException {
-			this.delegate.readFully(b, off, len);
-		}
-
-		@Override
-		public int skipBytes(int n) throws IOException {
-			return this.delegate.skipBytes(n);
-		}
-
-		@Override
-		public boolean readBoolean() throws IOException {
-			return this.delegate.readBoolean();
-		}
-
-		@Override
-		public byte readByte() throws IOException {
-			return this.delegate.readByte();
-		}
-
-		@Override
-		public int readUnsignedByte() throws IOException {
-			return this.delegate.readUnsignedByte();
-		}
-
-		@Override
-		public short readShort() throws IOException {
-			return this.delegate.readShort();
-		}
-
-		@Override
-		public int readUnsignedShort() throws IOException {
-			return this.delegate.readUnsignedShort();
-		}
-
-		@Override
-		public char readChar() throws IOException {
-			return this.delegate.readChar();
-		}
-
-		@Override
-		public int readInt() throws IOException {
-			return this.delegate.readInt();
-		}
-
-		@Override
-		public long readLong() throws IOException {
-			return this.delegate.readLong();
-		}
-
-		@Override
-		public float readFloat() throws IOException {
-			return this.delegate.readFloat();
-		}
-
-		@Override
-		public double readDouble() throws IOException {
-			return this.delegate.readDouble();
-		}
-
-		@Override
-		public String readLine() throws IOException {
-			return this.delegate.readLine();
-		}
-
-		@Override
-		public String readUTF() throws IOException {
-			return this.delegate.readUTF();
-		}
-
-		@Override
-		public void skipBytesToRead(int numBytes) throws IOException {
-			for (int i = 0; i < numBytes; i++) {
-				this.delegate.readByte();
-			}
-		}
 	}
 }

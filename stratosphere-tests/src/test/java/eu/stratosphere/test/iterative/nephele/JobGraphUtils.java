@@ -22,15 +22,14 @@ import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
-import eu.stratosphere.nephele.io.DistributionPattern;
-import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.jobgraph.DistributionPattern;
+import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
 import eu.stratosphere.pact.runtime.iterative.task.IterationSynchronizationSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
@@ -51,24 +50,21 @@ public class JobGraphUtils {
 	}
 	
 	public static <T extends FileInputFormat<?>> JobInputVertex createInput(T stub, String path, String name, JobGraph graph,
-			int degreeOfParallelism, int numSubTasksPerInstance)
+			int degreeOfParallelism)
 	{
 		stub.setFilePath(path);
-		return createInput(new UserCodeObjectWrapper<T>(stub), name, graph, degreeOfParallelism, numSubTasksPerInstance);
+		return createInput(new UserCodeObjectWrapper<T>(stub), name, graph, degreeOfParallelism);
 	}
 
 	private static <T extends InputFormat<?,?>> JobInputVertex createInput(UserCodeWrapper<T> stub, String name, JobGraph graph,
-			int degreeOfParallelism, int numSubTasksPerInstance)
+			int degreeOfParallelism)
 	{
 		JobInputVertex inputVertex = new JobInputVertex(name, graph);
 		
-		@SuppressWarnings("unchecked")
-		Class<AbstractInputTask<?>> clazz = (Class<AbstractInputTask<?>>) (Class<?>) DataSourceTask.class;
-		inputVertex.setInputClass(clazz);
+		inputVertex.setInvokableClass(DataSourceTask.class);
 		
 		inputVertex.setNumberOfSubtasks(degreeOfParallelism);
-		inputVertex.setNumberOfSubtasksPerInstance(numSubTasksPerInstance);
-		
+
 		TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
 		inputConfig.setStubWrapper(stub);
 		
@@ -89,41 +85,36 @@ public class JobGraphUtils {
 	}
 
 	public static JobTaskVertex createTask(@SuppressWarnings("rawtypes") Class<? extends RegularPactTask> task, String name, JobGraph graph,
-			int degreeOfParallelism, int numSubtasksPerInstance)
+			int degreeOfParallelism)
 	{
 		JobTaskVertex taskVertex = new JobTaskVertex(name, graph);
-		taskVertex.setTaskClass(task);
+		taskVertex.setInvokableClass(task);
 		taskVertex.setNumberOfSubtasks(degreeOfParallelism);
-		taskVertex.setNumberOfSubtasksPerInstance(numSubtasksPerInstance);
 		return taskVertex;
 	}
 
 	public static JobOutputVertex createSync(JobGraph jobGraph, int degreeOfParallelism) {
 		JobOutputVertex sync = new JobOutputVertex("BulkIterationSync", jobGraph);
-		sync.setOutputClass(IterationSynchronizationSinkTask.class);
+		sync.setInvokableClass(IterationSynchronizationSinkTask.class);
 		sync.setNumberOfSubtasks(1);
 		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
 		syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
 		return sync;
 	}
 
-	public static JobOutputVertex createFakeOutput(JobGraph jobGraph, String name, int degreeOfParallelism,
-			int numSubTasksPerInstance)
+	public static JobOutputVertex createFakeOutput(JobGraph jobGraph, String name, int degreeOfParallelism)
 	{
 		JobOutputVertex outputVertex = new JobOutputVertex(name, jobGraph);
-		outputVertex.setOutputClass(FakeOutputTask.class);
+		outputVertex.setInvokableClass(FakeOutputTask.class);
 		outputVertex.setNumberOfSubtasks(degreeOfParallelism);
-		outputVertex.setNumberOfSubtasksPerInstance(numSubTasksPerInstance);
 		return outputVertex;
 	}
 
-	public static JobOutputVertex createFileOutput(JobGraph jobGraph, String name, int degreeOfParallelism,
-			int numSubTasksPerInstance)
+	public static JobOutputVertex createFileOutput(JobGraph jobGraph, String name, int degreeOfParallelism)
 	{
 		JobOutputVertex sinkVertex = new JobOutputVertex(name, jobGraph);
-		sinkVertex.setOutputClass(DataSinkTask.class);
+		sinkVertex.setInvokableClass(DataSinkTask.class);
 		sinkVertex.setNumberOfSubtasks(degreeOfParallelism);
-		sinkVertex.setNumberOfSubtasksPerInstance(numSubTasksPerInstance);
 		return sinkVertex;
 	}
 }

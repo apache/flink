@@ -34,7 +34,7 @@ public class DefaultCostEstimator extends CostEstimator {
 	 * The case of the estimation for all relative costs. We heuristically pick a very large data volume, which
 	 * will favor strategies that are less expensive on large data volumes. This is robust and 
 	 */
-	private static final long HEURISTIC_COST_BASE = 10000000000l;
+	private static final long HEURISTIC_COST_BASE = 1000000000L;
 	
 	// The numbers for the CPU effort are rather magic at the moment and should be seen rather ordinal
 	
@@ -95,14 +95,20 @@ public class DefaultCostEstimator extends CostEstimator {
 
 	@Override
 	public void addBroadcastCost(EstimateProvider estimates, int replicationFactor, Costs costs) {
-		// assumption: we need ship the whole data over the network to each node.
-		final long estOutShipSize = estimates.getEstimatedOutputSize();
-		if (estOutShipSize <= 0) {
-			costs.setNetworkCost(Costs.UNKNOWN);
+		// if our replication factor is negative, we cannot calculate broadcast costs
+
+		if (replicationFactor > 0) {
+			// assumption: we need ship the whole data over the network to each node.
+			final long estOutShipSize = estimates.getEstimatedOutputSize();
+			if (estOutShipSize <= 0) {
+				costs.setNetworkCost(Costs.UNKNOWN);
+			} else {
+				costs.addNetworkCost(replicationFactor * estOutShipSize);
+			}
+			costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE * 10 * replicationFactor);
 		} else {
-			costs.addNetworkCost(replicationFactor * estOutShipSize);
+			costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE * 1000);
 		}
-		costs.addHeuristicNetworkCost(HEURISTIC_COST_BASE * replicationFactor);
 	}
 	
 	// --------------------------------------------------------------------------------------------

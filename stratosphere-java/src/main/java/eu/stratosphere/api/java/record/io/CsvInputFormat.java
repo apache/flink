@@ -20,8 +20,8 @@ import com.google.common.base.Preconditions;
 import eu.stratosphere.api.common.io.GenericCsvInputFormat;
 import eu.stratosphere.api.common.io.ParseException;
 import eu.stratosphere.api.common.operators.CompilerHints;
-import eu.stratosphere.api.common.operators.FileDataSource;
 import eu.stratosphere.api.common.operators.Operator;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.IllegalConfigurationException;
 import eu.stratosphere.core.fs.FileInputSplit;
@@ -58,6 +58,10 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 	private int[] targetPositions = new int[0];
 
 	private boolean configured = false;
+	
+	//To speed up readRecord processing. Used to find windows line endings.
+	//It is set when open so that readRecord does not have to evaluate it
+	private boolean lineDelimiterIsLinebreak = false;
 	
 	// --------------------------------------------------------------------------------------------
 	//  Constructors and getters/setters for the configurable parameters
@@ -237,10 +241,25 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 		for (int i = 0; i < fieldParsers.length; i++) {
 			this.parsedValues[i] = fieldParsers[i].createValue();
 		}
+		
+		//left to right evaluation makes access [0] okay
+		//this marker is used to fasten up readRecord, so that it doesn't have to check each call if the line ending is set to default
+		if(this.getDelimiter().length == 1 && this.getDelimiter()[0] == '\n' ) {
+					this.lineDelimiterIsLinebreak = true;
+		}
 	}
 	
 	@Override
 	public Record readRecord(Record reuse, byte[] bytes, int offset, int numBytes) throws ParseException {
+		/*
+		 * Fix to support windows line endings in CSVInputFiles with standard delimiter setup = \n
+		 */
+		//Find windows end line, so find chariage return before the newline 
+		if(this.lineDelimiterIsLinebreak == true && bytes[offset + numBytes -1] == '\r') {
+			//reduce the number of bytes so that the Carriage return is not taken as data
+			numBytes--;
+		}
+		
 		if (parseRecord(parsedValues, bytes, offset, numBytes)) {
 			// valid parse, map values into pact record
 			for (int i = 0; i < parsedValues.length; i++) {
@@ -290,7 +309,7 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 		 *                 If contract is null, new compiler hints are generated.  
 		 * @param config The configuration into which the parameters will be written.
 		 */
-		protected AbstractConfigBuilder(Operator contract, Configuration config) {
+		protected AbstractConfigBuilder(Operator<?> contract, Configuration config) {
 			super(config);
 			
 			if (contract != null) {
@@ -356,7 +375,7 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 	 */
 	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder> {
 		
-		protected ConfigBuilder(Operator target, Configuration targetConfig) {
+		protected ConfigBuilder(Operator<?> target, Configuration targetConfig) {
 			super(target, targetConfig);
 		}
 	}

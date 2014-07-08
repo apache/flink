@@ -7,7 +7,7 @@
 	<parent>
 		<artifactId>stratosphere-addons</artifactId>
 		<groupId>eu.stratosphere</groupId>
-		<version>0.5-SNAPSHOT</version>
+		<version>0.6-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	
@@ -31,12 +31,6 @@
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-clients</artifactId>
 			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-tests</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>

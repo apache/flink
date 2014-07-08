@@ -18,20 +18,19 @@ import java.io.Serializable;
 import java.util.Iterator;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.DeltaIteration;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.DeltaIteration;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.functions.CoGroupFunction;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst;
 import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecond;
 import eu.stratosphere.api.java.record.io.CsvInputFormat;
 import eu.stratosphere.api.java.record.io.CsvOutputFormat;
 import eu.stratosphere.api.java.record.operators.CoGroupOperator;
-import eu.stratosphere.api.java.record.operators.CoGroupOperator.CombinableFirst;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.api.java.record.operators.MapOperator;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.DuplicateLongMap;
-import eu.stratosphere.test.testPrograms.WorksetConnectedComponents.NeighborWithComponentIDJoin;
+import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.DuplicateLongMap;
+import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.test.testdata.ConnectedComponentsData;
 import eu.stratosphere.test.util.RecordAPITestBase;
 import eu.stratosphere.types.LongValue;
@@ -51,6 +50,10 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
+
+	public CoGroupConnectedComponentsITCase(){
+		setTaskManagerNumSlots(DOP);
+	}
 	
 	
 	@Override
@@ -62,7 +65,7 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 	
 	@Override
 	protected Plan getTestJob() {
-		return getPlan(4, verticesPath, edgesPath, resultPath, 100);
+		return getPlan(DOP, verticesPath, edgesPath, resultPath, 100);
 	}
 
 	@Override
@@ -77,7 +80,6 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 	// --------------------------------------------------------------------------------------------
 	
 
-	@CombinableFirst
 	@ConstantFieldsFirst(0)
 	@ConstantFieldsSecond(0)
 	public static final class MinIdAndUpdate extends CoGroupFunction implements Serializable {
@@ -107,20 +109,6 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 				old.setField(1, newComponentId);
 				out.collect(old);
 			}
-		}
-		
-		@Override
-		public Record combineFirst(Iterator<Record> records) {
-			Record next = null;
-			long min = Long.MAX_VALUE;
-			while (records.hasNext()) {
-				next = records.next();
-				min = Math.min(min, next.getField(1, LongValue.class).getValue());
-			}
-			
-			newComponentId.setValue(min);
-			next.setField(1, newComponentId);
-			return next;
 		}
 	}
 	

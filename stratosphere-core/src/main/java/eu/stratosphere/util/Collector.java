@@ -14,20 +14,20 @@
 package eu.stratosphere.util;
 
 /**
- * Collects the output of PACT first-order user function implemented as {@link Function}.
- * The collected data is forwards to the next contract.
+ * Collects a record and forwards it. The collector is the "push" counterpart of the
+ * {@link java.util.Iterator}, which "pulls" data in.
  */
 public interface Collector<T> {
 	
 	/**
-	 * Emits a record from the invoking PACT first-order user function implemented as {@link Function}.
+	 * Emits a record.
 	 * 
 	 * @param record The record to collect.
 	 */
 	void collect(T record);
 	
 	/**
-	 * Closes the collector, flushing any buffered data.
+	 * Closes the collector. If any data was buffered, that data will be flushed.
 	 */
 	void close();
 }

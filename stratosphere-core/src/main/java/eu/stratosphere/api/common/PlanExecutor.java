@@ -18,8 +18,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A PlanExecutor runs a plan. The specific implementation (such as the {@link eu.stratosphere.client.LocalExecutor}
- * and {@link eu.stratosphere.client.RemoteExecutor}) determines where and how to run the plan. 
+ * A PlanExecutor runs a plan. The specific implementation (such as the eu.stratosphere.client.LocalExecutor
+ * and eu.stratosphere.client.RemoteExecutor) determines where and how to run the plan. 
  */
 public abstract class PlanExecutor {
 
@@ -53,7 +53,6 @@ public abstract class PlanExecutor {
 	 * Creates an executor that runs the plan locally in a multi-threaded environment.
 	 * 
 	 * @return A local executor.
-	 * @see eu.stratosphere.client.LocalExecutor
 	 */
 	public static PlanExecutor createLocalExecutor() {
 		Class<? extends PlanExecutor> leClass = loadExecutorClass(LOCAL_EXECUTOR_CLASS);
@@ -75,7 +74,6 @@ public abstract class PlanExecutor {
 	 * @param jarFiles A list of jar files that contain the user-defined function (UDF) classes and all classes used
 	 *                 from within the UDFs.
 	 * @return A remote executor.
-	 * @see eu.stratosphere.client.RemoteExecutor
 	 */
 	public static PlanExecutor createRemoteExecutor(String hostname, int port, String... jarFiles) {
 		if (hostname == null) {

@@ -37,8 +37,12 @@ import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.util.MutableObjectIterator;
 
-public class DataSourceTaskTest extends TaskTestBase
-{
+public class DataSourceTaskTest extends TaskTestBase {
+
+	private static final int MEMORY_MANAGER_SIZE = 1024 * 1024;
+
+	private static final int NETWORK_BUFFER_SIZE = 1024;
+
 	private List<Record> outList;
 	
 	private String tempTestPath = Path.constructTestPath("dst_test");
@@ -50,11 +54,9 @@ public class DataSourceTaskTest extends TaskTestBase
 			tempTestFile.delete();
 		}
 	}
-
 	
 	@Test
 	public void testDataSourceTask() {
-
 		int keyCnt = 100;
 		int valCnt = 20;
 		
@@ -67,7 +69,7 @@ public class DataSourceTaskTest extends TaskTestBase
 			Assert.fail("Unable to set-up test input file");
 		}
 		
-		super.initEnvironment(1024 * 1024);
+		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addOutput(this.outList);
 		
 		DataSourceTask<Record> testTask = new DataSourceTask<Record>();
@@ -110,7 +112,6 @@ public class DataSourceTaskTest extends TaskTestBase
 	
 	@Test
 	public void testFailingDataSourceTask() {
-
 		int keyCnt = 20;
 		int valCnt = 10;
 		
@@ -122,8 +123,8 @@ public class DataSourceTaskTest extends TaskTestBase
 		} catch (IOException e1) {
 			Assert.fail("Unable to set-up test input file");
 		}
-		
-		super.initEnvironment(1024 * 1024);
+
+		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addOutput(this.outList);
 		
 		DataSourceTask<Record> testTask = new DataSourceTask<Record>();
@@ -148,11 +149,10 @@ public class DataSourceTaskTest extends TaskTestBase
 	
 	@Test
 	public void testCancelDataSourceTask() {
-		
 		int keyCnt = 20;
 		int valCnt = 4;
-		
-		super.initEnvironment(1024 * 1024);
+
+		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addOutput(new NirvanaOutputList());
 		
 		try {
@@ -184,7 +184,7 @@ public class DataSourceTaskTest extends TaskTestBase
 		
 		try {
 			tct.join();
-			taskRunner.join();		
+			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
@@ -192,12 +192,10 @@ public class DataSourceTaskTest extends TaskTestBase
 		// assert that temp file was created
 		File tempTestFile = new File(this.tempTestPath);
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
-				
 	}
 
 	
-	private static class InputFilePreparator
-	{
+	private static class InputFilePreparator {
 		public static void prepareInputFile(MutableObjectIterator<Record> inIt, String inputFilePath, boolean insertInvalidData)
 		throws IOException
 		{

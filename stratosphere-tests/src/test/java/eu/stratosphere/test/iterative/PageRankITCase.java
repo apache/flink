@@ -15,14 +15,14 @@ package eu.stratosphere.test.iterative;
 
 import java.util.Collection;
 
-import eu.stratosphere.test.util.RecordAPITestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.java.record.pagerank.SimplePageRank;
+import eu.stratosphere.test.recordJobs.graph.SimplePageRank;
+import eu.stratosphere.test.util.RecordAPITestBase;
 
 @RunWith(Parameterized.class)
 public class PageRankITCase extends RecordAPITestBase {
@@ -38,6 +38,7 @@ public class PageRankITCase extends RecordAPITestBase {
 	
 	public PageRankITCase(Configuration config) {
 		super(config);
+		setTaskManagerNumSlots(DOP);
 	}
 	
 	@Override
@@ -64,7 +65,7 @@ public class PageRankITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config1 = new Configuration();
-		config1.setInteger("NumSubtasks", 4);
+		config1.setInteger("NumSubtasks", DOP);
 		config1.setString("NumIterations", "5");
 		return toParameterList(config1);
 	}

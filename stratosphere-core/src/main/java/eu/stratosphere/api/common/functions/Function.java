@@ -13,23 +13,25 @@
 
 package eu.stratosphere.api.common.functions;
 
-import eu.stratosphere.api.common.accumulators.Accumulator;
-import eu.stratosphere.api.common.cache.DistributedCache;
 import eu.stratosphere.configuration.Configuration;
 
 /**
- * Base interface for all user-defined functions.
+ * An base interface for all user-defined functions. This class defines methods for
+ * the life cycle of the functions, as well as methods to access the context in which the functions
+ * are executed.
  */
 public interface Function {
 	
 	/**
 	 * Initialization method for the function. It is called before the actual working methods 
-	 * (like <i>map</i> or <i>join</i>) and thus suitable for one time setup work.
+	 * (like <i>map</i> or <i>join</i>) and thus suitable for one time setup work. For functions that
+	 * are part of an iteration, this method will be invoked at the beginning of each iteration superstep.
 	 * <p>
-	 * The configuration object passed to the function can be used for configuration and initialization. The configuration
-	 * contains all parameters that were configured on the operation where the UDF was passed in the program composition.
-	 * <pre>
-	 * {@code
+	 * The configuration object passed to the function can be used for configuration and initialization.
+	 * The configuration contains all parameters that were configured on the function in the program
+	 * composition.
+	 * 
+	 * <pre><blockquote>
 	 * public class MyMapper extends FilterFunction<String> {
 	 * 
 	 *     private String searchString;
@@ -42,8 +44,7 @@ public interface Function {
 	 *         return value.equals(searchString);
 	 *     }
 	 * }
-	 * }
-	 * </pre>
+	 * </blockquote></pre>
 	 * <p>
 	 * By default, this method does nothing.
 	 * 
@@ -59,8 +60,8 @@ public interface Function {
 
 	/**
 	 * Teardown method for the user code. It is called after the last call to the main working methods
-	 * (e.g. <i>map</i> or <i>join</i>). It is called also when the task is aborted, in which case exceptions
-	 * thrown by this method are ignored. 
+	 * (e.g. <i>map</i> or <i>join</i>). For functions that  are part of an iteration, this method will
+	 * be invoked after each iteration superstep.
 	 * <p>
 	 * This method can be used for clean up work.
 	 * 
@@ -74,8 +75,8 @@ public interface Function {
 	/**
 	 * Gets the context that contains information about the UDF's runtime.
 	 * 
-	 * Context information are for example {@link Accumulator}s or the
-	 * {@link DistributedCache}.
+	 * Context information are for example {@link eu.stratosphere.api.common.accumulators.Accumulator}s
+	 * or the {@link eu.stratosphere.api.common.cache.DistributedCache}.
 	 * 
 	 * @return The UDF's runtime context.
 	 */

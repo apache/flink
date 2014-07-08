@@ -118,7 +118,6 @@ public abstract class GUIServletStub extends HttpServlet {
 		}
 
 		// print all the included javascript files
-		writer.println("  <script type=\"text/javascript\" src=\"js/jquery.js\"></script>");
 
 		for (int i = 0; i < jsFiles.size(); i++) {
 			writer.print("  <script type=\"text/javascript\" src=\"");
@@ -132,7 +131,7 @@ public abstract class GUIServletStub extends HttpServlet {
 		writer.println("<body>");
 		writer.println("  <div class=\"mainHeading\">");
 		writer
-			.println("    <h1><img src=\"img/StratosphereLogo.png\" width=\"326\" height=\"100\" alt=\"Stratosphere Logo\" align=\"middle\"/>Stratosphere Query Interface</h1>");
+			.println("    <h1 style=\"margin-top:0\"><img src=\"img/StratosphereLogo.png\" width=\"326\" height=\"100\" alt=\"Stratosphere Logo\" align=\"middle\"/>Stratosphere Query Interface</h1>");
 		writer.println("  </div>");
 
 		@SuppressWarnings("unchecked")

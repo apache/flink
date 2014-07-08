@@ -62,8 +62,6 @@ readFromConfig() {
 # WARNING !!! , these values are only used if there is nothing else is specified in
 # conf/stratosphere-conf.yaml
 
-DEFAULT_JOBM_HEAP_MB=256                            # Java heap size for the JobManager (in MB)
-DEFAULT_TASKM_HEAP_MB=512                           # Java heap size for the TaskManager (in MB)
 DEFAULT_ENV_PID_DIR="/tmp"                          # Directory to store *.pid files to
 DEFAULT_ENV_LOG_MAX=5                               # Maximum number of old log files to keep
 DEFAULT_ENV_JAVA_OPTS=""                            # Optional JVM args
@@ -153,12 +151,12 @@ fi
 
 # Define STRATOSPHERE_JM_HEAP if it is not already set
 if [ -z "${STRATOSPHERE_JM_HEAP}" ]; then
-    STRATOSPHERE_JM_HEAP=$(readFromConfig ${KEY_JOBM_HEAP_MB} ${DEFAULT_JOBM_HEAP_MB} "${YAML_CONF}")
+    STRATOSPHERE_JM_HEAP=$(readFromConfig ${KEY_JOBM_HEAP_MB} 0 "${YAML_CONF}")
 fi
 
 # Define STRATOSPHERE_TM_HEAP if it is not already set
 if [ -z "${STRATOSPHERE_TM_HEAP}" ]; then
-    STRATOSPHERE_TM_HEAP=$(readFromConfig ${KEY_TASKM_HEAP_MB} ${DEFAULT_TASKM_HEAP_MB} "${YAML_CONF}")
+    STRATOSPHERE_TM_HEAP=$(readFromConfig ${KEY_TASKM_HEAP_MB} 0 "${YAML_CONF}")
 fi
 
 if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
@@ -169,12 +167,15 @@ if [ -z "${STRATOSPHERE_PID_DIR}" ]; then
     STRATOSPHERE_PID_DIR=$(readFromConfig ${KEY_ENV_PID_DIR} "${DEFAULT_ENV_PID_DIR}" "${YAML_CONF}")
 fi
 
-if [ -z "${STRATOSPHERE_OPTS}" ]; then
-    STRATOSPHERE_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}" "${YAML_CONF}")
+if [ -z "${STRATOSPHERE_ENV_JAVA_OPTS}" ]; then
+    STRATOSPHERE_ENV_JAVA_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}" "${YAML_CONF}")
+
+    # Remove leading and ending double quotes (if present) of value
+    STRATOSPHERE_ENV_JAVA_OPTS="$( echo "${STRATOSPHERE_ENV_JAVA_OPTS}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
 if [ -z "${STRATOSPHERE_SSH_OPTS}" ]; then
-    STRATOSPHERE_OPTS=$(readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}" "${YAML_CONF}")
+    STRATOSPHERE_SSH_OPTS=$(readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}" "${YAML_CONF}")
 fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.

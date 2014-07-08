@@ -38,21 +38,21 @@ public class BuildFirstReOpenableHashMatchIterator<V1, V2, O> extends BuildFirst
 			TypeSerializer<V2> serializer2, TypeComparator<V2> comparator2,
 			TypePairComparator<V2, V1> pairComparator,
 			MemoryManager memManager, IOManager ioManager,
-			AbstractInvokable ownerTask, long totalMemory)
+			AbstractInvokable ownerTask, double memoryFraction)
 			throws MemoryAllocationException {
 		super(firstInput, secondInput, serializer1, comparator1, serializer2,
 				comparator2, pairComparator, memManager, ioManager, ownerTask,
-				totalMemory);
+				memoryFraction);
 		reopenHashTable = (ReOpenableMutableHashTable<V1, V2>) hashJoin;
 	}
 
 	public <BT, PT> MutableHashTable<BT, PT> getHashJoin(TypeSerializer<BT> buildSideSerializer, TypeComparator<BT> buildSideComparator,
 			TypeSerializer<PT> probeSideSerializer, TypeComparator<PT> probeSideComparator,
 			TypePairComparator<PT, BT> pairComparator,
-			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, long totalMemory)
+			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, double memoryFraction)
 	throws MemoryAllocationException
 	{
-		final int numPages = memManager.computeNumberOfPages(totalMemory);
+		final int numPages = memManager.computeNumberOfPages(memoryFraction);
 		final List<MemorySegment> memorySegments = memManager.allocatePages(ownerTask, numPages);
 		return new ReOpenableMutableHashTable<BT, PT>(buildSideSerializer, probeSideSerializer, buildSideComparator, probeSideComparator, pairComparator, memorySegments, ioManager);
 	}

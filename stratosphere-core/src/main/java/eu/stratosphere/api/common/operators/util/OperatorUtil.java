@@ -29,33 +29,35 @@ import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.api.common.io.InputFormat;
 import eu.stratosphere.api.common.io.OutputFormat;
 import eu.stratosphere.api.common.operators.DualInputOperator;
-import eu.stratosphere.api.common.operators.GenericDataSink;
-import eu.stratosphere.api.common.operators.GenericDataSource;
+import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
+import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
 import eu.stratosphere.api.common.operators.Operator;
 import eu.stratosphere.api.common.operators.SingleInputOperator;
 import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
 import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
 import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
 import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
-import eu.stratosphere.api.common.operators.base.MapOperatorBase;
+import eu.stratosphere.api.common.operators.base.CollectorMapOperatorBase;
 
 /**
  * Convenience methods when dealing with {@link Operator}s.
  */
 public class OperatorUtil {
+	
+	@SuppressWarnings("rawtypes")
 	private final static Map<Class<?>, Class<? extends Operator>> STUB_CONTRACTS =
 		new LinkedHashMap<Class<?>, Class<? extends Operator>>();
 
 	static {
-		STUB_CONTRACTS.put(GenericCollectorMap.class, MapOperatorBase.class);
+		STUB_CONTRACTS.put(GenericCollectorMap.class, CollectorMapOperatorBase.class);
 		STUB_CONTRACTS.put(GenericGroupReduce.class, GroupReduceOperatorBase.class);
 		STUB_CONTRACTS.put(GenericCoGrouper.class, CoGroupOperatorBase.class);
 		STUB_CONTRACTS.put(GenericCrosser.class, CrossOperatorBase.class);
 		STUB_CONTRACTS.put(GenericJoiner.class, JoinOperatorBase.class);
-		STUB_CONTRACTS.put(FileInputFormat.class, GenericDataSource.class);
-		STUB_CONTRACTS.put(FileOutputFormat.class, GenericDataSink.class);
-		STUB_CONTRACTS.put(InputFormat.class, GenericDataSource.class);
-		STUB_CONTRACTS.put(OutputFormat.class, GenericDataSink.class);
+		STUB_CONTRACTS.put(FileInputFormat.class, GenericDataSourceBase.class);
+		STUB_CONTRACTS.put(FileOutputFormat.class, GenericDataSinkBase.class);
+		STUB_CONTRACTS.put(InputFormat.class, GenericDataSourceBase.class);
+		STUB_CONTRACTS.put(OutputFormat.class, GenericDataSinkBase.class);
 	}
 
 	/**
@@ -65,14 +67,14 @@ public class OperatorUtil {
 	 *        the stub class
 	 * @return the associated Operator type
 	 */
-	@SuppressWarnings({ "unchecked" })
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public static Class<? extends Operator> getContractClass(final Class<?> stubClass) {
 		if (stubClass == null) {
 			return null;
 		}
 		final Class<?> contract = STUB_CONTRACTS.get(stubClass);
 		if (contract != null) {
-			return (Class<? extends Operator>) contract;
+			return (Class<? extends Operator<?>>) contract;
 		}
 		Iterator<Entry<Class<?>, Class<? extends Operator>>> stubContracts = STUB_CONTRACTS.entrySet().iterator();
 		while (stubContracts.hasNext()) {
@@ -93,12 +95,12 @@ public class OperatorUtil {
 	 *        the type of the Operator
 	 * @return the number of input contracts
 	 */
-	public static int getNumInputs(final Class<? extends Operator> contractType) {
+	public static int getNumInputs(final Class<? extends Operator<?>> contractType) {
 
-		if (GenericDataSource.class.isAssignableFrom(contractType)) {
+		if (GenericDataSourceBase.class.isAssignableFrom(contractType)) {
 			return 0;
 		}
-		if (GenericDataSink.class.isAssignableFrom(contractType)
+		if (GenericDataSinkBase.class.isAssignableFrom(contractType)
 			|| SingleInputOperator.class.isAssignableFrom(contractType)) {
 			return 1;
 		}
@@ -118,24 +120,24 @@ public class OperatorUtil {
 	 * @param inputs
 	 *        all input contracts to this contract
 	 */
-	@SuppressWarnings("deprecation")
-	public static void setInputs(final Operator contract, final List<List<Operator>> inputs) {
-		if (contract instanceof GenericDataSink) {
+	@SuppressWarnings({ "deprecation", "rawtypes", "unchecked" })
+	public static void setInputs(final Operator<?> contract, final List<List<Operator>> inputs) {
+		if (contract instanceof GenericDataSinkBase) {
 			if (inputs.size() != 1) {
 				throw new IllegalArgumentException("wrong number of inputs");
 			}
-			((GenericDataSink) contract).setInputs(inputs.get(0));
+			((GenericDataSinkBase) contract).setInputs(inputs.get(0));
 		} else if (contract instanceof SingleInputOperator) {
 			if (inputs.size() != 1) {
 				throw new IllegalArgumentException("wrong number of inputs");
 			}
-			((SingleInputOperator<?>) contract).setInputs(inputs.get(0));
+			((SingleInputOperator) contract).setInputs(inputs.get(0));
 		} else if (contract instanceof DualInputOperator) {
 			if (inputs.size() != 2) {
 				throw new IllegalArgumentException("wrong number of inputs");
 			}
-			((DualInputOperator<?>) contract).setFirstInputs(inputs.get(0));
-			((DualInputOperator<?>) contract).setSecondInputs(inputs.get(1));
+			((DualInputOperator) contract).setFirstInputs(inputs.get(0));
+			((DualInputOperator) contract).setSecondInputs(inputs.get(1));
 		}
 	}
 }

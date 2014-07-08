@@ -15,16 +15,15 @@
 
 package eu.stratosphere.api.java.operators.translation;
 
-import static org.junit.Assert.fail;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.GenericDataSink;
-import eu.stratosphere.api.common.operators.GenericDataSource;
+import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
+import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
+import eu.stratosphere.api.common.operators.base.MapOperatorBase;
+import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
 import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.functions.KeySelector;
@@ -32,10 +31,10 @@ import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.api.java.typeutils.ValueTypeInfo;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
+import eu.stratosphere.types.TypeInformation;
 
 @SuppressWarnings("serial")
 public class ReduceTranslationTests implements java.io.Serializable {
@@ -56,13 +55,13 @@ public class ReduceTranslationTests implements java.io.Serializable {
 			
 			Plan p = env.createProgramPlan();
 			
-			GenericDataSink sink = p.getDataSinks().iterator().next();
+			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
 			
-			PlanReduceOperator<?> reducer = (PlanReduceOperator<?>) sink.getInput();
+			ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
 			
 			// check types
-			assertEquals(initialData.getType(), reducer.getInputType());
-			assertEquals(initialData.getType(), reducer.getReturnType());
+			assertEquals(initialData.getType(), reducer.getOperatorInfo().getInputType());
+			assertEquals(initialData.getType(), reducer.getOperatorInfo().getOutputType());
 			
 			// check keys
 			assertTrue(reducer.getKeyColumns(0) == null || reducer.getKeyColumns(0).length == 0);
@@ -70,7 +69,7 @@ public class ReduceTranslationTests implements java.io.Serializable {
 			// DOP was not configured on the operator
 			assertTrue(reducer.getDegreeOfParallelism() == 1 || reducer.getDegreeOfParallelism() == -1);
 			
-			assertTrue(reducer.getInput() instanceof GenericDataSource<?>);
+			assertTrue(reducer.getInput() instanceof GenericDataSourceBase<?, ?>);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -98,13 +97,13 @@ public class ReduceTranslationTests implements java.io.Serializable {
 			
 			Plan p = env.createProgramPlan();
 			
-			GenericDataSink sink = p.getDataSinks().iterator().next();
+			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
 			
-			PlanReduceOperator<?> reducer = (PlanReduceOperator<?>) sink.getInput();
+			ReduceOperatorBase<?, ?> reducer = (ReduceOperatorBase<?, ?>) sink.getInput();
 			
 			// check types
-			assertEquals(initialData.getType(), reducer.getInputType());
-			assertEquals(initialData.getType(), reducer.getReturnType());
+			assertEquals(initialData.getType(), reducer.getOperatorInfo().getInputType());
+			assertEquals(initialData.getType(), reducer.getOperatorInfo().getOutputType());
 			
 			// DOP was not configured on the operator
 			assertTrue(reducer.getDegreeOfParallelism() == DOP || reducer.getDegreeOfParallelism() == -1);
@@ -112,7 +111,7 @@ public class ReduceTranslationTests implements java.io.Serializable {
 			// check keys
 			assertArrayEquals(new int[] {2}, reducer.getKeyColumns(0));
 			
-			assertTrue(reducer.getInput() instanceof GenericDataSource<?>);
+			assertTrue(reducer.getInput() instanceof GenericDataSourceBase<?, ?>);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -145,12 +144,12 @@ public class ReduceTranslationTests implements java.io.Serializable {
 			
 			Plan p = env.createProgramPlan();
 			
-			GenericDataSink sink = p.getDataSinks().iterator().next();
+			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
 			
 			
-			PlanMapOperator<?, ?> keyProjector = (PlanMapOperator<?, ?>) sink.getInput();
+			MapOperatorBase<?, ?, ?> keyProjector = (MapOperatorBase<?, ?, ?>) sink.getInput();
 			PlanUnwrappingReduceOperator<?, ?> reducer = (PlanUnwrappingReduceOperator<?, ?>) keyProjector.getInput();
-			PlanMapOperator<?, ?> keyExtractor = (PlanMapOperator<?, ?>) reducer.getInput();
+			MapOperatorBase<?, ?, ?> keyExtractor = (MapOperatorBase<?, ?, ?>) reducer.getInput();
 			
 			// check the DOPs
 			assertEquals(1, keyExtractor.getDegreeOfParallelism());
@@ -162,19 +161,19 @@ public class ReduceTranslationTests implements java.io.Serializable {
 					new ValueTypeInfo<StringValue>(StringValue.class),
 					initialData.getType());
 			
-			assertEquals(initialData.getType(), keyExtractor.getInputType());
-			assertEquals(keyValueInfo, keyExtractor.getReturnType());
+			assertEquals(initialData.getType(), keyExtractor.getOperatorInfo().getInputType());
+			assertEquals(keyValueInfo, keyExtractor.getOperatorInfo().getOutputType());
 			
-			assertEquals(keyValueInfo, reducer.getInputType());
-			assertEquals(keyValueInfo, reducer.getReturnType());
+			assertEquals(keyValueInfo, reducer.getOperatorInfo().getInputType());
+			assertEquals(keyValueInfo, reducer.getOperatorInfo().getOutputType());
 			
-			assertEquals(keyValueInfo, keyProjector.getInputType());
-			assertEquals(initialData.getType(), keyProjector.getReturnType());
+			assertEquals(keyValueInfo, keyProjector.getOperatorInfo().getInputType());
+			assertEquals(initialData.getType(), keyProjector.getOperatorInfo().getOutputType());
 			
 			// check keys
 			assertEquals(KeyExtractingMapper.class, keyExtractor.getUserCodeWrapper().getUserCodeClass());
 			
-			assertTrue(keyExtractor.getInput() instanceof GenericDataSource<?>);
+			assertTrue(keyExtractor.getInput() instanceof GenericDataSourceBase<?, ?>);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

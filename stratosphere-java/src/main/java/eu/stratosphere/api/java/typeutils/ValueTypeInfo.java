@@ -23,6 +23,7 @@ import eu.stratosphere.api.java.typeutils.runtime.ValueComparator;
 import eu.stratosphere.api.java.typeutils.runtime.ValueSerializer;
 import eu.stratosphere.types.CopyableValue;
 import eu.stratosphere.types.Value;
+import eu.stratosphere.types.TypeInformation;
 
 
 public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implements AtomicType<T> {
@@ -34,7 +35,7 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 		if (type == null) {
 			throw new NullPointerException();
 		}
-		if (!Value.class.isAssignableFrom(type)) {
+		if (!Value.class.isAssignableFrom(type) && !type.equals(Value.class)) {
 			throw new IllegalArgumentException("ValueTypeInfo can only be used for subclasses of " + Value.class.getName());
 		}
 		

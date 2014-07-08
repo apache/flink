@@ -21,20 +21,21 @@ import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
 /**
  * This operator represents a Union between two inputs.
  */
-public class Union extends DualInputOperator<AbstractFunction> {
+public class Union<T> extends DualInputOperator<T, T, T, AbstractFunction> {
 	
 	private final static String NAME = "Union";
 	
 	/** 
 	 * Creates a new Union operator.
 	 */
-	public Union() {
+	public Union(BinaryOperatorInformation<T, T, T> operatorInfo) {
 		// we pass it an AbstractFunction, because currently all operators expect some form of UDF
-		super(new UserCodeClassWrapper<AbstractFunction>(AbstractFunction.class), NAME);
+		super(new UserCodeClassWrapper<AbstractFunction>(AbstractFunction.class), operatorInfo, NAME);
 	}
 	
-	public Union(Operator input1, Operator input2) {
-		this();
+	public Union(Operator<T> input1, Operator<T> input2) {
+		this(new BinaryOperatorInformation<T, T, T>(input1.getOperatorInfo().getOutputType(),
+				input1.getOperatorInfo().getOutputType(), input1.getOperatorInfo().getOutputType()));
 		setFirstInput(input1);
 		setSecondInput(input2);
 	}

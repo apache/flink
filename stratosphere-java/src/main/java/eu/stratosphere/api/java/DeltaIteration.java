@@ -14,8 +14,15 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java;
 
+import java.util.Arrays;
+
+import org.apache.commons.lang3.Validate;
+
+import eu.stratosphere.api.common.InvalidProgramException;
+import eu.stratosphere.api.common.aggregators.Aggregator;
+import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
 import eu.stratosphere.api.java.operators.Keys;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 
 /**
  * The DeltaIteration represents the start of a delta iteration. It is created from the DataSet that
@@ -28,7 +35,9 @@ import eu.stratosphere.api.java.typeutils.TypeInformation;
  * @see DataSet#iterateDelta(DataSet, int, int[])
  */
 public class DeltaIteration<ST, WT> {
-
+	
+	private final AggregatorRegistry aggregators = new AggregatorRegistry();
+	
 	private final DataSet<ST> initialSolutionSet;
 	private final DataSet<WT> initialWorkset;
 	
@@ -38,11 +47,16 @@ public class DeltaIteration<ST, WT> {
 	private final Keys<ST> keys;
 	
 	private final int maxIterations;
+	
+	private String name;
+	
+	private int parallelism = -1;
+	
 
 	DeltaIteration(ExecutionEnvironment context, TypeInformation<ST> type, DataSet<ST> solutionSet, DataSet<WT> workset, Keys<ST> keys, int maxIterations) {
 		initialSolutionSet = solutionSet;
 		initialWorkset = workset;
-		solutionSetPlaceholder = new SolutionSetPlaceHolder<ST>(context, solutionSet.getType());
+		solutionSetPlaceholder = new SolutionSetPlaceHolder<ST>(context, solutionSet.getType(), this);
 		worksetPlaceholder = new WorksetPlaceHolder<WT>(context, workset.getType());
 		this.keys = keys;
 		this.maxIterations = maxIterations;
@@ -124,6 +138,73 @@ public class DeltaIteration<ST, WT> {
 		return worksetPlaceholder;
 	}
 
+	/**
+	 * Sets the name for the iteration. The name is displayed in logs and messages.
+	 * 
+	 * @param name The name for the iteration.
+	 * @return The iteration object, for function call chaining.
+	 */
+	public DeltaIteration<ST, WT> name(String name) {
+		this.name = name;
+		return this;
+	}
+	
+	/**
+	 * Gets the name from this iteration.
+	 * 
+	 * @return The name of the iteration.
+	 */
+	public String getName() {
+		return name;
+	}
+	
+	/**
+	 * Sets the degree of parallelism for the iteration.
+	 *
+	 * @param parallelism The degree of parallelism.
+	 * @return The iteration object, for function call chaining.
+	 */
+	public DeltaIteration<ST, WT> parallelism(int parallelism) {
+		Validate.isTrue(parallelism > 0 || parallelism == -1, "The degree of parallelism must be positive, or -1 (use default).");
+		this.parallelism = parallelism;
+		return this;
+	}
+	
+	/**
+	 * Gets the iteration's degree of parallelism.
+	 * 
+	 * @return The iterations parallelism, or -1, if not set.
+	 */
+	public int getParallelism() {
+		return parallelism;
+	}
+	
+	/**
+	 * Registers an {@link Aggregator} for the iteration. Aggregators can be used to maintain simple statistics during the
+	 * iteration, such as number of elements processed. The aggregators compute global aggregates: After each iteration step,
+	 * the values are globally aggregated to produce one aggregate that represents statistics across all parallel instances.
+	 * The value of an aggregator can be accessed in the next iteration.
+	 * <p>
+	 * Aggregators can be accessed inside a function via the {@link AbstractFunction#getIterationRuntimeContext()} method.
+	 * 
+	 * @param name The name under which the aggregator is registered.
+	 * @param aggregator The aggregator class.
+	 * 
+	 * @return The DeltaIteration itself, to allow chaining function calls.
+	 */
+	public DeltaIteration<ST, WT> registerAggregator(String name, Aggregator<?> aggregator) {
+		this.aggregators.registerAggregator(name, aggregator);
+		return this;
+	}
+	
+	/**
+	 * Gets the registry for aggregators for the iteration.
+	 * 
+	 * @return The registry with all aggregators.
+	 */
+	public AggregatorRegistry getAggregators() {
+		return this.aggregators;
+	}
 	
 	/**
 	 * A {@link DataSet} that acts as a placeholder for the solution set during the iteration.
@@ -131,8 +212,19 @@ public class DeltaIteration<ST, WT> {
 	 * @param <ST> The type of the elements in the solution set.
 	 */
 	public static class SolutionSetPlaceHolder<ST> extends DataSet<ST>{
-		private SolutionSetPlaceHolder(ExecutionEnvironment context, TypeInformation<ST> type) {
+		
+		private final DeltaIteration<ST, ?> deltaIteration;
+		
+		private SolutionSetPlaceHolder(ExecutionEnvironment context, TypeInformation<ST> type, DeltaIteration<ST, ?> deltaIteration) {
 			super(context, type);
+			this.deltaIteration = deltaIteration;
+		}
+		
+		public void checkJoinKeyFields(int[] keyFields) {
+			int[] ssKeys = deltaIteration.keys.computeLogicalKeyPositions();
+			if (!Arrays.equals(ssKeys, keyFields)) {
+				throw new InvalidProgramException("The solution can only be joined/co-grouped with the same keys as the elements are identified with (here: " + Arrays.toString(ssKeys) + ").");
+			}
 		}
 	}
 

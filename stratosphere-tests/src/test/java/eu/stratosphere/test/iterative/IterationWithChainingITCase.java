@@ -12,29 +12,29 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.iterative;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.BulkIteration;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
-import eu.stratosphere.api.java.record.functions.MapFunction;
-import eu.stratosphere.api.java.record.functions.ReduceFunction;
-import eu.stratosphere.api.java.record.operators.MapOperator;
-import eu.stratosphere.api.java.record.operators.ReduceOperator;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.example.java.record.kmeans.udfs.PointInFormat;
-import eu.stratosphere.example.java.record.kmeans.udfs.PointOutFormat;
-import eu.stratosphere.test.util.RecordAPITestBase;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.util.Collector;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Iterator;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Iterator;
+import eu.stratosphere.api.common.Plan;
+import eu.stratosphere.api.java.record.operators.BulkIteration;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
+import eu.stratosphere.api.java.record.functions.MapFunction;
+import eu.stratosphere.api.java.record.functions.ReduceFunction;
+import eu.stratosphere.api.java.record.operators.MapOperator;
+import eu.stratosphere.api.java.record.operators.ReduceOperator;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.test.recordJobs.kmeans.udfs.PointInFormat;
+import eu.stratosphere.test.recordJobs.kmeans.udfs.PointOutFormat;
+import eu.stratosphere.test.util.RecordAPITestBase;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.util.Collector;
 
 @RunWith(Parameterized.class)
 public class IterationWithChainingITCase extends RecordAPITestBase {
@@ -46,6 +46,7 @@ public class IterationWithChainingITCase extends RecordAPITestBase {
 
     public IterationWithChainingITCase(Configuration config) {
         super(config);
+		setTaskManagerNumSlots(DOP);
     }
 
     @Override
@@ -69,7 +70,7 @@ public class IterationWithChainingITCase extends RecordAPITestBase {
     @Parameters
     public static Collection<Object[]> getConfigurations() {
         Configuration config1 = new Configuration();
-        config1.setInteger("ChainedMapperITCase#NoSubtasks", 4);
+        config1.setInteger("ChainedMapperITCase#NoSubtasks", DOP);
         return toParameterList(config1);
     }
 

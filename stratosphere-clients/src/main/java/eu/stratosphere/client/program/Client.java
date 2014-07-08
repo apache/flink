@@ -13,10 +13,18 @@
 
 package eu.stratosphere.client.program;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.List;
+
+import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import com.google.common.base.Preconditions;
 
 import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.api.common.Plan;
@@ -44,6 +52,9 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
  */
 public class Client {
 	
+	private static final Log LOG = LogFactory.getLog(Client.class);
+	
+	
 	private final Configuration configuration;	// the configuration describing the job manager address
 	
 	private final PactCompiler compiler;		// the compiler to compile the jobs
@@ -61,11 +72,12 @@ public class Client {
 	 * @param jobManagerAddress Address and port of the job-manager.
 	 */
 	public Client(InetSocketAddress jobManagerAddress, Configuration config) {
+		Preconditions.checkNotNull(config, "Configuration is null");
 		this.configuration = config;
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
 		
-		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator(), jobManagerAddress);
+		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
 	}
 
 	/**
@@ -75,6 +87,7 @@ public class Client {
 	 * @param config The config used to obtain the job-manager's address.
 	 */
 	public Client(Configuration config) {
+		Preconditions.checkNotNull(config, "Configuration is null");
 		this.configuration = config;
 		
 		// instantiate the address to the job manager
@@ -88,45 +101,86 @@ public class Client {
 			throw new CompilerException("Cannot find port to job manager's RPC service in the global configuration.");
 		}
 
-		final InetSocketAddress jobManagerAddress = new InetSocketAddress(address, port);
-		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator(), jobManagerAddress);
+		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
 	}
 	
 	public void setPrintStatusDuringExecution(boolean print) {
 		this.printStatusDuringExecution = print;
 	}
 
+	public String getJobManagerAddress() {
+		return this.configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+	}
+	
+	public int getJobManagerPort() {
+		return this.configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
+	}
 	
 	// ------------------------------------------------------------------------
 	//                      Compilation and Submission
 	// ------------------------------------------------------------------------
 	
-	public String getOptimizedPlanAsJson(PackagedProgram prog) throws CompilerException, ProgramInvocationException {
+	public String getOptimizedPlanAsJson(PackagedProgram prog, int parallelism) throws CompilerException, ProgramInvocationException {
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
-		return jsonGen.getOptimizerPlanAsJSON(getOptimizedPlan(prog));
+		return jsonGen.getOptimizerPlanAsJSON(getOptimizedPlan(prog, parallelism));
 	}
 	
-	public OptimizedPlan getOptimizedPlan(PackagedProgram prog) throws CompilerException, ProgramInvocationException {
+	public OptimizedPlan getOptimizedPlan(PackagedProgram prog, int parallelism) throws CompilerException, ProgramInvocationException {
+		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
-			return getOptimizedPlan(prog.getPlanWithJars());
+			return getOptimizedPlan(prog.getPlanWithJars(), parallelism);
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			// temporary hack to support the optimizer plan preview
 			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment(this.compiler);
-			env.setAsContext();
-			try {
-				prog.invokeInteractiveModeForExecution();
-			} catch (Throwable t) {
-				// the invocation gets aborted with the preview plan
+			if (parallelism > 0) {
+				env.setDegreeOfParallelism(parallelism);
 			}
-			return env.optimizerPlan;
+			env.setAsContext();
+			
+			// temporarily write syser and sysout to bytearray.
+			PrintStream originalOut = System.out;
+			PrintStream originalErr = System.err;
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			System.setOut(new PrintStream(baos));
+			ByteArrayOutputStream baes = new ByteArrayOutputStream();
+			System.setErr(new PrintStream(baes));
+			try {
+				ContextEnvironment.disableLocalExecution();
+				prog.invokeInteractiveModeForExecution();
+			}
+			catch (ProgramInvocationException e) {
+				throw e;
+			}
+			catch (Throwable t) {
+				// the invocation gets aborted with the preview plan
+				if (env.optimizerPlan != null) {
+					return env.optimizerPlan;
+				} else {
+					throw new ProgramInvocationException("The program caused an error: ", t);
+				}
+			} finally {
+				System.setOut(originalOut);
+				System.setErr(originalErr);
+				System.err.println(baes);
+				System.out.println(baos);
+			}
+			
+			throw new ProgramInvocationException(
+					"The program plan could not be fetched. The program silently swallowed the control flow exceptions.\n"
+					+ "System.err: "+StringEscapeUtils.escapeHtml(baes.toString())+" \n"
+					+ "System.out: "+StringEscapeUtils.escapeHtml(baos.toString())+" \n" );
 		}
 		else {
 			throw new RuntimeException();
 		}
 	}
 	
-	public OptimizedPlan getOptimizedPlan(Plan p) throws CompilerException {
+	public OptimizedPlan getOptimizedPlan(Plan p, int parallelism) throws CompilerException {
+		if (parallelism > 0 && p.getDefaultParallelism() <= 0) {
+			p.setDefaultParallelism(parallelism);
+		}
+		
 		ContextChecker checker = new ContextChecker();
 		checker.check(p);
 		return this.compiler.compile(p);
@@ -141,8 +195,8 @@ public class Client {
 	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
 	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file.
 	 */
-	public OptimizedPlan getOptimizedPlan(JobWithJars prog) throws CompilerException, ProgramInvocationException {
-		return getOptimizedPlan(prog.getPlan());
+	public OptimizedPlan getOptimizedPlan(JobWithJars prog, int parallelism) throws CompilerException, ProgramInvocationException {
+		return getOptimizedPlan(prog.getPlan(), parallelism);
 	}
 	
 	public JobGraph getJobGraph(PackagedProgram prog, OptimizedPlan optPlan) throws ProgramInvocationException {
@@ -160,14 +214,39 @@ public class Client {
 		return job;
 	}
 	
-	public JobExecutionResult run(PackagedProgram prog, boolean wait) throws ProgramInvocationException {
+	public JobExecutionResult run(final PackagedProgram prog, int parallelism, boolean wait) throws ProgramInvocationException {
+		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
-			return run(prog.getPlanWithJars(), wait);
+			return run(prog.getPlanWithJars(), parallelism, wait);
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			ContextEnvironment env = new ContextEnvironment(this, prog.getAllLibraries(), prog.getUserCodeClassLoader());
+			
+			if (parallelism > 0) {
+				env.setDegreeOfParallelism(parallelism);
+			}
 			env.setAsContext();
-			prog.invokeInteractiveModeForExecution();
+			
+			ContextEnvironment.disableLocalExecution();
+			
+			if (wait) {
+				// invoke here
+				prog.invokeInteractiveModeForExecution();
+			}
+			else {
+				// invoke in the background
+				Thread backGroundRunner = new Thread("Program Runner") {
+					public void run() {
+						try {
+							prog.invokeInteractiveModeForExecution();
+						}
+						catch (Throwable t) {
+							LOG.error("The program execution failed.", t);
+						}
+					};
+				};
+				backGroundRunner.start();
+			}
 			return null;
 		}
 		else {
@@ -193,8 +272,8 @@ public class Client {
 	 *                                    on the nephele system failed.
 	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
 	 */
-	public JobExecutionResult run(JobWithJars prog, boolean wait) throws CompilerException, ProgramInvocationException {
-		return run(getOptimizedPlan(prog), prog.getJarFiles(), wait);
+	public JobExecutionResult run(JobWithJars prog, int parallelism, boolean wait) throws CompilerException, ProgramInvocationException {
+		return run(getOptimizedPlan(prog, parallelism), prog.getJarFiles(), wait);
 	}
 	
 
@@ -264,7 +343,7 @@ public class Client {
 
 		@Override
 		public String getExecutionPlan() throws Exception {
-			Plan plan = createProgramPlan("unused");
+			Plan plan = createProgramPlan();
 			this.optimizerPlan = compiler.compile(plan);
 			
 			// do not go on with anything now!
@@ -276,7 +355,7 @@ public class Client {
 		}
 	}
 	
-	static final class ProgramAbortException extends Error {
+	public static final class ProgramAbortException extends Error {
 		private static final long serialVersionUID = 1L;
 	}
 }

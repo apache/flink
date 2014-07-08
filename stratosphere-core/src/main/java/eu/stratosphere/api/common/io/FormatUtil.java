@@ -153,7 +153,6 @@ public class FormatUtil {
 	{
 		final F outputFormat = ReflectionUtil.newInstance(outputFormatClass);
 		outputFormat.setOutputFilePath(new Path(path));
-		outputFormat.setOpenTimeout(0);
 		outputFormat.setWriteMode(WriteMode.OVERWRITE);
 	
 		configuration = configuration == null ? new Configuration() : configuration;

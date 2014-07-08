@@ -44,7 +44,7 @@ public class UnionOperator<T> extends TwoInputOperator<T, T, T, UnionOperator<T>
 	 * @return The common API union operator.
 	 */
 	@Override
-	protected Union translateToDataFlow(Operator input1, Operator input2) {
-		return new Union(input1, input2);
+	protected Union<T> translateToDataFlow(Operator<T> input1, Operator<T> input2) {
+		return new Union<T>(input1, input2);
 	}
 }

@@ -18,8 +18,8 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.FileDataSink;
-import eu.stratosphere.api.common.operators.FileDataSource;
+import eu.stratosphere.api.java.record.operators.FileDataSink;
+import eu.stratosphere.api.java.record.operators.FileDataSource;
 import eu.stratosphere.api.java.record.operators.JoinOperator;
 import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.api.java.record.operators.ReduceOperator;
@@ -47,6 +47,7 @@ import eu.stratosphere.util.Visitor;
  *       parallelism between tasks is increased or decreased.
  * </ul>
  */
+@SuppressWarnings("serial")
 public class DOPChangeTest extends CompilerTestBase {
 	
 	/**
@@ -208,15 +209,15 @@ public class DOPChangeTest extends CompilerTestBase {
 		ShipStrategyType mapIn = map2Node.getInput().getShipStrategy();
 		ShipStrategyType reduceIn = red2Node.getInput().getShipStrategy();
 		
-		Assert.assertEquals("Invalid ship strategy for an operator.", ShipStrategyType.PARTITION_LOCAL_HASH, mapIn);
-		Assert.assertEquals("Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, reduceIn);
+		Assert.assertTrue("Invalid ship strategy for an operator.", 
+				(ShipStrategyType.PARTITION_RANDOM ==  mapIn && ShipStrategyType.PARTITION_HASH == reduceIn) || 
+				(ShipStrategyType.PARTITION_HASH == mapIn && ShipStrategyType.FORWARD == reduceIn));
 	}
 	
 	
 	
 	@Test
-	public void checkPropertyHandlingWithDecreasingDegreeOfParallelism()
-	{
+	public void checkPropertyHandlingWithDecreasingDegreeOfParallelism() {
 		final int degOfPar = DEFAULT_PARALLELISM;
 		
 		// construct the plan

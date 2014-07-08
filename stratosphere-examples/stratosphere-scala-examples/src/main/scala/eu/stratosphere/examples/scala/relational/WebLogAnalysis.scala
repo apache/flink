@@ -139,7 +139,6 @@ object RunWebLogAnalysis {
     }
     val plan = webLogAnalysis.getScalaPlan(args(0).toInt, args(1), args(2), args(3), args(4))
     LocalExecutor.execute(plan)
-    System.exit(0)
   }
 }
 
