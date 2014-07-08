@@ -21,11 +21,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 import org.junit.Test;
+import org.powermock.reflect.Whitebox;
 
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypePairComparator;
@@ -46,6 +48,7 @@ import eu.stratosphere.pact.runtime.test.util.types.StringPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.StringPairPairComparator;
 import eu.stratosphere.pact.runtime.test.util.types.StringPairSerializer;
 import eu.stratosphere.util.MutableObjectIterator;
+import eu.stratosphere.pact.runtime.hash.InMemoryPartition;
 
 
 public class MemoryHashTableTest {
@@ -461,7 +464,8 @@ public class MemoryHashTableTest {
 			
 			// make sure there is enough memory for resize
 			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
-			assertTrue(table.triggerResize());
+			Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
 				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
@@ -500,7 +504,8 @@ public class MemoryHashTableTest {
 			
 			// make sure there is enough memory for resize
 			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
-			assertTrue(table.triggerResize());
+			Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
 				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
@@ -509,7 +514,8 @@ public class MemoryHashTableTest {
 			
 			// make sure there is enough memory for resize
 			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
-			assertTrue(table.triggerResize());
+			b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());
 						
 			for (int i = 0; i < NUM_PAIRS; i++) {
 				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
@@ -548,7 +554,8 @@ public class MemoryHashTableTest {
 			
 			// make sure there is enough memory for resize
 			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
-			assertTrue(table.triggerResize());
+			Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
 				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
@@ -557,7 +564,8 @@ public class MemoryHashTableTest {
 			
 			// make sure there is enough memory for resize
 			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
-			assertTrue(table.triggerResize());
+			b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());
 						
 			for (int i = 0; i < NUM_PAIRS; i++) {
 				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
@@ -566,7 +574,8 @@ public class MemoryHashTableTest {
 			
 			// make sure there is enough memory for resize
 			memory.addAll(getMemory(2*ADDITIONAL_MEM, PAGE_SIZE));
-			assertTrue(table.triggerResize());
+			b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());
 									
 			for (int i = 0; i < NUM_PAIRS; i++) {
 				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
@@ -610,7 +619,8 @@ public class MemoryHashTableTest {
 			
 			// make sure there is enough memory for resize
 			memory.addAll(getMemory(ADDITIONAL_MEM, PAGE_SIZE));
-			assertTrue(table.triggerResize());
+			Boolean b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());
 						
 			for (int i = 0; i < NUM_LISTS; i++) {
 				assertTrue(prober.getMatchFor(lists[i], target));
@@ -625,11 +635,18 @@ public class MemoryHashTableTest {
 				table.insertOrReplaceRecord(overwriteLists[i], tempHolder);
 			}
 			
-			table.triggerFullCompaction();
+			Field list = Whitebox.getField(CompactingHashTable.class, "partitions");
+			@SuppressWarnings("unchecked")
+			ArrayList<InMemoryPartition<IntList>> partitions = (ArrayList<InMemoryPartition<IntList>>) list.get(table);
+			int numPartitions = partitions.size();
+			for(int i = 0; i < numPartitions; i++) {
+				Whitebox.invokeMethod(table, "compactPartition", i);
+			}
 			
 			// make sure there is enough memory for resize
 			memory.addAll(getMemory(2*ADDITIONAL_MEM, PAGE_SIZE));
-			assertTrue(table.triggerResize());									
+			b = Whitebox.<Boolean>invokeMethod(table, "resizeHashTable");
+			assertTrue(b.booleanValue());									
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
 				assertTrue("" + i, prober.getMatchFor(overwriteLists[i], target));

@@ -908,22 +908,6 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 	}
 	
 	/**
-	 * FOR TESTING ONLY
-	 */
-	public void triggerFullCompaction() throws IOException {
-		for(int i = 0; i < this.partitions.size(); i++) {
-			compactPartition(i);
-		}
-	}
-	
-	/**
-	 * FOR TESTING ONLY
-	 */
-	public boolean triggerResize() throws IOException {
-		return resizeHashTable();
-	}
-	
-	/**
 	 * Attempts to double the number of buckets
 	 * 
 	 * @return true on success
