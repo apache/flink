@@ -76,6 +76,8 @@ public class TaskConfig {
 	private static final String DRIVER_COMPARATOR_PARAMETERS_PREFIX = "driver.comp.params.";
 	
 	private static final String DRIVER_PAIR_COMPARATOR_FACTORY = "driver.paircomp";
+	
+	private static final String DRIVER_MUTABLE_OBJECT_MODE = "diver.mutableobjects";
 
 	// -------------------------------------- Inputs ----------------------------------------------
 
@@ -333,6 +335,14 @@ public class TaskConfig {
 		} else {
 			return DriverStrategy.values()[ls];
 		}
+	}
+	
+	public void setMutableObjectMode(boolean mode) {
+		this.config.setBoolean(DRIVER_MUTABLE_OBJECT_MODE, mode);
+	}
+	
+	public boolean getMutableObjectMode() {
+		return this.config.getBoolean(DRIVER_MUTABLE_OBJECT_MODE, true);
 	}
 	
 	public void setDriverComparator(TypeComparatorFactory<?> factory, int inputNum) {
