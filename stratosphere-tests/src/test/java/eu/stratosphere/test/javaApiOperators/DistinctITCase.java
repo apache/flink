@@ -38,7 +38,7 @@ import eu.stratosphere.test.util.JavaProgramTestBase;
 @RunWith(Parameterized.class)
 public class DistinctITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 5;
+	private static int NUM_PROGRAMS = 7;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -198,6 +198,63 @@ public class DistinctITCase extends JavaProgramTestBase {
 				return "1,1,Hi\n" +
 						"2,2,Hello\n" +
 						"3,2,Hello world\n";
+			}
+			case 6: {
+				
+				/*
+				 * check correctness of distinct on POJOs with expression key
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
+				DataSet<Tuple1<Integer>> reduceDs = ds
+						.distinct("myInt")
+						.map(new MapFunction<CollectionDataSets.CustomType, Tuple1<Integer>>() {
+							@Override
+							public Tuple1<Integer> map(CustomType value) throws Exception {
+								return new Tuple1<Integer>(value.myInt);
+							}
+						});
+				
+				reduceDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1\n" +
+						"2\n" +
+						"3\n" +
+						"4\n" +
+						"5\n" +
+						"6\n";
+				
+			}
+			case 7: {
+				
+				/*
+				 * check correctness of distinct on POJOs with expression key
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<CustomType> ds = CollectionDataSets.getSmallCustomTypeDataSet(env);
+				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds
+						.distinct()
+						.map(new MapFunction<CollectionDataSets.CustomType, Tuple3<Integer, Long, String>>() {
+							@Override
+							public Tuple3<Integer, Long, String> map(CustomType value) throws Exception {
+								return new Tuple3<Integer, Long, String>(value.myInt, value.myLong, value.myString);
+							}
+						});
+				
+				reduceDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1,0,Hi\n" +
+						"2,1,Hello\n" +
+						"2,2,Hello world\n";
+				
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

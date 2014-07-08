@@ -14,6 +14,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.java.operators;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import eu.stratosphere.api.common.InvalidProgramException;
@@ -28,6 +29,8 @@ import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.operators.translation.KeyExtractingMapper;
 import eu.stratosphere.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
 import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.api.java.typeutils.PojoField;
+import eu.stratosphere.api.java.typeutils.PojoTypeInfo;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.util.Collector;
@@ -56,6 +59,21 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 				}
 				keys = new Keys.FieldPositionKeys<T>(allFields, input.getType(), true);
 			}
+			else if(input.getType() instanceof PojoTypeInfo<?>) {
+				
+				PojoTypeInfo<?> pojoType = (PojoTypeInfo<?>) input.getType();
+				ArrayList<String> allFields = new ArrayList<String>();
+				
+				for(PojoField field : pojoType.getFields()) {
+					if(!field.type.isKeyType()) {
+						throw new InvalidProgramException("A field of your POJO object cannot be used as key for distinction. Use a custom distinct(String... fields) instead.");
+					}
+					
+					allFields.add(field.field.getName());
+				}
+				
+				keys = new Keys.ExpressionKeys<T>(allFields.toArray(new String[allFields.size()]), getType());
+			}
 			else {
 				throw new InvalidProgramException("Distinction on all fields is only possible on tuple data types.");
 			}
@@ -74,9 +92,10 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 	protected eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase<?, T, ?> translateToDataFlow(Operator<T> input) {
 		
 		GroupReduceFunction<T, T> function = new DistinctFunction<T>();
-		String name = function.getClass().getName();
+		String name = getName() != null ? getName() : function.getClass().getName();
 		
-		if (keys instanceof Keys.FieldPositionKeys) {
+		if (keys instanceof Keys.FieldPositionKeys ||
+				keys instanceof Keys.ExpressionKeys) {
 
 			int[] logicalKeyPositions = keys.computeLogicalKeyPositions();
 			UnaryOperatorInformation<T, T> operatorInfo = new UnaryOperatorInformation<T, T>(getInputType(), getResultType());

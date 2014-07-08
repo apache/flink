@@ -97,7 +97,7 @@ public class DistinctOperatorTest {
 		tupleDs.distinct();
 	}
 	
-	@Test(expected = InvalidProgramException.class)
+	@Test
 	public void testDistinctByKeyFields5() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -106,7 +106,7 @@ public class DistinctOperatorTest {
 		
 		DataSet<CustomType> customDs = env.fromCollection(customTypeData);
 
-		// should not work, distinct without selector on custom types
+		// should work
 		customDs.distinct();
 	}
 	
@@ -142,6 +142,33 @@ public class DistinctOperatorTest {
 			Assert.fail();
 		}
 		
+	}
+	
+	@Test
+	public void testDistinctByKeyExpression1() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		this.customTypeData.add(new CustomType());
+		
+		try {
+			DataSet<CustomType> customDs = env.fromCollection(customTypeData);
+			// should work
+			customDs.distinct("myInt", "myLong");
+		} catch(Exception e) {
+			Assert.fail();
+		}
+		
+	}
+	
+	@Test(expected = IllegalArgumentException.class)
+	public void testDistinctByKeyExpression2() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		this.customTypeData.add(new CustomType());
+		
+		DataSet<CustomType> customDs = env.fromCollection(customTypeData);
+		// should not work, field does not exist
+		customDs.distinct("myIntBlub", "myLong");
 	}
 	
 
