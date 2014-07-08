@@ -119,6 +119,10 @@ public class TestTaskContext<S, T> implements PactTaskContext<S, T> {
 		this.config.setDriverStrategy(strategy);
 	}
 	
+	public void setMutableObjectMode(boolean mutableObjectMode) {
+		this.config.setMutableObjectMode(mutableObjectMode);
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Context Methods
 	// --------------------------------------------------------------------------------------------

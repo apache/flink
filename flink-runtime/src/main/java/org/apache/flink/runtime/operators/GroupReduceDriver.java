@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.util.KeyGroupedIterator;
+import org.apache.flink.runtime.util.KeyGroupedIteratorImmutable;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -91,6 +92,12 @@ public class GroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunction
 		this.serializer = this.taskContext.<IT>getInputSerializer(0).getSerializer();
 		this.comparator = this.taskContext.getDriverComparator(0);
 		this.input = this.taskContext.getInput(0);
+		
+		this.mutableObjectMode = config.getMutableObjectMode();
+		
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("GroupReduceDriver uses " + (this.mutableObjectMode ? "MUTABLE" : "IMMUTABLE") + " object mode.");
+		}
 	}
 
 	@Override
@@ -99,15 +106,23 @@ public class GroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunction
 			LOG.debug(this.taskContext.formatLogString("GroupReducer preprocessing done. Running GroupReducer code."));
 		}
 
-		final KeyGroupedIterator<IT> iter = new KeyGroupedIterator<IT>(this.input, this.serializer, this.comparator);
-
 		// cache references on the stack
 		final GroupReduceFunction<IT, OT> stub = this.taskContext.getStub();
 		final Collector<OT> output = this.taskContext.getOutputCollector();
-
-		// run stub implementation
-		while (this.running && iter.nextKey()) {
-			stub.reduce(iter.getValues(), output);
+		
+		if (mutableObjectMode) {
+			final KeyGroupedIterator<IT> iter = new KeyGroupedIterator<IT>(this.input, this.serializer, this.comparator);
+			// run stub implementation
+			while (this.running && iter.nextKey()) {
+				stub.reduce(iter.getValues(), output);
+			}
+		}
+		else {
+			final KeyGroupedIteratorImmutable<IT> iter = new KeyGroupedIteratorImmutable<IT>(this.input, this.serializer, this.comparator);
+			// run stub implementation
+			while (this.running && iter.nextKey()) {
+				stub.reduce(iter.getValues(), output);
+			}
 		}
 	}
 

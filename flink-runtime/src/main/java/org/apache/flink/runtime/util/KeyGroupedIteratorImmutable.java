@@ -1,26 +1,31 @@
-/***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
- * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
- **********************************************************************************************************************/
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-package eu.stratosphere.pact.runtime.util;
+package org.apache.flink.runtime.util;
 
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import eu.stratosphere.api.common.typeutils.TypeComparator;
-import eu.stratosphere.api.common.typeutils.TypeSerializer;
-import eu.stratosphere.util.MutableObjectIterator;
-
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.TraversableOnceException;
 /**
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
  * 
@@ -75,6 +80,7 @@ public final class KeyGroupedIteratorImmutable<E> {
 			this.valuesIterator.next = this.lookahead;
 			this.lastKeyRecord = this.lookahead;
 			this.lookahead = null;
+			this.valuesIterator.iteratorAvailable = true;
 			return true;
 		}
 		
@@ -94,6 +100,7 @@ public final class KeyGroupedIteratorImmutable<E> {
 						this.comparator.setReference(next);
 						this.valuesIterator.next = next;
 						this.lastKeyRecord = next;
+						this.valuesIterator.iteratorAvailable = true;
 						return true;
 					}
 				}
@@ -170,9 +177,11 @@ public final class KeyGroupedIteratorImmutable<E> {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public final class ValuesIterator implements Iterator<E> {
+	public final class ValuesIterator implements Iterator<E>, Iterable<E> {
 		
 		private E next;
+		
+		private boolean iteratorAvailable = true;
 		
 		private ValuesIterator(E first) {
 			this.next = first;
@@ -197,6 +206,17 @@ public final class KeyGroupedIteratorImmutable<E> {
 		@Override
 		public void remove() {
 			throw new UnsupportedOperationException();
+		}
+		
+		@Override
+		public Iterator<E> iterator() {
+			if (iteratorAvailable) {
+				iteratorAvailable = false;
+				return this;
+			}
+			else {
+				throw new TraversableOnceException();
+			}
 		}
 	}
 }
