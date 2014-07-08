@@ -23,12 +23,14 @@ import eu.stratosphere.types.Record
 object UnionOperator {
 
   def impl[In](firstInput: DataSet[In], secondInput: DataSet[In]): DataSet[In] = {
-    val union = new Union[Record](firstInput.contract, secondInput.contract) with UnionScalaOperator[In] {
-      private val inputUDT = firstInput.contract.getUDF().outputUDT
+    val union = new Union[Record](firstInput.contract, secondInput.contract)
+      with UnionScalaOperator[In] {
+
+      private val inputUDT = firstInput.contract.getUDF.outputUDT
       private val udf: UDF2[In, In, In] = new UDF2(inputUDT, inputUDT, inputUDT)
 
-      override def getUDF = udf;
+      override def getUDF = udf
     }
-    return new DataSet(union)
+    new DataSet(union)
   }
 }

@@ -69,7 +69,7 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.write(source, 8);;
+		target.write(source, 8);
 	}
 
 	public static final class IntPairSerializerFactory implements TypeSerializerFactory<IntPair> {
