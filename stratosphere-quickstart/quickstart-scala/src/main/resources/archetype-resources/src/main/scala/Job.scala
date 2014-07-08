@@ -41,8 +41,8 @@ object RunJobRemote {
     // You will also need to change the name of the jar if you change the
     // project name and/or version. Before running this you also need
     // to run "mvn package" to create the jar.
-    val ex = new RemoteExecutor("localhost", 6123, "target/stratosphere-project-0.1-SNAPSHOT.jar");
-    ex.executePlan(plan);
+    val ex = new RemoteExecutor("localhost", 6123, "target/stratosphere-project-0.1-SNAPSHOT.jar")
+    ex.executePlan(plan)
   }
 }
 

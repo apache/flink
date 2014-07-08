@@ -28,7 +28,8 @@ import eu.stratosphere.types.Record
 
 class DataSet[T] (val contract: Operator[Record] with ScalaOperator[T, Record]) {
   
-  def cogroup[RightIn](rightInput: DataSet[RightIn]) = new CoGroupDataSet[T, RightIn](this, rightInput)
+  def cogroup[RightIn](rightInput: DataSet[RightIn]) =
+    new CoGroupDataSet[T, RightIn](this, rightInput)
   def cross[RightIn](rightInput: DataSet[RightIn]) = new CrossDataSet[T, RightIn](this, rightInput)
   def join[RightIn](rightInput: DataSet[RightIn]) = new JoinDataSet[T, RightIn](this, rightInput)
   
@@ -42,17 +43,28 @@ class DataSet[T] (val contract: Operator[Record] with ScalaOperator[T, Record]) 
   // reduce without grouping
   def reduce(fun: (T, T) => T) = macro ReduceMacros.globalReduce[T]
   def reduceAll[Out](fun: Iterator[T] => Out) = macro ReduceMacros.globalReduceGroup[T, Out]
-  def combinableReduceAll[Out](fun: Iterator[T] => Out) = macro ReduceMacros.combinableGlobalReduceGroup[T]
+  def combinableReduceAll[Out](fun: Iterator[T] => Out) =
+    macro ReduceMacros.combinableGlobalReduceGroup[T]
 
   def union(secondInput: DataSet[T]) = UnionOperator.impl[T](this, secondInput)
   
-  def iterateWithDelta[DeltaItem](stepFunction: DataSet[T] => (DataSet[T], DataSet[DeltaItem])) = macro IterateMacros.iterateWithDelta[T, DeltaItem]
+  def iterateWithDelta[DeltaItem](stepFunction: DataSet[T] => (DataSet[T], DataSet[DeltaItem])) =
+    macro IterateMacros.iterateWithDelta[T, DeltaItem]
   def iterate(n: Int, stepFunction: DataSet[T] => DataSet[T])= macro IterateMacros.iterate[T]
-  def iterateWithTermination[C](n: Int, stepFunction: DataSet[T] => DataSet[T], terminationFunction: (DataSet[T],
-    DataSet[T]) => DataSet[C]) = macro IterateMacros.iterateWithTermination[T, C]
-  def iterateWithDelta[SolutionKey, WorksetItem](workset: DataSet[WorksetItem], solutionSetKey: T => SolutionKey, stepFunction: (DataSet[T], DataSet[WorksetItem]) => (DataSet[T], DataSet[WorksetItem]), maxIterations: Int) = macro WorksetIterateMacros.iterateWithDelta[T, SolutionKey, WorksetItem]
+  def iterateWithTermination[C](
+      n: Int,
+      stepFunction: DataSet[T] => DataSet[T],
+      terminationFunction: (DataSet[T],DataSet[T]) => DataSet[C]) =
+    macro IterateMacros.iterateWithTermination[T, C]
+  def iterateWithDelta[SolutionKey, WorksetItem](
+      workset: DataSet[WorksetItem],
+      solutionSetKey: T => SolutionKey,
+      stepFunction: (DataSet[T], DataSet[WorksetItem]) =>
+                    (DataSet[T], DataSet[WorksetItem]), maxIterations: Int) =
+    macro WorksetIterateMacros.iterateWithDelta[T, SolutionKey, WorksetItem]
   
   def write(url: String, format: ScalaOutputFormat[T]) = DataSinkOperator.write(this, url, format)
-  def write(url: String, format: ScalaOutputFormat[T], name: String) = DataSinkOperator.write(this, url, format, name)
+  def write(url: String, format: ScalaOutputFormat[T], name: String) =
+    DataSinkOperator.write(this, url, format, name)
   
 }

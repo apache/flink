@@ -37,7 +37,7 @@ object DataSource {
 
         override def getUDF = format.getUDF
 
-        override def persistConfiguration() = format.persistConfiguration(this.getParameters())
+        override def persistConfiguration() = format.persistConfiguration(this.getParameters)
       }
 
 //      case "ext" => new GenericDataSource[GenericInputFormat[_]](format.asInstanceOf[GenericInputFormat[_]], uri.toString)

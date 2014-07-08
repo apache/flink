@@ -33,7 +33,7 @@ class WordCount extends Program with ProgramDescription with Serializable {
     val words = input flatMap { _.toLowerCase().split("""\W+""") filter { _ != "" } map { (_, 1) } }
     val counts = words groupBy { case (word, _) => word } reduce { (w1, w2) => (w1._1, w1._2 + w2._2) }
 
-    val output = counts.write(wordsOutput, CsvOutputFormat("\n", " "));
+    val output = counts.write(wordsOutput, CsvOutputFormat("\n", " "))
   
     val plan = new ScalaPlan(Seq(output), "Word Count")
     plan.setDefaultParallelism(numSubTasks)

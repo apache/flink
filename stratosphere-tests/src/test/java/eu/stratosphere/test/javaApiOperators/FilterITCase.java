@@ -319,7 +319,7 @@ public class FilterITCase extends JavaProgramTestBase {
 							public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
 								return (value.f1 == (broadcastSum / 11));
 							}
-						}).withBroadcastSet(intDs, "ints");;
+						}).withBroadcastSet(intDs, "ints");
 				filterDs.writeAsCsv(resultPath);
 				env.execute();
 				

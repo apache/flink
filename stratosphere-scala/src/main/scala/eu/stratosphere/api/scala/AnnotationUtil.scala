@@ -121,7 +121,7 @@ object AnnotationUtil {
 
         val fieldSet = new FieldSet(notConstantSet1Annotation.value(): _*)
 
-        for (i <- 0 until scalaOp.getUDF().getOutputLength) {
+        for (i <- 0 until scalaOp.getUDF.getOutputLength) {
           if (!fieldSet.contains(i)) {
             properties.addForwardedField1(i, i)
           }
@@ -141,7 +141,7 @@ object AnnotationUtil {
 
         val fieldSet = new FieldSet(notConstantSet2Annotation.value(): _*)
 
-        for (i <- 0 until scalaOp.getUDF().getOutputLength) {
+        for (i <- 0 until scalaOp.getUDF.getOutputLength) {
           if (!fieldSet.contains(i)) {
             properties.addForwardedField2(i, i)
           }
@@ -166,10 +166,10 @@ object AnnotationUtil {
       }
 
       // get constantSet annotation from stub
-      val constantSet: FunctionAnnotation.ConstantFields = scalaOp.getUserCodeAnnotation(classOf[FunctionAnnotation
-      .ConstantFields])
-      val notConstantSet: FunctionAnnotation.ConstantFieldsExcept = scalaOp.getUserCodeAnnotation(
-        classOf[FunctionAnnotation.ConstantFieldsExcept])
+      val constantSet: FunctionAnnotation.ConstantFields =
+        scalaOp.getUserCodeAnnotation(classOf[FunctionAnnotation.ConstantFields])
+      val notConstantSet: FunctionAnnotation.ConstantFieldsExcept =
+        scalaOp.getUserCodeAnnotation(classOf[FunctionAnnotation.ConstantFieldsExcept])
 
       if (notConstantSet != null && constantSet != null) {
         throw new RuntimeException("Either ConstantFields or ConstantFieldsExcept can be specified, not both.")
@@ -186,7 +186,7 @@ object AnnotationUtil {
           }
         }
 
-        for (i <- 0 until scalaOp.getUDF().getOutputLength) {
+        for (i <- 0 until scalaOp.getUDF.getOutputLength) {
           if (!nonConstant.contains(i)) {
             properties.addForwardedField(i, i)
           }

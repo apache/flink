@@ -26,8 +26,9 @@ import eu.stratosphere.api.common.operators.Union
 import eu.stratosphere.types.Record
 import eu.stratosphere.types.{Nothing => JavaNothing}
 
-trait ScalaOperator[T, UT] { this: Operator[UT] =>
-  def getUDF(): UDF[T]
+trait ScalaOperator[T, UT] {
+  this: Operator[UT] =>
+  def getUDF: UDF[T]
   def getKeys: Seq[FieldSelector] = Seq()
   def persistConfiguration(): Unit = {}
   
@@ -41,14 +42,17 @@ trait ScalaOperator[T, UT] { this: Operator[UT] =>
         for ((key, inputNum) <- getKeys.zipWithIndex) {
           
           val source = key.selectedFields.toSerializerIndexArray
-          val target = optimizerNode map { _.getRemappedKeys(inputNum) } getOrElse { contract.getKeyColumns(inputNum) }
+          val target = optimizerNode map { _.getRemappedKeys(inputNum) } getOrElse {
+            contract.getKeyColumns(inputNum) }
 
-          assert(source.length == target.length, "Attempt to write " + source.length + " key indexes to an array of size " + target.length)
+          assert(source.length == target.length, "Attempt to write " + source.length +
+            " key indexes to an array of size " + target.length)
           System.arraycopy(source, 0, target, 0, source.length)
         }
       }
       
-      case _ if getKeys.size > 0 => throw new UnsupportedOperationException("Attempted to set keys on a contract that doesn't support them")
+      case _ if getKeys.size > 0 => throw new UnsupportedOperationException("Attempted to set " +
+        "keys on a contract that doesn't support them")
       
       case _ =>
     }
@@ -60,11 +64,14 @@ trait ScalaOperator[T, UT] { this: Operator[UT] =>
   protected def annotations: Seq[Annotation] = Seq()
 
   def getUserCodeAnnotation[A <: Annotation](annotationClass: Class[A]): A = {
-    val res = annotations find { _.annotationType().equals(annotationClass) } map { _.asInstanceOf[A] } getOrElse null.asInstanceOf[A]
+    val res = annotations find { _.annotationType().equals(annotationClass) } map {
+      _.asInstanceOf[A] } getOrElse null.asInstanceOf[A]
 //    println("returning ANOOT: " + res + " FOR: " + annotationClass.toString)
 //    res match {
-//      case r : FunctionAnnotation.ConstantFieldsFirst => println("CONSTANT FIELDS FIRST: " + r.value().mkString(","))
-//      case r : FunctionAnnotation.ConstantFieldsSecond => println("CONSTANT FIELDS SECOND: " + r.value().mkString(","))
+//      case r : FunctionAnnotation.ConstantFieldsFirst => println("CONSTANT FIELDS FIRST: " +
+//        r.value().mkString(","))
+//      case r : FunctionAnnotation.ConstantFieldsSecond => println("CONSTANT FIELDS SECOND: " +
+//        r.value().mkString(","))
 //      case _ =>
 //    }
     res
@@ -75,38 +82,46 @@ trait NoOpScalaOperator[In, Out] extends ScalaOperator[Out, Record] { this: Oper
 }
 
 trait HigherOrderScalaOperator[T] extends ScalaOperator[T, Record] { this: Operator[Record] =>
-  override def getUDF(): UDF0[T]
+  override def getUDF: UDF0[T]
 }
 
 trait BulkIterationScalaOperator[T] extends HigherOrderScalaOperator[T] { this: Operator[Record] =>
 }
 
-trait DeltaIterationScalaOperator[T] extends HigherOrderScalaOperator[T] { this: Operator[Record] =>
+trait DeltaIterationScalaOperator[T] extends HigherOrderScalaOperator[T] {
+  this: Operator[Record] =>
   val key: FieldSelector
 }
 
-trait ScalaOutputOperator[In] extends ScalaOperator[Nothing, JavaNothing] { this: Operator[JavaNothing] =>
-  override def getUDF(): UDF1[In, Nothing]
+trait ScalaOutputOperator[In] extends ScalaOperator[Nothing, JavaNothing] {
+  this: Operator[JavaNothing] =>
+  override def getUDF: UDF1[In, Nothing]
 }
 
 trait OneInputScalaOperator[In, Out] extends ScalaOperator[Out, Record] { this: Operator[Record] =>
-  override def getUDF(): UDF1[In, Out]
+  override def getUDF: UDF1[In, Out]
 }
 
-trait TwoInputScalaOperator[In1, In2, Out] extends ScalaOperator[Out, Record] { this: Operator[Record] =>
-  override def getUDF(): UDF2[In1, In2, Out]
+trait TwoInputScalaOperator[In1, In2, Out] extends ScalaOperator[Out, Record] {
+  this: Operator[Record] =>
+  override def getUDF: UDF2[In1, In2, Out]
 }
 
-trait UnionScalaOperator[In] extends TwoInputScalaOperator[In, In, In] { this: Union[Record] =>
-  override def getUDF(): UDF2[In, In, In]
+trait UnionScalaOperator[In] extends TwoInputScalaOperator[In, In, In] {
+  this: Union[Record] =>
+  override def getUDF: UDF2[In, In, In]
 }
 
-trait OneInputKeyedScalaOperator[In, Out] extends OneInputScalaOperator[In, Out] { this: Operator[Record] =>
+trait OneInputKeyedScalaOperator[In, Out] extends OneInputScalaOperator[In, Out] {
+  this: Operator[Record] =>
   val key: FieldSelector
   override def getKeys = Seq(key)
 }
 
-trait TwoInputKeyedScalaOperator[LeftIn, RightIn, Out] extends TwoInputScalaOperator[LeftIn, RightIn, Out] { this: Operator[Record] =>
+trait TwoInputKeyedScalaOperator[LeftIn, RightIn, Out]
+  extends TwoInputScalaOperator[LeftIn, RightIn, Out] {
+
+  this: Operator[Record] =>
   val leftKey: FieldSelector
   val rightKey: FieldSelector
   override def getKeys = Seq(leftKey, rightKey)
