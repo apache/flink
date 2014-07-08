@@ -84,6 +84,8 @@ public class MemoryHashTableTest {
 	
 	private final int ADDITIONAL_MEM = 100;
 	
+	private final int NUM_REWRITES = 10;
+	
 
 	private final TypeSerializer<StringPair> serializerS = new StringPairSerializer();
 	
@@ -332,6 +334,57 @@ public class MemoryHashTableTest {
 			for (int i = 0; i < NUM_LISTS; i++) {
 				assertTrue(prober.getMatchFor(lists[i], target));
 				assertArrayEquals(lists[i].getValue(), target.getValue());
+			}
+			
+			table.close();
+			assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail("Error: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testRepeatedBuildAndRetrieve() {
+		try {
+			final int NUM_MEM_PAGES = SIZE * NUM_LISTS / PAGE_SIZE;
+			
+			final IntList[] lists = getRandomizedIntLists(NUM_LISTS, rnd);
+			
+			AbstractMutableHashTable<IntList> table = new CompactingHashTable<IntList>(serializerV, comparatorV, getMemory(NUM_MEM_PAGES, PAGE_SIZE));
+			table.open();
+			
+			for (int i = 0; i < NUM_LISTS; i++) {
+				try {
+					table.insert(lists[i]);
+				} catch (Exception e) {
+					throw e;
+				}
+			}
+
+
+			AbstractHashTableProber<IntList, IntList> prober = table.getProber(comparatorV, pairComparatorV);
+			IntList target = new IntList();
+			
+			for (int i = 0; i < NUM_LISTS; i++) {
+				assertTrue(prober.getMatchFor(lists[i], target));
+				assertArrayEquals(lists[i].getValue(), target.getValue());
+			}
+			
+			IntList[] overwriteLists;
+			
+			for(int k = 0; k < NUM_REWRITES; k++) {
+				overwriteLists = getRandomizedIntLists(NUM_LISTS, rnd);
+				// test replacing
+				IntList tempHolder = new IntList();
+				for (int i = 0; i < NUM_LISTS; i++) {
+					table.insertOrReplaceRecord(overwriteLists[i], tempHolder);
+				}
+			
+				for (int i = 0; i < NUM_LISTS; i++) {
+					assertTrue("" + i, prober.getMatchFor(overwriteLists[i], target));
+					assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
+				}
 			}
 			
 			table.close();
