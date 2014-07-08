@@ -423,5 +423,42 @@ public class CsvInputFormatTest {
 			fail("Test erroneous");
 		}
 	}
+	
+	@Test
+	public void testSkipHeader() throws IOException {
+		try {
+			final String fileContent = "HEAD\nHEAD\n111|222|333|444|555|\n666|777|888|999|000|\n";
+			final FileInputSplit split = createTempFile(fileContent);	
+		
+			final CsvInputFormat<Tuple2<Integer, Integer>> format = new CsvInputFormat<Tuple2<Integer, Integer>>(PATH);
+			
+			format.setFieldDelimiter('|');
+			format.setFieldTypes(Integer.class, Integer.class);
+			format.setSkippedLinesAsHeader(2);
+			
+			format.configure(new Configuration());
+			format.open(split);
+			
+			Tuple2<Integer, Integer> result = new Tuple2<Integer, Integer>();
+			
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals(Integer.valueOf(111), result.f0);
+			assertEquals(Integer.valueOf(222), result.f1);
+			
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals(Integer.valueOf(666), result.f0);
+			assertEquals(Integer.valueOf(777), result.f1);
+			
+			result = format.nextRecord(result);
+			assertNull(result);
+			assertTrue(format.reachedEnd());
+		}
+		catch (Exception ex) {
+			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
+		}
+		
+	}
 
 }

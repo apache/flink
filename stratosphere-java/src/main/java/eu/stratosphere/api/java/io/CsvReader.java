@@ -46,7 +46,7 @@ public class CsvReader {
 	
 	protected char fieldDelimiter = CsvInputFormat.DEFAULT_FIELD_DELIMITER;
 
-	protected boolean skipFirstLineAsHeader = false;
+	protected int skippedLinesAsHeader = 0;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -204,7 +204,17 @@ public class CsvReader {
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
 	public CsvReader ignoreFirstLine() {
-		skipFirstLineAsHeader = true;
+		skippedLinesAsHeader = 1;
+		return this;
+	}
+	
+	/**
+	 * Sets the CSV reader to ignore the first n lines. This is useful for files that contain more then one header line.
+	 * 
+	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 */
+	public CsvReader ignoreFirstLines(int numberOfLines) {
+		skippedLinesAsHeader = numberOfLines;
 		return this;
 	}
 	/**
@@ -241,7 +251,7 @@ public class CsvReader {
 	private void configureInputFormat(CsvInputFormat<?> format, Class<?>... types) {
 		format.setDelimiter(this.lineDelimiter);
 		format.setFieldDelimiter(this.fieldDelimiter);
-		format.setSkipFirstLineAsHeader(skipFirstLineAsHeader);
+		format.setSkippedLinesAsHeader(skippedLinesAsHeader);
 		if (this.includedMask == null) {
 			format.setFieldTypes(types);
 		} else {
