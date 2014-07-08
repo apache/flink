@@ -88,7 +88,7 @@ public interface InputFormat<OT, T extends InputSplit> extends Serializable {
 	 *                     instances may remain idle.
 	 * @return The splits of this input that can be processed in parallel. 
 	 * 
-	 * @throws Exception Thrown, when the creation of the splits was erroneous.
+	 * @throws IOException Thrown, when the creation of the splits was erroneous.
 	 */
 	T[] createInputSplits(int minNumSplits) throws IOException;
 	

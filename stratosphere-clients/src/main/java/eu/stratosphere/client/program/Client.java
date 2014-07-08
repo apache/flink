@@ -270,7 +270,6 @@ public class Client {
 	 *                                    or if the submission failed. That might be either due to an I/O problem,
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
 	 *                                    on the nephele system failed.
-	 * @throws JobInstantiationException Thrown, if the plan assembler function causes an exception.
 	 */
 	public JobExecutionResult run(JobWithJars prog, int parallelism, boolean wait) throws CompilerException, ProgramInvocationException {
 		return run(getOptimizedPlan(prog, parallelism), prog.getJarFiles(), wait);

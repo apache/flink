@@ -815,8 +815,6 @@ public class CliFrontend {
 
 	/**
 	 * Prints the help for the client.
-	 * 
-	 * @param options A map with options for actions. 
 	 */
 	private void printHelp() {
 		System.out.println("./stratosphere <ACTION> [GENERAL_OPTIONS] [ARGUMENTS]");
@@ -878,7 +876,7 @@ public class CliFrontend {
 	/**
 	 * Displays exceptions.
 	 * 
-	 * @param e the exception to display.
+	 * @param t The exception to display.
 	 */
 	private int handleError(Throwable t) {
 		System.out.println("Error: " + t.getMessage());

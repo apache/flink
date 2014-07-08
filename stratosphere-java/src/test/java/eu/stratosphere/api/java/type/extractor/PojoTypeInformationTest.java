@@ -84,4 +84,10 @@ public class PojoTypeInformationTest {
 		TypeInformation<Recursive1Pojo> type = TypeExtractor.getForClass(Recursive1Pojo.class);
 		assertTrue("Extracted type is not a Pojo type but should be.", type instanceof PojoTypeInfo);
 	}
+	
+	@Test
+	public void testRecursivePojoObjectTypeExtraction() {
+		TypeInformation<Recursive1Pojo> type = TypeExtractor.getForObject(new Recursive1Pojo());
+		assertTrue("Extracted type is not a Pojo type but should be.", type instanceof PojoTypeInfo);
+	}
 }

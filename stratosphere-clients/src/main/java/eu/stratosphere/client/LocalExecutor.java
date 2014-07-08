@@ -285,7 +285,7 @@ public class LocalExecutor extends PlanExecutor {
 	/**
 	 * Executes the program represented by the given Pact plan.
 	 * 
-	 * @param pa The program's plan. 
+	 * @param plan The program's plan. 
 	 * @return The net runtime of the program, in milliseconds.
 	 * 
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
@@ -325,7 +325,9 @@ public class LocalExecutor extends PlanExecutor {
 
 	/**
 	 * Return unoptimized plan as JSON.
-	 * @return
+	 * 
+	 * @param plan The program plan.
+	 * @return The plan as a JSON object.
 	 */
 	public static String getPlanAsJSON(Plan plan) {
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();

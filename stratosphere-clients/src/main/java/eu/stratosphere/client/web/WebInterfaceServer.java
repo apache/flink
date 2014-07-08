@@ -247,8 +247,8 @@ public class WebInterfaceServer {
 	 * if the directory exists and creates it if necessary. It also checks read permissions and
 	 * write permission, if necessary.
 	 * 
-	 * @param dir
-	 *        The String describing the directory path.
+	 * @param f
+	 *        The file describing the directory path.
 	 * @param needWritePermission
 	 *        A flag indicating whether to check write access.
 	 * @throws IOException

@@ -16,7 +16,7 @@ package eu.stratosphere.spargel.java;
  * <tt>Edge</tt> objects represent edges between vertices. Edges are defined by their source and target
  * vertex id. Edges may have an associated value (for example a weight or a distance), if the
  * graph algorithm was initialized with the
- * {@link VertexCentricIteration#withEdgesWithValue(eu.stratosphere.api.java.DataSet, VertexUpdateFunction, MessagingFunction)}
+ * {@link VertexCentricIteration#withValuedEdges(eu.stratosphere.api.java.DataSet, VertexUpdateFunction, MessagingFunction, int)}
  * method.
  *
  * @param <VertexKey> The type of the vertex key.

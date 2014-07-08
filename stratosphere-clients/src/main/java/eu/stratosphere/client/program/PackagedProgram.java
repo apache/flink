@@ -102,7 +102,7 @@ public class PackagedProgram {
 	 * 
 	 * @param jarFile
 	 *        The jar file which contains the plan.
-	 * @param className
+	 * @param entryPointClassName
 	 *        Name of the class which generates the plan. Overrides the class defined
 	 *        in the jar file manifest
 	 * @param args
@@ -177,7 +177,8 @@ public class PackagedProgram {
 
 	/**
 	 * Returns the plan with all required jars.
-	 * @throws JobInstantiationException 
+	 * 
+	 * @return The plan with attached jar files.
 	 * @throws ProgramInvocationException 
 	 */
 	public JobWithJars getPlanWithJars() throws ProgramInvocationException {
@@ -261,9 +262,6 @@ public class PackagedProgram {
 	 * @throws ProgramInvocationException
 	 *         This invocation is thrown if the Program can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
-	 * @throws JobInstantiationException
-	 *         Thrown if an error occurred in the user-provided pact assembler. This may indicate
-	 *         missing parameters for generation.
 	 */
 	public String getDescription() throws ProgramInvocationException {
 		if (ProgramDescription.class.isAssignableFrom(this.mainClass)) {
@@ -487,18 +485,16 @@ public class PackagedProgram {
 	 * or it is read from the manifest of the jar. The assembler is handed the given options
 	 * for its assembly.
 	 * 
-	 * @param clazz
-	 *        The name of the assembler class, or null, if the class should be read from
-	 *        the manifest.
+	 * @param program The program to create the plan for.
 	 * @param options
 	 *        The options for the assembler.
 	 * @return The plan created by the program.
-	 * @throws JobInstantiationException
+	 * @throws ProgramInvocationException
 	 *         Thrown, if an error occurred in the user-provided pact assembler.
 	 */
-	private static Plan createPlanFromProgram(Program assembler, String[] options) throws ProgramInvocationException {
+	private static Plan createPlanFromProgram(Program program, String[] options) throws ProgramInvocationException {
 		try {
-			return assembler.getPlan(options);
+			return program.getPlan(options);
 		} catch (Throwable t) {
 			throw new ProgramInvocationException("Error while calling the program: " + t.getMessage(), t);
 		}
@@ -509,7 +505,7 @@ public class PackagedProgram {
 	 * to the system's temp directory.
 	 * 
 	 * @return The file names of the extracted temporary files.
-	 * @throws IOException Thrown, if the extraction process failed.
+	 * @throws ProgramInvocationException Thrown, if the extraction process failed.
 	 */
 	private static List<File> extractContainedLibaries(File jarFile) throws ProgramInvocationException {
 		
