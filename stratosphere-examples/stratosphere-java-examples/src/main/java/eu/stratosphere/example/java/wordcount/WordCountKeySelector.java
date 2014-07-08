@@ -31,9 +31,7 @@ public class WordCountKeySelector {
 
 	/**
 	 * Runs the WordCount program.
-	 * 
-	 * @param args
-	 *            Input and output file.
+	 * @param args Arguments given, input and output path.
 	 */
 	public static void main(String[] args) throws Exception {
 		// Check whether arguments are given and tell user how to use this example.
