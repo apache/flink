@@ -186,9 +186,12 @@
 				</dependencies>
 			</dependencyManagement>
 		</profile>
+
 		<profile>
-			<id>cdh-repo</id>
-				<repositories>
+			<id>vendor-repos</id>
+			<!-- Add vendor maven repositories -->
+			<repositories>
+				<!-- Cloudera -->
 				<repository>
 					<id>cloudera-releases</id>
 					<url>https://repository.cloudera.com/artifactory/cloudera-repos</url>
@@ -199,8 +202,33 @@
 						<enabled>false</enabled>
 					</snapshots>
 				</repository>
+				<!-- Hortonworks -->
+				<repository>
+					<releases>
+						<enabled>true</enabled>
+						<updatePolicy>always</updatePolicy>
+						<checksumPolicy>warn</checksumPolicy>
+					</releases>
+					<snapshots>
+						<enabled>false</enabled>
+						<updatePolicy>never</updatePolicy>
+						<checksumPolicy>fail</checksumPolicy>
+					</snapshots>
+					<id>HDPReleases</id>
+					<name>HDP Releases</name>
+					<url>http://repo.hortonworks.com/content/repositories/releases/</url>
+					<layout>default</layout>
+				</repository>
+				<!-- MapR -->
+				<repository>
+					<id>mapr-releases</id>
+					<url>http://repository.mapr.com/maven/</url>
+					<snapshots><enabled>false</enabled></snapshots>
+					<releases><enabled>true</enabled></releases>
+				</repository>
 			</repositories>
 		</profile>
+
 		<profile>
 			<id>release</id>
 				<build>
