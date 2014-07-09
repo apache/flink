@@ -102,7 +102,9 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 		Assert.assertEquals(DriverStrategy.NONE, vertexSource.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.NONE, edgesSource.getDriverStrategy());
 		
-		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, neighborsJoin.getDriverStrategy());
+		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED, neighborsJoin.getDriverStrategy());
+		Assert.assertTrue(!neighborsJoin.getInput1().getTempMode().isCached());
+		Assert.assertTrue(!neighborsJoin.getInput2().getTempMode().isCached());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput1());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput2());
 		
@@ -120,7 +122,6 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 		Assert.assertEquals(ShipStrategyType.FORWARD, neighborsJoin.getInput1().getShipStrategy()); // workset
 		Assert.assertEquals(ShipStrategyType.PARTITION_HASH, neighborsJoin.getInput2().getShipStrategy()); // edges
 		Assert.assertEquals(set0, neighborsJoin.getInput2().getShipStrategyKeys());
-		Assert.assertTrue(neighborsJoin.getInput2().getTempMode().isCached());
 		
 		Assert.assertEquals(ShipStrategyType.PARTITION_HASH, minIdReducer.getInput().getShipStrategy());
 		Assert.assertEquals(set0, minIdReducer.getInput().getShipStrategyKeys());
@@ -182,7 +183,9 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 		Assert.assertEquals(DriverStrategy.NONE, vertexSource.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.NONE, edgesSource.getDriverStrategy());
 		
-		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, neighborsJoin.getDriverStrategy());
+		Assert.assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED, neighborsJoin.getDriverStrategy());
+		Assert.assertTrue(!neighborsJoin.getInput1().getTempMode().isCached());
+		Assert.assertTrue(!neighborsJoin.getInput2().getTempMode().isCached());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput1());
 		Assert.assertEquals(set0, neighborsJoin.getKeysForInput2());
 		
@@ -200,7 +203,6 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 		Assert.assertEquals(ShipStrategyType.FORWARD, neighborsJoin.getInput1().getShipStrategy()); // workset
 		Assert.assertEquals(ShipStrategyType.PARTITION_HASH, neighborsJoin.getInput2().getShipStrategy()); // edges
 		Assert.assertEquals(set0, neighborsJoin.getInput2().getShipStrategyKeys());
-		Assert.assertTrue(neighborsJoin.getInput2().getTempMode().isCached());
 		
 		Assert.assertEquals(ShipStrategyType.PARTITION_HASH, minIdReducer.getInput().getShipStrategy());
 		Assert.assertEquals(set0, minIdReducer.getInput().getShipStrategyKeys());

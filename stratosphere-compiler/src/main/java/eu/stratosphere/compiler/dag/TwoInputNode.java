@@ -474,12 +474,16 @@ public abstract class TwoInputNode extends OptimizerNode {
 							if (dps.areCoFulfilled(lpp.getProperties1(), lpp.getProperties2(), 
 								in1.getLocalProperties(), in2.getLocalProperties()))
 							{
+								// copy, because setting required properties and instantiation may
+								// change the channels and should not affect prior candidates
 								Channel in1Copy = in1.clone();
 								in1Copy.setRequiredLocalProps(lpp.getProperties1());
-								in2.setRequiredLocalProps(lpp.getProperties2());
+								
+								Channel in2Copy = in2.clone();
+								in2Copy.setRequiredLocalProps(lpp.getProperties2());
 								
 								// all right, co compatible
-								instantiate(dps, in1Copy, in2, broadcastPlanChannels, target, estimator, rgps1, rgps2, ilp1, ilp2);
+								instantiate(dps, in1Copy, in2Copy, broadcastPlanChannels, target, estimator, rgps1, rgps2, ilp1, ilp2);
 								break;
 							} else {
 								// meet, but not co-compatible

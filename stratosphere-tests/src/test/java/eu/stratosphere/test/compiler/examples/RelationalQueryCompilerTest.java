@@ -60,6 +60,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			
 			// compile
 			final OptimizedPlan plan = compileNoStats(p);
+			
 			final OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(plan);
 			
 			// get the nodes from the final plan

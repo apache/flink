@@ -42,7 +42,7 @@ public class DefaultCostEstimator extends CostEstimator {
 	
 	private static final float HASHING_CPU_FACTOR = 4;
 	
-	private static final float SORTING_CPU_FACTOR = 7;
+	private static final float SORTING_CPU_FACTOR = 9;
 	
 	
 	// --------------------------------------------------------------------------------------------
