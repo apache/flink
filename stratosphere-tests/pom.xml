@@ -88,7 +88,7 @@
 				</executions>
 				<configuration>
 					<excludes>
-						<exclude>**/src/test/java/eu/stratosphere/test/util/testjar/*.java</exclude>
+						<exclude>**/src/test/java/org/apache/flink/test/util/testjar/*.java</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
@@ -133,7 +133,7 @@
 						<configuration>
 							<archive>
 								<manifest>
-									<mainClass>eu.stratosphere.test.util.testjar.KMeansForTest</mainClass>
+									<mainClass>org.apache.flink.test.util.testjar.KMeansForTest</mainClass>
 								</manifest>
 							</archive>
 							<finalName>maven</finalName>
