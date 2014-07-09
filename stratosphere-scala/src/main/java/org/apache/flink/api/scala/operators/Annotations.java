@@ -16,8 +16,8 @@ package org.apache.flink.api.scala.operators;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation;
-import eu.stratosphere.api.java.record.operators.ReduceOperator;
+import org.apache.flink.api.java.record.functions.FunctionAnnotation;
+import org.apache.flink.api.java.record.operators.ReduceOperator;
 
 public class Annotations {
 

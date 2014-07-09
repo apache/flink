@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -20,15 +20,15 @@ trait SerializeMethodGen[C <: Context] { this: MacroContextHolder[C] with UDTDes
 
   protected def mkSerialize(desc: UDTDescriptor, listImpls: Map[Int, Type]): List[Tree] = {
 
-//    val root = mkMethod("serialize", Flag.OVERRIDE | Flag.FINAL, List(("item", desc.tpe), ("record", typeOf[eu.stratosphere.pact.common.`type`.Record])), definitions.UnitTpe, {
-    val root = mkMethod("serialize", Flag.FINAL, List(("item", desc.tpe), ("record", typeOf[eu.stratosphere.types.Record])), definitions.UnitTpe, {
+//    val root = mkMethod("serialize", Flag.OVERRIDE | Flag.FINAL, List(("item", desc.tpe), ("record", typeOf[org.apache.flink.pact.common.`type`.Record])), definitions.UnitTpe, {
+    val root = mkMethod("serialize", Flag.FINAL, List(("item", desc.tpe), ("record", typeOf[org.apache.flink.types.Record])), definitions.UnitTpe, {
       val env = GenEnvironment(listImpls, "flat" + desc.id, false, true, true, true)
       val stats = genSerialize(desc, Ident("item": TermName), Ident("record": TermName), env)
       Block(stats.toList, mkUnit)
     })
 
     val aux = desc.getRecursiveRefs map { desc =>
-      mkMethod("serialize" + desc.id, Flag.PRIVATE | Flag.FINAL, List(("item", desc.tpe), ("record", typeOf[eu.stratosphere.types.Record])), definitions.UnitTpe, {
+      mkMethod("serialize" + desc.id, Flag.PRIVATE | Flag.FINAL, List(("item", desc.tpe), ("record", typeOf[org.apache.flink.types.Record])), definitions.UnitTpe, {
         val env = GenEnvironment(listImpls, "boxed" + desc.id, true, false, false, true)
         val stats = genSerialize(desc, Ident("item": TermName), Ident("record": TermName), env)
         Block(stats.toList, mkUnit)
@@ -154,7 +154,7 @@ trait SerializeMethodGen[C <: Context] { this: MacroContextHolder[C] with UDTDes
       // needed *before* the recursion.
       val updTgt = Apply(Select(target, "updateBinaryRepresenation"), List())
 
-      val rec = mkVal("record" + id, NoFlags, false, typeOf[eu.stratosphere.types.Record], New(TypeTree(typeOf[eu.stratosphere.types.Record]), List(List())))
+      val rec = mkVal("record" + id, NoFlags, false, typeOf[org.apache.flink.types.Record], New(TypeTree(typeOf[org.apache.flink.types.Record]), List(List())))
       val ser = env.mkCallSerialize(refId, source, Ident("record" + id: TermName))
 
       // Persist the new inner record after recursing, since the
@@ -192,7 +192,7 @@ trait SerializeMethodGen[C <: Context] { this: MacroContextHolder[C] with UDTDes
         }
 
         case RecursiveDescriptor(id, tpe, refId) => {
-          val rec = mkVal("record" + id, NoFlags, false, typeOf[eu.stratosphere.types.Record], New(TypeTree(typeOf[eu.stratosphere.types.Record]), List(List())))
+          val rec = mkVal("record" + id, NoFlags, false, typeOf[org.apache.flink.types.Record], New(TypeTree(typeOf[org.apache.flink.types.Record]), List(List())))
           val ser = env.mkCallSerialize(refId, Ident("item": TermName), Ident("record" + id: TermName))
           val updRec = Apply(Select(Ident("record" + id: TermName), "updateBinaryRepresenation"), List())
 
@@ -200,7 +200,7 @@ trait SerializeMethodGen[C <: Context] { this: MacroContextHolder[C] with UDTDes
         }
 
         case _ => {
-          val rec = mkVal("record", NoFlags, false, typeOf[eu.stratosphere.types.Record], New(TypeTree(typeOf[eu.stratosphere.types.Record]), List(List())))
+          val rec = mkVal("record", NoFlags, false, typeOf[org.apache.flink.types.Record], New(TypeTree(typeOf[org.apache.flink.types.Record]), List(List())))
           val ser = genSerialize(elem, Ident("item": TermName), Ident("record": TermName), env.copy(idxPrefix = "boxed" + elem.id, chkIndex = false, chkNull = false))
           val upd = Apply(Select(Ident("record": TermName), "updateBinaryRepresenation"), List())
           ((rec +: ser) :+ upd, Ident("record": TermName))

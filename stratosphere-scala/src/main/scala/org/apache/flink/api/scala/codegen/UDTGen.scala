@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,8 +17,8 @@ import scala.reflect.macros.Context
 
 import org.apache.flink.api.scala.analysis.UDT
 
-import eu.stratosphere.types.ListValue
-import eu.stratosphere.types.Record
+import org.apache.flink.types.ListValue
+import org.apache.flink.types.Record
 
 trait UDTGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] with UDTAnalyzer[C] with TreeGen[C] with SerializerGen[C] with SerializeMethodGen[C] with DeserializeMethodGen[C] with Loggers[C] =>
   import c.universe._
@@ -43,13 +43,13 @@ trait UDTGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] 
   
   private def mkFieldTypes(desc: UDTDescriptor): Tree = {
 
-    mkVal("fieldTypes", Flag.OVERRIDE | Flag.FINAL, false, typeOf[Array[Class[_ <: eu.stratosphere.types.Value]]], {
+    mkVal("fieldTypes", Flag.OVERRIDE | Flag.FINAL, false, typeOf[Array[Class[_ <: org.apache.flink.types.Value]]], {
 
       val fieldTypes = getIndexFields(desc).toList map {
         case PrimitiveDescriptor(_, _, _, wrapper) => Literal(Constant(wrapper))
         case BoxedPrimitiveDescriptor(_, _, _, wrapper, _, _) => Literal(Constant(wrapper))
         case PactValueDescriptor(_, tpe) => Literal(Constant(tpe))
-        case ListDescriptor(_, _, _, _) => Literal(Constant(typeOf[ListValue[eu.stratosphere.types.Value]]))
+        case ListDescriptor(_, _, _, _) => Literal(Constant(typeOf[ListValue[org.apache.flink.types.Value]]))
         // Box inner instances of recursive types
         case RecursiveDescriptor(_, _, _) => Literal(Constant(typeOf[Record]))
         case BaseClassDescriptor(_, _, _, _) => throw new RuntimeException("Illegal descriptor for basic record field.")

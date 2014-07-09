@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -26,21 +26,21 @@ import org.apache.flink.api.scala.analysis.UDTSerializer
 import org.apache.flink.api.scala.analysis.UDF0
 import org.apache.flink.api.scala.analysis.FieldSelector
 
-import eu.stratosphere.configuration.Configuration
-import eu.stratosphere.api.common.functions.AbstractFunction
-import eu.stratosphere.api.java.record.operators.BulkIteration
-import eu.stratosphere.api.common.operators.base.BulkIterationBase
-import eu.stratosphere.api.java.record.operators.DeltaIteration
-import eu.stratosphere.api.common.operators.base.BulkIterationBase.{TerminationCriterionAggregationConvergence, TerminationCriterionAggregator, TerminationCriterionMapper}
-import eu.stratosphere.api.common.operators.base.MapOperatorBase
-import eu.stratosphere.types.NothingTypeInfo
-import eu.stratosphere.types.{Nothing => JavaNothing}
-import eu.stratosphere.api.java.typeutils.RecordTypeInfo
-import eu.stratosphere.api.common.operators.{UnaryOperatorInformation, Operator}
-import eu.stratosphere.api.java.record.operators.MapOperator
-import eu.stratosphere.types.Record
-import eu.stratosphere.api.java.record.functions.MapFunction
-import eu.stratosphere.util.Collector
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.api.common.functions.AbstractFunction
+import org.apache.flink.api.java.record.operators.BulkIteration
+import org.apache.flink.api.common.operators.base.BulkIterationBase
+import org.apache.flink.api.java.record.operators.DeltaIteration
+import org.apache.flink.api.common.operators.base.BulkIterationBase.{TerminationCriterionAggregationConvergence, TerminationCriterionAggregator, TerminationCriterionMapper}
+import org.apache.flink.api.common.operators.base.MapOperatorBase
+import org.apache.flink.types.NothingTypeInfo
+import org.apache.flink.types.{Nothing => JavaNothing}
+import org.apache.flink.api.java.typeutils.RecordTypeInfo
+import org.apache.flink.api.common.operators.{UnaryOperatorInformation, Operator}
+import org.apache.flink.api.java.record.operators.MapOperator
+import org.apache.flink.types.Record
+import org.apache.flink.api.java.record.functions.MapFunction
+import org.apache.flink.util.Collector
 
 object IterateMacros {
 
@@ -72,7 +72,7 @@ object IterateMacros {
       contract.setInput(c.prefix.splice.contract)
       contract.setNextPartialSolution(output.contract)
 
-      // is currently not implemented in stratosphere
+      // is currently not implemented in flink
 //      if (term != null) contract.setTerminationCriterion(term)
 
       new DataSet(contract)

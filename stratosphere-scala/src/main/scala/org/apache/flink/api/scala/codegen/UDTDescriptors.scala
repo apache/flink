@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -64,14 +64,14 @@ trait UDTDescriptors[C <: Context] { this: MacroContextHolder[C] =>
   case class PrimitiveDescriptor(id: Int, tpe: Type, default: Literal, wrapper: Type) extends UDTDescriptor {
     override val isPrimitiveProduct = true
     override def flatten = Seq(this)
-    override def canBeKey = wrapper <:< typeOf[eu.stratosphere.types.Key[_]]
+    override def canBeKey = wrapper <:< typeOf[org.apache.flink.types.Key[_]]
   }
 
   case class BoxedPrimitiveDescriptor(id: Int, tpe: Type, default: Literal, wrapper: Type, box: Tree => Tree, unbox: Tree => Tree) extends UDTDescriptor {
 
     override val isPrimitiveProduct = true
     override def flatten = Seq(this)
-    override def canBeKey = wrapper <:< typeOf[eu.stratosphere.types.Key[_]]
+    override def canBeKey = wrapper <:< typeOf[org.apache.flink.types.Key[_]]
 
     override def hashCode() = (id, tpe, default, wrapper, "BoxedPrimitiveDescriptor").hashCode()
     override def equals(that: Any) = that match {
@@ -140,13 +140,13 @@ trait UDTDescriptors[C <: Context] { this: MacroContextHolder[C] =>
 
   case class RecursiveDescriptor(id: Int, tpe: Type, refId: Int) extends UDTDescriptor {
     override def flatten = Seq(this)
-    override def canBeKey = tpe <:< typeOf[eu.stratosphere.types.Key[_]]
+    override def canBeKey = tpe <:< typeOf[org.apache.flink.types.Key[_]]
   }
   
   case class PactValueDescriptor(id: Int, tpe: Type) extends UDTDescriptor {
     override val isPrimitiveProduct = true
     override def flatten = Seq(this)
-    override def canBeKey = tpe <:< typeOf[eu.stratosphere.types.Key[_]]
+    override def canBeKey = tpe <:< typeOf[org.apache.flink.types.Key[_]]
   }
 }
 

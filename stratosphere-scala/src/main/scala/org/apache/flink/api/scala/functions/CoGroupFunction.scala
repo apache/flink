@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,10 +18,10 @@ import java.util.{Iterator => JIterator}
 import org.apache.flink.api.scala.analysis.{UDTSerializer, UDT}
 import org.apache.flink.api.scala.analysis.UDF2
 
-import eu.stratosphere.api.java.record.functions.{CoGroupFunction => JCoGroupFunction}
-import eu.stratosphere.types.Record
-import eu.stratosphere.util.Collector
-import eu.stratosphere.configuration.Configuration
+import org.apache.flink.api.java.record.functions.{CoGroupFunction => JCoGroupFunction}
+import org.apache.flink.types.Record
+import org.apache.flink.util.Collector
+import org.apache.flink.configuration.Configuration
 
 
 abstract class CoGroupFunctionBase[LeftIn: UDT, RightIn: UDT, Out: UDT] extends JCoGroupFunction with Serializable {

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -20,20 +20,20 @@ trait DeserializeMethodGen[C <: Context] { this: MacroContextHolder[C] with UDTD
 
   protected def mkDeserialize(desc: UDTDescriptor, listImpls: Map[Int, Type]): List[Tree] = {
 
-//    val rootRecyclingOn = mkMethod("deserializeRecyclingOn", Flag.OVERRIDE | Flag.FINAL, List(("record", typeOf[eu.stratosphere.pact.common.`type`.Record])), desc.tpe, {
-    val rootRecyclingOn = mkMethod("deserializeRecyclingOn", Flag.FINAL, List(("record", typeOf[eu.stratosphere.types.Record])), desc.tpe, {
+//    val rootRecyclingOn = mkMethod("deserializeRecyclingOn", Flag.OVERRIDE | Flag.FINAL, List(("record", typeOf[org.apache.flink.pact.common.`type`.Record])), desc.tpe, {
+    val rootRecyclingOn = mkMethod("deserializeRecyclingOn", Flag.FINAL, List(("record", typeOf[org.apache.flink.types.Record])), desc.tpe, {
       val env = GenEnvironment(listImpls, "flat" + desc.id, false, true, true, true)
       mkSingle(genDeserialize(desc, Ident("record"), env, Map()))
     })
 
-//    val rootRecyclingOff = mkMethod("deserializeRecyclingOff", Flag.OVERRIDE | Flag.FINAL, List(("record", typeOf[eu.stratosphere.pact.common.`type`.Record])), desc.tpe, {
-    val rootRecyclingOff = mkMethod("deserializeRecyclingOff", Flag.FINAL, List(("record", typeOf[eu.stratosphere.types.Record])), desc.tpe, {
+//    val rootRecyclingOff = mkMethod("deserializeRecyclingOff", Flag.OVERRIDE | Flag.FINAL, List(("record", typeOf[org.apache.flink.pact.common.`type`.Record])), desc.tpe, {
+    val rootRecyclingOff = mkMethod("deserializeRecyclingOff", Flag.FINAL, List(("record", typeOf[org.apache.flink.types.Record])), desc.tpe, {
       val env = GenEnvironment(listImpls, "flat" + desc.id, false, false, true, true)
       mkSingle(genDeserialize(desc, Ident("record"), env, Map()))
     })
 
     val aux = desc.getRecursiveRefs map { desc =>
-      mkMethod("deserialize" + desc.id, Flag.PRIVATE | Flag.FINAL, List(("record", typeOf[eu.stratosphere.types.Record])), desc.tpe, {
+      mkMethod("deserialize" + desc.id, Flag.PRIVATE | Flag.FINAL, List(("record", typeOf[org.apache.flink.types.Record])), desc.tpe, {
         val env = GenEnvironment(listImpls, "boxed" + desc.id, true, false, false, true)
         mkSingle(genDeserialize(desc, Ident("record"), env, Map()))
       })
@@ -182,7 +182,7 @@ trait DeserializeMethodGen[C <: Context] { this: MacroContextHolder[C] with UDTD
 
     case RecursiveDescriptor(id, tpe, refId) => {
       val chk = mkAnd(env.mkChkIdx(id), env.mkNotIsNull(id, source))
-      val rec = mkVal("record" + id, NoFlags, false, typeOf[eu.stratosphere.types.Record], New(TypeTree(typeOf[eu.stratosphere.types.Record]), List(List())))
+      val rec = mkVal("record" + id, NoFlags, false, typeOf[org.apache.flink.types.Record], New(TypeTree(typeOf[org.apache.flink.types.Record]), List(List())))
       val get = env.mkGetFieldInto(id, source, Ident("record" + id: TermName))
       val des = env.mkCallDeserialize(refId, Ident("record" + id: TermName))
 
@@ -250,6 +250,6 @@ trait DeserializeMethodGen[C <: Context] { this: MacroContextHolder[C] with UDTD
     case BoxedPrimitiveDescriptor(_, _, _, wrapper, _, _) => wrapper
     case PactValueDescriptor(_, tpe) => tpe
     case ListDescriptor(id, _, _, _) => env.listImpls(id)
-    case _ => typeOf[eu.stratosphere.types.Record]
+    case _ => typeOf[org.apache.flink.types.Record]
   }
 }

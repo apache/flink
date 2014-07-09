@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -30,15 +30,15 @@ import Extractors.ReduceNode
 import org.apache.flink.api.scala.analysis.FieldSet
 import org.apache.flink.api.scala.analysis.FieldSelector
 
-import eu.stratosphere.compiler.dag.BinaryUnionNode
-import eu.stratosphere.compiler.dag.OptimizerNode
-import eu.stratosphere.compiler.dag.SinkJoiner
-import eu.stratosphere.compiler.plan.OptimizedPlan
-import eu.stratosphere.api.common.Plan
-import eu.stratosphere.api.common.operators.Operator
-import eu.stratosphere.api.common.operators.SingleInputOperator
-import eu.stratosphere.api.common.operators.DualInputOperator
-import eu.stratosphere.api.java.record.operators.GenericDataSink
+import org.apache.flink.compiler.dag.BinaryUnionNode
+import org.apache.flink.compiler.dag.OptimizerNode
+import org.apache.flink.compiler.dag.SinkJoiner
+import org.apache.flink.compiler.plan.OptimizedPlan
+import org.apache.flink.api.common.Plan
+import org.apache.flink.api.common.operators.Operator
+import org.apache.flink.api.common.operators.SingleInputOperator
+import org.apache.flink.api.common.operators.DualInputOperator
+import org.apache.flink.api.java.record.operators.GenericDataSink
 
 object GlobalSchemaPrinter {
 

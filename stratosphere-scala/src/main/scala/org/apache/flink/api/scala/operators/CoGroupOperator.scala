@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,13 +18,13 @@ import scala.reflect.macros.Context
 
 import java.util.{ Iterator => JIterator }
 
-import eu.stratosphere.types.Record
-import eu.stratosphere.util.Collector
-import eu.stratosphere.api.common.operators.Operator
-import eu.stratosphere.api.java.record.operators.CoGroupOperator
-import eu.stratosphere.api.java.record.functions.{CoGroupFunction => JCoGroupFunction}
-import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper
-import eu.stratosphere.configuration.Configuration
+import org.apache.flink.types.Record
+import org.apache.flink.util.Collector
+import org.apache.flink.api.common.operators.Operator
+import org.apache.flink.api.java.record.operators.CoGroupOperator
+import org.apache.flink.api.java.record.functions.{CoGroupFunction => JCoGroupFunction}
+import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper
+import org.apache.flink.configuration.Configuration
 
 import org.apache.flink.api.scala.codegen.{MacroContextHolder, Util}
 import org.apache.flink.api.scala._

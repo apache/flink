@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,11 +19,11 @@ import scala.Some
 
 import org.apache.flink.api.scala._
 
-import eu.stratosphere.api.common.operators.Operator
-import eu.stratosphere.api.java.record.operators._
-import eu.stratosphere.api.common.operators.base.{BulkIterationBase => BulkIteration, DeltaIterationBase => DeltaIteration, GenericDataSourceBase, MapOperatorBase}
-import eu.stratosphere.api.common.operators.Union
-import eu.stratosphere.types.Record
+import org.apache.flink.api.common.operators.Operator
+import org.apache.flink.api.java.record.operators._
+import org.apache.flink.api.common.operators.base.{BulkIterationBase => BulkIteration, DeltaIterationBase => DeltaIteration, GenericDataSourceBase, MapOperatorBase}
+import org.apache.flink.api.common.operators.Union
+import org.apache.flink.types.Record
 
 
 class GlobalSchemaGenerator {

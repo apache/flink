@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -24,26 +24,26 @@ import org.apache.flink.api.scala.analysis.UDF0
 import org.apache.flink.api.scala.analysis.UDF1
 import org.apache.flink.api.scala.analysis.UDF2
 
-import eu.stratosphere.api.java.record.operators.CoGroupOperator
-import eu.stratosphere.api.java.record.operators.CrossOperator
-import eu.stratosphere.api.java.record.operators.MapOperator
-import eu.stratosphere.api.java.record.operators.JoinOperator
-import eu.stratosphere.api.java.record.operators.ReduceOperator
-import eu.stratosphere.compiler.dag.BinaryUnionNode
-import eu.stratosphere.compiler.dag.BulkIterationNode
-import eu.stratosphere.compiler.dag.CoGroupNode
-import eu.stratosphere.compiler.dag.CrossNode
-import eu.stratosphere.compiler.dag.DataSinkNode
-import eu.stratosphere.compiler.dag.DataSourceNode
-import eu.stratosphere.compiler.dag.CollectorMapNode
-import eu.stratosphere.compiler.dag.MatchNode
-import eu.stratosphere.compiler.dag.OptimizerNode
-import eu.stratosphere.compiler.dag.PactConnection
-import eu.stratosphere.compiler.dag.GroupReduceNode
-import eu.stratosphere.compiler.dag.SinkJoiner
-import eu.stratosphere.compiler.dag.WorksetIterationNode
-import eu.stratosphere.api.common.operators.Union
-import eu.stratosphere.api.common.operators.base.{BulkIterationBase => BulkIteration, DeltaIterationBase => DeltaIteration, GenericDataSinkBase, GenericDataSourceBase}
+import org.apache.flink.api.java.record.operators.CoGroupOperator
+import org.apache.flink.api.java.record.operators.CrossOperator
+import org.apache.flink.api.java.record.operators.MapOperator
+import org.apache.flink.api.java.record.operators.JoinOperator
+import org.apache.flink.api.java.record.operators.ReduceOperator
+import org.apache.flink.compiler.dag.BinaryUnionNode
+import org.apache.flink.compiler.dag.BulkIterationNode
+import org.apache.flink.compiler.dag.CoGroupNode
+import org.apache.flink.compiler.dag.CrossNode
+import org.apache.flink.compiler.dag.DataSinkNode
+import org.apache.flink.compiler.dag.DataSourceNode
+import org.apache.flink.compiler.dag.CollectorMapNode
+import org.apache.flink.compiler.dag.MatchNode
+import org.apache.flink.compiler.dag.OptimizerNode
+import org.apache.flink.compiler.dag.PactConnection
+import org.apache.flink.compiler.dag.GroupReduceNode
+import org.apache.flink.compiler.dag.SinkJoiner
+import org.apache.flink.compiler.dag.WorksetIterationNode
+import org.apache.flink.api.common.operators.Union
+import org.apache.flink.api.common.operators.base.{BulkIterationBase => BulkIteration, DeltaIterationBase => DeltaIteration, GenericDataSinkBase, GenericDataSourceBase}
 
 object Extractors {
 

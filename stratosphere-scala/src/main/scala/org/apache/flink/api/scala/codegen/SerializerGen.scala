@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,7 +18,7 @@ import scala.reflect.macros.Context
 
 import org.apache.flink.api.scala.analysis.UDTSerializer
 
-import eu.stratosphere.types.Record
+import org.apache.flink.types.Record
 
 
 trait SerializerGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] with UDTAnalyzer[C] with TreeGen[C] with SerializeMethodGen[C] with DeserializeMethodGen[C] with Loggers[C] =>
@@ -79,9 +79,9 @@ trait SerializerGen[C <: Context] { this: MacroContextHolder[C] with UDTDescript
     (ser, createSerializer)
   }
 
-  private def mkListImplClass[T <: eu.stratosphere.types.Value: c.WeakTypeTag]: (Tree, Type) = {
+  private def mkListImplClass[T <: org.apache.flink.types.Value: c.WeakTypeTag]: (Tree, Type) = {
     val listImplName = c.fresh[TypeName]("PactListImpl")
-    val tpe = weakTypeOf[eu.stratosphere.types.ListValue[T]]
+    val tpe = weakTypeOf[org.apache.flink.types.ListValue[T]]
 
     val listDef = mkClass(listImplName, Flag.FINAL, List(tpe), {
       List(mkMethod(nme.CONSTRUCTOR.toString(), NoFlags, List(), NoType, Block(List(mkSuperCall()), mkUnit)))
@@ -111,7 +111,7 @@ trait SerializerGen[C <: Context] { this: MacroContextHolder[C] with UDTDescript
       }
       case ListDescriptor(id, _, _, elem) => {
         val (classDefs, tpes) = mkListImplClasses(elem)
-        val (classDef, tpe) = mkListImplClass(c.WeakTypeTag(typeOf[eu.stratosphere.types.Record]))
+        val (classDef, tpe) = mkListImplClass(c.WeakTypeTag(typeOf[org.apache.flink.types.Record]))
         (classDefs :+ classDef, tpes + (id -> tpe))
       }
       case BaseClassDescriptor(_, _, getters, subTypes) => {

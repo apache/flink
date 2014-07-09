@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,21 +15,21 @@ package org.apache.flink.api.scala
 
 import collection.JavaConversions.asScalaIterator
 
-import eu.stratosphere.api.common.operators.util.FieldSet
-import eu.stratosphere.api.common.operators._
-import eu.stratosphere.api.common.operators.base.{GroupReduceOperatorBase, DeltaIterationBase, BulkIterationBase, GenericDataSourceBase}
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation
-import eu.stratosphere.api.java.record.operators.BulkIteration.PartialSolutionPlaceHolder
-import eu.stratosphere.api.java.record.operators.DeltaIteration.{WorksetPlaceHolder, SolutionSetPlaceHolder}
-import eu.stratosphere.api.java.record.operators.GenericDataSink
-import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFields
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsExcept
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirstExcept
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecond
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecondExcept
-import eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable
+import org.apache.flink.api.common.operators.util.FieldSet
+import org.apache.flink.api.common.operators._
+import org.apache.flink.api.common.operators.base.{GroupReduceOperatorBase, DeltaIterationBase, BulkIterationBase, GenericDataSourceBase}
+import org.apache.flink.api.java.record.functions.FunctionAnnotation
+import org.apache.flink.api.java.record.operators.BulkIteration.PartialSolutionPlaceHolder
+import org.apache.flink.api.java.record.operators.DeltaIteration.{WorksetPlaceHolder, SolutionSetPlaceHolder}
+import org.apache.flink.api.java.record.operators.GenericDataSink
+import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable
+import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFields
+import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsExcept
+import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst
+import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirstExcept
+import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecond
+import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecondExcept
+import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable
 
 object AnnotationUtil {
   val visited = collection.mutable.Set[Operator[_]]()

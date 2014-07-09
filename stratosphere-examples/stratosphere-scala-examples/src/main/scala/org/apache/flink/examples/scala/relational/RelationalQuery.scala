@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,9 +13,9 @@
 
 package org.apache.flink.examples.scala.relational;
 
-import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.api.common.Program
-import eu.stratosphere.api.common.ProgramDescription
+import org.apache.flink.client.LocalExecutor
+import org.apache.flink.api.common.Program
+import org.apache.flink.api.common.ProgramDescription
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.operators._
@@ -26,7 +26,7 @@ import org.apache.flink.api.scala.operators._
  * Its documentation and the data generator (DBGEN) can be found
  * on http://www.tpc.org/tpch/ .
  * 
- * This Stratosphere program implements a modified version of the query 3 of
+ * This Flink program implements a modified version of the query 3 of
  * the TPC-H benchmark including one join, some filtering and an
  * aggregation. The query resembles the following SQL statement:
  * <pre>

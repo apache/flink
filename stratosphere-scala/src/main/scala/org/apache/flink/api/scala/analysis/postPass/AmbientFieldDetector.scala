@@ -1,7 +1,7 @@
 package org.apache.flink.api.scala.analysis.postPass;
 // Comment out because this is not working right now
 ///**
-// * Copyright (C) 2010 by the Stratosphere project (http://stratosphere.eu)
+// * Copyright (C) 2010 -2014 by the Flink project (http://flink.incubator.apache.org)
 // *
 // * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 // * the License. You may obtain a copy of the License at
@@ -13,16 +13,16 @@ package org.apache.flink.api.scala.analysis.postPass;
 // * specific language governing permissions and limitations under the License.
 // */
 //
-//package eu.stratosphere.api.scala.analysis.postPass
+//package org.apache.flink.api.scala.analysis.postPass
 //
 //import scala.collection.mutable
 //import scala.collection.JavaConversions._
 //
-//import eu.stratosphere.api.scala.analysis._
-//import eu.stratosphere.api.scala.contracts._
+//import org.apache.flink.api.scala.analysis._
+//import org.apache.flink.api.scala.contracts._
 //
-//import eu.stratosphere.pact.compiler.plan._
-//import eu.stratosphere.pact.compiler.plan.candidate.OptimizedPlan
+//import org.apache.flink.pact.compiler.plan._
+//import org.apache.flink.pact.compiler.plan.candidate.OptimizedPlan
 //
 //object AmbientFieldDetector {
 //

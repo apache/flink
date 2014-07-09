@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -27,12 +27,12 @@ import org.apache.flink.api.scala.functions.DeserializingIterator
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.api.scala.TwoInputHintable
 
-import eu.stratosphere.api.java.record.operators.MapOperator
-import eu.stratosphere.types.Record
-import eu.stratosphere.util.Collector
-import eu.stratosphere.api.common.operators.Operator
-import eu.stratosphere.api.java.record.operators.CrossOperator
-import eu.stratosphere.configuration.Configuration
+import org.apache.flink.api.java.record.operators.MapOperator
+import org.apache.flink.types.Record
+import org.apache.flink.util.Collector
+import org.apache.flink.api.common.operators.Operator
+import org.apache.flink.api.java.record.operators.CrossOperator
+import org.apache.flink.configuration.Configuration
 
 class CrossDataSet[LeftIn, RightIn](val leftInput: DataSet[LeftIn], val rightInput: DataSet[RightIn]) {
   def map[Out](fun: (LeftIn, RightIn) => Out): DataSet[Out] with TwoInputHintable[LeftIn, RightIn, Out] = macro CrossMacros.map[LeftIn, RightIn, Out]

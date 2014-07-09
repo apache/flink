@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,14 +18,14 @@ import org.apache.commons.logging.{LogFactory, Log}
 import scala.collection.JavaConversions.collectionAsScalaIterable
 import scala.Array.canBuildFrom
 
-import eu.stratosphere.api.common.Plan
-import eu.stratosphere.api.common.operators.Operator
-import eu.stratosphere.api.common.operators.DualInputOperator
-import eu.stratosphere.api.common.operators.SingleInputOperator
-import eu.stratosphere.api.common.operators.base.{BulkIterationBase => BulkIteration, DeltaIterationBase => DeltaIteration}
-import eu.stratosphere.api.java.record.operators.GenericDataSink
-import eu.stratosphere.api.common.operators.base.{BulkIterationBase => BulkIteration}
-import eu.stratosphere.api.common.operators.base.{DeltaIterationBase => DeltaIteration}
+import org.apache.flink.api.common.Plan
+import org.apache.flink.api.common.operators.Operator
+import org.apache.flink.api.common.operators.DualInputOperator
+import org.apache.flink.api.common.operators.SingleInputOperator
+import org.apache.flink.api.common.operators.base.{BulkIterationBase => BulkIteration, DeltaIterationBase => DeltaIteration}
+import org.apache.flink.api.java.record.operators.GenericDataSink
+import org.apache.flink.api.common.operators.base.{BulkIterationBase => BulkIteration}
+import org.apache.flink.api.common.operators.base.{DeltaIterationBase => DeltaIteration}
 
 import Extractors.DataSourceNode
 import Extractors.DataSinkNode

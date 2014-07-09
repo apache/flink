@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,11 +17,11 @@ import scala.collection.JavaConversions.asJavaCollection
 
 import java.util.Calendar
 
-import eu.stratosphere.api.common.Plan
-import eu.stratosphere.compiler.plan.OptimizedPlan
-import eu.stratosphere.compiler.postpass.RecordModelPostPass
-import eu.stratosphere.api.common.operators.Operator
-import eu.stratosphere.types.Record
+import org.apache.flink.api.common.Plan
+import org.apache.flink.compiler.plan.OptimizedPlan
+import org.apache.flink.compiler.postpass.RecordModelPostPass
+import org.apache.flink.api.common.operators.Operator
+import org.apache.flink.types.Record
 
 import org.apache.flink.api.scala.analysis.GlobalSchemaGenerator
 import org.apache.flink.api.scala.analysis.postPass.GlobalSchemaOptimizer

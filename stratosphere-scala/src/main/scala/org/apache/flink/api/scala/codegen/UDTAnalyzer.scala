@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,15 +19,15 @@ import scala.collection.mutable
 import scala.reflect.macros.Context
 import scala.util.DynamicVariable
 
-import eu.stratosphere.types.BooleanValue
-import eu.stratosphere.types.ByteValue
-import eu.stratosphere.types.CharValue
-import eu.stratosphere.types.DoubleValue
-import eu.stratosphere.types.FloatValue
-import eu.stratosphere.types.IntValue
-import eu.stratosphere.types.StringValue
-import eu.stratosphere.types.LongValue
-import eu.stratosphere.types.ShortValue
+import org.apache.flink.types.BooleanValue
+import org.apache.flink.types.ByteValue
+import org.apache.flink.types.CharValue
+import org.apache.flink.types.DoubleValue
+import org.apache.flink.types.FloatValue
+import org.apache.flink.types.IntValue
+import org.apache.flink.types.StringValue
+import org.apache.flink.types.LongValue
+import org.apache.flink.types.ShortValue
 
 
 trait UDTAnalyzer[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] with Loggers[C] =>
@@ -274,7 +274,7 @@ trait UDTAnalyzer[C <: Context] { this: MacroContextHolder[C] with UDTDescriptor
     }
     
     private object PactValueType {
-      def unapply(tpe: Type): Boolean = tpe.typeSymbol.asClass.baseClasses exists { s => s.fullName == "eu.stratosphere.types.Value" }
+      def unapply(tpe: Type): Boolean = tpe.typeSymbol.asClass.baseClasses exists { s => s.fullName == "org.apache.flink.types.Value" }
     }
 
     private class UDTAnalyzerCache {

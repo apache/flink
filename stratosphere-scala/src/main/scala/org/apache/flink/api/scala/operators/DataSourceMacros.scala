@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010 - 2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -24,25 +24,25 @@ import org.apache.flink.api.scala.analysis.UDF0
 import org.apache.flink.api.scala.analysis.OutputField
 import org.apache.flink.api.scala.codegen.MacroContextHolder
 
-import eu.stratosphere.configuration.Configuration
-import eu.stratosphere.types.Record
-import eu.stratosphere.types.Value
-import eu.stratosphere.types.DoubleValue
-import eu.stratosphere.types.IntValue
-import eu.stratosphere.types.LongValue
-import eu.stratosphere.types.StringValue
-import eu.stratosphere.types.parser.DecimalTextDoubleParser
-import eu.stratosphere.types.parser.DecimalTextIntParser
-import eu.stratosphere.types.parser.DecimalTextLongParser
-import eu.stratosphere.types.parser.FieldParser
-import eu.stratosphere.types.parser.VarLengthStringParser
-import eu.stratosphere.api.common.io.{InputFormat => JavaInputFormat}
-import eu.stratosphere.api.common.io.{BinaryInputFormat => JavaBinaryInputFormat}
-import eu.stratosphere.api.common.io.{SerializedInputFormat => JavaSerializedInputFormat}
-import eu.stratosphere.api.java.record.io.{DelimitedInputFormat => JavaDelimitedInputFormat}
-import eu.stratosphere.api.java.record.io.{FixedLengthInputFormat => JavaFixedLengthInputFormat}
-import eu.stratosphere.api.java.record.io.{CsvInputFormat => JavaCsvInputFormat}
-import eu.stratosphere.api.java.record.io.{TextInputFormat => JavaTextInputFormat}
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.types.Record
+import org.apache.flink.types.Value
+import org.apache.flink.types.DoubleValue
+import org.apache.flink.types.IntValue
+import org.apache.flink.types.LongValue
+import org.apache.flink.types.StringValue
+import org.apache.flink.types.parser.DoubleValueParser
+import org.apache.flink.types.parser.IntValueParser
+import org.apache.flink.types.parser.LongValueParser
+import org.apache.flink.types.parser.FieldParser
+import org.apache.flink.types.parser.StringValueParser
+import org.apache.flink.api.common.io.{InputFormat => JavaInputFormat}
+import org.apache.flink.api.common.io.{BinaryInputFormat => JavaBinaryInputFormat}
+import org.apache.flink.api.common.io.{SerializedInputFormat => JavaSerializedInputFormat}
+import org.apache.flink.api.java.record.io.{DelimitedInputFormat => JavaDelimitedInputFormat}
+import org.apache.flink.api.java.record.io.{FixedLengthInputFormat => JavaFixedLengthInputFormat}
+import org.apache.flink.api.java.record.io.{CsvInputFormat => JavaCsvInputFormat}
+import org.apache.flink.api.java.record.io.{TextInputFormat => JavaTextInputFormat}
 
 
 trait ScalaInputFormatBase[Out] extends ScalaInputFormat[Out] { this: JavaInputFormat[_, _] =>

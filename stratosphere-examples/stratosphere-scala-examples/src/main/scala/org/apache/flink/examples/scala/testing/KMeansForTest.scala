@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,11 +15,11 @@ package org.apache.flink.examples.scala.testing
 
 // Uncomment if you need to rebuild it for PackagedProgramEndToEndTest
 //
-//import eu.stratosphere.api.common.Program
-//import eu.stratosphere.api.common.ProgramDescription
+//import org.apache.flink.api.common.Program
+//import org.apache.flink.api.common.ProgramDescription
 //
-//import eu.stratosphere.api.scala._
-//import eu.stratosphere.api.scala.operators._
+//import org.apache.flink.api.scala._
+//import org.apache.flink.api.scala.operators._
 //
 //
 //class KMeansForTest extends Program with ProgramDescription {

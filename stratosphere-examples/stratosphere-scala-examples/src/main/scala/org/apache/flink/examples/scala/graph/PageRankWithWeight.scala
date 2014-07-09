@@ -1,6 +1,6 @@
 /**
  * *********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -21,11 +21,11 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.operators._
 import org.apache.flink.api.scala.analysis.GlobalSchemaPrinter
 
-import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.api.common.Program
-import eu.stratosphere.api.common.ProgramDescription
-import eu.stratosphere.api.common.Plan
-import eu.stratosphere.api.java.record.operators.DeltaIteration
+import org.apache.flink.client.LocalExecutor
+import org.apache.flink.api.common.Program
+import org.apache.flink.api.common.ProgramDescription
+import org.apache.flink.api.common.Plan
+import org.apache.flink.api.java.record.operators.DeltaIteration
 
 /**
  * An implementation of the PageRank algorithm for graph vertex ranking. Runs a specified fix number
