@@ -23,15 +23,14 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
+import org.apache.flink.compiler.DataStatistics;
+import org.apache.flink.compiler.PactCompiler;
+import org.apache.flink.compiler.costs.DefaultCostEstimator;
+import org.apache.flink.compiler.plan.OptimizedPlan;
+import org.apache.flink.compiler.plan.PlanNode;
+import org.apache.flink.compiler.plan.SingleInputPlanNode;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Before;
-
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.costs.DefaultCostEstimator;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plan.PlanNode;
-import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 
 /**
  *

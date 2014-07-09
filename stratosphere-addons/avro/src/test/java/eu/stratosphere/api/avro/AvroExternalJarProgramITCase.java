@@ -17,14 +17,13 @@ package eu.stratosphere.api.avro;
 import java.io.File;
 import java.net.InetSocketAddress;
 
+import org.apache.flink.client.minicluster.NepheleMiniCluster;
+import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.LogUtils;
 import org.junit.Assert;
 import org.junit.Test;
-
-import eu.stratosphere.client.minicluster.NepheleMiniCluster;
-import eu.stratosphere.client.program.Client;
-import eu.stratosphere.client.program.PackagedProgram;
 
 
 public class AvroExternalJarProgramITCase {

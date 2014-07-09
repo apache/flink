@@ -24,13 +24,13 @@ import org.apache.flink.api.common.Program;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.java.record.operators.GenericDataSink;
 import org.apache.flink.api.java.record.operators.GenericDataSource;
+import org.apache.flink.client.LocalExecutor;
 import org.apache.flink.types.FloatValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
 
 import eu.stratosphere.api.java.record.io.jdbc.JDBCInputFormat;
 import eu.stratosphere.api.java.record.io.jdbc.JDBCOutputFormat;
-import eu.stratosphere.client.LocalExecutor;
 
 /**
  * Stand-alone example for the JDBC connector.

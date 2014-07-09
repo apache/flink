@@ -35,10 +35,13 @@ import org.apache.flink.api.java.operators.Keys.FieldPositionKeys;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingJoinOperator;
 import org.apache.flink.api.java.operators.translation.TupleKeyExtractingMapper;
-import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.TypeInformation;
+
+//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
+import org.apache.flink.api.java.tuple.*;
+//CHECKSTYLE.ON: AvoidStarImport
 
 /**
  * A {@link DataSet} that is the result of a Join transformation. 

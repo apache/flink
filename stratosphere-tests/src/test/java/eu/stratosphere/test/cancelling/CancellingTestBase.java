@@ -22,6 +22,11 @@ import junit.framework.Assert;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.client.minicluster.NepheleMiniCluster;
+import org.apache.flink.compiler.DataStatistics;
+import org.apache.flink.compiler.PactCompiler;
+import org.apache.flink.compiler.plan.OptimizedPlan;
+import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 import org.apache.flink.runtime.client.AbstractJobResult;
 import org.apache.flink.runtime.client.JobCancelResult;
 import org.apache.flink.runtime.client.JobClient;
@@ -38,12 +43,6 @@ import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
-
-import eu.stratosphere.client.minicluster.NepheleMiniCluster;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 
 /**
  * 

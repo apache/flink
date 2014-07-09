@@ -24,9 +24,9 @@ import org.apache.flink.api.java.record.operators.CrossOperator;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
+import org.apache.flink.client.LocalExecutor;
 import org.apache.flink.types.IntValue;
 
-import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.test.recordJobs.kmeans.udfs.ComputeDistance;
 import eu.stratosphere.test.recordJobs.kmeans.udfs.FindNearestCenter;
 import eu.stratosphere.test.recordJobs.kmeans.udfs.PointInFormat;

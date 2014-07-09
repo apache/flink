@@ -30,12 +30,11 @@ import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.MapOperator;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
+import org.apache.flink.client.LocalExecutor;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
-
-import eu.stratosphere.client.LocalExecutor;
 
 /**
  * Implements a word count which takes the input file and counts the number of

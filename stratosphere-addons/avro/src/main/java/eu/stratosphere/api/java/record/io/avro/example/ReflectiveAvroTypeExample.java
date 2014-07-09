@@ -28,13 +28,12 @@ import org.apache.flink.api.java.record.operators.GenericDataSink;
 import org.apache.flink.api.java.record.operators.GenericDataSource;
 import org.apache.flink.api.java.record.operators.MapOperator;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
+import org.apache.flink.client.LocalExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
-
-import eu.stratosphere.client.LocalExecutor;
 
 
 public class ReflectiveAvroTypeExample {

@@ -18,7 +18,6 @@ import java.util.Arrays;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleLeadingFieldComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
@@ -26,6 +25,8 @@ import org.apache.flink.types.TypeInformation;
 
 
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
+import org.apache.flink.api.java.tuple.*;
+//CHECKSTYLE.ON: AvoidStarImport
 
 
 public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implements CompositeType<T> {

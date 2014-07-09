@@ -13,10 +13,6 @@
 
 package eu.stratosphere.test.operators;
 
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import eu.stratosphere.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import eu.stratosphere.test.util.RecordAPITestBase;
@@ -29,6 +25,10 @@ import org.apache.flink.api.java.record.io.DelimitedInputFormat;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
+import org.apache.flink.compiler.DataStatistics;
+import org.apache.flink.compiler.PactCompiler;
+import org.apache.flink.compiler.plan.OptimizedPlan;
+import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.types.IntValue;

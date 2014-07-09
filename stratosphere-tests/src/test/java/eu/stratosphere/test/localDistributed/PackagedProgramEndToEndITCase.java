@@ -15,13 +15,12 @@ package eu.stratosphere.test.localDistributed;
 import java.io.File;
 import java.io.FileWriter;
 
-import eu.stratosphere.client.minicluster.NepheleMiniCluster;
-
+import org.apache.flink.client.RemoteExecutor;
+import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.util.LogUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.client.RemoteExecutor;
 import eu.stratosphere.test.testdata.KMeansData;
 
 // When the API changes KMeansForTest needs to be rebuilt and the KMeansForTest.jar in resources needs

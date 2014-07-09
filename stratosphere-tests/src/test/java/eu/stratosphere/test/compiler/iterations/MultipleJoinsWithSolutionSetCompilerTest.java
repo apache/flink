@@ -29,11 +29,11 @@ import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.compiler.plan.DualInputPlanNode;
+import org.apache.flink.compiler.plan.OptimizedPlan;
+import org.apache.flink.compiler.plan.SolutionSetPlanNode;
+import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 
-import eu.stratosphere.compiler.plan.DualInputPlanNode;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plan.SolutionSetPlanNode;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.test.compiler.util.CompilerTestBase;
 
 @SuppressWarnings("serial")

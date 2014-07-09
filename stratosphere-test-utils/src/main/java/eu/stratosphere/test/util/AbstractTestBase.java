@@ -31,6 +31,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.LogUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -41,8 +42,6 @@ import org.junit.Before;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
-
-import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 
 public abstract class AbstractTestBase {
 	protected static final int MINIMUM_HEAP_SIZE_MB = 192;

@@ -22,15 +22,16 @@ import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.CrossFunction;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
-import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.TypeInformation;
 
-import org.apache.flink.api.java.DataSet;
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
+import org.apache.flink.api.java.tuple.*;
+//CHECKSTYLE.ON: AvoidStarImport
 
 /**
  * A {@link DataSet} that is the result of a Cross transformation.

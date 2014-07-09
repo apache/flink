@@ -14,20 +14,20 @@ package eu.stratosphere.test.compiler.iterations;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.compiler.dag.TempMode;
+import org.apache.flink.compiler.plan.DualInputPlanNode;
+import org.apache.flink.compiler.plan.OptimizedPlan;
+import org.apache.flink.compiler.plan.SinkPlanNode;
+import org.apache.flink.compiler.plan.SourcePlanNode;
+import org.apache.flink.compiler.plan.WorksetIterationPlanNode;
+import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.compiler.dag.TempMode;
-import eu.stratosphere.compiler.plan.DualInputPlanNode;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plan.SinkPlanNode;
-import eu.stratosphere.compiler.plan.SourcePlanNode;
-import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
-import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.test.compiler.util.CompilerTestBase;
 import eu.stratosphere.test.recordJobs.graph.ConnectedComponentsWithCoGroup;
 

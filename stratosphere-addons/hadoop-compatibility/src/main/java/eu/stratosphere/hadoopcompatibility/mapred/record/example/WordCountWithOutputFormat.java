@@ -26,6 +26,7 @@ import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFie
 import org.apache.flink.api.java.record.operators.MapOperator;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
+import org.apache.flink.client.LocalExecutor;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
@@ -38,7 +39,6 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.mapred.TextOutputFormat;
 
-import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.hadoopcompatibility.mapred.record.HadoopDataSink;
 import eu.stratosphere.hadoopcompatibility.mapred.record.HadoopDataSource;
 

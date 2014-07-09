@@ -31,6 +31,7 @@ import org.apache.flink.api.java.record.io.FileOutputFormat;
 import org.apache.flink.api.java.record.operators.CoGroupOperator;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
+import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
@@ -39,8 +40,6 @@ import org.apache.flink.util.Collector;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
-
-import eu.stratosphere.compiler.PactCompiler;
 
 /**
  */

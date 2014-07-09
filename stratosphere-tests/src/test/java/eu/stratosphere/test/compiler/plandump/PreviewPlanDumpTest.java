@@ -15,6 +15,9 @@ package eu.stratosphere.test.compiler.plandump;
 import java.util.List;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.compiler.PactCompiler;
+import org.apache.flink.compiler.dag.DataSinkNode;
+import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.util.OperatingSystem;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonParseException;
@@ -22,9 +25,6 @@ import org.codehaus.jackson.JsonParser;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.dag.DataSinkNode;
-import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.test.recordJobs.graph.DeltaPageRankWithInitialDeltas;
 import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast;
 import eu.stratosphere.test.recordJobs.kmeans.KMeansSingleStep;

@@ -28,6 +28,7 @@ import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.MapOperator;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
+import org.apache.flink.client.LocalExecutor;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
@@ -38,7 +39,6 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.TextInputFormat;
 
-import eu.stratosphere.client.LocalExecutor;
 import eu.stratosphere.hadoopcompatibility.mapred.record.HadoopDataSource;
 import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.WritableWrapperConverter;
 

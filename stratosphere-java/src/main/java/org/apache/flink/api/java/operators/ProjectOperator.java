@@ -18,14 +18,15 @@ import java.util.Arrays;
 
 import org.apache.flink.api.common.functions.GenericMap;
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.operators.translation.PlanProjectOperator;
-import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.types.TypeInformation;
 
-import org.apache.flink.api.java.DataSet;
-
+//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
+import org.apache.flink.api.java.tuple.*;
+//CHECKSTYLE.ON: AvoidStarImport
 
 /**
  * This operator represents the application of a projection operation on a data set, and the

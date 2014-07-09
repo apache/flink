@@ -15,19 +15,18 @@ package eu.stratosphere.test.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.client.minicluster.NepheleMiniCluster;
+import org.apache.flink.compiler.DataStatistics;
+import org.apache.flink.compiler.PactCompiler;
+import org.apache.flink.compiler.plan.OptimizedPlan;
+import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.junit.Assert;
 import org.junit.Test;
 import org.apache.flink.api.java.ExecutionEnvironment;
-
-import eu.stratosphere.client.minicluster.NepheleMiniCluster;
-import eu.stratosphere.compiler.DataStatistics;
-import eu.stratosphere.compiler.PactCompiler;
-import eu.stratosphere.compiler.plan.OptimizedPlan;
-import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
-import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 
 
 public abstract class JavaProgramTestBase extends AbstractTestBase {
