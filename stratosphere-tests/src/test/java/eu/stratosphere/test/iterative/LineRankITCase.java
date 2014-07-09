@@ -16,13 +16,14 @@ package eu.stratosphere.test.iterative;
 import java.util.Collection;
 
 import eu.stratosphere.test.util.RecordAPITestBase;
+
+import org.apache.flink.examples.scala.graph.LineRank;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.examples.scala.graph.LineRank;
 
 @RunWith(Parameterized.class)
 public class LineRankITCase extends RecordAPITestBase {

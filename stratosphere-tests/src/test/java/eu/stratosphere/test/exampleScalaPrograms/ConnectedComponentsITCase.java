@@ -13,8 +13,9 @@
 
 package eu.stratosphere.test.exampleScalaPrograms;
 
+import org.apache.flink.examples.scala.graph.ConnectedComponents;
+
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.examples.scala.graph.ConnectedComponents;
 
 public class ConnectedComponentsITCase extends eu.stratosphere.test.iterative.ConnectedComponentsITCase {
 

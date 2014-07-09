@@ -13,8 +13,9 @@
 
 package eu.stratosphere.test.exampleScalaPrograms;
 
+import org.apache.flink.examples.scala.relational.WebLogAnalysis;
+
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.examples.scala.relational.WebLogAnalysis;
 
 public class WebLogAnalysisITCase extends eu.stratosphere.test.recordJobTests.WebLogAnalysisITCase {
 

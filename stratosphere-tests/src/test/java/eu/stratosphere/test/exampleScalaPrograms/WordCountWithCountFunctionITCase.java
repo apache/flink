@@ -13,8 +13,9 @@
 
 package eu.stratosphere.test.exampleScalaPrograms;
 
+import org.apache.flink.examples.scala.wordcount.WordCountWithCount;
+
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.examples.scala.wordcount.WordCountWithCount;
 
 public class WordCountWithCountFunctionITCase extends eu.stratosphere.test.recordJobTests.WordCountITCase {
 

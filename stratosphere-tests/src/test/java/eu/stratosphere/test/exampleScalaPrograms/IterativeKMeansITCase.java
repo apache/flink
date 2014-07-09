@@ -15,8 +15,9 @@ package eu.stratosphere.test.exampleScalaPrograms;
 
 import java.util.Locale;
 
+import org.apache.flink.examples.scala.datamining.KMeans;
+
 import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.examples.scala.datamining.KMeans;
 import eu.stratosphere.test.testdata.KMeansData;
 import eu.stratosphere.test.util.RecordAPITestBase;
 

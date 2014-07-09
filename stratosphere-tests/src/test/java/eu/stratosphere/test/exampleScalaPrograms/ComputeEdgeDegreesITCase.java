@@ -13,9 +13,10 @@
 
 package eu.stratosphere.test.exampleScalaPrograms;
 
+import org.apache.flink.examples.scala.graph.ComputeEdgeDegrees;
+
 import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.examples.scala.graph.ComputeEdgeDegrees;
 
 public class ComputeEdgeDegreesITCase extends eu.stratosphere.test.recordJobTests.ComputeEdgeDegreesITCase {
 
