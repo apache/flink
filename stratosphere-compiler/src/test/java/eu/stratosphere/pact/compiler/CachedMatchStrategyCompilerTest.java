@@ -28,6 +28,7 @@ import eu.stratosphere.api.java.IterativeDataSet;
 import eu.stratosphere.api.java.functions.JoinFunction;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.compiler.PactCompiler;
+import eu.stratosphere.compiler.dag.TempMode;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
@@ -57,6 +58,8 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 			
 			// verify correct join strategy
 			assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED, innerJoin.getDriverStrategy()); 
+			assertEquals(TempMode.NONE, innerJoin.getInput1().getTempMode());
+			assertEquals(TempMode.NONE, innerJoin.getInput2().getTempMode());
 		
 			new NepheleJobGraphGenerator().compileJobGraph(oPlan);
 		}
@@ -83,6 +86,8 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 			
 			// verify correct join strategy
 			assertEquals(DriverStrategy.HYBRIDHASH_BUILD_FIRST, innerJoin.getDriverStrategy()); 
+			assertEquals(TempMode.NONE, innerJoin.getInput1().getTempMode());
+			assertEquals(TempMode.CACHED, innerJoin.getInput2().getTempMode());
 		
 			new NepheleJobGraphGenerator().compileJobGraph(oPlan);
 		}
@@ -109,7 +114,9 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 			DualInputPlanNode innerJoin = resolver.getNode("DummyJoiner");
 			
 			// verify correct join strategy
-			assertEquals(DriverStrategy.HYBRIDHASH_BUILD_FIRST_CACHED, innerJoin.getDriverStrategy()); 
+			assertEquals(DriverStrategy.HYBRIDHASH_BUILD_FIRST_CACHED, innerJoin.getDriverStrategy());
+			assertEquals(TempMode.NONE, innerJoin.getInput1().getTempMode());
+			assertEquals(TempMode.NONE, innerJoin.getInput2().getTempMode());
 		
 			new NepheleJobGraphGenerator().compileJobGraph(oPlan);
 		}
@@ -135,7 +142,9 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 			DualInputPlanNode innerJoin = resolver.getNode("DummyJoiner");
 			
 			// verify correct join strategy
-			assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, innerJoin.getDriverStrategy()); 
+			assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND, innerJoin.getDriverStrategy());
+			assertEquals(TempMode.CACHED, innerJoin.getInput1().getTempMode());
+			assertEquals(TempMode.NONE, innerJoin.getInput2().getTempMode());
 		
 			new NepheleJobGraphGenerator().compileJobGraph(oPlan);
 		}
@@ -169,13 +178,16 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 				}
 			}
 			
+			
 			OptimizedPlan oPlan = compileNoStats(plan);
 	
 			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(oPlan);
 			DualInputPlanNode innerJoin = resolver.getNode("DummyJoiner");
 			
 			// verify correct join strategy
-			assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED, innerJoin.getDriverStrategy()); 
+			assertEquals(DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED, innerJoin.getDriverStrategy());
+			assertEquals(TempMode.NONE, innerJoin.getInput1().getTempMode());
+			assertEquals(TempMode.NONE, innerJoin.getInput2().getTempMode());
 		
 			new NepheleJobGraphGenerator().compileJobGraph(oPlan);
 		}
@@ -197,16 +209,14 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 		
 		IterativeDataSet<Tuple3<Long, Long, Long>> iteration = bigInput.iterate(10);
 		
-		DataSet<Tuple3<Long, Long, Long>> inner;
+		Configuration joinStrategy = new Configuration();
+		joinStrategy.setString(PactCompiler.HINT_SHIP_STRATEGY, PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH);
 		
 		if(strategy != "") {
-			Configuration joinStrategy = new Configuration();
 			joinStrategy.setString(PactCompiler.HINT_LOCAL_STRATEGY, strategy);
-			inner = iteration.join(smallInput).where(0).equalTo(0).with(new DummyJoiner()).name("DummyJoiner").withParameters(joinStrategy);
 		}
-		else {
-			inner = iteration.join(smallInput).where(0).equalTo(0).with(new DummyJoiner()).name("DummyJoiner");
-		}
+		
+		DataSet<Tuple3<Long, Long, Long>> inner = iteration.join(smallInput).where(0).equalTo(0).with(new DummyJoiner()).name("DummyJoiner").withParameters(joinStrategy);
 
 		DataSet<Tuple3<Long, Long, Long>> output = iteration.closeWith(inner);
 		

@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.api.common.operators.util.FieldList;
+import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.dag.TwoInputNode;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
@@ -57,6 +58,11 @@ public class HashJoinBuildFirstProperties extends AbstractJoinDescriptor {
 		DriverStrategy strategy;
 		
 		if(!in1.isOnDynamicPath() && in2.isOnDynamicPath()) {
+			// sanity check that the first input is cached and remove that cache
+			if (!in1.getTempMode().isCached()) {
+				throw new CompilerException("No cache at point where static and dynamic parts meet.");
+			}
+			in1.setTempMode(in1.getTempMode().makeNonCached());
 			strategy = DriverStrategy.HYBRIDHASH_BUILD_FIRST_CACHED;
 		}
 		else {

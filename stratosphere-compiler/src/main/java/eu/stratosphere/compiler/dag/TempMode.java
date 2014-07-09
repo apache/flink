@@ -63,4 +63,15 @@ public enum TempMode {
 			return this;
 		}
 	}
+	
+	
+	public TempMode makeNonCached() {
+		if (this == CACHED) {
+			return NONE;
+		} else if (this == CACHING_PIPELINE_BREAKER) {
+			return PIPELINE_BREAKER;
+		} else {
+			return this;
+		}
+	}
 }

@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 
 import eu.stratosphere.api.common.operators.util.FieldList;
+import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.dag.TwoInputNode;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
@@ -53,7 +54,13 @@ public final class HashJoinBuildSecondProperties extends AbstractJoinDescriptor 
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
 		DriverStrategy strategy;
 		
-		if(!in2.isOnDynamicPath() && in1.isOnDynamicPath()) {
+		if (!in2.isOnDynamicPath() && in1.isOnDynamicPath()) {
+			// sanity check that the first input is cached and remove that cache
+			if (!in2.getTempMode().isCached()) {
+				throw new CompilerException("No cache at point where static and dynamic parts meet.");
+			}
+			
+			in2.setTempMode(in2.getTempMode().makeNonCached());
 			strategy = DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED;
 		}
 		else {
