@@ -47,6 +47,8 @@ import org.apache.flink.api.common.operators.base.DeltaIterationBase.WorksetPlac
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Visitor;
 
@@ -90,8 +92,6 @@ import eu.stratosphere.compiler.plan.SourcePlanNode;
 import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
 import eu.stratosphere.compiler.plan.WorksetPlanNode;
 import eu.stratosphere.compiler.postpass.OptimizerPostPass;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * The optimizer that takes the user specified program plan and creates an optimized plan that contains

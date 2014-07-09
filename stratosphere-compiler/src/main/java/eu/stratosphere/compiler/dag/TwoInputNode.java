@@ -30,6 +30,9 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.operators.DamBehavior;
+import org.apache.flink.runtime.operators.DriverStrategy;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Visitor;
 
 import com.google.common.collect.Sets;
@@ -50,9 +53,6 @@ import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.NamedChannel;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.DamBehavior;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * A node in the optimizer plan that represents a PACT with a two different inputs, such as MATCH or CROSS.

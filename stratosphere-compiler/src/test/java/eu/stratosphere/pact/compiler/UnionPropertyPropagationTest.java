@@ -24,14 +24,15 @@ import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
 import org.junit.Assert;
 import org.junit.Test;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.NAryUnionPlanNode;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
@@ -41,7 +42,6 @@ import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
 import eu.stratosphere.pact.compiler.util.DummyInputFormat;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 
 @SuppressWarnings("serial")

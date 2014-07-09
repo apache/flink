@@ -12,7 +12,7 @@
  **********************************************************************************************************************/
 package eu.stratosphere.compiler.plandump;
 
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
 
 /**

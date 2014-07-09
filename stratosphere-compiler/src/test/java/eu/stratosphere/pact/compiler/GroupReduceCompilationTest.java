@@ -23,16 +23,16 @@ import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.ReduceGroupOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plan.SinkPlanNode;
 import eu.stratosphere.compiler.plan.SourcePlanNode;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")

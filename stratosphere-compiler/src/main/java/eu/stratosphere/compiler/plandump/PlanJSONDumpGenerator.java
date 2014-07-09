@@ -28,6 +28,8 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.apache.flink.api.common.operators.CompilerHints;
+import org.apache.flink.runtime.operators.DriverStrategy;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.dag.BinaryUnionNode;
@@ -49,8 +51,6 @@ import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plan.SinkPlanNode;
 import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
 import eu.stratosphere.compiler.util.Utils;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * 

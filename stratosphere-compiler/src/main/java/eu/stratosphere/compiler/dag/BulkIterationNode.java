@@ -21,6 +21,7 @@ import java.util.Set;
 
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Visitor;
 
 import eu.stratosphere.compiler.CompilerException;
@@ -42,7 +43,6 @@ import eu.stratosphere.compiler.plan.NamedChannel;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * A node in the optimizer's program representation for a bulk iteration.

@@ -31,6 +31,7 @@ import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.functions.JoinFunction;
 import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
@@ -38,7 +39,6 @@ import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
 * Tests that validate optimizer choices when using operators that are requesting certain specific execution

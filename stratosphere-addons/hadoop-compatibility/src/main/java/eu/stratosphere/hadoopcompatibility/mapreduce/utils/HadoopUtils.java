@@ -15,13 +15,12 @@ package eu.stratosphere.hadoopcompatibility.mapreduce.utils;
 import java.lang.reflect.Constructor;
 import java.util.Map;
 
+import org.apache.flink.runtime.fs.hdfs.DistributedFileSystem;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
-
-import eu.stratosphere.runtime.fs.hdfs.DistributedFileSystem;
 
 public class HadoopUtils {
 	

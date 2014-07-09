@@ -14,8 +14,9 @@
 package eu.stratosphere.compiler.plan;
 
 
+import org.apache.flink.runtime.operators.DriverStrategy;
+
 import eu.stratosphere.compiler.dag.BinaryUnionNode;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * A special subclass for the union to make it identifiable.

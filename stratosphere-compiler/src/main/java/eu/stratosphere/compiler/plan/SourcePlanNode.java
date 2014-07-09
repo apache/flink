@@ -19,12 +19,12 @@ import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.NOT_FOUN
 import java.util.Collections;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Visitor;
 
 import eu.stratosphere.compiler.dag.DataSourceNode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * Plan candidate node for data flow sources that have no input and no special strategies.

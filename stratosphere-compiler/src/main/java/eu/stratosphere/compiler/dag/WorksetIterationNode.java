@@ -21,6 +21,9 @@ import java.util.Set;
 
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.runtime.operators.DriverStrategy;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.types.Nothing;
 import org.apache.flink.types.NothingTypeInfo;
 import org.apache.flink.util.Visitor;
@@ -47,9 +50,6 @@ import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
 import eu.stratosphere.compiler.plan.WorksetPlanNode;
 import eu.stratosphere.compiler.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport;
 import eu.stratosphere.compiler.util.NoOpBinaryUdfOp;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * A node in the optimizer's program representation for a workset iteration.

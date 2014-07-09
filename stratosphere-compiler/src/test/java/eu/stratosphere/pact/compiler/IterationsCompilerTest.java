@@ -34,13 +34,13 @@ import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
 
 import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 
 @SuppressWarnings({"serial", "unchecked"})

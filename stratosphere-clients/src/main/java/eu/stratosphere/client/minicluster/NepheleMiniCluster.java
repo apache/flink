@@ -15,9 +15,6 @@ package eu.stratosphere.client.minicluster;
 
 import java.lang.reflect.Method;
 
-import eu.stratosphere.nephele.ExecutionMode;
-import eu.stratosphere.nephele.instance.HardwareDescriptionFactory;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -25,10 +22,11 @@ import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-
-import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.nephele.jobmanager.JobManager;
+import org.apache.flink.runtime.ExecutionMode;
+import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.instance.HardwareDescriptionFactory;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.JobManager;
 
 
 public class NepheleMiniCluster {

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.operators.AbstractUdfOperator;
 import org.apache.flink.api.common.operators.CompilerHints;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.util.FieldSet;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Visitable;
 import org.apache.flink.util.Visitor;
 
@@ -38,7 +39,6 @@ import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plandump.DumpableConnection;
 import eu.stratosphere.compiler.plandump.DumpableNode;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
  * This class represents a node in the optimizer's internal representation of the PACT plan. It contains

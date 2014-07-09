@@ -20,10 +20,12 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.Program;
+import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.LogUtils;
 import org.apache.log4j.Level;
-
 import org.apache.flink.api.java.ExecutionEnvironment;
+
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -32,8 +34,6 @@ import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 
 /**
  * A class for executing a {@link Plan} on a local embedded Stratosphere instance.

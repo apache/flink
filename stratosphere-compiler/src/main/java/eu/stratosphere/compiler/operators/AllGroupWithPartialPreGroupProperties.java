@@ -15,6 +15,9 @@ package eu.stratosphere.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.runtime.operators.DriverStrategy;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+
 import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.GroupReduceNode;
 import eu.stratosphere.compiler.dag.SingleInputNode;
@@ -25,8 +28,6 @@ import eu.stratosphere.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 public final class AllGroupWithPartialPreGroupProperties extends OperatorDescriptorSingle {
 

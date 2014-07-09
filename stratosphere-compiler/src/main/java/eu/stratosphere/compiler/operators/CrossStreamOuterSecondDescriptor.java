@@ -13,8 +13,9 @@
 
 package eu.stratosphere.compiler.operators;
 
+import org.apache.flink.runtime.operators.DriverStrategy;
+
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * 

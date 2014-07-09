@@ -16,6 +16,9 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.operators.util.FieldSet;
+import org.apache.flink.runtime.operators.DriverStrategy;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.runtime.operators.util.LocalStrategy;
 
 import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.ReduceNode;
@@ -27,9 +30,6 @@ import eu.stratosphere.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 public final class ReduceProperties extends OperatorDescriptorSingle {
 	

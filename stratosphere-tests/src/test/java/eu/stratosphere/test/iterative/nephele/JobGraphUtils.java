@@ -20,23 +20,22 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.configuration.Configuration;
-
-import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.client.JobExecutionException;
-import eu.stratosphere.nephele.jobgraph.DistributionPattern;
-import eu.stratosphere.runtime.io.channels.ChannelType;
-import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
-import eu.stratosphere.nephele.jobgraph.JobInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
-import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
-import eu.stratosphere.pact.runtime.iterative.task.IterationSynchronizationSinkTask;
-import eu.stratosphere.pact.runtime.task.DataSinkTask;
-import eu.stratosphere.pact.runtime.task.DataSourceTask;
-import eu.stratosphere.pact.runtime.task.RegularPactTask;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.io.network.channels.ChannelType;
+import org.apache.flink.runtime.iterative.io.FakeOutputTask;
+import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
+import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphDefinitionException;
+import org.apache.flink.runtime.jobgraph.JobInputVertex;
+import org.apache.flink.runtime.jobgraph.JobOutputVertex;
+import org.apache.flink.runtime.jobgraph.JobTaskVertex;
+import org.apache.flink.runtime.operators.DataSinkTask;
+import org.apache.flink.runtime.operators.DataSourceTask;
+import org.apache.flink.runtime.operators.RegularPactTask;
+import org.apache.flink.runtime.operators.util.TaskConfig;
 
 public class JobGraphUtils {
 

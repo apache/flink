@@ -14,8 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.broadcastvars;
 
-import eu.stratosphere.nephele.jobgraph.DistributionPattern;
-
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -24,28 +22,29 @@ import org.apache.flink.api.java.typeutils.runtime.record.RecordComparatorFactor
 import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.io.network.channels.ChannelType;
+import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
+import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
+import org.apache.flink.runtime.iterative.task.IterationTailPactTask;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphDefinitionException;
+import org.apache.flink.runtime.jobgraph.JobInputVertex;
+import org.apache.flink.runtime.jobgraph.JobOutputVertex;
+import org.apache.flink.runtime.jobgraph.JobTaskVertex;
+import org.apache.flink.runtime.operators.CollectorMapDriver;
+import org.apache.flink.runtime.operators.DriverStrategy;
+import org.apache.flink.runtime.operators.GroupReduceDriver;
+import org.apache.flink.runtime.operators.NoOpDriver;
+import org.apache.flink.runtime.operators.chaining.ChainedCollectorMapDriver;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.runtime.operators.util.LocalStrategy;
+import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.LogUtils;
 import org.apache.log4j.Level;
 
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
-import eu.stratosphere.nephele.jobgraph.JobInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
-import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
-import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.CollectorMapDriver;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.pact.runtime.task.NoOpDriver;
-import eu.stratosphere.pact.runtime.task.GroupReduceDriver;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedCollectorMapDriver;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.test.iterative.nephele.JobGraphUtils;
 import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast.PointBuilder;
 import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast.RecomputeClusterCenter;

@@ -13,8 +13,9 @@
 
 package eu.stratosphere.compiler.plan;
 
+import org.apache.flink.runtime.operators.DriverStrategy;
+
 import eu.stratosphere.compiler.dag.DataSinkNode;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * Plan candidate node for data flow sinks.

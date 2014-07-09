@@ -33,6 +33,36 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.io.network.channels.ChannelType;
+import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
+import org.apache.flink.runtime.iterative.io.FakeOutputTask;
+import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
+import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
+import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
+import org.apache.flink.runtime.iterative.task.IterationTailPactTask;
+import org.apache.flink.runtime.jobgraph.AbstractJobOutputVertex;
+import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphDefinitionException;
+import org.apache.flink.runtime.jobgraph.JobInputVertex;
+import org.apache.flink.runtime.jobgraph.JobOutputVertex;
+import org.apache.flink.runtime.jobgraph.JobTaskVertex;
+import org.apache.flink.runtime.operators.CoGroupDriver;
+import org.apache.flink.runtime.operators.CoGroupWithSolutionSetFirstDriver;
+import org.apache.flink.runtime.operators.CoGroupWithSolutionSetSecondDriver;
+import org.apache.flink.runtime.operators.DataSinkTask;
+import org.apache.flink.runtime.operators.DataSourceTask;
+import org.apache.flink.runtime.operators.DriverStrategy;
+import org.apache.flink.runtime.operators.JoinWithSolutionSetFirstDriver;
+import org.apache.flink.runtime.operators.JoinWithSolutionSetSecondDriver;
+import org.apache.flink.runtime.operators.MatchDriver;
+import org.apache.flink.runtime.operators.NoOpDriver;
+import org.apache.flink.runtime.operators.RegularPactTask;
+import org.apache.flink.runtime.operators.chaining.ChainedDriver;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.runtime.operators.util.LocalStrategy;
+import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.Visitor;
 
 import eu.stratosphere.compiler.CompilerException;
@@ -52,36 +82,6 @@ import eu.stratosphere.compiler.plan.SolutionSetPlanNode;
 import eu.stratosphere.compiler.plan.SourcePlanNode;
 import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
 import eu.stratosphere.compiler.plan.WorksetPlanNode;
-import eu.stratosphere.nephele.jobgraph.DistributionPattern;
-import eu.stratosphere.runtime.io.channels.ChannelType;
-import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
-import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
-import eu.stratosphere.nephele.jobgraph.JobInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
-import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
-import eu.stratosphere.pact.runtime.iterative.io.FakeOutputTask;
-import eu.stratosphere.pact.runtime.iterative.task.IterationHeadPactTask;
-import eu.stratosphere.pact.runtime.iterative.task.IterationIntermediatePactTask;
-import eu.stratosphere.pact.runtime.iterative.task.IterationSynchronizationSinkTask;
-import eu.stratosphere.pact.runtime.iterative.task.IterationTailPactTask;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.CoGroupDriver;
-import eu.stratosphere.pact.runtime.task.CoGroupWithSolutionSetFirstDriver;
-import eu.stratosphere.pact.runtime.task.CoGroupWithSolutionSetSecondDriver;
-import eu.stratosphere.pact.runtime.task.DataSinkTask;
-import eu.stratosphere.pact.runtime.task.DataSourceTask;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.pact.runtime.task.JoinWithSolutionSetFirstDriver;
-import eu.stratosphere.pact.runtime.task.JoinWithSolutionSetSecondDriver;
-import eu.stratosphere.pact.runtime.task.MatchDriver;
-import eu.stratosphere.pact.runtime.task.NoOpDriver;
-import eu.stratosphere.pact.runtime.task.RegularPactTask;
-import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
-import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 /**
  * This component translates the optimizer's resulting plan a nephele job graph. The
@@ -145,7 +145,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 
 	/**
 	 * Translates a {@link eu.stratosphere.compiler.plan.OptimizedPlan} into a
-	 * {@link eu.stratosphere.nephele.jobgraph.JobGraph}.
+	 * {@link org.apache.flink.runtime.jobgraph.JobGraph}.
 	 * This is an 1-to-1 mapping. No optimization whatsoever is applied.
 	 * 
 	 * @param program

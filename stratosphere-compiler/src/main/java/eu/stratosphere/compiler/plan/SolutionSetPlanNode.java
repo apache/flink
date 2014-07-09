@@ -20,6 +20,7 @@ import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.NOT_FOUN
 import java.util.Collections;
 import java.util.HashMap;
 
+import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Visitor;
 
 import eu.stratosphere.compiler.costs.Costs;
@@ -27,7 +28,6 @@ import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.dag.SolutionSetNode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * Plan candidate node for partial solution of a bulk iteration.

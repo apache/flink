@@ -17,6 +17,8 @@ import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.runtime.operators.util.LocalStrategy;
 
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.dag.EstimateProvider;
@@ -27,8 +29,6 @@ import eu.stratosphere.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.compiler.plandump.DumpableConnection;
 import eu.stratosphere.compiler.util.Utils;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * 

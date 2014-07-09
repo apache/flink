@@ -21,8 +21,8 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import java.util.ArrayList;
 import java.util.List;
 
-import eu.stratosphere.runtime.io.api.RecordWriter;
-
+import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.operators.shipping.RecordOutputCollector;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
@@ -32,7 +32,6 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
-import eu.stratosphere.pact.runtime.shipping.RecordOutputCollector;
 import eu.stratosphere.test.recordJobs.util.Tuple;
 
 public class LineItemFilterTest {

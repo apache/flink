@@ -16,6 +16,8 @@ package eu.stratosphere.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.runtime.operators.DriverStrategy;
+
 import eu.stratosphere.compiler.dag.SingleInputNode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
@@ -23,7 +25,6 @@ import eu.stratosphere.compiler.dataproperties.RequestedGlobalProperties;
 import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 
 public class NoOpDescriptor extends OperatorDescriptorSingle {

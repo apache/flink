@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.runtime.operators.DriverStrategy;
 
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.dag.TwoInputNode;
@@ -24,7 +25,6 @@ import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.compiler.dataproperties.RequestedLocalProperties;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  *

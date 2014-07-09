@@ -24,22 +24,21 @@ import java.util.List;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.flink.core.io.StringRecord;
+import org.apache.flink.runtime.client.JobCancelResult;
+import org.apache.flink.runtime.client.JobProgressResult;
+import org.apache.flink.runtime.client.JobSubmissionResult;
+import org.apache.flink.runtime.event.job.AbstractEvent;
+import org.apache.flink.runtime.event.job.RecentJobEvent;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.managementgraph.ManagementGraph;
+import org.apache.flink.runtime.managementgraph.ManagementVertexID;
+import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
+import org.apache.flink.runtime.topology.NetworkTopology;
+import org.apache.flink.runtime.types.IntegerRecord;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import eu.stratosphere.nephele.client.JobCancelResult;
-import eu.stratosphere.nephele.client.JobProgressResult;
-import eu.stratosphere.nephele.client.JobSubmissionResult;
-import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.event.job.RecentJobEvent;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.managementgraph.ManagementGraph;
-import eu.stratosphere.nephele.managementgraph.ManagementVertexID;
-import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
-import eu.stratosphere.nephele.topology.NetworkTopology;
-import eu.stratosphere.nephele.types.IntegerRecord;
 
 public class CliFrontendListCancelTest {
 	

@@ -40,17 +40,17 @@ import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.event.job.RecentJobEvent;
+import org.apache.flink.runtime.ipc.RPC;
+import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.net.NetUtils;
+import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
 import org.apache.flink.util.StringUtils;
 
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.PackagedProgram;
 import eu.stratosphere.client.program.ProgramInvocationException;
-import eu.stratosphere.nephele.event.job.RecentJobEvent;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.jobgraph.JobID;
-import eu.stratosphere.nephele.jobgraph.JobStatus;
-import eu.stratosphere.nephele.net.NetUtils;
-import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
 
 /**
  * Implementation of a simple command line fronted for executing programs.

@@ -22,6 +22,15 @@ import junit.framework.Assert;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.runtime.client.AbstractJobResult;
+import org.apache.flink.runtime.client.JobCancelResult;
+import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.client.JobProgressResult;
+import org.apache.flink.runtime.client.JobSubmissionResult;
+import org.apache.flink.runtime.event.job.AbstractEvent;
+import org.apache.flink.runtime.event.job.JobEvent;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.util.LogUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -35,15 +44,6 @@ import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.nephele.client.AbstractJobResult;
-import eu.stratosphere.nephele.client.JobCancelResult;
-import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.client.JobProgressResult;
-import eu.stratosphere.nephele.client.JobSubmissionResult;
-import eu.stratosphere.nephele.event.job.AbstractEvent;
-import eu.stratosphere.nephele.event.job.JobEvent;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.nephele.jobgraph.JobStatus;
 
 /**
  * 

@@ -32,6 +32,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.PackagedProgram;
@@ -39,7 +40,6 @@ import eu.stratosphere.client.program.ProgramInvocationException;
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 
 
 public class JobSubmissionServlet extends HttpServlet {

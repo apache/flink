@@ -19,7 +19,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import org.junit.Test;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.api.java.DataSet;
@@ -28,13 +27,13 @@ import org.apache.flink.api.java.IterativeDataSet;
 import org.apache.flink.api.java.functions.JoinFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.operators.DriverStrategy;
 
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.dag.TempMode;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
 * Tests that validate optimizer choice when using hash joins inside of iterations

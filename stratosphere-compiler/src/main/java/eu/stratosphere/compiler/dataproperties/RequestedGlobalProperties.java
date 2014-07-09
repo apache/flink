@@ -16,12 +16,12 @@ package eu.stratosphere.compiler.dataproperties;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldSet;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.util.Utils;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
  * This class represents global properties of the data that an operator is interested in, because it needs those

@@ -15,13 +15,13 @@ package eu.stratosphere.test.util;
 
 import junit.framework.Assert;
 
+import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.LogUtils;
 import org.apache.log4j.Level;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
-import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.client.JobExecutionException;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 
 /**
  * Base class for integration tests which test whether the system recovers from failed executions.

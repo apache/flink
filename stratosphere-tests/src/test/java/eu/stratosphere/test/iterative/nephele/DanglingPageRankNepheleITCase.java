@@ -13,7 +13,8 @@
 
 package eu.stratosphere.test.iterative.nephele;
 
-import eu.stratosphere.nephele.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.CustomCompensatableDanglingPageRank;
 import eu.stratosphere.test.util.RecordAPITestBase;
 

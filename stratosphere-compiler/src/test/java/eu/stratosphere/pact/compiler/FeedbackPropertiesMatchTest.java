@@ -32,9 +32,12 @@ import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.java.typeutils.BasicTypeInfo;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.operators.DriverStrategy;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.junit.Test;
-
 import org.apache.flink.api.java.io.TextInputFormat;
+
 import eu.stratosphere.compiler.dag.DataSourceNode;
 import eu.stratosphere.compiler.dag.MapNode;
 import eu.stratosphere.compiler.dag.MatchNode;
@@ -49,9 +52,6 @@ import eu.stratosphere.compiler.plan.SourcePlanNode;
 import eu.stratosphere.compiler.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport;
 import eu.stratosphere.pact.compiler.testfunctions.DummyJoinFunction;
 import eu.stratosphere.pact.compiler.testfunctions.IdentityMapper;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 
 public class FeedbackPropertiesMatchTest {

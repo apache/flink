@@ -21,14 +21,14 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.junit.Test;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.runtime.operators.DriverStrategy;
+
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plan.SinkPlanNode;
 import eu.stratosphere.compiler.plan.SourcePlanNode;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")

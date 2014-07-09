@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.flink.api.common.operators.Union;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
@@ -32,7 +33,6 @@ import eu.stratosphere.compiler.operators.OperatorDescriptorDual;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.NamedChannel;
 import eu.stratosphere.compiler.plan.PlanNode;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
  * The Optimizer representation of a binary <i>Union</i>.

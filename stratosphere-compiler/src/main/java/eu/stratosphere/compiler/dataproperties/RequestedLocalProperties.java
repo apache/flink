@@ -18,11 +18,11 @@ import java.util.Arrays;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
+import org.apache.flink.runtime.operators.util.LocalStrategy;
 
 import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.util.Utils;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * This class represents local properties of the data. A local property is a property that exists

@@ -39,6 +39,7 @@ import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.util.SerializableHashSet;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
@@ -46,7 +47,6 @@ import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
 import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.nephele.util.SerializableHashSet;
 
 /**
  * This is similar to the WordCount example and additionally demonstrates how to

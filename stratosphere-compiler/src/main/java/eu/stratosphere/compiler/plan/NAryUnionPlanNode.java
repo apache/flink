@@ -17,13 +17,13 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.IterableIterator;
 import org.apache.flink.util.Visitor;
 
 import eu.stratosphere.compiler.dag.BinaryUnionNode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * A union operation over multiple inputs (2 or more).

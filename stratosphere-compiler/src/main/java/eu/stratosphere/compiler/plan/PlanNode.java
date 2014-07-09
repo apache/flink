@@ -21,6 +21,9 @@ import java.util.Set;
 
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.util.FieldSet;
+import org.apache.flink.runtime.operators.DriverStrategy;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.util.Visitable;
 
 import eu.stratosphere.compiler.CompilerException;
@@ -31,9 +34,6 @@ import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.compiler.plandump.DumpableConnection;
 import eu.stratosphere.compiler.plandump.DumpableNode;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 
 /**
  * The representation of a data exchange between to operators. The data exchange can realize a shipping strategy, 

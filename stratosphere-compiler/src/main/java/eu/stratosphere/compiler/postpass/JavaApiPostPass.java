@@ -39,6 +39,7 @@ import org.apache.flink.api.java.typeutils.runtime.RuntimeComparatorFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimePairComparatorFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeStatefulSerializerFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeStatelessSerializerFactory;
+import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.types.TypeInformation;
 
 import eu.stratosphere.compiler.CompilerException;
@@ -57,7 +58,6 @@ import eu.stratosphere.compiler.plan.SourcePlanNode;
 import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
 import eu.stratosphere.compiler.plan.WorksetPlanNode;
 import eu.stratosphere.compiler.util.NoOpUnaryUdfOp;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * The post-optimizer plan traversal. This traversal fills in the API specific utilities (serializers and

@@ -29,6 +29,7 @@ import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Visitor;
 
 import com.google.common.collect.Sets;
@@ -48,7 +49,6 @@ import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport;
 import eu.stratosphere.compiler.util.NoOpUnaryUdfOp;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
  * A node in the optimizer's program representation for a PACT with a single input.

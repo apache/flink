@@ -13,9 +13,10 @@
 
 package eu.stratosphere.compiler.dag;
 
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+
 import eu.stratosphere.compiler.dataproperties.InterestingProperties;
 import eu.stratosphere.compiler.plandump.DumpableConnection;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 /**
  * A connection between to PACTs. Represents a channel together with a data shipping

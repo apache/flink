@@ -44,6 +44,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.util.SerializableHashSet;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
@@ -56,8 +57,6 @@ import org.junit.runners.Parameterized.Parameters;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
-import eu.stratosphere.nephele.util.SerializableHashSet;
 
 /**
  * Test for the basic functionality of accumulators. We cannot test all different

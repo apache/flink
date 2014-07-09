@@ -13,7 +13,7 @@
 
 package eu.stratosphere.compiler.operators;
 
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
+import org.apache.flink.runtime.operators.DriverStrategy;
 
 /**
  * The root of all descriptions of an operator to the optimizer.

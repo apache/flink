@@ -16,6 +16,8 @@ package eu.stratosphere.compiler.deadlockdetect;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.runtime.operators.DamBehavior;
+import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Visitor;
 
 import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
@@ -23,8 +25,6 @@ import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.PlanNode;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
-import eu.stratosphere.pact.runtime.task.DamBehavior;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**
  * 	Certain pipelined flows may lead to deadlocks, in which case we need to make sure the pipelines are broken or made elastic enough to prevent that.

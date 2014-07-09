@@ -22,12 +22,14 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.junit.Assert;
 import org.junit.Test;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.IterativeDataSet;
+
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
 import eu.stratosphere.compiler.plan.BulkPartialSolutionPlanNode;
@@ -38,8 +40,6 @@ import eu.stratosphere.example.java.graph.PageRankBasic.Dampener;
 import eu.stratosphere.example.java.graph.PageRankBasic.EpsilonFilter;
 import eu.stratosphere.example.java.graph.PageRankBasic.JoinVertexWithEdgesMatch;
 import eu.stratosphere.example.java.graph.PageRankBasic.RankAssigner;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.test.compiler.util.CompilerTestBase;
 
 public class PageRankCompilerTest extends CompilerTestBase{

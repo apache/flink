@@ -16,6 +16,8 @@ package eu.stratosphere.test.util;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -24,8 +26,6 @@ import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.nephele.client.JobClient;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
 
 public abstract class RecordAPITestBase extends AbstractTestBase {
 

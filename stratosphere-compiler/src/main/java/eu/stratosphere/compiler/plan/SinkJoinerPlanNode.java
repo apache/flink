@@ -14,10 +14,11 @@ package eu.stratosphere.compiler.plan;
 
 import java.util.List;
 
+import org.apache.flink.runtime.operators.DriverStrategy;
+
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.SinkJoiner;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 
 /**

@@ -26,11 +26,10 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-
-import eu.stratosphere.nephele.event.job.RecentJobEvent;
-import eu.stratosphere.nephele.ipc.RPC;
-import eu.stratosphere.nephele.net.NetUtils;
-import eu.stratosphere.nephele.protocols.ExtendedManagementProtocol;
+import org.apache.flink.runtime.event.job.RecentJobEvent;
+import org.apache.flink.runtime.ipc.RPC;
+import org.apache.flink.runtime.net.NetUtils;
+import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
 
 
 public class JobsInfoServlet extends HttpServlet {

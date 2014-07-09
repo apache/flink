@@ -19,13 +19,13 @@ import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SO
 import java.util.HashMap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Visitor;
 
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.BulkIterationNode;
 import eu.stratosphere.compiler.dag.OptimizerNode;
-import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 public class BulkIterationPlanNode extends SingleInputPlanNode implements IterationPlanNode {
 	

@@ -27,6 +27,7 @@ import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.JoinOperator;
 import org.apache.flink.api.java.record.operators.MapOperator;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.types.LongValue;
 import org.junit.Test;
 
@@ -41,7 +42,6 @@ import eu.stratosphere.pact.compiler.util.DummyNonPreservingMatchStub;
 import eu.stratosphere.pact.compiler.util.DummyOutputFormat;
 import eu.stratosphere.pact.compiler.util.IdentityMap;
 import eu.stratosphere.pact.compiler.util.IdentityReduce;
-import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 
 
 /**
