@@ -1,7 +1,7 @@
 #!/bin/bash
 ########################################################################################################################
 # 
-#  Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+#  Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
 # 
 #  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 #  the License. You may obtain a copy of the License at
@@ -69,7 +69,7 @@ case $STARTSTOP in
         rotateLogFile $out
 
         echo Starting task manager on host $HOSTNAME
-        $JAVA_RUN $JVM_ARGS ${STRATOSPHERE_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "$STRATOSPHERE_TM_CLASSPATH" eu.stratosphere.nephele.taskmanager.TaskManager -configDir "$STRATOSPHERE_CONF_DIR" > "$out" 2>&1 < /dev/null &
+        $JAVA_RUN $JVM_ARGS ${STRATOSPHERE_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "$STRATOSPHERE_TM_CLASSPATH" org.apache.flink.runtime.taskmanager.TaskManager -configDir "$STRATOSPHERE_CONF_DIR" > "$out" 2>&1 < /dev/null &
         echo $! > $pid
     ;;
 

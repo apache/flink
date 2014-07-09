@@ -1,14 +1,14 @@
-For the latest information about Stratosphere, please visit our website at:
+For the latest information about Flink, please visit our website at:
 
-   http://www.stratosphere.eu/
+   http://flink.incubator.apache.org
 
 and our GitHub Account 
 
-   https://github.com/stratosphere/stratosphere
+   https://github.com/apache/incubator-flink
 
 If you have any questions, ask on our Mailing list
 
-   https://groups.google.com/forum/#!forum/stratosphere-dev
+   dev@flink.incubator.apache.org
 
 This distribution includes cryptographic software.  The country in 
 which you currently reside may have restrictions on the import, 
