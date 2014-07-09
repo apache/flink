@@ -436,6 +436,13 @@ public class PlanJSONDumpGenerator {
 			case HYBRIDHASH_BUILD_SECOND:
 				locString = "Hybrid Hash (build: " + child2name + ")";
 				break;
+				
+			case HYBRIDHASH_BUILD_FIRST_CACHED:
+				locString = "Hybrid Hash (CACHED) (build: " + child1name + ")";
+				break;
+			case HYBRIDHASH_BUILD_SECOND_CACHED:
+				locString = "Hybrid Hash (CACHED) (build: " + child2name + ")";
+				break;
 
 			case NESTEDLOOP_BLOCKED_OUTER_FIRST:
 				locString = "Nested Loops (Blocked Outer: " + child1name + ")";
