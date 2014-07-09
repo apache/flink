@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,15 +13,16 @@
 
 package eu.stratosphere.runtime.io.serialization;
 
-import eu.stratosphere.core.memory.DataInputView;
-import eu.stratosphere.core.memory.DataOutputView;
-import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.runtime.io.Buffer;
 import eu.stratosphere.runtime.io.serialization.RecordSerializer.SerializationResult;
 import eu.stratosphere.runtime.io.serialization.types.SerializationTestType;
 import eu.stratosphere.runtime.io.serialization.types.SerializationTestTypeFactory;
 import eu.stratosphere.runtime.io.serialization.types.Util;
 import junit.framework.Assert;
+
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.MemorySegment;
 import org.junit.Test;
 
 import java.io.IOException;

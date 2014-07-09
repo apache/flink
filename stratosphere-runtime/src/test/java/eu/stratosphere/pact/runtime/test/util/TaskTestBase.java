@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,29 +15,29 @@ package eu.stratosphere.pact.runtime.test.util;
 
 import java.util.List;
 
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
+import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
+import org.apache.flink.api.java.record.io.DelimitedInputFormat;
+import org.apache.flink.api.java.record.io.FileOutputFormat;
+import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.FileSystem.WriteMode;
+import org.apache.flink.types.Record;
+import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
 import org.junit.Assert;
 
-import eu.stratosphere.api.common.functions.Function;
-import eu.stratosphere.api.common.operators.util.UserCodeClassWrapper;
-import eu.stratosphere.api.common.operators.util.UserCodeObjectWrapper;
-import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
-import eu.stratosphere.api.java.record.io.FileOutputFormat;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.fs.FileSystem.WriteMode;
-import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.util.InstantiationUtil;
-import eu.stratosphere.util.MutableObjectIterator;
 
 public abstract class TaskTestBase {
 	

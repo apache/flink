@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,9 +15,10 @@ package eu.stratosphere.nephele.jobgraph;
 
 import java.io.IOException;
 
-import eu.stratosphere.api.common.io.InputFormat;
-import eu.stratosphere.api.common.operators.util.UserCodeWrapper;
-import eu.stratosphere.core.io.InputSplit;
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.core.io.InputSplit;
+
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 
 public class JobInputVertex extends AbstractJobInputVertex {

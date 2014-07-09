@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,14 +13,16 @@
 
 package eu.stratosphere.test.recordJobs.graph;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.Program;
-import eu.stratosphere.api.common.ProgramDescription;
-import eu.stratosphere.api.java.record.operators.BulkIteration;
-import eu.stratosphere.api.java.record.operators.FileDataSink;
-import eu.stratosphere.api.java.record.operators.FileDataSource;
-import eu.stratosphere.api.java.record.operators.CoGroupOperator;
-import eu.stratosphere.api.java.record.operators.JoinOperator;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.Program;
+import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.api.java.record.operators.BulkIteration;
+import org.apache.flink.api.java.record.operators.CoGroupOperator;
+import org.apache.flink.api.java.record.operators.FileDataSink;
+import org.apache.flink.api.java.record.operators.FileDataSource;
+import org.apache.flink.api.java.record.operators.JoinOperator;
+import org.apache.flink.types.LongValue;
+
 import eu.stratosphere.test.recordJobs.graph.pageRankUtil.DanglingPageRankInputFormat;
 import eu.stratosphere.test.recordJobs.graph.pageRankUtil.DiffL1NormConvergenceCriterion;
 import eu.stratosphere.test.recordJobs.graph.pageRankUtil.DotProductCoGroup;
@@ -28,7 +30,6 @@ import eu.stratosphere.test.recordJobs.graph.pageRankUtil.DotProductMatch;
 import eu.stratosphere.test.recordJobs.graph.pageRankUtil.ImprovedAdjacencyListInputFormat;
 import eu.stratosphere.test.recordJobs.graph.pageRankUtil.PageRankStatsAggregator;
 import eu.stratosphere.test.recordJobs.graph.pageRankUtil.PageWithRankOutFormat;
-import eu.stratosphere.types.LongValue;
 
 
 public class DanglingPageRank implements Program, ProgramDescription {

@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -14,23 +14,25 @@
  **********************************************************************************************************************/
 package eu.stratosphere.api.avro;
 
-import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.functions.MapFunction;
-import eu.stratosphere.api.java.io.AvroOutputFormat;
-import eu.stratosphere.api.java.record.io.avro.example.User;
-import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.test.util.JavaProgramTestBase;
-import junit.framework.Assert;
-import org.apache.avro.file.DataFileReader;
-import org.apache.avro.io.DatumReader;
-import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.avro.specific.SpecificDatumReader;
+import org.junit.Assert;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import eu.stratosphere.api.java.io.AvroOutputFormat;
+import eu.stratosphere.api.java.record.io.avro.example.User;
+import eu.stratosphere.test.util.JavaProgramTestBase;
+
+import org.apache.avro.file.DataFileReader;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.reflect.ReflectDatumReader;
+import org.apache.avro.specific.SpecificDatumReader;
+
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.tuple.Tuple3;
 
 @SuppressWarnings("serial")
 public class AvroOutputFormatTest extends JavaProgramTestBase {

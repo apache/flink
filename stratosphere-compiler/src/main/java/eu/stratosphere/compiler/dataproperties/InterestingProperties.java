@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -41,13 +41,10 @@ public class InterestingProperties implements Cloneable
 	/**
 	 * Private constructor for cloning purposes.
 	 * 
-	 * @param maxCostsGlobal The maximal costs for the global properties.
-	 * @param maxCostsLocal The maximal costs for the local properties.
 	 * @param globalProps  The global properties for this new object.
 	 * @param localProps The local properties for this new object.
 	 */
-	private InterestingProperties(Set<RequestedGlobalProperties> globalProps, Set<RequestedLocalProperties> localProps)
-	{
+	private InterestingProperties(Set<RequestedGlobalProperties> globalProps, Set<RequestedLocalProperties> localProps) {
 		this.globalProps = globalProps;
 		this.localProps = localProps;
 	}

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -24,13 +24,14 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.LogUtils;
 import org.apache.log4j.Level;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import eu.stratosphere.api.java.io.DiscardingOuputFormat;
-import eu.stratosphere.api.java.io.TextInputFormat;
-import eu.stratosphere.core.fs.Path;
+import org.apache.flink.api.java.io.DiscardingOuputFormat;
+import org.apache.flink.api.java.io.TextInputFormat;
 import eu.stratosphere.nephele.execution.ExecutionState;
 import eu.stratosphere.nephele.execution.librarycache.LibraryCacheManager;
 import eu.stratosphere.nephele.jobgraph.DistributionPattern;
@@ -44,7 +45,6 @@ import eu.stratosphere.nephele.util.ServerTestUtils;
 import eu.stratosphere.pact.runtime.task.DataSinkTask;
 import eu.stratosphere.pact.runtime.task.DataSourceTask;
 import eu.stratosphere.runtime.io.channels.ChannelType;
-import eu.stratosphere.util.LogUtils;
 
 /**
  * This class contains test concerning the correct conversion from {@link JobGraph} to {@link ExecutionGraph} objects.

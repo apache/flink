@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,15 +17,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.FutureTask;
 
-import eu.stratosphere.api.common.accumulators.Accumulator;
-import eu.stratosphere.api.common.accumulators.AccumulatorHelper;
-import eu.stratosphere.api.common.accumulators.DoubleCounter;
-import eu.stratosphere.api.common.accumulators.Histogram;
-import eu.stratosphere.api.common.accumulators.IntCounter;
-import eu.stratosphere.api.common.accumulators.LongCounter;
-import eu.stratosphere.api.common.cache.DistributedCache;
-import eu.stratosphere.api.common.functions.RuntimeContext;
-import eu.stratosphere.core.fs.Path;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.common.accumulators.DoubleCounter;
+import org.apache.flink.api.common.accumulators.Histogram;
+import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.core.fs.Path;
 
 /**
  *

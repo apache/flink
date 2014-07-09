@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,11 +19,11 @@ import static org.junit.Assert.fail;
 import java.io.File;
 import java.io.PrintWriter;
 
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.junit.Test;
 
-import eu.stratosphere.core.fs.FSDataInputStream;
-import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.core.fs.local.LocalFileSystem;
 import eu.stratosphere.nephele.util.CommonTestUtils;
 
 /**

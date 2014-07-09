@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,12 +16,12 @@ package eu.stratosphere.runtime.fs.s3;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.util.StringUtils;
+
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.S3Object;
-
-import eu.stratosphere.core.fs.FSDataInputStream;
-import eu.stratosphere.util.StringUtils;
 
 /**
  * This class implements an {@link FSDataInputStream} that downloads its data from Amazon S3 in the background.

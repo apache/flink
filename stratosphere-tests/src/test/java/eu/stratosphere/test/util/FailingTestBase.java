@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,13 +15,13 @@ package eu.stratosphere.test.util;
 
 import junit.framework.Assert;
 
+import org.apache.flink.util.LogUtils;
 import org.apache.log4j.Level;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.util.LogUtils;
 
 /**
  * Base class for integration tests which test whether the system recovers from failed executions.

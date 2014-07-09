@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,12 +17,13 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.util.IterableIterator;
+import org.apache.flink.util.Visitor;
+
 import eu.stratosphere.compiler.dag.BinaryUnionNode;
 import eu.stratosphere.compiler.dataproperties.GlobalProperties;
 import eu.stratosphere.compiler.dataproperties.LocalProperties;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.util.IterableIterator;
-import eu.stratosphere.util.Visitor;
 
 /**
  * A union operation over multiple inputs (2 or more).

@@ -21,16 +21,15 @@ import java.sql.Statement;
 
 import junit.framework.Assert;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.types.DoubleValue;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.Record;
+import org.apache.flink.types.StringValue;
+import org.apache.flink.types.Value;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.DoubleValue;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.types.StringValue;
-import eu.stratosphere.types.Value;
 
 public class JDBCInputFormatTest {
 	JDBCInputFormat jdbcInputFormat;

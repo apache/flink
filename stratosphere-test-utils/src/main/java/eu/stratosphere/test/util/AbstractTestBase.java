@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -31,6 +31,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.LogUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.log4j.Level;
 import org.junit.After;
@@ -41,8 +43,6 @@ import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.util.LogUtils;
 
 public abstract class AbstractTestBase {
 	protected static final int MINIMUM_HEAP_SIZE_MB = 192;

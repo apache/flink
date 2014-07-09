@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -27,11 +27,11 @@ import java.util.Random;
 
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
+import org.apache.flink.util.StringUtils;
 import org.junit.Test;
 
 import eu.stratosphere.api.java.record.io.avro.generated.Colors;
 import eu.stratosphere.api.java.record.io.avro.generated.User;
-import eu.stratosphere.util.StringUtils;
 import static org.junit.Assert.*;
 
 

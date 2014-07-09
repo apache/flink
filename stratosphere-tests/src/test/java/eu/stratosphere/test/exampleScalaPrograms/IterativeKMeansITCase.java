@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,9 +15,9 @@ package eu.stratosphere.test.exampleScalaPrograms;
 
 import java.util.Locale;
 
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.examples.scala.datamining.KMeans;
 
-import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.test.testdata.KMeansData;
 import eu.stratosphere.test.util.RecordAPITestBase;
 

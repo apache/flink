@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,28 +18,29 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import eu.stratosphere.api.common.operators.DualInputOperator;
-import eu.stratosphere.api.common.operators.base.BulkIterationBase;
-import eu.stratosphere.api.common.operators.base.DeltaIterationBase;
-import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.operators.SingleInputOperator;
-import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
-import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
-import eu.stratosphere.api.common.operators.util.FieldList;
-import eu.stratosphere.api.common.typeutils.TypeComparator;
-import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
-import eu.stratosphere.api.common.typeutils.TypePairComparatorFactory;
-import eu.stratosphere.api.common.typeutils.TypeSerializer;
-import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
-import eu.stratosphere.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
-import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.api.java.typeutils.AtomicType;
-import eu.stratosphere.api.java.typeutils.CompositeType;
-import eu.stratosphere.types.TypeInformation;
-import eu.stratosphere.api.java.typeutils.runtime.RuntimeComparatorFactory;
-import eu.stratosphere.api.java.typeutils.runtime.RuntimePairComparatorFactory;
-import eu.stratosphere.api.java.typeutils.runtime.RuntimeStatelessSerializerFactory;
-import eu.stratosphere.api.java.typeutils.runtime.RuntimeStatefulSerializerFactory;
+import org.apache.flink.api.common.operators.DualInputOperator;
+import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.SingleInputOperator;
+import org.apache.flink.api.common.operators.base.BulkIterationBase;
+import org.apache.flink.api.common.operators.base.DeltaIterationBase;
+import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
+import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
+import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
+import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.AtomicType;
+import org.apache.flink.api.java.typeutils.CompositeType;
+import org.apache.flink.api.java.typeutils.runtime.RuntimeComparatorFactory;
+import org.apache.flink.api.java.typeutils.runtime.RuntimePairComparatorFactory;
+import org.apache.flink.api.java.typeutils.runtime.RuntimeStatefulSerializerFactory;
+import org.apache.flink.api.java.typeutils.runtime.RuntimeStatelessSerializerFactory;
+import org.apache.flink.types.TypeInformation;
+
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.CompilerPostPassException;
 import eu.stratosphere.compiler.plan.BulkIterationPlanNode;

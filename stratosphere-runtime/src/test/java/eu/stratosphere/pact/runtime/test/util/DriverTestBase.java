@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,29 +18,29 @@ import java.util.List;
 
 import junit.framework.Assert;
 
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
+import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.types.Record;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.LogUtils;
+import org.apache.flink.util.MutableObjectIterator;
 import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.BeforeClass;
 
-import eu.stratosphere.api.common.functions.Function;
-import eu.stratosphere.api.common.typeutils.TypeComparator;
-import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.services.iomanager.IOManager;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.services.memorymanager.spi.DefaultMemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
-import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import eu.stratosphere.pact.runtime.sort.UnilateralSortMerger;
 import eu.stratosphere.pact.runtime.task.PactDriver;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.pact.runtime.task.ResettablePactDriver;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.util.Collector;
-import eu.stratosphere.util.LogUtils;
-import eu.stratosphere.util.MutableObjectIterator;
 
 public class DriverTestBase<S extends Function> implements PactTaskContext<S, Record> {
 	

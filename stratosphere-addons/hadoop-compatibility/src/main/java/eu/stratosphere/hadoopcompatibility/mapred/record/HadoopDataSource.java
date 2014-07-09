@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -14,12 +14,12 @@
 package eu.stratosphere.hadoopcompatibility.mapred.record;
 
 
+import org.apache.flink.api.java.record.operators.GenericDataSource;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
 
 import com.google.common.base.Preconditions;
 
-import eu.stratosphere.api.java.record.operators.GenericDataSource;
 import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.DefaultHadoopTypeConverter;
 import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.HadoopTypeConverter;
 

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,13 +16,14 @@ package eu.stratosphere.pact.runtime.sort;
 import java.io.IOException;
 import java.util.Iterator;
 
-import eu.stratosphere.api.common.typeutils.TypeComparator;
-import eu.stratosphere.api.common.typeutils.TypePairComparator;
-import eu.stratosphere.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypePairComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.util.MutableObjectIterator;
+
 import eu.stratosphere.pact.runtime.task.util.CoGroupTaskIterator;
 import eu.stratosphere.pact.runtime.util.EmptyIterator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
-import eu.stratosphere.util.MutableObjectIterator;
 
 
 public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1, T2> {

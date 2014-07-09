@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -23,13 +23,15 @@ import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.api.common.functions.GenericCombine;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.MutableObjectIterator;
 
-import eu.stratosphere.api.common.functions.GenericCombine;
-import eu.stratosphere.api.common.typeutils.TypeComparator;
-import eu.stratosphere.api.common.typeutils.TypeSerializer;
-import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelAccess;
 import eu.stratosphere.nephele.services.iomanager.BlockChannelWriter;
 import eu.stratosphere.nephele.services.iomanager.Channel;
@@ -40,8 +42,6 @@ import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.KeyGroupedIterator;
-import eu.stratosphere.util.Collector;
-import eu.stratosphere.util.MutableObjectIterator;
 
 
 /**
@@ -52,7 +52,7 @@ import eu.stratosphere.util.MutableObjectIterator;
  * performed and each time the key changes the consecutive objects are united into a new group. Reducers have a combining feature
  * can reduce the data before it is written to disk. In order to implement a combining Reducer, the 
  * {@link eu.stratosphere.pact.ReduceFunction.stub.ReduceStub#combine(Key, Iterator, Collector)} method must be implemented and the ReduceFunction 
- * must be annotated with the {@link eu.stratosphere.api.java.record.operators.ReduceOperator.Combinable} annotation.
+ * must be annotated with the {@link org.apache.flink.api.java.record.operators.ReduceOperator.Combinable} annotation.
  * For a {@link ReduceFuntion} the combine method can automatically call the reduce function without a combine annotation.
  * Conceptually, a merge sort with combining works as follows:
  * (1) Divide the unsorted list into n sublists of about 1/n the size. (2) Sort each sublist recursively by re-applying

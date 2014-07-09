@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,29 +18,30 @@ import java.io.Serializable;
 import java.util.Collection;
 
 import eu.stratosphere.test.util.RecordAPITestBase;
+
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.java.record.functions.JoinFunction;
+import org.apache.flink.api.java.record.functions.MapFunction;
+import org.apache.flink.api.java.record.io.CsvInputFormat;
+import org.apache.flink.api.java.record.io.CsvOutputFormat;
+import org.apache.flink.api.java.record.operators.DeltaIteration;
+import org.apache.flink.api.java.record.operators.FileDataSink;
+import org.apache.flink.api.java.record.operators.FileDataSource;
+import org.apache.flink.api.java.record.operators.JoinOperator;
+import org.apache.flink.api.java.record.operators.MapOperator;
+import org.apache.flink.api.java.record.operators.ReduceOperator;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.types.LongValue;
+import org.apache.flink.types.Record;
+import org.apache.flink.util.Collector;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.java.record.operators.FileDataSink;
-import eu.stratosphere.api.java.record.operators.FileDataSource;
-import eu.stratosphere.api.java.record.operators.DeltaIteration;
-import eu.stratosphere.api.java.record.functions.JoinFunction;
-import eu.stratosphere.api.java.record.functions.MapFunction;
-import eu.stratosphere.api.java.record.io.CsvInputFormat;
-import eu.stratosphere.api.java.record.io.CsvOutputFormat;
-import eu.stratosphere.api.java.record.operators.JoinOperator;
-import eu.stratosphere.api.java.record.operators.MapOperator;
-import eu.stratosphere.api.java.record.operators.ReduceOperator;
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.DuplicateLongMap;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.MinimumComponentIDReduce;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.test.testdata.ConnectedComponentsData;
-import eu.stratosphere.types.LongValue;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.util.Collector;
 
 @RunWith(Parameterized.class)
 public class ConnectedComponentsWithDeferredUpdateITCase extends RecordAPITestBase {

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,8 +16,10 @@ package eu.stratosphere.compiler.dag;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.common.operators.Ordering;
-import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
+import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
+import org.apache.flink.configuration.Configuration;
+
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler;
@@ -26,7 +28,6 @@ import eu.stratosphere.compiler.operators.AllGroupWithPartialPreGroupProperties;
 import eu.stratosphere.compiler.operators.GroupReduceProperties;
 import eu.stratosphere.compiler.operators.GroupReduceWithCombineProperties;
 import eu.stratosphere.compiler.operators.OperatorDescriptorSingle;
-import eu.stratosphere.configuration.Configuration;
 
 /**
  * The Optimizer representation of a <i>Reduce</i> contract node.

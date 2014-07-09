@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,19 +15,19 @@ package eu.stratosphere.spargel.java.record;
 import java.io.IOException;
 import java.util.Iterator;
 
-import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
-import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.java.record.operators.DeltaIteration;
-import eu.stratosphere.api.java.record.functions.CoGroupFunction;
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.api.java.record.operators.CoGroupOperator;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.Key;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.types.Value;
-import eu.stratosphere.util.Collector;
-import eu.stratosphere.util.InstantiationUtil;
-import eu.stratosphere.util.ReflectionUtil;
+import org.apache.flink.api.common.aggregators.AggregatorRegistry;
+import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.java.record.functions.CoGroupFunction;
+import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst;
+import org.apache.flink.api.java.record.operators.CoGroupOperator;
+import org.apache.flink.api.java.record.operators.DeltaIteration;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.types.Key;
+import org.apache.flink.types.Record;
+import org.apache.flink.types.Value;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.ReflectionUtil;
 
 public class SpargelIteration {
 	

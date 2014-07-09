@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,15 +15,15 @@
 
 package eu.stratosphere.compiler.plan;
 
+import org.apache.flink.api.common.operators.OperatorInformation;
+import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
+import org.apache.flink.api.java.typeutils.BasicTypeInfo;
+import org.apache.flink.core.fs.Path;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.common.operators.OperatorInformation;
-import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
-import eu.stratosphere.api.java.io.TextInputFormat;
-import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
+import org.apache.flink.api.java.io.TextInputFormat;
 import eu.stratosphere.compiler.dag.DataSourceNode;
-import eu.stratosphere.core.fs.Path;
 
 public class ChannelTest {
 	

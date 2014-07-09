@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,15 +19,16 @@ import static eu.stratosphere.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SO
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.api.common.operators.util.FieldList;
-import eu.stratosphere.api.common.typeutils.TypeComparatorFactory;
-import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
+import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.util.Visitor;
+
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.dag.WorksetIterationNode;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.util.Visitor;
 
 /**
  * 

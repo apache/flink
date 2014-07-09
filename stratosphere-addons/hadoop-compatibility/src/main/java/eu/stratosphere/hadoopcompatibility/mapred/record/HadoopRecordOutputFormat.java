@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,19 +17,19 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.types.Record;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.util.ReflectionUtils;
 
-import eu.stratosphere.api.common.io.OutputFormat;
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.HadoopFileOutputCommitter;
 import eu.stratosphere.hadoopcompatibility.mapred.record.datatypes.StratosphereTypeConverter;
 import eu.stratosphere.hadoopcompatibility.mapred.utils.HadoopUtils;
 import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopDummyProgressable;
 import eu.stratosphere.hadoopcompatibility.mapred.wrapper.HadoopDummyReporter;
-import eu.stratosphere.types.Record;
 
 
 public class HadoopRecordOutputFormat<K,V> implements OutputFormat<Record> {

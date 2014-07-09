@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,18 +18,19 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 
-import eu.stratosphere.api.common.JobExecutionResult;
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.Program;
-import eu.stratosphere.api.common.ProgramDescription;
-import eu.stratosphere.api.java.record.operators.GenericDataSink;
-import eu.stratosphere.api.java.record.operators.GenericDataSource;
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.Program;
+import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.api.java.record.operators.GenericDataSink;
+import org.apache.flink.api.java.record.operators.GenericDataSource;
+import org.apache.flink.types.FloatValue;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.StringValue;
+
 import eu.stratosphere.api.java.record.io.jdbc.JDBCInputFormat;
 import eu.stratosphere.api.java.record.io.jdbc.JDBCOutputFormat;
 import eu.stratosphere.client.LocalExecutor;
-import eu.stratosphere.types.FloatValue;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.StringValue;
 
 /**
  * Stand-alone example for the JDBC connector.

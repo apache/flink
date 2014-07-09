@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -25,26 +25,31 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.Union;
+import org.apache.flink.api.common.operators.base.BulkIterationBase;
+import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
+import org.apache.flink.api.common.operators.base.CollectorMapOperatorBase;
+import org.apache.flink.api.common.operators.base.CrossOperatorBase;
+import org.apache.flink.api.common.operators.base.DeltaIterationBase;
+import org.apache.flink.api.common.operators.base.FilterOperatorBase;
+import org.apache.flink.api.common.operators.base.FlatMapOperatorBase;
+import org.apache.flink.api.common.operators.base.GenericDataSinkBase;
+import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
+import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase;
+import org.apache.flink.api.common.operators.base.MapOperatorBase;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
+import org.apache.flink.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
+import org.apache.flink.api.common.operators.base.DeltaIterationBase.SolutionSetPlaceHolder;
+import org.apache.flink.api.common.operators.base.DeltaIterationBase.WorksetPlaceHolder;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Visitor;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.operators.Union;
-import eu.stratosphere.api.common.operators.base.BulkIterationBase;
-import eu.stratosphere.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
-import eu.stratosphere.api.common.operators.base.CoGroupOperatorBase;
-import eu.stratosphere.api.common.operators.base.CollectorMapOperatorBase;
-import eu.stratosphere.api.common.operators.base.CrossOperatorBase;
-import eu.stratosphere.api.common.operators.base.DeltaIterationBase;
-import eu.stratosphere.api.common.operators.base.DeltaIterationBase.SolutionSetPlaceHolder;
-import eu.stratosphere.api.common.operators.base.DeltaIterationBase.WorksetPlaceHolder;
-import eu.stratosphere.api.common.operators.base.FilterOperatorBase;
-import eu.stratosphere.api.common.operators.base.FlatMapOperatorBase;
-import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
-import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
-import eu.stratosphere.api.common.operators.base.GroupReduceOperatorBase;
-import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
-import eu.stratosphere.api.common.operators.base.MapOperatorBase;
-import eu.stratosphere.api.common.operators.base.ReduceOperatorBase;
 import eu.stratosphere.compiler.costs.CostEstimator;
 import eu.stratosphere.compiler.costs.DefaultCostEstimator;
 import eu.stratosphere.compiler.dag.BinaryUnionNode;
@@ -85,13 +90,8 @@ import eu.stratosphere.compiler.plan.SourcePlanNode;
 import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
 import eu.stratosphere.compiler.plan.WorksetPlanNode;
 import eu.stratosphere.compiler.postpass.OptimizerPostPass;
-import eu.stratosphere.configuration.ConfigConstants;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
-import eu.stratosphere.util.InstantiationUtil;
-import eu.stratosphere.util.Visitor;
 
 /**
  * The optimizer that takes the user specified program plan and creates an optimized plan that contains

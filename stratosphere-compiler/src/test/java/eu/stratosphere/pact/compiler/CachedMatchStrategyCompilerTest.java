@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 *
-* Copyright (C) 2013 by the Stratosphere project (http://stratosphere.eu)
+* Copyright (C) 2013 by the Apache Flink project (http://flink.incubator.apache.org)
 *
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 * the License. You may obtain a copy of the License at
@@ -20,19 +20,20 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
-import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.IterativeDataSet;
-import eu.stratosphere.api.java.functions.JoinFunction;
-import eu.stratosphere.api.java.tuple.Tuple3;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.IterativeDataSet;
+import org.apache.flink.api.java.functions.JoinFunction;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.Configuration;
+
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.dag.TempMode;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plantranslate.NepheleJobGraphGenerator;
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 
 /**

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,7 +15,7 @@ package eu.stratosphere.runtime.fs.s3;
 
 import java.io.IOException;
 
-import eu.stratosphere.core.fs.BlockLocation;
+import org.apache.flink.core.fs.BlockLocation;
 
 public final class S3BlockLocation implements BlockLocation {
 

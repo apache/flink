@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,19 +16,19 @@ package eu.stratosphere.compiler.contextcheck;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.google.common.base.Preconditions;
+import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.operators.DualInputOperator;
+import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.SingleInputOperator;
+import org.apache.flink.api.common.operators.base.BulkIterationBase;
+import org.apache.flink.api.common.operators.base.FileDataSinkBase;
+import org.apache.flink.api.common.operators.base.FileDataSourceBase;
+import org.apache.flink.api.common.operators.base.GenericDataSinkBase;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.Visitor;
 
-import eu.stratosphere.api.common.InvalidProgramException;
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.operators.base.BulkIterationBase;
-import eu.stratosphere.api.common.operators.DualInputOperator;
-import eu.stratosphere.api.common.operators.SingleInputOperator;
-import eu.stratosphere.api.common.operators.base.FileDataSinkBase;
-import eu.stratosphere.api.common.operators.base.FileDataSourceBase;
-import eu.stratosphere.api.common.operators.base.GenericDataSinkBase;
-import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.util.Visitor;
+import com.google.common.base.Preconditions;
 
 /**
  * Traverses a plan and checks whether all Contracts are correctly connected to

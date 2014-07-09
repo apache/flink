@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,14 +16,15 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
 
-import eu.stratosphere.api.common.aggregators.Aggregator;
-import eu.stratosphere.api.common.functions.IterationRuntimeContext;
-import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.api.java.tuple.Tuple3;
+import org.apache.flink.api.common.aggregators.Aggregator;
+import org.apache.flink.api.common.functions.IterationRuntimeContext;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.types.Value;
+import org.apache.flink.util.Collector;
+
 import eu.stratosphere.spargel.java.OutgoingEdge;
-import eu.stratosphere.types.Value;
-import eu.stratosphere.util.Collector;
 
 /**
  * The base class for functions that produce messages between vertices as a part of a {@link VertexCentricIteration}.
@@ -160,7 +161,7 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	/**
 	 * Gets the broadcast data set registered under the given name. Broadcast data sets
 	 * are available on all parallel instances of a function. They can be registered via
-	 * {@link VertexCentricIteration#addBroadcastSetForMessagingFunction(String, eu.stratosphere.api.java.DataSet)}.
+	 * {@link VertexCentricIteration#addBroadcastSetForMessagingFunction(String, org.apache.flink.api.java.DataSet)}.
 	 * 
 	 * @param name The name under which the broadcast set is registered.
 	 * @return The broadcast data set.

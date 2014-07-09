@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,9 +13,6 @@
 
 package eu.stratosphere.nephele.execution;
 
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.protocols.AccumulatorProtocol;
@@ -31,6 +28,10 @@ import eu.stratosphere.runtime.io.network.bufferprovider.BufferProvider;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.FutureTask;
+
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.io.IOReadableWritable;
 
 /**
  * The user code of every Nephele task runs inside an <code>Environment</code> object. The environment provides

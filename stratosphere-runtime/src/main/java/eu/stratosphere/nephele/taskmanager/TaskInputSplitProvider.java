@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,14 +16,15 @@ package eu.stratosphere.nephele.taskmanager;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import eu.stratosphere.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.util.StringUtils;
+
 import eu.stratosphere.nephele.executiongraph.ExecutionVertexID;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.jobmanager.splitassigner.InputSplitWrapper;
 import eu.stratosphere.nephele.protocols.InputSplitProviderProtocol;
 import eu.stratosphere.nephele.template.InputSplitProvider;
 import eu.stratosphere.nephele.types.IntegerRecord;
-import eu.stratosphere.util.StringUtils;
 
 /**
  * The task input split provider is a component of the task manager which implements the {@link InputSplitProvider}

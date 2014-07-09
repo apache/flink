@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,9 +17,9 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
 
-import eu.stratosphere.api.common.typeutils.TypeComparator;
-import eu.stratosphere.api.common.typeutils.TypeSerializer;
-import eu.stratosphere.util.MutableObjectIterator;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.util.MutableObjectIterator;
 
 /**
  * An iterator that returns a sorted merge of the sequences of elements from a
@@ -69,7 +69,7 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 	 *               the contents is undefined.
 	 * @return True, if the iterator had another element, false otherwise. 
 	 * 
-	 * @see eu.stratosphere.util.MutableObjectIterator#next(java.lang.Object)
+	 * @see org.apache.flink.util.MutableObjectIterator#next(java.lang.Object)
 	 */
 	@Override
 	public E next(E reuse) throws IOException

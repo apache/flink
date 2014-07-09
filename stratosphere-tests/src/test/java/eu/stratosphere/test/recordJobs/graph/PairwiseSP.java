@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -22,23 +22,23 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.Program;
-import eu.stratosphere.api.common.ProgramDescription;
-import eu.stratosphere.api.java.record.operators.FileDataSink;
-import eu.stratosphere.api.java.record.operators.FileDataSource;
-import eu.stratosphere.api.java.record.functions.CoGroupFunction;
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst;
-import eu.stratosphere.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecond;
-import eu.stratosphere.api.java.record.functions.JoinFunction;
-import eu.stratosphere.api.java.record.io.DelimitedInputFormat;
-import eu.stratosphere.api.java.record.io.FileOutputFormat;
-import eu.stratosphere.api.java.record.operators.CoGroupOperator;
-import eu.stratosphere.api.java.record.operators.JoinOperator;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.types.StringValue;
-import eu.stratosphere.util.Collector;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.Program;
+import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.api.java.record.functions.CoGroupFunction;
+import org.apache.flink.api.java.record.functions.JoinFunction;
+import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst;
+import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecond;
+import org.apache.flink.api.java.record.io.DelimitedInputFormat;
+import org.apache.flink.api.java.record.io.FileOutputFormat;
+import org.apache.flink.api.java.record.operators.CoGroupOperator;
+import org.apache.flink.api.java.record.operators.FileDataSink;
+import org.apache.flink.api.java.record.operators.FileDataSource;
+import org.apache.flink.api.java.record.operators.JoinOperator;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.Record;
+import org.apache.flink.types.StringValue;
+import org.apache.flink.util.Collector;
 
 /**
  * Implementation of the Pairwise Shortest Path example PACT program.

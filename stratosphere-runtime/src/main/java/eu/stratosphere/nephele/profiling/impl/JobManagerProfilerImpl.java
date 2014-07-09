@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -24,8 +24,9 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.util.StringUtils;
 
-import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.executiongraph.ExecutionGraph;
 import eu.stratosphere.nephele.ipc.RPC;
 import eu.stratosphere.nephele.ipc.Server;
@@ -45,7 +46,6 @@ import eu.stratosphere.nephele.profiling.types.InstanceSummaryProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.OutputGateProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.SingleInstanceProfilingEvent;
 import eu.stratosphere.nephele.profiling.types.ThreadProfilingEvent;
-import eu.stratosphere.util.StringUtils;
 
 public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplProtocol {
 

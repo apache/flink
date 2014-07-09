@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -21,19 +21,18 @@ import java.sql.Statement;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
-import eu.stratosphere.api.common.io.NonParallelInput;
-import eu.stratosphere.api.java.record.io.GenericInputFormat;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.BooleanValue;
-import eu.stratosphere.types.DoubleValue;
-import eu.stratosphere.types.FloatValue;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.LongValue;
-import eu.stratosphere.types.NullValue;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.types.ShortValue;
-import eu.stratosphere.types.StringValue;
+import org.apache.flink.api.common.io.NonParallelInput;
+import org.apache.flink.api.java.record.io.GenericInputFormat;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.types.BooleanValue;
+import org.apache.flink.types.DoubleValue;
+import org.apache.flink.types.FloatValue;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.LongValue;
+import org.apache.flink.types.NullValue;
+import org.apache.flink.types.Record;
+import org.apache.flink.types.ShortValue;
+import org.apache.flink.types.StringValue;
 
 /**
  * InputFormat to read data from a database and generate PactReords.

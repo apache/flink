@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -20,20 +20,20 @@ import java.util.Map;
 
 import org.apache.commons.lang3.Validate;
 
-import eu.stratosphere.api.common.aggregators.Aggregator;
-import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.DeltaIteration;
-import eu.stratosphere.api.java.functions.CoGroupFunction;
-import eu.stratosphere.api.java.operators.CoGroupOperator;
-import eu.stratosphere.api.java.operators.CustomUnaryOperation;
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.api.java.typeutils.ResultTypeQueryable;
-import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
-import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.types.TypeInformation;
-import eu.stratosphere.util.Collector;
+import org.apache.flink.api.common.aggregators.Aggregator;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.DeltaIteration;
+import org.apache.flink.api.java.functions.CoGroupFunction;
+import org.apache.flink.api.java.operators.CoGroupOperator;
+import org.apache.flink.api.java.operators.CustomUnaryOperation;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.types.TypeInformation;
+import org.apache.flink.util.Collector;
 
 /**
  * This class represents iterative graph computations, programmed in a vertex-centric perspective.
@@ -239,7 +239,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * @param inputData The input data set, which in the case of this operator represents the set of
 	 *                  vertices with their initial state.
 	 * 
-	 * @see eu.stratosphere.api.java.operators.CustomUnaryOperation#setInput(eu.stratosphere.api.java.DataSet)
+	 * @see org.apache.flink.api.java.operators.CustomUnaryOperation#setInput(org.apache.flink.api.java.DataSet)
 	 */
 	@Override
 	public void setInput(DataSet<Tuple2<VertexKey, VertexValue>> inputData) {

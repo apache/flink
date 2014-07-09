@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2014 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,7 +13,8 @@
 
 package eu.stratosphere.test.hadoopcompatibility.mapred.record;
 
-import eu.stratosphere.api.common.Plan;
+import org.apache.flink.api.common.Plan;
+
 import eu.stratosphere.hadoopcompatibility.mapred.record.example.WordCountWithOutputFormat;
 import eu.stratosphere.test.testdata.WordCountData;
 import eu.stratosphere.test.util.RecordAPITestBase;

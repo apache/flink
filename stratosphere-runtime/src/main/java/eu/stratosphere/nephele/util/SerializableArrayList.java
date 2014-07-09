@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,15 +17,15 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.core.io.StringRecord;
-import eu.stratosphere.core.memory.DataInputView;
-import eu.stratosphere.core.memory.DataOutputView;
-import eu.stratosphere.util.StringUtils;
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.io.StringRecord;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.StringUtils;
 
 /**
  * This class extends a standard {@link java.util.ArrayList} by implementing the
- * {@link eu.stratosphere.core.io.IOReadableWritable} interface. As a result, array lists of this type can be used
+ * {@link org.apache.flink.core.io.IOReadableWritable} interface. As a result, array lists of this type can be used
  * with Nephele's RPC system.
  * <p>
  * This class is not thread-safe.

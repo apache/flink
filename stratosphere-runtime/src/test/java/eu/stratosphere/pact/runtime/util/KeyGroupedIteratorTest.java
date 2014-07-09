@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,16 +18,15 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
+import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializer;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.Record;
+import org.apache.flink.types.StringValue;
+import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
-import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
-import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializer;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.types.StringValue;
-import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * Test for the key grouped iterator, which advances in windows containing the same key and provides a sub-iterator

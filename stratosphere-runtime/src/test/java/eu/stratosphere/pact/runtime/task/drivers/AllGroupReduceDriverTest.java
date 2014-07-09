@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,23 +19,23 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.GenericGroupReduce;
+import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.StringValue;
+import org.apache.flink.types.TypeInformation;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.common.functions.GenericGroupReduce;
-import eu.stratosphere.api.java.functions.GroupReduceFunction;
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.pact.runtime.task.AllGroupReduceDriver;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.test.util.DiscardingOutputCollector;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.RegularToMutableObjectIterator;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.StringValue;
-import eu.stratosphere.types.TypeInformation;
-import eu.stratosphere.util.Collector;
-import eu.stratosphere.util.MutableObjectIterator;
 
 @SuppressWarnings("serial")
 public class AllGroupReduceDriverTest {

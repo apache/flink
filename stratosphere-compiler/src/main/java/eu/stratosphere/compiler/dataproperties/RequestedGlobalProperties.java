@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,9 +13,10 @@
 
 package eu.stratosphere.compiler.dataproperties;
 
-import eu.stratosphere.api.common.distributions.DataDistribution;
-import eu.stratosphere.api.common.operators.Ordering;
-import eu.stratosphere.api.common.operators.util.FieldSet;
+import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.util.FieldSet;
+
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.plan.Channel;
@@ -215,7 +216,6 @@ public final class RequestedGlobalProperties implements Cloneable {
 	 * 
 	 * @param channel The channel to parameterize.
 	 * @param globalDopChange
-	 * @param localDopChange
 	 */
 	public void parameterizeChannel(Channel channel, boolean globalDopChange) {
 		// if we request nothing, then we need no special strategy. forward, if the number of instances remains

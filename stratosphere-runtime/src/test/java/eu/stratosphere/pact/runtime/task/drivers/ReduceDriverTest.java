@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,22 +17,22 @@ package eu.stratosphere.pact.runtime.task.drivers;
 
 import java.util.List;
 
+import org.apache.flink.api.common.functions.GenericReduce;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.StringValue;
+import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.common.functions.GenericReduce;
-import eu.stratosphere.api.common.typeutils.TypeComparator;
-import eu.stratosphere.api.java.functions.ReduceFunction;
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
-import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.ReduceDriver;
 import eu.stratosphere.pact.runtime.util.EmptyMutableObjectIterator;
 import eu.stratosphere.pact.runtime.util.RegularToMutableObjectIterator;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.StringValue;
-import eu.stratosphere.util.MutableObjectIterator;
 
 @SuppressWarnings("serial")
 public class ReduceDriverTest {

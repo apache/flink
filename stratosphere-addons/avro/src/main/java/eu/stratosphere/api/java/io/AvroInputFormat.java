@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -25,15 +25,15 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.api.common.io.FileInputFormat;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.types.TypeInformation;
+import org.apache.flink.util.InstantiationUtil;
 
-import eu.stratosphere.core.fs.FileInputSplit;
-import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.api.avro.FSDataInputStreamWrapper;
-import eu.stratosphere.api.common.io.FileInputFormat;
-import eu.stratosphere.api.java.typeutils.ResultTypeQueryable;
-import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.types.TypeInformation;
-import eu.stratosphere.util.InstantiationUtil;
 
 
 public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultTypeQueryable<E> {

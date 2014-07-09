@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,22 +18,23 @@ package eu.stratosphere.pact.compiler;
 import static org.junit.Assert.*;
 import static eu.stratosphere.compiler.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport.*;
 
+import org.apache.flink.api.common.functions.GenericJoiner;
+import org.apache.flink.api.common.functions.GenericMap;
+import org.apache.flink.api.common.operators.BinaryOperatorInformation;
+import org.apache.flink.api.common.operators.OperatorInformation;
+import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.UnaryOperatorInformation;
+import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase;
+import org.apache.flink.api.common.operators.base.MapOperatorBase;
+import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.api.common.operators.util.FieldSet;
+import org.apache.flink.api.java.typeutils.BasicTypeInfo;
+import org.apache.flink.core.fs.Path;
 import org.junit.Test;
 
-import eu.stratosphere.api.common.functions.GenericJoiner;
-import eu.stratosphere.api.common.functions.GenericMap;
-import eu.stratosphere.api.common.operators.BinaryOperatorInformation;
-import eu.stratosphere.api.common.operators.OperatorInformation;
-import eu.stratosphere.api.common.operators.Order;
-import eu.stratosphere.api.common.operators.Ordering;
-import eu.stratosphere.api.common.operators.UnaryOperatorInformation;
-import eu.stratosphere.api.common.operators.base.GenericDataSourceBase;
-import eu.stratosphere.api.common.operators.base.JoinOperatorBase;
-import eu.stratosphere.api.common.operators.base.MapOperatorBase;
-import eu.stratosphere.api.common.operators.util.FieldList;
-import eu.stratosphere.api.common.operators.util.FieldSet;
-import eu.stratosphere.api.java.io.TextInputFormat;
-import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
+import org.apache.flink.api.java.io.TextInputFormat;
 import eu.stratosphere.compiler.dag.DataSourceNode;
 import eu.stratosphere.compiler.dag.MapNode;
 import eu.stratosphere.compiler.dag.MatchNode;
@@ -46,7 +47,6 @@ import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plan.SourcePlanNode;
 import eu.stratosphere.compiler.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport;
-import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.pact.compiler.testfunctions.DummyJoinFunction;
 import eu.stratosphere.pact.compiler.testfunctions.IdentityMapper;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,7 +16,7 @@ package eu.stratosphere.compiler;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.api.common.io.statistics.BaseStatistics;
 
 /**
  * The collection of access methods that can be used to retrieve statistical information about the

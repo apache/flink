@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -14,20 +14,22 @@ package eu.stratosphere.test.compiler.examples;
 
 import java.util.Arrays;
 
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.distributions.SimpleDistribution;
+import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.api.java.record.io.CsvOutputFormat;
+import org.apache.flink.api.java.record.io.TextInputFormat;
+import org.apache.flink.api.java.record.operators.FileDataSink;
+import org.apache.flink.api.java.record.operators.FileDataSource;
+import org.apache.flink.api.java.record.operators.MapOperator;
+import org.apache.flink.api.java.record.operators.ReduceOperator;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.StringValue;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.distributions.SimpleDistribution;
-import eu.stratosphere.api.java.record.operators.FileDataSink;
-import eu.stratosphere.api.java.record.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.Order;
-import eu.stratosphere.api.common.operators.Ordering;
-import eu.stratosphere.api.common.operators.util.FieldList;
-import eu.stratosphere.api.java.record.io.CsvOutputFormat;
-import eu.stratosphere.api.java.record.io.TextInputFormat;
-import eu.stratosphere.api.java.record.operators.MapOperator;
-import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.compiler.plan.Channel;
 import eu.stratosphere.compiler.plan.OptimizedPlan;
 import eu.stratosphere.compiler.plan.SingleInputPlanNode;
@@ -39,8 +41,6 @@ import eu.stratosphere.test.compiler.util.CompilerTestBase;
 import eu.stratosphere.test.recordJobs.wordcount.WordCount;
 import eu.stratosphere.test.recordJobs.wordcount.WordCount.CountWords;
 import eu.stratosphere.test.recordJobs.wordcount.WordCount.TokenizeLine;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.StringValue;
 
 /**
  *

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,19 +18,19 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.api.common.functions.GenericReduce;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.MutableObjectIterator;
 
-import eu.stratosphere.api.common.functions.GenericReduce;
-import eu.stratosphere.api.common.typeutils.TypeComparator;
-import eu.stratosphere.api.common.typeutils.TypeSerializer;
-import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
-import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.nephele.services.memorymanager.MemoryManager;
 import eu.stratosphere.pact.runtime.sort.FixedLengthRecordSorter;
 import eu.stratosphere.pact.runtime.sort.InMemorySorter;
 import eu.stratosphere.pact.runtime.sort.NormalizedKeySorter;
 import eu.stratosphere.pact.runtime.sort.QuickSort;
-import eu.stratosphere.util.Collector;
-import eu.stratosphere.util.MutableObjectIterator;
 
 /**
  * Combine operator for Reduce functions, standalone (not chained).

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -14,11 +14,12 @@ package eu.stratosphere.test.iterative.nephele.customdanglingpagerank;
 
 import java.util.Iterator;
 
-import eu.stratosphere.api.common.functions.AbstractFunction;
-import eu.stratosphere.api.common.functions.GenericCombine;
-import eu.stratosphere.api.common.functions.GenericGroupReduce;
+import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.GenericCombine;
+import org.apache.flink.api.common.functions.GenericGroupReduce;
+import org.apache.flink.util.Collector;
+
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.types.VertexWithRank;
-import eu.stratosphere.util.Collector;
 
 
 public class CustomRankCombiner extends AbstractFunction implements GenericGroupReduce<VertexWithRank, VertexWithRank>,

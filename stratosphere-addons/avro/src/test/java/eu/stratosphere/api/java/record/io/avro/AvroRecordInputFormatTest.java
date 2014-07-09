@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -23,6 +23,10 @@ import junit.framework.Assert;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.types.Record;
+import org.apache.flink.types.StringValue;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -32,10 +36,6 @@ import eu.stratosphere.api.java.record.io.avro.AvroRecordInputFormat.LongMapValu
 import eu.stratosphere.api.java.record.io.avro.AvroRecordInputFormat.StringListValue;
 import eu.stratosphere.api.java.record.io.avro.generated.Colors;
 import eu.stratosphere.api.java.record.io.avro.generated.User;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.fs.FileInputSplit;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.types.StringValue;
 
 
 /**

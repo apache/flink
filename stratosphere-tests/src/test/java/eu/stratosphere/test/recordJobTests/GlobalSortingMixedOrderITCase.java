@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,20 +18,21 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.Program;
-import eu.stratosphere.api.common.distributions.DataDistribution;
-import eu.stratosphere.api.java.record.operators.FileDataSink;
-import eu.stratosphere.api.java.record.operators.FileDataSource;
-import eu.stratosphere.api.common.operators.Order;
-import eu.stratosphere.api.common.operators.Ordering;
-import eu.stratosphere.api.java.record.io.CsvInputFormat;
-import eu.stratosphere.api.java.record.io.CsvOutputFormat;
-import eu.stratosphere.core.memory.DataInputView;
-import eu.stratosphere.core.memory.DataOutputView;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.Program;
+import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.java.record.io.CsvInputFormat;
+import org.apache.flink.api.java.record.io.CsvOutputFormat;
+import org.apache.flink.api.java.record.operators.FileDataSink;
+import org.apache.flink.api.java.record.operators.FileDataSource;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.Key;
+
 import eu.stratosphere.test.util.RecordAPITestBase;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.Key;
 
 public class GlobalSortingMixedOrderITCase extends RecordAPITestBase {
 	

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,10 +17,11 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import eu.stratosphere.api.common.operators.Order;
-import eu.stratosphere.api.common.operators.Ordering;
-import eu.stratosphere.api.common.operators.util.FieldList;
-import eu.stratosphere.api.common.operators.util.FieldSet;
+import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.api.common.operators.util.FieldSet;
+
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.dag.OptimizerNode;
 import eu.stratosphere.compiler.plan.Channel;
@@ -34,8 +35,8 @@ import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
  * Currently, the properties are the following: A partitioning type (ANY, HASH, RANGE), and EITHER an ordering (for range partitioning)
  * or an FieldSet with the hash partitioning columns.
  */
-public class GlobalProperties implements Cloneable
-{
+public class GlobalProperties implements Cloneable {
+	
 	private PartitioningProperty partitioning;	// the type partitioning
 	
 	private FieldList partitioningFields;		// the fields which are partitioned
@@ -58,7 +59,6 @@ public class GlobalProperties implements Cloneable
 	/**
 	 * Sets the partitioning property for the global properties.
 	 * 
-	 * @param partitioning The new partitioning to set.
 	 * @param partitionedFields 
 	 */
 	public void setHashPartitioned(FieldList partitionedFields) {
@@ -193,9 +193,9 @@ public class GlobalProperties implements Cloneable
 	/**
 	 * Filters these properties by what can be preserved through the given output contract.
 	 * 
-	 * @param contract
-	 *        The output contract.
-	 * @return True, if any non-default value is preserved, false otherwise.
+	 * @param node The optimizer node.
+	 * @param input The input of the node to filter against.
+	 * @return The adjusted global properties.
 	 */
 	public GlobalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
 		// check if partitioning survives

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,10 +15,11 @@ package eu.stratosphere.test.iterative.nephele.customdanglingpagerank;
 
 import com.google.common.base.Charsets;
 
-import eu.stratosphere.api.common.io.FileOutputFormat;
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.types.VertexWithRankAndDangling;
 
 import java.io.IOException;
+
+import org.apache.flink.api.common.io.FileOutputFormat;
 
 public class CustomPageWithRankOutFormat extends FileOutputFormat<VertexWithRankAndDangling> {
 	private static final long serialVersionUID = 1L;

@@ -1,7 +1,7 @@
 package eu.stratosphere.api.avro.testjar;
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -35,15 +35,16 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 
+import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOuputFormat;
+import org.apache.flink.core.fs.Path;
+
 import eu.stratosphere.api.avro.AvroBaseValue;
-import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.functions.MapFunction;
-import eu.stratosphere.api.java.functions.ReduceFunction;
 import eu.stratosphere.api.java.io.AvroInputFormat;
-import eu.stratosphere.api.java.io.DiscardingOuputFormat;
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.core.fs.Path;
 
 public class AvroExternalJarProgram  {
 

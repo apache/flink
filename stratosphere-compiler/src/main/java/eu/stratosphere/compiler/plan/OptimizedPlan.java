@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -15,9 +15,9 @@ package eu.stratosphere.compiler.plan;
 
 import java.util.Collection;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.util.Visitable;
-import eu.stratosphere.util.Visitor;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.util.Visitable;
+import org.apache.flink.util.Visitor;
 
 /**
  * The optimizer representation of a plan. The optimizer creates this from the user defined PACT job plan.
@@ -151,7 +151,7 @@ public class OptimizedPlan implements Visitable<PlanNode> {
 	 * 
 	 * @param visitor
 	 *        The visitor to apply to the nodes in this plan.
-	 * @see eu.stratosphere.util.Visitable#accept(eu.stratosphere.util.Visitor)
+	 * @see org.apache.flink.util.Visitable#accept(org.apache.flink.util.Visitor)
 	 */
 	@Override
 	public void accept(Visitor<PlanNode> visitor) {

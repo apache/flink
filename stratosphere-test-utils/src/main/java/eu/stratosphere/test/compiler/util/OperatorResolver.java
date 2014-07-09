@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -22,12 +22,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.functions.Function;
-import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.java.record.operators.BulkIteration;
-import eu.stratosphere.api.java.record.operators.DeltaIteration;
-import eu.stratosphere.util.Visitor;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.java.record.operators.BulkIteration;
+import org.apache.flink.api.java.record.operators.DeltaIteration;
+import org.apache.flink.util.Visitor;
 
 /**
  * Utility to get operator instances from plans via name.

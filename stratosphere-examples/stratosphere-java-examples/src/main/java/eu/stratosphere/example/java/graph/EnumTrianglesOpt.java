@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,20 +18,21 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.api.common.operators.Order;
-import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.functions.FlatMapFunction;
-import eu.stratosphere.api.java.functions.GroupReduceFunction;
-import eu.stratosphere.api.java.functions.JoinFunction;
-import eu.stratosphere.api.java.functions.MapFunction;
-import eu.stratosphere.api.java.functions.ReduceFunction;
-import eu.stratosphere.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.java.functions.FlatMapFunction;
+import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.JoinFunction;
+import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.Collector;
+
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import eu.stratosphere.example.java.graph.util.EnumTrianglesData;
 import eu.stratosphere.example.java.graph.util.EnumTrianglesDataTypes.Edge;
 import eu.stratosphere.example.java.graph.util.EnumTrianglesDataTypes.EdgeWithDegrees;
 import eu.stratosphere.example.java.graph.util.EnumTrianglesDataTypes.Triad;
-import eu.stratosphere.util.Collector;
 
 /**
  * Triangle enumeration is a preprocessing step to find closely connected parts in graphs.

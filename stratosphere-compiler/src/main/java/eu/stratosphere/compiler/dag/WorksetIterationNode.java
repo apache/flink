@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,8 +19,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import eu.stratosphere.api.common.operators.base.DeltaIterationBase;
-import eu.stratosphere.api.common.operators.util.FieldList;
+import org.apache.flink.api.common.operators.base.DeltaIterationBase;
+import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.types.Nothing;
+import org.apache.flink.types.NothingTypeInfo;
+import org.apache.flink.util.Visitor;
+
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.PactCompiler.InterestingPropertyVisitor;
@@ -46,9 +50,6 @@ import eu.stratosphere.compiler.util.NoOpBinaryUdfOp;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
-import eu.stratosphere.types.Nothing;
-import eu.stratosphere.types.NothingTypeInfo;
-import eu.stratosphere.util.Visitor;
 
 /**
  * A node in the optimizer's program representation for a workset iteration.

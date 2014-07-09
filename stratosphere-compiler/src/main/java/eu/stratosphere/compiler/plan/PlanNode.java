@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,8 +19,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import eu.stratosphere.api.common.operators.Operator;
-import eu.stratosphere.api.common.operators.util.FieldSet;
+import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.util.FieldSet;
+import org.apache.flink.util.Visitable;
+
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.costs.Costs;
 import eu.stratosphere.compiler.dag.OptimizerNode;
@@ -32,7 +34,6 @@ import eu.stratosphere.compiler.plandump.DumpableNode;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
-import eu.stratosphere.util.Visitable;
 
 /**
  * The representation of a data exchange between to operators. The data exchange can realize a shipping strategy, 
@@ -189,7 +190,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	/**
 	 * Sets the driver strategy for this node. Usually should not be changed.
 	 * 
-	 * @return The driver strategy.
+	 * @param newDriverStrategy The driver strategy.
 	 */
 	public void setDriverStrategy(DriverStrategy newDriverStrategy) {
 		this.driverStrategy = newDriverStrategy;

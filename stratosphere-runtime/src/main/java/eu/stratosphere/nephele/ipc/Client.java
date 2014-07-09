@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,17 +19,19 @@
 
 package eu.stratosphere.nephele.ipc;
 
-import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.core.io.StringRecord;
-import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
 import eu.stratosphere.nephele.net.NetUtils;
 import eu.stratosphere.nephele.util.IOUtils;
 import eu.stratosphere.runtime.io.serialization.DataOutputSerializer;
-import eu.stratosphere.util.ClassUtils;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.io.StringRecord;
+import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
+import org.apache.flink.util.ClassUtils;
 
 import javax.net.SocketFactory;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,8 +13,9 @@
 
 package eu.stratosphere.pact.runtime.shipping;
 
-import eu.stratosphere.api.common.distributions.DataDistribution;
-import eu.stratosphere.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+
 import eu.stratosphere.runtime.io.api.ChannelSelector;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 

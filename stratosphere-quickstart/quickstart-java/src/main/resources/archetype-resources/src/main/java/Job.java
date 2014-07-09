@@ -1,6 +1,6 @@
 package ${package};
 
-import eu.stratosphere.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironment;
 
 /**
  * Skeleton for a Stratosphere Job.

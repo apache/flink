@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -22,14 +22,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import eu.stratosphere.api.common.aggregators.AggregatorRegistry;
-import eu.stratosphere.api.common.aggregators.AggregatorWithName;
-import eu.stratosphere.api.common.aggregators.ConvergenceCriterion;
-import eu.stratosphere.api.common.aggregators.LongSumAggregator;
-import eu.stratosphere.api.common.cache.DistributedCache;
-import eu.stratosphere.api.common.cache.DistributedCache.DistributedCacheEntry;
-import eu.stratosphere.api.common.distributions.DataDistribution;
-import eu.stratosphere.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.api.common.aggregators.AggregatorRegistry;
+import org.apache.flink.api.common.aggregators.AggregatorWithName;
+import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
+import org.apache.flink.api.common.aggregators.LongSumAggregator;
+import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
+import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.util.Visitor;
+
 import eu.stratosphere.compiler.CompilerException;
 import eu.stratosphere.compiler.dag.TempMode;
 import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
@@ -47,9 +52,6 @@ import eu.stratosphere.compiler.plan.SolutionSetPlanNode;
 import eu.stratosphere.compiler.plan.SourcePlanNode;
 import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
 import eu.stratosphere.compiler.plan.WorksetPlanNode;
-import eu.stratosphere.configuration.ConfigConstants;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.jobgraph.DistributionPattern;
 import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.AbstractJobOutputVertex;
@@ -80,7 +82,6 @@ import eu.stratosphere.pact.runtime.task.RegularPactTask;
 import eu.stratosphere.pact.runtime.task.chaining.ChainedDriver;
 import eu.stratosphere.pact.runtime.task.util.LocalStrategy;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.util.Visitor;
 
 /**
  * This component translates the optimizer's resulting plan a nephele job graph. The
@@ -220,7 +221,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	 * @param node
 	 *        The node that is currently processed.
 	 * @return True, if the visitor should descend to the node's children, false if not.
-	 * @see eu.stratosphere.util.Visitor#preVisit(eu.stratosphere.util.Visitable)
+	 * @see org.apache.flink.util.Visitor#preVisit(org.apache.flink.util.Visitable)
 	 */
 	@Override
 	public boolean preVisit(PlanNode node) {
@@ -379,7 +380,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	 * 
 	 * @param node
 	 *        The node currently processed during the post-visit.
-	 * @see eu.stratosphere.util.Visitor#postVisit(eu.stratosphere.util.Visitable) t
+	 * @see org.apache.flink.util.Visitor#postVisit(org.apache.flink.util.Visitable) t
 	 */
 	@Override
 	public void postVisit(PlanNode node) {

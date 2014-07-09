@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,12 +16,13 @@ import java.io.File;
 import java.io.FileWriter;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
+
+import org.apache.flink.util.LogUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.client.RemoteExecutor;
 import eu.stratosphere.test.testdata.KMeansData;
-import eu.stratosphere.util.LogUtils;
 
 // When the API changes KMeansForTest needs to be rebuilt and the KMeansForTest.jar in resources needs
 // to be replaced with the new one.

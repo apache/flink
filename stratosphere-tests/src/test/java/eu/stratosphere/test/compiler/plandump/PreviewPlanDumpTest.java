@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -14,13 +14,14 @@ package eu.stratosphere.test.compiler.plandump;
 
 import java.util.List;
 
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.util.OperatingSystem;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.JsonParser;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.common.Plan;
 import eu.stratosphere.compiler.PactCompiler;
 import eu.stratosphere.compiler.dag.DataSinkNode;
 import eu.stratosphere.compiler.plandump.PlanJSONDumpGenerator;
@@ -30,7 +31,6 @@ import eu.stratosphere.test.recordJobs.kmeans.KMeansSingleStep;
 import eu.stratosphere.test.recordJobs.relational.TPCHQuery3;
 import eu.stratosphere.test.recordJobs.relational.WebLogAnalysis;
 import eu.stratosphere.test.recordJobs.wordcount.WordCount;
-import eu.stratosphere.util.OperatingSystem;
 
 /*
  * The tests in this class simply invokes the JSON dump code for the original plan.

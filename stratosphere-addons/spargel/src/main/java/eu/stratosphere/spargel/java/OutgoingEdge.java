@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,7 +16,7 @@ package eu.stratosphere.spargel.java;
  * <tt>Edge</tt> objects represent edges between vertices. Edges are defined by their source and target
  * vertex id. Edges may have an associated value (for example a weight or a distance), if the
  * graph algorithm was initialized with the
- * {@link VertexCentricIteration#withValuedEdges(eu.stratosphere.api.java.DataSet, VertexUpdateFunction, MessagingFunction, int)}
+ * {@link VertexCentricIteration#withValuedEdges(org.apache.flink.api.java.DataSet, VertexUpdateFunction, MessagingFunction, int)}
  * method.
  *
  * @param <VertexKey> The type of the vertex key.

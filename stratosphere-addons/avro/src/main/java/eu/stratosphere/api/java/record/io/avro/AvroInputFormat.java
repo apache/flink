@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -25,14 +25,14 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.api.java.record.io.FileInputFormat;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.types.Record;
+import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.ReflectionUtil;
 
 import eu.stratosphere.api.avro.AvroBaseValue;
 import eu.stratosphere.api.avro.FSDataInputStreamWrapper;
-import eu.stratosphere.api.java.record.io.FileInputFormat;
-import eu.stratosphere.core.fs.FileInputSplit;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.util.InstantiationUtil;
-import eu.stratosphere.util.ReflectionUtil;
 
 
 public class AvroInputFormat<E> extends FileInputFormat {

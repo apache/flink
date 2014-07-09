@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -14,7 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.nephele.util;
 
-import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.runtime.io.Buffer;
 import eu.stratosphere.runtime.io.BufferRecycler;
 import eu.stratosphere.runtime.io.network.bufferprovider.BufferAvailabilityListener;
@@ -22,6 +21,8 @@ import eu.stratosphere.runtime.io.network.bufferprovider.BufferProvider;
 
 import java.io.IOException;
 import java.util.Random;
+
+import org.apache.flink.core.memory.MemorySegment;
 
 public class TestBufferProvider implements BufferProvider {
 	

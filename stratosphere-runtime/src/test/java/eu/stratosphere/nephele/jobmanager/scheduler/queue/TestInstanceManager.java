@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,12 +19,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import eu.stratosphere.configuration.Configuration;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.StringUtils;
+
 import eu.stratosphere.nephele.instance.*;
 import eu.stratosphere.nephele.jobgraph.JobID;
 import eu.stratosphere.nephele.topology.NetworkNode;
 import eu.stratosphere.nephele.topology.NetworkTopology;
-import eu.stratosphere.util.StringUtils;
 
 /**
  * A dummy implementation of an {@link eu.stratosphere.nephele.instance.InstanceManager} used for the {@link QueueScheduler} unit tests.

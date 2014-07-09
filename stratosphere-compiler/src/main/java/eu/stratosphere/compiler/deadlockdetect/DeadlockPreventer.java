@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,6 +16,8 @@ package eu.stratosphere.compiler.deadlockdetect;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.util.Visitor;
+
 import eu.stratosphere.compiler.plan.BulkIterationPlanNode;
 import eu.stratosphere.compiler.plan.DualInputPlanNode;
 import eu.stratosphere.compiler.plan.PlanNode;
@@ -23,7 +25,6 @@ import eu.stratosphere.compiler.plan.SingleInputPlanNode;
 import eu.stratosphere.compiler.plan.WorksetIterationPlanNode;
 import eu.stratosphere.pact.runtime.task.DamBehavior;
 import eu.stratosphere.pact.runtime.task.DriverStrategy;
-import eu.stratosphere.util.Visitor;
 
 /**
  * 	Certain pipelined flows may lead to deadlocks, in which case we need to make sure the pipelines are broken or made elastic enough to prevent that.
@@ -124,9 +125,6 @@ public class DeadlockPreventer implements Visitor<PlanNode> {
 	
 	/**
 	 * Creates new DeadlockGraph from plan and checks for cycles
-	 * 
-	 * @param plan
-	 * @return
 	 */
 	public boolean hasDeadlock(List<? extends PlanNode> sinks) {
 		this.g = new DeadlockGraph();
@@ -142,11 +140,6 @@ public class DeadlockPreventer implements Visitor<PlanNode> {
 		}
 	}
 
-	/**
-	 * 
-	 * @param visitable
-	 * @return
-	 */
 	@Override
 	public boolean preVisit(PlanNode visitable) {
 		

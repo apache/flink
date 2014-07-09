@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,12 +18,12 @@ import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import eu.stratosphere.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegment;
 
 
 /**
  * A writer that writes data in blocks to a file channel. The writer receives the data blocks in the form of 
- * {@link eu.stratosphere.core.memory.MemorySegment}, which it writes entirely to the channel,
+ * {@link org.apache.flink.core.memory.MemorySegment}, which it writes entirely to the channel,
  * regardless of how space in the segment is used. The writing happens in an asynchronous fashion. That is, a write
  * request is not processed by the thread that issues it, but by an asynchronous writer thread. Once the request
  * is done, the asynchronous writer adds the MemorySegment to a <i>return queue</i> where it can be popped by the

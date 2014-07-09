@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -19,32 +19,32 @@ import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 
-import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
-import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
 import junit.framework.Assert;
 import junit.framework.TestCase;
 
 import org.apache.commons.lang.NotImplementedException;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.typeutils.runtime.record.RecordComparatorFactory;
+import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.types.DeserializationException;
+import org.apache.flink.types.DoubleValue;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.KeyFieldOutOfBoundsException;
+import org.apache.flink.types.NullKeyFieldException;
+import org.apache.flink.types.Record;
+import org.apache.flink.types.StringValue;
 import org.junit.Test;
 
-import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.runtime.io.api.ChannelSelector;
-import eu.stratosphere.api.common.typeutils.base.IntSerializer;
-import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparatorFactory;
-import eu.stratosphere.api.java.typeutils.runtime.record.RecordSerializerFactory;
-import eu.stratosphere.core.memory.DataInputView;
-import eu.stratosphere.core.memory.DataOutputView;
-import eu.stratosphere.core.memory.MemorySegment;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.pact.runtime.shipping.OutputEmitter;
 import eu.stratosphere.pact.runtime.shipping.ShipStrategyType;
-import eu.stratosphere.types.DeserializationException;
-import eu.stratosphere.types.DoubleValue;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.KeyFieldOutOfBoundsException;
-import eu.stratosphere.types.NullKeyFieldException;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.types.StringValue;
 
 public class OutputEmitterTest extends TestCase {
 	

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,16 +13,17 @@
 
 package eu.stratosphere.test.recordJobs.relational;
 
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.Program;
+import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.api.java.record.operators.FileDataSink;
+import org.apache.flink.api.java.record.operators.FileDataSource;
+import org.apache.flink.api.java.record.operators.JoinOperator;
+import org.apache.flink.api.java.record.operators.MapOperator;
+import org.apache.flink.api.java.record.operators.ReduceOperator;
+import org.apache.flink.types.IntValue;
 import org.apache.log4j.Logger;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.Program;
-import eu.stratosphere.api.common.ProgramDescription;
-import eu.stratosphere.api.java.record.operators.FileDataSink;
-import eu.stratosphere.api.java.record.operators.FileDataSource;
-import eu.stratosphere.api.java.record.operators.JoinOperator;
-import eu.stratosphere.api.java.record.operators.MapOperator;
-import eu.stratosphere.api.java.record.operators.ReduceOperator;
 import eu.stratosphere.test.recordJobs.relational.query9Util.AmountAggregate;
 import eu.stratosphere.test.recordJobs.relational.query9Util.FilteredPartsJoin;
 import eu.stratosphere.test.recordJobs.relational.query9Util.IntPair;
@@ -38,7 +39,6 @@ import eu.stratosphere.test.recordJobs.relational.query9Util.StringIntPairString
 import eu.stratosphere.test.recordJobs.relational.query9Util.SupplierMap;
 import eu.stratosphere.test.recordJobs.relational.query9Util.SuppliersJoin;
 import eu.stratosphere.test.recordJobs.util.IntTupleDataInFormat;
-import eu.stratosphere.types.IntValue;
 
 /**
  * Quote from the TPC-H homepage:

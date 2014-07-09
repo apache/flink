@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -16,7 +16,8 @@ package eu.stratosphere.compiler.dag;
 import java.util.Collections;
 import java.util.List;
 
-import eu.stratosphere.api.common.operators.SingleInputOperator;
+import org.apache.flink.api.common.operators.SingleInputOperator;
+
 import eu.stratosphere.compiler.DataStatistics;
 import eu.stratosphere.compiler.operators.CollectorMapDescriptor;
 import eu.stratosphere.compiler.operators.OperatorDescriptorSingle;

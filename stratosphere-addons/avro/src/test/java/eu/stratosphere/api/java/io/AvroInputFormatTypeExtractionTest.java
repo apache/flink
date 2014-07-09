@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  *
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -18,13 +18,13 @@ package eu.stratosphere.api.java.io;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.api.common.io.InputFormat;
-import eu.stratosphere.api.java.DataSet;
-import eu.stratosphere.api.java.ExecutionEnvironment;
-import eu.stratosphere.api.java.typeutils.PojoTypeInfo;
-import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.types.TypeInformation;
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.types.TypeInformation;
 
 public class AvroInputFormatTypeExtractionTest {
 

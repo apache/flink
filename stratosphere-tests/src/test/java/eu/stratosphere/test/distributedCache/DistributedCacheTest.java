@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -13,20 +13,8 @@
 
 package eu.stratosphere.test.distributedCache;
 
-import eu.stratosphere.api.common.Plan;
-import eu.stratosphere.api.common.cache.DistributedCache.DistributedCacheEntry;
-import eu.stratosphere.api.java.record.operators.FileDataSink;
-import eu.stratosphere.api.java.record.operators.FileDataSource;
-import eu.stratosphere.api.java.record.functions.MapFunction;
-import eu.stratosphere.api.java.record.io.CsvOutputFormat;
-import eu.stratosphere.api.java.record.io.TextInputFormat;
-import eu.stratosphere.api.java.record.operators.MapOperator;
 import eu.stratosphere.test.testdata.WordCountData;
 import eu.stratosphere.test.util.RecordAPITestBase;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.types.StringValue;
-import eu.stratosphere.util.Collector;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -35,6 +23,19 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.HashSet;
 import java.util.Set;
+
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
+import org.apache.flink.api.java.record.functions.MapFunction;
+import org.apache.flink.api.java.record.io.CsvOutputFormat;
+import org.apache.flink.api.java.record.io.TextInputFormat;
+import org.apache.flink.api.java.record.operators.FileDataSink;
+import org.apache.flink.api.java.record.operators.FileDataSource;
+import org.apache.flink.api.java.record.operators.MapOperator;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.Record;
+import org.apache.flink.types.StringValue;
+import org.apache.flink.util.Collector;
 
 
 /**
@@ -69,7 +70,7 @@ public class DistributedCacheTest extends RecordAPITestBase {
 
 		private Set<String> stringList = new HashSet<String>();
 		@Override
-		public void open(eu.stratosphere.configuration.Configuration conf) {
+		public void open(org.apache.flink.configuration.Configuration conf) {
 
 			File file = getRuntimeContext().getDistributedCache().getFile("cache_test");
 			BufferedReader reader = null;

@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -22,15 +22,14 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import eu.stratosphere.core.memory.InputViewDataInputStreamWrapper;
-import eu.stratosphere.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.api.common.aggregators.Aggregator;
+import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.types.LongValue;
+import org.apache.flink.types.StringValue;
+import org.apache.flink.types.Value;
 import org.junit.Assert;
 import org.junit.Test;
-
-import eu.stratosphere.api.common.aggregators.Aggregator;
-import eu.stratosphere.types.LongValue;
-import eu.stratosphere.types.StringValue;
-import eu.stratosphere.types.Value;
 
 
 public class EventWithAggregatorsTest {

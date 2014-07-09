@@ -17,7 +17,7 @@ package eu.stratosphere.test.recordJobs.util;
 import java.util.HashSet;
 import java.util.Set;
 
-import eu.stratosphere.configuration.Configuration;
+import org.apache.flink.configuration.Configuration;
 
 public class ConfigUtils {
 

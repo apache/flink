@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+ * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -17,18 +17,18 @@ import java.util.Iterator;
 
 import junit.framework.Assert;
 
+import org.apache.flink.api.common.functions.GenericCoGrouper;
+import org.apache.flink.api.java.record.functions.CoGroupFunction;
+import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
+import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.Key;
+import org.apache.flink.types.Record;
+import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-import eu.stratosphere.api.common.functions.GenericCoGrouper;
-import eu.stratosphere.api.java.record.functions.CoGroupFunction;
-import eu.stratosphere.api.java.typeutils.runtime.record.RecordComparator;
-import eu.stratosphere.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
 import eu.stratosphere.pact.runtime.test.util.DriverTestBase;
 import eu.stratosphere.pact.runtime.test.util.UniformRecordGenerator;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.Key;
-import eu.stratosphere.types.Record;
-import eu.stratosphere.util.Collector;
 
 public class CoGroupTaskExternalITCase extends DriverTestBase<GenericCoGrouper<Record, Record, Record>>
 {
