@@ -40,7 +40,7 @@ import eu.stratosphere.core.memory.MemorySegment;
  * @see java.lang.Object#equals(Object)
  * @see java.util.Comparator#compare(Object, Object)
  * 
- * @param T The data type that the comparator works on.
+ * @param <T> The data type that the comparator works on.
  */
 public abstract class TypeComparator<T> implements Serializable {
 	
@@ -192,7 +192,7 @@ public abstract class TypeComparator<T> implements Serializable {
 
 	/**
 	 * Gets the number of bytes that the normalized key would maximally take. A value of
-	 * {@link java.lang.Integer.MAX_VALUE} is interpreted as infinite.
+	 * {@link java.lang.Integer}.MAX_VALUE is interpreted as infinite.
 	 * 
 	 * @return The number of bytes that the normalized key would maximally take.
 	 */

@@ -108,6 +108,7 @@ public class InputViewObjectInputStreamWrapper implements DataInputView {
 		return in.readDouble();
 	}
 
+	@SuppressWarnings("deprecation")
 	@Override
 	public String readLine() throws IOException {
 		return in.readLine();

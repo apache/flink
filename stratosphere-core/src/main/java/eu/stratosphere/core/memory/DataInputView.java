@@ -30,7 +30,6 @@ public interface DataInputView extends DataInput {
 	 * 
 	 * @param numBytes The number of bytes to skip.
 	 * 
-	 * @throws EOFException Thrown, when less then {@code numBytes} remain in the input.
 	 * @throws IOException Thrown, if any I/O related problem occurred such that the input could not
 	 *                     be advanced to the desired position.
 	 */

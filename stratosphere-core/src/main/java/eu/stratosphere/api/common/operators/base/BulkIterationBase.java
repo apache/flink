@@ -145,7 +145,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractFunc
 	}
 	
 	/**
-	 * @throws Exception
+	 * @throws InvalidProgramException
 	 */
 	public void validate() throws InvalidProgramException {
 		if (this.input == null) {

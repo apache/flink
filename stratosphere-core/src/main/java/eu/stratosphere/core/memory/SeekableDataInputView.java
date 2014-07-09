@@ -23,9 +23,6 @@ public interface SeekableDataInputView extends DataInputView {
 	 * Sets the read pointer to the given position.
 	 * 
 	 * @param position The new read position.
-	 * 
-	 * @throws IOException Thrown, if any I/O related problem occurred such that the input could not
-	 *                     be sought to the desired position.
 	 */
 	public void setReadPosition(long position);
 }

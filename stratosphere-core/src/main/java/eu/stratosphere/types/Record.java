@@ -344,7 +344,7 @@ public final class Record implements Value, CopyableValue<Record> {
 	 * @param positions The positions of the fields to get.
 	 * @param targets The values into which the content of the fields is put.
 	 * 
-	 * @throws A NullKeyFieldException in case of a failing field read. 
+	 * @throws NullKeyFieldException in case of a failing field read.
 	 */
 	public void getFieldsIntoCheckingNull(int[] positions, Value[] targets) {
 		for (int i = 0; i < positions.length; i++) {

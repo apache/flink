@@ -32,11 +32,11 @@ public interface NormalizableKey<T> extends Key<T> {
 	
 	/**
 	 * Gets the maximal length of normalized keys that the data type would produce to determine
-	 * the order of instances solely by the normalized key. A value of {@link java.lang.Integer.MAX_VALUE}
+	 * the order of instances solely by the normalized key. A value of {@link java.lang.Integer}.MAX_VALUE
 	 * is interpreted as infinite. 
 	 * <p>
 	 * For example, 32 bit integers return four, while Strings (potentially unlimited in length) return
-	 * {@link java.lang.Integer.MAX_VALUE}.
+	 * {@link java.lang.Integer}.MAX_VALUE.
 	 * 
 	 * @return The maximal length of normalized keys.
 	 */
