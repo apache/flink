@@ -29,14 +29,14 @@ import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.JoinOperator;
 import org.apache.flink.api.java.record.operators.MapOperator;
+import org.apache.flink.test.testdata.ConnectedComponentsData;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.DuplicateLongMap;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.NeighborWithComponentIDJoin;
-import eu.stratosphere.test.testdata.ConnectedComponentsData;
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 
 public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {

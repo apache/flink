@@ -19,8 +19,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import eu.stratosphere.test.util.RecordAPITestBase;
-
 import org.apache.avro.reflect.Nullable;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.io.OutputFormat;
@@ -30,6 +28,7 @@ import org.apache.flink.api.java.record.operators.CoGroupOperator;
 import org.apache.flink.api.java.record.operators.GenericDataSink;
 import org.apache.flink.api.java.record.operators.GenericDataSource;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;

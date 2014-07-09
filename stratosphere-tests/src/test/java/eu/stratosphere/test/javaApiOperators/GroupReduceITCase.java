@@ -29,6 +29,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -38,7 +39,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 
 import eu.stratosphere.test.javaApiOperators.util.CollectionDataSets;
 import eu.stratosphere.test.javaApiOperators.util.CollectionDataSets.CustomType;
-import eu.stratosphere.test.util.JavaProgramTestBase;
 
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)

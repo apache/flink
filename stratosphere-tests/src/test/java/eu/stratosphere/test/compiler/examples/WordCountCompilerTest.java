@@ -32,12 +32,12 @@ import org.apache.flink.compiler.plan.SinkPlanNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
+import org.apache.flink.test.compiler.util.CompilerTestBase;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.test.compiler.util.CompilerTestBase;
 import eu.stratosphere.test.recordJobs.wordcount.WordCount;
 import eu.stratosphere.test.recordJobs.wordcount.WordCount.CountWords;
 import eu.stratosphere.test.recordJobs.wordcount.WordCount.TokenizeLine;

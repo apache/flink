@@ -16,10 +16,10 @@ package eu.stratosphere.test.iterative;
 import java.io.BufferedReader;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.test.testdata.ConnectedComponentsData;
+import org.apache.flink.test.util.RecordAPITestBase;
 
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents;
-import eu.stratosphere.test.testdata.ConnectedComponentsData;
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 
 public class ConnectedComponentsITCase extends RecordAPITestBase {

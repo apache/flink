@@ -15,9 +15,10 @@
 package eu.stratosphere.test.exampleJavaPrograms;
 
 
-import eu.stratosphere.example.java.relational.WebLogAnalysis;
+import org.apache.flink.example.java.relational.WebLogAnalysis;
+import org.apache.flink.test.util.JavaProgramTestBase;
+
 import eu.stratosphere.test.testdata.WebLogAnalysisData;
-import eu.stratosphere.test.util.JavaProgramTestBase;
 
 public class WebLogAnalysisITCase extends JavaProgramTestBase {
 

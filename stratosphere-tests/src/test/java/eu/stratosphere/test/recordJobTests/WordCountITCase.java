@@ -14,10 +14,10 @@
 package eu.stratosphere.test.recordJobTests;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.RecordAPITestBase;
 
 import eu.stratosphere.test.recordJobs.wordcount.WordCount;
-import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 public class WordCountITCase extends RecordAPITestBase {
 

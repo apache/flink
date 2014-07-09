@@ -20,8 +20,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import eu.stratosphere.test.util.RecordAPITestBase;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.Plan;
@@ -33,6 +31,7 @@ import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;

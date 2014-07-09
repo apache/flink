@@ -15,9 +15,9 @@ package eu.stratosphere.test.exampleJavaPrograms;
 
 import java.io.BufferedReader;
 
-import eu.stratosphere.example.java.graph.ConnectedComponents;
-import eu.stratosphere.test.testdata.ConnectedComponentsData;
-import eu.stratosphere.test.util.JavaProgramTestBase;
+import org.apache.flink.example.java.graph.ConnectedComponents;
+import org.apache.flink.test.testdata.ConnectedComponentsData;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
 public class ConnectedComponentsITCase extends JavaProgramTestBase {
 	

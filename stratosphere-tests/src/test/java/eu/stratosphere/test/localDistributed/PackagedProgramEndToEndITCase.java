@@ -17,11 +17,10 @@ import java.io.FileWriter;
 
 import org.apache.flink.client.RemoteExecutor;
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
+import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.util.LogUtils;
 import org.junit.Assert;
 import org.junit.Test;
-
-import eu.stratosphere.test.testdata.KMeansData;
 
 // When the API changes KMeansForTest needs to be rebuilt and the KMeansForTest.jar in resources needs
 // to be replaced with the new one.

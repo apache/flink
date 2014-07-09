@@ -14,9 +14,9 @@
 package eu.stratosphere.test.recordJobTests;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.test.util.RecordAPITestBase;
 
 import eu.stratosphere.test.recordJobs.relational.WebLogAnalysis;
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 public class WebLogAnalysisITCase extends RecordAPITestBase {
 

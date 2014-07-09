@@ -421,7 +421,7 @@ class TupleGenerator {
 				sb.append(" The type of CSV field ").append(pos).append(" and the type of field ");
 				sb.append(pos).append(" in the returned tuple type.\n");
 			}
-			sb.append("\t * @return The {@link eu.org.apache.flink.api.java.DataSet} representing the parsed CSV data.\n");
+			sb.append("\t * @return The {@link org.apache.flink.api.java.DataSet} representing the parsed CSV data.\n");
 			sb.append("\t */\n");
 
 			// method signature

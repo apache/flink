@@ -17,8 +17,6 @@ import java.io.BufferedReader;
 import java.io.Serializable;
 import java.util.Collection;
 
-import eu.stratosphere.test.util.RecordAPITestBase;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.JoinFunction;
 import org.apache.flink.api.java.record.functions.MapFunction;
@@ -31,6 +29,8 @@ import org.apache.flink.api.java.record.operators.JoinOperator;
 import org.apache.flink.api.java.record.operators.MapOperator;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.testdata.ConnectedComponentsData;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
@@ -41,7 +41,6 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.DuplicateLongMap;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.MinimumComponentIDReduce;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.NeighborWithComponentIDJoin;
-import eu.stratosphere.test.testdata.ConnectedComponentsData;
 
 @RunWith(Parameterized.class)
 public class ConnectedComponentsWithDeferredUpdateITCase extends RecordAPITestBase {

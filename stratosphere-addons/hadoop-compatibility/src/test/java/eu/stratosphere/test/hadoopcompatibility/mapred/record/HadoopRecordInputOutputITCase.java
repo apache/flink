@@ -14,10 +14,10 @@
 package eu.stratosphere.test.hadoopcompatibility.mapred.record;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.RecordAPITestBase;
 
 import eu.stratosphere.hadoopcompatibility.mapred.record.example.WordCountWithOutputFormat;
-import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 /**
  * test the hadoop inputformat and outputformat for stratosphere

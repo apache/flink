@@ -27,20 +27,19 @@ import org.apache.flink.compiler.plan.BulkPartialSolutionPlanNode;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.SinkPlanNode;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.example.java.graph.PageRankBasic.BuildOutgoingEdgeList;
+import org.apache.flink.example.java.graph.PageRankBasic.Dampener;
+import org.apache.flink.example.java.graph.PageRankBasic.EpsilonFilter;
+import org.apache.flink.example.java.graph.PageRankBasic.JoinVertexWithEdgesMatch;
+import org.apache.flink.example.java.graph.PageRankBasic.RankAssigner;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
+import org.apache.flink.test.compiler.util.CompilerTestBase;
 import org.junit.Assert;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.IterativeDataSet;
-
-import eu.stratosphere.example.java.graph.PageRankBasic.BuildOutgoingEdgeList;
-import eu.stratosphere.example.java.graph.PageRankBasic.Dampener;
-import eu.stratosphere.example.java.graph.PageRankBasic.EpsilonFilter;
-import eu.stratosphere.example.java.graph.PageRankBasic.JoinVertexWithEdgesMatch;
-import eu.stratosphere.example.java.graph.PageRankBasic.RankAssigner;
-import eu.stratosphere.test.compiler.util.CompilerTestBase;
 
 public class PageRankCompilerTest extends CompilerTestBase{
 	

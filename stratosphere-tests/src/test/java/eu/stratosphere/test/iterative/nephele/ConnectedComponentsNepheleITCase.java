@@ -16,8 +16,6 @@ package eu.stratosphere.test.iterative.nephele;
 import java.io.BufferedReader;
 import java.util.Collection;
 
-import eu.stratosphere.test.util.RecordAPITestBase;
-
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -51,6 +49,8 @@ import org.apache.flink.runtime.operators.chaining.ChainedCollectorMapDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.test.testdata.ConnectedComponentsData;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
@@ -61,7 +61,6 @@ import org.junit.runners.Parameterized.Parameters;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.MinimumComponentIDReduce;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.NeighborWithComponentIDJoin;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.UpdateComponentIdMatch;
-import eu.stratosphere.test.testdata.ConnectedComponentsData;
 
 /**
  * Tests the various variants of iteration state updates for workset iterations:

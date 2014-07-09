@@ -17,8 +17,6 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
 
-import eu.stratosphere.test.util.RecordAPITestBase;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.java.record.functions.ReduceFunction;
@@ -29,6 +27,7 @@ import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;

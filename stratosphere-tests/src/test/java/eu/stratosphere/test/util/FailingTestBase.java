@@ -19,6 +19,8 @@ import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.util.LogUtils;
 import org.apache.log4j.Level;
 

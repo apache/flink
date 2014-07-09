@@ -20,8 +20,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import eu.stratosphere.test.util.RecordAPITestBase;
-
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -45,6 +43,7 @@ import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.util.SerializableHashSet;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;

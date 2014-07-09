@@ -19,12 +19,12 @@ import java.util.List;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.junit.Assert;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
+import org.apache.flink.test.util.JavaProgramTestBase;
+
 import eu.stratosphere.test.compiler.iterations.MultipleJoinsWithSolutionSetCompilerTest;
-import eu.stratosphere.test.util.JavaProgramTestBase;
 
 
 public class MultipleSolutionSetJoinsITCase extends JavaProgramTestBase {

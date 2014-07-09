@@ -38,13 +38,13 @@ import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
+import org.apache.flink.test.compiler.util.CompilerTestBase;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.test.compiler.util.CompilerTestBase;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.DuplicateLongMap;
 import eu.stratosphere.test.recordJobs.graph.WorksetConnectedComponents.MinimumComponentIDReduce;

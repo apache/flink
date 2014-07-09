@@ -29,10 +29,9 @@ import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Key;
-
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 public class GlobalSortingMixedOrderITCase extends RecordAPITestBase {
 	

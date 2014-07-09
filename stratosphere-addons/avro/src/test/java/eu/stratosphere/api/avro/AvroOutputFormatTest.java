@@ -22,17 +22,16 @@ import java.util.List;
 
 import eu.stratosphere.api.java.io.AvroOutputFormat;
 import eu.stratosphere.api.java.record.io.avro.example.User;
-import eu.stratosphere.test.util.JavaProgramTestBase;
 
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
 @SuppressWarnings("serial")
 public class AvroOutputFormatTest extends JavaProgramTestBase {

@@ -17,14 +17,14 @@ import org.apache.flink.client.program.Client.ProgramAbortException;
 import org.apache.flink.client.program.PackagedProgram.PreviewPlanEnvironment;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.example.java.clustering.KMeans;
+import org.apache.flink.test.compiler.util.CompilerTestBase;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.JsonParser;
 import org.junit.Assert;
 import org.junit.Test;
 
-import eu.stratosphere.example.java.clustering.KMeans;
-import eu.stratosphere.test.compiler.util.CompilerTestBase;
 import eu.stratosphere.test.recordJobs.graph.DeltaPageRankWithInitialDeltas;
 import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast;
 import eu.stratosphere.test.recordJobs.kmeans.KMeansSingleStep;

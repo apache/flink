@@ -14,12 +14,12 @@
 package eu.stratosphere.test.exampleJavaPrograms;
 
 
-import eu.stratosphere.example.java.graph.TransitiveClosureNaive;
-import eu.stratosphere.test.testdata.ConnectedComponentsData;
-import eu.stratosphere.test.testdata.TransitiveClosureData;
-import eu.stratosphere.test.util.JavaProgramTestBase;
-
 import java.io.BufferedReader;
+
+import org.apache.flink.example.java.graph.TransitiveClosureNaive;
+import org.apache.flink.test.testdata.ConnectedComponentsData;
+import org.apache.flink.test.testdata.TransitiveClosureData;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
 public class TransitiveClosureITCase extends JavaProgramTestBase {
 

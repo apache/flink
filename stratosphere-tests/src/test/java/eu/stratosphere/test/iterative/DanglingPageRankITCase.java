@@ -17,13 +17,13 @@ import java.util.Collection;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import eu.stratosphere.test.iterative.nephele.DanglingPageRankNepheleITCase;
 import eu.stratosphere.test.recordJobs.graph.DanglingPageRank;
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 @RunWith(Parameterized.class)
 public class DanglingPageRankITCase extends RecordAPITestBase {

@@ -14,9 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.exampleJavaPrograms;
 
-import eu.stratosphere.example.java.graph.EnumTrianglesOpt;
-import eu.stratosphere.test.testdata.EnumTriangleData;
-import eu.stratosphere.test.util.JavaProgramTestBase;
+import org.apache.flink.example.java.graph.EnumTrianglesOpt;
+import org.apache.flink.test.testdata.EnumTriangleData;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
 public class EnumTriangleOptITCase extends JavaProgramTestBase {
 	

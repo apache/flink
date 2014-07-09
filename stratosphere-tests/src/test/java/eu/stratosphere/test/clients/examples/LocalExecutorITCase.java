@@ -16,12 +16,12 @@ import java.io.File;
 import java.io.FileWriter;
 
 import org.apache.flink.client.LocalExecutor;
+import org.apache.flink.test.testdata.WordCountData;
 import org.apache.log4j.Level;
 import org.junit.Assert;
 import org.junit.Test;
 
 import eu.stratosphere.test.recordJobs.wordcount.WordCount;
-import eu.stratosphere.test.testdata.WordCountData;
 
 
 public class LocalExecutorITCase {

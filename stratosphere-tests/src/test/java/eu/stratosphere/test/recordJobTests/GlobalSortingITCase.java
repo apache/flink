@@ -26,9 +26,8 @@ import org.apache.flink.api.java.record.io.CsvInputFormat;
 import org.apache.flink.api.java.record.io.CsvOutputFormat;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;
-
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 public class GlobalSortingITCase extends RecordAPITestBase {
 	

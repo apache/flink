@@ -15,11 +15,10 @@ package eu.stratosphere.test.iterative;
 
 import java.util.Collection;
 
-import eu.stratosphere.test.util.RecordAPITestBase;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.examples.scala.graph.LineRank;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;

@@ -17,9 +17,8 @@ import java.util.Locale;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.examples.scala.datamining.KMeans;
-
-import eu.stratosphere.test.testdata.KMeansData;
-import eu.stratosphere.test.util.RecordAPITestBase;
+import org.apache.flink.test.testdata.KMeansData;
+import org.apache.flink.test.util.RecordAPITestBase;
 
 public class IterativeKMeansITCase extends RecordAPITestBase {
 

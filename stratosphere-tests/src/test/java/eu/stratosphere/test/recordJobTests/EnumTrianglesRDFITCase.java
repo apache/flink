@@ -14,10 +14,10 @@
 package eu.stratosphere.test.recordJobTests;
 
 import eu.stratosphere.test.recordJobs.graph.EnumTrianglesRdfFoaf;
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;

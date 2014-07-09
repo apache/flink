@@ -31,10 +31,9 @@ import org.apache.flink.runtime.jobgraph.JobInputVertex;
 import org.apache.flink.runtime.jobgraph.JobOutputVertex;
 import org.apache.flink.runtime.jobgraph.JobTaskVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.util.LogUtils;
 import org.junit.After;
-
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 public class NetworkStackThroughput {
 

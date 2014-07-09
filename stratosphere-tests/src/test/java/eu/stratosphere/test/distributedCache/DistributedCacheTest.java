@@ -13,9 +13,6 @@
 
 package eu.stratosphere.test.distributedCache;
 
-import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.RecordAPITestBase;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -32,6 +29,8 @@ import org.apache.flink.api.java.record.io.TextInputFormat;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.MapOperator;
+import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;

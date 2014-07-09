@@ -18,10 +18,10 @@ import java.io.FileInputStream;
 import java.net.URI;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.junit.Assert;
 
 import eu.stratosphere.test.recordJobs.sort.TeraSort;
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 
 public class TeraSortITCase extends RecordAPITestBase {

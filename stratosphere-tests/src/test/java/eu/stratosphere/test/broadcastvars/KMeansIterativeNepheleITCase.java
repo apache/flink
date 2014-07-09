@@ -40,6 +40,8 @@ import org.apache.flink.runtime.operators.chaining.ChainedCollectorMapDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.test.testdata.KMeansData;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.LogUtils;
@@ -50,8 +52,6 @@ import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast.PointBuilder;
 import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast.RecomputeClusterCenter;
 import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast.SelectNearestCenter;
 import eu.stratosphere.test.recordJobs.kmeans.KMeansBroadcast.PointOutFormat;
-import eu.stratosphere.test.testdata.KMeansData;
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 
 public class KMeansIterativeNepheleITCase extends RecordAPITestBase {

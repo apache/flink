@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.test.compiler.util.CompilerTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
@@ -33,8 +34,6 @@ import org.apache.flink.compiler.plan.DualInputPlanNode;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.SolutionSetPlanNode;
 import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
-
-import eu.stratosphere.test.compiler.util.CompilerTestBase;
 
 @SuppressWarnings("serial")
 public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {

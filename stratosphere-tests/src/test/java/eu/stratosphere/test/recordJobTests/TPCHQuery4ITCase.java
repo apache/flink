@@ -14,9 +14,9 @@
 package eu.stratosphere.test.recordJobTests;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.test.util.RecordAPITestBase;
 
 import eu.stratosphere.test.recordJobs.relational.TPCHQuery4;
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 public class TPCHQuery4ITCase extends RecordAPITestBase {
 	

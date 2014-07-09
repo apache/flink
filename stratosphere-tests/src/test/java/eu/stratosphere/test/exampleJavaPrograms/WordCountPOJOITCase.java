@@ -14,9 +14,9 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.exampleJavaPrograms;
 
-import eu.stratosphere.example.java.wordcount.WordCountPOJO;
-import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.JavaProgramTestBase;
+import org.apache.flink.example.java.wordcount.WordCountPOJO;
+import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
 
 public class WordCountPOJOITCase extends JavaProgramTestBase {

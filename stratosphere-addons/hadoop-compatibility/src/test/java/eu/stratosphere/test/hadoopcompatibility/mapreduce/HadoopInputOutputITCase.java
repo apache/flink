@@ -12,9 +12,10 @@
  **********************************************************************************************************************/
 package eu.stratosphere.test.hadoopcompatibility.mapreduce;
 
+import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.JavaProgramTestBase;
+
 import eu.stratosphere.hadoopcompatibility.mapreduce.example.WordCount;
-import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.JavaProgramTestBase;
 
 public class HadoopInputOutputITCase extends JavaProgramTestBase {
 	

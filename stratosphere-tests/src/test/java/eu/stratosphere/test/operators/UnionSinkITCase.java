@@ -16,8 +16,6 @@ package eu.stratosphere.test.operators;
 import java.io.Serializable;
 import java.util.Collection;
 
-import eu.stratosphere.test.util.RecordAPITestBase;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.MapFunction;
 import org.apache.flink.api.java.record.operators.FileDataSink;
@@ -29,6 +27,7 @@ import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;

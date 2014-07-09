@@ -40,6 +40,7 @@ import org.apache.flink.runtime.operators.chaining.ChainedCollectorMapDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
@@ -49,7 +50,6 @@ import org.junit.runners.Parameterized;
 import eu.stratosphere.test.recordJobs.kmeans.udfs.CoordVector;
 import eu.stratosphere.test.recordJobs.kmeans.udfs.PointInFormat;
 import eu.stratosphere.test.recordJobs.kmeans.udfs.PointOutFormat;
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 /**
  * Tests chained iteration tails.

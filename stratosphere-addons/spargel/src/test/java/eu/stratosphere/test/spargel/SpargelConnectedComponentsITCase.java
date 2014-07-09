@@ -17,15 +17,15 @@ import java.io.BufferedReader;
 
 import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.test.testdata.ConnectedComponentsData;
+import org.apache.flink.test.util.JavaProgramTestBase;
+
 import eu.stratosphere.spargel.java.VertexCentricIteration;
 import eu.stratosphere.spargel.java.examples.SpargelConnectedComponents.CCMessager;
 import eu.stratosphere.spargel.java.examples.SpargelConnectedComponents.CCUpdater;
 import eu.stratosphere.spargel.java.examples.SpargelConnectedComponents.IdAssigner;
-import eu.stratosphere.test.testdata.ConnectedComponentsData;
-import eu.stratosphere.test.util.JavaProgramTestBase;
 
 @SuppressWarnings("serial")
 public class SpargelConnectedComponentsITCase extends JavaProgramTestBase {

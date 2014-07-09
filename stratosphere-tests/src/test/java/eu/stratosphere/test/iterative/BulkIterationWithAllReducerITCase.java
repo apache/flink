@@ -20,14 +20,15 @@ import java.util.List;
 
 import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 
 import junit.framework.Assert;
+
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.IterativeDataSet;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
-import eu.stratosphere.test.util.JavaProgramTestBase;
 
 
 @SuppressWarnings("serial")

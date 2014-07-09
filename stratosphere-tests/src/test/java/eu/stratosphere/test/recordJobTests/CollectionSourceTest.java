@@ -24,13 +24,12 @@ import org.apache.flink.api.java.record.io.CsvOutputFormat;
 import org.apache.flink.api.java.record.operators.CollectionDataSource;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.JoinOperator;
+import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
-
-import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 /**
  * test the collection and iterator data input using join operator

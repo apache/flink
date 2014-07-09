@@ -23,9 +23,8 @@
 	</dependencies>
 	
 	
-		<build>
+	<build>
 		<plugins>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
@@ -45,7 +44,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.clustering.KMeans</program-class>
+									<program-class>org.apache.flink.example.java.clustering.KMeans</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -58,29 +57,29 @@
 						</configuration>
 					</execution>
 
-                    <!-- Transitive Closure -->
-                    <execution>
-                        <id>TransitiveClosure</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                        <configuration>
-                            <classifier>TransitiveClosure</classifier>
-
-                            <archive>
-                                <manifestEntries>
-                                    <program-class>eu.stratosphere.example.java.graph.TransitiveClosureNaive</program-class>
-                                </manifestEntries>
-                            </archive>
-
-                            <includes>
-                                <include>**/java/graph/TransitiveClosureNaive.class</include>
-                                <include>**/java/graph/TransitiveClosureNaive$*.class</include>
-                                <include>**/java/graph/util/ConnectedComponentsData.class</include>
-                            </includes>
-                        </configuration>
-                    </execution>
+					<!-- Transitive Closure -->
+					<execution>
+						<id>TransitiveClosure</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>TransitiveClosure</classifier>
+				
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.example.java.graph.TransitiveClosureNaive</program-class>
+								</manifestEntries>
+							</archive>
+				
+							<includes>
+								<include>**/java/graph/TransitiveClosureNaive.class</include>
+								<include>**/java/graph/TransitiveClosureNaive$*.class</include>
+								<include>**/java/graph/util/ConnectedComponentsData.class</include>
+							</includes>
+						</configuration>
+					</execution>
 
 					<!-- Connected Components -->
 					<execution>
@@ -94,7 +93,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.graph.ConnectedComponents</program-class>
+									<program-class>org.apache.flink.example.java.graph.ConnectedComponents</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -118,7 +117,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.graph.EnumTrianglesBasic</program-class>
+									<program-class>org.apache.flink.example.java.graph.EnumTrianglesBasic</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -144,7 +143,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.graph.EnumTrianglesOpt</program-class>
+									<program-class>org.apache.flink.example.java.graph.EnumTrianglesOpt</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -170,7 +169,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.graph.PageRankBasic</program-class>
+									<program-class>org.apache.flink.example.java.graph.PageRankBasic</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -194,7 +193,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.relational.TPCHQuery10</program-class>
+									<program-class>org.apache.flink.example.java.relational.TPCHQuery10</program-class>
 								</manifestEntries>
 							</archive>
 							<includes>
@@ -216,7 +215,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.relational.TPCHQuery3</program-class>
+									<program-class>org.apache.flink.example.java.relational.TPCHQuery3</program-class>
 								</manifestEntries>
 							</archive>
 							<includes>
@@ -238,7 +237,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.relational.WebLogAnalysis</program-class>
+									<program-class>org.apache.flink.example.java.relational.WebLogAnalysis</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -263,7 +262,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.wordcount.WordCount</program-class>
+									<program-class>org.apache.flink.example.java.wordcount.WordCount</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -287,7 +286,7 @@
 
 							<archive>
 								<manifestEntries>
-									<program-class>eu.stratosphere.example.java.wordcount.WordCountPOJO</program-class>
+									<program-class>org.apache.flink.example.java.wordcount.WordCountPOJO</program-class>
 								</manifestEntries>
 							</archive>
 

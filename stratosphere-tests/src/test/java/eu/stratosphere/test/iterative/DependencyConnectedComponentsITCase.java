@@ -22,12 +22,11 @@ import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.functions.JoinFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import eu.stratosphere.test.util.JavaProgramTestBase;
 
 /**
  * 

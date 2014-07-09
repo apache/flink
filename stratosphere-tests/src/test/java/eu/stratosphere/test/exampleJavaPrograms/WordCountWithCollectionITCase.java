@@ -17,12 +17,11 @@ package eu.stratosphere.test.exampleJavaPrograms;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
-import eu.stratosphere.example.java.wordcount.WordCount;
-import eu.stratosphere.test.testdata.WordCountData;
-import eu.stratosphere.test.util.JavaProgramTestBase;
-
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.example.java.wordcount.WordCount;
+import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.junit.Assert;
 
 import java.util.ArrayList;

@@ -14,9 +14,9 @@
 package eu.stratosphere.test.iterative.nephele;
 
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.test.util.RecordAPITestBase;
 
 import eu.stratosphere.test.iterative.nephele.customdanglingpagerank.CustomCompensatableDanglingPageRank;
-import eu.stratosphere.test.util.RecordAPITestBase;
 
 public class DanglingPageRankNepheleITCase extends RecordAPITestBase {
 	

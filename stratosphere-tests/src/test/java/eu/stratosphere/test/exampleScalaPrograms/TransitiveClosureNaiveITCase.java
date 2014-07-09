@@ -15,8 +15,7 @@ package eu.stratosphere.test.exampleScalaPrograms;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.examples.scala.graph.TransitiveClosureNaive;
-
-import eu.stratosphere.test.util.RecordAPITestBase;
+import org.apache.flink.test.util.RecordAPITestBase;
 
 public class TransitiveClosureNaiveITCase extends RecordAPITestBase {
 
