@@ -96,6 +96,9 @@ public class DefaultCostEstimator extends CostEstimator {
 	@Override
 	public void addBroadcastCost(EstimateProvider estimates, int replicationFactor, Costs costs) {
 		// if our replication factor is negative, we cannot calculate broadcast costs
+		if (replicationFactor <= 0) {
+			throw new IllegalArgumentException("The replication factor of must be larger than zero.");
+		}
 
 		if (replicationFactor > 0) {
 			// assumption: we need ship the whole data over the network to each node.
@@ -126,7 +129,7 @@ public class DefaultCostEstimator extends CostEstimator {
 	}
 	
 	@Override
-	public void addLocalSortCost(EstimateProvider estimates, long availableMemory, Costs costs) {
+	public void addLocalSortCost(EstimateProvider estimates, Costs costs) {
 		final long s = estimates.getEstimatedOutputSize();
 		// we assume a two phase merge sort, so all in all 2 I/O operations per block
 		if (s <= 0) {
@@ -141,25 +144,28 @@ public class DefaultCostEstimator extends CostEstimator {
 	}
 
 	@Override
-	public void addLocalMergeCost(EstimateProvider input1, EstimateProvider input2, long availableMemory, Costs costs, int costWeight) {
+	public void addLocalMergeCost(EstimateProvider input1, EstimateProvider input2, Costs costs, int costWeight) {
 		// costs nothing. the very rarely incurred cost for a spilling block nested loops join in the
-		// presence of massively re-occurring duplicate keys is ignored, because not accessible.
+		// presence of massively re-occurring duplicate keys is ignored, because cannot be assessed
 	}
 
 	@Override
-	public void addHybridHashCosts(EstimateProvider buildSideInput, EstimateProvider probeSideInput, long availableMemory, Costs costs, int costWeight) {
+	public void addHybridHashCosts(EstimateProvider buildSideInput, EstimateProvider probeSideInput, Costs costs, int costWeight) {
 		long bs = buildSideInput.getEstimatedOutputSize();
 		long ps = probeSideInput.getEstimatedOutputSize();
 		
 		if (bs > 0 && ps > 0) {
-			costs.addDiskCost(2*bs + ps);
-			costs.addCpuCost((long) ((2*bs + ps) * HASHING_CPU_FACTOR));
+			long overall = 2*bs + ps;
+			costs.addDiskCost(overall);
+			costs.addCpuCost((long) (overall * HASHING_CPU_FACTOR));
 		} else {
 			costs.setDiskCost(Costs.UNKNOWN);
 			costs.setCpuCost(Costs.UNKNOWN);
 		}
 		costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE);
-		costs.addHeuristicCpuCost((long) (HEURISTIC_COST_BASE * HASHING_CPU_FACTOR));
+		costs.addHeuristicCpuCost((long) (2 * HEURISTIC_COST_BASE * HASHING_CPU_FACTOR));
+		
+		// cost weight applies to everything
 		costs.multiplyWith(costWeight);
 	}
 	
@@ -168,20 +174,26 @@ public class DefaultCostEstimator extends CostEstimator {
 	 * We are assuming by default that half of the cached hash table fit into memory.
 	 */
 	@Override
-	public void addCachedHybridHashCosts(EstimateProvider buildSideInput, EstimateProvider probeSideInput, long availableMemory, Costs costs, int costWeight) {
+	public void addCachedHybridHashCosts(EstimateProvider buildSideInput, EstimateProvider probeSideInput, Costs costs, int costWeight) {
+		if (costWeight < 1) {
+			throw new IllegalArgumentException("The cost weight must be at least one.");
+		}
+		
 		long bs = buildSideInput.getEstimatedOutputSize();
 		long ps = probeSideInput.getEstimatedOutputSize();
 		
 		if (bs > 0 && ps > 0) {
-			long overallSize = 2*bs + ps;
-			costs.addDiskCost(overallSize / 2 + (overallSize / 2) * costWeight);
-			costs.addCpuCost((long) ((2*bs + ps) * HASHING_CPU_FACTOR));
+			long overall = 2*bs + costWeight*ps;
+			costs.addDiskCost(overall);
+			costs.addCpuCost((long) (overall * HASHING_CPU_FACTOR));
 		} else {
 			costs.setDiskCost(Costs.UNKNOWN);
 			costs.setCpuCost(Costs.UNKNOWN);
 		}
-		costs.addHeuristicDiskCost(2 * HEURISTIC_COST_BASE * costWeight);
-		costs.addHeuristicCpuCost((long) (HEURISTIC_COST_BASE * HASHING_CPU_FACTOR * costWeight));
+		
+		// one time the build side plus cost-weight time the probe side
+		costs.addHeuristicDiskCost((1 + costWeight) * HEURISTIC_COST_BASE);
+		costs.addHeuristicCpuCost((long) ((1 + costWeight) * HEURISTIC_COST_BASE * HASHING_CPU_FACTOR));
 	}
 
 	@Override

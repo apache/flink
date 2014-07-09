@@ -40,13 +40,13 @@ public abstract class CostEstimator {
 
 	public abstract void addFileInputCost(long fileSizeInBytes, Costs costs);
 	
-	public abstract void addLocalSortCost(EstimateProvider estimates, long memorySize, Costs costs);
+	public abstract void addLocalSortCost(EstimateProvider estimates, Costs costs);
 	
-	public abstract void addLocalMergeCost(EstimateProvider estimates1, EstimateProvider estimates2, long memorySize, Costs costs, int costWeight);
+	public abstract void addLocalMergeCost(EstimateProvider estimates1, EstimateProvider estimates2, Costs costs, int costWeight);
 	
-	public abstract void addHybridHashCosts(EstimateProvider buildSide, EstimateProvider probeSide, long memorySize, Costs costs, int costWeight);
+	public abstract void addHybridHashCosts(EstimateProvider buildSide, EstimateProvider probeSide, Costs costs, int costWeight);
 	
-	public abstract void addCachedHybridHashCosts(EstimateProvider buildSide, EstimateProvider probeSide, long memorySize, Costs costs, int costWeight);
+	public abstract void addCachedHybridHashCosts(EstimateProvider buildSide, EstimateProvider probeSide, Costs costs, int costWeight);
 
 	public abstract void addStreamedNestedLoopsCosts(EstimateProvider outerSide, EstimateProvider innerSide, long bufferSize, Costs costs, int costWeight);
 
@@ -116,7 +116,7 @@ public abstract class CostEstimator {
 				break;
 			case SORT:
 			case COMBININGSORT:
-				addLocalSortCost(channel, availableMemory, costs);
+				addLocalSortCost(channel, costs);
 				break;
 			default:
 				throw new CompilerException("Unsupported local strategy for input: " + channel.getLocalStrategy());
@@ -181,19 +181,19 @@ public abstract class CostEstimator {
 			
 			break;
 		case MERGE:
-			addLocalMergeCost(firstInput, secondInput, availableMemory, driverCosts, costWeight);
+			addLocalMergeCost(firstInput, secondInput, driverCosts, costWeight);
 			break;
 		case HYBRIDHASH_BUILD_FIRST:
-			addHybridHashCosts(firstInput, secondInput, availableMemory, driverCosts, costWeight);
+			addHybridHashCosts(firstInput, secondInput, driverCosts, costWeight);
 			break;
 		case HYBRIDHASH_BUILD_SECOND:
-			addHybridHashCosts(secondInput, firstInput, availableMemory, driverCosts, costWeight);
+			addHybridHashCosts(secondInput, firstInput, driverCosts, costWeight);
 			break;
 		case HYBRIDHASH_BUILD_FIRST_CACHED:
-			addCachedHybridHashCosts(firstInput, secondInput, availableMemory, driverCosts, costWeight);
+			addCachedHybridHashCosts(firstInput, secondInput, driverCosts, costWeight);
 			break;
 		case HYBRIDHASH_BUILD_SECOND_CACHED:
-			addCachedHybridHashCosts(secondInput, firstInput, availableMemory, driverCosts, costWeight);
+			addCachedHybridHashCosts(secondInput, firstInput, driverCosts, costWeight);
 			break;
 		case NESTEDLOOP_BLOCKED_OUTER_FIRST:
 			addBlockNestedLoopsCosts(firstInput, secondInput, availableMemory, driverCosts, costWeight);

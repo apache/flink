@@ -317,12 +317,14 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 
 	@Override
 	public long getEstimatedOutputSize() {
-		return this.source.template.getEstimatedOutputSize() * this.replicationFactor;
+		long estimate = this.source.template.getEstimatedOutputSize();
+		return estimate < 0 ? estimate : estimate * this.replicationFactor;
 	}
 
 	@Override
 	public long getEstimatedNumRecords() {
-		return this.source.template.getEstimatedNumRecords() * this.replicationFactor;
+		long estimate =  this.source.template.getEstimatedNumRecords();
+		return estimate < 0 ? estimate : estimate * this.replicationFactor;
 	}
 	
 	@Override

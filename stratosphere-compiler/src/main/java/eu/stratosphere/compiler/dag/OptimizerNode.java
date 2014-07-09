@@ -491,6 +491,14 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		return this.estimatedNumRecords;
 	}
 	
+	public void setEstimatedOutputSize(long estimatedOutputSize) {
+		this.estimatedOutputSize = estimatedOutputSize;
+	}
+
+	public void setEstimatedNumRecords(long estimatedNumRecords) {
+		this.estimatedNumRecords = estimatedNumRecords;
+	}
+	
 	public float getEstimatedAvgWidthPerOutputRecord() {
 		if (this.estimatedOutputSize > 0 && this.estimatedNumRecords > 0) {
 			return ((float) this.estimatedOutputSize) / this.estimatedNumRecords;
