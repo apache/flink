@@ -1,5 +1,5 @@
 
-{"namespace": "eu.stratosphere.api.java.record.io.avro.generated",
+{"namespace": "org.apache.flink.api.java.record.io.avro.generated",
  "type": "record",
  "name": "User",
  "fields": [

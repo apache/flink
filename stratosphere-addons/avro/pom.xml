@@ -59,7 +59,7 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
 					<excludes>
-						<exclude>**/src/test/java/eu/stratosphere/api/avro/testjar/*.java</exclude>
+						<exclude>**/src/test/java/org/apache/flink/api/avro/testjar/*.java</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
@@ -76,7 +76,7 @@
 						<configuration>
 							<archive>
 								<manifest>
-									<mainClass>eu.stratosphere.api.avro.testjar.AvroExternalJarProgram</mainClass>
+									<mainClass>org.apache.flink.api.avro.testjar.AvroExternalJarProgram</mainClass>
 								</manifest>
 							</archive>
 							<finalName>maven</finalName>
