@@ -17,8 +17,6 @@ package eu.stratosphere.api.common.typeutils.base;
 import eu.stratosphere.api.common.typeutils.ComparatorTestBase;
 import eu.stratosphere.api.common.typeutils.TypeComparator;
 import eu.stratosphere.api.common.typeutils.TypeSerializer;
-import eu.stratosphere.api.common.typeutils.base.StringComparator;
-import eu.stratosphere.api.common.typeutils.base.StringSerializer;
 
 public class StringComparatorTest extends ComparatorTestBase<String> {
 
@@ -42,7 +40,10 @@ public class StringComparatorTest extends ComparatorTestBase<String> {
 			"abce",
 			"abdd",
 			"accd",
-			"bbcd"
+			"bbcd",
+			"bbcde",
+			((char)128)+""+((char)32896),
+			((char)128)+""+((char)32897)
 		};
 	}
 }
