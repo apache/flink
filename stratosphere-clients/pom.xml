@@ -105,7 +105,7 @@
 						<configuration>
 							<archive>
 								<manifest>
-									<mainClass>eu.stratosphere.client.testjar.WordCount</mainClass>
+									<mainClass>org.apache.flink.client.testjar.WordCount</mainClass>
 								</manifest>
 							</archive>
 							<finalName>maven</finalName>
