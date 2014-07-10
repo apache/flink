@@ -3,52 +3,49 @@
 	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 	<parent>
-		<groupId>org.sonatype.oss</groupId>
-		<artifactId>oss-parent</artifactId>
-		<version>7</version>
+		<groupId>org.apache</groupId>
+		<artifactId>apache</artifactId>
+		<version>14</version>
 	</parent>
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>eu.stratosphere</groupId>
-	<artifactId>stratosphere</artifactId>
+	<groupId>org.apache.flink</groupId>
+	<artifactId>flink-parent</artifactId>
 	<version>0.6-SNAPSHOT</version>
 
-	<name>stratosphere</name>
+	<name>flink</name>
 	<packaging>pom</packaging>
-	<url>http://github.com/stratosphere/stratosphere</url>
-	<inceptionYear>2013</inceptionYear>
+	<url>http://flink.incubator.apache.org/</url>
+	<inceptionYear>2014</inceptionYear>
 
 	<licenses>
 		<license>
 			<name>The Apache Software License, Version 2.0</name>
 			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-			<distribution>stratosphere</distribution>
+			<distribution>repo</distribution>
 		</license>
 	</licenses>
 
 	<scm>
-		<url>https://github.com/stratosphere/stratosphere</url>
-		<connection>scm:git:git@github.com:stratosphere/stratosphere.git</connection>
-		<developerConnection>scm:git:git@github.com:stratosphere/stratosphere.git</developerConnection>
+		<url>https://github.com/apache/incubator-flink</url>
+		<connection>git@github.com:apache/incubator-flink.git</connection>
+		<developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-flink.git</developerConnection>
 	</scm>
 
-	<developers>
-	</developers>
-
 	<modules>
-		<module>stratosphere-core</module>
-		<module>stratosphere-java</module>
-		<module>stratosphere-scala</module>
-		<module>stratosphere-runtime</module>
-		<module>stratosphere-compiler</module>
-		<module>stratosphere-examples</module>
-		<module>stratosphere-clients</module>
-		<module>stratosphere-tests</module>
-		<module>stratosphere-test-utils</module>
-		<module>stratosphere-addons</module>
-		<module>stratosphere-quickstart</module>
-		<module>stratosphere-dist</module>
+		<module>flink-core</module>
+		<module>flink-java</module>
+		<module>flink-scala</module>
+		<module>flink-runtime</module>
+		<module>flink-compiler</module>
+		<module>flink-examples</module>
+		<module>flink-clients</module>
+		<module>flink-tests</module>
+		<module>flink-test-utils</module>
+		<module>flink-addons</module>
+		<module>flink-quickstart</module>
+		<module>flink-dist</module>
 	</modules>
 
 	<properties>
@@ -57,9 +54,6 @@
 		<hadoop-one.version>1.2.1</hadoop-one.version>
 		<hadoop-two.version>2.2.0</hadoop-two.version>
 	</properties>
-
-	<pluginRepositories>
-	</pluginRepositories>
 
 	<dependencies>
 		<dependency>
@@ -353,7 +347,7 @@
 						<!-- Resource files which have values. -->
 						<exclude>**/resources/**</exclude>
 						<!-- Configuration Files. -->
-						<exclude>**/stratosphere-bin/conf/slaves</exclude>
+						<exclude>**/flink-bin/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
 						<exclude>tools/checkstyle.xml</exclude>

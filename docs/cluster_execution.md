@@ -26,8 +26,8 @@ If you are developing your program as a Maven project, you have to add the
 
 ```xml
 <dependency>
-  <groupId>eu.stratosphere</groupId>
-  <artifactId>stratosphere-clients</artifactId>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-clients</artifactId>
   <version>{{ site.FLINK_VERSION_STABLE }}</version>
 </dependency>
 ```
@@ -72,8 +72,8 @@ If you are developing your program in a Maven project, you have to add the
 
 ```xml
 <dependency>
-  <groupId>eu.stratosphere</groupId>
-  <artifactId>stratosphere-clients</artifactId>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-clients</artifactId>
   <version>{{ site.FLINK_VERSION_STABLE }}</version>
 </dependency>
 ```

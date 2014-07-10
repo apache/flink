@@ -80,13 +80,13 @@ If you want to add Stratosphere to an existing Maven project, add the following 
 
 ```xml
 <dependency>
-  <groupId>eu.stratosphere</groupId>
-  <artifactId>stratosphere-java</artifactId>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-java</artifactId>
   <version>{{site.FLINK_VERSION_STABLE }}</version>
 </dependency>
 <dependency>
-  <groupId>eu.stratosphere</groupId>
-  <artifactId>stratosphere-clients</artifactId>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-clients</artifactId>
   <version>{{site.FLINK_VERSION_STABLE }}</version>
 </dependency>
 ```

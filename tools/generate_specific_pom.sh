@@ -31,7 +31,7 @@ old_version="$1"
 new_version="$2"
 new_pom_name="$3"
 
-# Get hadoop version from the new stratosphere version
+# Get hadoop version from the new Flink version
 hadoop_version=`echo "$new_version" | sed -n 's/.*\(hadoop[12]\).*/\1/p'`
 if [[ -z $hadoop_version ]]; then usage ; fi
 
@@ -45,7 +45,7 @@ if [ -z "$here" ] ; then
   # to the script (e.g. permissions re-evaled after suid)
   exit 1  # fail
 fi
-stratosphere_home="`dirname \"$here\"`"
+flink_home="`dirname \"$here\"`"
 
 
 hadoop1=
@@ -72,7 +72,7 @@ if [[ -z "$new_pom_name" ]]; then
 fi
 echo "Using $nupom as name for the generated pom file."
 
-poms=`find $stratosphere_home -name pom.xml`
+poms=`find $flink_home -name pom.xml`
 for p in $poms; do
   # write into tmp file because in-place replacement is not possible (if nupom="pom.xml")
   tmp_nuname="`dirname $p`/__generate_specific_pom_tmp"

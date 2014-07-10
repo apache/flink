@@ -92,13 +92,13 @@ following lines to your POM.
 ```xml
 <dependencies>
   <dependency>
-    <groupId>eu.stratosphere</groupId>
-    <artifactId>stratosphere-scala</artifactId>
+    <groupId>org.apache.flink</groupId>
+    <artifactId>flink-scala</artifactId>
     <version>{{site.FLINK_VERSION_STABLE}}</version>
   </dependency>
   <dependency>
-    <groupId>eu.stratosphere</groupId>
-    <artifactId>stratosphere-clients</artifactId>
+    <groupId>org.apache.flink</groupId>
+    <artifactId>flink-clients</artifactId>
     <version>{{site.FLINK_VERSION_STABLE}}</version>
   </dependency>
 </dependencies>

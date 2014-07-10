@@ -202,14 +202,14 @@
 
 =======================================================================
 
-Stratosphere contains subcomponents with separate copyright notices and
+Flink contains subcomponents with separate copyright notices and
 license terms. Your use of the source code for the these subcomponents
 is subject to the terms and conditions of their respective licenses.
 
 -----------------------------------------------------------------------
 For jQuery 1.4.2 (MIT) in:
-  - stratosphere-runtime/resources/web-docs-infoserver/js/jquery.js
-  - stratosphere-clients/resources/web-docs/jquery.js
+  - flink-runtime/resources/web-docs-infoserver/js/jquery.js
+  - flink-clients/resources/web-docs/jquery.js
 -----------------------------------------------------------------------
 Copyright 2014 jQuery Foundation and other contributors
 http://jquery.com/
@@ -235,7 +235,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 -----------------------------------------------------------------------
 For jCanvas 13.11.21 (MIT) in:
-  - stratosphere-runtime/resources/web-docs-infoserver/js/jcanvas.min.js
+  - flink-runtime/resources/web-docs-infoserver/js/jcanvas.min.js
 -----------------------------------------------------------------------
 Copyright 2014 Caleb Evans
 http://calebevans.me/projects/jcanvas/
@@ -261,7 +261,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 -----------------------------------------------------------------------
 For Flot 0.8.1 in:
-  - stratosphere-runtime/resources/web-docs-infoserver/js/jquery.flot.*
+  - flink-runtime/resources/web-docs-infoserver/js/jquery.flot.*
 -----------------------------------------------------------------------
 Copyright (c) 2007-2013 IOLA and Ole Laursen
 
@@ -288,7 +288,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 -----------------------------------------------------------------------
 For js-graph.it 1.0 (LGPL 2.1) in:
-  - stratosphere-clients/resources/web-docs/js/js-graph-it.js
+  - flink-clients/resources/web-docs/js/js-graph-it.js
 -----------------------------------------------------------------------
                   GNU LESSER GENERAL PUBLIC LICENSE
                        Version 2.1, February 1999
