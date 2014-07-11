@@ -359,6 +359,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		}
 	}
 	
+	@SuppressWarnings({ "unchecked", "deprecation" })
 	@Test
 	public void testBranchEachContractType() {
 		try {
@@ -374,7 +375,6 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 				.name("Reduce 1")
 				.build();
 			
-			@SuppressWarnings("unchecked")
 			JoinOperator match1 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
 				.input1(sourceB, sourceB, sourceC)
 				.input2(sourceC)
@@ -434,10 +434,10 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 				.build();
 			
 			FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, cogroup7);
-	//		sink.addInput(sourceA);
-	//		sink.addInput(co3);
-	//		sink.addInput(co4);
-	//		sink.addInput(co1);
+			sink.addInput(sourceA);
+			sink.addInput(cogroup3);
+			sink.addInput(cogroup4);
+			sink.addInput(cogroup1);
 			
 			// return the PACT plan
 			Plan plan = new Plan(sink, "Branching of each contract type");
