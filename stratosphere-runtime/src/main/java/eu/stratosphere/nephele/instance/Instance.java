@@ -338,6 +338,8 @@ public class Instance extends NetworkNode {
 		}
 	}
 
+	public double getLoad() { return ((double)allocatedSlots.size())/numberOfSlots; }
+
 	public synchronized void releaseSlot(AllocationID allocationID) {
 		if(allocatedSlots.containsKey(allocationID)){
 			allocatedSlots.remove(allocationID);

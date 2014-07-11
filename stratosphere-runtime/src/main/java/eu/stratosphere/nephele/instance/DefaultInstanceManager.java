@@ -13,6 +13,7 @@
 
 package eu.stratosphere.nephele.instance;
 
+import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.configuration.GlobalConfiguration;
 import eu.stratosphere.nephele.jobgraph.JobID;
@@ -22,6 +23,8 @@ import eu.stratosphere.nephele.topology.NetworkTopology;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
@@ -88,6 +91,8 @@ public class DefaultInstanceManager implements InstanceManager {
 	 * Object that is notified if instances become available or vanish.
 	 */
 	private InstanceListener instanceListener;
+
+	private final SchedulingStrategy schedulingStrategy;
 
 
 	private boolean shutdown;
@@ -173,6 +178,24 @@ public class DefaultInstanceManager implements InstanceManager {
 		// look every BASEINTERVAL milliseconds for crashed hosts
 		final boolean runTimerAsDaemon = true;
 		new Timer(runTimerAsDaemon).schedule(cleanupStaleMachines, 1000, 1000);
+
+		String schedulingStrategyStr = GlobalConfiguration.getString(ConfigConstants.SCHEDULING_STRATEGY,
+				ConfigConstants.DEFAULT_SCHEDULING_STRATEGY);
+
+		SchedulingStrategy resolvedStrategy = null;
+
+		for(SchedulingStrategy s : SchedulingStrategy.values()){
+			if(s.name().equals(schedulingStrategyStr)){
+				resolvedStrategy = s;
+				break;
+			}
+		}
+
+		if(resolvedStrategy == null){
+			throw new RuntimeException("Scheduling strategy: " + schedulingStrategyStr + " is not supported.");
+		}
+
+		schedulingStrategy = resolvedStrategy;
 	}
 
 	@Override
@@ -324,13 +347,68 @@ public class DefaultInstanceManager implements InstanceManager {
 			List<AllocatedResource> allocatedResources = new ArrayList<AllocatedResource>();
 			int allocatedSlots = 0;
 
-			while(clusterIterator.hasNext()) {
-				instance = clusterIterator.next();
-				while(instance.getNumberOfAvailableSlots() >0  && allocatedSlots < requiredSlots){
-					AllocatedResource resource = instance.allocateSlot(jobID);
-					allocatedResources.add(resource);
-					allocatedSlots++;
-				}
+			switch(schedulingStrategy){
+				case FillFirst:
+					while(clusterIterator.hasNext()) {
+						instance = clusterIterator.next();
+						while(instance.getNumberOfAvailableSlots() >0  && allocatedSlots < requiredSlots){
+							AllocatedResource resource = instance.allocateSlot(jobID);
+							allocatedResources.add(resource);
+							allocatedSlots++;
+						}
+					}
+					break;
+				case SpreadOut:
+					List<Instance> increasingLoad = new ArrayList<Instance>(this.registeredHosts.values());
+
+					if(increasingLoad.size() == 0){
+						throw new InstanceException("There are no instances available for scheduling.");
+					}
+
+					Collections.sort(increasingLoad, new Comparator<Instance>() {
+						@Override
+						public int compare(Instance o1, Instance o2) {
+							if(o1.getLoad() < o2.getLoad()){
+								return -1;
+							}else if(o2.getLoad() < o1.getLoad()){
+								return 1;
+							}else {
+								return 0;
+							}
+						}
+					});
+
+					Instance headInstance = increasingLoad.get(0);
+					instance = headInstance;
+					int index = 0;
+					double nextLoad = 1.0;
+
+					if(increasingLoad.size()>1){
+						nextLoad = increasingLoad.get(1).getLoad();
+					}
+
+					while(allocatedSlots < requiredSlots && instance.getLoad() < 1.0){
+						AllocatedResource resource = instance.allocateSlot(jobID);
+						allocatedResources.add(resource);
+						allocatedSlots++;
+
+						if(instance.getLoad() > nextLoad){
+							index++;
+							instance = increasingLoad.get(index);
+						}else if(headInstance.getLoad() < instance.getLoad()){
+							index = 0;
+							instance = headInstance;
+						}
+
+						if(increasingLoad.size() > index+1){
+							nextLoad = increasingLoad.get(index+1).getLoad();
+						}else{
+							nextLoad = 1.0;
+						}
+					}
+					break;
+				default:
+					throw new InstanceException("Scheduling strategy is not supported.");
 			}
 
 			if(allocatedSlots < requiredSlots){
