@@ -72,7 +72,6 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.7</version>
 				<configuration>
 					<!-- <workingDirectory>${project.build.testOutputDirectory}</workingDirectory> -->
 					<excludes>
@@ -89,7 +88,6 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>2.7</version>
 				<configuration>
 					<excludes>
 						<exclude>**/TestData.java</exclude>
@@ -127,7 +125,6 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.4</version>
 				<inherited>true</inherited>
 				<configuration>
 					<archive>
