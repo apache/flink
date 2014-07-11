@@ -31,7 +31,7 @@ JVM_ARGS="$JVM_ARGS -Xmx512m"
 # Flink CLI client
 constructCLIClientClassPath() {
 
-	for jarfile in $STRATOSPHERE_LIB_DIR/*.jar ; do
+	for jarfile in $FLINK_LIB_DIR/*.jar ; do
 		if [[ $CC_CLASSPATH = "" ]]; then
 			CC_CLASSPATH=$jarfile;
 		else

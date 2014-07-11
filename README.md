@@ -1,27 +1,16 @@
-# Stratosphere
-
-_"Big Data looks tiny from Stratosphere."_
-
-Stratosphere is a next-generation Big Data Analytics Platform. It combines the strengths of MapReduce/Hadoop with powerful programming abstractions in Java and Scala, and a high performance runtime. Stratosphere has native support for iterations, delta iterations, and programs consisting of workflows of many operations.
-
-Learn more about Stratosphere at http://stratosphere.eu
-
-## Start writing a Stratosphere Job
-If you just want to get started with Stratosphere, use the following command to set up an empty Stratosphere Job
-
-```
-curl https://raw.github.com/stratosphere/stratosphere-quickstart/master/quickstart.sh | bash
-```
-The quickstart sample contains everything to develop a Stratosphere Job on your computer and run it in a local embedded runtime. No setup needed.
-Further quickstart guides are at http://stratosphere.eu/quickstart/
+# Apache Flink (incubating)
 
 
-## Build Stratosphere
-Below are three short tutorials that guide you through the first steps: Building, running and developing.
+Apache Flink is an open source system for expressive, declarative, fast, and efficient data analysis. Stratosphere combines the scalability and programming flexibility of distributed MapReduce-like platforms with the efficiency, out-of-core execution, and query optimization capabilities found in parallel databases.
+
+
+Learn more about Flink at http://flink.incubator.apache.org/
+
+
+## Build Apache Flink
 
 ###  Build From Source
 
-This tutorial shows how to build Stratosphere on your own system. Please open a bug report if you have any troubles!
 
 #### Requirements
 * Unix-like environment (We use Linux, Mac OS X, Cygwin)
@@ -30,169 +19,37 @@ This tutorial shows how to build Stratosphere on your own system. Please open a 
 * Java 6, 7 or 8 (Note that Oracle's JDK 6 library will fail to build Stratosphere, but is able to run a pre-compiled package without problem)
 
 ```
-git clone https://github.com/stratosphere/stratosphere.git
-cd stratosphere
-mvn -DskipTests clean package # this will take up to 5 minutes
+git clone https://github.com/apache/incubator-flink.git
+cd incubator-flink
+mvn clean package -DskipTests # this will take up to 5 minutes
 ```
 
-Stratosphere is now installed in `stratosphere-dist/target`
-If you’re a Debian/Ubuntu user, you’ll find a .deb package. We will continue with the generic case.
-
-	cd stratosphere-dist/target/stratosphere-dist-0.5-SNAPSHOT-bin/stratosphere-0.5-SNAPSHOT/
-
-The directory structure here looks like the contents of the official release distribution.
-
-#### Build for different Hadoop Versions
-This section is for advanced users that want to build Stratosphere for a different Hadoop version, for example for Hadoop Yarn support.
-
-We use the profile activation via properties (-D).
-
-##### Build hadoop v1 (default)
-Build the default (currently hadoop 1.2.1)
-```mvn clean package```
-
-Build for a specific hadoop v1 version
-```mvn -Dhadoop-one.version=1.1.2 clean package```
-
-##### Build hadoop v2 (yarn)
-
-Build the yarn using the default version defined in the pom
-```mvn -Dhadoop.profile=2 clean package```
-
-Build for a specific hadoop v1 version
-```mvn -Dhadoop.profile=2 -Dhadoop-two.version=2.1.0-beta clean package```
-
-It is necessary to generate separate POMs if you want to deploy to your local repository (`mvn install`) or somewhere else.
-We have a script in `/tools` that generates POMs for the profiles. Use 
-```mvn -f pom.hadoop2.xml clean install -DskipTests```
-to put a POM file with the right dependencies into your local repository.
+Flink is now installed in `flink-dist/target`
 
 
-### Run your first program
-
-We will run a simple “Word Count” example. 
-The easiest way to start Stratosphere on your local machine is so-called "local-mode":
-
-	./bin/start-local.sh
-
-Get some test data:
-
-	 wget -O hamlet.txt http://www.gutenberg.org/cache/epub/1787/pg1787.txt
-
-Start the job:
-
-	./bin/stratosphere run --jarfile ./examples/stratosphere-java-examples-0.5-SNAPSHOT-WordCount.jar --arguments 1 file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
-
-You will find a file called `wordcount-result.txt` in your current directory.
-
-#### Alternative Method: Use the webclient interface
-(And get a nice execution plan overview for free!)
-
-	./bin/start-local.sh
-	./bin/start-webclient.sh start
-
-Get some test data:
-	 wget -O ~/hamlet.txt http://www.gutenberg.org/cache/epub/1787/pg1787.txt
-
-* Point your browser to to http://localhost:8080/launch.html. Upload the WordCount.jar using the upload form in the lower right box. The jar is located in `./examples/stratosphere-java-examples-0.5-SNAPSHOT-WordCount.jar`.
-* Select the WordCount jar from the list of available jars (upper left).
-* Enter the argument line in the lower-left box: `1 file://<path to>/hamlet.txt file://<wherever you want the>/wordcount-result.txt`
-
-* Hit “Run Job”
-
-
-### Eclipse Setup and Debugging
-
-To contribute back to the project or develop your own jobs for Stratosphere, you need a working development environment. We use Eclipse and IntelliJ for development. Here we focus on Eclipse.
-
-If you want to work on the scala code you will need the following plugins:
-
-Eclipse 4.x:
-  * scala-ide: http://download.scala-ide.org/sdk/e38/scala210/stable/site
-  * m2eclipse-scala: http://alchim31.free.fr/m2e-scala/update-site
-  * build-helper-maven-plugin: https://repository.sonatype.org/content/repositories/forge-sites/m2e-extras/0.15.0/N/0.15.0.201206251206/
-
-Eclipse 3.7:
-  * scala-ide: http://download.scala-ide.org/sdk/e37/scala210/stable/site
-  * m2eclipse-scala: http://alchim31.free.fr/m2e-scala/update-site
-  * build-helper-maven-plugin: https://repository.sonatype.org/content/repositories/forge-sites/m2e-extras/0.14.0/N/0.14.0.201109282148/
-
-When you don't have the plugins your project will have build errors, you can just close the scala projects and ignore them.
-o
-Import the Stratosphere source code using Maven's Import tool:
-  * Select "Import" from the "File"-menu.
-  * Expand "Maven" node, select "Existing Maven Projects", and click "next" button
-  * Select the root directory by clicking on the "Browse" button and navigate to the top folder of the cloned Stratosphere Git repository.
-  * Ensure that all projects are selected and click the "Finish" button.
-
-Create a new Eclipse Project that requires Stratosphere in its Build Path!
-
-Use this skeleton as an entry point for your own Jobs: It allows you to hit the “Run as” -> “Java Application” feature of Eclipse:
-
-```java
-public class Tutorial implements Program {
-
-    @Override
-    public Plan getPlan(String... args) {
-        // your parallel program goes here
-    }
-
-    public static void main(String[] args) throws Exception {
-        Tutorial tut = new Tutorial();
-        Plan toExecute = tut.getPlan(args);
-        long runtime = LocalExecutor.execute(toExecute);
-        System.out.println("Runime: " + runtime);
-    }
-}
-```
 
 ## Support
 Don’t hesitate to ask!
 
-[Open an issue](https://github.com/stratosphere/stratosphere/issues/new) on Github, if you found a bug or need any help.
-We also have a [mailing list](https://groups.google.com/d/forum/stratosphere-dev) for both users and developers.
+Please contact the developers on our [mailing lists](http://flink.incubator.apache.org/community.html#mailing-lists) if you need help.
 
-Some of our colleagues are also in the #dima irc channel on freenode.
+[Open an issue](https://issues.apache.org/jira/browse/FLINK) if you found a bug in Flink.
+
 
 ## Documentation
 
-The [Documentation Website](http://stratosphere.eu/docs/0.4/) has comprehensive documentation for users and contributors.
-The [0.5 version documentation page](http://stratosphere.eu/docs/0.5/) describe new features and changes in 0.5 version.
-The [GitHub Wiki](https://github.com/stratosphere/stratosphere/wiki/_pages) has a collection of topics that are in the process of being fleshed out.
-
-Please make edits to the Wiki if you find inconsistencies or [Open an issue](https://github.com/stratosphere/stratosphere/issues/new) 
+The documentation of Apache Flink is located on the website: http://flink.incubator.apache.org or in the `docs/` directory of the source code.
 
 
 ## Fork and Contribute
 
 This is an active open-source project. We are always open to people who want to use the system or contribute to it. 
 Contact us if you are looking for implementation tasks that fit your skills.
+This article describes [how to contribute to Apache Flink](http://flink.incubator.apache.org/how-to-contribute.html).
 
-We have a list of [starter jobs](https://github.com/stratosphere/stratosphere/wiki/Starter-Jobs) in our wiki.
-
-We use the GitHub Pull Request system for the development of Stratosphere. Just open a request if you want to contribute.
-
-### What to contribute
-* Bug reports
-* Bug fixes
-* Documentation
-* Tools that ease the use and development of Stratosphere
-* Well-written Stratosphere jobs
-
-
-Let us know if you have created a system that uses Stratosphere, so that we can link to you.
 
 ## About
 
-[Stratosphere](http://www.stratosphere.eu) is a DFG-founded research project.
-We combine cutting edge research outcomes with a stable and usable codebase.
-Decisions are not made behind closed doors. We discuss all changes and plans on our Mailinglists and on GitHub.
+Apache Flink is an effort undergoing incubation at The Apache Software Foundation (ASF), sponsored by the Apache Incubator PMC. Incubation is required of all newly accepted projects until a further review indicates that the infrastructure, communications, and decision making process have stabilized in a manner consistent with other successful ASF projects. While incubation status is not necessarily a reflection of the completeness or stability of the code, it does indicate that the project has yet to be fully endorsed by the ASF.
 
-
-<!--- Commented out Travis until we get a reliable report on build status. Currently, out tests are so heavy that a large portion of our Travis builds get killed for taking too long.
-Build Status: [![Build Status](https://travis-ci.org/stratosphere/stratosphere.png)](https://travis-ci.org/stratosphere/stratosphere)
--->
-
-
-
-
+The Apache Flink project originated from the [Stratosphere](http://stratosphere.eu) research project.
