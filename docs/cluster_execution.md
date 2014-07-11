@@ -2,7 +2,7 @@
 title:  "Cluster Execution"
 ---
 
-Stratosphere programs can run distributed on clusters of many machines. There
+Flink programs can run distributed on clusters of many machines. There
 are two ways to send a program to a cluster for execution:
 
 # Command Line Interface
@@ -15,14 +15,14 @@ details.
 
 # Remote Environment
 
-The remote environment lets you execute Stratosphere Java programs on a cluster
+The remote environment lets you execute Flink Java programs on a cluster
 directly. The remote environment points to the cluster on which you want to
 execute the program.
 
 ## Maven Dependency
 
 If you are developing your program as a Maven project, you have to add the
-`stratosphere-clients` module using this dependency:
+`flink-clients` module using this dependency:
 
 ```xml
 <dependency>
@@ -62,13 +62,13 @@ takes the path(s) to the JAR file(s).
 # Remote Executor
 
 Similar to the RemoteEnvironment, the RemoteExecutor lets you execute
-Stratosphere programs on a cluster directly. The remote executor accepts a
+Flink programs on a cluster directly. The remote executor accepts a
 *Plan* object, which describes the program as a single executable unit.
 
 ## Maven Dependency
 
 If you are developing your program in a Maven project, you have to add the
-`stratosphere-clients` module using this dependency:
+`flink-clients` module using this dependency:
 
 ```xml
 <dependency>

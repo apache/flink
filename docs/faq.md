@@ -4,25 +4,25 @@ title: "Frequently Asked Questions (FAQ)"
 
 # General
 
-## Is Stratosphere a Hadoop Project?
+## Is Flink a Hadoop Project?
 
-Stratosphere is a data processing system and an alternative to Hadoop's
+Flink is a data processing system and an alternative to Hadoop's
 MapReduce component. It comes with its own runtime, rather than building on top
 of MapReduce. As such, it can work completely independently of the Hadoop
-ecosystem. However, Stratosphere can also access Hadoop's distributed file
+ecosystem. However, Flink can also access Hadoop's distributed file
 system (HDFS) to read and write data, and Hadoop's next-generation resource
-manager (YARN) to provision cluster resources. Since most Stratosphere users are
+manager (YARN) to provision cluster resources. Since most Flink users are
 using Hadoop HDFS to store their data, we ship already the required libraries to
 access HDFS.
 
-## Do I have to install Apache Hadoop to use Stratosphere?
+## Do I have to install Apache Hadoop to use Flink?
 
-No. Stratosphere can run without a Hadoop installation. However, a very common
-setup is to use Stratosphere to analyze data stored in the Hadoop Distributed
+No. Flink can run without a Hadoop installation. However, a very common
+setup is to use Flink to analyze data stored in the Hadoop Distributed
 File System (HDFS). To make these setups work out of the box, we bundle the
-Hadoop client libraries with Stratosphere by default.
+Hadoop client libraries with Flink by default.
 
-Additionally, we provide a special YARN Enabled download of Stratosphere for
+Additionally, we provide a special YARN Enabled download of Flink for
 users with an existing Hadoop YARN cluster. [Apache Hadoop
 YARN](http://hadoop.apache.org/docs/r2.2.0/hadoop-yarn/hadoop-yarn-site/YARN.html) 
 is Hadoop's cluster resource manager that allows to use
@@ -30,13 +30,13 @@ different execution engines next to each other on a cluster.
 
 # Usage
 
-## How do I assess the progress of a Stratosphere program?
+## How do I assess the progress of a Flink program?
 
-There are a multiple of ways to track the progress of a Stratosphere program:
+There are a multiple of ways to track the progress of a Flink program:
 
 - The JobManager (the master of the distributed system) starts a web interface
 to observe program execution. In runs on port 8081 by default (configured in
-`conf/stratosphere-config.yml`).
+`conf/flink-config.yml`).
 - When you start a program from the command line, it will print the status
 changes of all operators as the program progresses through the operations.
 - All status changes are also logged to the JobManager's log file.
@@ -51,10 +51,10 @@ the standard error stream and shown on the console.
 parallel task first failed and caused the other tasks to cancel the execution.
 - Failing tasks and the corresponding exceptions are reported in the log files
 of the master and the worker where the exception occurred
-(`log/stratosphere-<user>-jobmanager-<host>.log` and
-`log/stratosphere-<user>-taskmanager-<host>.log`).
+(`log/flink-<user>-jobmanager-<host>.log` and
+`log/flink-<user>-taskmanager-<host>.log`).
 
-## How do I debug Stratosphere programs?
+## How do I debug Flink programs?
 
 - When you start a program locally with the [LocalExecutor](local_execution.html),
 you can place breakpoints in your functions and debug them like normal
@@ -68,7 +68,7 @@ execution.
 
 ## I get an error message saying that not enough buffers are available. How do I fix this?
 
-If you run Stratosphere in a massively parallel setting (100+ parallel threads),
+If you run Flink in a massively parallel setting (100+ parallel threads),
 you need to adapt the number of network buffers via the config parameter
 `taskmanager.network.numberOfBuffers`.
 As a rule-of-thumb, the number of buffers should be at least
@@ -80,7 +80,7 @@ As a rule-of-thumb, the number of buffers should be at least
 Note: In version _0.4_, the delta iterations limit the solution set to
 records with fixed-length data types. We will  in the next version.
 
-The most common case for these exception is when Stratosphere is set up with the
+The most common case for these exception is when Flink is set up with the
 wrong HDFS version. Because different HDFS versions are often not compatible
 with each other, the connection between the filesystem master and the client
 breaks.
@@ -96,12 +96,12 @@ Call to <host:port> failed on local exception: java.io.EOFException
     at org.apache.hadoop.hdfs.DFSClient.<init>(DFSClient.java:207)
     at org.apache.hadoop.hdfs.DFSClient.<init>(DFSClient.java:170)
     at org.apache.hadoop.hdfs.DistributedFileSystem.initialize(DistributedFileSystem.java:82)
-    at eu.stratosphere.runtime.fs.hdfs.DistributedFileSystem.initialize(DistributedFileSystem.java:276
+    at org.apache.flinkruntime.fs.hdfs.DistributedFileSystem.initialize(DistributedFileSystem.java:276
 ```
 
-Please refer to the [download page](http://stratosphere.eu/downloads/#maven) and
+Please refer to the [download page]({{site.baseurl}}/downloads.html#maven) and
 the {% gh_link README.md master "build instructions" %}
-for details on how to set up Stratosphere for different Hadoop and HDFS versions.
+for details on how to set up Flink for different Hadoop and HDFS versions.
 
 ## My program does not compute the correct result. Why are my custom key types
 are not grouped/joined correctly?
@@ -118,7 +118,7 @@ All data type classes must be public and have a public nullary constructor
 or interfaces. If the classes are internal classes, they must be public and
 static.
 
-## I can't stop Stratosphere with the provided stop-scripts. What can I do?
+## I can't stop Flink with the provided stop-scripts. What can I do?
 
 Stopping the processes sometimes takes a few seconds, because the shutdown may
 do some cleanup work.
@@ -150,7 +150,7 @@ There are two ways to go about this:
 1. See whether you can use less memory inside the functions. For example, use
 arrays of primitive types instead of object types.
 
-2. Reduce the memory that Stratosphere reserves for its own processing. The
+2. Reduce the memory that Flink reserves for its own processing. The
 TaskManager reserves a certain portion of the available memory for sorting,
 hashing, caching, network buffering, etc. That part of the memory is unavailable
 to the user-defined functions. By reserving it, the system can guarantee to not
@@ -178,13 +178,13 @@ output looks like this:
 
 ```
 07:34:27,004 INFO  org.apache.hadoop.yarn.client.api.impl.YarnClientImpl         - Submitted application application_1395604279745_273123 to ResourceManager at jobtracker-host
-Stratosphere JobManager is now running on worker1:6123
+Flink JobManager is now running on worker1:6123
 JobManager Web Interface: http://jobtracker-host:54311/proxy/application_1295604279745_273123/
-07:34:51,528 INFO  eu.stratosphere.yarn.Client                                   - Application application_1295604279745_273123 finished with state FINISHED at 1398152089553
-07:34:51,529 INFO  eu.stratosphere.yarn.Client                                   - Killing the Stratosphere-YARN application.
+07:34:51,528 INFO  org.apache.flinkyarn.Client                                   - Application application_1295604279745_273123 finished with state FINISHED at 1398152089553
+07:34:51,529 INFO  org.apache.flinkyarn.Client                                   - Killing the Flink-YARN application.
 07:34:51,529 INFO  org.apache.hadoop.yarn.client.api.impl.YarnClientImpl         - Killing application application_1295604279745_273123
-07:34:51,534 INFO  eu.stratosphere.yarn.Client                                   - Deleting files in hdfs://user/marcus/.stratosphere/application_1295604279745_273123
-07:34:51,559 INFO  eu.stratosphere.yarn.Client                                   - YARN Client is shutting down
+07:34:51,534 INFO  org.apache.flinkyarn.Client                                   - Deleting files in hdfs://user/marcus/.flink/application_1295604279745_273123
+07:34:51,559 INFO  org.apache.flinkyarn.Client                                   - YARN Client is shutting down
 ```
 
 The problem here is that the Application Master (AM) is stopping and the YARN client assumes that the application has finished.
@@ -255,30 +255,30 @@ Exception in thread "main" org.apache.hadoop.security.AccessControlException: Pe
   at org.apache.hadoop.fs.FileSystem.copyFromLocalFile(FileSystem.java:2021)
   at org.apache.hadoop.fs.FileSystem.copyFromLocalFile(FileSystem.java:1989)
   at org.apache.hadoop.fs.FileSystem.copyFromLocalFile(FileSystem.java:1954)
-  at eu.stratosphere.yarn.Utils.setupLocalResource(Utils.java:176)
-  at eu.stratosphere.yarn.Client.run(Client.java:362)
-  at eu.stratosphere.yarn.Client.main(Client.java:568)
+  at org.apache.flinkyarn.Utils.setupLocalResource(Utils.java:176)
+  at org.apache.flinkyarn.Client.run(Client.java:362)
+  at org.apache.flinkyarn.Client.main(Client.java:568)
 ```
 
 The reason for this error is, that the home directory of the user **in HDFS**
 has the wrong permissions. The user (in this case `robert`) can not create
 directories in his own home directory.
 
-Stratosphere creates a `.stratosphere/` directory in the users home directory
-where it stores the Stratosphere jar and configuration file.
+Flink creates a `.flink/` directory in the users home directory
+where it stores the Flink jar and configuration file.
 
 # Features
 
-## What kind of fault-tolerance does Stratosphere provide?
+## What kind of fault-tolerance does Flink provide?
 
 Stratospere can restart failed jobs. Mid-query fault tolerance will go into the
 open source project in the next versions.
 
 ## Are Hadoop-like utilities, such as Counters and the DistributedCache supported?
 
-[Stratosphere's Accumulators](java_api_guide.html#accumulators-&-counters) work very similar like
+[Flink's Accumulators](java_api_guide.html#accumulators-&-counters) work very similar like
 [Hadoop's counters, but are more powerful.
 
-Stratosphere has a {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/cache/DistributedCache.java "Distributed Cache" %} that is deeply integrated with the APIs. Please refer to the {% gh_link /stratosphere-java/src/main/java/eu/stratosphere/api/java/ExecutionEnvironment.java#L561 "JavaDocs" %} for details on how to use it.
+Flink has a {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/cache/DistributedCache.java "Distributed Cache" %} that is deeply integrated with the APIs. Please refer to the {% gh_link /flink-java/src/main/java/org/apache/flink/api/java/ExecutionEnvironment.java#L561 "JavaDocs" %} for details on how to use it.
 
 In order to make data sets available on all tasks, we encourage you to use [Broadcast Variables](java_api_guide.html#broadcast_variables) instead. They are more efficient and easier to use than the distributed cache.

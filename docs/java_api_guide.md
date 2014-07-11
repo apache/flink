@@ -9,9 +9,9 @@ Java API
 Introduction
 ------------
 
-Analysis programs in Stratosphere are regular Java programs that implement transformations on data sets (e.g., filtering, mapping, joining, grouping). The data sets are initially created from certain sources (e.g., by reading files, or from collections). Results are returned via sinks, which may for example write the data to (distributed) files, or to standard output (for example the command line terminal). Stratosphere programs run in a variety of contexts, standalone, or embedded in other programs. The execution can happen in a local JVM, or on clusters of many machines.
+Analysis programs in Flink are regular Java programs that implement transformations on data sets (e.g., filtering, mapping, joining, grouping). The data sets are initially created from certain sources (e.g., by reading files, or from collections). Results are returned via sinks, which may for example write the data to (distributed) files, or to standard output (for example the command line terminal). Flink programs run in a variety of contexts, standalone, or embedded in other programs. The execution can happen in a local JVM, or on clusters of many machines.
 
-In order to create your own Stratosphere program, we encourage you to start with the [program skeleton](#skeleton) and gradually add your own [transformations](#transformations). The remaining sections act as references for additional operations and advanced features.
+In order to create your own Flink program, we encourage you to start with the [program skeleton](#skeleton) and gradually add your own [transformations](#transformations). The remaining sections act as references for additional operations and advanced features.
 
 
 <section id="toc">
@@ -27,7 +27,7 @@ In order to create your own Stratosphere program, we encourage you to start with
 Example Program
 ---------------
 
-The following program is a complete, working example of WordCount. You can copy &amp; paste the code to run it locally. You only have to include Stratosphere's Java API library into your project (see Section [Linking with Stratosphere](#linking)) and specify the imports. Then you are ready to go!
+The following program is a complete, working example of WordCount. You can copy &amp; paste the code to run it locally. You only have to include Flink's Java API library into your project (see Section [Linking with Flink](#linking)) and specify the imports. Then you are ready to go!
 
 ```java
 public class WordCountExample {
@@ -62,21 +62,21 @@ public class WordCountExample {
 [Back to top](#top)
 
 <section id="linking">
-Linking with Stratosphere
+Linking with Flink
 -------------------------
 
-To write programs with Stratosphere, you need to include Stratosphere’s Java API library in your project.
+To write programs with Flink, you need to include Flink’s Java API library in your project.
 
 The simplest way to do this is to use the [quickstart scripts](java_api_quickstart.html). They create a blank project from a template (a Maven Archetype), which sets up everything for you. To manually create the project, you can use the archetype and create a project by calling:
 
 ```bash
 mvn archetype:generate /
-    -DarchetypeGroupId=eu.stratosphere /
+    -DarchetypeGroupId=org.apache.flink/
     -DarchetypeArtifactId=quickstart-java /
     -DarchetypeVersion={{site.FLINK_VERSION_STABLE }}
 ```
 
-If you want to add Stratosphere to an existing Maven project, add the following entry to your *dependencies* section in the *pom.xml* file of your project:
+If you want to add Flink to an existing Maven project, add the following entry to your *dependencies* section in the *pom.xml* file of your project:
 
 ```xml
 <dependency>
@@ -93,7 +93,7 @@ If you want to add Stratosphere to an existing Maven project, add the following 
 
 In order to link against the latest SNAPSHOT versions of the code, please follow [this guide]({{site.baseurl}}/downloads.html/#nightly).
 
-The *stratosphere-clients* dependency is only necessary to invoke the Stratosphere program locally (for example to run it standalone for testing and debugging). 
+The *flink-clients* dependency is only necessary to invoke the Flink program locally (for example to run it standalone for testing and debugging). 
 If you intend to only export the program as a JAR file and [run it on a cluster](cluster_execution.html), you can skip that dependency.
 
 [Back to top](#top)
@@ -102,7 +102,7 @@ If you intend to only export the program as a JAR file and [run it on a cluster]
 Program Skeleton
 ----------------
 
-As we already saw in the example, Stratosphere programs look like regular Java
+As we already saw in the example, Flink programs look like regular Java
 programs with a `main()` method. Each program consists of the same basic parts:
 
 1. Obtain an `ExecutionEnvironment`,
@@ -112,9 +112,9 @@ programs with a `main()` method. Each program consists of the same basic parts:
 5. Execute your program.
 
 We will now give an overview of each of those steps but please refer
-to the respective sections for more details. Note that all {% gh_link /stratosphere-java/src/main/java/eu/stratosphere/api/java "core classes of the Java API" %} are found in the package `eu.stratosphere.api.java`.
+to the respective sections for more details. Note that all {% gh_link /flink-java/src/main/java/org/apache/flink/api/java "core classes of the Java API" %} are found in the package `org.apache.flinkapi.java`.
 
-The `ExecutionEnvironment` is the basis for all Stratosphere programs. You can
+The `ExecutionEnvironment` is the basis for all Flink programs. You can
 obtain one using these static methods on class `ExecutionEnvironment`:
 
 ```java
@@ -133,7 +133,7 @@ your program inside an IDE or as a regular Java program it will create
 a local environment that will execute your program on your local machine. If
 you created a JAR file from you program, and invoke it through the [command line](cli.html)
 or the [web interface](web_client.html),
-the Stratosphere cluster manager will
+the Flink cluster manager will
 execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
 
@@ -206,9 +206,9 @@ how you created the execution environment.
 Lazy Evaluation
 ---------------
 
-All Stratosphere programs are executed lazily: When the program's main method is executed, the data loading and transformations do not happen directly. Rather, each operation is created and added to the program's plan. The operations are actually executed when one of the `execute()` methods is invoked on the ExecutionEnvironment object. Whether the program is executed locally or on a cluster depends on the environment of the program.
+All Flink programs are executed lazily: When the program's main method is executed, the data loading and transformations do not happen directly. Rather, each operation is created and added to the program's plan. The operations are actually executed when one of the `execute()` methods is invoked on the ExecutionEnvironment object. Whether the program is executed locally or on a cluster depends on the environment of the program.
 
-The lazy evaluation lets you construct sophisticated programs that Stratosphere executes as one holistically planned unit.
+The lazy evaluation lets you construct sophisticated programs that Flink executes as one holistically planned unit.
 
 <section id="types">
 Data Types
@@ -286,7 +286,7 @@ wordCounts.groupBy(new KeySelector<WordCount, String>() {
 
 #### Tuples
 
-You can use the `Tuple` classes for composite types. Tuples contain a fix number of fields of various types. The Java API provides classes from `Tuple1` up to `Tuple25`. Every field of a tuple can be an arbitrary Stratosphere type - including further tuples, resulting in nested tuples. Fields of a Tuple can be accessed directly using the fields `tuple.f4`, or using the generic getter method `tuple.getField(int position)`. The field numbering starts with 0. Note that this stands in contrast to the Scala tuples, but it is more consistent with Java's general indexing.
+You can use the `Tuple` classes for composite types. Tuples contain a fix number of fields of various types. The Java API provides classes from `Tuple1` up to `Tuple25`. Every field of a tuple can be an arbitrary Flink type - including further tuples, resulting in nested tuples. Fields of a Tuple can be accessed directly using the fields `tuple.f4`, or using the generic getter method `tuple.getField(int position)`. The field numbering starts with 0. Note that this stands in contrast to the Scala tuples, but it is more consistent with Java's general indexing.
 
 ```java
 DataSet<Tuple2<String, Integer>> wordCounts = env.fromElements(
@@ -311,16 +311,16 @@ wordCounts
     .reduce(new MyReduceFunction());
 ```
 
-In order to access fields more intuitively and to generate more readable code, it is also possible to extend a subclass of `Tuple`. You can add getters and setters with custom names that delegate to the field positions. See this {% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/relational/TPCHQuery3.java "example" %} for an illustration how to make use of that mechanism.
+In order to access fields more intuitively and to generate more readable code, it is also possible to extend a subclass of `Tuple`. You can add getters and setters with custom names that delegate to the field positions. See this {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/relational/TPCHQuery3.java "example" %} for an illustration how to make use of that mechanism.
 
 
 #### Values
 
-*Value* types describe their serialization and deserialization manually. Instead of going through a general purpose serialization framework, they provide custom code for those operations by means implementing the `eu.stratosphere.types.Value` interface with the methods `read` and `write`. Using a *Value* type is reasonable when general purpose serialization would be highly inefficient. An example would be a data type that implements a sparse vector of elements as an array. Knowing that the array is mostly zero, one can use a special encoding for the non-zero elements, while the general purpose serialization would simply write all array elements.
+*Value* types describe their serialization and deserialization manually. Instead of going through a general purpose serialization framework, they provide custom code for those operations by means implementing the `org.apache.flinktypes.Value` interface with the methods `read` and `write`. Using a *Value* type is reasonable when general purpose serialization would be highly inefficient. An example would be a data type that implements a sparse vector of elements as an array. Knowing that the array is mostly zero, one can use a special encoding for the non-zero elements, while the general purpose serialization would simply write all array elements.
 
-The `eu.stratosphere.types.CopyableValue` interface supports manual internal cloning logic in a similar way.
+The `org.apache.flinktypes.CopyableValue` interface supports manual internal cloning logic in a similar way.
 
-Stratosphere comes with pre-defined Value types that correspond to Java's basic data types. (`ByteValue`, `ShortValue`, `IntValue`, `LongValue`, `FloatValue`, `DoubleValue`, `StringValue`, `CharValue`, `BooleanValue`). These Value types act as mutable variants of the basic data types: Their value can be altered, allowing programmers to reuse objects and take pressure off the garbage collector. 
+Flink comes with pre-defined Value types that correspond to Java's basic data types. (`ByteValue`, `ShortValue`, `IntValue`, `LongValue`, `FloatValue`, `DoubleValue`, `StringValue`, `CharValue`, `BooleanValue`). These Value types act as mutable variants of the basic data types: Their value can be altered, allowing programmers to reuse objects and take pressure off the garbage collector. 
 
 
 #### Hadoop Writables
@@ -332,11 +332,11 @@ You can use types that implement the `org.apache.hadoop.Writable` interface. The
 
 The Java compiler throws away much of the generic type information after the compilation. This is known as *type erasure* in Java. It means that at runtime, an instance of an object does not know its generic type any more. For example, instances of `DataSet<String>` and `DataSet<Long>` look the same to the JVM.
 
-Stratosphere requires type information at the time when it prepares the program for execution (when the main method of the program is called). The Stratosphere Java API tries to reconstruct the type information that was thrown away in various ways and store it explicitly in the data sets and operators. You can retrieve the type via `DataSet.getType()`. The method returns an instance of `TypeInformation`, which is Stratosphere's internal way of representing types.
+Flink requires type information at the time when it prepares the program for execution (when the main method of the program is called). The Flink Java API tries to reconstruct the type information that was thrown away in various ways and store it explicitly in the data sets and operators. You can retrieve the type via `DataSet.getType()`. The method returns an instance of `TypeInformation`, which is Flink's internal way of representing types.
 
 The type inference has its limits and needs the "cooperation" of the programmer in some cases. Examples for that are methods that create data sets from collections, such as `ExecutionEnvironment.fromCollection(),` where you can pass an argument that describes the type. But also generic functions like `MapFunction<I, O>` may need extra type information.
 
-The {% gh_link /stratosphere-java/src/main/java/eu/stratosphere/api/java/typeutils/ResultTypeQueryable.java "ResultTypeQueryable" %} interface can be implemented by input formats and functions to tell the API explicitly about their return type. The *input types* that the functions are invoked with can usually be inferred by the result types of the previous operations.
+The {% gh_link /flink-java/src/main/java/org/apache/flink/api/java/typeutils/ResultTypeQueryable.java "ResultTypeQueryable" %} interface can be implemented by input formats and functions to tell the API explicitly about their return type. The *input types* that the functions are invoked with can usually be inferred by the result types of the previous operations.
 
 [Back to top](#top)
 
@@ -540,7 +540,7 @@ DataSet<Tuple2<Integer, String>> output =
                                  .reduceGroup(new DistinctReduce());
 ```
 
-**Note:** Stratosphere internally works a lot with mutable objects. Collecting objects like in the above example only works because Strings are immutable in Java!
+**Note:** Flink internally works a lot with mutable objects. Collecting objects like in the above example only works because Strings are immutable in Java!
 
 #### GroupReduce on DataSet grouped by KeySelector Function
 
@@ -991,7 +991,7 @@ DataSet<Tuple2<String, Integer>> unioned = vals1.union(vals2)
 Data Sources
 ------------
 
-Data sources create the initial data sets, such as from files or from Java collections. The general mechanism of of creating data sets is abstracted behind an {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/io/InputFormat.java "InputFormat" %}. Stratosphere comes with several built-in formats to create data sets from common file formats. Many of them have shortcut methods on the *ExecutionEnvironment*.
+Data sources create the initial data sets, such as from files or from Java collections. The general mechanism of of creating data sets is abstracted behind an {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/io/InputFormat.java "InputFormat" %}. Flink comes with several built-in formats to create data sets from common file formats. Many of them have shortcut methods on the *ExecutionEnvironment*.
 
 File-based:
 
@@ -1050,7 +1050,7 @@ DataSet<Tuple2<String, Integer> dbData =
       new TupleTypeInfo(Tuple2.class, STRING_TYPE_INFO, INT_TYPE_INFO)
     );
 
-// Note: Stratosphere's program compiler needs to infer the data types of the data items which are returned by an InputFormat. If this information cannot be automatically inferred, it is necessary to manually provide the type information as shown in the examples above.
+// Note: Flink's program compiler needs to infer the data types of the data items which are returned by an InputFormat. If this information cannot be automatically inferred, it is necessary to manually provide the type information as shown in the examples above.
 ```
 
 [Back to top](#top)
@@ -1060,7 +1060,7 @@ DataSet<Tuple2<String, Integer> dbData =
 Data Sinks
 ----------
 
-Data sinks consume DataSets and are used to store or return them. Data sink operations are described using an {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/io/OutputFormat.java "OutputFormat" %}. Stratosphere comes with a variety of built-in output formats that
+Data sinks consume DataSets and are used to store or return them. Data sink operations are described using an {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/io/OutputFormat.java "OutputFormat" %}. Flink comes with a variety of built-in output formats that
 are encapsulated behind operations on the DataSet type:
 
 - `writeAsText()` / `TextOuputFormat` - Writes for each element as a String in a line. The String are obtained by calling the *toString()* method.
@@ -1122,12 +1122,12 @@ Debugging
 Before running a data analysis program on a large data set in a distributed cluster, it is a good idea to make sure that the implemented algorithm works as desired. Hence, implementing data analysis programs is usually an incremental process of checking results, debugging, and improving. 
 
 <p>
-Stratosphere provides a few nice features to significantly ease the development process of data analysis programs by supporting local debugging from within an IDE, injection of test data, and collection of result data. This section give some hints how to ease the development of Stratosphere programs.
+Flink provides a few nice features to significantly ease the development process of data analysis programs by supporting local debugging from within an IDE, injection of test data, and collection of result data. This section give some hints how to ease the development of Flink programs.
 </p>
 
 ### Local Execution Environment
 
-A `LocalEnvironment` starts a Stratosphere system within the same JVM process it was created in. If you start the LocalEnvironement from an IDE, you can set breakpoint in your code and easily debug your program. 
+A `LocalEnvironment` starts a Flink system within the same JVM process it was created in. If you start the LocalEnvironement from an IDE, you can set breakpoint in your code and easily debug your program. 
 
 <p>
 A LocalEnvironment is created and used as follows:
@@ -1145,7 +1145,7 @@ env.execute();
 
 ### Collection Data Sources and Sinks
 
-Providing input for an analysis program and checking its output is cumbersome done by creating input files and reading output files. Stratosphere features special data sources and sinks which are backed by Java collections to ease testing. Once a program has been tested, the sources and sinks can be easily replaced by sources and sinks that read from / write to external data stores such as HDFS.
+Providing input for an analysis program and checking its output is cumbersome done by creating input files and reading output files. Flink features special data sources and sinks which are backed by Java collections to ease testing. Once a program has been tested, the sources and sinks can be easily replaced by sources and sinks that read from / write to external data stores such as HDFS.
 
 Collection data sources can be used as follows:
 
@@ -1184,7 +1184,7 @@ myResult.output(new LocalCollectionOutputFormat(outData));
 Iteration Operators
 -------------------
 
-Iterations implement loops in Stratosphere programs. The iteration operators encapsulate a part of the program and execute it repeatedly, feeding back the result of one iteration (the partial solution) into the next iteration. There are two types of iterations in Stratosphere: **BulkIteration** and **DeltaIteration**.
+Iterations implement loops in Flink programs. The iteration operators encapsulate a part of the program and execute it repeatedly, feeding back the result of one iteration (the partial solution) into the next iteration. There are two types of iterations in Flink: **BulkIteration** and **DeltaIteration**.
 
 This section provides quick examples on how to use both operators. Check out the [Introduction to Iterations](iterations.html) page for a more detailed introduction.
 
@@ -1225,7 +1225,7 @@ count.map(new MapFunction<Integer, Double>() {
 env.execute("Iterative Pi Example");
 {% endhighlight %}
 
-You can also check out the {% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/clustering/KMeans.java "K-Means example" %}, which uses a BulkIteration to cluster a set of unlabeled points.
+You can also check out the {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/clustering/KMeans.java "K-Means example" %}, which uses a BulkIteration to cluster a set of unlabeled points.
 
 #### Delta Iterations
 
@@ -1343,7 +1343,7 @@ data.map(new MapFunction<String, String>() {
 ```
 
 Make sure that the names (`broadcastSetName` in the previous example) match when registering and accessing broadcasted data sets. For a complete example program, have a look at
-{% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/clustering/KMeans.java#L96 "KMeans Algorithm" %}.
+{% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/clustering/KMeans.java#L96 "KMeans Algorithm" %}.
 
 **Note**: As the content of broadcast variables is kept in-memory on each node, it should not become too large. For simpler things like scalar values you can simply make parameters part of the closure of a function, or use the `withParameters(...)` method to pass in a configuration.
 
@@ -1354,18 +1354,18 @@ Make sure that the names (`broadcastSetName` in the previous example) match when
 Program Packaging & Distributed Execution
 -----------------------------------------
 
-As described in the [program skeleton](#skeleton) section, Stratosphere programs can be executed on clusters by using the `RemoteEnvironment`. Alternatively, programs can be packaged into JAR Files (Java Archives) for execution. Packaging the program is a prerequisite to executing them through the [command line interface](cli.html) or the [web interface](web_client.html).
+As described in the [program skeleton](#skeleton) section, Flink programs can be executed on clusters by using the `RemoteEnvironment`. Alternatively, programs can be packaged into JAR Files (Java Archives) for execution. Packaging the program is a prerequisite to executing them through the [command line interface](cli.html) or the [web interface](web_client.html).
 
 #### Packaging Programs
 
-To support execution from a packaged JAR file via the command line or web interface, a program must use the environment obtained by `ExecutionEnvironment.getExecutionEnvironment()`. This environment will act as the cluster's environment when the JAR is submitted to the command line or web interface. If the Stratosphere program is invoked differently than through these interfaces, the environment will act like a local environment.
+To support execution from a packaged JAR file via the command line or web interface, a program must use the environment obtained by `ExecutionEnvironment.getExecutionEnvironment()`. This environment will act as the cluster's environment when the JAR is submitted to the command line or web interface. If the Flink program is invoked differently than through these interfaces, the environment will act like a local environment.
 
-To package the program, simply export all involved classes as a JAR file. The JAR file's manifest must point to the class that contains the program's *entry point* (the class with the `public void main(String[])` method). The simplest way to do this is by putting the *main-class* entry into the manifest (such as `main-class: eu.stratosphere.example.MyProgram`). The *main-class* attribute is the same one that is used by the Java Virtual Machine to find the main method when executing a JAR files through the command `java -jar pathToTheJarFile`. Most IDEs offer to include that attribute automatically when exporting JAR files.
+To package the program, simply export all involved classes as a JAR file. The JAR file's manifest must point to the class that contains the program's *entry point* (the class with the `public void main(String[])` method). The simplest way to do this is by putting the *main-class* entry into the manifest (such as `main-class: org.apache.flinkexample.MyProgram`). The *main-class* attribute is the same one that is used by the Java Virtual Machine to find the main method when executing a JAR files through the command `java -jar pathToTheJarFile`. Most IDEs offer to include that attribute automatically when exporting JAR files.
 
 
 #### Packaging Programs through Plans
 
-Additionally, the Java API supports packaging programs as *Plans*. This method resembles the way that the *Scala API* packages programs. Instead of defining a progam in the main method and calling `execute()` on the environment, plan packaging returns the *Program Plan*, which is a description of the program's data flow. To do that, the program must implement the `eu.stratosphere.api.common.Program` interface, defining the `getPlan(String...)` method. The strings passed to that method are the command line arguments. The program's plan can be created from the environment via the `ExecutionEnvironment#createProgramPlan()` method. When packaging the program's plan, the JAR manifest must point to the class implementing the `eu.stratosphere.api.common.Program` interface, instead of the class with the main method.
+Additionally, the Java API supports packaging programs as *Plans*. This method resembles the way that the *Scala API* packages programs. Instead of defining a progam in the main method and calling `execute()` on the environment, plan packaging returns the *Program Plan*, which is a description of the program's data flow. To do that, the program must implement the `org.apache.flinkapi.common.Program` interface, defining the `getPlan(String...)` method. The strings passed to that method are the command line arguments. The program's plan can be created from the environment via the `ExecutionEnvironment#createProgramPlan()` method. When packaging the program's plan, the JAR manifest must point to the class implementing the `org.apache.flinkapi.common.Program` interface, instead of the class with the main method.
 
 
 #### Summary
@@ -1373,8 +1373,8 @@ Additionally, the Java API supports packaging programs as *Plans*. This method r
 The overall procedure to invoke a packaged program is as follows:
 
   1. The JAR's manifest is searched for a *main-class* or *program-class* attribute. If both attributes are found, the *program-class* attribute takes precedence over the *main-class* attribute. Both the command line and the web interface support a parameter to pass the entry point class name manually for cases where the JAR manifest contains neither attribute.
-  2. If the entry point class implements the `eu.stratosphere.api.common.Program`, then the system calls the `getPlan(String...)` method to obtain the program plan to execute. The `getPlan(String...)` method was the only possible way of defining a program in the *Record API* (see [0.4 docs](http://stratosphere.eu/docs/0.4/)) and is also supported in the new Java API.
-  3. If the entry point class does not implement the `eu.stratosphere.api.common.Program` interface, the system will invoke the main method of the class.
+  2. If the entry point class implements the `org.apache.flinkapi.common.Program`, then the system calls the `getPlan(String...)` method to obtain the program plan to execute. The `getPlan(String...)` method was the only possible way of defining a program in the *Record API* (see [0.4 docs](http://stratosphere.eu/docs/0.4/)) and is also supported in the new Java API.
+  3. If the entry point class does not implement the `org.apache.flinkapi.common.Program` interface, the system will invoke the main method of the class.
 
 [Back to top](#top)
 
@@ -1385,12 +1385,12 @@ Accumulators & Counters
 
 Accumulators are simple constructs with an **add operation** and a **final accumulated result**, which is available after the job ended.
 
-The most straightforward accumulator is a **counter**: You can increment it using the ```Accumulator.add(V value)``` method. At the end of the job Stratosphere will sum up (merge) all partial results and send the result to the client. Since accumulators are very easy to use, they can be useful during debugging or if you quickly want to find out more about your data.
+The most straightforward accumulator is a **counter**: You can increment it using the ```Accumulator.add(V value)``` method. At the end of the job Flink will sum up (merge) all partial results and send the result to the client. Since accumulators are very easy to use, they can be useful during debugging or if you quickly want to find out more about your data.
 
-Stratosphere currently has the following **built-in accumulators**. Each of them implements the {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/Accumulator.java "Accumulator" %} interface.
+Flink currently has the following **built-in accumulators**. Each of them implements the {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/Accumulator.java "Accumulator" %} interface.
 
-- {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/IntCounter.java "__IntCounter__" %}, {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/LongCounter.java "__LongCounter__" %} and {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/DoubleCounter.java "__DoubleCounter__" %}: See below for an example using a counter.
-- {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/Histogram.java "__Histogram__" %}: A histogram implementation for a discrete number of bins. Internally it is just a map from Integer to Integer. You can use this to compute distributions of values, e.g. the distribution of words-per-line for a word count program.
+- {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/IntCounter.java "__IntCounter__" %}, {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/LongCounter.java "__LongCounter__" %} and {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/DoubleCounter.java "__DoubleCounter__" %}: See below for an example using a counter.
+- {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/Histogram.java "__Histogram__" %}: A histogram implementation for a discrete number of bins. Internally it is just a map from Integer to Integer. You can use this to compute distributions of values, e.g. the distribution of words-per-line for a word count program.
 
 __How to use accumulators:__
 
@@ -1411,15 +1411,15 @@ The overall result will be stored in the ```JobExecutionResult``` object which i
 
     myJobExecutionResult.getAccumulatorResult("num-lines")
 
-All accumulators share a single namespace per job. Thus you can use the same accumulator in different operator functions of your job. Stratosphere will internally merge all accumulators with the same name.
+All accumulators share a single namespace per job. Thus you can use the same accumulator in different operator functions of your job. Flink will internally merge all accumulators with the same name.
 
-A note on accumulators and iterations: Currently the result of accumulators is only available after the overall job ended. We plan to also make the result of the previous iteration available in the next iteration. You can use {% gh_link /stratosphere-java/src/main/java/eu/stratosphere/api/java/IterativeDataSet.java#L98 "Aggregators" %} to compute per-iteration statistics and base the termination of iterations on such statistics.
+A note on accumulators and iterations: Currently the result of accumulators is only available after the overall job ended. We plan to also make the result of the previous iteration available in the next iteration. You can use {% gh_link /flink-java/src/main/java/org/apache/flink/api/java/IterativeDataSet.java#L98 "Aggregators" %} to compute per-iteration statistics and base the termination of iterations on such statistics.
 
 __Custom accumulators:__
 
-To implement your own accumulator you simply have to write your implementation of the Accumulator interface. Feel free to create a pull request if you think your custom accumulator should be shipped with Stratosphere.
+To implement your own accumulator you simply have to write your implementation of the Accumulator interface. Feel free to create a pull request if you think your custom accumulator should be shipped with Flink.
 
-You have the choice to implement either {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/Accumulator.java "Accumulator" %} or {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/accumulators/SimpleAccumulator.java "SimpleAccumulator" %}. ```Accumulator<V,R>``` is most flexible: It defines a type ```V``` for the value to add, and a result type ```R``` for the final result. E.g. for a histogram, ```V``` is a number and ```R``` is a histogram. ```SimpleAccumulator``` is for the cases where both types are the same, e.g. for counters.
+You have the choice to implement either {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/Accumulator.java "Accumulator" %} or {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/SimpleAccumulator.java "SimpleAccumulator" %}. ```Accumulator<V,R>``` is most flexible: It defines a type ```V``` for the value to add, and a result type ```R``` for the final result. E.g. for a histogram, ```V``` is a number and ```R``` is a histogram. ```SimpleAccumulator``` is for the cases where both types are the same, e.g. for counters.
 
 [Back to top](#top)
 
@@ -1428,11 +1428,11 @@ You have the choice to implement either {% gh_link /stratosphere-core/src/main/j
 Execution Plans
 ---------------
 
-Depending on various parameters such as data size or number of machines in the cluster, Stratosphere's optimizer automatically chooses an execution strategy for your program. In many cases, it can be useful to know how exactly Stratosphere will execute your program.
+Depending on various parameters such as data size or number of machines in the cluster, Flink's optimizer automatically chooses an execution strategy for your program. In many cases, it can be useful to know how exactly Flink will execute your program.
 
 __Plan Visualization Tool__
 
-Stratosphere 0.5 comes packaged with a visualization tool for execution plans. The HTML document containing the visualizer is located under ```tools/planVisualizer.html```. It takes a JSON representation of the job execution plan and visualizes it as a graph with complete annotations of execution strategies.
+Flink 0.5 comes packaged with a visualization tool for execution plans. The HTML document containing the visualizer is located under ```tools/planVisualizer.html```. It takes a JSON representation of the job execution plan and visualizes it as a graph with complete annotations of execution strategies.
 
 The following code shows how to print the execution plan JSON from your program:
 
@@ -1451,10 +1451,10 @@ To visualize the execution plan, do the following:
 
 After these steps, a detailed execution plan will be visualized.
 
-<img alt="A stratosphere job execution graph." src="http://stratosphere.eu/img/blog/plan_visualizer2.png" width="80%">
+<img alt="A flink job execution graph." src="{{site.baseurl}}/img/blog/plan_visualizer2.png" width="80%">
 __Web Interface__
 
-Stratosphere offers a web interface for submitting and executing jobs. If you choose to use this interface to submit your packaged program, you have the option to also see the plan visualization.
+Flink offers a web interface for submitting and executing jobs. If you choose to use this interface to submit your packaged program, you have the option to also see the plan visualization.
 
 The script to start the webinterface is located under ```bin/start-webclient.sh```. After starting the webclient (per default on **port 8080**), your program can be uploaded and will be added to the list of available programs on the left side of the interface.
 

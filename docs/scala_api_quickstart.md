@@ -2,7 +2,7 @@
 title: "Quickstart: Scala API"
 ---
 
-Start working on your Stratosphere Scala program in a few simple steps.
+Start working on your Flink Scala program in a few simple steps.
 
 #Requirements
 The only requirements are working __Maven 3.0.4__ (or higher) and __Java 6.x__ (or higher) installations.
@@ -18,13 +18,13 @@ Use one of the following commands to __create a project__:
 <div class="tab-content">
     <div class="tab-pane active" id="quickstart-script">
 {% highlight bash %}
-$ curl https://raw.githubusercontent.com/apache/incubator-flink/master/stratosphere-quickstart/quickstart-scala.sh | bash
+$ curl https://raw.githubusercontent.com/apache/incubator-flink/master/flink-quickstart/quickstart-scala.sh | bash
 {% endhighlight %}
     </div>
     <div class="tab-pane" id="maven-archetype">
 {% highlight bash %}
 $ mvn archetype:generate                             \
-  -DarchetypeGroupId=eu.stratosphere               \
+  -DarchetypeGroupId=org.apache.flink              \
   -DarchetypeArtifactId=quickstart-scala           \
   -DarchetypeVersion={{site.FLINK_VERSION_STABLE}}                  
 {% endhighlight %}
@@ -36,7 +36,7 @@ $ mvn archetype:generate                             \
 #Inspect Project
 There will be a __new directory in your working directory__. If you've used the _curl_ approach, the directory is called `quickstart`. Otherwise, it has the name of your artifactId.
 
-The sample project is a __Maven project__, which contains a sample scala _job_ that implements Word Count. Please note that the _RunJobLocal_ and _RunJobRemote_ objects allow you to start Stratosphere in a development/testing mode.</p>
+The sample project is a __Maven project__, which contains a sample scala _job_ that implements Word Count. Please note that the _RunJobLocal_ and _RunJobRemote_ objects allow you to start Flink in a development/testing mode.</p>
 
 We recommend to __import this project into your IDE__. For Eclipse, you need the following plugins, which you can install from the provided Eclipse Update Sites:
 
@@ -54,7 +54,7 @@ The IntelliJ IDE also supports Maven and offers a plugin for Scala development.
 
 # Build Project
 
-If you want to __build your project__, go to your project directory and issue the`mvn clean package` command. You will __find a jar__ that runs on every Stratosphere cluster in __target/stratosphere-project-0.1-SNAPSHOT.jar__.
+If you want to __build your project__, go to your project directory and issue the`mvn clean package` command. You will __find a jar__ that runs on every Flink cluster in __target/flink-project-0.1-SNAPSHOT.jar__.
 
 #Next Steps
 

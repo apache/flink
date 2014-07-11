@@ -2,13 +2,13 @@
 title: "Quickstart: Setup"
 ---
 
-Get Stratosphere up and running in a few simple steps.
+Get Flink up and running in a few simple steps.
 
 # Requirements
-Stratosphere runs on all __UNIX-like__ environments: __Linux__, __Mac OS X__, __Cygwin__. The only requirement is to have a working __Java 6.x__ (or higher) installation.
+Flink runs on all __UNIX-like__ environments: __Linux__, __Mac OS X__, __Cygwin__. The only requirement is to have a working __Java 6.x__ (or higher) installation.
 
 # Download
-Download the ready to run binary package. Choose the Stratosphere distribution that __matches your Hadoop version__. If you are unsure which version to choose or you just want to run locally, pick the package for Hadoop 1.2.
+Download the ready to run binary package. Choose the Flink distribution that __matches your Hadoop version__. If you are unsure which version to choose or you just want to run locally, pick the package for Hadoop 1.2.
 
 <ul class="nav nav-tabs">
    <li class="active"><a href="#bin-hadoop1" data-toggle="tab">Hadoop 1.2</a></li>
@@ -16,10 +16,10 @@ Download the ready to run binary package. Choose the Stratosphere distribution t
  </ul>
  <div class="tab-content text-center">
    <div class="tab-pane active" id="bin-hadoop1">
-     <a class="btn btn-info btn-lg" onclick="_gaq.push(['_trackEvent','Action','download-quickstart-setup-1',this.href]);" href="{{site.FLINK_DOWNLOAD_URL_HADOOP_1_STABLE}}"><i class="icon-download"> </i> Download Stratosphere for Hadoop 1.2</a>
+     <a class="btn btn-info btn-lg" onclick="_gaq.push(['_trackEvent','Action','download-quickstart-setup-1',this.href]);" href="{{site.FLINK_DOWNLOAD_URL_HADOOP_1_STABLE}}"><i class="icon-download"> </i> Download Flink for Hadoop 1.2</a>
    </div>
    <div class="tab-pane" id="bin-hadoop2">
-     <a class="btn btn-info btn-lg" onclick="_gaq.push(['_trackEvent','Action','download-quickstart-setup-2',this.href]);" href="{{site.FLINK_DOWNLOAD_URL_HADOOP_2_STABLE}}"><i class="icon-download"> </i> Download Stratosphere for Hadoop 2</a>
+     <a class="btn btn-info btn-lg" onclick="_gaq.push(['_trackEvent','Action','download-quickstart-setup-2',this.href]);" href="{{site.FLINK_DOWNLOAD_URL_HADOOP_2_STABLE}}"><i class="icon-download"> </i> Download Flink for Hadoop 2</a>
    </div>
  </div>
 </p>
@@ -30,21 +30,21 @@ You are almost done.
   
 1. Go to the download directory.
 2. Unpack the downloaded archive.
-3. Start Stratosphere.
+3. Start Flink.
 
 
 ```bash
 $ cd ~/Downloads              # Go to download directory
-$ tar xzf stratosphere-*.tgz  # Unpack the downloaded archive
-$ cd stratosphere
-$ bin/start-local.sh          # Start Stratosphere
+$ tar xzf flink-*.tgz  # Unpack the downloaded archive
+$ cd flink
+$ bin/start-local.sh          # Start Flink
 ```
 
 Check the __JobManager's web frontend__ at [http://localhost:8081](http://localhost:8081) and make sure everything is up and running.
 
 # Run Example
 
-Run the __Word Count example__ to see Stratosphere at work.
+Run the __Word Count example__ to see Flink at work.
 
 * __Download test data__:
 ```bash
@@ -53,8 +53,8 @@ $ wget -O hamlet.txt http://www.gutenberg.org/cache/epub/1787/pg1787.txt
 * You now have a text file called _hamlet.txt_ in your working directory.
 * __Start the example program__:
 ```bash
-$ bin/stratosphere run \
-    --jarfile ./examples/stratosphere-java-examples-{{site.FLINK_VERSION_STABLE}}-WordCount.jar \
+$ bin/flink run \
+    --jarfile ./examples/flink-java-examples-{{site.FLINK_VERSION_STABLE}}-WordCount.jar \
 
     --arguments file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
 ```
@@ -63,10 +63,10 @@ $ bin/stratosphere run \
 
 # Cluster Setup
   
-__Running Stratosphere on a cluster__ is as easy as running it locally. Having __passwordless SSH__ and __the same directory structure__ on all your cluster nodes lets you use our scripts to control everything.
+__Running Flink on a cluster__ is as easy as running it locally. Having __passwordless SSH__ and __the same directory structure__ on all your cluster nodes lets you use our scripts to control everything.
 
-1. Copy the unpacked __stratosphere__ directory from the downloaded archive to the same file system path on each node of your setup.
-2. Choose a __master node__ (JobManager) and set the `jobmanager.rpc.address` key in `conf/stratosphere-conf.yaml` to its IP or hostname. Make sure that all nodes in your cluster have the same `jobmanager.rpc.address` configured.
+1. Copy the unpacked __flink__ directory from the downloaded archive to the same file system path on each node of your setup.
+2. Choose a __master node__ (JobManager) and set the `jobmanager.rpc.address` key in `conf/flink-conf.yaml` to its IP or hostname. Make sure that all nodes in your cluster have the same `jobmanager.rpc.address` configured.
 3. Add the IPs or hostnames (one per line) of all __worker nodes__ (TaskManager) to the slaves files in `conf/slaves`.
 
 You can now __start the cluster__ at your master node with `bin/start-cluster.sh`.
@@ -81,13 +81,13 @@ The following __example__ illustrates the setup with three nodes (with IP addres
 <div class="col-md-6">
   <div class="row">
     <p class="lead text-center">
-      /path/to/<strong>stratosphere/conf/<br>stratosphere-conf.yaml</strong>
+      /path/to/<strong>flink/conf/<br>flink-conf.yaml</strong>
     <pre>jobmanager.rpc.address: 10.0.0.1</pre>
     </p>
   </div>
 <div class="row" style="margin-top: 1em;">
   <p class="lead text-center">
-    /path/to/<strong>stratosphere/<br>conf/slaves</strong>
+    /path/to/<strong>flink/<br>conf/slaves</strong>
   <pre>
     10.0.0.2
     10.0.0.3</pre>
@@ -96,10 +96,10 @@ The following __example__ illustrates the setup with three nodes (with IP addres
 </div>
 </div>
 
-# Stratosphere on YARN
-You can easily deploy Stratosphere on your existing __YARN cluster__. 
+# Flink on YARN
+You can easily deploy Flink on your existing __YARN cluster__. 
 
-1. Download the __Stratosphere YARN package__ with the YARN client: [Stratosphere for YARN]({{site.FLINK_DOWNLOAD_URL_YARN_STABLE}})
+1. Download the __Flink YARN package__ with the YARN client: [Flink for YARN]({{site.FLINK_DOWNLOAD_URL_YARN_STABLE}})
 2. Make sure your __HADOOP_HOME__ (or _YARN_CONF_DIR_ or _HADOOP_CONF_DIR_) __environment variable__ is set to read your YARN and HDFS configuration.
 3. Run the __YARN client__ with: `./bin/yarn-session.sh`. You can run the client with options `-n 10 -tm 8192` to allocate 10 TaskManagers with 8GB of memory each.
 

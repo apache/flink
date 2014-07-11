@@ -2,21 +2,21 @@
 title: "Quick Start: Run K-Means Example"
 ---
 
-This guide will Peter demonstrate Stratosphere's features by example. You will see how you can leverage Stratosphere's Iteration-feature to find clusters in a dataset using [K-Means clustering](http://en.wikipedia.org/wiki/K-means_clustering). 
+This guide will Peter demonstrate Flink's features by example. You will see how you can leverage Flink's Iteration-feature to find clusters in a dataset using [K-Means clustering](http://en.wikipedia.org/wiki/K-means_clustering). 
 On the way, you will see the compiler, the status interface and the result of the algorithm.
 
 
 #  Generate Input Data
-Stratosphere contains a data generator for K-Means.
+Flink contains a data generator for K-Means.
 
-	# Download Stratosphere
+	# Download Flink
 	wget {{ site.FLINK_VERSION_STABLE_dl }}
-	tar xzf stratosphere-*.tgz 
-	cd stratosphere-*
+	tar xzf flink-*.tgz 
+	cd flink-*
 	mkdir kmeans
 	cd kmeans
 	# Run data generator
-	java -cp  ../examples/stratosphere-java-examples-{{ site.FLINK_VERSION_STABLE }}-KMeans.jar eu.stratosphere.example.java.clustering.util.KMeansDataGenerator 500 10 0.08
+	java -cp  ../examples/flink-java-examples-{{ site.FLINK_VERSION_STABLE }}-KMeans.jar org.apache.flinkexample.java.clustering.util.KMeansDataGenerator 500 10 0.08
 	cp /tmp/points .
 	cp /tmp/centers .
 
@@ -47,17 +47,17 @@ The following overview presents the impact of the different standard deviations 
 
 
 # Run Clustering
-We are using the generated input data to run the clustering using a Stratosphere job.
+We are using the generated input data to run the clustering using a Flink job.
 
-	# go to the Stratosphere-root directory
-	cd stratosphere
-	# start Stratosphere (use ./bin/start-cluster.sh if you're on a cluster)
+	# go to the Flink-root directory
+	cd flink
+	# start Flink (use ./bin/start-cluster.sh if you're on a cluster)
 	./bin/start-local.sh
-	# Start Stratosphere web client
+	# Start Flink web client
 	./bin/start-webclient.sh
 
-# Review Stratosphere Compiler
-The Stratosphere webclient allows to submit Stratosphere programs using a graphical user interface.
+# Review Flink Compiler
+The Flink webclient allows to submit Flink programs using a graphical user interface.
 
 <div class="row" style="padding-top:15px">
 	<div class="col-md-6">
@@ -67,7 +67,7 @@ The Stratosphere webclient allows to submit Stratosphere programs using a graphi
 		1. <a href="http://localhost:8080/launch.html">Open webclient on localhost:8080</a> <br>
 		2. Upload the file. 
 			{% highlight bash %}
-			examples/stratosphere-java-examples-0.5-SNAPSHOT-KMeansIterative.jar
+			examples/flink-java-examples-0.5-SNAPSHOT-KMeansIterative.jar
 			{% endhighlight %} </br>
 		3. Select it in the left box to see how the operators in the plan are connected to each other. <br>
 		4. Enter the arguments in the lower left box:
@@ -76,7 +76,7 @@ The Stratosphere webclient allows to submit Stratosphere programs using a graphi
 			{% endhighlight %}
 			For example:
 			{% highlight bash %}
-			file:///tmp/stratosphere/kmeans/points file:///tmp/stratosphere/kmeans/centers file:///tmp/stratosphere/kmeans/result 20
+			file:///tmp/flink/kmeans/points file:///tmp/flink/kmeans/centers file:///tmp/flink/kmeans/result 20
 			{% endhighlight %}
 	</div>
 </div>
@@ -98,7 +98,7 @@ The Stratosphere webclient allows to submit Stratosphere programs using a graphi
 	</div>
 	<div class="col-md-6">
 		1. Press the <b>Continue</b> button to start executing the job. <br>
-		2. <a href="http://localhost:8080/launch.html">Open Stratosphere's monitoring interface</a> to see the job's progress.<br>
+		2. <a href="http://localhost:8080/launch.html">Open Flink's monitoring interface</a> to see the job's progress.<br>
 		3. Once the job has finished, you can analyize the runtime of the individual operators.
 	</div>
 </div>

@@ -4,7 +4,7 @@ title:  "Iterations"
 
 Iterative algorithms occur in many domains of data analysis, such as *machine learning* or *graph analysis*. Such algorithms are crucial in order to realize the promise of Big Data to extract meaningful information out of your data. With increasing interest to run these kinds of algorithms on very large data sets, there is a need to execute iterations in a massively parallel fashion.
 
-Stratosphere programs implement iterative algorithms by defining a **step function** and embedding it into a special iteration operator. There are two  variants of this operator: **Iterate** and **Delta Iterate**. Both operators repeatedly invoke the step function on the current iteration state until a certain termination condition is reached.
+Flink programs implement iterative algorithms by defining a **step function** and embedding it into a special iteration operator. There are two  variants of this operator: **Iterate** and **Delta Iterate**. Both operators repeatedly invoke the step function on the current iteration state until a certain termination condition is reached.
 
 Here, we provide background on both operator variants and outline their usage. The [programming guides](java_api_guide.html) explain how to implement the operators in both [Scala](scala_api_guide.html) and [Java](java_api_guide.html#iterations). We also provide a **vertex-centric graph processing API** called [Spargel](spargel_guide.html).
 

@@ -2,11 +2,11 @@
 title:  "Java API Examples"
 ---
 
-The following example programs showcase different applications of Stratosphere 
+The following example programs showcase different applications of Flink 
 from simple word counting to graph algorithms. The code samples illustrate the 
-use of [Stratosphere's Java API](java_api_guide.html). 
+use of [Flink's Java API](java_api_guide.html). 
 
-The full source code of the following and more examples can be found in the __stratosphere-java-examples__ module.
+The full source code of the following and more examples can be found in the __flink-java-examples__ module.
 
 # Word Count
 WordCount is the "Hello World" of Big Data processing systems. It computes the frequency of words in a text collection. The algorithm works in two steps: First, the texts are splits the text to individual words. Second, the words are grouped and counted.
@@ -42,7 +42,7 @@ public static final class Tokenizer extends FlatMapFunction<String, Tuple2<Strin
 }
 ```
 
-The {% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/wordcount/WordCount.java  "WordCount example" %} implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
+The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/wordcount/WordCount.java  "WordCount example" %} implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
 
 # Page Rank
 
@@ -118,7 +118,7 @@ public static final class EpsilonFilter
 }
 ```
 
-The {% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/graph/PageRankBasic.java "PageRank program" %} implements the above example.
+The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/graph/PageRankBasic.java "PageRank program" %} implements the above example.
 It requires the following parameters to run: `<pages input path>, <links input path>, <output path>, <num pages>, <num iterations>`.
 
 Input files are plain text files and must be formatted as follows:
@@ -209,7 +209,7 @@ public static final class ComponentIdFilter
 }
 ```
 
-The {% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/graph/ConnectedComponents.java "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
+The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/graph/ConnectedComponents.java "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
 
 Input files are plain text files and must be formatted as follows:
 - Vertices represented as IDs and separated by new-line characters.
@@ -233,7 +233,7 @@ WHERE l_orderkey = o_orderkey
 GROUP BY l_orderkey, o_shippriority;
 ```
 
-The Stratosphere Java program, which implements the above query looks as follows.
+The Flink Java program, which implements the above query looks as follows.
 
 ```java
 // get orders data set: (orderkey, orderstatus, orderdate, orderpriority, shippriority)
@@ -280,10 +280,10 @@ DataSet<Tuple3<Integer, Integer, Double>> priceSums =
 priceSums.writeAsCsv(outputPath);
 ```
 
-The {% gh_link /stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/relational/RelationalQuery.java "Relational Query program" %} implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>`.
+The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/relational/RelationalQuery.java "Relational Query program" %} implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>`.
 
 The orders and lineitem files can be generated using the [TPC-H benchmark](http://www.tpc.org/tpch/) suite's data generator tool (DBGEN). 
-Take the following steps to generate arbitrary large input files for the provided Stratosphere programs:
+Take the following steps to generate arbitrary large input files for the provided Flink programs:
 
 1.  Download and unpack DBGEN
 2.  Make a copy of *makefile.suite* called *Makefile* and perform the following changes:

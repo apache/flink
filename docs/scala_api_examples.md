@@ -2,10 +2,10 @@
 title:  "Scala API Examples"
 ---
 
-The following example programs showcase different applications of Stratosphere from simple word counting to graph algorithms.
-The code samples illustrate the use of [Stratosphere's Scala API](scala_api_guide.html). 
+The following example programs showcase different applications of Flink from simple word counting to graph algorithms.
+The code samples illustrate the use of [Flink's Scala API](scala_api_guide.html). 
 
-The full source code of the following and more examples can be found in the [stratosphere-scala-examples](https://github.com/apache/incubator-flink/tree/ca2b287a7a78328ebf43766b9fdf39b56fb5fd4f/stratosphere-examples/stratosphere-scala-examples) module.
+The full source code of the following and more examples can be found in the [flink-scala-examples](https://github.com/apache/incubator-flink/tree/ca2b287a7a78328ebf43766b9fdf39b56fb5fd4f/flink-examples/flink-scala-examples) module.
 
 # Word Count
 
@@ -25,7 +25,7 @@ val counts = words.groupBy { case (word, _) => word }
 val output = counts.write(wordsOutput, CsvOutputFormat()))
 ```
 
-The {% gh_link /stratosphere-examples/stratosphere-scala-examples/src/main/scala/eu/stratosphere/examples/scala/wordcount/WordCount.scala "WordCount example" %} implements the above described algorithm with input parameters: `<degree of parallelism>, <text input path>, <output path>`. As test data, any text file will do.
+The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala "WordCount example" %} implements the above described algorithm with input parameters: `<degree of parallelism>, <text input path>, <output path>`. As test data, any text file will do.
 
 # Page Rank
 
@@ -71,7 +71,7 @@ val output = finalRanks.write(outputPath, CsvOutputFormat())
 
 
 
-The {% gh_link /stratosphere-examples/stratosphere-scala-examples/src/main/scala/eu/stratosphere/examples/scala/graph/PageRank.scala "PageRank program" %} implements the above example.
+The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/graph/PageRank.scala "PageRank program" %} implements the above example.
 It requires the following parameters to run: `<pages input path>, <link input path>, <output path>, <num pages>, <num iterations>`.
 
 Input files are plain text files and must be formatted as follows:
@@ -123,7 +123,7 @@ val components = initialComponents.iterateWithDelta(initialComponents, { _.verte
 val output = components.write(componentsOutput, CsvOutputFormat())
 ```
 
-The {% gh_link /stratosphere-examples/stratosphere-scala-examples/src/main/scala/eu/stratosphere/examples/scala/graph/ConnectedComponents.scala "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
+The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/graph/ConnectedComponents.scala "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
 
 Input files are plain text files and must be formatted as follows:
 - Vertices represented as IDs and separated by new-line characters.
@@ -147,7 +147,7 @@ WHERE l_orderkey = o_orderkey
 GROUP BY l_orderkey, o_shippriority;
 ```
 
-The Stratosphere Scala program, which implements the above query looks as follows.
+The Flink Scala program, which implements the above query looks as follows.
 
 ```scala
 // --- define some custom classes to address fields by name ---
@@ -171,10 +171,10 @@ val prioritizedOrders = prioritizedItems
 val output = prioritizedOrders.write(ordersOutput, CsvOutputFormat(formatOutput))
 ```
 
-The {% gh_link /stratosphere-examples/stratosphere-scala-examples/src/main/scala/eu/stratosphere/examples/scala/relational/RelationalQuery.scala "Relational Query program" %} implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>, <degree of parallelism>`.
+The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/relational/RelationalQuery.scala "Relational Query program" %} implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>, <degree of parallelism>`.
 
 The orders and lineitem files can be generated using the [TPC-H benchmark](http://www.tpc.org/tpch/) suite's data generator tool (DBGEN). 
-Take the following steps to generate arbitrary large input files for the provided Stratosphere programs:
+Take the following steps to generate arbitrary large input files for the provided Flink programs:
 
 1.  Download and unpack DBGEN
 2.  Make a copy of *makefile.suite* called *Makefile* and perform the following changes:

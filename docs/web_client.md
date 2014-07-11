@@ -2,7 +2,7 @@
 title:  "Web Client"
 ---
 
-Stratosphere provides a web interface to upload jobs, inspect their execution plans, and execute them. The interface is a great tool to showcase programs, debug execution plans, or demonstrate the system as a whole.
+Flink provides a web interface to upload jobs, inspect their execution plans, and execute them. The interface is a great tool to showcase programs, debug execution plans, or demonstrate the system as a whole.
 
 # Start, Stop, and Configure the Web Interface
 
@@ -14,20 +14,20 @@ and stop it by calling:
 
     ./bin/stop-webclient.sh
 
-The web interface runs on port 8080 by default. To specify a custom port set the ```webclient.port``` property in the *./conf/stratosphere.yaml* configuration file. Jobs are submitted to the JobManager specified by ```jobmanager.rpc.address``` and ```jobmanager.rpc.port```. Please consult the [configuration](config.html#web_frontend) page for details and further configuration options.
+The web interface runs on port 8080 by default. To specify a custom port set the ```webclient.port``` property in the *./conf/flink.yaml* configuration file. Jobs are submitted to the JobManager specified by ```jobmanager.rpc.address``` and ```jobmanager.rpc.port```. Please consult the [configuration](config.html#web_frontend) page for details and further configuration options.
 
 # Use the Web Interface
 
 The web interface provides two views:
 
-1.  The **job view** to upload, preview, and submit Stratosphere programs.
-2.  The **plan view** to analyze the optimized execution plans of Stratosphere programs.
+1.  The **job view** to upload, preview, and submit Flink programs.
+2.  The **plan view** to analyze the optimized execution plans of Flink programs.
 
 ## Job View
 
 The interface starts serving the job view. 
 
-You can **upload** a Stratosphere program as a jar file. To **execute** an uploaded program:
+You can **upload** a Flink program as a jar file. To **execute** an uploaded program:
 
 * select it from the job list on the left, 
 * enter the program arguments in the *"Arguments"* field (bottom left), and 

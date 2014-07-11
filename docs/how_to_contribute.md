@@ -37,7 +37,7 @@ git clone https://github.com/<your-user-name>/incubator-flink.git
 git checkout -b myBranch master
 ```
 
-4. Now you can create your changes, compile the code, and validate the changes. Here are some pointers on how to [set up the Eclipse IDE for development](https://github.com/apache/incubator-flink/#eclipse-setup-and-debugging), and how to [build the code](https://github.com/apache/incubator-flink/#build-stratosphere).
+4. Now you can create your changes, compile the code, and validate the changes. Here are some pointers on how to [set up the Eclipse IDE for development](https://github.com/apache/incubator-flink/#eclipse-setup-and-debugging), and how to [build the code](https://github.com/apache/incubator-flink/#build-flink).
 
 5. After you have finalized your contribution, verify the compliance with the contribution guidelines (see below), and commit them. To make the changes easily mergeable, please rebase them to the latest version of the main repositories master branch. Assuming you created a topic branch (step 3), you can follow this sequence of commands to do that:
 Switch to the master branch, update it to the latest revision, switch back to your topic branch, and rebase it on top of the master branch.

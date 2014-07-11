@@ -6,12 +6,12 @@ title: "Scala API Programming Guide"
 Scala Programming Guide
 =======================
 
-This guide explains how to develop Stratosphere programs with the Scala
+This guide explains how to develop Flink programs with the Scala
 programming interface. 
 
 Here we will look at the general structure of a Scala job. You will learn how to
 write data sources, data sinks, and operators to create data flows that can be
-executed using the Stratosphere system.
+executed using the Flink system.
 
 Writing Scala jobs requires an understanding of Scala, there is excellent
 documentation available [here](http://scala-lang.org/documentation/). Most
@@ -28,10 +28,10 @@ To start, let's look at a Word Count job implemented in Scala. This program is
 very simple but it will give you a basic idea of what a Scala job looks like.
 
 ```scala
-import eu.stratosphere.client.LocalExecutor
+import org.apache.flinkclient.LocalExecutor
 
-import eu.stratosphere.api.scala._
-import eu.stratosphere.api.scala.operators._
+import org.apache.flinkapi.scala._
+import org.apache.flinkapi.scala.operators._
 
 object WordCount {
   def main(args: Array[String]) {
@@ -50,12 +50,12 @@ object WordCount {
 }
 ``` 
 
-Same as any Stratosphere job a Scala job consists of one or several data
+Same as any Flink job a Scala job consists of one or several data
 sources, one or several data sinks and operators in between these that transform
 data. Together these parts are referred to as the data flow graph. It dictates
 the way data is passed when a job is executed.
 
-When using Scala in Stratosphere an important concept to grasp is that of the
+When using Scala in Flink an important concept to grasp is that of the
 `DataSet`. `DataSet` is an abstract concept that represents actual data sets at
 runtime and which has operations that transform data to create a new transformed
 data set. In this example the `TextFile("/some/input")` call creates a
@@ -84,7 +84,7 @@ Project Setup
 
 We will only cover maven here but the concepts should work equivalently with
 other build systems such as Gradle or sbt. When wanting to develop a Scala job
-all that is needed as dependency is is `stratosphere-scala` (and `stratosphere-clients`, if
+all that is needed as dependency is is `flink-scala` (and `flink-clients`, if
 you want to execute your jobs). So all that needs to be done is to add the
 following lines to your POM.
 
@@ -104,7 +104,7 @@ following lines to your POM.
 </dependencies>
 ```
 
-To quickly get started you can use the Stratosphere Scala quickstart available
+To quickly get started you can use the Flink Scala quickstart available
 [here]({{site.baseurl}}/quickstart/scala.html). This will give you a
 completeMaven project with some working example code that you can use to explore
 the system or as basis for your own projects.
@@ -112,11 +112,11 @@ the system or as basis for your own projects.
 These imports are normally enough for any project:
 
 ```scala
-import eu.stratosphere.api.scala._
-import eu.stratosphere.api.scala.operators._
+import org.apache.flinkapi.scala._
+import org.apache.flinkapi.scala.operators._
 
-import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.client.RemoteExecutor
+import org.apache.flinkclient.LocalExecutor
+import org.apache.flinkclient.RemoteExecutor
 ```
 
 The first two imports contain things like `DataSet`, `Plan`, data sources, data
@@ -131,7 +131,7 @@ The DataSet Abstraction
 
 As already alluded to in the introductory example you write Scala jobs by using
 operations on a `DataSet` to create new transformed `DataSet`. This concept is
-the core of the Stratosphere Scala API so it merits some more explanation. A
+the core of the Flink Scala API so it merits some more explanation. A
 `DataSet` can look and behave like a regular Scala collection in your code but
 it does not contain any actual data but only represents data. For example: when
 you use `TextFile()` you get back a `DataSource[String]` that represents each
@@ -170,9 +170,9 @@ the primitive Scala types, case classes (which includes tuples), and custom
 data types.
 
 Custom data types must implement the interface
-{% gh_link /stratosphere-core/src/main/java/eu/stratosphere/types/Value.java "Value" %}.
+{% gh_link /flink-core/src/main/java/org/apache/flink/types/Value.java "Value" %}.
 For custom data types that should also be used as a grouping key or join key
-the {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/types/Key.java "Key" %}
+the {% gh_link /flink-core/src/main/java/org/apache/flink/types/Key.java "Key" %}
 interface must be implemented.
 
 [Back to top](#top)
@@ -340,8 +340,8 @@ Here `input` would be of type `DataSet[(Int, Double)]`.
 
 This input format is only meant to be used in conjunction with
 `BinarySerializedOutputFormat`. You can use these to write elements to files using a
-Stratosphere-internal format that can efficiently be read again. You should only
-use this when output is only meant to be consumed by other Stratosphere jobs.
+Flink-internal format that can efficiently be read again. You should only
+use this when output is only meant to be consumed by other Flink jobs.
 The format can be used on one of two ways:
 
 ```scala
@@ -380,7 +380,7 @@ Operations on DataSet
 ---------------------
 
 As explained in [Programming Model](pmodel.html#operators),
-a Stratosphere job is a graph of operators that process data coming from
+a Flink job is a graph of operators that process data coming from
 sources that is finally written to sinks. When you use the Scala front end
 these operators as well as the graph is created behind the scenes. For example,
 when you write code like this:
@@ -402,7 +402,7 @@ it helps to remember, that when you are using Scala you are building
 a data flow graph that processes data only when executed.
 
 There are operations on `DataSet` that correspond to all the types of operators
-that the Stratosphere system supports. We will shortly go trough all of them with
+that the Flink system supports. We will shortly go trough all of them with
 some examples.
 
 [Back to top](#top)
@@ -686,13 +686,13 @@ Where `A` is the generic type of the `DataSet` on which you execute the `union`.
 Iterations
 ----------
 
-Iterations allow you to implement *loops* in Stratosphere programs.
+Iterations allow you to implement *loops* in Flink programs.
 [This page](iterations.html) gives a
 general introduction to iterations. This section here provides quick examples
 of how to use the concepts using the Scala API.
 The iteration operators encapsulate a part of the program and execute it
 repeatedly, feeding back the result of one iteration (the partial solution) into
-the next iteration. Stratosphere has two different types of iterations,
+the next iteration. Flink has two different types of iterations,
 *Bulk Iteration* and *Delta Iteration*.
 
 For both types of iterations you provide the iteration body as a function
@@ -886,8 +886,8 @@ BinaryOutputFormat[In](writeFunction: (In, DataOutput) => Unit, blockSize: Long)
 
 This output format is only meant to be used in conjunction with
 `BinarySerializedInputFormat`. You can use these to write elements to files using a
-Stratosphere-internal format that can efficiently be read again. You should only
-use this when output is only meant to be consumed by other Stratosphere jobs.
+Flink-internal format that can efficiently be read again. You should only
+use this when output is only meant to be consumed by other Flink jobs.
 The output format can be used on one of two ways:
 
 ```scala
@@ -911,7 +911,7 @@ by Scala.
 Executing Jobs
 --------------
 
-To execute a data flow graph the sinks need to be wrapped in a {% gh_link /stratosphere-scala/src/main/scala/eu/stratosphere/api/scala/ScalaPlan.scala "ScalaPlan" %} object like this:
+To execute a data flow graph the sinks need to be wrapped in a {% gh_link /flink-scala/src/main/scala/org/apache/flink/api/scala/ScalaPlan.scala "ScalaPlan" %} object like this:
 
 ```scala
 val out: DataSet[(String, Int)]
@@ -932,7 +932,7 @@ now give an example for each of the two execution modes.
 First up is local execution:
 
 ```scala
-import eu.stratosphere.client.LocalExecutor
+import org.apache.flinkclient.LocalExecutor
 
 ...
 
@@ -946,10 +946,10 @@ Remote (or cluster) execution is a bit more complicated because you have
 to package your code in a jar file so that it can be distributed on the cluster.
 Have a look at the [scala quickstart](scala_api_quickstart.html) to see how you
 can set up a maven project that does the packaging. Remote execution is done
-using the {% gh_link /stratosphere-clients/src/main/java/eu/stratosphere/client/RemoteExecutor.java "RemoteExecutor" %}, like this:
+using the {% gh_link /flink-clients/src/main/java/org/apache/flink/client/RemoteExecutor.java "RemoteExecutor" %}, like this:
 
 ```scala
-import eu.stratosphere.client.RemoteExecutor
+import org.apache.flinkclient.RemoteExecutor
 
 ...
 
@@ -958,7 +958,7 @@ val ex = new RemoteExecutor("<job manager ip address>", <job manager port>, "you
 ex.executePlan(plan);
 ```
 
-The IP address and the port of the Stratosphere job manager depend on your
+The IP address and the port of the Flink job manager depend on your
 setup. Have a look at [cluster quickstart](/quickstart/setup.html) for a quick
 guide about how to set up a cluster. The default cluster port is 6123, so
 if you run a job manger on your local computer you can give this and "localhost"
@@ -1006,14 +1006,14 @@ instead of the anonymous class we used here.
 
 There are rich functions for all the various operator types. The basic
 template is the some, though. The common interface that they implement 
-is {% gh_link /stratosphere-core/src/main/java/eu/stratosphere/api/common/functions/Function.java "Function" %}. The `open` and `close` methods can be overridden to run set-up
+is {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/functions/Function.java "Function" %}. The `open` and `close` methods can be overridden to run set-up
 and tear-down code. The other methods can be used in a rich function to
 work with the runtime context which gives information about the context
 of the operator. Your operation code must now reside in an `apply` method
 that has the same signature as the anonymous function you would normally
 supply.
 
-The rich functions reside in the package `eu.stratosphere.api.scala.functions`.
+The rich functions reside in the package `org.apache.flinkapi.scala.functions`.
 This is a list of all the rich functions can can be used instead of
 simple functions in the respective operations:
 
