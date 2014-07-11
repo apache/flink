@@ -391,17 +391,18 @@ public class DefaultInstanceManager implements InstanceManager {
 						allocatedResources.add(resource);
 						allocatedSlots++;
 
-						if(headInstance.getLoad() < instance.getLoad()){
-							index = 0;
-							instance = headInstance;
-						}else if(instance.getLoad() > nextLoad){
+						if(instance.getLoad() > nextLoad){
 							index++;
 							instance = increasingLoad.get(index);
-							if(increasingLoad.size() > index+1){
-								nextLoad = increasingLoad.get(index+1).getLoad();
-							}else{
-								nextLoad = 1.0;
-							}
+						}else if(headInstance.getLoad() < instance.getLoad()){
+							index = 0;
+							instance = headInstance;
+						}
+
+						if(increasingLoad.size() > index+1){
+							nextLoad = increasingLoad.get(index+1).getLoad();
+						}else{
+							nextLoad = 1.0;
 						}
 					}
 					break;
