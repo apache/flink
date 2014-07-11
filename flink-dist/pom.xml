@@ -68,13 +68,13 @@
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>spargel</artifactId>
+			<artifactId>flink-spargel</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>avro</artifactId>
+			<artifactId>flink-avro</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -117,7 +117,7 @@
 			<dependencies>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>yarn</artifactId>
+					<artifactId>flink-yarn</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>
@@ -170,7 +170,7 @@
 			<dependencies>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>hbase</artifactId>
+					<artifactId>flink-hbase</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>

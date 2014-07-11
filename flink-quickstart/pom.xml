@@ -32,8 +32,8 @@
 	</distributionManagement>
 
 		<modules>
-			<module>quickstart-java</module>
-			<module>quickstart-scala</module>
+			<module>flink-quickstart-java</module>
+			<module>flink-quickstart-scala</module>
 		</modules>
 
 		<profiles>

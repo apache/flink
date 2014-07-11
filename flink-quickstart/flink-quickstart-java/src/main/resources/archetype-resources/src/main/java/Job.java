@@ -48,6 +48,6 @@ public class Job {
 		 */
 
 		// execute program
-		env.execute("Stratosphere Java API Skeleton");
+		env.execute("Flink Java API Skeleton");
 	}
 }

@@ -25,7 +25,7 @@ $ curl https://raw.githubusercontent.com/apache/incubator-flink/master/flink-qui
 {% highlight bash %}
 $ mvn archetype:generate                             \
   -DarchetypeGroupId=org.apache.flink              \
-  -DarchetypeArtifactId=quickstart-scala           \
+  -DarchetypeArtifactId=flink-quickstart-scala           \
   -DarchetypeVersion={{site.FLINK_VERSION_STABLE}}                  
 {% endhighlight %}
     This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.

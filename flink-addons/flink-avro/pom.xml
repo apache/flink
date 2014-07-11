@@ -25,8 +25,8 @@
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>avro</artifactId>
-	<name>avro</name>
+	<artifactId>flink-avro</artifactId>
+	<name>flink-avro</name>
 
 	<packaging>jar</packaging>
 

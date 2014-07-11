@@ -269,7 +269,7 @@ node by setting the `jobmanager.heap.mb` and `taskmanager.heap.mb` keys.
 
 The value is given in MB. If some worker nodes have more main memory which you
 want to allocate to the Flink system you can overwrite the default value
-by setting an environment variable `STRATOSPHERE_TM_HEAP` on the respective
+by setting an environment variable `FLINK_TM_HEAP` on the respective
 node.
 
 Finally you must provide a list of all nodes in your cluster which shall be used

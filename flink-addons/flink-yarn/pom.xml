@@ -9,8 +9,8 @@
 		<relativePath>..</relativePath>
 	</parent>
 	
-	<artifactId>yarn</artifactId>
-	<name>yarn</name>
+	<artifactId>flink-yarn</artifactId>
+	<name>flink-yarn</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

@@ -29,10 +29,10 @@
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>avro</module>
-		<module>jdbc</module>
-		<module>spargel</module>
-		<module>hadoop-compatibility</module>
+		<module>flink-avro</module>
+		<module>flink-jdbc</module>
+		<module>flink-spargel</module>
+		<module>flink-hadoop-compatibility</module>
 	</modules>
 	
 	<!-- See main pom.xml for explanation of profiles -->
@@ -58,7 +58,7 @@
 				</property>
 			</activation>
 			<modules>
-				<module>hbase</module>
+				<module>flink-hbase</module>
 			</modules>
 		</profile>
 		<profile>
@@ -70,7 +70,7 @@
 				</property>
 			</activation>
 			<modules>
-				<module>yarn</module>
+				<module>flink-yarn</module>
 			</modules>
 		</profile>
 	</profiles>

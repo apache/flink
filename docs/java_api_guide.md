@@ -72,7 +72,7 @@ The simplest way to do this is to use the [quickstart scripts](java_api_quicksta
 ```bash
 mvn archetype:generate /
     -DarchetypeGroupId=org.apache.flink/
-    -DarchetypeArtifactId=quickstart-java /
+    -DarchetypeArtifactId=flink-quickstart-java /
     -DarchetypeVersion={{site.FLINK_VERSION_STABLE }}
 ```
 

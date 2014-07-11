@@ -23,12 +23,12 @@ PACKAGE=quickstart
 
 mvn archetype:generate								\
   -DarchetypeGroupId=org.apache.flink				\
-  -DarchetypeArtifactId=quickstart-java				\
+  -DarchetypeArtifactId=flink-quickstart-java		\
   -DarchetypeVersion=0.6-incubating-SNAPSHOT		\
   -DgroupId=org.apache.flink 						\
   -DartifactId=$PACKAGE								\
   -Dversion=0.1										\
-  -Dpackage=org.apache.flink 				\
+  -Dpackage=org.apache.flink 						\
   -DinteractiveMode=false							\
   -DarchetypeCatalog=https://oss.sonatype.org/content/repositories/snapshots/
 
@@ -51,6 +51,6 @@ echo -e "\\n\\n"
 #
 #mvn archetype:generate								\
 #  -DarchetypeGroupId=org.apache.flink				\
-#  -DarchetypeArtifactId=quickstart-java				\
+#  -DarchetypeArtifactId=flink-quickstart-java				\
 #  -DarchetypeVersion=0.6-SNAPSHOT					\
 #  -DarchetypeCatalog=https://oss.sonatype.org/content/repositories/snapshots/

@@ -41,8 +41,8 @@
  		<hbase.version>0.96.0-hadoop2</hbase.version>
 	</properties>
 
-	<artifactId>hbase</artifactId>
-	<name>hbase</name>
+	<artifactId>flink-hbase</artifactId>
+	<name>flink-hbase</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

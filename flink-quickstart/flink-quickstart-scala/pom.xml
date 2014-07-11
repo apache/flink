@@ -13,7 +13,7 @@
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>quickstart-scala</artifactId>
+  <artifactId>flink-quickstart-scala</artifactId>
   <packaging>jar</packaging>
 
 </project>
