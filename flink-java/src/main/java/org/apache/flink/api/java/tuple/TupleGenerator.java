@@ -1,15 +1,21 @@
-/***********************************************************************************************************************
- * Copyright (C) 2010-2013 by the Apache Flink project (http://flink.incubator.apache.org)
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
- * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
- **********************************************************************************************************************/
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.api.java.tuple;
 
 import java.io.File;
@@ -26,12 +32,12 @@ import com.google.common.io.Files;
  */
 class TupleGenerator {
 
-	// Parameters for tuple classes	
+	// Parameters for tuple classes
 
 	private static final String ROOT_DIRECTORY = "./src/main/java";
 
 	private static final String PACKAGE = "org.apache.flink.api.java.tuple";
-	
+
 	private static final String BUILDER_SUFFIX = "builder";
 
 	private static final String GEN_TYPE_PREFIX = "T";
@@ -41,24 +47,24 @@ class TupleGenerator {
 
 	private static final String END_INDICATOR = "END_OF_TUPLE_DEPENDENT_CODE";
 
-	// Parameters for CsvReader	
+	// Parameters for CsvReader
 	private static final String CSV_READER_PACKAGE = "org.apache.flink.api.java.io";
 
 	private static final String CSV_READER_CLASSNAME = "CsvReader";
-	
+
 	// Parameters for TupleTypeInfo
 	private static final String TUPLE_TYPE_INFO_PACKAGE = "org.apache.flink.api.java.typeutils";
-	
+
 	private static final String TUPLE_TYPE_INFO_CLASSNAME = "TupleTypeInfo";
-	
+
 	// Parameters for ProjectOperator
 	private static final String PROJECT_OPERATOR_PACKAGE = "org.apache.flink.api.java.operators";
-	
+
 	private static final String PROJECT_OPERATOR_CLASSNAME = "ProjectOperator";
-	
+
 	// Parameters for JoinOperator
 	private static final String JOIN_OPERATOR_PACKAGE = "org.apache.flink.api.java.operators";
-	
+
 	private static final String JOIN_OPERATOR_CLASSNAME = "JoinOperator";
 
 	// parameters for CrossOperator
@@ -66,7 +72,7 @@ class TupleGenerator {
 
 	private static final String CROSS_OPERATOR_CLASSNAME = "CrossOperator";
 
-	// min. and max. tuple arity	
+	// min. and max. tuple arity
 	private static final int FIRST = 1;
 
 	private static final int LAST = 25;
@@ -75,15 +81,15 @@ class TupleGenerator {
 		File root = new File(ROOT_DIRECTORY);
 
 		createTupleClasses(root);
-		
+
 		createTupleBuilderClasses(root);
 
 		modifyCsvReader(root);
-		
+
 		modifyTupleTypeInfo(root);
-		
+
 		modifyProjectOperator(root);
-		
+
 		modifyJoinProjectOperator(root);
 
 		modifyCrossProjectOperator(root);
@@ -105,7 +111,7 @@ class TupleGenerator {
 
 		StringBuilder sb = new StringBuilder();
 		String line = null;
-		
+
 		boolean indicatorFound = false;
 
 		// add file beginning
@@ -116,7 +122,7 @@ class TupleGenerator {
 				break;
 			}
 		}
-		
+
 		if(!indicatorFound) {
 			System.out.println("No indicator found in '" + file + "'. Will skip code generation.");
 			s.close();
@@ -223,30 +229,30 @@ class TupleGenerator {
 		File projectOperatorClass = new File(dir, CROSS_OPERATOR_CLASSNAME + ".java");
 		insertCodeIntoFile(sb.toString(), projectOperatorClass);
 	}
-	
+
 	private static void modifyProjectOperator(File root) throws IOException {
 		// generate code
 		StringBuilder sb = new StringBuilder();
-		
+
 		for (int numFields = FIRST; numFields <= LAST; numFields++) {
 
 			// method begin
 			sb.append("\n");
-			
+
 			// method comment
 			sb.append("\t\t/**\n");
 			sb.append("\t\t * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. \n");
 			sb.append("\t\t * Requires the classes of the fields of the resulting Tuples. \n");
-			sb.append("\t\t * \n");			
+			sb.append("\t\t * \n");
 			for (int i = 0; i < numFields; i++) {
 				sb.append("\t\t * @param type" + i + " The class of field '"+i+"' of the result Tuples.\n");
 			}
 			sb.append("\t\t * @return The projected DataSet.\n");
-			sb.append("\t\t * \n");			
+			sb.append("\t\t * \n");
 			sb.append("\t\t * @see Tuple\n");
 			sb.append("\t\t * @see DataSet\n");
 			sb.append("\t\t */\n");
-			
+
 			// method signature
 			sb.append("\t\tpublic <");
 			appendTupleTypeGenerics(sb, numFields);
@@ -262,7 +268,7 @@ class TupleGenerator {
 				sb.append("> type" + i);
 			}
 			sb.append(") {\n");
-			
+
 			// convert type0..1 to types array
 			sb.append("\t\t\tClass<?>[] types = {");
 			for (int i = 0; i < numFields; i++) {
@@ -272,60 +278,60 @@ class TupleGenerator {
 				sb.append("type" + i);
 			}
 			sb.append("};\n");
-			
+
 			// check number of types and extract field types
 			sb.append("\t\t\tif(types.length != this.fieldIndexes.length) {\n");
 			sb.append("\t\t\t\tthrow new IllegalArgumentException(\"Numbers of projected fields and types do not match.\");\n");
 			sb.append("\t\t\t}\n");
 			sb.append("\t\t\t\n");
 			sb.append("\t\t\tTypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types, ds.getType());\n");
-			
+
 			// create new tuple type info
 			sb.append("\t\t\tTupleTypeInfo<Tuple"+numFields+"<");
 			appendTupleTypeGenerics(sb, numFields);
 			sb.append(">> tType = new TupleTypeInfo<Tuple"+numFields+"<");
 			appendTupleTypeGenerics(sb, numFields);
 			sb.append(">>(fTypes);\n\n");
-			
+
 			// create and return new project operator
 			sb.append("\t\t\treturn new ProjectOperator<T, Tuple"+numFields+"<");
 			appendTupleTypeGenerics(sb, numFields);
 			sb.append(">>(this.ds, this.fieldIndexes, tType);\n");
-			
+
 			// method end
 			sb.append("\t\t}\n");
-			
+
 		}
-		
+
 		// insert code into file
 		File dir = getPackage(root, PROJECT_OPERATOR_PACKAGE);
 		File projectOperatorClass = new File(dir, PROJECT_OPERATOR_CLASSNAME + ".java");
 		insertCodeIntoFile(sb.toString(), projectOperatorClass);
 	}
-	
+
 	private static void modifyJoinProjectOperator(File root) throws IOException {
 		// generate code
 		StringBuilder sb = new StringBuilder();
-		
+
 		for (int numFields = FIRST; numFields <= LAST; numFields++) {
 
 			// method begin
 			sb.append("\n");
-			
+
 			// method comment
 			sb.append("\t\t/**\n");
 			sb.append("\t\t * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. \n");
 			sb.append("\t\t * Requires the classes of the fields of the resulting tuples. \n");
-			sb.append("\t\t * \n");			
+			sb.append("\t\t * \n");
 			for (int i = 0; i < numFields; i++) {
 				sb.append("\t\t * @param type" + i + " The class of field '"+i+"' of the result tuples.\n");
 			}
 			sb.append("\t\t * @return The projected data set.\n");
-			sb.append("\t\t * \n");			
+			sb.append("\t\t * \n");
 			sb.append("\t\t * @see Tuple\n");
 			sb.append("\t\t * @see DataSet\n");
 			sb.append("\t\t */\n");
-			
+
 			// method signature
 			sb.append("\t\tpublic <");
 			appendTupleTypeGenerics(sb, numFields);
@@ -341,7 +347,7 @@ class TupleGenerator {
 				sb.append("> type" + i);
 			}
 			sb.append(") {\n");
-			
+
 			// convert type0..1 to types array
 			sb.append("\t\t\tClass<?>[] types = {");
 			for (int i = 0; i < numFields; i++) {
@@ -351,37 +357,37 @@ class TupleGenerator {
 				sb.append("type" + i);
 			}
 			sb.append("};\n");
-			
+
 			// check number of types and extract field types
 			sb.append("\t\t\tif(types.length != this.fieldIndexes.length) {\n");
 			sb.append("\t\t\t\tthrow new IllegalArgumentException(\"Numbers of projected fields and types do not match.\");\n");
 			sb.append("\t\t\t}\n");
 			sb.append("\t\t\t\n");
 			sb.append("\t\t\tTypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);\n");
-			
+
 			// create new tuple type info
 			sb.append("\t\t\tTupleTypeInfo<Tuple"+numFields+"<");
 			appendTupleTypeGenerics(sb, numFields);
 			sb.append(">> tType = new TupleTypeInfo<Tuple"+numFields+"<");
 			appendTupleTypeGenerics(sb, numFields);
 			sb.append(">>(fTypes);\n\n");
-			
+
 			// create and return new project operator
 			sb.append("\t\t\treturn new ProjectJoin<I1, I2, Tuple"+numFields+"<");
 			appendTupleTypeGenerics(sb, numFields);
 			sb.append(">>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);\n");
-			
+
 			// method end
 			sb.append("\t\t}\n");
-			
+
 		}
-		
+
 		// insert code into file
 		File dir = getPackage(root, JOIN_OPERATOR_PACKAGE);
 		File projectOperatorClass = new File(dir, JOIN_OPERATOR_CLASSNAME + ".java");
 		insertCodeIntoFile(sb.toString(), projectOperatorClass);
 	}
-	
+
 	private static void modifyTupleTypeInfo(File root) throws IOException {
 		// generate code
 		StringBuilder sb = new StringBuilder();
@@ -393,7 +399,7 @@ class TupleGenerator {
 			sb.append("Tuple" + i + ".class");
 		}
 		sb.append("\n\t};");
-		
+
 		// insert code into file
 		File dir = getPackage(root, TUPLE_TYPE_INFO_PACKAGE);
 		File tupleTypeInfoClass = new File(dir, TUPLE_TYPE_INFO_CLASSNAME + ".java");
@@ -407,15 +413,15 @@ class TupleGenerator {
 
 			// method begin
 			sb.append("\n");
-			
+
 			// java doc
 			sb.append("\t/**\n");
 			sb.append("\t * Specifies the types for the CSV fields. This method parses the CSV data to a ").append(numFields).append("-tuple\n");
 			sb.append("\t * which has fields of the specified types.\n");
 			sb.append("\t * This method is overloaded for each possible length of the tuples to support type safe\n");
-			sb.append("\t * creation of data sets through CSV parsing.\n"); 
+			sb.append("\t * creation of data sets through CSV parsing.\n");
 			sb.append("\t *\n");
-			
+
 			for (int pos = 0; pos < numFields; pos++) {
 				sb.append("\t * @param type").append(pos);
 				sb.append(" The type of CSV field ").append(pos).append(" and the type of field ");
@@ -508,7 +514,7 @@ class TupleGenerator {
 	private static void writeTupleClass(PrintWriter w, int numFields) {
 		final String className = "Tuple" + numFields;
 
-		// head 
+		// head
 		w.print(HEADER);
 
 		// package and imports
@@ -634,7 +640,7 @@ class TupleGenerator {
 		}
 		w.println("\t}");
 		w.println();
-		
+
 		// swap method only for Tuple2
 		if (numFields == 2) {
 			w.println("\t/**");
@@ -737,7 +743,7 @@ class TupleGenerator {
 		// foot
 		w.println("}");
 	}
-	
+
 	private static void createTupleBuilderClasses(File root) throws FileNotFoundException {
 		File dir = getPackage(root, PACKAGE+"."+BUILDER_SUFFIX);
 
@@ -749,7 +755,7 @@ class TupleGenerator {
 			writer.close();
 		}
 	}
-	
+
 	private static void printGenericsString(PrintWriter w, int numFields){
 		w.print("<");
 		for (int i = 0; i < numFields; i++) {
@@ -760,11 +766,11 @@ class TupleGenerator {
 		}
 		w.print(">");
 	}
-	
+
 	private static void writeTupleBuilderClass(PrintWriter w, int numFields) {
 		final String className = "Tuple" + numFields + "Builder";
 
-		// head 
+		// head
 		w.print(HEADER);
 
 		// package and imports
@@ -790,7 +796,7 @@ class TupleGenerator {
 		w.println(">();");
 		w.println();
 
-		// add(...) function for adding a single tuple 
+		// add(...) function for adding a single tuple
 		w.print("\tpublic " + className);
 		printGenericsString(w, numFields);
 		w.print(" add(");
@@ -814,7 +820,7 @@ class TupleGenerator {
 		w.println("\t\treturn this;");
 		w.println("\t}");
 		w.println();
-		
+
 		// build() function, returns an array of tuples
 		w.println("\t@SuppressWarnings(\"unchecked\")");
 		w.print("\tpublic Tuple" + numFields);
@@ -822,26 +828,29 @@ class TupleGenerator {
 		w.println("[] build(){");
 		w.println("\t\treturn tuples.toArray(new Tuple" + numFields + "[tuples.size()]);");
 		w.println("\t}");
-		
+
 		// foot
 		w.println("}");
 	}
-	
-	private static String HEADER = 
-		"/***********************************************************************************************************************\n" +
-		" *\n" +
-		" * Copyright (C) 2010-2014 by the Apache Flink project (http://flink.incubator.apache.org)\n" +
-		" *\n" +
-		" * Licensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with\n" +
-		" * the License. You may obtain a copy of the License at\n" +
-		" *\n" +
-		" *     http://www.apache.org/licenses/LICENSE-2.0\n" +
-		" *\n" +
-		" * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on\n" +
-		" * an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the\n" +
-		" * specific language governing permissions and limitations under the License.\n" +
-		" *\n" +
-		" **********************************************************************************************************************/\n" +
+
+	private static String HEADER =
+		"/**\n"
+		+ " * Licensed to the Apache Software Foundation (ASF) under one\n"
+		+ " * or more contributor license agreements.  See the NOTICE file\n"
+		+ " * distributed with this work for additional information\n"
+		+ " * regarding copyright ownership.  The ASF licenses this file\n"
+		+ " * to you under the Apache License, Version 2.0 (the\n"
+		+ " * \"License\"); you may not use this file except in compliance\n"
+		+ " * with the License.  You may obtain a copy of the License at\n"
+		+ " *\n"
+		+ " *     http://www.apache.org/licenses/LICENSE-2.0\n"
+		+ "	*\n"
+		+ " * Unless required by applicable law or agreed to in writing, software\n"
+		+ " * distributed under the License is distributed on an \"AS IS\" BASIS,\n"
+		+ " * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n"
+		+ " * See the License for the specific language governing permissions and\n"
+		+ " * limitations under the License.\n"
+		+ " */" +
 		"\n" +
 		"// --------------------------------------------------------------\n" +
 		"//  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!\n" +

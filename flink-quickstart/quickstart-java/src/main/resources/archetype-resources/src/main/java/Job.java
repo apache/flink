@@ -39,11 +39,11 @@ public class Job {
 		 * and many more.
 		 * Have a look at the programming guide for the Java API:
 		 *
-		 * http://stratosphere.eu/docs/0.5/programming_guides/java.html
+		 * http://flink.incubator.apache.org/docs/0.6-SNAPSHOT/java_api_guide.html
 		 *
 		 * and the examples
 		 *
-		 * http://stratosphere.eu/docs/0.5/programming_guides/examples.html
+		 * http://flink.incubator.apache.org/docs/0.6-SNAPSHOT/java_api_examples.html
 		 *
 		 */
 

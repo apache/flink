@@ -1,7 +1,7 @@
 # Apache Flink (incubating)
 
 
-Apache Flink is an open source system for expressive, declarative, fast, and efficient data analysis. Stratosphere combines the scalability and programming flexibility of distributed MapReduce-like platforms with the efficiency, out-of-core execution, and query optimization capabilities found in parallel databases.
+Apache Flink is an open source system for expressive, declarative, fast, and efficient data analysis. Flink combines the scalability and programming flexibility of distributed MapReduce-like platforms with the efficiency, out-of-core execution, and query optimization capabilities found in parallel databases.
 
 
 Learn more about Flink at http://flink.incubator.apache.org/
@@ -16,7 +16,7 @@ Learn more about Flink at http://flink.incubator.apache.org/
 * Unix-like environment (We use Linux, Mac OS X, Cygwin)
 * git
 * Maven (at least version 3.0.4)
-* Java 6, 7 or 8 (Note that Oracle's JDK 6 library will fail to build Stratosphere, but is able to run a pre-compiled package without problem)
+* Java 6, 7 or 8 (Note that Oracle's JDK 6 library will fail to build Flink, but is able to run a pre-compiled package without problem)
 
 ```
 git clone https://github.com/apache/incubator-flink.git

@@ -18,7 +18,7 @@
 #
 
 # Utility for creating well-formed pull request merges and pushing them to Apache.
-#   usage: ./merge_flink_pr.py    (see config env vars below)
+#   usage: ./merge_flink_pr.sh    (see config env vars below)
 #
 # This utility assumes you already have local a Flink git folder and that you
 # have added remotes corresponding to both (i) the github apache FLINK
