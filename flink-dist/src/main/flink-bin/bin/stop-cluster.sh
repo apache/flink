@@ -34,8 +34,6 @@ if [ ! -f "$HOSTLIST" ]; then
     exit 1
 fi
 
-# cluster mode, stop the job manager locally and stop the task manager on every slave host
-"$FLINK_BIN_DIR"/jobmanager.sh stop
 
 GOON=true
 while $GOON
@@ -46,3 +44,6 @@ do
         ssh -n $FLINK_SSH_OPTS $HOST -- "nohup /bin/bash $FLINK_BIN_DIR/taskmanager.sh stop &"
     fi
 done < $HOSTLIST
+
+# cluster mode, stop the job manager locally and stop the task manager on every slave host
+"$FLINK_BIN_DIR"/jobmanager.sh stop
