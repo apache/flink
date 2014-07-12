@@ -362,6 +362,10 @@
 					<failOnNoGitDirectory>false</failOnNoGitDirectory>
 					<skipPoms>false</skipPoms>
 					<generateGitPropertiesFilename>src/main/flink-bin/.version.properties</generateGitPropertiesFilename>
+					<gitDescribe>
+						<!-- don't generate the describe property -->
+						<skip>true</skip>
+					</gitDescribe>
 				</configuration>
 			</plugin>
 		</plugins>
