@@ -23,12 +23,13 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.IterativeDataSet;
 import org.apache.flink.compiler.plan.BulkIterationPlanNode;
+import org.apache.flink.compiler.plan.DualInputPlanNode;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.SingleInputPlanNode;
 import org.apache.flink.compiler.plan.SinkPlanNode;
-import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.compiler.testfunctions.IdentityMapper;
 import org.apache.flink.compiler.testfunctions.SelectOneReducer;
+import org.apache.flink.configuration.Configuration;
 
 @SuppressWarnings("serial")
 public class PipelineBreakerTest extends CompilerTestBase {
@@ -128,6 +129,106 @@ public class PipelineBreakerTest extends CompilerTestBase {
 			SingleInputPlanNode mapper = (SingleInputPlanNode) iterationPlanNode.getRootOfStepFunction();
 			
 			assertTrue(mapper.getInput().getTempMode().breaksPipeline());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testPilelineBreakerWithCross() {
+		try {
+			{
+				ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				env.setDegreeOfParallelism(64);
+				
+				DataSet<Long> initialSource = env.generateSequence(1, 10);
+				
+				Configuration conf= new Configuration();
+				conf.setString(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_FIRST);
+				initialSource
+					.map(new IdentityMapper<Long>())
+					.cross(initialSource).withParameters(conf)
+					.print();
+				
+				
+				Plan p = env.createProgramPlan();
+				OptimizedPlan op = compileNoStats(p);
+				SinkPlanNode sink = op.getDataSinks().iterator().next();
+				DualInputPlanNode mapper = (DualInputPlanNode) sink.getInput().getSource();
+				
+				assertTrue(mapper.getInput1().getTempMode().breaksPipeline());
+			}
+			
+			{
+				ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				env.setDegreeOfParallelism(64);
+				
+				DataSet<Long> initialSource = env.generateSequence(1, 10);
+				
+				Configuration conf= new Configuration();
+				conf.setString(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND);
+				initialSource
+					.map(new IdentityMapper<Long>())
+					.cross(initialSource).withParameters(conf)
+					.print();
+				
+				
+				Plan p = env.createProgramPlan();
+				OptimizedPlan op = compileNoStats(p);
+				
+				SinkPlanNode sink = op.getDataSinks().iterator().next();
+				DualInputPlanNode mapper = (DualInputPlanNode) sink.getInput().getSource();
+				
+				assertTrue(mapper.getInput2().getTempMode().breaksPipeline());
+			}
+			
+			{
+				ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				env.setDegreeOfParallelism(64);
+				
+				DataSet<Long> initialSource = env.generateSequence(1, 10);
+				
+				Configuration conf= new Configuration();
+				conf.setString(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_FIRST);
+				initialSource
+					.map(new IdentityMapper<Long>())
+					.cross(initialSource).withParameters(conf)
+					.print();
+				
+				
+				Plan p = env.createProgramPlan();
+				OptimizedPlan op = compileNoStats(p);
+				
+				SinkPlanNode sink = op.getDataSinks().iterator().next();
+				DualInputPlanNode mapper = (DualInputPlanNode) sink.getInput().getSource();
+				
+				assertTrue(mapper.getInput1().getTempMode().breaksPipeline());
+			}
+			
+			{
+				ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				env.setDegreeOfParallelism(64);
+				
+				DataSet<Long> initialSource = env.generateSequence(1, 10);
+				
+				Configuration conf= new Configuration();
+				conf.setString(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_SECOND);
+				initialSource
+					.map(new IdentityMapper<Long>())
+					.cross(initialSource).withParameters(conf)
+					.print();
+				
+				
+				Plan p = env.createProgramPlan();
+				OptimizedPlan op = compileNoStats(p);
+				
+				SinkPlanNode sink = op.getDataSinks().iterator().next();
+				DualInputPlanNode mapper = (DualInputPlanNode) sink.getInput().getSource();
+				
+				assertTrue(mapper.getInput2().getTempMode().breaksPipeline());
+			}
 		}
 		catch (Exception e) {
 			e.printStackTrace();
