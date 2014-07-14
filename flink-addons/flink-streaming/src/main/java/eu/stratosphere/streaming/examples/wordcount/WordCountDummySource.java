@@ -15,52 +15,26 @@
 
 package eu.stratosphere.streaming.examples.wordcount;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WordCountSourceSplitter extends UserSourceInvokable {
+public class WordCountDummySource extends UserSourceInvokable {
 
-	private BufferedReader br = null;
-	private String line = new String();
-	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
+	StreamRecord record = new StreamRecord(new Tuple1<String>());
 
-
-	@Override
-	public void invoke() throws Exception {
-
-		while (true) {
-			try {
-				br = new BufferedReader(new FileReader("/home/strato/stratosphere-distrib/resources/hamlet.txt"));
-
-				line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
-				while (line != null) {
-					if (line != "") {
-						for (String word : line.split(" ")) {
-							outRecord.setString(0, word);
-							emit(outRecord);
-						}
-					}
-					line = br.readLine();
-				}
-
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-			}
-			
-//			Thread.sleep(1);
-		}
-		
-
+	public WordCountDummySource() {
 	}
 
 	@Override
-	public String getResult() {
-		
-		return "";
+	public void invoke() throws Exception {
+		for (int i = 0; i < 100; i++) {
+			if (i % 2 == 0) {
+				record.setString(0, "Gyula Marci");
+			} else {
+				record.setString(0, "Gabor Frank");
+			}
+			emit(record);
+		}
 	}
 }

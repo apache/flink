@@ -223,51 +223,51 @@ public class StreamRecordTest {
 
 	}
 
-	@Test
-	public void getFieldSpeedTest() {
-
-		final int ITERATION = 10000;
-
-		StreamRecord record = new StreamRecord(new Tuple4<Integer, Long, String, String>(0, 42L, "Stratosphere",
-				"Streaming"));
-
-		long t = System.nanoTime();
-		for (int i = 0; i < ITERATION; i++) {
-			record.getField(0, i % 4);
-		}
-		long t2 = System.nanoTime() - t;
-		System.out.println("Tuple5");
-		System.out.println("getField:\t" + t2 + " ns");
-
-		t = System.nanoTime();
-		for (int i = 0; i < ITERATION; i++) {
-			record.getFieldFast(0, i % 4);
-		}
-		t2 = System.nanoTime() - t;
-		System.out.println("getFieldFast:\t" + t2 + " ns");
-
-		StreamRecord record20 = new StreamRecord(
-				new Tuple20<Integer, Long, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String>(
-						0, 42L, "Stratosphere", "Streaming", "Stratosphere", "Stratosphere", "Streaming",
-						"Stratosphere", "Streaming", "Streaming", "Stratosphere", "Streaming", "Stratosphere",
-						"Streaming", "Streaming", "Stratosphere", "Streaming", "Stratosphere", "Streaming", "Streaming"));
-
-		t = System.nanoTime();
-		for (int i = 0; i < ITERATION; i++) {
-			record20.getField(0, i % 20);
-		}
-		t2 = System.nanoTime() - t;
-		System.out.println("Tuple20");
-		System.out.println("getField:\t" + t2 + " ns");
-
-		t = System.nanoTime();
-		for (int i = 0; i < ITERATION; i++) {
-			record20.getFieldFast(0, i % 20);
-		}
-		t2 = System.nanoTime() - t;
-		System.out.println("getFieldFast:\t" + t2 + " ns");
-
-	}
+//	@Test
+//	public void getFieldSpeedTest() {
+//
+//		final int ITERATION = 10000;
+//
+//		StreamRecord record = new StreamRecord(new Tuple4<Integer, Long, String, String>(0, 42L, "Stratosphere",
+//				"Streaming"));
+//
+//		long t = System.nanoTime();
+//		for (int i = 0; i < ITERATION; i++) {
+//			record.getField(0, i % 4);
+//		}
+//		long t2 = System.nanoTime() - t;
+//		System.out.println("Tuple5");
+//		System.out.println("getField:\t" + t2 + " ns");
+//
+//		t = System.nanoTime();
+//		for (int i = 0; i < ITERATION; i++) {
+//			record.getFieldFast(0, i % 4);
+//		}
+//		t2 = System.nanoTime() - t;
+//		System.out.println("getFieldFast:\t" + t2 + " ns");
+//
+//		StreamRecord record20 = new StreamRecord(
+//				new Tuple20<Integer, Long, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String>(
+//						0, 42L, "Stratosphere", "Streaming", "Stratosphere", "Stratosphere", "Streaming",
+//						"Stratosphere", "Streaming", "Streaming", "Stratosphere", "Streaming", "Stratosphere",
+//						"Streaming", "Streaming", "Stratosphere", "Streaming", "Stratosphere", "Streaming", "Streaming"));
+//
+//		t = System.nanoTime();
+//		for (int i = 0; i < ITERATION; i++) {
+//			record20.getField(0, i % 20);
+//		}
+//		t2 = System.nanoTime() - t;
+//		System.out.println("Tuple20");
+//		System.out.println("getField:\t" + t2 + " ns");
+//
+//		t = System.nanoTime();
+//		for (int i = 0; i < ITERATION; i++) {
+//			record20.getFieldFast(0, i % 20);
+//		}
+//		t2 = System.nanoTime() - t;
+//		System.out.println("getFieldFast:\t" + t2 + " ns");
+//
+//	}
 
 	@Test
 	public void exceptionTest() {

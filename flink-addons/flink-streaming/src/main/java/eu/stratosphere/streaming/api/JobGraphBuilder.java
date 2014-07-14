@@ -220,11 +220,11 @@ public class JobGraphBuilder {
 		}
 	}
 
-	public void setInstanceSharing(String component1, String component2) {
-		AbstractJobVertex c1 = components.get(component1);
-		AbstractJobVertex c2 = components.get(component2);
+	public void setInstanceSharing(String upStreamComponentName, String downStreamComponentName) {
+		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
+		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
 		
-		c1.setVertexToShareInstancesWith(c2);
+		downStreamComponent.setVertexToShareInstancesWith(upStreamComponent);
 	}
 
 	public void setAutomaticInstanceSharing() {

@@ -200,19 +200,19 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		}
 	}
 
-	public Object getFieldFast(int tupleNumber, int fieldNumber) throws NoSuchTupleException, NoSuchFieldException {
-		Tuple tuple;
-		try {
-			tuple = tupleBatch.get(tupleNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchTupleException());
-		}
-		try {
-			return tuple.getFieldFast(fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchFieldException());
-		}
-	}
+//	public Object getFieldFast(int tupleNumber, int fieldNumber) throws NoSuchTupleException, NoSuchFieldException {
+//		Tuple tuple;
+//		try {
+//			tuple = tupleBatch.get(tupleNumber);
+//		} catch (IndexOutOfBoundsException e) {
+//			throw (new NoSuchTupleException());
+//		}
+//		try {
+//			return tuple.getFieldFast(fieldNumber);
+//		} catch (IndexOutOfBoundsException e) {
+//			throw (new NoSuchFieldException());
+//		}
+//	}
 
 	/**
 	 * Get a Boolean from the given field of the first Tuple of the batch
