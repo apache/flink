@@ -32,7 +32,7 @@ def plotCounter(csv_dir, smooth=5):
         speed=[0]
         values=list(df.ix[:,0])
         for i in range(1,len(values)):
-            speed.append(float(values[i]-values[i-1])/float(df.index[i]-df.index[i-1]))
+            speed.append(float(values[i]-values[i-1])/float(df.index[i]-df.index[i-1]+0.01))
         df['speed']=speed 
         
     plt.figure(figsize=(12, 8), dpi=80)
@@ -63,7 +63,7 @@ def plotThroughput(csv_dir,taskname, smooth=5):
         speed=[0]
         values=list(df.ix[:,0])
         for i in range(1,len(values)):
-            speed.append(float(values[i]-values[i-1])/float(df.index[i]-df.index[i-1]))
+            speed.append(float(values[i]-values[i-1])/float(df.index[i]-df.index[i-1]+0.01))
         df['speed']=speed     
     
     selected={}

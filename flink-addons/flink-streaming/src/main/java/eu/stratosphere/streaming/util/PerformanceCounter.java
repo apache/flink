@@ -17,12 +17,17 @@ package eu.stratosphere.streaming.util;
 
 public class PerformanceCounter extends PerformanceTracker {
 
-	public PerformanceCounter(String name, int counterLength, int countInterval) {
-		super(name, counterLength, countInterval);
+	public PerformanceCounter(String name, int counterLength, int countInterval, String fname) {
+		super(name, counterLength, countInterval, fname);
 	}
 
-	public PerformanceCounter(String name) {
-		super(name);
+	public PerformanceCounter(String name, int counterLength, int countInterval, long dumpInterval,
+			String fname) {
+		super(name, counterLength, countInterval, dumpInterval, fname);
+	}
+
+	public PerformanceCounter(String name, String fname) {
+		super(name, fname);
 	}
 
 	public void count(long i, String label) {
@@ -30,9 +35,7 @@ public class PerformanceCounter extends PerformanceTracker {
 		intervalCounter++;
 		if (intervalCounter % interval == 0) {
 			intervalCounter = 0;
-			timeStamps.add(System.currentTimeMillis());
-			values.add(buffer);
-			labels.add(label);
+			add(buffer, label);
 		}
 	}
 

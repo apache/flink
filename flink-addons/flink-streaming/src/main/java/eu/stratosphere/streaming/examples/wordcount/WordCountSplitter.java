@@ -25,8 +25,10 @@ public class WordCountSplitter extends UserTaskInvokable {
 
 	private String[] words = new String[] {};
 	private StreamRecord outputRecord = new StreamRecord(new Tuple1<String>());
-	PerformanceCounter pCounter = new PerformanceCounter("SplitterEmitCounter", 1000, 1000);
-	PerformanceTimer pTimer = new PerformanceTimer("SplitterEmitTimer", 1000, 1000, true);
+	PerformanceCounter pCounter = new PerformanceCounter("SplitterEmitCounter", 1000, 1000,
+			"/home/strato/stratosphere-distrib/log/counter/Splitter" + channelID);
+	PerformanceTimer pTimer = new PerformanceTimer("SplitterEmitTimer", 1000, 1000, true,
+			"/home/strato/stratosphere-distrib/log/timer/Splitter" + channelID);
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
@@ -43,8 +45,8 @@ public class WordCountSplitter extends UserTaskInvokable {
 
 	@Override
 	public String getResult() {
-		pCounter.writeCSV("/home/strato/stratosphere-distrib/log/counter/Splitter" + channelID);
-		pTimer.writeCSV("/home/strato/stratosphere-distrib/log/timer/Splitter" + channelID);
+		pCounter.writeCSV();
+		pTimer.writeCSV();
 		return "";
 	}
 }

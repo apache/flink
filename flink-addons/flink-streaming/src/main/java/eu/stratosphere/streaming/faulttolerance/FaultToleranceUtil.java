@@ -71,8 +71,7 @@ public class FaultToleranceUtil {
 			this.buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, sourceInstanceID);
 		}
 
-		counter = new PerformanceTracker("pc", 1000, 1000, 3000, "C:/temp/strato/buffer/Buffer"
-				+ sourceInstanceID + "-1.csv");
+		counter = new PerformanceTracker("pc", 1000, 1000, "");
 
 	}
 

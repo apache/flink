@@ -20,13 +20,20 @@ public class PerformanceTimer extends PerformanceTracker {
 	long timer;
 	boolean millis;
 
-	public PerformanceTimer(String name, int counterLength, int countInterval, boolean millis) {
-		super(name, counterLength, countInterval);
+	public PerformanceTimer(String name, int counterLength, int countInterval, boolean millis,
+			long dumpInterval, String fname) {
+		super(name, counterLength, countInterval, dumpInterval, fname);
 		this.millis = millis;
 	}
 
-	public PerformanceTimer(String name, boolean millis) {
-		super(name);
+	public PerformanceTimer(String name, int counterLength, int countInterval, boolean millis,
+			String fname) {
+		super(name, counterLength, countInterval, fname);
+		this.millis = millis;
+	}
+
+	public PerformanceTimer(String name, boolean millis, String fname) {
+		super(name, fname);
 		this.millis = millis;
 	}
 

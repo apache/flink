@@ -93,6 +93,7 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 		userFunction.invoke();
 		// TODO print to file
 		System.out.println(userFunction.getResult());
+		
 	}
 
 }

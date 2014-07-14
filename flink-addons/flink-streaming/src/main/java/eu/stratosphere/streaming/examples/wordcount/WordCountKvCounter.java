@@ -23,29 +23,29 @@ import eu.stratosphere.streaming.util.PerformanceCounter;
 
 public class WordCountKvCounter extends UserTaskInvokable {
 
-	private MutableInternalState<String, Integer> wordCounts=new MutableInternalState<String, Integer>();
+	private MutableInternalState<String, Integer> wordCounts = new MutableInternalState<String, Integer>();
 	private String word = "";
 	private Integer count = 0;
 
-	PerformanceCounter perf = new PerformanceCounter("CounterEmitCounter"+this.name, 1000, 1000);
+	PerformanceCounter perf = new PerformanceCounter("CounterEmitCounter" + this.name, 1000, 1000,
+			"");
 
-	
 	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Integer>());
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
 		word = record.getString(0);
-		
+
 		if (wordCounts.containsKey(word)) {
 			count = wordCounts.get(word) + 1;
 			wordCounts.put(word, count);
 		} else {
-			count=1;
+			count = 1;
 			wordCounts.put(word, 1);
 		}
-		
-		outRecord.setString(0,word);
-		outRecord.setInteger(1,count);
+
+		outRecord.setString(0, word);
+		outRecord.setInteger(1, count);
 
 		emit(outRecord);
 		perf.count();
