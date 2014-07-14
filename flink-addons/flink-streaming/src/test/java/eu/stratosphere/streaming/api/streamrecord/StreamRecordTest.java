@@ -38,7 +38,7 @@ public class StreamRecordTest {
 		StreamRecord record = new StreamRecord(new Tuple2<String, Integer>("Stratosphere", 1));
 
 		assertEquals(2, record.getNumOfFields());
-		assertEquals(1, record.getNumOfRecords());
+		assertEquals(1, record.getNumOfTuples());
 		assertEquals("Stratosphere", record.getString(0));
 		assertEquals((Integer) 1, record.getInteger(1));
 
@@ -47,17 +47,17 @@ public class StreamRecordTest {
 
 		record.setRecord(new Tuple2<String, Long>("Big Data looks tiny from here.", 2L));
 		assertEquals(2, record.getNumOfFields());
-		assertEquals(1, record.getNumOfRecords());
+		assertEquals(1, record.getNumOfTuples());
 		assertEquals((Long) 2L, record.getLong(1));
 
 		record.setRecord(new Tuple2<String, Boolean>("Big Data looks tiny from here.", true));
 		assertEquals(2, record.getNumOfFields());
-		assertEquals(1, record.getNumOfRecords());
+		assertEquals(1, record.getNumOfTuples());
 		assertEquals(true, record.getBoolean(1));
 
 		record.setRecord(new Tuple2<String, Double>("Big Data looks tiny from here.", 2.5));
 		assertEquals(2, record.getNumOfFields());
-		assertEquals(1, record.getNumOfRecords());
+		assertEquals(1, record.getNumOfTuples());
 		assertEquals((Double) 2.5, record.getDouble(1));
 
 		Tuple2<String, Double> tuple = new Tuple2<String, Double>();
@@ -80,11 +80,11 @@ public class StreamRecordTest {
 		try {
 			record.addRecord(new Tuple1<String>("4"));
 			fail();
-		} catch (RecordSizeMismatchException e) {
+		} catch (TupleSizeMismatchException e) {
 		}
 
 		assertEquals(2, record.getNumOfFields());
-		assertEquals(2, record.getNumOfRecords());
+		assertEquals(2, record.getNumOfTuples());
 		assertEquals((Integer) 1, record.getInteger(0, 0));
 		assertEquals((Integer) 2, record.getInteger(1, 1));
 
@@ -92,7 +92,7 @@ public class StreamRecordTest {
 		assertEquals(-1, record.getField(1, 0));
 
 		assertEquals(2, record.getNumOfFields());
-		assertEquals(2, record.getNumOfRecords());
+		assertEquals(2, record.getNumOfTuples());
 	}
 
 	@Test
@@ -115,20 +115,20 @@ public class StreamRecordTest {
 		try {
 			a.setRecord(4, new Tuple1<String>("Data"));
 			fail();
-		} catch (NoSuchRecordException e) {
+		} catch (NoSuchTupleException e) {
 		}
 
 		try {
 			a.setRecord(new Tuple2<String, String>("Data", "Stratosphere"));
 			fail();
-		} catch (RecordSizeMismatchException e) {
+		} catch (TupleSizeMismatchException e) {
 		}
 
 		StreamRecord b = new StreamRecord();
 		try {
 			b.addRecord(new Tuple2<String, String>("Data", "Stratosphere"));
 			fail();
-		} catch (RecordSizeMismatchException e) {
+		} catch (TupleSizeMismatchException e) {
 		}
 
 		try {
@@ -153,7 +153,7 @@ public class StreamRecordTest {
 
 			StreamRecord newRec = new StreamRecord();
 			newRec.read(in);
-			Tuple2<Integer, String> tupleOut = (Tuple2<Integer, String>) newRec.getRecord(0);
+			Tuple2<Integer, String> tupleOut = (Tuple2<Integer, String>) newRec.getTuple(0);
 
 			assertEquals(tupleOut.getField(0), 42);
 		} catch (IOException e) {
