@@ -139,6 +139,13 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
+	 * @return The ID of the object
+	 */
+	public String getId() {
+		return uid.getValue();
+	}
+
+	/**
 	 * Set the ID of the StreamRecord object
 	 * 
 	 * @param channelID
@@ -153,13 +160,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
-	 * @return The ID of the object
-	 */
-	public String getId() {
-		return uid.getValue();
-	}
-
-	/**
 	 * Returns the value of a field in the given position of the first tuple in
 	 * the batch as an object, cast needed to obtain a typed version
 	 * 
@@ -167,8 +167,10 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            Position of the field in the tuple
 	 * @return value of the field
 	 * @throws NoSuchTupleException
+	 *             , NoSuchFieldException
 	 */
-	public Object getField(int fieldNumber) throws NoSuchTupleException {
+	public Object getField(int fieldNumber) throws NoSuchTupleException,
+			NoSuchFieldException {
 		return getField(0, fieldNumber);
 	}
 
@@ -182,56 +184,18 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            Position of the field in the tuple
 	 * @return value of the field
 	 * @throws NoSuchTupleException
+	 *             , NoSuchFieldException
 	 */
 	public Object getField(int tupleNumber, int fieldNumber)
-			throws NoSuchTupleException {
+			throws NoSuchTupleException, NoSuchFieldException {
+		Tuple tuple;
 		try {
-			return tupleBatch.get(tupleNumber).getField(fieldNumber);
+			tuple = tupleBatch.get(tupleNumber);
 		} catch (IndexOutOfBoundsException e) {
 			throw (new NoSuchTupleException());
 		}
-	}
-
-	/**
-	 * Get a String from the given field of the first Tuple of the batch
-	 * 
-	 * @param fieldNumber
-	 *            Position of the field in the tuple
-	 * @return value of the field as String
-	 */
-	public String getString(int fieldNumber) {
 		try {
-			return (String) tupleBatch.get(0).getField(fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchFieldException());
-		}
-	}
-
-	/**
-	 * Get an Integer from the given field of the first Tuple of the batch
-	 * 
-	 * @param fieldNumber
-	 *            Position of the field in the tuple
-	 * @return value of the field as Integer
-	 */
-	public Integer getInteger(int fieldNumber) {
-		try {
-			return (Integer) tupleBatch.get(0).getField(fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchFieldException());
-		}
-	}
-
-	/**
-	 * Get a Long from the given field of the first Tuple of the batch
-	 * 
-	 * @param fieldNumber
-	 *            Position of the field in the tuple
-	 * @return value of the field as Long
-	 */
-	public Long getLong(int fieldNumber) {
-		try {
-			return (Long) tupleBatch.get(0).getField(fieldNumber);
+			return tuple.getField(fieldNumber);
 		} catch (IndexOutOfBoundsException e) {
 			throw (new NoSuchFieldException());
 		}
@@ -243,13 +207,29 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @param fieldNumber
 	 *            Position of the field in the tuple
 	 * @return value of the field as Boolean
+	 * @throws NoSuchTupleException
+	 *             , NoSuchFieldException
 	 */
-	public Boolean getBoolean(int fieldNumber) {
-		try {
-			return (Boolean) tupleBatch.get(0).getField(fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchFieldException());
-		}
+	public Boolean getBoolean(int fieldNumber) throws NoSuchTupleException,
+			NoSuchFieldException {
+		return getBoolean(0, fieldNumber);
+	}
+
+	/**
+	 * Get a Boolean from the given field of the specified Tuple of the batch
+	 * 
+	 * @param tupleNumber
+	 *            Position of the tuple in the batch
+	 * @param fieldNumber
+	 *            Position of the field in the tuple
+	 * @return value of the field as Boolean
+	 * @throws NoSuchTupleException
+	 *             , NoSuchFieldException
+	 */
+	// TODO: add exception for cast for all getters
+	public Boolean getBoolean(int tupleNumber, int fieldNumber)
+			throws NoSuchTupleException, NoSuchFieldException {
+		return (Boolean) getField(tupleNumber, fieldNumber);
 	}
 
 	/**
@@ -257,14 +237,101 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * 
 	 * @param fieldNumber
 	 *            Position of the field in the tuple
-	 * @return value of the field as Double
+	 * @return value of the field as Double * @throws NoSuchTupleException ,
+	 *         NoSuchFieldException
 	 */
-	public Double getDouble(int fieldNumber) {
-		try {
-			return (Double) tupleBatch.get(0).getField(fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchFieldException());
-		}
+	public Double getDouble(int fieldNumber) throws NoSuchTupleException,
+			NoSuchFieldException {
+		return getDouble(0, fieldNumber);
+	}
+
+	/**
+	 * Get a Double from the given field of the specified Tuple of the batch
+	 * 
+	 * @param tupleNumber
+	 *            Position of the tuple in the batch
+	 * @param fieldNumber
+	 *            Position of the field in the tuple
+	 * @return value of the field as Double * @throws NoSuchTupleException ,
+	 *         NoSuchFieldException
+	 */
+	public Double getDouble(int tupleNumber, int fieldNumber)
+			throws NoSuchTupleException, NoSuchFieldException {
+		return (Double) getField(tupleNumber, fieldNumber);
+	}
+
+	/**
+	 * Get an Integer from the given field of the first Tuple of the batch
+	 * 
+	 * @param fieldNumber
+	 *            Position of the field in the tuple
+	 * @return value of the field as Integer
+	 * @throws NoSuchTupleException
+	 *             , NoSuchFieldException
+	 */
+	public Integer getInteger(int fieldNumber) throws NoSuchTupleException,
+			NoSuchFieldException {
+		return getInteger(0, fieldNumber);
+	}
+
+	/**
+	 * Get an Integer from the given field of the specified Tuple of the batch
+	 * 
+	 * @param tupleNumber
+	 *            Position of the tuple in the batch
+	 * @param fieldNumber
+	 *            Position of the field in the tuple
+	 * @return value of the field as Integer
+	 * @throws NoSuchTupleException
+	 *             , NoSuchFieldException
+	 */
+	public Integer getInteger(int tupleNumber, int fieldNumber)
+			throws NoSuchTupleException, NoSuchFieldException {
+		return (Integer) getField(tupleNumber, fieldNumber);
+	}
+
+	/**
+	 * Get a Long from the given field of the first Tuple of the batch
+	 * 
+	 * @param fieldNumber
+	 *            Position of the field in the tuple
+	 * @return value of the field as Long
+	 * @throws NoSuchTupleException
+	 *             , NoSuchFieldException
+	 */
+	public Long getLong(int fieldNumber) throws NoSuchTupleException,
+			NoSuchFieldException {
+		return getLong(0, fieldNumber);
+	}
+
+	/**
+	 * Get a Long from the given field of the specified Tuple of the batch
+	 * 
+	 * @param tupleNumber
+	 *            Position of the tuple in the batch
+	 * @param fieldNumber
+	 *            Position of the field in the tuple
+	 * @return value of the field as Long
+	 * @throws NoSuchTupleException
+	 *             , NoSuchFieldException
+	 */
+	public Long getLong(int tupleNumber, int fieldNumber)
+			throws NoSuchTupleException, NoSuchFieldException {
+		return (Long) getField(tupleNumber, fieldNumber);
+	}
+
+	/**
+	 * Get a String from the given field of the first Tuple of the batch
+	 * 
+	 * @param fieldNumber
+	 *            Position of the field in the tuple
+	 * @return value of the field as String
+	 * @throws NoSuchTupleException
+	 *             , NoSuchFieldException
+	 */
+	public String getString(int fieldNumber) throws NoSuchTupleException,
+			NoSuchFieldException {
+		return getString(0, fieldNumber);
 	}
 
 	/**
@@ -276,80 +343,9 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            Position of the field in the tuple
 	 * @return value of the field as String
 	 */
-	public String getString(int tupleNumber, int fieldNumber) {
-		try {
-			return (String) tupleBatch.get(tupleNumber).getField(fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchFieldException());
-		}
-	}
-
-	/**
-	 * Get an Integer from the given field of the specified Tuple of the batch
-	 * 
-	 * @param tupleNumber
-	 *            Position of the tuple in the batch
-	 * @param fieldNumber
-	 *            Position of the field in the tuple
-	 * @return value of the field as Integer
-	 */
-	public Integer getInteger(int tupleNumber, int fieldNumber) {
-		try {
-			return (Integer) tupleBatch.get(tupleNumber).getField(fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchFieldException());
-		}
-	}
-
-	/**
-	 * Get a Long from the given field of the specified Tuple of the batch
-	 * 
-	 * @param tupleNumber
-	 *            Position of the tuple in the batch
-	 * @param fieldNumber
-	 *            Position of the field in the tuple
-	 * @return value of the field as Long
-	 */
-	public Long getLong(int tupleNumber, int fieldNumber) {
-		try {
-			return (Long) tupleBatch.get(tupleNumber).getField(fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchFieldException());
-		}
-	}
-
-	/**
-	 * Get a Boolean from the given field of the specified Tuple of the batch
-	 * 
-	 * @param tupleNumber
-	 *            Position of the tuple in the batch
-	 * @param fieldNumber
-	 *            Position of the field in the tuple
-	 * @return value of the field as Boolean
-	 */
-	public Boolean getBoolean(int tupleNumber, int fieldNumber) {
-		try {
-			return (Boolean) tupleBatch.get(tupleNumber).getField(fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchFieldException());
-		}
-	}
-
-	/**
-	 * Get a Double from the given field of the specified Tuple of the batch
-	 * 
-	 * @param tupleNumber
-	 *            Position of the tuple in the batch
-	 * @param fieldNumber
-	 *            Position of the field in the tuple
-	 * @return value of the field as Double
-	 */
-	public Double getDouble(int tupleNumber, int fieldNumber) {
-		try {
-			return (Double) tupleBatch.get(tupleNumber).getField(fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchFieldException());
-		}
+	public String getString(int tupleNumber, int fieldNumber)
+			throws NoSuchTupleException, NoSuchFieldException {
+		return (String) getField(tupleNumber, fieldNumber);
 	}
 
 	/**
