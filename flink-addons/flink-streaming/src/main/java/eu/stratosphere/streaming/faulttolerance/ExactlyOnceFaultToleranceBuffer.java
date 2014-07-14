@@ -84,7 +84,9 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 			acks[channel + 1] = 0;
 			acks[0]++;
 			
-			
+			if(acks[0]==numberOfEffectiveChannels.length){
+				remove(id);
+			}
 			
 			return addToChannel(id, channel);
 		} else{

@@ -279,6 +279,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @return Copy of the StreamRecord
 	 * @throws IOException 
 	 */
+	//TODO:Fix record copy
 	public StreamRecord copy() {
 		StreamRecord copiedRecord = new StreamRecord(this.numOfFields, this.numOfRecords);
 		
