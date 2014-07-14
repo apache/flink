@@ -15,7 +15,6 @@ import eu.stratosphere.types.Record;
 public class FaultTolerancyBuffer {
 
 	private final static long TIMEOUT = 1000;
-	private final static long TIMESTAMP_STORE_WINDOW = TIMEOUT / 10;
 	
 	private Long timeOfLastUpdate;
 	private Map<String, StreamRecord> recordBuffer;
@@ -47,6 +46,7 @@ public class FaultTolerancyBuffer {
 		addTimestamp(streamRecord.getId());
 	}
 	
+	//TODO: use this method!
 	private void timeoutRecords() {
 		Long currentTime = System.currentTimeMillis();
 		
