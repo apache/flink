@@ -87,7 +87,7 @@ public class RMQSource extends UserSourceInvokable {
 
 			message = new String(delivery.getBody());
 
-			if (message.equals("quit")) {
+			if (message.equals("q")) {
 				break;
 			}
 

@@ -1324,8 +1324,12 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	public String toString() {
 		StringBuilder outputString = new StringBuilder("[");
 
+		String prefix = "";
+
 		for (Tuple tuple : tupleBatch) {
-			outputString.append(tuple + ",");
+			outputString.append(prefix);
+			prefix = ",";
+			outputString.append(tuple.toString());
 		}
 		outputString.append("]");
 		return outputString.toString();

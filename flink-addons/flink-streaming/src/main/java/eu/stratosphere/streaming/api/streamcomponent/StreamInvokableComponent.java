@@ -52,6 +52,10 @@ public abstract class StreamInvokableComponent implements Serializable {
 		this.useFaultTolerance = faultToleranceType != FaultToleranceType.NONE;
 	}
 
+	public final void setPerfCounterDir(String dir) {
+		performanceCounter.setFname(dir + "/" + name + channelID);
+	}
+
 	public final void emit(StreamRecord record) {
 		record.setId(channelID);
 
@@ -69,7 +73,7 @@ public abstract class StreamInvokableComponent implements Serializable {
 			if (useFaultTolerance) {
 				emittedRecords.failRecord(record.getId());
 			}
-			
+
 			log.warn("FAILED: " + record.getId() + " -- " + name + " -- due to "
 					+ e.getClass().getSimpleName());
 		}
