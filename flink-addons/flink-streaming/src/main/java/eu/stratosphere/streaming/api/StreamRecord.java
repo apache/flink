@@ -50,7 +50,8 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 
 	/**
 	 * Creates a new empty batch of records and sets the field number to the
-	 * given number, and the number of records to the given number
+	 * given number, and the number of records to the given number. Setting
+	 * batchSize is just for optimization, records need to be added.
 	 * 
 	 * @param length
 	 *            Number of fields in the records
@@ -59,7 +60,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public StreamRecord(int length, int batchSize) {
 		numOfFields = length;
-		numOfRecords = batchSize;
 		recordBatch = new ArrayList<Value[]>(batchSize);
 	}
 
@@ -72,6 +72,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public StreamRecord(Value... values) {
 		this(values.length, 1);
+		numOfRecords = 1;
 		recordBatch.add(values);
 	}
 
@@ -135,7 +136,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @return Value of the field
 	 */
 	public Value getField(int fieldNumber) {
-		return getField(0, fieldNumber);
+		try {
+			return recordBatch.get(0)[fieldNumber];
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchFieldException());
+		}
 	}
 
 	/**
@@ -155,7 +160,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchRecordException());
 		}
 	}
-	
+
 	/**
 	 * Sets a field in the given position of the first record in the batch
 	 * 
@@ -163,7 +168,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            Position of the field in the record
 	 */
 	public void setField(int fieldNumber, Value value) {
-		setField(0, fieldNumber, value);
+		try {
+			recordBatch.get(0)[fieldNumber] = value;
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchFieldException());
+		}
 	}
 
 	/**
@@ -249,7 +258,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	public StreamRecord copy() {
 		StreamRecord copiedRecord = new StreamRecord(this.numOfFields, this.numOfRecords);
 		copiedRecord.uid = this.uid;
-		
+
 		for (Value[] record : recordBatch) {
 			copiedRecord.recordBatch.add(record);
 		}
