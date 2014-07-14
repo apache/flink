@@ -13,17 +13,9 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api.invokable;
+package eu.stratosphere.streaming.test.cellinfo;
 
-import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.types.Record;
-
-public class DefaultTaskInvokable implements UserTaskInvokable {
-
-	@Override
-	public void invoke(Record record, RecordWriter<Record> output)
-			throws Exception {
-		output.emit(record);
-	}
-
+public interface IWorkerEngine {
+	public int get(long timeStamp, long lastMillis, int cellId);
+	public void put(int cellId, long timeStamp);
 }
