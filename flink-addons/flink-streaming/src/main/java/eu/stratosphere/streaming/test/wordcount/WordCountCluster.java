@@ -19,6 +19,7 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
+import eu.stratosphere.client.program.JobWithJars;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobClient;
@@ -45,7 +46,7 @@ public class WordCountCluster {
 
 	private static JobGraph getJobGraph() throws Exception {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountSource.class);
+		graphBuilder.setSource("WordCountSource", WordCountDummySource.class);
 		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
 		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
 		graphBuilder.setSink("WordCountSink", WordCountSink.class);
@@ -75,10 +76,14 @@ public class WordCountCluster {
 			
 			//JobClient client = exec.getJobClient(jG);
 
+			ClassLoader userClassLoader;
+			
+			
+			
 			client.submitJobAndWait();
 
 		} catch (Exception e) {
-			System.out.println(e);
+			e.printStackTrace();
 		}
 
 	}
