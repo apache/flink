@@ -21,13 +21,10 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.streaming.api.StreamCollector;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.examples.DummyIS;
