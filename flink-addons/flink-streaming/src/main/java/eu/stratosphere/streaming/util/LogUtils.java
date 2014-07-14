@@ -14,8 +14,10 @@ public class LogUtils {
 	public static void initializeDefaultConsoleLogger(Level logLevel, Level rootLevel) {
 		Logger logger = Logger.getLogger("eu.stratosphere.streaming");
 		logger.removeAllAppenders();
-		PatternLayout layout = new PatternLayout(
-				"%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
+		PatternLayout layout = new PatternLayout();
+		//layout.setConversionPattern("%highlight{%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n}");
+		//TODO Add highlight
+		layout.setConversionPattern("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
 		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
 		logger.addAppender(appender);
 		logger.setLevel(logLevel);
