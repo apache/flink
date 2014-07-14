@@ -13,20 +13,19 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.api.datastream;
+package eu.stratosphere.streaming.api;
 
-import eu.stratosphere.api.java.functions.MapFunction;
+import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.streaming.api.StreamCollector;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class MapInvokable<T extends Tuple, R extends Tuple> extends UserTaskInvokable<T, R> {
+public class FlatMapInvokable<T extends Tuple, R extends Tuple> extends UserTaskInvokable<T, R> {
 	private static final long serialVersionUID = 1L;
 
-	private MapFunction<T, R> mapper;
-	public MapInvokable(MapFunction<T, R> mapper) {
-		this.mapper = mapper;
+	private FlatMapFunction<T, R> flatMapper;
+	public FlatMapInvokable(FlatMapFunction<T, R> flatMapper) {
+		this.flatMapper = flatMapper;
 	}
 	
 	@Override
@@ -35,7 +34,7 @@ public class MapInvokable<T extends Tuple, R extends Tuple> extends UserTaskInvo
 		for (int i = 0; i < batchSize; i++) {
 			@SuppressWarnings("unchecked")
 			T tuple = (T) record.getTuple(i);
-			collector.collect(mapper.map(tuple));
+			flatMapper.flatMap(tuple, collector);
 		}
 	}		
 }

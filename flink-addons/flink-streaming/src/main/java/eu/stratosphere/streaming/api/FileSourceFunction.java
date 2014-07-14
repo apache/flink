@@ -12,17 +12,37 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.streaming.api;
 
-package eu.stratosphere.streaming.examples.wordcount;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.SinkFunction;
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.util.Collector;
 
-public class WordCountSink extends SinkFunction<Tuple2<String, Integer>> {
+public class FileSourceFunction extends SourceFunction<Tuple1<String>> {
 	private static final long serialVersionUID = 1L;
-
-	@Override
-	public void invoke(Tuple2<String, Integer> inTuple) {
-		System.out.println(inTuple);
+	
+	private final String path;
+	private Tuple1<String> outTuple = new Tuple1<String>();
+	
+	public FileSourceFunction(String path) {
+		this.path = path;
 	}
+	
+	@Override
+	public void invoke(Collector<Tuple1<String>> collector) throws IOException {
+		BufferedReader br = new BufferedReader(new FileReader(path));
+		String line = br.readLine();
+		while (line != null) {
+			if (line != "") {
+				outTuple.f0 = line;
+				collector.collect(outTuple);
+			}
+			line = br.readLine();
+		}
+		br.close();
+	}
+
 }
