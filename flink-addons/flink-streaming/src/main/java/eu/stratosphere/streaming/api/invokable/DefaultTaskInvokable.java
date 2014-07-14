@@ -16,15 +16,15 @@
 package eu.stratosphere.streaming.api.invokable;
 
 import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.streaming.api.StreamCollector;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.util.Collector;
 
 public class DefaultTaskInvokable extends UserTaskInvokable<Tuple, Tuple> {
 
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void invoke(StreamRecord record, StreamCollector<Tuple> collector) throws Exception {
+	public void invoke(StreamRecord record, Collector<Tuple> collector) throws Exception {
 		// TODO Auto-generated method stub
 
 	}

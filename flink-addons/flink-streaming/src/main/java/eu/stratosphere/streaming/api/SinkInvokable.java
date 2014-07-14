@@ -18,6 +18,7 @@ package eu.stratosphere.streaming.api;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.util.Collector;
 
 public class SinkInvokable<IN extends Tuple> extends UserSinkInvokable<IN> {
 	private static final long serialVersionUID = 1L;
@@ -29,7 +30,7 @@ public class SinkInvokable<IN extends Tuple> extends UserSinkInvokable<IN> {
 	}
 
 	@Override
-	public void invoke(StreamRecord record, StreamCollector<Tuple> collector) throws Exception {
+	public void invoke(StreamRecord record, Collector<Tuple> collector) throws Exception {
 		int batchSize = record.getBatchSize();
 		for (int i = 0; i < batchSize; i++) {
 			@SuppressWarnings("unchecked")

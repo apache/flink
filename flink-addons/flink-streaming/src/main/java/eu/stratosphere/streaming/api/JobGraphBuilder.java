@@ -460,6 +460,10 @@ public class JobGraphBuilder {
 					"partitionerIntParam_"
 							+ (upStreamComponent.getNumberOfForwardConnections() - 1), keyPosition);
 
+			config.setInteger(
+					"numOfOutputs_"
+							+ (upStreamComponent.getNumberOfForwardConnections() - 1), numberOfInstances.get(downStreamComponentName));
+			
 			addOutputChannels(upStreamComponentName, 1);
 			if (log.isDebugEnabled()) {
 				log.debug("CONNECTED: FIELD PARTITIONING - " + upStreamComponentName + " -> "
