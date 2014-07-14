@@ -26,6 +26,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -258,47 +260,56 @@ public class StreamRecordTest {
 			fail();
 		} catch (NoSuchFieldException e) {
 		}
-		
+
 		try {
 			a.getBoolean(0);
 			fail();
-		} catch (FieldTypeMismatchException e) {}
-		
+		} catch (FieldTypeMismatchException e) {
+		}
+
 		try {
 			a.getByte(0);
 			fail();
-		} catch (FieldTypeMismatchException e) {}
+		} catch (FieldTypeMismatchException e) {
+		}
 		try {
 			a.getCharacter(0);
 			fail();
-		} catch (FieldTypeMismatchException e) {}
+		} catch (FieldTypeMismatchException e) {
+		}
 		try {
 			a.getDouble(0);
 			fail();
-		} catch (FieldTypeMismatchException e) {}
+		} catch (FieldTypeMismatchException e) {
+		}
 		try {
 			a.getFloat(0);
 			fail();
-		} catch (FieldTypeMismatchException e) {}
+		} catch (FieldTypeMismatchException e) {
+		}
 		try {
 			a.getInteger(0);
 			fail();
-		} catch (FieldTypeMismatchException e) {}
+		} catch (FieldTypeMismatchException e) {
+		}
 		try {
 			a.getLong(0);
 			fail();
-		} catch (FieldTypeMismatchException e) {}
+		} catch (FieldTypeMismatchException e) {
+		}
 		try {
 			a.getShort(0);
 			fail();
-		} catch (FieldTypeMismatchException e) {}
-		
+		} catch (FieldTypeMismatchException e) {
+		}
+
 		StreamRecord c = new StreamRecord(new Tuple1<Integer>(1));
 		try {
 			c.getString(0);
 			fail();
-		} catch (FieldTypeMismatchException e) {}
-	
+		} catch (FieldTypeMismatchException e) {
+		}
+
 	}
 
 	@Test
@@ -488,6 +499,26 @@ public class StreamRecordTest {
 		OLSMultipleLinearRegression ols = new OLSMultipleLinearRegression();
 		ols.newSampleData(new double[] { 1.0, 2.0 }, new double[][] { { 1, 2 }, { 3, 4 } });
 		System.out.println(Arrays.toString(ols.estimateRegressionParameters()));
+
+	}
+
+	@Test
+	public void typeExtractTest() throws IOException, ClassNotFoundException {
+
+		ByteArrayOutputStream buff = new ByteArrayOutputStream();
+		ObjectOutputStream out = new ObjectOutputStream(buff);
+
+		MyGeneric<?> g = new MyGeneric2();
+		out.writeObject(g);
+
+		ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(buff.toByteArray()));
+
+		MyGeneric<?> f = (MyGeneric<?>) in.readObject();
+
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(MyGeneric.class, f.getClass(), 0,
+				null, null);
+
+		System.out.println("Type info: " + ti);
 
 	}
 }

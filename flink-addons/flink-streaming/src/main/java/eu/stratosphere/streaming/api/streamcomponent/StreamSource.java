@@ -73,9 +73,7 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 		try {
 			streamSourceHelper.setConfigOutputs(this, taskConfiguration, outputs, partitioners);
 		} catch (StreamComponentException e) {
-			if (log.isErrorEnabled()) {
-				log.error("Cannot register outputs", e);
-			}
+			log.error("Cannot register outputs", e);
 		}
 
 		int[] numberOfOutputChannels = new int[outputs.size()];
@@ -83,8 +81,8 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 			numberOfOutputChannels[i] = taskConfiguration.getInteger("channels_" + i, 0);
 		}
 
-		streamSourceHelper.setFaultTolerance(recordBuffer, faultToleranceType, taskConfiguration,
-				outputs, sourceInstanceID, name, numberOfOutputChannels);
+		streamSourceHelper.setFaultTolerance(recordBuffer, faultToleranceType,
+				taskConfiguration, outputs, sourceInstanceID, name, numberOfOutputChannels);
 
 		userFunction = (UserSourceInvokable) streamSourceHelper.getUserFunction(taskConfiguration,
 				outputs, sourceInstanceID, name, recordBuffer);
@@ -94,9 +92,7 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 
 	@Override
 	public void invoke() throws Exception {
-		if (log.isDebugEnabled()) {
-			log.debug("SOURCE " + name + " invoked with instance id " + sourceInstanceID);
-		}
+		log.debug("SOURCE " + name + " invoked with instance id " + sourceInstanceID);
 		userFunction.invoke();
 		// TODO print to file
 		System.out.println(userFunction.getResult());
