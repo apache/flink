@@ -31,11 +31,11 @@ public class JoinLocal {
 		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 
 		DataStream<Tuple3<String, String, Integer>> source1 = context
-				.addSource(new JoinSourceOne()).partitionBy(1);
+				.addSource(new JoinSourceOne());
 
 		@SuppressWarnings("unused")
 		DataStream<Tuple3<String, Integer, Integer>> source2 = context
-				.addSource(new JoinSourceTwo()).partitionBy(1).connectWith(source1)
+				.addSource(new JoinSourceTwo()).connectWith(source1).partitionBy(1)
 				.flatMap(new JoinTask()).addSink(new JoinSink());
 
 		context.execute();
