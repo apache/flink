@@ -79,7 +79,9 @@ public class JobGraphBuilder {
 		numberOfOutputChannels = new HashMap<String, List<Integer>>();
 		maxParallelismVertexName = "";
 		maxParallelism = 0;
-		log.debug("JobGraph created");
+		if (log.isDebugEnabled()) {
+			log.debug("JobGraph created");
+		}
 		this.faultToleranceType = faultToleranceType;
 	}
 
@@ -125,7 +127,9 @@ public class JobGraphBuilder {
 		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
 		source.setInputClass(StreamSource.class);
 		setComponent(sourceName, InvokableClass, parallelism, subtasksPerInstance, source);
-		log.debug("SOURCE: " + sourceName);
+		if (log.isDebugEnabled()) {
+			log.debug("SOURCE: " + sourceName);
+		}
 	}
 
 	/**
@@ -160,7 +164,9 @@ public class JobGraphBuilder {
 		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
 		source.setInputClass(StreamSource.class);
 		setComponent(sourceName, InvokableObject, parallelism, subtasksPerInstance, source);
-		log.debug("SOURCE: " + sourceName);
+		if (log.isDebugEnabled()) {
+			log.debug("SOURCE: " + sourceName);
+		}
 	}
 
 	/**
@@ -192,7 +198,9 @@ public class JobGraphBuilder {
 		final JobTaskVertex task = new JobTaskVertex(taskName, jobGraph);
 		task.setTaskClass(StreamTask.class);
 		setComponent(taskName, InvokableClass, parallelism, subtasksPerInstance, task);
-		log.debug("TASK: " + taskName);
+		if (log.isDebugEnabled()) {
+			log.debug("TASK: " + taskName);
+		}
 	}
 
 	/**
@@ -224,7 +232,9 @@ public class JobGraphBuilder {
 		final JobTaskVertex task = new JobTaskVertex(taskName, jobGraph);
 		task.setTaskClass(StreamTask.class);
 		setComponent(taskName, TaskInvokableObject, parallelism, subtasksPerInstance, task);
-		log.debug("TASK: " + taskName);
+		if (log.isDebugEnabled()) {
+			log.debug("TASK: " + taskName);
+		}
 	}
 
 	/**
@@ -256,7 +266,9 @@ public class JobGraphBuilder {
 		final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
 		sink.setOutputClass(StreamSink.class);
 		setComponent(sinkName, InvokableClass, parallelism, subtasksPerInstance, sink);
-		log.debug("SINK: " + sinkName);
+		if (log.isDebugEnabled()) {
+			log.debug("SINK: " + sinkName);
+		}
 	}
 
 	/**
@@ -288,7 +300,9 @@ public class JobGraphBuilder {
 		final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
 		sink.setOutputClass(StreamSink.class);
 		setComponent(sinkName, InvokableObject, parallelism, subtasksPerInstance, sink);
-		log.debug("SINK: " + sinkName);
+		if (log.isDebugEnabled()) {
+			log.debug("SINK: " + sinkName);
+		}
 	}
 
 	/**
@@ -407,11 +421,15 @@ public class JobGraphBuilder {
 			config.setClass(
 					"partitionerClass_" + (upStreamComponent.getNumberOfForwardConnections() - 1),
 					PartitionerClass);
-			log.debug("CONNECTED: " + PartitionerClass.getSimpleName() + " - "
-					+ upStreamComponentName + " -> " + downStreamComponentName);
+			if (log.isDebugEnabled()) {
+				log.debug("CONNECTED: " + PartitionerClass.getSimpleName() + " - "
+						+ upStreamComponentName + " -> " + downStreamComponentName);
+			}
 		} catch (JobGraphDefinitionException e) {
-			log.error("Cannot connect components with " + PartitionerClass.getSimpleName() + " : "
-					+ upStreamComponentName + " -> " + downStreamComponentName, e);
+			if (log.isErrorEnabled()) {
+				log.error("Cannot connect components with " + PartitionerClass.getSimpleName()
+						+ " : " + upStreamComponentName + " -> " + downStreamComponentName, e);
+			}
 		}
 	}
 
@@ -497,11 +515,15 @@ public class JobGraphBuilder {
 							+ (upStreamComponent.getNumberOfForwardConnections() - 1), keyPosition);
 
 			addOutputChannels(upStreamComponentName, 1);
-			log.debug("CONNECTED: FIELD PARTITIONING - " + upStreamComponentName + " -> "
-					+ downStreamComponentName + ", KEY: " + keyPosition);
+			if (log.isDebugEnabled()) {
+				log.debug("CONNECTED: FIELD PARTITIONING - " + upStreamComponentName + " -> "
+						+ downStreamComponentName + ", KEY: " + keyPosition);
+			}
 		} catch (JobGraphDefinitionException e) {
-			log.error("Cannot connect components by field: " + upStreamComponentName + " to "
-					+ downStreamComponentName, e);
+			if (log.isErrorEnabled()) {
+				log.error("Cannot connect components by field: " + upStreamComponentName + " to "
+						+ downStreamComponentName, e);
+			}
 		}
 	}
 

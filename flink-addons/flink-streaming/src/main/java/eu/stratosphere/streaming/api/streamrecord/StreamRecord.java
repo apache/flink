@@ -72,7 +72,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	private UID uid = new UID();
 	private int numOfFields;
 	private int numOfTuples;
-	private int batchSize;
+	public int batchSize;
 
 	private static final Class<?>[] CLASSES = new Class<?>[] { Tuple1.class, Tuple2.class,
 			Tuple3.class, Tuple4.class, Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class,
@@ -84,6 +84,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * Creates a new empty instance for read
 	 */
 	public StreamRecord() {
+		tupleBatch = new ArrayList<Tuple>();
 	}
 
 	/**
@@ -977,17 +978,13 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @throws NoSuchTupleException
 	 *             , TupleSizeMismatchException
 	 */
-	public void setTuple(int tupleNumber, Tuple tuple) throws NoSuchTupleException,
-			TupleSizeMismatchException {
-		if (tuple.getArity() == numOfFields) {
-			try {
-				tupleBatch.set(tupleNumber, tuple);
-			} catch (IndexOutOfBoundsException e) {
-				throw (new NoSuchTupleException());
-			}
-		} else {
-			throw (new TupleSizeMismatchException());
+	public void setTuple(int tupleNumber, Tuple tuple) throws NoSuchTupleException {
+		try {
+			tupleBatch.set(tupleNumber, tuple);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchTupleException());
 		}
+
 	}
 
 	/**

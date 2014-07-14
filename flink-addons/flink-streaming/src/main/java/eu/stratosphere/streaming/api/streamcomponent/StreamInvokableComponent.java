@@ -67,15 +67,18 @@ public abstract class StreamInvokableComponent implements Serializable {
 			for (RecordWriter<StreamRecord> output : outputs) {
 				output.emit(record);
 				output.flush();
-				log.info("EMITTED: " + record.getId() + " -- " + name);
+				if (log.isInfoEnabled()) {
+					log.info("EMITTED: " + record.getId() + " -- " + name);
+				}
 			}
 		} catch (Exception e) {
 			if (useFaultTolerance) {
 				emittedRecords.failRecord(record.getId());
 			}
-
-			log.warn("FAILED: " + record.getId() + " -- " + name + " -- due to "
-					+ e.getClass().getSimpleName());
+			if (log.isWarnEnabled()) {
+				log.warn("FAILED: " + record.getId() + " -- " + name + " -- due to "
+						+ e.getClass().getSimpleName());
+			}
 		}
 	}
 
@@ -88,7 +91,9 @@ public abstract class StreamInvokableComponent implements Serializable {
 		try {
 			outputs.get(outputChannel).emit(record);
 		} catch (Exception e) {
-			log.warn("EMIT ERROR: " + e.getClass().getSimpleName() + " -- " + name);
+			if (log.isWarnEnabled()) {
+				log.warn("EMIT ERROR: " + e.getClass().getSimpleName() + " -- " + name);
+			}
 		}
 	}
 

@@ -62,7 +62,9 @@ public class FailEventListener implements EventListener {
 		int failCID = recordId.getChannelId();
 		if (failCID == taskInstanceID) {
 			recordBuffer.failRecord(recordId, output);
-			log.warn("FAIL RECIEVED: "+output +" "+ recordId);
+			if (log.isWarnEnabled()) {
+				log.warn("FAIL RECIEVED: " + output + " " + recordId);
+			}
 		}
 
 	}
