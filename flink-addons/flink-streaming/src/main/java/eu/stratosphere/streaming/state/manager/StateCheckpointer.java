@@ -13,17 +13,24 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.state;
+package eu.stratosphere.streaming.state.manager;
 
-/**
- * An internal state interface that supports stateful operator.
- */
-public interface TableState<K, V>{
-	public void put(K key, V value);
-	public V get(K key);
-	public void delete(K key);
-	public boolean containsKey(K key);
-	public String serialize();
-	public void deserialize(String str);
-	public TableStateIterator<K, V> getIterator();
+import java.util.LinkedList;
+
+import eu.stratosphere.streaming.state.TableState;
+
+public class StateCheckpointer {
+
+	private LinkedList<TableState> stateList = new LinkedList<TableState>();
+	
+	public void RegisterState(TableState state){
+		stateList.add(state);
+	}
+	
+	public void CheckpointStates(){
+		for(TableState state: stateList){
+			//take snapshot of every registered state.
+			
+		}		
+	}
 }

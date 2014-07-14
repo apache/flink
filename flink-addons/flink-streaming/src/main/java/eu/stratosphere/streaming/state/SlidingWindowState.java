@@ -20,15 +20,13 @@ import java.util.ArrayList;
 
 import org.apache.commons.collections.buffer.CircularFifoBuffer;
 
-import eu.stratosphere.api.java.tuple.Tuple;
-
 /**
  * The window state for window operator. To be general enough, this class
  * implements a count based window operator. It is possible for the user to
  * compose time based window operator by extending this class by splitting the
  * stream into multiple mini batches.
  */
-public class SlidingWindowState<InTuple extends Tuple> implements Serializable{
+public class SlidingWindowState implements Serializable{
 	private static final long serialVersionUID = -2376149970115888901L;
 	private int currentRecordCount;
 	private int fullRecordCount;
@@ -45,13 +43,13 @@ public class SlidingWindowState<InTuple extends Tuple> implements Serializable{
 		this.buffer = new CircularFifoBuffer(fullRecordCount);
 	}
 
-	public void pushBack(ArrayList<InTuple> tupleArray) {
+	public void pushBack(ArrayList tupleArray) {
 		buffer.add(tupleArray);
 		currentRecordCount += 1;
 	}
 
-	public ArrayList<InTuple> popFront() {
-		ArrayList<InTuple> frontRecord = (ArrayList<InTuple>) buffer.get();
+	public ArrayList popFront() {
+		ArrayList frontRecord = (ArrayList) buffer.get();
 		buffer.remove();
 		return frontRecord;
 	}

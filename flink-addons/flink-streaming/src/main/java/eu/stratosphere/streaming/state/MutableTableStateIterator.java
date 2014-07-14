@@ -15,15 +15,26 @@
 
 package eu.stratosphere.streaming.state;
 
-/**
- * An internal state interface that supports stateful operator.
- */
-public interface TableState<K, V>{
-	public void put(K key, V value);
-	public V get(K key);
-	public void delete(K key);
-	public boolean containsKey(K key);
-	public String serialize();
-	public void deserialize(String str);
-	public TableStateIterator<K, V> getIterator();
+import java.util.Iterator;
+import java.util.Map.Entry;
+
+import eu.stratosphere.api.java.tuple.Tuple2;
+
+public class MutableTableStateIterator<K, V> implements TableStateIterator<K, V>{
+
+	private Iterator<Entry<K, V>> iterator;
+	public MutableTableStateIterator(Iterator<Entry<K, V>> iter){
+		iterator=iter;
+	}
+	
+	@Override
+	public boolean hasNext() {
+		return iterator.hasNext();
+	}
+
+	@Override
+	public Tuple2<K, V> next() {
+		Entry<K, V> entry=iterator.next();
+		return new Tuple2<K, V>(entry.getKey(), entry.getValue());
+	}
 }
