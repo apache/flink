@@ -18,28 +18,28 @@ package eu.stratosphere.streaming.examples.wordcount;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.util.PerformanceCounter;
 
 public class WordCountSplitter extends UserTaskInvokable {
 
 	private String[] words = new String[] {};
-	private int i = 0;
 	private StreamRecord outputRecord = new StreamRecord(new Tuple1<String>());
-	private long time;
-	private long prevTime = System.currentTimeMillis();
+	PerformanceCounter perf = new PerformanceCounter("SplitterEmitCounter", 1000, 10000);
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		i++;
-		if (i % 50000 == 0) {
-			time = System.currentTimeMillis();
-			System.out.println("Splitter:\t" + i + "\t----Time: " + (time - prevTime));
-			prevTime = time;
-		}
 
 		words = record.getString(0).split(" ");
 		for (String word : words) {
 			outputRecord.setString(0, word);
 			emit(outputRecord);
+			perf.count();
 		}
+	}
+
+	@Override
+	public String getResult() {
+		perf.writeCSV("C:/temp/strato/Splitter"+channelID+".csv");
+		return "";
 	}
 }

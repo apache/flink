@@ -93,10 +93,10 @@ public class PerformanceTracker {
 		return csv.toString();
 	}
 
-	public void writeCSV(String file) {
+	public void writeCSV(String fname) {
 
 		try {
-			PrintWriter out = new PrintWriter(file);
+			PrintWriter out = new PrintWriter(fname);
 			out.print(toString());
 			out.close();
 

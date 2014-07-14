@@ -21,6 +21,7 @@ import java.util.Map;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.util.PerformanceCounter;
 
 public class WordCountCounter extends UserTaskInvokable {
 
@@ -28,23 +29,15 @@ public class WordCountCounter extends UserTaskInvokable {
 	private String word = "";
 	private Integer count = 0;
 
-	// private StreamRecord streamRecord = new StreamRecord(2);
-	private int i = 0;
-	private long time;
-	private long prevTime = System.currentTimeMillis();
+	PerformanceCounter perf = new PerformanceCounter("CounterEmitCounter", 1000, 10000);
+
 	
 	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Integer>());
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
 		word = record.getString(0);
-		i++;
-		if (i % 50000 == 0) {
-			time = System.currentTimeMillis();
-			System.out.println("Counter:\t" + i + "\t----Time: "
-					+ (time - prevTime));
-			prevTime = time;
-		}
+		
 		if (wordCounts.containsKey(word)) {
 			count = wordCounts.get(word) + 1;
 			wordCounts.put(word, count);
@@ -57,5 +50,12 @@ public class WordCountCounter extends UserTaskInvokable {
 		outRecord.setInteger(1,count);
 
 		emit(outRecord);
+		perf.count();
+	}
+	
+	@Override
+	public String getResult(){
+		perf.writeCSV("C:/temp/strato/Counter"+channelID+".csv");
+		return "";
 	}
 }

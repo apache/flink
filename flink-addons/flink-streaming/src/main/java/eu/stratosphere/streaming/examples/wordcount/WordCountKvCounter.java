@@ -19,6 +19,7 @@ import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.state.MutableInternalState;
+import eu.stratosphere.streaming.util.PerformanceCounter;
 
 public class WordCountKvCounter extends UserTaskInvokable {
 
@@ -26,23 +27,15 @@ public class WordCountKvCounter extends UserTaskInvokable {
 	private String word = "";
 	private Integer count = 0;
 
-	// private StreamRecord streamRecord = new StreamRecord(2);
-	private int i = 0;
-	private long time;
-	private long prevTime = System.currentTimeMillis();
+	PerformanceCounter perf = new PerformanceCounter("CounterEmitCounter"+this.name, 1000, 1000);
+
 	
 	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Integer>());
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
 		word = record.getString(0);
-		i++;
-		if (i % 50000 == 0) {
-			time = System.currentTimeMillis();
-			System.out.println("Counter:\t" + i + "\t----Time: "
-					+ (time - prevTime));
-			prevTime = time;
-		}
+		
 		if (wordCounts.containsKey(word)) {
 			count = wordCounts.get(word) + 1;
 			wordCounts.put(word, count);
@@ -55,5 +48,6 @@ public class WordCountKvCounter extends UserTaskInvokable {
 		outRecord.setInteger(1,count);
 
 		emit(outRecord);
+		perf.count();
 	}
 }
