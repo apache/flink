@@ -91,6 +91,31 @@ public class StreamComponentTest {
 		}
 	}
 
+	public static class MyOtherTask extends UserTaskInvokable {
+		private static final long serialVersionUID = 1L;
+		String out;
+
+		public MyOtherTask() {
+
+		}
+
+		public MyOtherTask(String string) {
+			out = string;
+		}
+
+		@Override
+		public void invoke(StreamRecord record) throws Exception {
+
+			Integer i = record.getInteger(0);
+			emit(new StreamRecord(new Tuple2<Integer, Integer>(-i - 1, -i - 2)));
+		}
+
+		@Override
+		public String getResult() {
+			return out;
+		}
+	}
+
 	public static class MySink extends UserSinkInvokable {
 
 		private static final long serialVersionUID = 1L;
@@ -120,10 +145,13 @@ public class StreamComponentTest {
 
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
 		graphBuilder.setSource("MySource", new MySource("source"));
-		graphBuilder.setTask("MyTask", new MyTask("task"), 2, 2);
+		graphBuilder.setTask("MyTask", new MyTask("task"), 1, 1);
+		graphBuilder.setTask("MyOtherTask", new MyOtherTask("otherTask"), 1, 1);
 		graphBuilder.setSink("MySink", new MySink("sink"));
 
 		graphBuilder.shuffleConnect("MySource", "MyTask");
+		graphBuilder.shuffleConnect("MySource", "MyOtherTask");
+		graphBuilder.shuffleConnect("MyOtherTask", "MySink");
 		graphBuilder.shuffleConnect("MyTask", "MySink");
 
 		ClusterUtil.runOnMiniCluster(graphBuilder.getJobGraph());
@@ -131,10 +159,14 @@ public class StreamComponentTest {
 
 	@Test
 	public void test() {
-		assertEquals(100, data.keySet().size());
+		assertEquals(200, data.keySet().size());
 
 		for (Integer k : data.keySet()) {
-			assertEquals((Integer) (k + 1), data.get(k));
+			if (k < 0) {
+				assertEquals((Integer) (k - 1), data.get(k));
+			} else {
+				assertEquals((Integer) (k + 1), data.get(k));
+			}
 		}
 	}
 }

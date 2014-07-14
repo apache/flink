@@ -25,7 +25,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.io.AbstractRecordReader;
@@ -35,7 +34,6 @@ import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
 import eu.stratosphere.streaming.api.invokable.RecordInvokable;
@@ -115,8 +113,8 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 	}
 
-	public AbstractRecordReader getConfigInputs(T taskBase, Configuration taskConfiguration,
-			AbstractRecordReader inputs) throws StreamComponentException {
+	public AbstractRecordReader getConfigInputs(T taskBase, Configuration taskConfiguration)
+			throws StreamComponentException {
 		int numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
 
 		if (numberOfInputs < 2) {
@@ -274,27 +272,22 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 	public void invokeRecords(RecordInvoker invoker, RecordInvokable userFunction,
 			AbstractRecordReader inputs, String name) throws Exception {
-		System.out.println("INVOKE");
-		System.out.println(inputs);
 		if (inputs instanceof UnionRecordReader) {
-			System.out.println("UNION READER");
 			@SuppressWarnings("unchecked")
 			UnionRecordReader<StreamRecord> recordReader = (UnionRecordReader<StreamRecord>) inputs;
-			
 			while (recordReader.hasNext()) {
 				StreamRecord record = recordReader.next();
 				invoker.call(name, userFunction, recordReader, record);
 			}
-			
+
 		} else if (inputs instanceof RecordReader) {
-			System.out.println("READER");
 			@SuppressWarnings("unchecked")
 			RecordReader<StreamRecord> recordReader = (RecordReader<StreamRecord>) inputs;
-			
+
 			while (recordReader.hasNext()) {
 				StreamRecord record = recordReader.next();
 				invoker.call(name, userFunction, recordReader, record);
-			}			
+			}
 		}
 	}
 
@@ -322,5 +315,6 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			userFunction.invoke(record);
 		}
 	}
+
 
 }
