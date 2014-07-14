@@ -37,18 +37,14 @@ public class StreamSource extends AbstractStreamComponent {
 	private static final Log log = LogFactory.getLog(StreamSource.class);
 
 	private List<RecordWriter<StreamRecord>> outputs;
-	private List<ChannelSelector<StreamRecord>> partitioners;
 	private UserSourceInvokable<Tuple> userFunction;
 	private static int numSources;
 	private int[] numberOfOutputChannels;
-	// private FaultToleranceUtil recordBuffer;
-	// private FaultToleranceType faultToleranceType;
 
 	public StreamSource() {
 
 		
 		outputs = new LinkedList<RecordWriter<StreamRecord>>();
-		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
 		userFunction = null;
 		numSources = newComponent();
 		instanceID = numSources;
@@ -61,7 +57,7 @@ public class StreamSource extends AbstractStreamComponent {
 		try {
 			setSerializers();
 			setCollector();
-			setConfigOutputs(outputs, partitioners);
+			setConfigOutputs(outputs);
 		} catch (StreamComponentException e) {
 			if (log.isErrorEnabled()) {
 				log.error("Cannot register outputs", e);

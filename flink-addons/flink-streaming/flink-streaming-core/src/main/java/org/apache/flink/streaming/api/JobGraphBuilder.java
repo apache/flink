@@ -85,8 +85,6 @@ public class JobGraphBuilder {
 	 * 
 	 * @param jobGraphName
 	 *            Name of the JobGraph
-	 * @param faultToleranceType
-	 *            Fault tolerance type
 	 */
 	public JobGraphBuilder(String jobGraphName) {
 
@@ -110,7 +108,6 @@ public class JobGraphBuilder {
 			log.debug("JobGraph created");
 		}
 	}
-
 
 	/**
 	 * Adds source to the JobGraph with the given parameters

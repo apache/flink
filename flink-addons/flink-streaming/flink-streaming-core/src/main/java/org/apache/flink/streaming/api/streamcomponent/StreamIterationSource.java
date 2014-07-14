@@ -37,7 +37,6 @@ public class StreamIterationSource extends AbstractStreamComponent {
 	private static final Log log = LogFactory.getLog(StreamIterationSource.class);
 
 	private List<RecordWriter<StreamRecord>> outputs;
-	private List<ChannelSelector<StreamRecord>> partitioners;
 	private static int numSources;
 	private int[] numberOfOutputChannels;
 	private String iterationId;
@@ -46,7 +45,6 @@ public class StreamIterationSource extends AbstractStreamComponent {
 	public StreamIterationSource() {
 
 		outputs = new LinkedList<RecordWriter<StreamRecord>>();
-		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
 		numSources = newComponent();
 		instanceID = numSources;
 		dataChannel = new ArrayBlockingQueue<StreamRecord>(1);
@@ -58,7 +56,7 @@ public class StreamIterationSource extends AbstractStreamComponent {
 
 		try {
 			setSerializers();
-			setConfigOutputs(outputs, partitioners);
+			setConfigOutputs(outputs);
 		} catch (StreamComponentException e) {
 			if (log.isErrorEnabled()) {
 				log.error("Cannot register outputs", e);

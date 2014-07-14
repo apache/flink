@@ -191,18 +191,16 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 		}
 	}
 
-	protected void setConfigOutputs(List<RecordWriter<StreamRecord>> outputs,
-			List<ChannelSelector<StreamRecord>> partitioners) throws StreamComponentException {
+	protected void setConfigOutputs(List<RecordWriter<StreamRecord>> outputs) throws StreamComponentException {
 
 		int numberOfOutputs = configuration.getInteger("numberOfOutputs", 0);
 
 		for (int i = 0; i < numberOfOutputs; i++) {
-			setPartitioner(i, partitioners, outputs);
+			setPartitioner(i, outputs);
 		}
 	}
 
 	private void setPartitioner(int numberOfOutputs,
-			List<ChannelSelector<StreamRecord>> partitioners,
 			List<RecordWriter<StreamRecord>> outputs) {
 
 		Class<? extends ChannelSelector<StreamRecord>> partitioner = configuration.getClass(
@@ -219,7 +217,6 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 				RecordWriter<StreamRecord> output = new RecordWriter<StreamRecord>(this,
 						outputPartitioner);
 				outputs.add(output);
-				partitioners.add(outputPartitioner);
 				String outputName = configuration.getString("outputName_" + numberOfOutputs, null);
 				if (collectorManager != null) {
 					collectorManager.addOutput(output, outputName);
@@ -227,7 +224,6 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 
 			} else {
 				ChannelSelector<StreamRecord> outputPartitioner = partitioner.newInstance();
-				partitioners.add(outputPartitioner);
 				RecordWriter<StreamRecord> output = new RecordWriter<StreamRecord>(this,
 						outputPartitioner);
 				outputs.add(output);
