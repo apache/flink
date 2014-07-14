@@ -20,11 +20,15 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
 import org.junit.Test;
 
-import eu.stratosphere.streaming.api.streamrecord.NoSuchRecordException;
-import eu.stratosphere.streaming.api.streamrecord.RecordSizeMismatchException;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
 
@@ -77,14 +81,14 @@ public class StreamRecordTest {
 
 	@Test
 	public void copyTest() {
-		//TODO:test ID copy
+		// TODO:test ID copy
 		StreamRecord a = new StreamRecord(new StringValue("Big"));
 		StreamRecord b = a.copy();
 		assertTrue(((StringValue) a.getField(0)).getValue().equals(((StringValue) b.getField(0)).getValue()));
 		b.setRecord(new StringValue("Data"));
 		assertFalse(((StringValue) a.getField(0)).getValue().equals(((StringValue) b.getField(0)).getValue()));
 	}
-	
+
 	@Test
 	public void cloneTest() {
 		StringValue sv = new StringValue("V1");
@@ -112,12 +116,37 @@ public class StreamRecordTest {
 			fail();
 		} catch (RecordSizeMismatchException e) {
 		}
-		
+
 		try {
 			a.getField(3);
 			fail();
 		} catch (NoSuchFieldException e) {
 		}
+	}
+
+	@Test
+	public void writeReadTest() {
+		ByteArrayOutputStream buff = new ByteArrayOutputStream();
+		DataOutputStream out = new DataOutputStream(buff);
+
+		int num = 42;
+		String str = "above clouds";
+		StreamRecord<Tuple2<Integer, String>> rec = new StreamRecord<Tuple2<Integer, String>>(new Tuple2<Integer, String>(num, str));
+
+		try {
+			rec.write(out);
+			DataInputStream in = new DataInputStream(new ByteArrayInputStream(buff.toByteArray()));
+
+			StreamRecord<Tuple2<Integer, String>> newRec = new StreamRecord<Tuple2<Integer, String>>(2);
+			newRec.read(in);
+
+			assertEquals(num, newRec.getField(0));
+			assertEquals(str, newRec.getField(1));
+		} catch (IOException e) {
+			fail();
+			e.printStackTrace();
+		}
+
 	}
 
 }
