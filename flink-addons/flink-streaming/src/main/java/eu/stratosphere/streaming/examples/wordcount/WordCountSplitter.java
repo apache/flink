@@ -15,17 +15,15 @@
 
 package eu.stratosphere.streaming.examples.wordcount;
 
+import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.StringValue;
 
 public class WordCountSplitter extends UserTaskInvokable {
 
-	private StringValue sentence = new StringValue();
 	private String[] words = new String[] {};
-	private StringValue wordValue = new StringValue("");
 	private int i = 0;
-	private StreamRecord outputRecord = new StreamRecord(wordValue);
+	private StreamRecord outputRecord = new StreamRecord(new Tuple1<String>());
 	private long time;
 	private long prevTime = System.currentTimeMillis();
 
@@ -37,13 +35,11 @@ public class WordCountSplitter extends UserTaskInvokable {
 			System.out.println("Splitter:\t" + i + "\t----Time: " + (time - prevTime));
 			prevTime = time;
 		}
-		sentence = (StringValue) record.getRecord(0)[0];
-		words = sentence.getValue().split(" ");
-		for (CharSequence word : words) {
-			wordValue.setValue(word);
-			outputRecord.setRecord(wordValue);
+
+		words = record.getString(0).split(" ");
+		for (String word : words) {
+			outputRecord.setString(0, word);
 			emit(outputRecord);
-			// emit(new StreamRecord(wordValue));
 		}
 	}
 }
