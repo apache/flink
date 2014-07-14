@@ -15,9 +15,6 @@
 
 package eu.stratosphere.streaming.api;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import org.junit.Test;
 
 import eu.stratosphere.api.java.functions.FlatMapFunction;
@@ -80,15 +77,23 @@ public class PrintTest {
 		LocalStreamEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(1);
 
-		env.fromElements(1).flatMap(new Increment()).addIterationSource().flatMap(new Forward()).addIterationSink().print();
-//		env.generateSequence(1, 10).print();
-//		Set<Integer> a = new HashSet<Integer>();
-//		a.add(-2);
-//		a.add(-100);
-//		env.fromCollection(a).print();
+//		env.fromElements(1).flatMap(new Increment()).addIterationSource()
+//				.flatMap(new Forward()).addIterationSink().print();
+		
+		IterativeDataStream<Tuple1<Integer>> source = env.fromElements(1).flatMap(new Forward()).
+				iterate();
+		
+		DataStream<Tuple1<Integer>> increment = source.flatMap(new Increment());
+		
+		source.closeWith(increment).print();
+		
+		// env.generateSequence(1, 10).print();
+		// Set<Integer> a = new HashSet<Integer>();
+		// a.add(-2);
+		// a.add(-100);
+		// env.fromCollection(a).print();
 		env.executeTest(MEMORYSIZE);
-		
-		
+
 	}
 
 }
