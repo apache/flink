@@ -23,15 +23,15 @@ import eu.stratosphere.types.StringValue;
 
 public class WindowWordCountSink implements UserSinkInvokable {
 
-	private StringValue word = new StringValue("");
-	private IntValue count = new IntValue(1);
-	private LongValue timestamp = new LongValue(0);
+	private StringValue word = new StringValue();
+	private IntValue count = new IntValue();
+	private LongValue timestamp = new LongValue();
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		word=(StringValue) record.getField(0, 0);
-		count=(IntValue) record.getField(0, 1);
-		timestamp=(LongValue) record.getField(0, 2);
+		word = (StringValue) record.getField(0, 0);
+		count = (IntValue) record.getField(0, 1);
+		timestamp = (LongValue) record.getField(0, 2);
 		System.out.println("============================================");
 		System.out.println(word.getValue() + " " + count.getValue() + " "
 				+ timestamp.getValue());
