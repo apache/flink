@@ -94,8 +94,7 @@ public class CellInfoLocal {
 			// QUERY
 			if (value.f0) {
 				lastMillis = value.f3;
-				outTuple.f0 = "QUERY:\t" + cellID + ": "
-						+ engine.get(timeStamp, lastMillis, cellID);
+				outTuple.f0 = "QUERY:\t"+cellID+ ": " + engine.get(timeStamp, lastMillis, cellID);
 				out.collect(outTuple);
 			}
 			// INFO
@@ -111,12 +110,11 @@ public class CellInfoLocal {
 	public static void main(String[] args) {
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
-		DataStream<Tuple4<Boolean, Integer, Long, Integer>> querySource = env.addSource(
-				new QuerySource(), SOURCE_PARALELISM);
+		DataStream<Tuple4<Boolean, Integer, Long, Integer>> querySource = env
+				.addSource(new QuerySource(), SOURCE_PARALELISM);
 
 		DataStream<Tuple1<String>> stream = env.addSource(new InfoSource(), SOURCE_PARALELISM)
-				.connectWith(querySource).partitionBy(1).flatMap(new CellTask(), PARALELISM)
-				.print();
+				.connectWith(querySource).partitionBy(1).flatMap(new CellTask(), PARALELISM).addDummySink();
 
 		env.execute();
 	}

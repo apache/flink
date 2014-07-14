@@ -13,22 +13,16 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.kafka;
+package eu.stratosphere.streaming.examples.wordcount;
 
-import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.streaming.api.DataStream;
-import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.streaming.api.SinkFunction;
 
-public class KafkaTopology {
+public class WordCountSink extends SinkFunction<Tuple2<String, Integer>> {
+	private static final long serialVersionUID = 1L;
 
-	private static final int SOURCE_PARALELISM = 1;
-
-	public static void main(String[] args) {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		
-		DataStream<Tuple1<String>> stream = context.addSource(new KafkaSource("localhost:7077", "group", "topic", 1), SOURCE_PARALELISM)
-				.addDummySink();
-		
-		context.execute();
+	@Override
+	public void invoke(Tuple2<String, Integer> inTuple) {
+		//System.out.println(inTuple);
 	}
 }
