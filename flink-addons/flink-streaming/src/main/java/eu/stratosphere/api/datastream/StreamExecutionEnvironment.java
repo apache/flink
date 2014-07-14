@@ -102,4 +102,8 @@ public class StreamExecutionEnvironment {
 		jobGraphBuilder.setSource(returnStream.getId(), DummySource.class);
 		return returnStream;
 	}
+
+	public JobGraphBuilder jobGB() {
+		return jobGraphBuilder;
+	}
 }
