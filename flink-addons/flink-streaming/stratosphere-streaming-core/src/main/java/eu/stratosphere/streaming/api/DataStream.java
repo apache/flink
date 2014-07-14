@@ -51,6 +51,7 @@ public class DataStream<T extends Tuple> {
 	private final StreamExecutionEnvironment environment;
 	private TypeInformation<T> type;
 	private String id;
+	private String userDefinedName;
 	int dop;
 	List<String> connectIDs;
 	List<ConnectionType> ctypes;
@@ -184,6 +185,25 @@ public class DataStream<T extends Tuple> {
 			returnStream.batchSizes.set(i, batchSize);
 		}
 		return returnStream;
+	}
+
+	/**
+	 * Gives the data transformation a user defined name in order to use at
+	 * directed outputs
+	 * 
+	 * @param name
+	 *            The name to set
+	 * @return The named DataStream.
+	 */
+	public DataStream<T> name(String name) {
+		// copy?
+		if (name == "") {
+			throw new IllegalArgumentException("User defined name must not be empty string");
+		}
+		
+		userDefinedName = name;
+		environment.setName(this, name);
+		return this;
 	}
 
 	/**
