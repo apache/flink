@@ -27,61 +27,62 @@ import eu.stratosphere.types.Record;
 
 public class StreamSink extends AbstractOutputTask {
 
-  private List<RecordReader<Record>> inputs;
-  private UserSinkInvokable userFunction;
+	private List<RecordReader<Record>> inputs;
+	private UserSinkInvokable userFunction;
 
-  private int numberOfInputs;
+	private int numberOfInputs;
 
-  public StreamSink() {
-    // TODO: Make configuration file visible and call setClassInputs() here
-    inputs = new LinkedList<RecordReader<Record>>();
-    userFunction = null;
-    numberOfInputs = 0;
-  }
+	public StreamSink() {
+		// TODO: Make configuration file visible and call setClassInputs() here
+		inputs = new LinkedList<RecordReader<Record>>();
+		userFunction = null;
+		numberOfInputs = 0;
+	}
 
-  private void setConfigInputs() {
+	private void setConfigInputs() {
 
-    Configuration taskConfiguration = getTaskConfiguration();
+		Configuration taskConfiguration = getTaskConfiguration();
 
-    numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
-    for (int i = 0; i < numberOfInputs; i++) {
-      inputs.add(new RecordReader<Record>(this, Record.class));
-    }
+		numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
+		for (int i = 0; i < numberOfInputs; i++) {
+			inputs.add(new RecordReader<Record>(this, Record.class));
+		}
 
-    setUserFunction(taskConfiguration);
-  }
+		setUserFunction(taskConfiguration);
+	}
 
-  public void setUserFunction(Configuration taskConfiguration) {
+	public void setUserFunction(Configuration taskConfiguration) {
 
-    Class<? extends UserSinkInvokable> userFunctionClass;
-    userFunctionClass = taskConfiguration.getClass("userfunction",
-        DefaultSinkInvokable.class, UserSinkInvokable.class);
-    try {
-      userFunction = userFunctionClass.newInstance();
-    } catch (Exception e) {
+		Class<? extends UserSinkInvokable> userFunctionClass;
+		userFunctionClass = taskConfiguration.getClass("userfunction",
+				DefaultSinkInvokable.class, UserSinkInvokable.class);
+		try {
+			userFunction = userFunctionClass.newInstance();
+		} catch (Exception e) {
 
-    }
-  }
+		}
+	}
 
-  @Override
-  public void registerInputOutput() {
-    setConfigInputs();
-  }
+	@Override
+	public void registerInputOutput() {
+		setConfigInputs();
+	}
 
-  @Override
-  public void invoke() throws Exception {
-    boolean hasInput = true;
-    while (hasInput) {
-      hasInput = false;
-      for (RecordReader<Record> input : inputs) {
-        if (input.hasNext()) {
-          hasInput = true;
-          Record rec = input.next();
-          rec.removeField(rec.getNumFields() - 1);
-          userFunction.invoke(rec);
-        }
-      }
-    }
-  }
+	@Override
+	public void invoke() throws Exception {
+		boolean hasInput = true;
+		while (hasInput) {
+			hasInput = false;
+			for (RecordReader<Record> input : inputs) {
+				if (input.hasNext()) {
+					hasInput = true;
+					StreamRecord rec = new StreamRecord(input.next());
+					String id = rec.popId();
+					userFunction.invoke(rec.getRecord());
+					input.publishEvent(new AckEvent(id));
+				}
+			}
+		}
+	}
 
 }

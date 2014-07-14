@@ -18,6 +18,8 @@ package eu.stratosphere.streaming.api.invokable;
 import eu.stratosphere.types.Record;
 
 public abstract class UserTaskInvokable extends StreamInvokable {
+	
+
 
   public void invoke(Record record) throws Exception {
 

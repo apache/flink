@@ -11,7 +11,9 @@ public class AckEvent extends AbstractTaskEvent {
 	
 	public AckEvent(String recordId) {
 		setRecordId(recordId);
-		//System.out.println("created " + recordId);
+		System.out.println("Ack sent " + recordId);
+		System.out.println("---------------------");
+
 	}
 	
 	@Override
