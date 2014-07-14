@@ -25,7 +25,6 @@ public class DefaultTaskInvokable extends UserTaskInvokable<Tuple, Tuple> {
 
 	@Override
 	public void invoke(StreamRecord record, StreamCollector<Tuple> collector) throws Exception {
-		// TODO Auto-generated method stub
 
 	}
 

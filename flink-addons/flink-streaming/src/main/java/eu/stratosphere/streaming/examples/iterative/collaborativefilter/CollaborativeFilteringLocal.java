@@ -13,23 +13,18 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.sum;
+package eu.stratosphere.streaming.examples.iterative.collaborativefilter;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.DataStream;
-import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import org.apache.log4j.Level;
 
-public class WindowSumLocal {
-	
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
+import eu.stratosphere.streaming.util.ClusterUtil;
+import eu.stratosphere.streaming.util.LogUtils;
+
+public class CollaborativeFilteringLocal {
 	public static void main(String[] args) {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		@SuppressWarnings("unused")
-		DataStream<Tuple2<Integer, Long>> dataStream = context
-				.addSource(new WindowSumSource())
-				.map(new WindowSumMultiple())
-				.flatMap(new WindowSumAggregate())
-				.addSink(new WindowSumSink());
-		
-		context.execute();
+
 	}
 }

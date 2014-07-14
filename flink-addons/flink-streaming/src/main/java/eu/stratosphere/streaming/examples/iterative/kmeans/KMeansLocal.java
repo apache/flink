@@ -13,22 +13,29 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.sum;
+package eu.stratosphere.streaming.examples.iterative.kmeans;
+
+import org.apache.log4j.Level;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.DataStream;
+import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
+import eu.stratosphere.streaming.util.ClusterUtil;
+import eu.stratosphere.streaming.util.LogUtils;
 
-public class WindowSumLocal {
-	
+public class KMeansLocal {
+
 	public static void main(String[] args) {
 		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
+
 		@SuppressWarnings("unused")
-		DataStream<Tuple2<Integer, Long>> dataStream = context
-				.addSource(new WindowSumSource())
-				.map(new WindowSumMultiple())
-				.flatMap(new WindowSumAggregate())
-				.addSink(new WindowSumSink());
+		DataStream<Tuple2<String, Integer>> dataStream = context
+				.addSource(new KMeansSource(2, 2, 1, 5))
+				.addFixPoint(new KMeansMap(), new KMeansReduce(), 20)
+				.addSink(new KMeansSink());
 		
 		context.execute();
 	}

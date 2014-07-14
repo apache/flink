@@ -15,55 +15,48 @@
 
 package eu.stratosphere.streaming.state;
 
+import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * The most general internal state that stores data in a mutable map.
  */
-public class MutableTableState<K, V> implements TableState<K, V> {
+public class MutableTableState<K, V> implements TableState<K, V>, Serializable {
 
 	private Map<K, V> state=new LinkedHashMap<K, V>();
 	@Override
 	public void put(K key, V value) {
-		// TODO Auto-generated method stub
 		state.put(key, value);
 	}
 
 	@Override
 	public V get(K key) {
-		// TODO Auto-generated method stub
 		return state.get(key);
 	}
 
 	@Override
 	public void delete(K key) {
-		// TODO Auto-generated method stub
 		state.remove(key);
 	}
 
 	@Override
 	public boolean containsKey(K key) {
-		// TODO Auto-generated method stub
 		return state.containsKey(key);
 	}
 
 	@Override
 	public MutableTableStateIterator<K, V> getIterator() {
-		// TODO Auto-generated method stub
 		return new MutableTableStateIterator<K, V>(state.entrySet().iterator());
 	}
 
 	@Override
 	public String serialize() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public void deserialize(String str) {
-		// TODO Auto-generated method stub
-		
 	}
 
 }

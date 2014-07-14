@@ -13,23 +13,16 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.sum;
+package eu.stratosphere.streaming.examples.iterative.collaborativefilter;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.DataStream;
-import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.api.java.tuple.Tuple4;
+import eu.stratosphere.streaming.api.SinkFunction;
 
-public class WindowSumLocal {
-	
-	public static void main(String[] args) {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		@SuppressWarnings("unused")
-		DataStream<Tuple2<Integer, Long>> dataStream = context
-				.addSource(new WindowSumSource())
-				.map(new WindowSumMultiple())
-				.flatMap(new WindowSumAggregate())
-				.addSink(new WindowSumSink());
-		
-		context.execute();
+public class CollaborativeFilteringSink extends SinkFunction<Tuple4<Integer, Integer, Integer, Long>> {
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public void invoke(Tuple4<Integer, Integer, Integer, Long> inTuple) {
+		System.out.println(inTuple);
 	}
 }

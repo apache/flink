@@ -13,23 +13,29 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.sum;
+package eu.stratosphere.streaming.examples.iterative.kmeans;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.DataStream;
-import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WindowSumLocal {
-	
-	public static void main(String[] args) {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		@SuppressWarnings("unused")
-		DataStream<Tuple2<Integer, Long>> dataStream = context
-				.addSource(new WindowSumSource())
-				.map(new WindowSumMultiple())
-				.flatMap(new WindowSumAggregate())
-				.addSink(new WindowSumSink());
-		
-		context.execute();
+public class KMeansReduce extends UserTaskInvokable {
+
+	private static final long serialVersionUID = 1L;
+	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
+	private double[] point=null;
+	public KMeansReduce(int dimension){
+		point = new double[dimension];
 	}
+	
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
+		String[] pointStr = record.getString(0, 0).split(" ");
+		for(int i=0; i<pointStr.length; ++i){
+			point[i]=Double.valueOf(pointStr[i]);
+		}
+		outRecord.setString(0, record.getString(0, 0));
+		emit(outRecord);
+	}
+
 }

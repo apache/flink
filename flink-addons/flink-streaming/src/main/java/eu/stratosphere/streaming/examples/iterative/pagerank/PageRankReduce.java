@@ -13,34 +13,26 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.state;
+package eu.stratosphere.streaming.examples.iterative.pagerank;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map.Entry;
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.index.IndexPair;
+public class PageRankReduce extends UserTaskInvokable {
 
-public class LogTableStateIterator<K, V> implements TableStateIterator<K ,V>{
-
-	private Iterator<Entry<K, IndexPair>> iterator;
-	private HashMap<Integer, ArrayList<V>> blockList;
-	public LogTableStateIterator(Iterator<Entry<K, IndexPair>> iter, HashMap<Integer, ArrayList<V>> blocks){
-		iterator=iter;
-		blockList=blocks;
-	}
-	@Override
-	public boolean hasNext() {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public Tuple2<K, V> next() {
-		// TODO Auto-generated method stub
-		return null;
-	}
+	private static final long serialVersionUID = 1L;
+	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
+	private Graph linkGraph = new Graph();
 	
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
+		Integer sourceNode = record.getInteger(0, 0);
+		Integer targetNode = record.getInteger(0, 1);
+		// set the input graph.
+		linkGraph.insertDirectedEdge(sourceNode, targetNode);
+		
+		//outRecord.setString(0, line);
+	}
+
 }
