@@ -25,6 +25,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -150,6 +152,18 @@ public class StreamRecordTest {
 		assertEquals((Long) 0L, record.getLong(0, 2));
 		assertEquals(false, record.getBoolean(0, 3));
 		assertEquals((Double) 0., record.getDouble(0, 4));
+		
+		record.addTuple(0,new Tuple5<String, Integer, Long, Boolean, Double>("Stratosphere", 1,
+				2L, true, 3.5));
+		
+		assertEquals(2, record.getNumOfTuples());
+		
+		assertEquals("Stratosphere", record.getString(0, 0));
+		assertEquals((Integer) 1, record.getInteger(0, 1));
+		assertEquals((Long) 2L, record.getLong(0, 2));
+		assertEquals(true, record.getBoolean(0, 3));
+		assertEquals((Double) 3.5, record.getDouble(0, 4));
+
 	}
 
 	@Test
