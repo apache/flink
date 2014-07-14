@@ -94,9 +94,9 @@ public class PerformanceTrackerTest {
 
 	@Test
 	public void testTimer() throws InterruptedException {
-		PerformanceTimer pT = new PerformanceTimer("timer");
+		PerformanceTimer pT = new PerformanceTimer("timer",true);
 
-		pT.startTimer(true);
+		pT.startTimer();
 		Thread.sleep(100);
 		pT.stopTimer();
 
