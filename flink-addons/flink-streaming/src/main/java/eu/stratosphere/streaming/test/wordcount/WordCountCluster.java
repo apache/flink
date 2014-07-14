@@ -18,7 +18,10 @@ package eu.stratosphere.streaming.test.wordcount;
 import java.io.File;
 import java.net.InetSocketAddress;
 
+import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
 
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.JobWithJars;
@@ -59,7 +62,7 @@ public class WordCountCluster {
 	}
 
 	public static void main(String[] args) {
-
+		
 		try {
 
 			File file = new File("target/stratosphere-streaming-0.5-SNAPSHOT.jar");

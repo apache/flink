@@ -19,9 +19,6 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 
 /**
@@ -30,8 +27,6 @@ import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
  * 
  */
 public class FailEvent extends AbstractTaskEvent {
-
-	private static final Log log = LogFactory.getLog(FailEvent.class);
 
 	private String recordId;
 

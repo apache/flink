@@ -224,9 +224,9 @@ public class FaultToleranceBuffer {
 		for (RecordWriter<StreamRecord> output : outputs) {
 			try {
 				output.emit(record);
-				log.warn("RE-EMITTED: " + record.getId());
+				log.warn("Re-emitted: " + record.getId());
 			} catch (Exception e) {
-				log.error("RE-EMIT FAILED, avoiding record: " + record.getId());
+				log.error("Re-emit failed, avoiding record: " + record.getId());
 			}
 		}
 

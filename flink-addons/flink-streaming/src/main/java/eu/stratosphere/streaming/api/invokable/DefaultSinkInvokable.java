@@ -18,7 +18,7 @@ package eu.stratosphere.streaming.api.invokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.types.StringValue;
 
-public class DefaultSinkInvokable implements UserSinkInvokable {
+public class DefaultSinkInvokable extends UserSinkInvokable {
 
   @Override
   public void invoke(StreamRecord record) throws Exception {

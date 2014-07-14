@@ -21,7 +21,7 @@ import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
 
-public class BatchWordCountSink implements UserSinkInvokable {
+public class BatchWordCountSink extends UserSinkInvokable {
 
 	private StringValue word = new StringValue();
 	private IntValue count = new IntValue();

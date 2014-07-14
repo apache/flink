@@ -96,10 +96,10 @@ public class StreamTask extends AbstractTask {
 					try {
 						userFunction.invoke(streamRecord);
 						streamTaskHelper.threadSafePublish(new AckEvent(id), input);
-						log.debug("ACK: " + id + " -- " + name);
+						log.debug("Ack sent from " + name + ": " + id);
 					} catch (Exception e) {
 						streamTaskHelper.threadSafePublish(new FailEvent(id), input);
-						log.warn("INVOKE FAILED: " + id + " -- " + name + " -- due to " + e.getMessage());
+						log.warn("Invoking record " + id + " failed due to " + e.getMessage());
 					}
 				}
 			}

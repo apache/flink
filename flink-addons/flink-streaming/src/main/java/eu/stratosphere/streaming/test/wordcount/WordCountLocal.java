@@ -19,7 +19,10 @@ import java.io.File;
 import java.net.InetSocketAddress;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
 import org.junit.Assert;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
@@ -107,10 +110,10 @@ public class WordCountLocal {
 
 	private static JobGraph getJobGraph() throws Exception {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountDummySource2.class);
+		graphBuilder.setSource("WordCountSource", WordCountDummySource.class);
 		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
 		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
-		graphBuilder.setSink("WordCountSink", WordCountSink2.class);
+		graphBuilder.setSink("WordCountSink", WordCountSink.class);
 
 		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");
 		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0,
@@ -123,6 +126,15 @@ public class WordCountLocal {
 	public static void main(String[] args) {
 
 		NepheleMiniCluster exec = new NepheleMiniCluster();
+		
+		Logger root = Logger.getRootLogger();
+		root.removeAllAppenders();
+		PatternLayout layout = new PatternLayout(
+				"%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
+		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
+		root.addAppender(appender);
+		root.setLevel(Level.ERROR);
+		
 		try {
 
 			File file = new File("target/stratosphere-streaming-0.5-SNAPSHOT.jar");

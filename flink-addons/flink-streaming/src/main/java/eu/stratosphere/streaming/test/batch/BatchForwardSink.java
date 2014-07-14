@@ -19,7 +19,7 @@ import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.types.StringValue;
 
-public class BatchForwardSink implements UserSinkInvokable {
+public class BatchForwardSink extends UserSinkInvokable {
 
 	private StringValue word = new StringValue("");
 
