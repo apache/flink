@@ -20,16 +20,14 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class DefaultSourceInvokable extends UserSourceInvokable {
 
-	private static final long serialVersionUID = 1L;
+  private String motto = "Stratosphere -- Big Data looks tiny from here";
+  private String[] mottoArray = motto.split(" ");
 
-	private String motto = "Stratosphere -- Big Data looks tiny from here";
-	private String[] mottoArray = motto.split(" ");
-
-	@Override
-	public void invoke() throws Exception {
-		for (String word : mottoArray) {
-			emit(new StreamRecord(new Tuple1<String>(word)));
-		}
-	}
+  @Override
+  public void invoke() throws Exception {
+    for (String word : mottoArray) {
+      emit( new StreamRecord(new Tuple1<String>(word)));
+    }
+  }
 
 }

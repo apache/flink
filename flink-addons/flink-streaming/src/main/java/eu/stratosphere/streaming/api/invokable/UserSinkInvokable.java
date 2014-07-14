@@ -15,12 +15,8 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
-import java.io.Serializable;
-
-public abstract class UserSinkInvokable implements RecordInvokable, Serializable {
-
-	private static final long serialVersionUID = 1L;
-
+public abstract class UserSinkInvokable implements RecordInvokable {
+	// TODO consider a common interface with StreamInvokableComponents
 	public String getResult() {
 		return "Override getResult() to pass your own results";
 	}
