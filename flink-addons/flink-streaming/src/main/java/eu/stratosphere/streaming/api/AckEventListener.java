@@ -22,8 +22,6 @@ public class AckEventListener implements EventListener {
 			recordBuffer.ackRecord(ackEvent.getRecordId());
 			System.out.println(recordBuffer.getRecordBuffer());
 			System.out.println("---------------------");
-
 		}
-
 	}
 }

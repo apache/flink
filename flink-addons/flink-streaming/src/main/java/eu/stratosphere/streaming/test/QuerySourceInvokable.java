@@ -15,22 +15,22 @@
 
 package eu.stratosphere.streaming.test;
 
+import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.LongValue;
-import eu.stratosphere.types.Record;
 
 public class QuerySourceInvokable extends UserSourceInvokable {
 
   @Override
   public void invoke() throws Exception {
     for (int i = 0; i < 5; i++) {
-      Record record1 = new Record(3);
+    	StreamRecord record1 = new StreamRecord(3);
       record1.setField(0, new IntValue(5));
       record1.setField(1, new LongValue(510));
       record1.setField(2, new LongValue(100));
 
-      Record record2 = new Record(3);
+      StreamRecord record2 = new StreamRecord(3);
       record2.setField(0, new IntValue(4));
       record2.setField(1, new LongValue(510));
       record2.setField(2, new LongValue(100));

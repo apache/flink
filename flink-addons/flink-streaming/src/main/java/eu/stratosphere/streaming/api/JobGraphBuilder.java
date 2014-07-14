@@ -39,7 +39,6 @@ import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
 import eu.stratosphere.streaming.partitioner.GlobalPartitioner;
 import eu.stratosphere.streaming.partitioner.ShufflePartitioner;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.Record;
 
 public class JobGraphBuilder {
 
@@ -89,7 +88,7 @@ public class JobGraphBuilder {
 
   private void connect(String upStreamComponentName,
       String downStreamComponentName,
-      Class<? extends ChannelSelector<Record>> PartitionerClass,
+      Class<? extends ChannelSelector<StreamRecord>> PartitionerClass,
       ChannelType channelType) {
 
     AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
