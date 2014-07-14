@@ -13,17 +13,16 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.state;
+package eu.stratosphere.streaming.examples.iterative.sssp;
 
-/**
- * An internal state interface that supports stateful operator.
- */
-public interface TableState<K, V>{
-	public void put(K key, V value);
-	public V get(K key);
-	public void delete(K key);
-	public boolean containsKey(K key);
-	public String serialize();
-	public void deserialize(String str);
-	public TableStateIterator<K, V> getIterator();
+import eu.stratosphere.api.java.tuple.Tuple3;
+import eu.stratosphere.streaming.api.SinkFunction;
+
+public class SSSPSink extends SinkFunction<Tuple3<Integer, Integer, Long>> {
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public void invoke(Tuple3<Integer, Integer, Long> tuple) {
+		System.out.println(tuple);
+	}
 }

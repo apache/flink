@@ -13,17 +13,29 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.state;
+package eu.stratosphere.streaming.examples.iterative.kmeans;
 
-/**
- * An internal state interface that supports stateful operator.
- */
-public interface TableState<K, V>{
-	public void put(K key, V value);
-	public V get(K key);
-	public void delete(K key);
-	public boolean containsKey(K key);
-	public String serialize();
-	public void deserialize(String str);
-	public TableStateIterator<K, V> getIterator();
-}
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+
+//public class KMeansReduce extends UserTaskInvokable {
+//
+//	private static final long serialVersionUID = 1L;
+//	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
+//	private double[] point=null;
+//	public KMeansReduce(int dimension){
+//		point = new double[dimension];
+//	}
+//	
+//	@Override
+//	public void invoke(StreamRecord record) throws Exception {
+//		String[] pointStr = record.getString(0, 0).split(" ");
+//		for(int i=0; i<pointStr.length; ++i){
+//			point[i]=Double.valueOf(pointStr[i]);
+//		}
+//		outRecord.setString(0, record.getString(0, 0));
+//		emit(outRecord);
+//	}
+//
+//}

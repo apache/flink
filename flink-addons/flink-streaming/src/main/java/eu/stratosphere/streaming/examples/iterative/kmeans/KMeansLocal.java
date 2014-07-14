@@ -13,34 +13,30 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.state;
+package eu.stratosphere.streaming.examples.iterative.kmeans;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map.Entry;
+import org.apache.log4j.Level;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.index.IndexPair;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.streaming.api.DataStream;
+import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
+import eu.stratosphere.streaming.util.ClusterUtil;
+import eu.stratosphere.streaming.util.LogUtils;
 
-public class LogTableStateIterator<K, V> implements TableStateIterator<K ,V>{
+public class KMeansLocal {
 
-	private Iterator<Entry<K, IndexPair>> iterator;
-	private HashMap<Integer, ArrayList<V>> blockList;
-	public LogTableStateIterator(Iterator<Entry<K, IndexPair>> iter, HashMap<Integer, ArrayList<V>> blocks){
-		iterator=iter;
-		blockList=blocks;
-	}
-	@Override
-	public boolean hasNext() {
-		// TODO Auto-generated method stub
-		return false;
-	}
+	public static void main(String[] args) {
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
-	@Override
-	public Tuple2<K, V> next() {
-		// TODO Auto-generated method stub
-		return null;
+//		@SuppressWarnings("unused")
+//		DataStream<Tuple2<String, Integer>> dataStream = env
+//				.addSource(new KMeansSource(2, 2, 1, 5))
+//				.addFixPoint(new KMeansMap(), new KMeansReduce(), 20)
+//				.addSink(new KMeansSink());
+		
+		env.execute();
 	}
-	
 }

@@ -18,7 +18,6 @@ import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.util.Collector;
 
 public class FilterInvokable<IN extends Tuple> extends UserTaskInvokable<IN, IN>  {
 	FilterFunction<IN> filterFunction;
@@ -28,7 +27,7 @@ public class FilterInvokable<IN extends Tuple> extends UserTaskInvokable<IN, IN>
 	}
 	
 	@Override
-	public void invoke(StreamRecord record, Collector<IN> collector) throws Exception {
+	public void invoke(StreamRecord record, StreamCollector<IN> collector) throws Exception {
 		for (int i = 0; i < record.getBatchSize(); i++) {
 			IN tuple = (IN) record.getTuple(i);
 			if (filterFunction.filter(tuple)) {

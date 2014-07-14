@@ -13,17 +13,16 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.state;
+package eu.stratosphere.streaming.examples.iterative.collaborativefilter;
 
-/**
- * An internal state interface that supports stateful operator.
- */
-public interface TableState<K, V>{
-	public void put(K key, V value);
-	public V get(K key);
-	public void delete(K key);
-	public boolean containsKey(K key);
-	public String serialize();
-	public void deserialize(String str);
-	public TableStateIterator<K, V> getIterator();
+import eu.stratosphere.api.java.tuple.Tuple4;
+import eu.stratosphere.streaming.api.SinkFunction;
+
+public class CollaborativeFilteringSink extends SinkFunction<Tuple4<Integer, Integer, Integer, Long>> {
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public void invoke(Tuple4<Integer, Integer, Integer, Long> inTuple) {
+		System.out.println(inTuple);
+	}
 }

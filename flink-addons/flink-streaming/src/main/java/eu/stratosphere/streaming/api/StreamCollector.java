@@ -53,7 +53,6 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 	// TODO reconsider emitting mechanism at timeout (find a place to timeout)
 	@Override
 	public void collect(T tuple) {
-		//TODO: move copy to StreamCollector2
 		streamRecord.setTuple(counter, StreamRecord.copyTuple(tuple));
 		counter++;
 
@@ -94,7 +93,6 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 
 	@Override
 	public void close() {
-		// TODO Auto-generated method stub
 
 	}
 

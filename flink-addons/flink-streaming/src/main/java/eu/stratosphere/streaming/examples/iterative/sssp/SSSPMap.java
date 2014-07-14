@@ -13,17 +13,27 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.state;
+package eu.stratosphere.streaming.examples.iterative.sssp;
 
-/**
- * An internal state interface that supports stateful operator.
- */
-public interface TableState<K, V>{
-	public void put(K key, V value);
-	public V get(K key);
-	public void delete(K key);
-	public boolean containsKey(K key);
-	public String serialize();
-	public void deserialize(String str);
-	public TableStateIterator<K, V> getIterator();
-}
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.state.GraphState;
+
+//public class SSSPMap extends UserTaskInvokable {
+//
+//	private static final long serialVersionUID = 1L;
+//	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
+//	private GraphState linkGraph = new GraphState();
+//	
+//	@Override
+//	public void invoke(StreamRecord record) throws Exception {
+//		Integer sourceNode = record.getInteger(0, 0);
+//		Integer targetNode = record.getInteger(0, 1);
+//		// set the input graph.
+//		linkGraph.insertDirectedEdge(sourceNode, targetNode);
+//		
+//		//outRecord.setString(0, line);
+//	}
+//
+//}

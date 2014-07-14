@@ -15,26 +15,26 @@
 
 package eu.stratosphere.streaming.examples.window.wordcount;
 
-import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.util.Collector;
+import eu.stratosphere.api.java.functions.FlatMapFunction;
 
-public class WindowWordCountSplitter extends UserTaskInvokable {
+public class WindowWordCountSplitter extends FlatMapFunction<Tuple2<String, Long>, Tuple2<String, Long>> {
 	private static final long serialVersionUID = 1L;
 	
 	private String[] words = new String[] {};
 	private Long timestamp = 0L;
-	private StreamRecord outputRecord = new StreamRecord(3);
+	private Tuple2<String, Long> outTuple = new Tuple2<String, Long>();
 
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
-		outputRecord.Clear();
-		words = record.getString(0).split(" ");
-		timestamp = record.getLong(1);
-		for (String word : words) {
-			Tuple3<String, Integer, Long> tuple =new Tuple3<String, Integer, Long>(word, 1, timestamp);
-			outputRecord.addTuple(tuple);
+	public void flatMap(Tuple2<String, Long> inTuple, Collector<Tuple2<String, Long>> out) throws Exception {
+
+		words=inTuple.f0.split(" ");
+		timestamp=inTuple.f1;
+		for(String word : words){
+			outTuple.f0 = word;
+			outTuple.f1 = timestamp;
+			out.collect(outTuple);
 		}
-		emit(outputRecord);
 	}
 }
