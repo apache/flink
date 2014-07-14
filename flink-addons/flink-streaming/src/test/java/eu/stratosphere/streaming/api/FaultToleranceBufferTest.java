@@ -230,7 +230,7 @@ public class FaultToleranceBufferTest {
 	// TODO: create more tests for this method
 	@Test
 	public void testTimeOutRecords() {
-		faultTolerancyBuffer.setTIMEOUT(1000);
+		faultTolerancyBuffer.setTimeout(1000);
 
 		StreamRecord record1 = (new StreamRecord(1)).setId("1");
 		record1.addRecord(new StringValue("V1"));

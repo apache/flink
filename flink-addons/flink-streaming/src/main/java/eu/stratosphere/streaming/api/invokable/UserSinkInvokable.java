@@ -15,14 +15,9 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-
-public abstract class UserSinkInvokable {
-
-	public abstract void invoke(StreamRecord record) throws Exception;
-
+public abstract class UserSinkInvokable implements RecordInvokable {
+	
 	public String getResult() {
 		return "Override getResult() to pass your own results";
 	}
-
 }
