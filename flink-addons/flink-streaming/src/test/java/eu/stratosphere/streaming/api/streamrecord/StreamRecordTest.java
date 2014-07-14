@@ -26,9 +26,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.commons.math.stat.regression.OLSMultipleLinearRegression;
 import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple;
@@ -441,6 +443,10 @@ public class StreamRecordTest {
 		for (Tuple t : a.getBatchIterable()) {
 			System.out.println(t);
 		}
-	}
 
+		OLSMultipleLinearRegression ols = new OLSMultipleLinearRegression();
+		ols.newSampleData(new double[] { 1.0, 2.0 }, new double[][] { { 1, 2 }, { 3, 4 } });
+		System.out.println(Arrays.toString(ols.estimateRegressionParameters()));
+
+	}
 }
