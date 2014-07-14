@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.sum;
+package eu.stratosphere.streaming.examples.window.join;
 
 import java.net.InetSocketAddress;
 
@@ -24,20 +24,21 @@ import eu.stratosphere.client.program.Client;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.LogUtils;
 
-public class WindowSumLocal {
+public class WindowJoinLocal {
 
 	public static JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WindowSumSource", WindowSumSource.class);
-		graphBuilder.setTask("WindowSumMultiple", WindowSumMultiple.class, 1, 1);
-		graphBuilder.setTask("WindowSumAggregate", WindowSumAggregate.class, 1, 1);
-		graphBuilder.setSink("WindowSumSink", WindowSumSink.class);
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
+		graphBuilder.setSource("WindowJoinSourceOne", WindowJoinSourceOne.class);
+		graphBuilder.setSource("WindowJoinSourceTwo", WindowJoinSourceTwo.class);
+		graphBuilder.setTask("WindowJoinTask", WindowJoinTask.class, 1, 1);
+		graphBuilder.setSink("WindowJoinSink", WindowJoinSink.class);
 
-		graphBuilder.shuffleConnect("WindowSumSource", "WindowSumMultiple");
-		graphBuilder.shuffleConnect("WindowSumMultiple", "WindowSumAggregate");
-		graphBuilder.shuffleConnect("WindowSumAggregate", "WindowSumSink");
+		graphBuilder.fieldsConnect("WindowJoinSourceOne", "WindowJoinTask", 1);
+		graphBuilder.fieldsConnect("WindowJoinSourceTwo", "WindowJoinTask", 1);
+		graphBuilder.shuffleConnect("WindowJoinTask", "WindowJoinSink");
 
 		return graphBuilder.getJobGraph();
 	}

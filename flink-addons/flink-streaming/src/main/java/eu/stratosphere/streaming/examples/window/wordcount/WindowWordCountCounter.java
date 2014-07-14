@@ -21,7 +21,7 @@ import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.state.MutableTableState;
 import eu.stratosphere.streaming.state.MutableTableStateIterator;
-import eu.stratosphere.streaming.state.WindowState;
+import eu.stratosphere.streaming.state.SlidingWindowState;
 
 public class WindowWordCountCounter extends UserTaskInvokable {
 	private static final long serialVersionUID = 1L;
@@ -32,7 +32,7 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 	private int windowFieldId=2;
 
 	private StreamRecord tempRecord;
-	private WindowState<Integer> window;
+	private SlidingWindowState<Integer> window;
 	private MutableTableState<String, Integer> wordCounts;
 	private long initTimestamp=-1;
 	private long nextTimestamp=-1;
@@ -40,7 +40,7 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 	private StreamRecord outRecord = new StreamRecord(3);
 
 	public WindowWordCountCounter() {
-		window = new WindowState<Integer>(windowSize, slidingStep,
+		window = new SlidingWindowState<Integer>(windowSize, slidingStep,
 				computeGranularity);
 		wordCounts = new MutableTableState<String, Integer>();
 	}

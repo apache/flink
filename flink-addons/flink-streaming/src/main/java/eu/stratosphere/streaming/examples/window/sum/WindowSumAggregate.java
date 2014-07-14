@@ -19,7 +19,7 @@ import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.state.MutableTableState;
-import eu.stratosphere.streaming.state.WindowState;
+import eu.stratosphere.streaming.state.SlidingWindowState;
 
 public class WindowSumAggregate extends UserTaskInvokable {
 	private static final long serialVersionUID = 1L;
@@ -30,7 +30,7 @@ public class WindowSumAggregate extends UserTaskInvokable {
 	private int windowFieldId = 1;
 
 	private StreamRecord tempRecord;
-	private WindowState<Integer> window;
+	private SlidingWindowState<Integer> window;
 	private MutableTableState<String, Integer> sum;
 	private long initTimestamp = -1;
 	private long nextTimestamp = -1;
@@ -39,7 +39,7 @@ public class WindowSumAggregate extends UserTaskInvokable {
 			new Tuple2<Integer, Long>());
 
 	public WindowSumAggregate() {
-		window = new WindowState<Integer>(windowSize, slidingStep,
+		window = new SlidingWindowState<Integer>(windowSize, slidingStep,
 				computeGranularity);
 		sum = new MutableTableState<String, Integer>();
 		sum.put("sum", 0);

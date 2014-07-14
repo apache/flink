@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.sum;
+package eu.stratosphere.streaming.examples.iterative;
 
 import java.net.InetSocketAddress;
 
@@ -24,21 +24,22 @@ import eu.stratosphere.client.program.Client;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.LogUtils;
 
-public class WindowSumLocal {
+public class IterativeLocal {
 
 	public static JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WindowSumSource", WindowSumSource.class);
-		graphBuilder.setTask("WindowSumMultiple", WindowSumMultiple.class, 1, 1);
-		graphBuilder.setTask("WindowSumAggregate", WindowSumAggregate.class, 1, 1);
-		graphBuilder.setSink("WindowSumSink", WindowSumSink.class);
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
+		graphBuilder.setSource("IterativeSource", IterativeSource.class);
+		graphBuilder.setTask("IterativeParallel", IterativeParallel.class, 1, 1);
+		graphBuilder.setTask("IterativeStateHolder", IterativeStateHolder.class);
+		graphBuilder.setSink("IterativeSink", IterativeSink.class);
 
-		graphBuilder.shuffleConnect("WindowSumSource", "WindowSumMultiple");
-		graphBuilder.shuffleConnect("WindowSumMultiple", "WindowSumAggregate");
-		graphBuilder.shuffleConnect("WindowSumAggregate", "WindowSumSink");
-
+		graphBuilder.fieldsConnect("IterativeSource", "IterativeParallel", 1);
+		graphBuilder.fieldsConnect("IterativeParallel", "IterativeStateHolder", 1);
+		graphBuilder.globalConnect("IterativeStateHolder", "IterativeSink");
+		
 		return graphBuilder.getJobGraph();
 	}
 
