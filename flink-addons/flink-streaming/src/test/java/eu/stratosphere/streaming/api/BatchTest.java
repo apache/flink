@@ -25,8 +25,9 @@ import eu.stratosphere.util.Collector;
 
 public class BatchTest {
 
-	private static final int PARALELISM = 1;
+	private static final int PARALLELISM = 1;
 	private static final int SOURCE_PARALELISM = 1;
+	private static final int SINK_PARALELISM = 5;
 	private static int count = 0;
 	private static boolean partitionCorrect = true;
 	
@@ -64,9 +65,9 @@ public class BatchTest {
 		int hash=-1000;
 		@Override
 		public void invoke(Tuple1<String> tuple) {
-			if(hash==-1000) hash=tuple.f0.hashCode() % 93;
+			if(hash==-1000) hash=tuple.f0.hashCode() % SINK_PARALELISM;
 			else{
-				if(hash!=tuple.f0.hashCode() % 93) partitionCorrect=false;
+				if(hash!=tuple.f0.hashCode() % SINK_PARALELISM) partitionCorrect=false;
 			}
 		}
 	}
@@ -77,10 +78,10 @@ public class BatchTest {
 
 		DataStream<Tuple1<String>> dataStream = env
 				.addSource(new MySource(), SOURCE_PARALELISM)
-				.flatMap(new MyMap(), PARALELISM).batch(4)
-				.flatMap(new MyMap(), PARALELISM).batch(2)
-				.flatMap(new MyMap(), PARALELISM).batch(5)
-				.flatMap(new MyMap(), PARALELISM).batch(4)
+				.flatMap(new MyMap(), PARALLELISM).batch(4)
+				.flatMap(new MyMap(), PARALLELISM).batch(2)
+				.flatMap(new MyMap(), PARALLELISM).batch(5)
+				.flatMap(new MyMap(), PARALLELISM).batch(4)
 				.addSink(new MySink());
 
 		env.execute();
@@ -94,9 +95,9 @@ public class BatchTest {
 
 		DataStream<Tuple1<String>> dataStream = env
 				.addSource(new MySource(), SOURCE_PARALELISM)
-				.flatMap(new MyMap(), PARALELISM).batch(4)
+				.flatMap(new MyMap(), PARALLELISM).batch(4)
 				.partitionBy(0)
-				.addSink(new MyPartitionSink(), 93);
+				.addSink(new MyPartitionSink(), SINK_PARALELISM);
 
 		env.execute();
 		
