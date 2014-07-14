@@ -22,32 +22,31 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.types.TypeInformation;
 
-public class StreamRecordTest {
+public class ArrayStreamRecordTest {
 
 	@Test
 	public void constructorTest() {
-		StreamRecord record = new StreamRecord(10);
+		ArrayStreamRecord record = new ArrayStreamRecord(10);
 		assertEquals(10, record.getBatchSize());
 
-		List<Tuple> tuples = new ArrayList<Tuple>();
-		tuples.add(new Tuple1<Integer>(2));
-		tuples.add(new Tuple1<Integer>(3));
+		Tuple[] tuples = new Tuple[2];
+		tuples[0] = new Tuple1<Integer>(2);
+		tuples[1] = new Tuple1<Integer>(3);
 
-		StreamRecord record1 = new StreamRecord(tuples);
+		ArrayStreamRecord record1 = new ArrayStreamRecord(tuples);
 
 		assertEquals(2, record1.getBatchSize());
 
-		StreamRecord record2 = new StreamRecord(record1);
+		ArrayStreamRecord record2 = new ArrayStreamRecord(record1);
 		assertEquals(2, record2.getBatchSize());
 	}
 
@@ -68,6 +67,33 @@ public class StreamRecordTest {
 				null, null);
 
 		System.out.println("Type info: " + ti);
+
+	}
+
+	@Test
+	public void StreamRecordSpeedTest() {
+		int len = 1000000;
+		ArrayStreamRecord arecord = new ArrayStreamRecord(len);
+		StreamRecord record = new StreamRecord(len);
+		Tuple2<Integer, String> tuple = new Tuple2<Integer, String>(2, "a");
+		long standardTime=System.nanoTime();
+		
+		for (int i = 0; i < len; i++) {
+			record.setTuple(i, tuple);
+		}
+		standardTime=System.nanoTime()-standardTime;
+		
+		long arrayTime=System.nanoTime();
+		for (int i = 0; i < len; i++) {
+			arecord.setTuple(i, tuple);
+		}
+		arrayTime=System.nanoTime()-arrayTime;
+		
+		System.out.println("Standard time: "+standardTime);
+		System.out.println("Array time: "+arrayTime);
+		
+		float multi = (float)standardTime/(float)arrayTime;
+		System.out.println("Mulitplier: "+multi);
 
 	}
 

@@ -19,9 +19,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
@@ -58,14 +56,13 @@ import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
  * objects in Stratosphere stream processing. The elements of the batch are
  * Tuples.
  */
-public class StreamRecord implements IOReadableWritable, Serializable {
+public class ArrayStreamRecord implements IOReadableWritable, Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private List<Tuple> tupleBatch;
+	private Tuple[] tupleBatch;
 	private UID uid = new UID();
 	private int batchSize;
 
-	private TupleTypeInfo<Tuple> typeInfo;
 	private TupleSerializer<Tuple> tupleSerializer;
 	SerializationDelegate<Tuple> serializationDelegate;
 
@@ -78,38 +75,36 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	/**
 	 * Creates a new empty instance for read
 	 */
-	public StreamRecord() {
+	public ArrayStreamRecord() {
 	}
 
-	public StreamRecord(int batchsize) {
+	public ArrayStreamRecord(int batchsize) {
 		this.batchSize = batchsize;
-		tupleBatch = new ArrayList<Tuple>(batchsize);
-		initRecords();
+		tupleBatch = new Tuple[batchsize];
 	}
 
-	public StreamRecord(StreamRecord record) {
-		tupleBatch = new ArrayList<Tuple>();
+	public ArrayStreamRecord(ArrayStreamRecord record) {
+		tupleBatch = new Tuple[record.batchSize];
 		this.uid = new UID(Arrays.copyOf(record.getId().getId(), 20));
 		for (int i = 0; i < record.getBatchSize(); ++i) {
-			this.tupleBatch.add(copyTuple(record.getTuple(i)));
+			this.tupleBatch[i] = copyTuple(record.getTuple(i));
 		}
-		this.batchSize = tupleBatch.size();
+		this.batchSize = tupleBatch.length;
 	}
 
 	/**
-	 * Creates a new batch of records containing the given Tuple list as
+	 * Creates a new batch of records containing the given Tuple array as
 	 * elements
 	 * 
 	 * @param tupleList
 	 *            Tuples to bes stored in the StreamRecord
 	 */
-	public StreamRecord(List<Tuple> tupleList) {
-		this.batchSize = tupleList.size();
-		tupleBatch = new ArrayList<Tuple>(tupleList);
+	public ArrayStreamRecord(Tuple[] tupleArray) {
+		this.batchSize = tupleArray.length;
+		tupleBatch = tupleArray;
 	}
 
 	public void setTupleTypeInfo(TupleTypeInfo<Tuple> typeInfo) {
-		this.typeInfo = typeInfo;
 		tupleSerializer = (TupleSerializer<Tuple>) typeInfo.createSerializer();
 		serializationDelegate = new SerializationDelegate<Tuple>(tupleSerializer);
 	}
@@ -135,19 +130,9 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            ID of the emitting task
 	 * @return The StreamRecord object
 	 */
-	public StreamRecord setId(int channelID) {
+	public ArrayStreamRecord setId(int channelID) {
 		uid = new UID(channelID);
 		return this;
-	}
-
-	/**
-	 * Initializes the record batch elemnts to null
-	 */
-	public void initRecords() {
-		tupleBatch.clear();
-		for (int i = 0; i < batchSize; i++) {
-			tupleBatch.add(null);
-		}
 	}
 
 	/**
@@ -156,7 +141,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @return batch iterable
 	 */
 	public Iterable<Tuple> getBatchIterable() {
-		return (Iterable<Tuple>) tupleBatch;
+		return (Iterable<Tuple>) Arrays.asList(tupleBatch);
 	}
 
 	/**
@@ -168,7 +153,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Tuple getTuple(int tupleNumber) throws NoSuchTupleException {
 		try {
-			return tupleBatch.get(tupleNumber);
+			return tupleBatch[tupleNumber];
 		} catch (IndexOutOfBoundsException e) {
 			throw (new NoSuchTupleException());
 		}
@@ -186,7 +171,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public void setTuple(int tupleNumber, Tuple tuple) throws NoSuchTupleException {
 		try {
-			tupleBatch.set(tupleNumber, tuple);
+			tupleBatch[tupleNumber] = tuple;
 		} catch (IndexOutOfBoundsException e) {
 			throw (new NoSuchTupleException());
 		}
@@ -199,13 +184,13 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @return Copy of the StreamRecord
 	 * 
 	 */
-	public StreamRecord copy() {
-		StreamRecord newRecord = new StreamRecord(batchSize);
+	public ArrayStreamRecord copy() {
+		ArrayStreamRecord newRecord = new ArrayStreamRecord(batchSize);
 
 		newRecord.uid = new UID(Arrays.copyOf(uid.getId(), 20));
 
-		for (Tuple tuple : tupleBatch) {
-			newRecord.tupleBatch.add(copyTuple(tuple));
+		for (int i = 0; i < batchSize; i++) {
+			newRecord.tupleBatch[i] = copyTuple(tupleBatch[i]);
 		}
 
 		return newRecord;
@@ -308,14 +293,13 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		uid = new UID();
 		uid.read(in);
 		batchSize = in.readInt();
-		tupleBatch = new ArrayList<Tuple>(batchSize);
-
+		tupleBatch = new Tuple[batchSize];
 		DeserializationDelegate<Tuple> dd = new DeserializationDelegate<Tuple>(tupleSerializer);
 
 		for (int k = 0; k < batchSize; ++k) {
 			dd.setInstance(tupleSerializer.createInstance());
 			dd.read(in);
-			tupleBatch.set(k, dd.getInstance());
+			tupleBatch[k] = dd.getInstance();
 		}
 	}
 
