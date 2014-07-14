@@ -67,7 +67,6 @@ public class BatchReduceTest {
 		public void invoke(Collector<Tuple1<Double>> collector) {
 			for (Double i = 1.; i <= 100; i++) {
 				collector.collect(new Tuple1<Double>(i));
-				System.out.println("Source " + i);
 			}
 		}
 	}
