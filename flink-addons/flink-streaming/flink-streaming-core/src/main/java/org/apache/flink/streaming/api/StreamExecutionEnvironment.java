@@ -37,10 +37,10 @@ import org.apache.flink.streaming.api.function.SinkFunction;
 import org.apache.flink.streaming.api.function.SourceFunction;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
+import org.apache.flink.api.java.ExecutionEnvironment;
 
-//TODO:add link to ExecutionEnvironment
 /**
- * ExecutionEnvironment for streaming jobs. An instance of it is necessary to
+ * {@link ExecutionEnvironment} for streaming jobs. An instance of it is necessary to
  * construct streaming topologies.
  * 
  */
@@ -122,7 +122,7 @@ public abstract class StreamExecutionEnvironment {
 	 * executed in {@link LocalStreamEnvironment}.
 	 * 
 	 * @param degreeOfParallelism
-	 *            The degree of parallelismenvironment
+	 *            The degree of parallelism in local environment
 	 */
 	public void setExecutionParallelism(int degreeOfParallelism) {
 		if (degreeOfParallelism < 1)
@@ -187,7 +187,7 @@ public abstract class StreamExecutionEnvironment {
 	public <X> DataStream<Tuple1<X>> fromElements(X... data) {
 		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
 
-		jobGraphBuilder.setSource(returnStream.getId(), new FromElementsFunction<X>(data),
+		jobGraphBuilder.addSource(returnStream.getId(), new FromElementsFunction<X>(data),
 				"elements", serializeToByteArray(data[0]), 1);
 
 		return returnStream.copy();
@@ -208,7 +208,7 @@ public abstract class StreamExecutionEnvironment {
 	public <X> DataStream<Tuple1<X>> fromCollection(Collection<X> data) {
 		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
 
-		jobGraphBuilder.setSource(returnStream.getId(), new FromElementsFunction<X>(data),
+		jobGraphBuilder.addSource(returnStream.getId(), new FromElementsFunction<X>(data),
 				"elements", serializeToByteArray(data.toArray()[0]), 1);
 
 		return returnStream.copy();
@@ -226,10 +226,9 @@ public abstract class StreamExecutionEnvironment {
 	public DataStream<Tuple1<Long>> generateSequence(long from, long to) {
 		return addSource(new GenSequenceFunction(from, to), 1);
 	}
-
-	// TODO: Link to DataStream
+	
 	/**
-	 * Ads a data source thus opening a data stream.
+	 * Ads a data source thus opening a {@link DataStream}.
 	 * 
 	 * @param sourceFunction
 	 *            the user defined function
@@ -243,7 +242,7 @@ public abstract class StreamExecutionEnvironment {
 			int parallelism) {
 		DataStream<T> returnStream = new DataStream<T>(this, "source");
 
-		jobGraphBuilder.setSource(returnStream.getId(), sourceFunction, "source",
+		jobGraphBuilder.addSource(returnStream.getId(), sourceFunction, "source",
 				serializeToByteArray(sourceFunction), parallelism);
 
 		return returnStream.copy();
@@ -280,7 +279,7 @@ public abstract class StreamExecutionEnvironment {
 			UserTaskInvokable<T, R> functionInvokable) {
 		DataStream<R> returnStream = new DataStream<R>(this, functionName);
 
-		jobGraphBuilder.setTask(returnStream.getId(), functionInvokable, functionName,
+		jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, functionName,
 				serializeToByteArray(function), degreeOfParallelism);
 
 		connectGraph(inputStream, returnStream.getId());
@@ -291,7 +290,7 @@ public abstract class StreamExecutionEnvironment {
 	protected <T extends Tuple, R extends Tuple> void addIterationSource(DataStream<T> inputStream) {
 		DataStream<R> returnStream = new DataStream<R>(this, "iterationHead");
 
-		jobGraphBuilder.setIterationSource(returnStream.getId(), inputStream.getId(),
+		jobGraphBuilder.addIterationSource(returnStream.getId(), inputStream.getId(),
 				degreeOfParallelism);
 
 		jobGraphBuilder.shuffleConnect(returnStream.getId(), inputStream.getId());
@@ -300,7 +299,7 @@ public abstract class StreamExecutionEnvironment {
 	protected <T extends Tuple, R extends Tuple> void addIterationSink(DataStream<T> inputStream) {
 		DataStream<R> returnStream = new DataStream<R>(this, "iterationTail");
 
-		jobGraphBuilder.setIterationSink(returnStream.getId(), inputStream.getId(),
+		jobGraphBuilder.addIterationSink(returnStream.getId(), inputStream.getId(),
 				degreeOfParallelism, "iterate");
 
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
@@ -326,7 +325,7 @@ public abstract class StreamExecutionEnvironment {
 			SinkFunction<T> sinkFunction) {
 		DataStream<T> returnStream = new DataStream<T>(this, "sink");
 
-		jobGraphBuilder.setSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction), "sink",
+		jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction), "sink",
 				serializeToByteArray(sinkFunction), degreeOfParallelism);
 
 		connectGraph(inputStream, returnStream.getId());

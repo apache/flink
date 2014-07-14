@@ -125,11 +125,11 @@ public class JobGraphBuilder {
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
-	public void setSource(String componentName,
+	public void addSource(String componentName,
 			UserSourceInvokable<? extends Tuple> InvokableObject,
 			String operatorName, byte[] serializedFunction, int parallelism) {
 
-		setComponent(componentName, StreamSource.class, InvokableObject,
+		addComponent(componentName, StreamSource.class, InvokableObject,
 				operatorName, serializedFunction, parallelism);
 
 		if (log.isDebugEnabled()) {
@@ -137,10 +137,20 @@ public class JobGraphBuilder {
 		}
 	}
 
-	public void setIterationSource(String componentName, String iterationHead,
+	/**
+	 * Adds an iteration head to the {@link JobGraph}
+	 * 
+	 * @param componentName
+	 *            Name of the component
+	 * @param iterationHead
+	 *            Id of the iteration head
+	 * @param parallelism
+	 *            Number of parallel instances created
+	 */
+	public void addIterationSource(String componentName, String iterationHead,
 			int parallelism) {
 
-		setComponent(componentName, StreamIterationSource.class, null, null,
+		addComponent(componentName, StreamIterationSource.class, null, null,
 				null, parallelism);
 
 		setBytesFrom(iterationHead, componentName);
@@ -164,12 +174,12 @@ public class JobGraphBuilder {
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
-	public void setTask(
+	public void addTask(
 			String componentName,
 			UserTaskInvokable<? extends Tuple, ? extends Tuple> TaskInvokableObject,
 			String operatorName, byte[] serializedFunction, int parallelism) {
 
-		setComponent(componentName, StreamTask.class, TaskInvokableObject,
+		addComponent(componentName, StreamTask.class, TaskInvokableObject,
 				operatorName, serializedFunction, parallelism);
 
 		if (log.isDebugEnabled()) {
@@ -191,11 +201,11 @@ public class JobGraphBuilder {
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
-	public void setSink(String componentName,
+	public void addSink(String componentName,
 			UserSinkInvokable<? extends Tuple> InvokableObject,
 			String operatorName, byte[] serializedFunction, int parallelism) {
 
-		setComponent(componentName, StreamSink.class, InvokableObject,
+		addComponent(componentName, StreamSink.class, InvokableObject,
 				operatorName, serializedFunction, parallelism);
 
 		if (log.isDebugEnabled()) {
@@ -204,10 +214,22 @@ public class JobGraphBuilder {
 
 	}
 
-	public void setIterationSink(String componentName, String iterationTail,
+	/**
+	 * Adds an iteration tail to the {@link JobGraph}
+	 * 
+	 * @param componentName
+	 *            Name of the component
+	 * @param iterationTail
+	 *            Id of the iteration tail
+	 * @param parallelism
+	 *            Number of parallel instances created
+	 * @param directName
+	 *            Id of the output direction
+	 */
+	public void addIterationSink(String componentName, String iterationTail,
 			int parallelism, String directName) {
 
-		setComponent(componentName, StreamIterationSink.class, null, null,
+		addComponent(componentName, StreamIterationSink.class, null, null,
 				null, parallelism);
 
 		setBytesFrom(iterationTail, componentName);
@@ -236,7 +258,7 @@ public class JobGraphBuilder {
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
-	private void setComponent(String componentName,
+	private void addComponent(String componentName,
 			Class<? extends AbstractInvokable> componentClass,
 			StreamComponentInvokable InvokableObject, String operatorName,
 			byte[] serializedFunction, int parallelism) {
@@ -605,6 +627,10 @@ public class JobGraphBuilder {
 		}
 	}
 
+	/**
+	 * Builds the {@link JobGraph} from the components with the edges and
+	 * settings provided.
+	 */
 	private void buildGraph() {
 
 		for (String componentName : edgeList.keySet()) {
