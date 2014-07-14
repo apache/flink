@@ -27,8 +27,8 @@ import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.examples.DummyIS;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
-import eu.stratosphere.streaming.test.DummyIS;
 
 public class StreamSource extends AbstractInputTask<DummyIS> {
 
