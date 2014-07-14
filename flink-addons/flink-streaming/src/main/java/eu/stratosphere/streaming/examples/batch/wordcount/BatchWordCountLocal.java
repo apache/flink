@@ -31,20 +31,15 @@ public class BatchWordCountLocal {
 
 	public static JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("BatchWordCountSource",
-				BatchWordCountSource.class);
-		graphBuilder.setTask("BatchWordCountSplitter",
-				BatchWordCountSplitter.class, 2);
-		graphBuilder.setTask("BatchWordCountCounter",
-				BatchWordCountCounter.class, 2);
+		graphBuilder.setSource("BatchWordCountSource", BatchWordCountSource.class);
+		graphBuilder.setTask("BatchWordCountSplitter", BatchWordCountSplitter.class, 2);
+		graphBuilder.setTask("BatchWordCountCounter", BatchWordCountCounter.class, 2);
 		graphBuilder.setSink("BatchWordCountSink", BatchWordCountSink.class);
 
-		graphBuilder.shuffleConnect("BatchWordCountSource",
-				"BatchWordCountSplitter");
-		graphBuilder.fieldsConnect("BatchWordCountSplitter",
-				"BatchWordCountCounter", 0, StringValue.class);
-		graphBuilder.shuffleConnect("BatchWordCountCounter",
-				"BatchWordCountSink");
+		graphBuilder.shuffleConnect("BatchWordCountSource", "BatchWordCountSplitter");
+		graphBuilder.fieldsConnect("BatchWordCountSplitter", "BatchWordCountCounter", 0,
+				StringValue.class);
+		graphBuilder.shuffleConnect("BatchWordCountCounter", "BatchWordCountSink");
 
 		return graphBuilder.getJobGraph();
 	}
@@ -68,8 +63,7 @@ public class BatchWordCountLocal {
 
 				exec.start();
 
-				Client client = new Client(new InetSocketAddress("localhost",
-						6498), configuration);
+				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
 
 				client.run(jG, true);
 
@@ -78,8 +72,8 @@ public class BatchWordCountLocal {
 			} else if (args[0].equals("cluster")) {
 				System.out.println("Running in Cluster2 mode");
 
-				Client client = new Client(new InetSocketAddress(
-						"hadoop02.ilab.sztaki.hu", 6123), configuration);
+				Client client = new Client(new InetSocketAddress("hadoop02.ilab.sztaki.hu", 6123),
+						configuration);
 
 				client.run(jG, true);
 

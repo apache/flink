@@ -27,7 +27,7 @@ public class WordCountSource extends UserSourceInvokable {
 
 	private BufferedReader br = null;
 	private String line = new String();
-	private Tuple1<String> lineTuple = new Tuple1<String>();
+	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
 
 	public WordCountSource() {
 		try {
@@ -42,9 +42,9 @@ public class WordCountSource extends UserSourceInvokable {
 		line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
 		while (line != null) {
 			if (line != "") {
-				lineTuple.setField(line, 0);
+				outRecord.setString(0,line);
 				// TODO: object reuse
-				emit(new StreamRecord(lineTuple));
+				emit(outRecord);
 			}
 			line = br.readLine();
 		}
