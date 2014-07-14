@@ -16,6 +16,7 @@
 package eu.stratosphere.streaming.examples.wordcount;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
@@ -30,22 +31,28 @@ public class WordCountSourceSplitter extends UserSourceInvokable {
 
 	@Override
 	public void invoke() throws Exception {
-		br = new BufferedReader(new FileReader(
-				"src/test/resources/testdata/hamlet.txt"));
+
 		while (true) {
-			line = br.readLine();
-			if (line == null) {
-				break;
-			}
-			if (line != "") {
-				line=line.replaceAll("[\\-\\+\\.\\^:,]", "");
-				for (String word : line.split(" ")) {
-					outRecord.setString(0, word);
-					System.out.println("word=" + word);
-					emit(outRecord);
-					performanceCounter.count();
+			try {
+				br = new BufferedReader(new FileReader(
+						"/home/strato/stratosphere-distrib/resources/hamlet.txt"));
+				line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
+				while (line != null) {
+					if (line != "") {
+						for (String word : line.split(" ")) {
+							outRecord.setString(0, word);
+							emit(outRecord);
+							performanceCounter.count();
+						}
+					}
+					line = br.readLine();
 				}
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
 			}
+
 		}
+
 	}
+
 }

@@ -20,7 +20,7 @@ import eu.stratosphere.api.java.tuple.Tuple2;
 /**
  * the iterator for internal states.
  */
-public interface TableStateIterator<K, V>{
+public interface StateIterator<K, V>{
 	public boolean hasNext();
 	public Tuple2<K, V> next();
 }
