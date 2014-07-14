@@ -15,12 +15,15 @@
 
 package eu.stratosphere.streaming.test.wordcount;
 
+import java.net.InetSocketAddress;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.junit.Assert;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
+import eu.stratosphere.client.program.Client;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobClient;
@@ -37,6 +40,7 @@ public class WordCountLocal {
 
 	private NepheleMiniCluster executor;
 
+	
 	public WordCountLocal() {
 		this(new Configuration());
 	}
@@ -126,20 +130,24 @@ public class WordCountLocal {
 		try {
 
 			JobGraph jG = getJobGraph();
-			
-			int jobManagerRpcPort = 6498;
 			Configuration configuration = jG.getJobConfiguration();
-			configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
-			configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRpcPort);
+			Client client= new Client(new InetSocketAddress("localhost", 6498), configuration);
 			
 			
-			JobClient client= new JobClient(jG, configuration);
+//			int jobManagerRpcPort = 6498;
+//			
+//			configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
+//			configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRpcPort);
+//			
+//			
+//			JobClient client= new JobClient(jG, configuration);
 			
 			
 			exec.start();
 			//JobClient client = exec.getJobClient(jG);
+			client.run(null, jG, true);
 
-			client.submitJobAndWait();
+//			client.submitJobAndWait();
 
 			exec.stop();
 		} catch (Exception e) {
