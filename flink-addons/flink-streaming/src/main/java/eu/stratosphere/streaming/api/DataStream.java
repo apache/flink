@@ -152,6 +152,10 @@ public class DataStream<T extends Tuple> {
 		return context.addFunction("filter", this.copy(), filter, new FilterInvokable<T>(filter), paralelism);
 	}
 
+	public DataStream<T> addSink(SinkFunction<T> sinkFunction, int paralelism) {
+		return context.addSink(this.copy(), sinkFunction, paralelism);
+	}
+	
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
 		return context.addSink(this.copy(), sinkFunction);
 	}

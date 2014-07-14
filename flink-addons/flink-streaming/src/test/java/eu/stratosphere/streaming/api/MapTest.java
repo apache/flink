@@ -253,10 +253,11 @@ public class MapTest {
 				.addSource(new MySource(), 2)
 				.partitionBy(0)
 				.map(new MyMap(), 3)
-				.addSink(new MyGraphSink());
+				.broadcast()
+				.addSink(new MyGraphSink(),2);
 
 		context.execute();
-		assertEquals(20, graphResult);
+		assertEquals(40, graphResult);
 		
 	}
 }
