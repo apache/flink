@@ -15,41 +15,39 @@
 
 package eu.stratosphere.streaming.examples.wordcount;
 
-import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.util.Collector;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.util.PerformanceCounter;
+import eu.stratosphere.streaming.util.PerformanceTimer;
 
-public class WordCountSplitter extends FlatMapFunction<Tuple1<String>, Tuple1<String>> {
+public class WordCountSplitter extends UserTaskInvokable {
 	private static final long serialVersionUID = 1L;
 
 	private String[] words = new String[] {};
-	private Tuple1<String> outTuple = new Tuple1<String>();
-
-	//TODO move the performance tracked version to a separate package and clean this
-	// PerformanceCounter pCounter = new
-	// PerformanceCounter("SplitterEmitCounter", 1000, 1000,
-	// "/home/strato/stratosphere-distrib/log/counter/Splitter" + channelID);
-	// PerformanceTimer pTimer = new PerformanceTimer("SplitterEmitTimer", 1000,
-	// 1000, true,
-	// "/home/strato/stratosphere-distrib/log/timer/Splitter" + channelID);
+	private StreamRecord outputRecord = new StreamRecord(new Tuple1<String>());
+	PerformanceCounter pCounter = new PerformanceCounter("SplitterEmitCounter", 1000, 1000,
+			"/home/strato/stratosphere-distrib/log/counter/Splitter" + channelID);
+	PerformanceTimer pTimer = new PerformanceTimer("SplitterEmitTimer", 1000, 1000, true,
+			"/home/strato/stratosphere-distrib/log/timer/Splitter" + channelID);
 
 	@Override
-	public void flatMap(Tuple1<String> inTuple, Collector<Tuple1<String>> out) throws Exception {
+	public void invoke(StreamRecord record) throws Exception {
 
-		words = inTuple.f0.split(" ");
+		words = record.getString(0).split(" ");
 		for (String word : words) {
-			outTuple.f0 = word;
-			// pTimer.startTimer();
-			out.collect(outTuple);
-			// pTimer.stopTimer();
-			// pCounter.count();
+			outputRecord.setString(0, word);
+			pTimer.startTimer();
+			emit(outputRecord);
+			pTimer.stopTimer();
+			pCounter.count();
 		}
 	}
 
-	// @Override
-	// public String getResult() {
-	// pCounter.writeCSV();
-	// pTimer.writeCSV();
-	// return "";
-	// }
+	@Override
+	public String getResult() {
+		pCounter.writeCSV();
+		pTimer.writeCSV();
+		return "";
+	}
 }
