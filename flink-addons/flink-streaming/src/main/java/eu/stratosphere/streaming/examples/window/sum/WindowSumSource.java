@@ -13,27 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.wordcount;
+package eu.stratosphere.streaming.examples.window.sum;
 
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WordCountSink extends UserSinkInvokable {
+public class WindowSumSource extends UserSourceInvokable {
 
-	private String word = "";
-	private Integer count = 0;
-	private Long timestamp = 0L;
+	private StreamRecord outRecord = new StreamRecord(
+			new Tuple2<Integer, Integer>());
+	private Integer timestamp = 0;
 
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
-		int numTuple = record.getNumOfTuples();
-		for (int i = 0; i < numTuple; ++i) {
-			word = record.getString(i, 0);
-			count = record.getInteger(i, 1);
-			timestamp = record.getLong(i, 2);
-			System.out.println("============================================");
-			System.out.println(word + " " + count + " " + timestamp);
-			System.out.println("============================================");
+	public void invoke() throws Exception {
+		for (int i = 0; i < 1000; ++i) {
+			outRecord.setInteger(0, i);
+			outRecord.setInteger(1, timestamp);
+			timestamp++;
+			emit(outRecord);
 		}
 	}
 }

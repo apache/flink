@@ -62,6 +62,14 @@ public class WindowState<K> {
 		this.windowIndex = new HashMap<K, IndexPair>();
 		this.buffer = new CircularFifoBuffer(fullRecordCount);
 	}
+	
+	public int getWindowSize(){
+		return windowSize;
+	}
+	
+	public int getSlidingStep(){
+		return slidingStep;
+	}
 
 	public void pushBack(StreamRecord record) {
 		if (initTimestamp == -1) {
