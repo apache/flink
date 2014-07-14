@@ -31,7 +31,7 @@ public class BatchWordCountSplitter extends UserTaskInvokable {
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		int numberOfRecords = record.getNumOfRecords();
+		int numberOfRecords = record.getNumOfTuples();
 		for (int i = 0; i < numberOfRecords; ++i) {
 			words = record.getString(0).split(" ");
 			timestamp=record.getLong(1);

@@ -33,7 +33,7 @@ import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
 import eu.stratosphere.streaming.api.invokable.RecordInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.streamrecord.RecordSizeMismatchException;
+import eu.stratosphere.streaming.api.streamrecord.TupleSizeMismatchException;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.faulttolerance.AckEvent;
 import eu.stratosphere.streaming.faulttolerance.AckEventListener;
@@ -201,7 +201,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 						threadSafePublish(new AckEvent(id), input);
 						log.debug("ACK: " + id + " -- " + name);
 						// TODO: write an exception class to throw forward
-					} catch (RecordSizeMismatchException e) {
+					} catch (TupleSizeMismatchException e) {
 						throw (e);
 					} catch (Exception e) {
 						e.printStackTrace();

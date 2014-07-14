@@ -13,7 +13,7 @@
 
 package eu.stratosphere.streaming.api.streamrecord;
 
-public class RecordSizeMismatchException extends StreamRecordException {
+public class TupleSizeMismatchException extends StreamRecordException {
 
 	/**
 	 * Serial version UID for serialization interoperability.

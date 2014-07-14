@@ -15,7 +15,7 @@
 
 package eu.stratosphere.streaming.api.streamrecord;
 
-public class NoSuchRecordException extends StreamRecordException {
+public class NoSuchTupleException extends StreamRecordException {
 
 	private static final long serialVersionUID = 4935457355434561574L;
 
