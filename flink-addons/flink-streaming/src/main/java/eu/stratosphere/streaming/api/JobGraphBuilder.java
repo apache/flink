@@ -31,27 +31,17 @@ import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
+import eu.stratosphere.streaming.partitioner.BroadcastPartitioner;
+import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
+import eu.stratosphere.streaming.partitioner.GlobalPartitioner;
+import eu.stratosphere.streaming.partitioner.ShufflePartitioner;
+import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
 
 public class JobGraphBuilder {
 
   private final JobGraph jobGraph;
   private Map<String, AbstractJobVertex> components;
-
-  public enum Partitioning {
-    BROADCAST
-  }
-
-  private Class<? extends ChannelSelector<Record>> getPartitioningClass(
-      Partitioning partitioning) {
-    switch (partitioning) {
-    case BROADCAST:
-      return DefaultPartitioner.class;
-    default:
-      return DefaultPartitioner.class;
-    }
-  }
 
   public JobGraphBuilder(String jobGraphName) {
 
@@ -94,8 +84,9 @@ public class JobGraphBuilder {
     components.put(sinkName, sink);
   }
 
-  public void connect(String upStreamComponentName,
-      String downStreamComponentName, Partitioning partitionType,
+  private void connect(String upStreamComponentName,
+      String downStreamComponentName,
+      Class<? extends ChannelSelector<Record>> PartitionerClass,
       ChannelType channelType) {
 
     AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
@@ -107,13 +98,66 @@ public class JobGraphBuilder {
       Configuration config = new TaskConfig(
           upStreamComponent.getConfiguration()).getConfiguration();
       config.setClass(
-          "partitioner_" + upStreamComponent.getNumberOfForwardConnections(),
-          getPartitioningClass(partitionType));
-      // System.out.println(upStreamComponentName + " " + "partitioner_"
-      // + upStreamComponent.getNumberOfForwardConnections());
+          "partitionerClass_"
+              + upStreamComponent.getNumberOfForwardConnections(),
+          PartitionerClass);
+
     } catch (JobGraphDefinitionException e) {
       e.printStackTrace();
     }
+  }
+
+  public void BroadcastConnect(String upStreamComponentName,
+      String downStreamComponentName) {
+
+    connect(upStreamComponentName, downStreamComponentName,
+        BroadcastPartitioner.class, ChannelType.INMEMORY);
+  }
+
+  public void fieldsConnect(String upStreamComponentName,
+      String downStreamComponentName, int keyPosition,
+      Class<? extends Key> keyClass) {
+
+    AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
+    AbstractJobVertex downStreamComponent = components
+        .get(downStreamComponentName);
+
+    try {
+      upStreamComponent.connectTo(downStreamComponent, ChannelType.INMEMORY);
+
+      Configuration config = new TaskConfig(
+          upStreamComponent.getConfiguration()).getConfiguration();
+
+      config.setClass(
+          "partitionerClass_"
+              + upStreamComponent.getNumberOfForwardConnections(),
+          FieldsPartitioner.class);
+
+      config.setClass(
+          "partitionerClassParam_"
+              + upStreamComponent.getNumberOfForwardConnections(), keyClass);
+
+      config.setInteger(
+          "partitionerIntParam_"
+              + upStreamComponent.getNumberOfForwardConnections(), keyPosition);
+
+    } catch (JobGraphDefinitionException e) {
+      e.printStackTrace();
+    }
+  }
+
+  public void GlobalConnect(String upStreamComponentName,
+      String downStreamComponentName) {
+
+    connect(upStreamComponentName, downStreamComponentName,
+        GlobalPartitioner.class, ChannelType.INMEMORY);
+  }
+
+  public void ShuffleConnect(String upStreamComponentName,
+      String downStreamComponentName) {
+
+    connect(upStreamComponentName, downStreamComponentName,
+        ShufflePartitioner.class, ChannelType.INMEMORY);
   }
 
   private void setNumberOfJobInputs() {
