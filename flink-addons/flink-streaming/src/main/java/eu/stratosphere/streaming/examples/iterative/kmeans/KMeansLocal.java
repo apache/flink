@@ -15,11 +15,36 @@
 
 package eu.stratosphere.streaming.examples.iterative.kmeans;
 
+import org.apache.log4j.Level;
+
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
+import eu.stratosphere.streaming.util.ClusterUtil;
+import eu.stratosphere.streaming.util.LogUtils;
+
 public class KMeansLocal {
+	
+	public static JobGraph getJobGraph() {
+		int numCenter=3;
+		int dimension=2;
+		double stddev = 0.08;
+		double range = 100.0;
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
+		graphBuilder.setSource("Source",new KMeansSource(numCenter, dimension, stddev, range));
+		graphBuilder.setTask("Task", new KMeansTask(dimension), 1, 1);
+		graphBuilder.setSink("Sink", new KMeansSink());
 
-	public static void main(String[] args) {
-		// TODO Auto-generated method stub
+		graphBuilder.fieldsConnect("Source", "Task", 0);
+		graphBuilder.shuffleConnect("Task", "Sink");
 
+		return graphBuilder.getJobGraph();
 	}
 
+	public static void main(String[] args) {
+
+		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
+		ClusterUtil.runOnMiniCluster(getJobGraph());
+
+	}
 }

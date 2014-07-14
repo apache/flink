@@ -41,17 +41,6 @@ public class WordCountLocal {
 	public static void main(String[] args) {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
-
-		if (args.length == 0) {
-			args = new String[] { "local" };
-		}
-
-		if (args[0].equals("local")) {
-			ClusterUtil.runOnMiniCluster(getJobGraph());
-
-		} else if (args[0].equals("cluster")) {
-			ClusterUtil.runOnLocalCluster(getJobGraph(), "hadoop02.ilab.sztaki.hu", 6123);
-		}
-
+		ClusterUtil.runOnMiniCluster(getJobGraph());
 	}
 }

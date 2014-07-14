@@ -15,32 +15,25 @@
 
 package eu.stratosphere.streaming.examples.iterative.sssp;
 
-import org.apache.log4j.Level;
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
-import eu.stratosphere.streaming.util.ClusterUtil;
-import eu.stratosphere.streaming.util.LogUtils;
+public class SSSPTask extends UserTaskInvokable {
 
-public class SSSPLocal {
+	private static final long serialVersionUID = 1L;
+	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
+	private Graph linkGraph = new Graph();
 	
-	public static JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
-		graphBuilder.setSource("Source", new SSSPSource());
-		graphBuilder.setTask("Task", new SSSPTask(), 1, 1);
-		graphBuilder.setSink("Sink", new SSSPSink());
-
-		graphBuilder.fieldsConnect("Source", "Task", 0);
-		graphBuilder.shuffleConnect("Task", "Sink");
-
-		return graphBuilder.getJobGraph();
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
+		// TODO Auto-generated method stub
+		Integer sourceNode = record.getInteger(0, 0);
+		Integer targetNode = record.getInteger(0, 1);
+		// set the input graph.
+		linkGraph.insertDirectedEdge(sourceNode, targetNode);
+		
+		//outRecord.setString(0, line);
 	}
 
-	public static void main(String[] args) {
-
-		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
-		ClusterUtil.runOnMiniCluster(getJobGraph());
-
-	}
 }

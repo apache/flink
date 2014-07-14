@@ -15,32 +15,33 @@
 
 package eu.stratosphere.streaming.examples.iterative.sssp;
 
-import org.apache.log4j.Level;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
-import eu.stratosphere.streaming.util.ClusterUtil;
-import eu.stratosphere.streaming.util.LogUtils;
+public class Graph {
+	public Map<Integer, Set<Integer>> _vertices = null;
 
-public class SSSPLocal {
-	
-	public static JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
-		graphBuilder.setSource("Source", new SSSPSource());
-		graphBuilder.setTask("Task", new SSSPTask(), 1, 1);
-		graphBuilder.setSink("Sink", new SSSPSink());
-
-		graphBuilder.fieldsConnect("Source", "Task", 0);
-		graphBuilder.shuffleConnect("Task", "Sink");
-
-		return graphBuilder.getJobGraph();
+	public Graph() {
+		_vertices = new HashMap<Integer, Set<Integer>>();
 	}
 
-	public static void main(String[] args) {
-
-		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
-		ClusterUtil.runOnMiniCluster(getJobGraph());
-
+	public void insertDirectedEdge(int sourceNode, int targetNode) {
+		if (!_vertices.containsKey(sourceNode)) {
+			_vertices.put(sourceNode, new HashSet<Integer>());
+		}
+		_vertices.get(sourceNode).add(targetNode);
+	}
+	
+	public void insertUndirectedEdge(int sourceNode, int targetNode){
+		if(!_vertices.containsKey(sourceNode)){
+			_vertices.put(sourceNode, new HashSet<Integer>());
+		}
+		if(!_vertices.containsKey(targetNode)){
+			_vertices.put(targetNode, new HashSet<Integer>());
+		}
+		_vertices.get(sourceNode).add(targetNode);
+		_vertices.get(targetNode).add(sourceNode);
 	}
 }

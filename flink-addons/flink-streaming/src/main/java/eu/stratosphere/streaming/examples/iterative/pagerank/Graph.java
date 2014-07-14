@@ -13,17 +13,35 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.iterative.collaborativefilter;
+package eu.stratosphere.streaming.examples.iterative.pagerank;
 
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
-public class CFSource extends UserSourceInvokable {
-	private static final long serialVersionUID = 1L;
+public class Graph {
+	public Map<Integer, Set<Integer>> _vertices = null;
 
-	@Override
-	public void invoke() throws Exception {
-		// TODO Auto-generated method stub
-		
+	public Graph() {
+		_vertices = new HashMap<Integer, Set<Integer>>();
 	}
 
+	public void insertDirectedEdge(int sourceNode, int targetNode) {
+		if (!_vertices.containsKey(sourceNode)) {
+			_vertices.put(sourceNode, new HashSet<Integer>());
+		}
+		_vertices.get(sourceNode).add(targetNode);
+	}
+	
+	public void insertUndirectedEdge(int sourceNode, int targetNode){
+		if(!_vertices.containsKey(sourceNode)){
+			_vertices.put(sourceNode, new HashSet<Integer>());
+		}
+		if(!_vertices.containsKey(targetNode)){
+			_vertices.put(targetNode, new HashSet<Integer>());
+		}
+		_vertices.get(sourceNode).add(targetNode);
+		_vertices.get(targetNode).add(sourceNode);
+	}
 }

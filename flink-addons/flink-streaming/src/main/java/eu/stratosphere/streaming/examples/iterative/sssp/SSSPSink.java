@@ -15,32 +15,23 @@
 
 package eu.stratosphere.streaming.examples.iterative.sssp;
 
-import org.apache.log4j.Level;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
-import eu.stratosphere.streaming.util.ClusterUtil;
-import eu.stratosphere.streaming.util.LogUtils;
+public class SSSPSink extends UserSinkInvokable {
+	private static final long serialVersionUID = 1L;
 
-public class SSSPLocal {
-	
-	public static JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
-		graphBuilder.setSource("Source", new SSSPSource());
-		graphBuilder.setTask("Task", new SSSPTask(), 1, 1);
-		graphBuilder.setSink("Sink", new SSSPSink());
-
-		graphBuilder.fieldsConnect("Source", "Task", 0);
-		graphBuilder.shuffleConnect("Task", "Sink");
-
-		return graphBuilder.getJobGraph();
-	}
-
-	public static void main(String[] args) {
-
-		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
-		ClusterUtil.runOnMiniCluster(getJobGraph());
-
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
+		// TODO Auto-generated method stub
+		System.out.println("received record...");
+		int tupleNum = record.getNumOfTuples();
+		System.out.println("============================================");
+		for (int i = 0; i < tupleNum; ++i) {
+			System.out.println("name=" + record.getField(i, 0) + ", grade="
+					+ record.getField(i, 1) + ", salary="
+					+ record.getField(i, 2));
+		}
+		System.out.println("============================================");		
 	}
 }
