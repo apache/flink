@@ -15,6 +15,7 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
+import java.io.IOException;
 import java.io.Serializable;
 
 import eu.stratosphere.api.java.tuple.Tuple;
@@ -25,6 +26,6 @@ public abstract class UserSourceInvokable<OUT extends Tuple> extends StreamCompo
 
 	private static final long serialVersionUID = 1L;
 
-	public abstract void invoke(Collector<OUT> collector);
+	public abstract void invoke(Collector<OUT> collector) throws Exception;
 
 }

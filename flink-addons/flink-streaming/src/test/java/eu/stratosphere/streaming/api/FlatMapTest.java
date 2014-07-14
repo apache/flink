@@ -16,6 +16,7 @@
 package eu.stratosphere.streaming.api;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
@@ -67,15 +68,19 @@ public class FlatMapTest {
 			for (int i = 0; i < 5; i++) {
 				collector.collect(new Tuple1<String>("hi"));
 			}
-
 		}
-
 	}
 
 	@Test
 	public void test() throws Exception {
 
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
+		try {
+			StreamExecutionEnvironment context2 = new StreamExecutionEnvironment(0);
+			fail();
+		} catch (IllegalArgumentException e) {
+		}
+		
+		StreamExecutionEnvironment context = new StreamExecutionEnvironment(2);
 		DataStream<Tuple1<String>> dataStream0 = context.addSource(new MySource());
 
 		DataStream<Tuple1<String>> dataStream1 = context.addDummySource().connectWith(dataStream0)
