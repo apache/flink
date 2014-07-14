@@ -60,7 +60,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
     Class<? extends ChannelSelector<Record>> partitioner;
 
     for (int i = 1; i <= numberOfOutputs; i++) {
-      partitioner = getTaskConfiguration().getClass("partitioner_" + i,
+      partitioner = getTaskConfiguration().getClass("partitionerClass_" + i,
           DefaultPartitioner.class, ChannelSelector.class);
 
       try {
