@@ -64,8 +64,8 @@ public class WordCountSourceSplitter extends UserSourceInvokable {
 
 	@Override
 	public String getResult() {
-		pCounter.writeCSV("/home/strato/stratosphere-distrib/log/counter/Source" + channelID + "-1.csv");
-		pTimer.writeCSV("/home/strato/stratosphere-distrib/log/timer/Source" + channelID + "-1.csv");
+		pCounter.writeCSV("/home/strato/stratosphere-distrib/log/counter/Source" + channelID);
+		pTimer.writeCSV("/home/strato/stratosphere-distrib/log/timer/Source" + channelID);
 
 		return "";
 	}
