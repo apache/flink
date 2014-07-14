@@ -8,6 +8,7 @@ import java.io.ObjectInputStream;
 import org.junit.Test;
 
 import eu.stratosphere.api.datastream.DataStream;
+import eu.stratosphere.api.datastream.SinkFunction;
 import eu.stratosphere.api.datastream.StreamExecutionEnvironment;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
@@ -22,6 +23,7 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamcomponent.StreamInvokableComponent;
 import eu.stratosphere.util.Collector;
 
@@ -71,7 +73,7 @@ public class MapTest {
 
 				byte[] userFunctionSerialized = config.getBytes("serializedudf", null);
 				in = new ObjectInputStream(new ByteArrayInputStream(userFunctionSerialized));
-				StreamInvokableComponent userFunction = (StreamInvokableComponent) in.readObject();
+				UserTaskInvokable userFunction = (UserTaskInvokable) in.readObject();
 				System.out.println(userFunction.getClass());
 				assertTrue(true);
 				System.out.println("----------------");
@@ -84,11 +86,11 @@ public class MapTest {
 
 				ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes));
 
-				UserSinkInvokable<Tuple> f = (UserSinkInvokable<Tuple>) in.readObject();
+				SinkFunction<Tuple> f = (SinkFunction<Tuple>) in.readObject();
 
 				System.out.println(f.getClass().getGenericSuperclass());
 				TupleTypeInfo<Tuple> ts = (TupleTypeInfo) TypeExtractor.createTypeInfo(
-						UserSinkInvokable.class, f.getClass(), 0, null, null);
+						SinkFunction.class, f.getClass(), 0, null, null);
 
 				System.out.println(ts);
 

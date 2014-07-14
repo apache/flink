@@ -13,15 +13,29 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api.invokable;
-
-import java.io.Serializable;
+package eu.stratosphere.api.datastream;
 
 import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.streaming.api.StreamCollector;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public abstract class UserSinkInvokable<IN extends Tuple> extends StreamRecordInvokable<IN, Tuple>
-		implements Serializable {
-
-	
+public class SinkInvokable<IN extends Tuple> extends UserSinkInvokable<IN> {
 	private static final long serialVersionUID = 1L;
+
+	private SinkFunction<IN> sinkFunction;
+
+	public SinkInvokable(SinkFunction<IN> sinkFunction) {
+		this.sinkFunction = sinkFunction;
+	}
+
+	@Override
+	public void invoke(StreamRecord record, StreamCollector<Tuple> collector) throws Exception {
+		int batchSize = record.getBatchSize();
+		for (int i = 0; i < batchSize; i++) {
+			@SuppressWarnings("unchecked")
+			IN tuple = (IN) record.getTuple(i);
+			sinkFunction.invoke(tuple);
+		}
+	}
 }

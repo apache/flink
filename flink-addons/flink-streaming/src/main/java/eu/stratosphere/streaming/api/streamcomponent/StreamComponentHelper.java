@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.api.datastream.SinkFunction;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
@@ -148,10 +149,10 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 			} else if (operatorName.equals("sink")) {
 
-				UserSinkInvokable<Tuple> f = (UserSinkInvokable<Tuple>) in.readObject();
+				SinkFunction<Tuple> f = (SinkFunction<Tuple>) in.readObject();
 
 				inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
-						UserSinkInvokable.class, f.getClass(), 0, null, null);
+						SinkFunction.class, f.getClass(), 0, null, null);
 
 				inTupleSerializer = inTupleTypeInfo.createSerializer();
 				inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
