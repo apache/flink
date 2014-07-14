@@ -40,8 +40,14 @@ public class StreamSink extends AbstractOutputTask {
 	@Override
 	public void registerInputOutput() {
 		Configuration taskConfiguration = getTaskConfiguration();
-		StreamComponentFactory.setConfigInputs(this, taskConfiguration, inputs);
-		userFunction = StreamComponentFactory.setUserFunction(taskConfiguration);
+		StreamComponentHelper<StreamSink> streamSinkHelper = new StreamComponentHelper<StreamSink>();
+
+		try {
+			streamSinkHelper.setConfigInputs(this, taskConfiguration, inputs);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		userFunction = streamSinkHelper.getUserFunction(taskConfiguration);
 	}
 
 	@Override

@@ -55,17 +55,23 @@ public class StreamTask extends AbstractTask {
 	@Override
 	public void registerInputOutput() {
 		Configuration taskConfiguration = getTaskConfiguration();
+		StreamComponentHelper<StreamTask> streamTaskHelper = new StreamComponentHelper<StreamTask>();
 
-		StreamComponentFactory.setConfigInputs(this, taskConfiguration, inputs);
-		StreamComponentFactory.setConfigOutputs(this, taskConfiguration, outputs,
-				partitioners);
+		try {
+			streamTaskHelper.setConfigInputs(this, taskConfiguration, inputs);
+			streamTaskHelper.setConfigOutputs(this, taskConfiguration, outputs,
+					partitioners);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 
 		recordBuffer = new FaultTolerancyBuffer(outputs, taskInstanceID);
-		userFunction = (UserTaskInvokable) StreamComponentFactory.setUserFunction(
-				taskConfiguration, outputs, taskInstanceID, recordBuffer);
-		StreamComponentFactory
-				.setAckListener(recordBuffer, taskInstanceID, outputs);
-		StreamComponentFactory.setFailListener(recordBuffer, taskInstanceID,
+		userFunction = (UserTaskInvokable) streamTaskHelper
+				.getUserFunction(taskConfiguration, outputs, taskInstanceID,
+						recordBuffer);
+		streamTaskHelper.setAckListener(recordBuffer, taskInstanceID,
+				outputs);
+		streamTaskHelper.setFailListener(recordBuffer, taskInstanceID,
 				outputs);
 	}
 
@@ -83,8 +89,8 @@ public class StreamTask extends AbstractTask {
 					// records
 					try {
 						userFunction.invoke(streamRecord.getRecord());
-						System.out
-								.println(this.getClass().getName() + "-" + taskInstanceID);
+						System.out.println(this.getClass().getName() + "-"
+								+ taskInstanceID);
 						System.out.println(recordBuffer.getRecordBuffer());
 						System.out.println("---------------------");
 						input.publishEvent(new AckEvent(id));
