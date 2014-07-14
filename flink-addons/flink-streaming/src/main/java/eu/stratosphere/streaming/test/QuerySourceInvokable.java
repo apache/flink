@@ -33,7 +33,7 @@ public class QuerySourceInvokable extends UserSourceInvokable {
       Record record2 = new Record(3);
       record2.setField(0, new IntValue(4));
       record2.setField(1, new LongValue(510));
-      record1.setField(2, new LongValue(100));
+      record2.setField(2, new LongValue(100));
 
       emit(record1);
       emit(record2);

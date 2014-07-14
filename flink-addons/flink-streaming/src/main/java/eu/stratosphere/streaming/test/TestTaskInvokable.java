@@ -42,7 +42,6 @@ public class TestTaskInvokable extends UserTaskInvokable {
     else if (record.getNumFields() == 3) {
       LongValue value3 = new LongValue(0);
       record.getFieldInto(2, value3);
-
       emit(new Record(new StringValue(String.valueOf(engine.get(
           value2.getValue(), value3.getValue(), value1.getValue())))));
     }
