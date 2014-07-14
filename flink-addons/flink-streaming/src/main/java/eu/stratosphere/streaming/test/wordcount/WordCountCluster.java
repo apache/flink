@@ -15,13 +15,18 @@
 
 package eu.stratosphere.streaming.test.wordcount;
 
+import java.io.File;
+import java.net.InetSocketAddress;
+
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
+import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.JobWithJars;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
@@ -30,10 +35,8 @@ import eu.stratosphere.util.LogUtils;
 
 public class WordCountCluster {
 
-
 	protected final Configuration config;
 
-	
 	public WordCountCluster() {
 		this(new Configuration());
 	}
@@ -60,29 +63,25 @@ public class WordCountCluster {
 	}
 
 	public static void main(String[] args) {
-		
+
 		try {
 
-			JobGraph jG = getJobGraph();
-			
-			int jobManagerRpcPort = 6123;
-			Configuration configuration = jG.getJobConfiguration();
-			configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "hadoop02.ilab.sztaki.hu");
-			configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRpcPort);
-			configuration.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 6122);
-		//	configuration.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, 7501);
-			
-			JobClient client= new JobClient(jG, configuration);
-			
+			File file = new File("target/stratosphere-streaming-0.5-SNAPSHOT.jar");
+			JobWithJars.checkJarFile(file);
 
-			ClassLoader userClassLoader;
-			
-			
-			
-			client.submitJobAndWait();
+			JobGraph jG = getJobGraph();
+
+			jG.addJar(new Path(file.getAbsolutePath()));
+
+			Configuration configuration = jG.getJobConfiguration();
+
+			Client client = new Client(new InetSocketAddress(
+					"hadoop02.ilab.sztaki.hu", 6123), configuration);
+
+			client.run(null, jG, true);
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			System.out.println(e);
 		}
 
 	}

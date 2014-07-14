@@ -15,6 +15,7 @@
 
 package eu.stratosphere.streaming.test.wordcount;
 
+import java.io.File;
 import java.net.InetSocketAddress;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -22,10 +23,12 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.junit.Assert;
 
+import eu.stratosphere.api.common.JobExecutionResult;
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.client.program.Client;
-import eu.stratosphere.configuration.ConfigConstants;
+import eu.stratosphere.client.program.JobWithJars;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
@@ -40,7 +43,6 @@ public class WordCountLocal {
 
 	private NepheleMiniCluster executor;
 
-	
 	public WordCountLocal() {
 		this(new Configuration());
 	}
@@ -107,7 +109,7 @@ public class WordCountLocal {
 
 	private static JobGraph getJobGraph() throws Exception {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountSource.class);
+		graphBuilder.setSource("WordCountSource", WordCountDummySource.class);
 		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
 		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
 		graphBuilder.setSink("WordCountSink", WordCountSink.class);
@@ -121,33 +123,25 @@ public class WordCountLocal {
 	}
 
 	public static void main(String[] args) {
-		WordCountLocal wC = new WordCountLocal();
-		BasicConfigurator.configure();
-		
-		
 
 		NepheleMiniCluster exec = new NepheleMiniCluster();
 		try {
 
-			JobGraph jG = getJobGraph();
-			Configuration configuration = jG.getJobConfiguration();
-			Client client= new Client(new InetSocketAddress("localhost", 6498), configuration);
-			
-			
-//			int jobManagerRpcPort = 6498;
-//			
-//			configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
-//			configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRpcPort);
-//			
-//			
-//			JobClient client= new JobClient(jG, configuration);
-			
-			
-			exec.start();
-			//JobClient client = exec.getJobClient(jG);
-//			client.run(null, jG, true);
+			File file = new File("target/stratosphere-streaming-0.5-SNAPSHOT.jar");
+			JobWithJars.checkJarFile(file);
 
-//			client.submitJobAndWait();
+			JobGraph jG = getJobGraph();
+
+			jG.addJar(new Path(file.getAbsolutePath()));
+
+			Configuration configuration = jG.getJobConfiguration();
+
+			Client client = new Client(new InetSocketAddress("localhost", 6498),
+					configuration);
+
+			exec.start();
+
+			client.run(null, jG, true);
 
 			exec.stop();
 		} catch (Exception e) {
