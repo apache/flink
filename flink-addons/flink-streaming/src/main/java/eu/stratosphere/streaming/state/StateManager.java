@@ -13,38 +13,60 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.state.manager;
+package eu.stratosphere.streaming.state;
 
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.LinkedList;
 
-public class StateCheckpointer implements Runnable, Serializable {
+public class StateManager implements Runnable, Serializable {
 
+	private static final long serialVersionUID = 1L;
 	private LinkedList<Object> stateList = new LinkedList<Object>();
-	ObjectOutputStream oos;
-	long timeInterval;
+	private long checkpointInterval;
+	private String filename;
+	
+	public StateManager(String filename, long checkpointIntervalMS) {
+		this.filename = filename;
+		this.checkpointInterval = checkpointIntervalMS;
+	}
 
-	public StateCheckpointer(String filename, long timeIntervalMS) {
+	public void registerState(Object state) {
+		stateList.add(state);
+	}
+
+	public void restoreState(){
+		ObjectInputStream ois = null;
+		try {
+			ois=new ObjectInputStream(new FileInputStream(filename));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		for (Object state : stateList){
+			try {
+				state= ois.readObject();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	//run checkpoint.
+	@Override
+	public void run() {
+		ObjectOutputStream oos = null;
 		try {
 			oos = new ObjectOutputStream(new FileOutputStream(filename));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		this.timeInterval = timeIntervalMS;
-	}
-
-	public void RegisterState(Object state) {
-		stateList.add(state);
-	}
-
-	@Override
-	public void run() {
 		// take snapshot of every registered state.
 		while (true) {
 			try {
-				Thread.sleep(timeInterval);
+				Thread.sleep(checkpointInterval);
 				for (Object state : stateList) {
 					oos.writeObject(state);
 					oos.flush();

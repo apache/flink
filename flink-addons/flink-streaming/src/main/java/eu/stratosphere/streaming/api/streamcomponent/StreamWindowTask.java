@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.streaming.state.SlidingWindowState;
+import eu.stratosphere.streaming.state.StateManager;
 import eu.stratosphere.util.Collector;
 
 public class StreamWindowTask<InTuple extends Tuple, OutTuple extends Tuple> extends FlatMapFunction<InTuple, OutTuple> {
@@ -32,7 +33,7 @@ public class StreamWindowTask<InTuple extends Tuple, OutTuple extends Tuple> ext
 	private long initTimestamp = -1;
 	private long nextTimestamp = -1;
 
-	//protected StateCheckpointer checkpointer = new StateCheckpointer("object.out", 1000);
+	protected StateManager checkpointer = new StateManager("object.out", 1000);
 	
 	public StreamWindowTask(int windowSize, int slidingStep,
 			int computeGranularity, int windowFieldId) {
@@ -40,9 +41,9 @@ public class StreamWindowTask<InTuple extends Tuple, OutTuple extends Tuple> ext
 		this.windowFieldId = windowFieldId;
 		window = new SlidingWindowState<InTuple>(windowSize, slidingStep,
 				computeGranularity);
-		//checkpointer.RegisterState(window);
-		//Thread t = new Thread(checkpointer);
-		//t.start();
+		checkpointer.registerState(window);
+		Thread t = new Thread(checkpointer);
+		t.start();
 	}
 
 	protected void incrementCompute(ArrayList<InTuple> tupleArray) {}

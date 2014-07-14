@@ -20,7 +20,6 @@ import eu.stratosphere.streaming.api.SinkFunction;
 
 public class WindowSumSink extends SinkFunction<Tuple2<Integer, Long>> {
 	private static final long serialVersionUID = 1L;
-	
 	@Override
 	public void invoke(Tuple2<Integer, Long> inTuple) {
 		System.out.println(inTuple);
