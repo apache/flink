@@ -1,6 +1,7 @@
-package eu.stratosphere.streaming;
+package eu.stratosphere.streaming.test;
 
 import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 

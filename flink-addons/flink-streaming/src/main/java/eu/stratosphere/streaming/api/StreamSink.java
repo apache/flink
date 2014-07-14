@@ -1,7 +1,9 @@
-package eu.stratosphere.streaming;
+package eu.stratosphere.streaming.api;
 
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.test.TestSinkInvokable;
 import eu.stratosphere.types.Record;
 
 public class StreamSink extends AbstractOutputTask{

@@ -1,9 +1,12 @@
-package eu.stratosphere.streaming;
+package eu.stratosphere.streaming.api;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
+import eu.stratosphere.streaming.test.RandIS;
+import eu.stratosphere.streaming.test.TestSourceInvokable;
 import eu.stratosphere.types.Record;
 
 public class StreamSource extends AbstractInputTask<RandIS> {

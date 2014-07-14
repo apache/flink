@@ -1,4 +1,4 @@
-package eu.stratosphere.streaming;
+package eu.stratosphere.streaming.api.invokable;
 
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.types.Record;

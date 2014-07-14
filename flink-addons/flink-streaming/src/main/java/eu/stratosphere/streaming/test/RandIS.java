@@ -1,4 +1,4 @@
-package eu.stratosphere.streaming;
+package eu.stratosphere.streaming.test;
 
 import java.io.DataInput;
 import java.io.DataOutput;

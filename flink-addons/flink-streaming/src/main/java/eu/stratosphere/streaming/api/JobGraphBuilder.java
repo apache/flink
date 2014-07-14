@@ -1,4 +1,4 @@
-package eu.stratosphere.streaming;
+package eu.stratosphere.streaming.api;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,6 +14,9 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.types.Record;
 
@@ -89,6 +92,7 @@ public class JobGraphBuilder {
 		components.put(sinkName, sink);
 	}
 
+	//TODO refactor connects
 	public void connect(String upStreamComponentName,
       String downStreamComponentName,
       ChannelType channelType) {

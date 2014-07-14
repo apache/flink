@@ -1,7 +1,8 @@
-package eu.stratosphere.streaming;
+package eu.stratosphere.streaming.test;
 
 
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
