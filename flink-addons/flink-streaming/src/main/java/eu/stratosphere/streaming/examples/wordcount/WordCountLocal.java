@@ -23,7 +23,7 @@ import eu.stratosphere.streaming.util.TestDataUtil;
 public class WordCountLocal {
 
 	// This example will count the occurrence of each word in the input file.
-	
+
 	public static void main(String[] args) {
 
 		TestDataUtil.downloadIfNotExists("hamlet.txt");
@@ -31,10 +31,8 @@ public class WordCountLocal {
 
 		DataStream<Tuple2<String, Integer>> dataStream = env
 				.readTextFile("src/test/resources/testdata/hamlet.txt")
-				.flatMap(new WordCountSplitter(), 1)
-				.partitionBy(0)
-				.map(new WordCountCounter(), 1);
-		
+				.flatMap(new WordCountSplitter()).partitionBy(0).map(new WordCountCounter());
+
 		dataStream.print();
 
 		env.execute();

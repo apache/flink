@@ -16,16 +16,16 @@ package eu.stratosphere.streaming.api.streamcomponent;
 
 import java.util.ArrayList;
 
-import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.nephele.template.AbstractInputTask;
+import eu.stratosphere.pact.runtime.task.DataSourceTask;
+import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class MockRecordWriter extends RecordWriter<StreamRecord> {
 
 	public ArrayList<StreamRecord> emittedRecords;
 
-	public MockRecordWriter(AbstractInputTask<?> inputBase, Class<StreamRecord> outputClass) {
-		super(inputBase, outputClass);
+	public MockRecordWriter(DataSourceTask<?> inputBase, Class<StreamRecord> outputClass) {
+		super(inputBase);
 	}
 
 	public boolean initList() {
