@@ -38,6 +38,10 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		recordBatch.add(fields);
 		numOfRecords = recordBatch.size();
 	}
+	
+	public StreamRecord(Value... values){
+		this(new AtomRecord(values));
+	}
 
 	public int getNumOfFields() {
 		return numOfFields;
