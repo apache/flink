@@ -15,6 +15,9 @@
 
 package eu.stratosphere.streaming.performance;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.util.PerformanceCounter;
@@ -26,27 +29,22 @@ public class WordCountPerformanceSplitter extends FlatMapFunction<Tuple1<String>
 
 	private Tuple1<String> outTuple = new Tuple1<String>();
 
-	 PerformanceCounter pCounter = new
-	 PerformanceCounter("SplitterEmitCounter", 1000, 1000, 30000,
-	 "/home/judit/strato/perf/broadcast4.csv");
+	PerformanceCounter pCounter;
 
 	@Override
 	public void flatMap(Tuple1<String> inTuple, Collector<Tuple1<String>> out) throws Exception {
 
 		for (String word : inTuple.f0.split(" ")) {
 			outTuple.f0 = word;
-			// pTimer.startTimer();
 			out.collect(outTuple);
-			// pTimer.stopTimer();
 			pCounter.count();
 		}
 	}
 
-	// @Override
-	// public String getResult() {
-	// pCounter.writeCSV();
-	// pTimer.writeCSV();
-	// return "";
-	// }
+	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
+		ois.defaultReadObject();
+		pCounter = new PerformanceCounter("SplitterEmitCounter", 1000, 1000, 30000,
+				"/home/strato/stratosphere-distrib/resources/splitter.csv");
+	}
 
 }

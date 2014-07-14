@@ -34,6 +34,7 @@ public class BatchReduceTest {
 
 	public static final class MyBatchReduce extends
 			GroupReduceFunction<Tuple1<Double>, Tuple1<Double>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void reduce(Iterator<Tuple1<Double>> values, Collector<Tuple1<Double>> out)

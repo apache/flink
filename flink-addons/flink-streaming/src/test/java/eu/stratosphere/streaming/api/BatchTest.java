@@ -32,6 +32,7 @@ public class BatchTest {
 	private static boolean partitionCorrect = true;
 	
 	private static final class MySource extends SourceFunction<Tuple1<String>> {
+		private static final long serialVersionUID = 1L;
 
 		private Tuple1<String> outTuple = new Tuple1<String>();
 		
@@ -45,6 +46,7 @@ public class BatchTest {
 	}
 	
 	private static final class MyMap extends FlatMapFunction<Tuple1<String>, Tuple1<String>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void flatMap(Tuple1<String> value, Collector<Tuple1<String>> out) throws Exception {
@@ -53,7 +55,8 @@ public class BatchTest {
 	}
 
 	private static final class MySink extends SinkFunction<Tuple1<String>> {
-		
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public void invoke(Tuple1<String> tuple) {
 			count++;
@@ -61,7 +64,8 @@ public class BatchTest {
 	}
 	
 	private static final class MyPartitionSink extends SinkFunction<Tuple1<String>> {
-		
+		private static final long serialVersionUID = 1L;
+
 		int hash=-1000;
 		@Override
 		public void invoke(Tuple1<String> tuple) {

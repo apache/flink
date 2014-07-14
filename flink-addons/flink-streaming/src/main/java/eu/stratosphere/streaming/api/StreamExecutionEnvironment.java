@@ -72,7 +72,8 @@ public class StreamExecutionEnvironment {
 	 * task parallelism.
 	 * 
 	 * @param clusterSize
-	 * @return
+	 *            cluster size
+	 * @return environment
 	 */
 	public StreamExecutionEnvironment setClusterSize(int clusterSize) {
 		this.clusterSize = clusterSize;
@@ -92,6 +93,8 @@ public class StreamExecutionEnvironment {
 	 * 
 	 * @param inputStream
 	 *            input data stream
+	 * @param <T>
+	 *            type of the input stream
 	 */
 	public <T extends Tuple> void setBatchSize(DataStream<T> inputStream) {
 
@@ -109,6 +112,8 @@ public class StreamExecutionEnvironment {
 	 *            input data stream
 	 * @param outputID
 	 *            ID of the output
+	 * @param <T>
+	 *            type of the input stream
 	 */
 	private <T extends Tuple> void connectGraph(DataStream<T> inputStream, String outputID) {
 
@@ -149,12 +154,16 @@ public class StreamExecutionEnvironment {
 	 *            the wrapping JobVertex instance
 	 * @param parallelism
 	 *            number of parallel instances of the function
+	 * @param <T>
+	 *            type of the input stream
+	 * @param <R>
+	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
 	<T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName,
 			DataStream<T> inputStream, final AbstractFunction function,
 			UserTaskInvokable<T, R> functionInvokable, int parallelism) {
-		DataStream<R> returnStream = new DataStream<R>(this);
+		DataStream<R> returnStream = new DataStream<R>(this, functionName);
 
 		jobGraphBuilder.setTask(returnStream.getId(), functionInvokable, functionName,
 				serializeToByteArray(function), parallelism,
@@ -174,11 +183,13 @@ public class StreamExecutionEnvironment {
 	 *            the user defined function
 	 * @param parallelism
 	 *            number of parallel instances of the function
+	 * @param <T>
+	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
 	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
 			SinkFunction<T> sinkFunction, int parallelism) {
-		DataStream<T> returnStream = new DataStream<T>(this);
+		DataStream<T> returnStream = new DataStream<T>(this, "sink");
 
 		jobGraphBuilder.setSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction), "sink",
 				serializeToByteArray(sinkFunction), parallelism,
@@ -238,10 +249,12 @@ public class StreamExecutionEnvironment {
 	 * 
 	 * @param data
 	 *            The collection of elements to create the DataStream from.
+	 * @param <X>
+	 *            type of the returned stream
 	 * @return The DataStream representing the elements.
 	 */
 	public <X> DataStream<Tuple1<X>> fromElements(X... data) {
-		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this);
+		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
 
 		jobGraphBuilder.setSource(returnStream.getId(), new FromElementsSource<X>(data),
 				"elements", serializeToByteArray(data[0]), 1, 1);
@@ -257,10 +270,12 @@ public class StreamExecutionEnvironment {
 	 * 
 	 * @param data
 	 *            The collection of elements to create the DataStream from.
+	 * @param <X>
+	 *            type of the returned stream
 	 * @return The DataStream representing the elements.
 	 */
 	public <X> DataStream<Tuple1<X>> fromCollection(Collection<X> data) {
-		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this);
+		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
 
 		jobGraphBuilder.setSource(returnStream.getId(), new FromElementsSource<X>(data),
 				"elements", serializeToByteArray(data.toArray()[0]), 1, 1);
@@ -272,6 +287,7 @@ public class StreamExecutionEnvironment {
 	 * SourceFunction created to use with fromElements and fromCollection
 	 * 
 	 * @param <T>
+	 *            type of the returned stream
 	 */
 	private static class FromElementsSource<T> extends SourceFunction<Tuple1<T>> {
 
@@ -306,8 +322,8 @@ public class StreamExecutionEnvironment {
 	 *            input data stream
 	 * @param sinkFunction
 	 *            the user defined function
-	 * @param parallelism
-	 *            number of parallel instances of the function
+	 * @param <T>
+	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
 	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
@@ -337,6 +353,9 @@ public class StreamExecutionEnvironment {
 	 * 
 	 * @param inputStream
 	 *            the input data stream
+	 * 
+	 * @param <T>
+	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
 	public <T extends Tuple> DataStream<T> print(DataStream<T> inputStream) {
@@ -355,6 +374,10 @@ public class StreamExecutionEnvironment {
 		ClusterUtil.runOnMiniCluster(jobGraphBuilder.getJobGraph());
 	}
 
+	public void executeCluster() {
+		ClusterUtil.runOnLocalCluster(jobGraphBuilder.getJobGraph(), "10.1.3.150", 6123);
+	}
+
 	// TODO: Link to DataStream
 	/**
 	 * Ads a data source thus opening a data stream.
@@ -363,11 +386,13 @@ public class StreamExecutionEnvironment {
 	 *            the user defined function
 	 * @param parallelism
 	 *            number of parallel instances of the function
+	 * @param <T>
+	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
 	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction,
 			int parallelism) {
-		DataStream<T> returnStream = new DataStream<T>(this);
+		DataStream<T> returnStream = new DataStream<T>(this, "source");
 
 		jobGraphBuilder.setSource(returnStream.getId(), sourceFunction, "source",
 				serializeToByteArray(sourceFunction), parallelism,
@@ -390,6 +415,10 @@ public class StreamExecutionEnvironment {
 		return addSource(new FileSourceFunction(filePath), 1);
 	}
 
+	public DataStream<Tuple1<String>> readTextFile(String filePath, int parallelism) {
+		return addSource(new FileSourceFunction(filePath), parallelism);
+	}
+
 	/**
 	 * Creates a DataStream that represents the Strings produced by reading the
 	 * given file line wise multiple times(infinite). The file will be read with
@@ -402,6 +431,10 @@ public class StreamExecutionEnvironment {
 	 */
 	public DataStream<Tuple1<String>> readTextStream(String filePath) {
 		return addSource(new FileStreamFunction(filePath), 1);
+	}
+
+	public DataStream<Tuple1<String>> readTextStream(String filePath, int parallelism) {
+		return addSource(new FileStreamFunction(filePath), parallelism);
 	}
 
 	/**
@@ -428,7 +461,7 @@ public class StreamExecutionEnvironment {
 	/**
 	 * Getter of the JobGraphBuilder of the streaming job.
 	 * 
-	 * @return
+	 * @return jobgraph
 	 */
 	public JobGraphBuilder jobGB() {
 		return jobGraphBuilder;
