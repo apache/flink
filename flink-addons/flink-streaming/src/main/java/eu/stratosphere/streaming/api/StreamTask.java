@@ -88,7 +88,7 @@ public class StreamTask extends AbstractTask {
 	public void setAckListener() {
 		EventListener eventListener = new AckEventListener(taskInstanceID,
 				recordBuffer);
-		for (RecordWriter output : outputs) {
+		for (RecordWriter<Record> output : outputs) {
 			// TODO: separate outputs
 			output.subscribeToEvent(eventListener, AckEvent.class);
 		}
