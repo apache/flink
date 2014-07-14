@@ -26,8 +26,8 @@ import eu.stratosphere.streaming.util.LogUtils;
 
 public class WindowJoinLocal {
 
-	private static final int PARALELISM = 1;
-	private static final int SOURCE_PARALELISM = 1;
+	private static final int PARALLELISM = 1;
+	private static final int SOURCE_PARALLELISM = 1;
 
 	// This example will join two streams with a sliding window. One which emits
 	// people's grades and one which emits people's salaries.
@@ -36,17 +36,16 @@ public class WindowJoinLocal {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
 
 		DataStream<Tuple4<String, String, Integer, Long>> dataStream1 = env.addSource(
-				new WindowJoinSourceOne(), SOURCE_PARALELISM);
+				new WindowJoinSourceOne(), SOURCE_PARALLELISM);
 
 		DataStream<Tuple3<String, Integer, Integer>> dataStream2 = env
-				.addSource(new WindowJoinSourceTwo(), SOURCE_PARALELISM)
+				.addSource(new WindowJoinSourceTwo(), SOURCE_PARALLELISM)
 				.connectWith(dataStream1)
 				.partitionBy(1)
-				.flatMap(new WindowJoinTask(), PARALELISM)
-				.addSink(new JoinSink());
+				.flatMap(new WindowJoinTask());
 		
 		dataStream2.print();
 

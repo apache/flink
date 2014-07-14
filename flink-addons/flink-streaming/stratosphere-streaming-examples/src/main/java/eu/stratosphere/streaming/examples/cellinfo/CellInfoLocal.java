@@ -30,8 +30,8 @@ public class CellInfoLocal {
 	private static Random rand = new Random();
 	private final static int CELL_COUNT = 10;
 	private final static int LAST_MILLIS = 1000;
-	private final static int PARALELISM = 1;
-	private final static int SOURCE_PARALELISM = 1;
+	private final static int PARALLELISM = 1;
+	private final static int SOURCE_PARALLELISM = 1;
 
 	private final static class QuerySource extends
 			SourceFunction<Tuple4<Boolean, Integer, Long, Integer>> {
@@ -111,17 +111,17 @@ public class CellInfoLocal {
 	//In this example two different source then connect the two stream and apply a function for the connected stream
 	// TODO add arguments
 	public static void main(String[] args) {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
 
 		DataStream<Tuple4<Boolean, Integer, Long, Integer>> querySource = env.addSource(
-				new QuerySource(), SOURCE_PARALELISM);
+				new QuerySource(), SOURCE_PARALLELISM);
 
 
 		DataStream<Tuple1<String>> stream = env
-				.addSource(new InfoSource(), SOURCE_PARALELISM)
+				.addSource(new InfoSource(), SOURCE_PARALLELISM)
 				.connectWith(querySource)
 				.partitionBy(1)
-				.flatMap(new CellTask(), PARALELISM);
+				.flatMap(new CellTask());
 		stream.print();
 
 		env.execute();

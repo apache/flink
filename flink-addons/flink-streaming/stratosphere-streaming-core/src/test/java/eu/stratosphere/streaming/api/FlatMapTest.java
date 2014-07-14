@@ -138,7 +138,7 @@ public class FlatMapTest {
 		}
 	}
 
-	private static final int PARALELISM = 1;
+	private static final int PARALLELISM = 1;
 	private static final long MEMORYSIZE = 32;
 
 	private static int numberOfElements = 0;
@@ -154,14 +154,13 @@ public class FlatMapTest {
 
 	@Test
 	public void test() throws Exception {
-		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
-
+		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
 		// flatmapTest
 
 		fillFromCollectionSet();
 
 		DataStream<Tuple1<Integer>> dataStream = env.fromCollection(fromCollectionSet)
-				.flatMap(new MyFlatMap(), PARALELISM).addSink(new MySink());
+				.flatMap(new MyFlatMap()).addSink(new MySink());
 
 		fillExpectedList();
 
@@ -169,14 +168,14 @@ public class FlatMapTest {
 		fillFromCollectionSet();
 
 		DataStream<Tuple1<Integer>> source = env.fromCollection(fromCollectionSet);
-		DataStream<Tuple1<Integer>> map = source.flatMap(new ParallelFlatMap(), 1).addSink(
+		DataStream<Tuple1<Integer>> map = source.flatMap(new ParallelFlatMap()).addSink(
 				new MySink());
-		DataStream<Tuple1<Integer>> map2 = source.flatMap(new ParallelFlatMap(), 1).addSink(
+		DataStream<Tuple1<Integer>> map2 = source.flatMap(new ParallelFlatMap()).addSink(
 				new MySink());
 
 		// fromElementsTest
 		DataStream<Tuple1<Integer>> fromElementsMap = env.fromElements(2, 5, 9).flatMap(
-				new MyFlatMap(), 1);
+				new MyFlatMap());
 		DataStream<Tuple1<Integer>> sink = fromElementsMap.addSink(new FromElementsSink());
 
 		fillFromElementsExpected();
@@ -185,7 +184,7 @@ public class FlatMapTest {
 		fillFromCollectionSet();
 
 		DataStream<Tuple1<Integer>> fromCollectionMap = env.fromCollection(fromCollectionSet)
-				.flatMap(new MyFlatMap(), 1);
+				.flatMap(new MyFlatMap());
 		DataStream<Tuple1<Integer>> fromCollectionSink = fromCollectionMap
 				.addSink(new FromCollectionSink());
 
@@ -193,13 +192,12 @@ public class FlatMapTest {
 		fillSequenceSet();
 
 		DataStream<Tuple1<Long>> generateSequenceMap = env.generateSequence(0, 9).flatMap(
-				new GenerateSequenceFlatMap(), 1);
+				new GenerateSequenceFlatMap());
 		DataStream<Tuple1<Long>> generateSequenceSink = generateSequenceMap
 				.addSink(new GenerateSequenceSink());
 
 		fillLongSequenceSet();
 
-		env.setDegreeOfParallelism(PARALELISM);
 		env.executeTest(MEMORYSIZE);
 
 		assertTrue(expected.equals(result));

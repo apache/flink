@@ -21,7 +21,6 @@ import java.io.ObjectOutputStream;
 import java.util.Collection;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
-import eu.stratosphere.api.java.DataSet;
 import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.api.java.LocalEnvironment;
 import eu.stratosphere.api.java.RemoteEnvironment;
@@ -30,8 +29,8 @@ import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.function.FileSourceFunction;
 import eu.stratosphere.streaming.api.function.FileStreamFunction;
 import eu.stratosphere.streaming.api.function.FromElementsFunction;
-import eu.stratosphere.streaming.api.function.PrintSinkFunction;
 import eu.stratosphere.streaming.api.function.GenSequenceFunction;
+import eu.stratosphere.streaming.api.function.PrintSinkFunction;
 import eu.stratosphere.streaming.api.function.SinkFunction;
 import eu.stratosphere.streaming.api.function.SourceFunction;
 import eu.stratosphere.streaming.api.invokable.SinkInvokable;
@@ -57,7 +56,9 @@ public abstract class StreamExecutionEnvironment {
 
 	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
 
-	private int degreeOfParallelism = -1;
+	private int degreeOfParallelism = 1;
+
+	private int executionParallelism = -1;
 
 	protected JobGraphBuilder jobGraphBuilder;
 
@@ -79,15 +80,54 @@ public abstract class StreamExecutionEnvironment {
 		jobGraphBuilder = new JobGraphBuilder("jobGraph", FaultToleranceType.NONE);
 	}
 
-	public int getDegreeOfParallelism() {
-		return degreeOfParallelism;
+	public int getExecutionParallelism() {
+		return executionParallelism == -1 ? degreeOfParallelism : executionParallelism;
 	}
 
-	public void setDegreeOfParallelism(int degreeOfParallelism) {
+	/**
+	 * Gets the degree of parallelism with which operation are executed by
+	 * default. Operations can individually override this value to use a
+	 * specific degree of parallelism via {@link DataStream#setParallelism}.
+	 * 
+	 * @return The degree of parallelism used by operations, unless they
+	 *         override that value.
+	 */
+	public int getDegreeOfParallelism() {
+		return this.degreeOfParallelism;
+	}
+
+	/**
+	 * Sets the degree of parallelism (DOP) for operations executed through this
+	 * environment. Setting a DOP of x here will cause all operators (such as
+	 * map, batchReduce) to run with x parallel instances. This method overrides
+	 * the default parallelism for this environment. The
+	 * {@link LocalStreamEnvironment} uses by default a value equal to the
+	 * number of hardware contexts (CPU cores / threads). When executing the
+	 * program via the command line client from a JAR file, the default degree
+	 * of parallelism is the one configured for that setup.
+	 * 
+	 * @param degreeOfParallelism
+	 *            The degree of parallelism
+	 */
+	protected void setDegreeOfParallelism(int degreeOfParallelism) {
 		if (degreeOfParallelism < 1)
 			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
 
 		this.degreeOfParallelism = degreeOfParallelism;
+	}
+
+	/**
+	 * Sets the number of hardware contexts (CPU cores / threads) used when
+	 * executed in {@link LocalStreamEnvironment}.
+	 * 
+	 * @param degreeOfParallelism
+	 *            The degree of parallelism
+	 */
+	public void setExecutionParallelism(int degreeOfParallelism) {
+		if (degreeOfParallelism < 1)
+			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
+
+		this.executionParallelism = degreeOfParallelism;
 	}
 
 	public void setDefaultBatchSize(int batchSize) {
@@ -224,6 +264,10 @@ public abstract class StreamExecutionEnvironment {
 		return returnStream.copy();
 	}
 
+	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction) {
+		return addSource(sourceFunction, 1);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Data stream operators and sinks
 	// --------------------------------------------------------------------------------------------
@@ -250,11 +294,11 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	protected <T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName,
 			DataStream<T> inputStream, final AbstractFunction function,
-			UserTaskInvokable<T, R> functionInvokable, int parallelism) {
+			UserTaskInvokable<T, R> functionInvokable) {
 		DataStream<R> returnStream = new DataStream<R>(this, functionName);
 
 		jobGraphBuilder.setTask(returnStream.getId(), functionInvokable, functionName,
-				serializeToByteArray(function), parallelism);
+				serializeToByteArray(function), degreeOfParallelism);
 
 		connectGraph(inputStream, returnStream.getId());
 
@@ -276,11 +320,11 @@ public abstract class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	protected <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
-			SinkFunction<T> sinkFunction, int parallelism) {
+			SinkFunction<T> sinkFunction) {
 		DataStream<T> returnStream = new DataStream<T>(this, "sink");
 
 		jobGraphBuilder.setSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction), "sink",
-				serializeToByteArray(sinkFunction), parallelism);
+				serializeToByteArray(sinkFunction), degreeOfParallelism);
 
 		connectGraph(inputStream, returnStream.getId());
 
@@ -288,9 +332,9 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Writes a DataStream to the standard output stream (stdout).<br/>
-	 * For each element of the DataStream the result of
-	 * {@link Object#toString()} is written.
+	 * Writes a DataStream to the standard output stream (stdout). For each
+	 * element of the DataStream the result of {@link Object#toString()} is
+	 * written.
 	 * 
 	 * @param inputStream
 	 *            the input data stream
@@ -300,7 +344,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	protected <T extends Tuple> DataStream<T> print(DataStream<T> inputStream) {
-		DataStream<T> returnStream = addSink(inputStream, new PrintSinkFunction<T>(), 1);
+		DataStream<T> returnStream = addSink(inputStream, new PrintSinkFunction<T>());
 
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 
@@ -366,6 +410,8 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @param inputStream
 	 *            DataStream corresponding to the operator
+	 * @param <T>
+	 *            type of the operator
 	 */
 	protected <T extends Tuple> void setOperatorParallelism(DataStream<T> inputStream) {
 		jobGraphBuilder.setParallelism(inputStream.getId(), inputStream.dop);
@@ -439,12 +485,13 @@ public abstract class StreamExecutionEnvironment {
 		return lee;
 	}
 
+	// TODO:fix cluster default parallelism
 	/**
 	 * Creates a {@link RemoteStreamEnvironment}. The remote environment sends
 	 * (parts of) the program to a cluster for execution. Note that all file
 	 * paths used in the program must be accessible from the cluster. The
-	 * execution will use the cluster's default degree of parallelism, unless
-	 * the parallelism is set explicitly via {@link #setDegreeOfParallelism}.
+	 * execution will use no parallelism, unless the parallelism is set
+	 * explicitly via {@link #setDegreeOfParallelism}.
 	 * 
 	 * @param host
 	 *            The host name or address of the master (JobManager), where the

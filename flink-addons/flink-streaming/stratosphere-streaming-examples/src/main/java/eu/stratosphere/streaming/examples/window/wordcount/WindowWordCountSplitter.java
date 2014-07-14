@@ -15,11 +15,12 @@
 
 package eu.stratosphere.streaming.examples.window.wordcount;
 
+import eu.stratosphere.api.java.functions.FlatMapFunction;
+import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.util.Collector;
-import eu.stratosphere.api.java.functions.FlatMapFunction;
 
-public class WindowWordCountSplitter extends FlatMapFunction<Tuple2<String, Long>, Tuple2<String, Long>> {
+public class WindowWordCountSplitter extends FlatMapFunction<Tuple1<String>, Tuple2<String, Long>> {
 	private static final long serialVersionUID = 1L;
 	
 	private String[] words = new String[] {};
@@ -28,10 +29,10 @@ public class WindowWordCountSplitter extends FlatMapFunction<Tuple2<String, Long
 
 	// Splits the lines according to the spaces. And adds the line's timestamp to them.
 	@Override
-	public void flatMap(Tuple2<String, Long> inTuple, Collector<Tuple2<String, Long>> out) throws Exception {
+	public void flatMap(Tuple1<String> inTuple, Collector<Tuple2<String, Long>> out) throws Exception {
 
 		words=inTuple.f0.split(" ");
-		timestamp=inTuple.f1;
+		timestamp=System.currentTimeMillis();
 		for(String word : words){
 			outTuple.f0 = word;
 			outTuple.f1 = timestamp;
