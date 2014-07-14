@@ -13,22 +13,22 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api.invokable;
+package eu.stratosphere.streaming.test.batch;
 
-import eu.stratosphere.streaming.api.AtomRecord;
-import eu.stratosphere.streaming.api.StreamRecord;
-import eu.stratosphere.types.StringValue;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.test.util.TestBase2;
 
-public class DefaultSourceInvokable extends UserSourceInvokable {
+public class MyBatchStream extends TestBase2{
 
-  private String motto = "Stratosphere -- Big Data looks tiny from here";
-  private String[] mottoArray = motto.split(" ");
+	@Override
+	public JobGraph getJobGraph() {
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
+		graphBuilder.setSource("StreamSource", StreamSource.class);
+		graphBuilder.setSink("StreamSink", StreamSink.class);
 
-  @Override
-  public void invoke() throws Exception {
-    for (CharSequence word : mottoArray) {
-      emit(new StreamRecord(new AtomRecord(new StringValue(word))));
-    }
-  }
+		graphBuilder.broadcastConnect("StreamSource", "StreamSink");
 
+		return graphBuilder.getJobGraph();
+	}
 }

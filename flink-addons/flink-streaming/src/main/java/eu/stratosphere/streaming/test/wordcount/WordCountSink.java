@@ -28,8 +28,8 @@ public class WordCountSink implements UserSinkInvokable {
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
 
-		word = (StringValue) record.getField(0);
-		count = (IntValue) record.getField(1);
+		word = (StringValue) record.getField(0, 0);
+		count = (IntValue) record.getField(0, 1);
 
 		System.out.println(word.getValue() + " " + count.getValue());
 

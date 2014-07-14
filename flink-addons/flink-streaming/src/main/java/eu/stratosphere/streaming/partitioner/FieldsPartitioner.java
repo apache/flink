@@ -41,7 +41,8 @@ public class FieldsPartitioner implements ChannelSelector<StreamRecord> {
 		} catch (IllegalAccessException e) {
 			e.printStackTrace();
 		}
-		key = keyClass.cast(record.getField(keyPosition));
+		//TODO: consider hash partition the whole record batch.
+		key = keyClass.cast(record.getField(0, keyPosition));
 		return new int[] { Math.abs(key.hashCode()) % numberOfOutputChannels };
 	}
 }

@@ -13,22 +13,23 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api.invokable;
+package eu.stratosphere.streaming.test.batch;
 
-import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
 
-public class DefaultSourceInvokable extends UserSourceInvokable {
+public class StreamSink implements UserSinkInvokable {
 
-  private String motto = "Stratosphere -- Big Data looks tiny from here";
-  private String[] mottoArray = motto.split(" ");
+	private StringValue word = new StringValue("");
+	private IntValue count = new IntValue(1);
 
-  @Override
-  public void invoke() throws Exception {
-    for (CharSequence word : mottoArray) {
-      emit(new StreamRecord(new AtomRecord(new StringValue(word))));
-    }
-  }
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
+		word = (StringValue) record.getField(0, 0);
+		// count = (IntValue) record.getField(1);
+		System.out.println("========" + word.getValue() + "=========");
 
+	}
 }

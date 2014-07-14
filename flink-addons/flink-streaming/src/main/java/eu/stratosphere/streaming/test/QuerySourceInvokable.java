@@ -15,6 +15,7 @@
 
 package eu.stratosphere.streaming.test;
 
+import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.types.IntValue;
@@ -22,22 +23,26 @@ import eu.stratosphere.types.LongValue;
 
 public class QuerySourceInvokable extends UserSourceInvokable {
 
-  @Override
-  public void invoke() throws Exception {
-    for (int i = 0; i < 5; i++) {
-    	StreamRecord record1 = new StreamRecord(3);
-      record1.setField(0, new IntValue(5));
-      record1.setField(1, new LongValue(510));
-      record1.setField(2, new LongValue(100));
-
-      StreamRecord record2 = new StreamRecord(3);
-      record2.setField(0, new IntValue(4));
-      record2.setField(1, new LongValue(510));
-      record2.setField(2, new LongValue(100));
-
-      emit(record1);
-      emit(record2);
-    }
-  }
+	@Override
+	public void invoke() throws Exception {
+		for (int i = 0; i < 5; i++) {
+			StreamRecord batch1 = new StreamRecord(3);
+			AtomRecord record1 = new AtomRecord(3);
+			record1.setField(0, new IntValue(5));
+			record1.setField(1, new LongValue(510));
+			record1.setField(2, new LongValue(100));
+			batch1.addRecord(record1);
+			
+			StreamRecord batch2 = new StreamRecord(3);
+			AtomRecord record2=new AtomRecord(3);
+			record2.setField(0, new IntValue(4));
+			record2.setField(1, new LongValue(510));
+			record2.setField(2, new LongValue(100));
+			batch2.addRecord(record2);
+			
+			emit(batch1);
+			emit(batch2);
+		}
+	}
 
 }
