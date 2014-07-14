@@ -41,11 +41,13 @@ public class AckEventListener implements EventListener {
 	 *            ID of the task that creates the listener
 	 * @param recordBuffer
 	 *            The fault tolerance buffer associated with this task
+	 * @param output
+	 *            output channel
 	 */
 	public AckEventListener(String taskInstanceID, FaultToleranceUtil recordBuffer, int output) {
 		this.taskInstanceID = taskInstanceID;
 		this.recordBuffer = recordBuffer;
-		this.output=output;
+		this.output = output;
 	}
 
 	/**
@@ -59,9 +61,10 @@ public class AckEventListener implements EventListener {
 
 		if (ackChannelId.equals(taskInstanceID)) {
 			Long nt = System.nanoTime();
-			recordBuffer.ackRecord(ackEvent.getRecordId(),output);
+			recordBuffer.ackRecord(ackEvent.getRecordId(), output);
 
-			log.debug("ACK PROCESSED: "+output+" " + ackEvent.getRecordId() + " exec. time (ns): " + (System.nanoTime() - nt));
+			log.debug("ACK PROCESSED: " + output + " " + ackEvent.getRecordId()
+					+ " exec. time (ns): " + (System.nanoTime() - nt));
 		}
 	}
 }

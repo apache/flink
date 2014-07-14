@@ -41,6 +41,8 @@ public class FailEventListener implements EventListener {
 	 *            ID of the task that creates the listener
 	 * @param recordBuffer
 	 *            The fault tolerance buffer associated with this task
+	 * @param output
+	 *            output channel
 	 */
 	public FailEventListener(String taskInstanceID, FaultToleranceUtil recordBuffer, int output) {
 		this.taskInstanceID = taskInstanceID;

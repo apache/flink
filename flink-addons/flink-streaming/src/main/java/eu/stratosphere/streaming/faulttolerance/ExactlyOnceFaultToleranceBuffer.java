@@ -40,6 +40,7 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 		ackCounter.put(id, Arrays.copyOf(initialAckCounts, numberOfEffectiveChannels.length + 1));
 	}
 
+	@Override
 	protected void addToAckCounter(String id, int channel) {
 		int[] acks = new int[numberOfEffectiveChannels.length + 1];
 		acks[0] = numberOfEffectiveChannels.length - 1;

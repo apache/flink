@@ -45,9 +45,10 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	private StringValue uid = new StringValue("");
 	private int numOfFields;
 	private int numOfRecords;
-//	private Random rnd = new Random();
 
-	//TODO implement equals, clone
+	// private Random rnd = new Random();
+
+	// TODO implement equals, clone
 	/**
 	 * Creates a new empty batch of records and sets the field number to one
 	 */
@@ -120,7 +121,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public StreamRecord setId(String channelID) {
 		UUID uuid = UUID.randomUUID();
-		uid.setValue(channelID + "-" + uuid.toString());//rnd.nextInt(10));
+		uid.setValue(channelID + "-" + uuid.toString());// rnd.nextInt(10));
 		return this;
 	}
 
@@ -278,29 +279,29 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * Creates a copy of the StreamRecord
 	 * 
 	 * @return Copy of the StreamRecord
-	 * @throws IOException 
+	 * 
 	 */
-	//TODO:Fix record copy
+	// TODO:Fix record copy
 	public StreamRecord copy() {
 		StreamRecord copiedRecord = new StreamRecord(this.numOfFields, this.numOfRecords);
-		
+
 		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-		
+
 		DataOutputStream out = new DataOutputStream(byteStream);
-		
+
 		try {
 			this.write(out);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		DataInputStream in = new DataInputStream(new ByteArrayInputStream(byteStream.toByteArray()));
-		
+
 		try {
 			copiedRecord.read(in);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
 		return copiedRecord;
 	}
 
