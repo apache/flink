@@ -220,7 +220,14 @@ public class JobGraphBuilder {
 		}
 	}
 
-	public void setInstanceSharing() {
+	public void setInstanceSharing(String upStreamComponentName, String downStreamComponentName) {
+		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
+		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
+		
+		downStreamComponent.setVertexToShareInstancesWith(upStreamComponent);
+	}
+
+	public void setAutomaticInstanceSharing() {
 
 		AbstractJobVertex maxParallelismVertex = components.get(maxParallelismVertexName);
 
@@ -362,7 +369,7 @@ public class JobGraphBuilder {
 	 * @return The JobGraph object
 	 */
 	public JobGraph getJobGraph() {
-		setInstanceSharing();
+		setAutomaticInstanceSharing();
 		setNumberOfJobInputs();
 		setNumberOfJobOutputs();
 		return jobGraph;

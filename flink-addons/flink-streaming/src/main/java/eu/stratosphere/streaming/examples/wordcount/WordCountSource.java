@@ -39,7 +39,7 @@ public class WordCountSource extends UserSourceInvokable {
 
 		for (int i = 0; i < 2; i++) {
 			try {
-				br = new BufferedReader(new FileReader("/home/strato/strato-dist/resources/hamlet.txt"));
+				br = new BufferedReader(new FileReader("/home/strato/stratosphere-distrib/resources/hamlet.txt"));
 
 				line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
 				while (line != null) {
@@ -63,8 +63,8 @@ public class WordCountSource extends UserSourceInvokable {
 
 	@Override
 	public String getResult() {
-		pCounter.writeCSV("/home/strato/strato-dist/log/counter/Source" + channelID);
-		pTimer.writeCSV("/home/strato/strato-dist/log/timer/Source" + channelID);
+		pCounter.writeCSV("/home/strato/stratosphere-distrib/log/counter/Source" + channelID);
+		pTimer.writeCSV("/home/strato/stratosphere-distrib/log/timer/Source" + channelID);
 
 		return "";
 	}
