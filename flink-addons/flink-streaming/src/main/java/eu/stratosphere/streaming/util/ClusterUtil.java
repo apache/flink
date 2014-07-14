@@ -57,6 +57,7 @@ public class ClusterUtil {
 		try {
 			client.run(jobGraph, true);
 		} catch (ProgramInvocationException e) {
+			e.printStackTrace();
 		}
 	}
 

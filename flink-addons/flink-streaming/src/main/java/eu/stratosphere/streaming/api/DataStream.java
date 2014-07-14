@@ -17,7 +17,6 @@ package eu.stratosphere.streaming.api;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
@@ -29,9 +28,9 @@ import eu.stratosphere.types.TypeInformation;
 
 public class DataStream<T extends Tuple> {
 
+	private static Integer counter = 0;
 	private final StreamExecutionEnvironment environment;
 	private TypeInformation<T> type;
-	private final Random random = new Random();
 	private String id;
 	List<String> connectIDs;
 	List<ConnectionType> ctypes;
@@ -43,13 +42,14 @@ public class DataStream<T extends Tuple> {
 	 * 
 	 * @param environment
 	 */
-	protected DataStream(StreamExecutionEnvironment environment) {
+	protected DataStream(StreamExecutionEnvironment environment, String operatorType) {
 		if (environment == null) {
 			throw new NullPointerException("context is null");
 		}
 
 		// TODO add name based on component number an preferable sequential id
-		this.id = Long.toHexString(random.nextLong()) + Long.toHexString(random.nextLong());
+		counter++;
+		this.id = operatorType + "-" + counter.toString();
 		this.environment = environment;
 		initConnections();
 
@@ -61,8 +61,8 @@ public class DataStream<T extends Tuple> {
 	 * @param environment
 	 * @param id
 	 */
-	private DataStream(StreamExecutionEnvironment environment, String id) {
-		this(environment);
+	private DataStream(StreamExecutionEnvironment environment, String operatorType, String id) {
+		this.environment = environment;
 		this.id = id;
 	}
 
@@ -87,7 +87,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The DataStream copy.
 	 */
 	public DataStream<T> copy() {
-		DataStream<T> copiedStream = new DataStream<T>(environment, getId());
+		DataStream<T> copiedStream = new DataStream<T>(environment, "", getId());
 		copiedStream.type = this.type;
 
 		copiedStream.connectIDs = new ArrayList<String>(this.connectIDs);
@@ -137,13 +137,21 @@ public class DataStream<T extends Tuple> {
 	 *            The DataStream to connect output with.
 	 * @return The connected DataStream.
 	 */
-	public DataStream<T> connectWith(DataStream<T> stream) {
+	public DataStream<T> connectWith(DataStream<T>... streams) {
 		DataStream<T> returnStream = copy();
 
+		for (DataStream<T> stream : streams) {
+			addConnection(returnStream, stream);
+		}
+		return returnStream;
+	}
+
+	public DataStream<T> addConnection(DataStream<T> returnStream, DataStream<T> stream) {
 		returnStream.connectIDs.addAll(stream.connectIDs);
 		returnStream.ctypes.addAll(stream.ctypes);
 		returnStream.cparams.addAll(stream.cparams);
 		returnStream.batchSizes.addAll(stream.batchSizes);
+
 		return returnStream;
 	}
 

@@ -15,7 +15,7 @@
 
 package eu.stratosphere.streaming.partitioner;
 
-import eu.stratosphere.runtime.io.api.ChannelSelector;
+import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class BroadcastPartitioner implements ChannelSelector<StreamRecord> {

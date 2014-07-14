@@ -15,7 +15,7 @@
 
 package eu.stratosphere.streaming.api;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,12 +24,12 @@ import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.runtime.io.api.RecordWriter;
+import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.streaming.api.streamcomponent.MockRecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.util.MockRecordWriterFactory;
 
-public class StreamCollector2Test {
+public class StreamCollectorManagerTest {
 
 	StreamCollectorManager<Tuple> collector;
 	
@@ -55,9 +55,7 @@ public class StreamCollector2Test {
 		fOut.add(rw2);
 		
 		collector = new StreamCollectorManager<Tuple>(batchSizesOfNotPartitioned, batchSizesOfPartitioned, parallelismOfOutput, keyPosition, batchTimeout, channelID, null, fOut,fOut);
-	
 		Tuple1<Integer> t = new Tuple1<Integer>();
-		StreamCollector<Tuple> sc1 = new StreamCollector<Tuple>(1, batchTimeout, channelID, null);
 		
 		t.f0 = 0;
 		collector.collect(t);
