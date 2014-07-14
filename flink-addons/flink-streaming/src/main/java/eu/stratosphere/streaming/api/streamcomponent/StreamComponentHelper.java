@@ -34,6 +34,7 @@ import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
 import eu.stratosphere.streaming.api.invokable.RecordInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.api.streamrecord.UID;
 import eu.stratosphere.streaming.faulttolerance.AckEvent;
 import eu.stratosphere.streaming.faulttolerance.AckEventListener;
 import eu.stratosphere.streaming.faulttolerance.FailEvent;
@@ -187,7 +188,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				if (input.hasNext()) {
 					hasInput = true;
 					StreamRecord record = input.next();
-//					UID id = record.getId();
+					UID id = record.getId();
 					userFunction.invoke(record);
 //					threadSafePublish(new AckEvent(id), input);
 //					log.debug("ACK: " + id + " -- " + name);
