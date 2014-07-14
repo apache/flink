@@ -17,121 +17,72 @@ package eu.stratosphere.streaming.api;
 
 import static org.junit.Assert.assertTrue;
 
-import java.io.ByteArrayInputStream;
-import java.io.ObjectInputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
-import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
-import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
-import eu.stratosphere.nephele.jobgraph.JobInputVertex;
-import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
-import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.api.streamcomponent.StreamInvokableComponent;
+
 import eu.stratosphere.util.Collector;
 
 public class MapTest {
 
-	public static final class MyMap extends MapFunction<Tuple1<String>, Tuple1<String>> {
+	public static final class MySource extends SourceFunction<Tuple1<Integer>> {
+
 		@Override
-		public Tuple1<String> map(Tuple1<String> value) throws Exception {
-			System.out.println("map");
-			return value;
+		public void invoke(Collector<Tuple1<Integer>> collector)
+				throws Exception {
+			for(int i=0; i<10; i++){
+				collector.collect(new Tuple1<Integer>(i));
+			}
+		}
+	}
+	
+	public static final class MyMap extends MapFunction<Tuple1<Integer>,Tuple1<Integer>> {
+
+		@Override
+		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
+			// TODO Auto-generated method stub
+			return new Tuple1<Integer>(value.f0*value.f0);
+		}
+	}
+	
+	public static final class MySink extends SinkFunction<Tuple1<Integer>> {
+
+		@Override
+		public void invoke(Tuple1<Integer> tuple) {
+			result.add(tuple.f0);
+			System.out.println("result " + tuple.f0);
 		}
 	}
 
+	private static List<Integer> expected = new ArrayList<Integer>();
+	private static List<Integer> result = new ArrayList<Integer>();
 	private static final int PARALELISM = 1;
 
+	private static void fillExpectedList(){
+		for(int i=0;i<10;i++){
+			expected.add(i*i);
+			System.out.println("expected " + i*i);
+		}
+	}
+	
 	@Test
 	public void test() throws Exception {
-		Tuple1<String> tup = new Tuple1<String>("asd");
-
+		
 		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 
-		DataStream<Tuple1<String>> dataStream = context.addDummySource().map(new MyMap(), PARALELISM)
-				.addDummySink();
+		DataStream<Tuple1<Integer>> dataStream = context
+				.addSource(new MySource(), 1)
+				.map(new MyMap(), PARALELISM)
+				.addSink(new MySink());
 
 		context.execute();
+		
+		fillExpectedList();
 
-		JobGraphBuilder jgb = context.jobGB();
-
-		for (AbstractJobVertex c : jgb.components.values()) {
-			if (c instanceof JobTaskVertex) {
-				Configuration config = c.getConfiguration();
-				System.out.println(config.getString("componentName", "default"));
-				byte[] bytes = config.getBytes("operator", null);
-
-				ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes));
-
-				MapFunction<Tuple, Tuple> f = (MapFunction<Tuple, Tuple>) in.readObject();
-
-				StreamCollector<Tuple> s = new StreamCollector<Tuple>(1, 1000, 1, null);
-				Tuple t = new Tuple1<String>("asd");
-
-				s.collect(f.map(t));
-
-				System.out.println(f.getClass().getGenericSuperclass());
-				TupleTypeInfo<Tuple> ts = (TupleTypeInfo) TypeExtractor.createTypeInfo(
-						MapFunction.class, f.getClass(), 0, null, null);
-
-				System.out.println(ts);
-
-				byte[] userFunctionSerialized = config.getBytes("serializedudf", null);
-				in = new ObjectInputStream(new ByteArrayInputStream(userFunctionSerialized));
-				UserTaskInvokable userFunction = (UserTaskInvokable) in.readObject();
-				System.out.println(userFunction.getClass());
-				assertTrue(true);
-				System.out.println("----------------");
-			}
-
-			if (c instanceof JobOutputVertex) {
-				Configuration config = c.getConfiguration();
-				System.out.println(config.getString("componentName", "default"));
-				byte[] bytes = config.getBytes("operator", null);
-
-				ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes));
-
-				SinkFunction<Tuple> f = (SinkFunction<Tuple>) in.readObject();
-
-				System.out.println(f.getClass().getGenericSuperclass());
-				TupleTypeInfo<Tuple> ts = (TupleTypeInfo) TypeExtractor.createTypeInfo(
-						SinkFunction.class, f.getClass(), 0, null, null);
-
-				System.out.println(ts);
-
-				byte[] userFunctionSerialized = config.getBytes("serializedudf", null);
-				in = new ObjectInputStream(new ByteArrayInputStream(userFunctionSerialized));
-				UserSinkInvokable userFunction = (UserSinkInvokable) in.readObject();
-				System.out.println(userFunction.getClass());
-				assertTrue(true);
-				System.out.println("----------------");
-			}
-
-			if (c instanceof JobInputVertex) {
-				Configuration config = c.getConfiguration();
-				System.out.println(config.getString("componentName", "default"));
-				byte[] bytes = config.getBytes("operator", null);
-
-				ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes));
-
-				UserSourceInvokable<Tuple> f = (UserSourceInvokable<Tuple>) in.readObject();
-
-				System.out.println(f.getClass().getGenericSuperclass());
-				TupleTypeInfo<Tuple> ts = (TupleTypeInfo) TypeExtractor.createTypeInfo(
-						UserSourceInvokable.class, f.getClass(), 0, null, null);
-
-				System.out.println(ts);
-				System.out.println("----------------");
-			}
-		}
+		assertTrue(expected.equals(result));
 	}
 }
