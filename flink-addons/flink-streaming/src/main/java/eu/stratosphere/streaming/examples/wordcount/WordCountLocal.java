@@ -30,9 +30,9 @@ public class WordCountLocal {
 		@SuppressWarnings("unused")
 		DataStream<Tuple2<String, Integer>> dataStream = env
 				.readTextFile("src/test/resources/testdata/hamlet.txt")
-				.flatMap(new WordCountSplitter())
+				.flatMap(new WordCountSplitter(), 1)
 				.partitionBy(0)
-				.map(new WordCountCounter())
+				.map(new WordCountCounter(), 1)
 				.addSink(new WordCountSink());
 		
 		env.execute();

@@ -159,19 +159,22 @@ public class IncrementalOLS {
 		}
 	}
 
+	private static final int PARALELISM = 1;
+	private static final int SOURCE_PARALELISM = 1;
+
 	public static void main(String[] args) {
 
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
 		DataStream<Tuple2<Boolean, Double[]>> model = 
-				env.addSource(new TrainingDataSource())
-					.map(new PartialModelBuilder())
+				env.addSource(new TrainingDataSource(), SOURCE_PARALELISM)
+					.map(new PartialModelBuilder(), PARALELISM)
 					.broadcast();
 		
 		DataStream<Tuple1<Double>> prediction =
-				env.addSource(new NewDataSource())
+				env.addSource(new NewDataSource(), SOURCE_PARALELISM)
 					.connectWith(model)
-					.map(new Predictor())
+					.map(new Predictor(), PARALELISM)
 					.addSink(new IncOLSSink());
 		
 		env.execute();

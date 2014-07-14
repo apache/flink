@@ -25,6 +25,8 @@ import eu.stratosphere.util.Collector;
 
 public class BatchTest {
 
+	private static final int PARALELISM = 1;
+	private static final int SOURCE_PARALELISM = 1;
 	private static int count = 0;
 	
 	private static final class MySource extends SourceFunction<Tuple1<String>> {
@@ -61,11 +63,11 @@ public class BatchTest {
 		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 
 		DataStream<Tuple1<String>> dataStream = context
-				.addSource(new MySource())
-				.flatMap(new MyMap()).batch(4)
-				.flatMap(new MyMap()).batch(2)
-				.flatMap(new MyMap()).batch(5)
-				.flatMap(new MyMap()).batch(4)
+				.addSource(new MySource(), SOURCE_PARALELISM)
+				.flatMap(new MyMap(), PARALELISM).batch(4)
+				.flatMap(new MyMap(), PARALELISM).batch(2)
+				.flatMap(new MyMap(), PARALELISM).batch(5)
+				.flatMap(new MyMap(), PARALELISM).batch(4)
 				.addSink(new MySink());
 
 		context.execute();

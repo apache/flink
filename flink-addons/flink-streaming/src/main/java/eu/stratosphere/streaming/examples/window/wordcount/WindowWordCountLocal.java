@@ -21,15 +21,18 @@ import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
 
 public class WindowWordCountLocal {
 
+	private static final int PARALELISM = 1;
+	private static final int SOURCE_PARALELISM = 1;
+
 	public static void main(String[] args) {
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 		
 		@SuppressWarnings("unused")
 		DataStream<Tuple3<String, Integer, Long>> dataStream = env
-				.addSource(new WindowWordCountSource())
-				.flatMap(new WindowWordCountSplitter())
+				.addSource(new WindowWordCountSource(), SOURCE_PARALELISM)
+				.flatMap(new WindowWordCountSplitter(), PARALELISM)
 				.partitionBy(0)
-				.flatMap(new WindowWordCountCounter())
+				.flatMap(new WindowWordCountCounter(), PARALELISM)
 				.addSink(new WindowWordCountSink());
 		
 		env.execute();

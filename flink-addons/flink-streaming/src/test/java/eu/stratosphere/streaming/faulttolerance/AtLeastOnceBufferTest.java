@@ -110,7 +110,8 @@ public class AtLeastOnceBufferTest {
 	public void testAdd() {
 
 		StreamRecord record1 = new ArrayStreamRecord(1).setId(1);
-
+		record1.setTuple(0, new Tuple1<String>("R1"));
+		
 		UID id1 = record1.getId().copy();
 
 		Long nt = System.nanoTime();
@@ -132,7 +133,8 @@ public class AtLeastOnceBufferTest {
 		buffer.add(record1);
 		System.out.println(id1);
 		System.out.println(buffer.ackCounter);
-		
+		System.out.println(buffer.recordBuffer);
+
 		assertEquals((Integer) 3, buffer.ackCounter.get(id1));
 		assertEquals((Integer) 3, buffer.ackCounter.get(id2));
 

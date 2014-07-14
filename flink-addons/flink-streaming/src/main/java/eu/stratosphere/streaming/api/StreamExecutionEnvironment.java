@@ -97,7 +97,7 @@ public class StreamExecutionEnvironment {
 
 	public <T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName,
 			DataStream<T> inputStream, final AbstractFunction function,
-			UserTaskInvokable<T, R> functionInvokable) {
+			UserTaskInvokable<T, R> functionInvokable, int paralelism) {
 		DataStream<R> returnStream = new DataStream<R>(this);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -110,13 +110,19 @@ public class StreamExecutionEnvironment {
 		}
 
 		jobGraphBuilder.setTask(returnStream.getId(), functionInvokable, functionName,
-				baos.toByteArray());
+				baos.toByteArray(),paralelism,paralelism);
 
 		connectGraph(inputStream, returnStream.getId());
 
 		return returnStream;
 	}
 
+	public <T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName,
+			DataStream<T> inputStream, final AbstractFunction function,
+			UserTaskInvokable<T, R> functionInvokable) {
+		return addFunction(functionName, inputStream, function, functionInvokable, 1);
+	}
+	
 	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
 			SinkFunction<T> sinkFunction) {
 		DataStream<T> returnStream = new DataStream<T>(this);
@@ -132,7 +138,7 @@ public class StreamExecutionEnvironment {
 		}
 
 		jobGraphBuilder.setSink("sink", new SinkInvokable<T>(sinkFunction), "sink",
-				baos.toByteArray());
+				baos.toByteArray(),1,1);
 
 		connectGraph(inputStream, "sink");
 
@@ -158,7 +164,7 @@ public class StreamExecutionEnvironment {
 		ClusterUtil.runOnMiniCluster(jobGraphBuilder.getJobGraph());
 	}
 
-	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction) {
+	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction, int parallelism) {
 		DataStream<T> returnStream = new DataStream<T>(this);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -172,13 +178,13 @@ public class StreamExecutionEnvironment {
 		}
 
 		jobGraphBuilder.setSource(returnStream.getId(), sourceFunction, "source",
-				baos.toByteArray());
+				baos.toByteArray(),parallelism,parallelism);
 
 		return returnStream;
 	}
 
 	public DataStream<Tuple1<String>> readTextFile(String path) {
-		return addSource(new FileSourceFunction(path));
+		return addSource(new FileSourceFunction(path),1);
 	}
 
 	public DataStream<Tuple1<String>> addDummySource() {
@@ -195,7 +201,7 @@ public class StreamExecutionEnvironment {
 		}
 
 		jobGraphBuilder.setSource(returnStream.getId(), new DummySource(), "source",
-				baos.toByteArray());
+				baos.toByteArray(),1,1);
 		return returnStream;
 	}
 

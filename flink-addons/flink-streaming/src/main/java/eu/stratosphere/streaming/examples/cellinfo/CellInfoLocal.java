@@ -30,6 +30,8 @@ public class CellInfoLocal {
 	private static Random rand = new Random();
 	private final static int CELL_COUNT = 10;
 	private final static int LAST_MILLIS = 1000;
+	private static final int PARALELISM = 1;
+	private static final int SOURCE_PARALELISM = 1;
 
 	private final static class QuerySource extends
 			SourceFunction<Tuple4<Boolean, Integer, Long, Integer>> {
@@ -109,10 +111,10 @@ public class CellInfoLocal {
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
 		DataStream<Tuple4<Boolean, Integer, Long, Integer>> querySource = env
-				.addSource(new QuerySource());
+				.addSource(new QuerySource(), SOURCE_PARALELISM);
 
-		DataStream<Tuple1<String>> stream = env.addSource(new InfoSource())
-				.connectWith(querySource).partitionBy(1).flatMap(new CellTask()).addDummySink();
+		DataStream<Tuple1<String>> stream = env.addSource(new InfoSource(), SOURCE_PARALELISM)
+				.connectWith(querySource).partitionBy(1).flatMap(new CellTask(), PARALELISM).addDummySink();
 
 		env.execute();
 	}
