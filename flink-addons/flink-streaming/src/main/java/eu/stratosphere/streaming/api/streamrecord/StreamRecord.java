@@ -1149,7 +1149,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	Class[] tupleBasicTypesFromString(String representation, int numberOfFields) {
 		// TODO: use StringTokenizer
 		String[] types = representation.split(",");
-		@SuppressWarnings("rawtypes")
 		Class[] basicTypes = new Class[types.length];
 		for (int i = 0; i < types.length; i++) {
 			try {
