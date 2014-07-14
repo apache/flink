@@ -72,6 +72,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	private UID uid = new UID();
 	private int numOfFields;
 	private int numOfTuples;
+	private int batchSize;
 
 	private static final Class<?>[] CLASSES = new Class<?>[] { Tuple1.class, Tuple2.class, Tuple3.class, Tuple4.class,
 			Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class, Tuple9.class, Tuple10.class, Tuple11.class,
@@ -95,6 +96,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	public StreamRecord(int numOfFields, int batchSize) {
 		this.numOfFields = numOfFields;
 		this.numOfTuples = 0;
+		this.batchSize = batchSize;
 		tupleBatch = new ArrayList<Tuple>(batchSize);
 
 	}
@@ -111,6 +113,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	public StreamRecord(Tuple tuple, int batchSize) {
 		numOfFields = tuple.getArity();
 		numOfTuples = 1;
+		this.batchSize = batchSize;
 		tupleBatch = new ArrayList<Tuple>(batchSize);
 		tupleBatch.add(tuple);
 
@@ -158,6 +161,14 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	public StreamRecord setId(int channelID) {
 		uid = new UID(channelID);
 		return this;
+	}
+	
+	public void InitRecords(){
+		tupleBatch.clear();
+		for(int i=0;i<batchSize;i++){
+			tupleBatch.add(null);
+		}
+		numOfTuples = batchSize;
 	}
 
 	/**
