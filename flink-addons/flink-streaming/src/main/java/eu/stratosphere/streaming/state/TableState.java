@@ -15,43 +15,15 @@
 
 package eu.stratosphere.streaming.state;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 /**
- * The most general internal state that stores data in a mutable map.
+ * An internal state interface that supports stateful operator.
  */
-public class MutableInternalState<K, V> implements InternalState<K, V> {
-
-	private Map<K, V> state=new LinkedHashMap<K, V>();
-	@Override
-	public void put(K key, V value) {
-		// TODO Auto-generated method stub
-		state.put(key, value);
-	}
-
-	@Override
-	public V get(K key) {
-		// TODO Auto-generated method stub
-		return state.get(key);
-	}
-
-	@Override
-	public void delete(K key) {
-		// TODO Auto-generated method stub
-		state.remove(key);
-	}
-
-	@Override
-	public boolean containsKey(K key) {
-		// TODO Auto-generated method stub
-		return state.containsKey(key);
-	}
-
-	@Override
-	public StateIterator<K, V> getIterator() {
-		// TODO Auto-generated method stub
-		return new MutableStateIterator<K, V>(state.entrySet().iterator());
-	}
-
+public interface TableState<K, V> {
+	public void put(K key, V value);
+	public V get(K key);
+	public void delete(K key);
+	public boolean containsKey(K key);
+	public String serialize();
+	public void deserialize(String str);
+	public TableStateIterator<K, V> getIterator();
 }

@@ -80,12 +80,10 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			Tuple14.class, Tuple15.class, Tuple16.class, Tuple17.class, Tuple18.class,
 			Tuple19.class, Tuple20.class, Tuple21.class, Tuple22.class };
 
-	// TODO implement equals, clone
 	/**
 	 * Creates a new empty instance for read
 	 */
-	public StreamRecord() {
-	}
+	public StreamRecord() {}
 
 	/**
 	 * Creates empty StreamRecord with number of fields set
@@ -97,7 +95,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		this.numOfFields = numOfFields;
 		this.numOfTuples = 0;
 		tupleBatch = new ArrayList<Tuple>();
-
 	}
 
 	/**
@@ -113,7 +110,16 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		this.numOfTuples = 0;
 		this.batchSize = batchSize;
 		tupleBatch = new ArrayList<Tuple>(batchSize);
-
+	}
+	
+	public StreamRecord(StreamRecord record) {
+		this.numOfFields = record.getNumOfFields();
+		this.numOfTuples = 0;
+		tupleBatch = new ArrayList<Tuple>();
+		this.uid = new UID(Arrays.copyOf(record.getId().getId(), 20));
+		for (int i = 0; i < record.getNumOfTuples(); ++i) {
+			this.tupleBatch.add(copyTuple(record.getTuple(i)));
+		}
 	}
 
 	/**
@@ -145,6 +151,10 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		this(tuple, 1);
 	}
 
+	public boolean isEmpty(){
+		return (this.numOfTuples==0);
+	}
+	
 	/**
 	 * @return Number of fields in the tuples
 	 */
@@ -929,6 +939,35 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw new TupleSizeMismatchException();
 		}
 	}
+	
+	/**
+	 * Checks if the number of fields are equal to the batch field size then
+	 * adds the shadow copy of Tuple to the end of the batch
+	 * 
+	 * @param tuple
+	 *            Tuple to be added as the next record of the batch
+	 */
+	public void addShadowTuple(Tuple tuple) throws TupleSizeMismatchException {
+		addShadowTuple(numOfTuples, tuple);
+	}
+
+	/**
+	 * Checks if the number of fields are equal to the batch field size then
+	 * inserts the shadow copy of Tuple to the given position into the recordbatch
+	 * 
+	 * @param index
+	 *            Position of the added tuple
+	 * @param tuple
+	 *            Tuple to be added as the next record of the batch
+	 */
+	public void addShadowTuple(int index, Tuple tuple) throws TupleSizeMismatchException {
+		if (tuple.getArity() == numOfFields) {
+			tupleBatch.add(index, tuple);
+			numOfTuples++;
+		} else {
+			throw new TupleSizeMismatchException();
+		}
+	}	
 
 	/**
 	 * Creates a copy of the StreamRecord object by Serializing and
@@ -1028,6 +1067,17 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		return newTuple;
 	}
 
+	/**
+	 * copy tuples from the given record and append them to the end.
+	 * 
+	 * @param record
+	 */
+	public void appendRecord(StreamRecord record){
+		for(int i=0; i<record.getNumOfTuples(); ++i){
+			this.addTuple(record.getTuple(i));
+		}
+	}
+	
 	/**
 	 * Converts tuple field types to a byte array
 	 * 

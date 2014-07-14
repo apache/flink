@@ -13,21 +13,23 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.state;
+package eu.stratosphere.streaming.index;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import org.junit.Test;
 
-public class WindowStateIterator<K>{
+import eu.stratosphere.streaming.index.BTreeIndex;
+import eu.stratosphere.streaming.index.IndexPair;
 
-	public boolean hasNext() {
-		// TODO Auto-generated method stub
-		return false;
+public class BTreeIndexTest {
+	
+	@Test
+	public void bTreeIndexOperationTest(){
+		BTreeIndex<String, IndexPair> btree=new BTreeIndex<String, IndexPair>();
+		btree.put("abc", new IndexPair(7, 3));
+		btree.put("abc", new IndexPair(1, 2));
+		btree.put("def", new IndexPair(6, 3));
+		btree.put("ghi", new IndexPair(3, 6));
+		btree.put("jkl", new IndexPair(4, 7));
+		System.out.println(btree.get("abc").blockId+", "+btree.get("abc").entryId);
 	}
-
-	public Tuple2<K, StreamRecord> next() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
 }

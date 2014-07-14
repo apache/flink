@@ -15,13 +15,32 @@
 
 package eu.stratosphere.streaming.state;
 
-/**
- * An internal state interface that supports stateful operator.
- */
-public interface InternalState<K, V> {
-	public void put(K key, V value);
-	public V get(K key);
-	public void delete(K key);
-	public boolean containsKey(K key);
-	public StateIterator<K, V> getIterator();
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map.Entry;
+
+import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.streaming.index.IndexPair;
+
+public class LogTableStateIterator<K, V> implements TableStateIterator<K ,V>{
+
+	private Iterator<Entry<K, IndexPair>> iterator;
+	private HashMap<Integer, ArrayList<V>> blockList;
+	public LogTableStateIterator(Iterator<Entry<K, IndexPair>> iter, HashMap<Integer, ArrayList<V>> blocks){
+		iterator=iter;
+		blockList=blocks;
+	}
+	@Override
+	public boolean hasNext() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public Tuple2<K, V> next() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	
 }
