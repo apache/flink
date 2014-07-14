@@ -32,7 +32,7 @@ public class CellInfoLocal {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
 		graphBuilder.setSource("infoSource", InfoSource.class);
 		graphBuilder.setSource("querySource", QuerySource.class);
-		graphBuilder.setTask("cellTask", CellTask.class, 3);
+		graphBuilder.setTask("cellTask", CellTask.class, 3, 1);
 		graphBuilder.setSink("sink", CellSink.class);
 
 		graphBuilder.fieldsConnect("infoSource", "cellTask", 0);
