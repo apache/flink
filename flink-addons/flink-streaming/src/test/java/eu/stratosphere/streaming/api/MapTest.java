@@ -45,6 +45,7 @@ public class MapTest {
 
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
+			System.out.println("src1");
 			for (int i = 0; i < 5; i++) {
 				collector.collect(new Tuple1<Integer>(i));
 			}
@@ -55,6 +56,7 @@ public class MapTest {
 
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
+			System.out.println("src2");
 			for (int i = 5; i < 10; i++) {
 				collector.collect(new Tuple1<Integer>(i));
 			}
@@ -65,6 +67,7 @@ public class MapTest {
 
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
+			System.out.println("src3");
 			for (int i = 10; i < 15; i++) {
 				collector.collect(new Tuple1<Integer>(i));
 			}
@@ -80,11 +83,20 @@ public class MapTest {
 		}
 	}
 	
-	public static final class MyJoinMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+	public static final class MySingleJoinMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
 
 		@Override
 		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
-			joinSetResult.add(value.f0);
+			singleJoinSetResult.add(value.f0);
+			return new Tuple1<Integer>(value.f0);
+		}
+	}
+	
+	public static final class MyMultipleJoinMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+
+		@Override
+		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
+			multipleJoinSetResult.add(value.f0);
 			return new Tuple1<Integer>(value.f0);
 		}
 	}
@@ -187,7 +199,8 @@ public class MapTest {
 	private static Set<Integer> fromCollectionDiffFieldsSet = new HashSet<Integer>();
 	private static Set<Integer> singleJoinSetExpected = new HashSet<Integer>();
 	private static Set<Integer> multipleJoinSetExpected = new HashSet<Integer>();
-	private static Set<Integer> joinSetResult = new HashSet<Integer>();
+	private static Set<Integer> singleJoinSetResult = new HashSet<Integer>();
+	private static Set<Integer> multipleJoinSetResult = new HashSet<Integer>();
 
 	private static void fillExpectedList() {
 		for (int i = 0; i < 10; i++) {
@@ -235,7 +248,8 @@ public class MapTest {
 
 	@Test
 	public void mapTest() throws Exception {
-
+		
+		//mapTest
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
 		fillFromCollectionSet();
@@ -243,45 +257,97 @@ public class MapTest {
 		DataStream<Tuple1<Integer>> dataStream = env.fromCollection(fromCollectionSet)
 				.map(new MyMap(), PARALELISM).addSink(new MySink());
 
-		env.execute();
 
 		fillExpectedList();
-
-		assertTrue(expected.equals(result));
-	}
-
-	@Test
-	public void broadcastSinkTest() throws Exception {
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 		
+	
+		//broadcastSinkTest
 		fillFromCollectionSet();
 		
-		DataStream<Tuple1<Integer>> dataStream = env
+		DataStream<Tuple1<Integer>> dataStream1 = env
 				.fromCollection(fromCollectionSet)
 				.broadcast()
 				.map(new MyMap(), 3)
 				.addSink(new MyBroadcastSink());
-
-		env.execute();
-		assertEquals(30, broadcastResult);
-
-	}
-
-	@Test
-	public void shuffleSinkTest() throws Exception {
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 		
+
+		//shuffleSinkTest
 		fillFromCollectionSet();
 		
-		DataStream<Tuple1<Integer>> dataStream = env
+		DataStream<Tuple1<Integer>> dataStream2 = env
 				.fromCollection(fromCollectionSet)
 				.map(new MyMap(), 3)
 				.addSink(new MyShufflesSink());
+
+		
+		//fieldsMapTest
+		fillFromCollectionFieldsSet();
+		
+		DataStream<Tuple1<Integer>> dataStream3 = env
+				.fromCollection(fromCollectionFields)
+				.partitionBy(0)
+				.map(new MyFieldsMap(), 3)
+				.addSink(new MyFieldsSink());
+
+		
+		//diffFieldsMapTest
+		fillFromCollectionDiffFieldsSet();
+		
+		DataStream<Tuple1<Integer>> dataStream4 = env
+				.fromCollection(fromCollectionDiffFieldsSet)
+				.partitionBy(0)
+				.map(new MyDiffFieldsMap(), 3)
+				.addSink(new MyDiffFieldsSink());
+	
+		
+		//singleConnectWithTest
+		DataStream<Tuple1<Integer>> source1 = env.addSource(new MySource1(),
+				1);
+		
+		DataStream<Tuple1<Integer>> source2 = env
+				.addSource(new MySource2(), 1)
+				.connectWith(source1)
+				.partitionBy(0)
+				.map(new MySingleJoinMap(), 1)
+				.addSink(new JoinSink());
+
+		
+		fillSingleJoinSet();
+		
+		
+		//multipleConnectWithTest
+		DataStream<Tuple1<Integer>> source3 = env.addSource(new MySource1(),
+				1);
+		
+		DataStream<Tuple1<Integer>> source4 = env.addSource(new MySource2(),
+				1);
+		DataStream<Tuple1<Integer>> source5 = env
+				.addSource(new MySource3(), 1)
+				.connectWith(source3, source4)
+				.partitionBy(0)
+				.map(new MyMultipleJoinMap(), 1)
+				.addSink(new JoinSink());
+
 		env.execute();
+		
+		fillMultipleJoinSet();
+		
+		assertTrue(expected.equals(result));
+		assertEquals(30, broadcastResult);
 		assertEquals(10, shuffleResult);
-
+		assertTrue(allInOne);
+		assertTrue(threeInAll);
+		assertEquals(9, diffFieldsResult);
+		assertEquals(singleJoinSetExpected, singleJoinSetResult);
+		assertEquals(multipleJoinSetExpected, multipleJoinSetResult);
+		
+		
+		
+		
+		
+		
 	}
-
+	
 //	@Test
 //	public void fieldsSinkTest() throws Exception {
 //		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
@@ -295,42 +361,7 @@ public class MapTest {
 //		assertEquals(10, fieldsResult);
 //
 //	}
-
-	@Test
-	public void fieldsMapTest() throws Exception {
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-		
-		fillFromCollectionFieldsSet();
-		
-		DataStream<Tuple1<Integer>> dataStream = env
-				.fromCollection(fromCollectionFields)
-				.partitionBy(0)
-				.map(new MyFieldsMap(), 3)
-				.addSink(new MyFieldsSink());
-
-		env.execute();
-		assertTrue(allInOne);
-
-	}
 	
-	@Test
-	public void diffFieldsMapTest() throws Exception {
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-		
-		fillFromCollectionDiffFieldsSet();
-		
-		DataStream<Tuple1<Integer>> dataStream = env
-				.fromCollection(fromCollectionDiffFieldsSet)
-				.partitionBy(0)
-				.map(new MyDiffFieldsMap(), 3)
-				.addSink(new MyDiffFieldsSink());
-
-		env.execute();
-		assertTrue(threeInAll);
-		assertEquals(9, diffFieldsResult);
-
-	}
-
 //	@Test
 //	public void graphTest() throws Exception {
 //		for(int i=0; i<1000; i++){
@@ -350,51 +381,5 @@ public class MapTest {
 //		}
 //		
 //	}
-	
-	@Test
-	public void singleConnectWithTest() throws Exception {
-		
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-
-		DataStream<Tuple1<Integer>> source1 = env.addSource(new MySource1(),
-				1);
-		
-		DataStream<Tuple1<Integer>> source2 = env
-				.addSource(new MySource2(), 1)
-				.connectWith(source1)
-				.partitionBy(0)
-				.map(new MyJoinMap(), 1)
-				.addSink(new JoinSink());
-
-		env.execute();
-		
-		fillSingleJoinSet();
-		
-		assertEquals(singleJoinSetExpected, joinSetResult);
-	}
-	
-	@Test
-	public void multipleConnectWithTest() throws Exception {
-		
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-
-		DataStream<Tuple1<Integer>> source1 = env.addSource(new MySource1(),
-				1);
-		
-		DataStream<Tuple1<Integer>> source2 = env.addSource(new MySource2(),
-				1);
-		DataStream<Tuple1<Integer>> source3 = env
-				.addSource(new MySource3(), 1)
-				.connectWith(source1, source2)
-				.partitionBy(0)
-				.map(new MyJoinMap(), 1)
-				.addSink(new JoinSink());
-
-		env.execute();
-		
-		fillMultipleJoinSet();
-		
-		assertEquals(multipleJoinSetExpected, joinSetResult);
-	}
 
 }
