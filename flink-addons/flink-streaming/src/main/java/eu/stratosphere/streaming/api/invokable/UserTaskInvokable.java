@@ -16,6 +16,7 @@
 package eu.stratosphere.streaming.api.invokable;
 
 import eu.stratosphere.streaming.api.StreamRecord;
+import eu.stratosphere.streaming.api.streamcomponent.StreamInvokable;
 
 public abstract class UserTaskInvokable extends StreamInvokable {
 	
