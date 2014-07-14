@@ -47,6 +47,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	private int numOfRecords;
 //	private Random rnd = new Random();
 
+	//TODO implement equals, clone
 	/**
 	 * Creates a new empty batch of records and sets the field number to one
 	 */

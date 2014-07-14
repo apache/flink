@@ -84,6 +84,12 @@ public class StreamRecordTest {
 		b.setRecord(new StringValue("Data"));
 		assertFalse(((StringValue) a.getField(0)).getValue().equals(((StringValue) b.getField(0)).getValue()));
 	}
+	
+	@Test
+	public void cloneTest() {
+		StringValue sv = new StringValue("V1");
+		StreamRecord a = new StreamRecord(sv);
+	}
 
 	@Test
 	public void exceptionTest() {
