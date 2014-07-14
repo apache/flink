@@ -22,6 +22,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.nephele.io.AbstractRecordReader;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
@@ -35,7 +36,7 @@ public class StreamTask extends AbstractTask {
 
 	private static final Log log = LogFactory.getLog(StreamTask.class);
 
-	private List<StreamRecordReader<StreamRecord>> inputs;
+	private AbstractRecordReader inputs;
 	private List<RecordWriter<StreamRecord>> outputs;
 	private List<ChannelSelector<StreamRecord>> partitioners;
 	private UserTaskInvokable userFunction;
@@ -51,7 +52,6 @@ public class StreamTask extends AbstractTask {
 
 	public StreamTask() {
 		// TODO: Make configuration file visible and call setClassInputs() here
-		inputs = new LinkedList<StreamRecordReader<StreamRecord>>();
 		outputs = new LinkedList<RecordWriter<StreamRecord>>();
 		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
 		userFunction = null;
@@ -66,10 +66,12 @@ public class StreamTask extends AbstractTask {
 		name = taskConfiguration.getString("componentName", "MISSING_COMPONENT_NAME");
 
 		try {
-			streamTaskHelper.setConfigInputs(this, taskConfiguration, inputs);
+			inputs = streamTaskHelper.getConfigInputs(this, taskConfiguration);
 			streamTaskHelper.setConfigOutputs(this, taskConfiguration, outputs, partitioners);
 		} catch (StreamComponentException e) {
-			log.error("Cannot register inputs/outputs for " + getClass().getSimpleName(), e);
+			if (log.isErrorEnabled()) {
+				log.error("Cannot register inputs/outputs for " + getClass().getSimpleName(), e);
+			}
 		}
 
 		int[] numberOfOutputChannels = new int[outputs.size()];
@@ -89,11 +91,15 @@ public class StreamTask extends AbstractTask {
 
 	@Override
 	public void invoke() throws Exception {
-		log.debug("TASK " + name + " invoked with instance id " + taskInstanceID);
+		if (log.isDebugEnabled()) {
+			log.debug("TASK " + name + " invoked with instance id " + taskInstanceID);
+		}
 		streamTaskHelper.invokeRecords(invoker, userFunction, inputs, name);
 
 		// TODO print to file
 		System.out.println(userFunction.getResult());
-		log.debug("TASK " + name + " invoke finished with instance id " + taskInstanceID);
+		if (log.isDebugEnabled()) {
+			log.debug("TASK " + name + " invoke finished with instance id " + taskInstanceID);
+		}
 	}
 }
