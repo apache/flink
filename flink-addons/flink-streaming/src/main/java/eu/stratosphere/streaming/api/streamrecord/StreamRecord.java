@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.types.IntValue;
@@ -105,6 +106,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		return numOfRecords;
 	}
 
+	// TODO: use UUID
 	/**
 	 * Set the ID of the StreamRecord object
 	 * 
@@ -113,7 +115,8 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @return The StreamRecord object
 	 */
 	public StreamRecord setId(String channelID) {
-		uid.setValue(channelID + "-" + rnd.nextInt(1000000));
+		UUID uuid = UUID.randomUUID();
+		uid.setValue(channelID + "-" + uuid.toString());//rnd.nextInt(10));
 		return this;
 	}
 
@@ -345,18 +348,19 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 
 	// TODO: fix this method to work properly for non StringValue types
 	public String toString() {
-		StringBuilder outputString = new StringBuilder();
+		StringBuilder outputString = new StringBuilder("(");
 		StringValue output;
 		for (int k = 0; k < numOfRecords; ++k) {
 			for (int i = 0; i < numOfFields; i++) {
 				try {
 					output = (StringValue) recordBatch.get(k)[i];
-					outputString.append(output.getValue() + "*");
+					outputString.append(output.getValue() + ",");
 				} catch (ClassCastException e) {
-					outputString.append("NON-STRING*");
+					outputString.append("NON-STRING,");
 				}
 			}
 		}
+		outputString.append(")");
 		return outputString.toString();
 	}
 

@@ -25,13 +25,11 @@ public class WordCountDummySource extends UserSourceInvokable {
 	StreamRecord record = new StreamRecord(lineValue);
 
 	public WordCountDummySource() {
-
 	}
 
 	@Override
 	public void invoke() throws Exception {
-
-		for (int i = 0; i < 1000; i++) {
+		for (int i = 0; i < 10000; i++) {
 			if (i % 2 == 0) {
 				lineValue.setValue("Gyula Marci");
 			} else {

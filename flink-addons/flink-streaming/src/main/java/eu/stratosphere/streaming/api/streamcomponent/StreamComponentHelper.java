@@ -45,6 +45,12 @@ import eu.stratosphere.types.StringValue;
 
 public final class StreamComponentHelper<T extends AbstractInvokable> {
 	private static final Log log = LogFactory.getLog(StreamComponentHelper.class);
+	private static int numComponents=0;
+	
+	public static int newComponent(){
+		numComponents++;
+		return numComponents;
+	}
 
 	public void setAckListener(FaultToleranceBuffer recordBuffer,
 			String sourceInstanceID, List<RecordWriter<StreamRecord>> outputs) {
@@ -146,7 +152,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		return userFunction;
 	}
 
-	// TODO: use TCP-like waiting
+	// TODO find a better solution for this
 	public void threadSafePublish(AbstractTaskEvent event,
 			RecordReader<StreamRecord> input) throws InterruptedException,
 			IOException {

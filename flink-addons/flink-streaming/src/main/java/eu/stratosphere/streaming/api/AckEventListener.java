@@ -49,15 +49,13 @@ public class AckEventListener implements EventListener {
 	/**
 	 * When an AckEvent occurs checks if it was directed at this task, if so,
 	 * acknowledges the record given in the AckEvent
-	 * 
 	 */
 	public void eventOccurred(AbstractTaskEvent event) {
-
 		AckEvent ackEvent = (AckEvent) event;
 		String recordId = ackEvent.getRecordId();
-		String ackCID = recordId.split("-", 2)[0];
+		String ackChannelId = recordId.split("-", 2)[0];
 
-		if (ackCID.equals(taskInstanceID)) {
+		if (ackChannelId.equals(taskInstanceID)) {
 			Long nt = System.nanoTime();
 			recordBuffer.ackRecord(ackEvent.getRecordId());
 
