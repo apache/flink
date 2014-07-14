@@ -35,8 +35,6 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 	private MutableTableState<String, Integer> wordCounts;
 	private long initTimestamp=-1;
 	private long nextTimestamp=-1;
-	private String word = "";
-	private Integer count = 0;
 	private Long timestamp = 0L;
 
 	public WindowWordCountCounter() {
@@ -48,12 +46,11 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 	private void incrementCompute(StreamRecord record) {
 		int numTuple = record.getNumOfTuples();
 		for (int i = 0; i < numTuple; ++i) {
-			word = record.getString(i, 0);
+			String word = record.getString(i, 0);
 			if (wordCounts.containsKey(word)) {
-				count = wordCounts.get(word) + 1;
+				int count = wordCounts.get(word) + 1;
 				wordCounts.put(word, count);
 			} else {
-				count = 1;
 				wordCounts.put(word, 1);
 			}
 		}
@@ -62,8 +59,8 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 	private void decrementCompute(StreamRecord record) {
 		int numTuple = record.getNumOfTuples();
 		for (int i = 0; i < numTuple; ++i) {
-			word = record.getString(i, 0);
-			count = wordCounts.get(word) - 1;
+			String word = record.getString(i, 0);
+			int count = wordCounts.get(word) - 1;
 			if (count == 0) {
 				wordCounts.delete(word);
 			} else {
@@ -95,7 +92,7 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 				nextTimestamp = initTimestamp + computeGranularity;
 				tempRecord = new StreamRecord(record.getNumOfFields());
 			} else {
-				if (progress > nextTimestamp) {
+				if (progress >= nextTimestamp) {
 					if (window.isFull()) {
 						StreamRecord expiredRecord = window.popFront();
 						incrementCompute(tempRecord);
@@ -115,8 +112,8 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 					nextTimestamp = initTimestamp + computeGranularity;
 					tempRecord = new StreamRecord(record.getNumOfFields());
 				}
-				tempRecord.addTuple(record.getTuple(i));
 			}
+			tempRecord.addTuple(record.getTuple(i));
 		}
 	}
 }
