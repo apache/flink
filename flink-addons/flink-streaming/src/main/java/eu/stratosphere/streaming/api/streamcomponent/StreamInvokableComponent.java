@@ -22,6 +22,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.faulttolerance.FailEvent;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 
 public abstract class StreamInvokableComponent {
@@ -52,8 +53,9 @@ public abstract class StreamInvokableComponent {
 				log.info("EMITTED: " + record.getId() + " -- " + name);
 			}
 		} catch (Exception e) {
-			log.warn("EMIT ERROR: " + e.getClass().getSimpleName() + " -- " + name);
 			emittedRecords.failRecord(record.getId());
+			log.warn("FAILED: " + record.getId() + " -- " + name + " -- due to "
+					+ e.getClass().getSimpleName());
 		}
 	}
 	
