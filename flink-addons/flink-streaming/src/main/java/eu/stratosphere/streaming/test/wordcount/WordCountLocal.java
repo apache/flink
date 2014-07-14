@@ -17,16 +17,14 @@ package eu.stratosphere.streaming.test.wordcount;
 
 import java.net.InetSocketAddress;
 
-import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.util.LogUtils;
 import eu.stratosphere.types.StringValue;
 
 public class WordCountLocal {
@@ -45,24 +43,9 @@ public class WordCountLocal {
 
 		return graphBuilder.getJobGraph();
 	}
-
-	public static void setLogger() {
-		Logger logger = Logger.getLogger("eu.stratosphere.streaming");
-		logger.removeAllAppenders();
-		PatternLayout layout = new PatternLayout(
-				"%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
-		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
-		logger.addAppender(appender);
-		logger.setLevel(Level.DEBUG);
-		
-		Logger root = Logger.getRootLogger();
-		root.removeAllAppenders();
-		root.addAppender(appender);
-		root.setLevel(Level.ERROR);
-	}
 	
 	public static void main(String[] args) {
-		setLogger();
+		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
 		try {
 
@@ -85,7 +68,6 @@ public class WordCountLocal {
 				client.run(null, jG, true);
 
 				exec.stop();
-
 			} else if (args[0].equals("cluster")) {
 				System.out.println("Running in Cluster2 mode");
 
@@ -93,7 +75,6 @@ public class WordCountLocal {
 						"hadoop02.ilab.sztaki.hu", 6123), configuration);
 
 				client.run(null, jG, true);
-
 			}
 
 		} catch (Exception e) {

@@ -27,6 +27,7 @@ import eu.stratosphere.client.program.Client;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.util.LogUtils;
 import eu.stratosphere.types.StringValue;
 
 public class BatchWordCountLocal {
@@ -53,13 +54,7 @@ public class BatchWordCountLocal {
 
 	public static void main(String[] args) {
 
-		Logger root = Logger.getRootLogger();
-		root.removeAllAppenders();
-		PatternLayout layout = new PatternLayout(
-				"%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
-		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
-		root.addAppender(appender);
-		root.setLevel(Level.DEBUG);
+		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
 		try {
 
