@@ -21,8 +21,9 @@ public class AckEventListener implements EventListener {
 		String ackCID = recordId.split("-", 2)[0];
 		if (ackCID.equals(taskInstanceID)) {
 
-			System.out.println("Ack recieved " + ackEvent.getRecordId());
+			Long nt= System.nanoTime();
 			recordBuffer.ackRecord(ackEvent.getRecordId());
+			System.out.println("Ack recieved " + ackEvent.getRecordId()+"\nAck exec. time(ns): "+(System.nanoTime()-nt));
 			System.out.println("--------------");
 		}
 
