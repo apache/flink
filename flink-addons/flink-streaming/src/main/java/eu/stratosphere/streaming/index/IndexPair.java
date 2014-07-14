@@ -13,34 +13,29 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.state;
+package eu.stratosphere.streaming.index;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map.Entry;
-
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.index.IndexPair;
-
-public class LogTableStateIterator<K, V> implements TableStateIterator<K ,V>{
-
-	private Iterator<Entry<K, IndexPair>> iterator;
-	private HashMap<Integer, ArrayList<V>> blockList;
-	public LogTableStateIterator(Iterator<Entry<K, IndexPair>> iter, HashMap<Integer, ArrayList<V>> blocks){
-		iterator=iter;
-		blockList=blocks;
-	}
-	@Override
-	public boolean hasNext() {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public Tuple2<K, V> next() {
-		// TODO Auto-generated method stub
-		return null;
+public class IndexPair{
+	public IndexPair(int block, int entry){
+		blockId=block;
+		entryId=entry;
 	}
 	
+	public IndexPair(IndexPair pair){
+		blockId=pair.blockId;
+		entryId=pair.entryId;
+	}
+	
+	public void setIndexPair(int block, int entry){
+		blockId=block;
+		entryId=entry;
+	}
+	
+	public void IncrementBlock(){
+		blockId=blockId+1;
+		entryId=0;
+	}
+	
+	public int blockId;
+	public int entryId;
 }
