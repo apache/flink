@@ -15,11 +15,20 @@
 
 package eu.stratosphere.streaming.api;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.mock;
+
+import java.util.ArrayList;
 
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.streaming.api.streamcomponent.MockRecordWriter;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.util.MockRecordWriterFactory;
 
 public class StreamCollectorTest {
 
@@ -46,13 +55,30 @@ public class StreamCollectorTest {
 		collector.collect(new Tuple1<Integer>(0));
 		collector.collect(new Tuple1<Integer>(0));
 		collector.collect(new Tuple1<Integer>(0));
-				
+
 		Thread.sleep(200);
 		collector.collect(new Tuple1<Integer>(2));
 		collector.collect(new Tuple1<Integer>(3));
 		System.out.println("---------------");
 	}
-	
+
+	@Test
+	public void recordWriter() {
+		MockRecordWriter recWriter = MockRecordWriterFactory.create();
+		
+		ArrayList<RecordWriter<StreamRecord>> rwList = new ArrayList<RecordWriter<StreamRecord>>();
+		rwList.add(recWriter);
+
+		StreamCollector collector = new StreamCollector(2, 1000, 0, null, rwList);
+		collector.collect(new Tuple1<Integer>(3));
+		collector.collect(new Tuple1<Integer>(4));
+		collector.collect(new Tuple1<Integer>(5));
+		collector.collect(new Tuple1<Integer>(6));
+
+		assertEquals((Integer) 3, recWriter.emittedRecords.get(0).getTuple(0).getField(0));
+		assertEquals((Integer) 6, recWriter.emittedRecords.get(1).getTuple(1).getField(0));
+	}
+
 	@Test
 	public void testClose() {
 	}
