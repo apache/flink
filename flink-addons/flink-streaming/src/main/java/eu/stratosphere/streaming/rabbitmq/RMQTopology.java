@@ -21,10 +21,12 @@ import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
 
 public class RMQTopology {
 	
+	private static final int SOURCE_PARALELISM = 1;
+
 	public static void main(String[] args) {
 		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 		
-		DataStream<Tuple1<String>> stream = context.addSource(new RMQSource("localhost", "hello"))
+		DataStream<Tuple1<String>> stream = context.addSource(new RMQSource("localhost", "hello"), SOURCE_PARALELISM)
 				.addDummySink();
 		
 		context.execute();

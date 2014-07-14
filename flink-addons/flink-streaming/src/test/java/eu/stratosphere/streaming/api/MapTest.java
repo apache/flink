@@ -49,13 +49,15 @@ public class MapTest {
 		}
 	}
 
+	private static final int PARALELISM = 1;
+
 	@Test
 	public void test() throws Exception {
 		Tuple1<String> tup = new Tuple1<String>("asd");
 
 		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 
-		DataStream<Tuple1<String>> dataStream = context.addDummySource().map(new MyMap())
+		DataStream<Tuple1<String>> dataStream = context.addDummySource().map(new MyMap(), PARALELISM)
 				.addDummySink();
 
 		context.execute();

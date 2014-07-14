@@ -34,6 +34,9 @@ import eu.stratosphere.util.Collector;
 
 public class StreamComponentTest {
 
+	private static final int PARALELISM = 1;
+	private static final int SOURCE_PARALELISM = 1;
+	
 	public static Map<Integer, Integer> data = new HashMap<Integer, Integer>();
 
 	public static class MySource extends SourceFunction<Tuple1<Integer>> {
@@ -90,8 +93,8 @@ public class StreamComponentTest {
 	public static void runStream() {
 		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 
-		DataStream<Tuple2<Integer, Integer>> oneTask = context.addSource(new MySource())
-				.map(new MyTask()).addSink(new MySink());
+		DataStream<Tuple2<Integer, Integer>> oneTask = context.addSource(new MySource(), SOURCE_PARALELISM)
+				.map(new MyTask(), PARALELISM).addSink(new MySink());
 
 		context.execute();
 	}

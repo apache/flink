@@ -21,10 +21,12 @@ import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
 
 public class KafkaTopology {
 
+	private static final int SOURCE_PARALELISM = 1;
+
 	public static void main(String[] args) {
 		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 		
-		DataStream<Tuple1<String>> stream = context.addSource(new KafkaSource("localhost:7077", "group", "topic", 1))
+		DataStream<Tuple1<String>> stream = context.addSource(new KafkaSource("localhost:7077", "group", "topic", 1), SOURCE_PARALELISM)
 				.addDummySink();
 		
 		context.execute();

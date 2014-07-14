@@ -49,10 +49,12 @@ public class FlatMapTest {
 	}
 
 	public static final class MySink extends SinkFunction<Tuple1<String>> {
-
+		int c=0;
 		@Override
 		public void invoke(Tuple1<String> tuple) {
 			System.out.println(tuple);
+			c++;
+			System.out.println(c);
 		}
 
 	}
@@ -66,6 +68,8 @@ public class FlatMapTest {
 			}
 		}
 	}
+
+	private static final int PARALELISM = 2;
 
 	@Test
 	public void test() throws Exception {
@@ -82,10 +86,10 @@ public class FlatMapTest {
 		}
 		
 		StreamExecutionEnvironment context = new StreamExecutionEnvironment(2, 1000);
-		DataStream<Tuple1<String>> dataStream0 = context.addSource(new MySource());
+		DataStream<Tuple1<String>> dataStream0 = context.addSource(new MySource(),1);
 
 		DataStream<Tuple1<String>> dataStream1 = context.addDummySource().connectWith(dataStream0)
-				.partitionBy(0).flatMap(new MyFlatMap()).broadcast().addSink(new MySink());
+				.partitionBy(0).flatMap(new MyFlatMap(), PARALELISM).broadcast().addSink(new MySink());
 
 		context.execute();
 

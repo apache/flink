@@ -134,22 +134,22 @@ public class DataStream<T extends Tuple> {
 		return returnStream;
 	}
 
-	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper) {
+	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper, int paralelism) {
 		return context.addFunction("flatMap", this.copy(), flatMapper, new FlatMapInvokable<T, R>(
-				flatMapper));
+				flatMapper), paralelism);
 	}
 
-	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper) {
-		return context.addFunction("map", this.copy(), mapper, new MapInvokable<T, R>(mapper));
+	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper, int paralelism) {
+		return context.addFunction("map", this.copy(), mapper, new MapInvokable<T, R>(mapper), paralelism);
 	}
 
-	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer) {
-		return context.addFunction("batchReduce", this.copy(), reducer, new BatchReduceInvokable<T, R>(
-				reducer));
+	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer, int batchSize, int paralelism) {
+		return context.addFunction("batchReduce", batch(batchSize).copy(), reducer, new BatchReduceInvokable<T, R>(
+				reducer), paralelism);
 	}
 
-	public DataStream<T> filter(FilterFunction<T> filter) {
-		return context.addFunction("filter", this.copy(), filter, new FilterInvokable<T>(filter));
+	public DataStream<T> filter(FilterFunction<T> filter, int paralelism) {
+		return context.addFunction("filter", this.copy(), filter, new FilterInvokable<T>(filter), paralelism);
 	}
 
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
