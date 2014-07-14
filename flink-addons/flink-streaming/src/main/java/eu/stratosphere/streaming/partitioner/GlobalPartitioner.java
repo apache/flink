@@ -15,7 +15,7 @@
 
 package eu.stratosphere.streaming.partitioner;
 
-import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.runtime.io.api.ChannelSelector;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 //Group to the partitioner with the lowest id

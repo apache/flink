@@ -112,13 +112,13 @@ public class ListStreamRecord extends StreamRecord {
 	 * @throws NoSuchTupleException
 	 *             , TupleSizeMismatchException
 	 */
-	public void setTuple(int tupleNumber, Tuple tuple) throws NoSuchTupleException {
+	public StreamRecord setTuple(int tupleNumber, Tuple tuple) throws NoSuchTupleException {
 		try {
 			tupleBatch.set(tupleNumber, tuple);
 		} catch (IndexOutOfBoundsException e) {
 			throw (new NoSuchTupleException());
 		}
-
+		return this;
 	}
 
 	/**

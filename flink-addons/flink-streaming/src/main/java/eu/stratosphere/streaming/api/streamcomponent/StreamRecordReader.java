@@ -17,13 +17,12 @@ import java.io.IOException;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
-import eu.stratosphere.nephele.io.AbstractSingleGateRecordReader;
-import eu.stratosphere.nephele.io.InputChannelResult;
-import eu.stratosphere.nephele.io.MutableRecordDeserializerFactory;
-import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
+import eu.stratosphere.runtime.io.api.AbstractSingleGateRecordReader;
+import eu.stratosphere.runtime.io.api.Reader;
+import eu.stratosphere.runtime.io.gates.InputChannelResult;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 /**
@@ -64,7 +63,8 @@ public class StreamRecordReader extends AbstractSingleGateRecordReader<StreamRec
 			Class<? extends StreamRecord> recordType,
 			DeserializationDelegate<Tuple> deserializationDelegate,
 			TupleSerializer<Tuple> tupleSerializer) {
-		super(taskBase, MutableRecordDeserializerFactory.<StreamRecord> get(), 0);
+		// super(taskBase, MutableRecordDeserializerFactory.<StreamRecord> get(), 0);
+		super(taskBase);
 		this.recordType = recordType;
 		this.deserializationDelegate = deserializationDelegate;
 		this.tupleSerializer = tupleSerializer;
@@ -83,7 +83,8 @@ public class StreamRecordReader extends AbstractSingleGateRecordReader<StreamRec
 			Class<? extends StreamRecord> recordType,
 			DeserializationDelegate<Tuple> deserializationDelegate,
 			TupleSerializer<Tuple> tupleSerializer) {
-		super(outputBase, MutableRecordDeserializerFactory.<StreamRecord> get(), 0);
+		// super(outputBase, MutableRecordDeserializerFactory.<StreamRecord> get(), 0);
+		super(outputBase);
 		this.recordType = recordType;
 		this.deserializationDelegate = deserializationDelegate;
 		this.tupleSerializer = tupleSerializer;
