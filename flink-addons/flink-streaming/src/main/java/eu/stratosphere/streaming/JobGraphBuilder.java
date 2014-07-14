@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import eu.stratosphere.nephele.io.channels.ChannelType;
+import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
@@ -17,18 +18,13 @@ import eu.stratosphere.nephele.template.AbstractTask;
 public class JobGraphBuilder {
 	
 	private final JobGraph jobGraph;
-	private Map<String, JobInputVertex> sourceComponents;
-  private Map<String, JobTaskVertex> taskComponents;
-  private Map<String, JobOutputVertex> sinkComponents;
-
+  private Map<String, AbstractJobVertex> components;
 
 	
 	public JobGraphBuilder(String jobGraphName) {
    
 	  jobGraph = new JobGraph(jobGraphName);
-	  sourceComponents = new HashMap<String, JobInputVertex>();
-	  taskComponents = new HashMap<String, JobTaskVertex>();
-	  sinkComponents = new HashMap<String, JobOutputVertex>();
+	  components=new HashMap<String, AbstractJobVertex>();
   }
 	
 	//TODO: Add source parallelism 
@@ -36,7 +32,7 @@ public class JobGraphBuilder {
 	  
 	  final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
 	  source.setInputClass(sourceClass);
-	  sourceComponents.put(sourceName, source);
+	  components.put(sourceName, source);
 	  
 	}
 	
@@ -45,55 +41,31 @@ public class JobGraphBuilder {
     final JobTaskVertex task = new JobTaskVertex(taskName, jobGraph);
     task.setTaskClass(taskClass);
     task.setNumberOfSubtasks(parallelism);
-    taskComponents.put(taskName, task);
-    
+    components.put(taskName, task);
   }
 	
 public void setSink(String sinkName, final Class<? extends AbstractOutputTask> sinkClass) {    
     
     final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
     sink.setOutputClass(sinkClass);
-    sinkComponents.put(sinkName, sink);
-    
+    components.put(sinkName, sink);
   }
 
-public void connectSource(String upStreamComponentName, String downStreamComponentName, ChannelType channelType) {
+
+public void connect(String upStreamComponentName, String downStreamComponentName, ChannelType channelType) {
+  
+  AbstractJobVertex upStreamComponent=null;
+  AbstractJobVertex downStreamComponent=null;
+  
+  upStreamComponent = components.get(upStreamComponentName);
+  downStreamComponent = components.get(downStreamComponentName);
   
   try {
-    JobInputVertex upStreamComponent = sourceComponents.get(upStreamComponentName);
-    JobTaskVertex  downStreamComponent = taskComponents.get(downStreamComponentName);
     upStreamComponent.connectTo(downStreamComponent, channelType);
   }
   catch (JobGraphDefinitionException e) {
     e.printStackTrace();
   }
-  
-}
-
-public void connectTasks(String upStreamComponentName, String downStreamComponentName, ChannelType channelType) {
-  
-  try {
-    JobTaskVertex upStreamComponent = taskComponents.get(upStreamComponentName);
-    JobTaskVertex  downStreamComponent = taskComponents.get(downStreamComponentName);
-    upStreamComponent.connectTo(downStreamComponent, channelType);
-  }
-  catch (JobGraphDefinitionException e) {
-    e.printStackTrace();
-  }
-  
-}
-
-public void connectSink(String upStreamComponentName, String downStreamComponentName, ChannelType channelType) {
-  
-  try {
-    JobTaskVertex upStreamComponent = taskComponents.get(upStreamComponentName);
-    JobOutputVertex downStreamComponent = sinkComponents.get(downStreamComponentName);
-    upStreamComponent.connectTo(downStreamComponent, channelType);
-  }
-  catch (JobGraphDefinitionException e) {
-    e.printStackTrace();
-  }
-  
 }
 
 

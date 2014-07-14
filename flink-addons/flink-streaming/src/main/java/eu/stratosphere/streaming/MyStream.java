@@ -160,7 +160,7 @@ public class MyStream extends TestBase2 {
 				engine.put(Integer.parseInt(info[0]),Long.parseLong(info[1]));
 				
 				
-				
+				this.output.emit(new StringRecord(info[0]+" "+info[1]));
 				this.output.emit(new StringRecord(String.valueOf(
 							engine.get(Long.parseLong(query[1]),Long.parseLong(query[2]),Integer.parseInt(query[0])))
 							));
@@ -232,9 +232,9 @@ public class MyStream extends TestBase2 {
 		graphBuilder.setTask("cellTask", MyStreamMap.class, 2);
 		graphBuilder.setSink("sink", MySink.class);
 		
-		graphBuilder.connectSource("infoSource", "cellTask", ChannelType.INMEMORY);
-		graphBuilder.connectSource("querySource", "cellTask", ChannelType.INMEMORY);
-		graphBuilder.connectSink("cellTask", "sink", ChannelType.INMEMORY);
+    graphBuilder.connect("infoSource", "cellTask", ChannelType.INMEMORY);
+    graphBuilder.connect("querySource", "cellTask", ChannelType.INMEMORY);
+    graphBuilder.connect("cellTask", "sink", ChannelType.INMEMORY);
 		
 		return graphBuilder.getJobGraph();
 		
