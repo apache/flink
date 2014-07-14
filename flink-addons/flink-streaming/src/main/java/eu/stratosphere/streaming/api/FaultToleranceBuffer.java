@@ -72,10 +72,10 @@ public class FaultToleranceBuffer {
 	 * 
 	 */
 	public void addRecord(StreamRecord streamRecord) {
-
-		recordBuffer.put(streamRecord.getId(), streamRecord);
-		ackCounter.put(streamRecord.getId(), numberOfOutputs);
-		addTimestamp(streamRecord.getId());
+		String id=streamRecord.getId();
+		recordBuffer.put(id, streamRecord.copy());
+		ackCounter.put(id, numberOfOutputs);
+		addTimestamp(id);
 	}
 
 	/**

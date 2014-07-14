@@ -1,4 +1,4 @@
-package eu.stratosphere.streaming.api.streamcomponent;
+package eu.stratosphere.streaming.api.invokable;
 
 import java.util.List;
 
@@ -24,16 +24,15 @@ public abstract class StreamInvokable {
 
 		record.setId(channelID);
 		emittedRecords.addRecord(record);
-
+	
 		for (RecordWriter<StreamRecord> output : outputs) {
 			try {
-
 				output.emit(record);
 
-//				System.out.println(this.getClass().getName());
-//				System.out.println("Emitted " + record.getId() + "-"
-//						+ record.toString());
-//				System.out.println("---------------------");
+				System.out.println(this.getClass().getName());
+				System.out.println("Emitted " + record.getId() + "-"
+						+ record.toString());
+				System.out.println("---------------------");
 
 			} catch (Exception e) {
 				System.out.println("Emit error: " + e.getMessage());
