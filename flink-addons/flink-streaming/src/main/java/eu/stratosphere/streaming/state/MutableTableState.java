@@ -15,19 +15,55 @@
 
 package eu.stratosphere.streaming.state;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
-public class WindowStateIterator<K>{
+/**
+ * The most general internal state that stores data in a mutable map.
+ */
+public class MutableTableState<K, V> implements TableState<K, V> {
 
-	public boolean hasNext() {
+	private Map<K, V> state=new LinkedHashMap<K, V>();
+	@Override
+	public void put(K key, V value) {
 		// TODO Auto-generated method stub
-		return false;
+		state.put(key, value);
 	}
 
-	public Tuple2<K, StreamRecord> next() {
+	@Override
+	public V get(K key) {
+		// TODO Auto-generated method stub
+		return state.get(key);
+	}
+
+	@Override
+	public void delete(K key) {
+		// TODO Auto-generated method stub
+		state.remove(key);
+	}
+
+	@Override
+	public boolean containsKey(K key) {
+		// TODO Auto-generated method stub
+		return state.containsKey(key);
+	}
+
+	@Override
+	public MutableTableStateIterator<K, V> getIterator() {
+		// TODO Auto-generated method stub
+		return new MutableTableStateIterator<K, V>(state.entrySet().iterator());
+	}
+
+	@Override
+	public String serialize() {
 		// TODO Auto-generated method stub
 		return null;
+	}
+
+	@Override
+	public void deserialize(String str) {
+		// TODO Auto-generated method stub
+		
 	}
 
 }

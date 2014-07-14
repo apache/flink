@@ -13,27 +13,30 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.wordcount;
+package eu.stratosphere.streaming.state;
 
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import java.util.Iterator;
+import java.util.Map.Entry;
 
-public class WindowWordCountSink extends UserSinkInvokable {
+import eu.stratosphere.api.java.tuple.Tuple2;
 
-	private String word = "";
-	private Integer count = 0;
-	private Long timestamp = 0L;
+public class MutableTableStateIterator<K, V> implements TableStateIterator<K, V>{
+
+	private Iterator<Entry<K, V>> iterator;
+	public MutableTableStateIterator(Iterator<Entry<K, V>> iter){
+		iterator=iter;
+	}
+	
+	@Override
+	public boolean hasNext() {
+		// TODO Auto-generated method stub
+		return iterator.hasNext();
+	}
 
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
-		int numTuple = record.getNumOfTuples();
-		for (int i = 0; i < numTuple; ++i) {
-			word = record.getString(i, 0);
-			count = record.getInteger(i, 1);
-			timestamp = record.getLong(i, 2);
-			System.out.println("============================================");
-			System.out.println(word + " " + count + " " + timestamp);
-			System.out.println("============================================");
-		}
+	public Tuple2<K, V> next() {
+		// TODO Auto-generated method stub
+		Entry<K, V> entry=iterator.next();
+		return new Tuple2<K, V>(entry.getKey(), entry.getValue());
 	}
 }
