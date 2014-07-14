@@ -42,7 +42,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	private StringValue uid = new StringValue("");
 	private int numOfFields;
 	private int numOfRecords;
-	private Random rnd = new Random();
+//	private Random rnd = new Random();
 
 	/**
 	 * Creates a new empty batch of records and sets the field number to one
