@@ -53,7 +53,7 @@ public class StreamWindowTask extends FlatMapFunction<Tuple, Tuple> {
 
 	@Override
 	public void flatMap(Tuple value, Collector<Tuple> out) throws Exception {
-		long progress = value.getField(windowFieldId);
+		long progress = (Long) value.getField(windowFieldId);
 		if (initTimestamp == -1) {
 			initTimestamp = progress;
 			nextTimestamp = initTimestamp + computeGranularity;
