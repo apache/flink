@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api.index;
+package eu.stratosphere.streaming.index;
 
 import org.junit.Test;
 
