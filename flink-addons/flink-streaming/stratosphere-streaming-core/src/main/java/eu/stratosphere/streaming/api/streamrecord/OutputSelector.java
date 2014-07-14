@@ -12,9 +12,11 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.streaming.api;
+package eu.stratosphere.streaming.api.streamrecord;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import eu.stratosphere.api.java.tuple.Tuple;
@@ -22,5 +24,20 @@ import eu.stratosphere.api.java.tuple.Tuple;
 public abstract class OutputSelector<T extends Tuple> implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	public abstract List<String> select(T tuple);
+	private Collection<String> outputs;
+	
+	public OutputSelector() {
+		outputs = new ArrayList<String>();
+	}
+	
+	void clearList() {
+		outputs.clear();
+	}
+	
+	Collection<String> getOutputs(T tuple) {
+		select(tuple, outputs);
+		return outputs;
+	}
+	
+	public abstract void select(T tuple, Collection<String> outputs);
 }

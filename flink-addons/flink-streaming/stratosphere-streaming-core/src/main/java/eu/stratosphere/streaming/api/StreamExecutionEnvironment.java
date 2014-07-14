@@ -34,6 +34,7 @@ import eu.stratosphere.streaming.api.function.SinkFunction;
 import eu.stratosphere.streaming.api.function.SourceFunction;
 import eu.stratosphere.streaming.api.invokable.SinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.OutputSelector;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 
 //TODO:add link to ExecutionEnvironment

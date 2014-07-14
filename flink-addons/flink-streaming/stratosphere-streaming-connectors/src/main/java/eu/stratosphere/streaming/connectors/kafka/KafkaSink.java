@@ -51,7 +51,6 @@ public abstract class KafkaSink<IN extends Tuple, OUT> extends SinkFunction<IN>{
 		initDone = true;
 	}
 	
-	//TODO should there be an end character, or open and close the producer for every message (because the end character might get to the sink sooner than the others because of the parallelism)
 	@Override
 	public void invoke(IN tuple) {
 		if(!initDone) initialize();
