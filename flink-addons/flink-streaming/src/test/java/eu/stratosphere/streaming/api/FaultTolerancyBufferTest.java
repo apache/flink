@@ -1,12 +1,14 @@
 package eu.stratosphere.streaming.api;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.util.LinkedList;
 import java.util.List;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.RecordWriter;
@@ -34,7 +36,7 @@ public class FaultTolerancyBufferTest {
 	@Test
 	public void testAddRecord() {
 		StreamRecord record = (new StreamRecord(1)).setId("1");
-		record.setField(0, new StringValue("V1"));
+		record.addRecord(new AtomRecord(new StringValue("V1")));
 		faultTolerancyBuffer.addRecord(record);
 		assertEquals((Integer) 3, faultTolerancyBuffer.getAckCounter().get(record.getId()));
 		assertEquals(record,faultTolerancyBuffer.getRecordBuffer().get(record.getId()));
@@ -83,7 +85,7 @@ public class FaultTolerancyBufferTest {
 	@Test
 	public void testPopRecord() {
 		StreamRecord record1 = (new StreamRecord(1)).setId("1");
-		record1.setField(0, new StringValue("V1"));
+		record1.addRecord(new AtomRecord(new StringValue("V1")));
 		faultTolerancyBuffer.addRecord(record1);
 		
 		assertEquals(record1, faultTolerancyBuffer.popRecord(record1.getId()));
@@ -93,9 +95,9 @@ public class FaultTolerancyBufferTest {
 	@Test
 	public void testRemoveRecord() {
 		StreamRecord record1 = (new StreamRecord(1)).setId("1");
-		record1.setField(0, new StringValue("V1"));
+		record1.addRecord(new AtomRecord(new StringValue("V1")));
 		StreamRecord record2 = (new StreamRecord(1)).setId("1");
-		record2.setField(0, new StringValue("V2"));
+		record2.addRecord(new AtomRecord(new StringValue("V2")));
 		
 		faultTolerancyBuffer.addRecord(record1);
 		faultTolerancyBuffer.addRecord(record2);
@@ -119,7 +121,7 @@ public class FaultTolerancyBufferTest {
 	@Test
 	public void testAckRecord() {
 		StreamRecord record1 = (new StreamRecord(1)).setId("1");
-		record1.setField(0, new StringValue("V1"));
+		record1.addRecord(new AtomRecord(new StringValue("V1")));
 		faultTolerancyBuffer.addRecord(record1);
 		Long record1TS=faultTolerancyBuffer.getRecordTimestamps().get(record1.getId());
 		
@@ -143,7 +145,7 @@ public class FaultTolerancyBufferTest {
 	@Test
 	public void testFailRecord() {
 		StreamRecord record1 = (new StreamRecord(1)).setId("1");
-		record1.setField(0, new StringValue("V1"));
+		record1.addRecord(new AtomRecord(new StringValue("V1")));
 		faultTolerancyBuffer.addRecord(record1);
 		Long record1TS=faultTolerancyBuffer.getRecordTimestamps().get(record1.getId());
 		
@@ -182,11 +184,11 @@ public class FaultTolerancyBufferTest {
 		faultTolerancyBuffer.setTIMEOUT(1000);
 		
 		StreamRecord record1 = (new StreamRecord(1)).setId("1");
-		record1.setField(0, new StringValue("V1"));
+		record1.addRecord(new AtomRecord(new StringValue("V1")));
 		StreamRecord record2 = (new StreamRecord(1)).setId("1");
-		record2.setField(0, new StringValue("V2"));
+		record2.addRecord(new AtomRecord(new StringValue("V2")));
 		StreamRecord record3 = (new StreamRecord(1)).setId("1");
-		record3.setField(0, new StringValue("V3"));
+		record3.addRecord(new AtomRecord(new StringValue("V3")));
 		
 		faultTolerancyBuffer.addRecord(record1);
 		faultTolerancyBuffer.addRecord(record2);
@@ -199,7 +201,6 @@ public class FaultTolerancyBufferTest {
 		
 		Long record1TS=faultTolerancyBuffer.getRecordTimestamps().get(record1.getId());
 		Long record2TS=faultTolerancyBuffer.getRecordTimestamps().get(record2.getId());
-		Long record3TS=faultTolerancyBuffer.getRecordTimestamps().get(record3.getId());
 				
 		faultTolerancyBuffer.ackRecord(record1.getId());
 		faultTolerancyBuffer.ackRecord(record1.getId());
@@ -240,11 +241,13 @@ public class FaultTolerancyBufferTest {
 		assertEquals(null,timedOutRecords);
 		
 		try {
-			Thread.sleep(900);
+			Thread.sleep(901);
 		} catch (InterruptedException e) {
 		}
 		
 		timedOutRecords = faultTolerancyBuffer.timeoutRecords(System.currentTimeMillis());
+		System.out.println("timedOutRecords: "+ timedOutRecords);
+
 		assertEquals(2, timedOutRecords.size());
 		
 		System.out.println(faultTolerancyBuffer.getAckCounter());

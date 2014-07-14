@@ -1,6 +1,5 @@
 package eu.stratosphere.streaming.api;
 
-import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 
 public class AtomRecord {

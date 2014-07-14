@@ -60,11 +60,8 @@ public class FaultTolerancyBuffer {
 		addTimestamp(streamRecord.getId());
 	}
 
-	// TODO: use this method!
 	List<String> timeoutRecords(Long currentTime) {
-
 		if (timeOfLastUpdate + TIMEOUT < currentTime) {
-
 			List<String> timedOutRecords = new LinkedList<String>();
 			Map<Long, Set<String>> timedOut = recordsByTime.subMap(0L, currentTime
 					- TIMEOUT);
@@ -85,7 +82,6 @@ public class FaultTolerancyBuffer {
 			timeOfLastUpdate = currentTime;
 			return timedOutRecords;
 		}
-
 		return null;
 	}
 
@@ -116,16 +112,15 @@ public class FaultTolerancyBuffer {
 			Long ts = recordTimestamps.remove(recordID);
 			recordsByTime.get(ts).remove(recordID);
 		} catch (NullPointerException e) {
-			
-		}
-		catch (Exception e) {
+
+		} catch (Exception e) {
 			e.printStackTrace();
 			System.out.println(recordID);
 		}
 	}
 
+	//TODO: find a place to call timeoutRecords
 	public void ackRecord(String recordID) {
-
 		if (ackCounter.containsKey(recordID)) {
 			int ackCount = ackCounter.get(recordID) - 1;
 
@@ -135,7 +130,7 @@ public class FaultTolerancyBuffer {
 				ackCounter.put(recordID, ackCount);
 			}
 		}
-
+		timeoutRecords(System.currentTimeMillis());
 	}
 
 	public void failRecord(String recordID) {
