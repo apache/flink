@@ -22,19 +22,6 @@ import java.util.Properties;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
 
-
-/*
- * This is a simple kafka producer that reads local file from disk and produces line streams.
- * To use the producer, a zookeeper server and a kafka server should be on service.
- * Run the following script to start a zookeeper server:
- * 		bin/zookeeper-server-start.sh config/zookeeper.properties
- * Run the following script to start a kafka server:
- * 		bin/kafka-server-start.sh config/server.properties
- * Run the following script to start the producer:
- * 		java -cp kafka-0.8/libs/*:yourJarFile.jar eu.stratosphere.streaming.kafka.KafkaProducer yourTopicID kafkaServerIp
- * As an example:
- * 		java -cp kafka-0.8/libs/*:stratosphere-streaming.jar eu.stratosphere.streaming.kafka.KafkaProducer test localhost:9092
- */
 public class KafkaProducer {
 	static kafka.javaapi.producer.Producer<Integer, String> producer;
 	static Properties props = new Properties();
@@ -42,12 +29,13 @@ public class KafkaProducer {
 	public static void ProducerPrepare(String brokerAddr) {
 		props.put("serializer.class", "kafka.serializer.StringEncoder");
 		props.put("metadata.broker.list", brokerAddr);
+
 		producer = new kafka.javaapi.producer.Producer<Integer, String>(
 				new ProducerConfig(props));
 	}
 
 	public static void main(String[] args) throws Exception{
-		if (args.length == 3) {
+		if (args.length >= 1) {
 			String infilename=args[0];
 			String topicId=args[1];
 			String brokerAddr=args[2];

@@ -13,17 +13,8 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.state;
+package eu.stratosphere.streaming.state.manager;
 
-/**
- * An internal state interface that supports stateful operator.
- */
-public interface TableState<K, V>{
-	public void put(K key, V value);
-	public V get(K key);
-	public void delete(K key);
-	public boolean containsKey(K key);
-	public String serialize();
-	public void deserialize(String str);
-	public TableStateIterator<K, V> getIterator();
+public class StateRestorer {
+
 }
