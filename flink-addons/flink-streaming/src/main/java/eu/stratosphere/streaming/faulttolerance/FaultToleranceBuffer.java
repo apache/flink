@@ -28,23 +28,24 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.api.streamrecord.UID;
 
 public abstract class FaultToleranceBuffer {
 
 	private static final Log log = LogFactory.getLog(FaultToleranceBuffer.class);
 
-	protected Map<String, StreamRecord> recordBuffer;
-	protected Map<String, Long> recordTimestamps;
-	protected SortedMap<Long, Set<String>> recordsByTime;
+	protected Map<UID, StreamRecord> recordBuffer;
+	protected Map<UID, Long> recordTimestamps;
+	protected SortedMap<Long, Set<UID>> recordsByTime;
 
 	protected int[] numberOfEffectiveChannels;
 	protected int totalNumberOfEffectiveChannels;
 	protected Long timeOfLastUpdate;
-	protected String componentInstanceID;
+	protected int componentInstanceID;
 
 	long timeout = 30000;
 
-	public FaultToleranceBuffer(int[] numberOfChannels, String componentInstanceID) {
+	public FaultToleranceBuffer(int[] numberOfChannels, int componentInstanceID) {
 		this.numberOfEffectiveChannels = numberOfChannels;
 		totalNumberOfEffectiveChannels = 0;
 		for (int i : numberOfChannels) {
@@ -54,15 +55,15 @@ public abstract class FaultToleranceBuffer {
 		this.componentInstanceID = componentInstanceID;
 		this.timeOfLastUpdate = System.currentTimeMillis();
 
-		this.recordBuffer = new HashMap<String, StreamRecord>();
-		this.recordsByTime = new TreeMap<Long, Set<String>>();
-		this.recordTimestamps = new HashMap<String, Long>();
+		this.recordBuffer = new HashMap<UID, StreamRecord>();
+		this.recordsByTime = new TreeMap<Long, Set<UID>>();
+		this.recordTimestamps = new HashMap<UID, Long>();
 	}
 
 	public synchronized void add(StreamRecord streamRecord) {
 
 		StreamRecord record = streamRecord.copy();
-		String id = record.getId();
+		UID id = record.getId();
 
 		recordBuffer.put(id, record);
 
@@ -76,7 +77,7 @@ public abstract class FaultToleranceBuffer {
 
 		StreamRecord record = streamRecord.copy();
 
-		String id = record.getId();
+		UID id = record.getId();
 		recordBuffer.put(id, record);
 		addTimestamp(id);
 
@@ -85,20 +86,20 @@ public abstract class FaultToleranceBuffer {
 		log.trace("Record added to buffer: " + id);
 	}
 
-	protected abstract void addToAckCounter(String id);
+	protected abstract void addToAckCounter(UID id);
 
-	protected void addToAckCounter(String id, int channel) {
+	protected void addToAckCounter(UID id, int channel) {
 		addToAckCounter(id);
 	}
 
-	protected abstract boolean removeFromAckCounter(String id);
+	protected abstract boolean removeFromAckCounter(UID uid);
 
-	protected abstract void ack(String id, int channel);
+	protected abstract void ack(UID id, int channel);
 
 	// TODO:count fails
-	protected StreamRecord fail(String id) {
-		if (recordBuffer.containsKey(id)) {
-			StreamRecord newRecord = remove(id).setId(componentInstanceID);
+	protected StreamRecord fail(UID uid) {
+		if (recordBuffer.containsKey(uid)) {
+			StreamRecord newRecord = remove(uid).setId(componentInstanceID);
 			add(newRecord);
 			return newRecord;
 		} else {
@@ -106,17 +107,17 @@ public abstract class FaultToleranceBuffer {
 		}
 	}
 
-	protected abstract StreamRecord failChannel(String id, int channel);
+	protected abstract StreamRecord failChannel(UID id, int channel);
 
-	protected void addTimestamp(String id) {
+	protected void addTimestamp(UID id) {
 		Long currentTime = System.currentTimeMillis();
 
 		recordTimestamps.put(id, currentTime);
 
-		Set<String> recordSet = recordsByTime.get(currentTime);
+		Set<UID> recordSet = recordsByTime.get(currentTime);
 
 		if (recordSet == null) {
-			recordSet = new HashSet<String>();
+			recordSet = new HashSet<UID>();
 			recordsByTime.put(currentTime, recordSet);
 		}
 
@@ -124,37 +125,37 @@ public abstract class FaultToleranceBuffer {
 
 	}
 
-	public synchronized StreamRecord remove(String id) {
+	public synchronized StreamRecord remove(UID uid) {
 
-		if (removeFromAckCounter(id)) {
+		if (removeFromAckCounter(uid)) {
 
-			recordsByTime.get(recordTimestamps.remove(id)).remove(id);
+			recordsByTime.get(recordTimestamps.remove(uid)).remove(uid);
 
-			log.trace("Record removed from buffer: " + id);
-			return recordBuffer.remove(id);
+			log.trace("Record removed from buffer: " + uid);
+			return recordBuffer.remove(uid);
 		} else {
-			log.warn("Record ALREADY REMOVED from buffer: " + id);
+			log.warn("Record ALREADY REMOVED from buffer: " + uid);
 			return null;
 		}
 
 	}
 
 	// TODO:test this
-	public List<String> timeoutRecords(Long currentTime) {
+	public List<UID> timeoutRecords(Long currentTime) {
 		if (timeOfLastUpdate + timeout < currentTime) {
 			log.trace("Updating record buffer");
-			List<String> timedOutRecords = new LinkedList<String>();
-			Map<Long, Set<String>> timedOut = recordsByTime.subMap(0L, currentTime - timeout);
+			List<UID> timedOutRecords = new LinkedList<UID>();
+			Map<Long, Set<UID>> timedOut = recordsByTime.subMap(0L, currentTime - timeout);
 
-			for (Set<String> recordSet : timedOut.values()) {
+			for (Set<UID> recordSet : timedOut.values()) {
 				if (!recordSet.isEmpty()) {
-					for (String recordID : recordSet) {
+					for (UID recordID : recordSet) {
 						timedOutRecords.add(recordID);
 					}
 				}
 			}
 
-			for (String recordID : timedOutRecords) {
+			for (UID recordID : timedOutRecords) {
 				fail(recordID);
 			}
 

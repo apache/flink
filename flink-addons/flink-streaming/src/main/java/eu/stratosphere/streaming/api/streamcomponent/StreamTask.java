@@ -38,7 +38,7 @@ public class StreamTask extends AbstractTask {
 	private List<ChannelSelector<StreamRecord>> partitioners;
 	private UserTaskInvokable userFunction;
 	private static int numTasks;
-	private String taskInstanceID = "";
+	private int taskInstanceID;
 	private String name;
 	StreamComponentHelper<StreamTask> streamTaskHelper;
 	Configuration taskConfiguration;
@@ -52,7 +52,7 @@ public class StreamTask extends AbstractTask {
 		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
 		userFunction = null;
 		numTasks = StreamComponentHelper.newComponent();
-		taskInstanceID = Integer.toString(numTasks);
+		taskInstanceID = numTasks;
 		streamTaskHelper = new StreamComponentHelper<StreamTask>();
 	}
 

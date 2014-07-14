@@ -20,7 +20,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.types.StringValue;
+import eu.stratosphere.streaming.api.streamrecord.UID;
 
 /**
  * TaskEvent for sending record acknowledgements to the input's fault tolerance
@@ -28,7 +28,7 @@ import eu.stratosphere.types.StringValue;
  */
 public class AckEvent extends AbstractTaskEvent {
 
-	private String recordId;
+	private UID recordId;
 
 	/**
 	 * Creates a new event to acknowledge the record with the given ID
@@ -36,33 +36,27 @@ public class AckEvent extends AbstractTaskEvent {
 	 * @param recordId
 	 *            ID of the record to be acknowledged
 	 */
-	public AckEvent(String recordId) {
-		setRecordId(recordId);
+	public AckEvent(UID recordId) {
+		this.recordId = recordId;
 	}
 
 	public AckEvent() {
-		this.recordId = "";
+		recordId = new UID();
 	}
 
 	@Override
 	public void write(DataOutput out) throws IOException {
-		StringValue recordIdValue = new StringValue(recordId);
-		recordIdValue.write(out);
+		recordId.write(out);
 	}
 
 	@Override
 	public void read(DataInput in) throws IOException {
-		StringValue recordIdValue = new StringValue("");
-		recordIdValue.read(in);
-		setRecordId(recordIdValue.getValue());
+		recordId = new UID();
+		recordId.read(in);
 	}
 
-	public void setRecordId(String recordId) {
-		this.recordId = recordId;
-	}
-
-	public String getRecordId() {
-		return this.recordId;
+	public UID getRecordId() {
+		return recordId;
 	}
 
 }

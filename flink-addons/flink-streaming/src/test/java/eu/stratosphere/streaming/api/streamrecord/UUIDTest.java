@@ -12,51 +12,36 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.streaming.api.streamrecord;
 
-package eu.stratosphere.streaming.faulttolerance;
+import static org.junit.Assert.*;
 
-import java.io.DataInput;
-import java.io.DataOutput;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 
-import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
-import eu.stratosphere.streaming.api.streamrecord.UID;
+import org.junit.Test;
 
-/**
- * TaskEvent for sending record fails to the input's fault tolerance buffer
- * 
- * 
- */
-public class FailEvent extends AbstractTaskEvent {
+public class UUIDTest {
 
-	private UID recordId;
+	@Test
+	public void test() throws IOException {
+		ByteArrayOutputStream buff = new ByteArrayOutputStream();
+		DataOutputStream out = new DataOutputStream(buff);
+		
+		UID id = new UID(3);
+		id.write(out);
+		
+		DataInputStream in = new DataInputStream(new ByteArrayInputStream(buff.toByteArray()));
+		
+		UID id2 = new UID();
+		id2.read(in);
 
-	/**
-	 * Creates a new event to fail the record with the given ID
-	 * 
-	 * @param recordId
-	 *            ID of the record to be acknowledged
-	 */
-	public FailEvent(UID recordId) {
-		this.recordId = recordId;
+		assertEquals(id.getChannelId(), id2.getChannelId());
+		assertArrayEquals(id.getGeneratedId(), id2.getGeneratedId());
+		assertArrayEquals(id.getId(), id2.getId());
 	}
 
-	public FailEvent() {
-		recordId = new UID();
-	}
-
-	@Override
-	public void write(DataOutput out) throws IOException {
-		recordId.write(out);
-	}
-
-	@Override
-	public void read(DataInput in) throws IOException {
-		recordId = new UID();
-		recordId.read(in);
-	}
-
-	public UID getRecordId() {
-		return this.recordId;
-	}
 }
