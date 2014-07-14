@@ -25,6 +25,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.java.functions.FlatMapFunction;
+import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
@@ -154,6 +155,22 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				outTupleSerializer = outTupleTypeInfo.createSerializer();
 				outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
 
+			} else if (operatorName.equals("map")) {
+
+				MapFunction<Tuple, Tuple> f = (MapFunction<Tuple, Tuple>) in.readObject();
+
+				inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(MapFunction.class,
+						f.getClass(), 0, null, null);
+
+				inTupleSerializer = inTupleTypeInfo.createSerializer();
+				inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
+
+				outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(MapFunction.class,
+						f.getClass(), 1, null, null);
+
+				outTupleSerializer = outTupleTypeInfo.createSerializer();
+				outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
+
 			} else if (operatorName.equals("sink")) {
 
 				UserSinkInvokable<Tuple> f = (UserSinkInvokable<Tuple>) in.readObject();
@@ -229,7 +246,6 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			ObjectInputStream in;
 			try {
 				in = new ObjectInputStream(new ByteArrayInputStream(bytes));
-				
 
 				collector = new StreamCollector<Tuple>(1, 1, outSerializationDelegate);
 
