@@ -27,13 +27,13 @@ public class StreamCollectorTest {
 
 	@Test
 	public void testStreamCollector() {
-		StreamCollector collector = new StreamCollector(10, 1000, 0, null);
+		StreamCollector<Tuple1<Integer>> collector = new StreamCollector<Tuple1<Integer>>(10, 1000, 0, null);
 		assertEquals(10, collector.batchSize);
 	}
 
 	@Test
 	public void testCollect() {
-		StreamCollector collector = new StreamCollector(2, 1000, 0, null);
+		StreamCollector<Tuple1<Integer>> collector = new StreamCollector<Tuple1<Integer>>(2, 1000, 0, null);
 		collector.collect(new Tuple1<Integer>(3));
 		collector.collect(new Tuple1<Integer>(4));
 		collector.collect(new Tuple1<Integer>(5));
@@ -43,8 +43,7 @@ public class StreamCollectorTest {
 
 	@Test
 	public void testBatchSize() throws InterruptedException {
-		System.out.println("---------------");
-		StreamCollector collector = new StreamCollector(3, 100, 0, null);
+		StreamCollector<Tuple1<Integer>> collector = new StreamCollector<Tuple1<Integer>>(3, 100, 0, null);
 		collector.collect(new Tuple1<Integer>(0));
 		collector.collect(new Tuple1<Integer>(0));
 		collector.collect(new Tuple1<Integer>(0));
@@ -52,14 +51,13 @@ public class StreamCollectorTest {
 		Thread.sleep(200);
 		collector.collect(new Tuple1<Integer>(2));
 		collector.collect(new Tuple1<Integer>(3));
-		System.out.println("---------------");
 	}
 
 	@Test
 	public void recordWriter() {
 		MockRecordWriter recWriter = MockRecordWriterFactory.create();
 
-		StreamCollector collector = new StreamCollector(2, 1000, 0, null, recWriter);
+		StreamCollector<Tuple1<Integer>> collector = new StreamCollector<Tuple1<Integer>>(2, 1000, 0, null, recWriter);
 		collector.collect(new Tuple1<Integer>(3));
 		collector.collect(new Tuple1<Integer>(4));
 		collector.collect(new Tuple1<Integer>(5));

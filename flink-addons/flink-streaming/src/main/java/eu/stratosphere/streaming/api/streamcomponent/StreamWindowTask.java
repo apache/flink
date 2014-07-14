@@ -19,67 +19,68 @@ import java.util.ArrayList;
 
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.streaming.state.MutableTableState;
 import eu.stratosphere.streaming.state.SlidingWindowState;
 import eu.stratosphere.util.Collector;
 
-public class StreamWindowTask extends FlatMapFunction<Tuple, Tuple> {
-	private static final long serialVersionUID = 1L;
+public class StreamWindowTask<InTuple extends Tuple, OutTuple extends Tuple> extends FlatMapFunction<InTuple, OutTuple> {
 
 	private int computeGranularity;
-	private int windowFieldId = 1;
+	private int windowFieldId;
 
-	private ArrayList tempArrayList;
-	private SlidingWindowState window;
-	private MutableTableState<String, Integer> sum;
+	private ArrayList<InTuple> tempTupleArray;
+	private SlidingWindowState<InTuple> window;
 	private long initTimestamp = -1;
 	private long nextTimestamp = -1;
 
+	//protected StateCheckpointer checkpointer = new StateCheckpointer("object.out", 1000);
+	
 	public StreamWindowTask(int windowSize, int slidingStep,
 			int computeGranularity, int windowFieldId) {
 		this.computeGranularity = computeGranularity;
 		this.windowFieldId = windowFieldId;
-		window = new SlidingWindowState(windowSize, slidingStep,
+		window = new SlidingWindowState<InTuple>(windowSize, slidingStep,
 				computeGranularity);
-		sum = new MutableTableState<String, Integer>();
-		sum.put("sum", 0);
+		//checkpointer.RegisterState(window);
+		//Thread t = new Thread(checkpointer);
+		//t.start();
 	}
 
-	private void incrementCompute(ArrayList tupleArray) {}
+	protected void incrementCompute(ArrayList<InTuple> tupleArray) {}
 
-	private void decrementCompute(ArrayList tupleArray) {}
+	protected void decrementCompute(ArrayList<InTuple> tupleArray) {}
 
-	private void produceOutput(long progress, Collector out) {}
+	protected void produceOutput(long progress, Collector<OutTuple> out) {}
 
 	@Override
-	public void flatMap(Tuple value, Collector<Tuple> out) throws Exception {
+	public void flatMap(InTuple value, Collector<OutTuple> out)
+			throws Exception {
 		long progress = (Long) value.getField(windowFieldId);
 		if (initTimestamp == -1) {
 			initTimestamp = progress;
 			nextTimestamp = initTimestamp + computeGranularity;
-			tempArrayList = new ArrayList();
+			tempTupleArray = new ArrayList<InTuple>();
 		} else {
 			if (progress > nextTimestamp) {
 				if (window.isFull()) {
-					ArrayList expiredArrayList = window.popFront();
-					incrementCompute(tempArrayList);
-					decrementCompute(expiredArrayList);
-					window.pushBack(tempArrayList);
+					ArrayList<InTuple> expiredTupleArray = window.popFront();
+					incrementCompute(tempTupleArray);
+					decrementCompute(expiredTupleArray);
+					window.pushBack(tempTupleArray);
 					if (window.isEmittable()) {
 						produceOutput(progress, out);
 					}
 				} else {
-					incrementCompute(tempArrayList);
-					window.pushBack(tempArrayList);
+					incrementCompute(tempTupleArray);
+					window.pushBack(tempTupleArray);
 					if (window.isFull()) {
 						produceOutput(progress, out);
 					}
 				}
 				initTimestamp = nextTimestamp;
 				nextTimestamp = initTimestamp + computeGranularity;
-				tempArrayList = new ArrayList();
+				tempTupleArray = new ArrayList<InTuple>();
 			}
-			tempArrayList.add(value);
-		}
+			tempTupleArray.add(value);
+		}		
 	}
 }

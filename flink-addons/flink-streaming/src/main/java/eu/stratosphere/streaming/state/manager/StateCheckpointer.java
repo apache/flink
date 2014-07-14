@@ -15,22 +15,43 @@
 
 package eu.stratosphere.streaming.state.manager;
 
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.LinkedList;
 
-import eu.stratosphere.streaming.state.TableState;
+public class StateCheckpointer implements Runnable, Serializable {
 
-public class StateCheckpointer {
+	private LinkedList<Object> stateList = new LinkedList<Object>();
+	ObjectOutputStream oos;
+	long timeInterval;
 
-	private LinkedList<TableState> stateList = new LinkedList<TableState>();
-	
-	public void RegisterState(TableState state){
+	public StateCheckpointer(String filename, long timeIntervalMS) {
+		try {
+			oos = new ObjectOutputStream(new FileOutputStream(filename));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		this.timeInterval = timeIntervalMS;
+	}
+
+	public void RegisterState(Object state) {
 		stateList.add(state);
 	}
-	
-	public void CheckpointStates(){
-		for(TableState state: stateList){
-			//take snapshot of every registered state.
-			
-		}		
+
+	@Override
+	public void run() {
+		// take snapshot of every registered state.
+		while (true) {
+			try {
+				Thread.sleep(timeInterval);
+				for (Object state : stateList) {
+					oos.writeObject(state);
+					oos.flush();
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
 	}
 }

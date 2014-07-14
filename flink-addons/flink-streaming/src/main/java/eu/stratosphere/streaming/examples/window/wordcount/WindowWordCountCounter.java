@@ -17,37 +17,28 @@ package eu.stratosphere.streaming.examples.window.wordcount;
 
 import java.util.ArrayList;
 
-import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.streaming.state.MutableTableState;
-import eu.stratosphere.streaming.state.MutableTableStateIterator;
-import eu.stratosphere.streaming.state.SlidingWindowState;
+import eu.stratosphere.streaming.api.streamcomponent.StreamWindowTask;
+import eu.stratosphere.streaming.state.TableState;
+import eu.stratosphere.streaming.state.TableStateIterator;
 import eu.stratosphere.util.Collector;
 
 public class WindowWordCountCounter extends
-		FlatMapFunction<Tuple2<String, Long>, Tuple3<String, Integer, Long>> {
+		StreamWindowTask<Tuple2<String, Long>, Tuple3<String, Integer, Long>> {
 	private static final long serialVersionUID = 1L;
 
-	private int windowSize = 10;
-	private int slidingStep = 2;
-	private int computeGranularity = 1;
-
-	private ArrayList<Tuple2<String, Long>> tempTupleArray = null;
 	private Tuple3<String, Integer, Long> outTuple = new Tuple3<String, Integer, Long>();
-	private SlidingWindowState window;
-	private MutableTableState<String, Integer> wordCounts;
-	private long initTimestamp = -1;
-	private long nextTimestamp = -1;
-	private Long timestamp = 0L;
+	private TableState<String, Integer> wordCounts;
 
-	public WindowWordCountCounter() {
-		window = new SlidingWindowState(windowSize, slidingStep,
-				computeGranularity);
-		wordCounts = new MutableTableState<String, Integer>();
+	public WindowWordCountCounter(int windowSize, int slidingStep,
+			int computeGranularity, int windowFieldId) {
+		super(windowSize, slidingStep, computeGranularity, windowFieldId);
+		wordCounts = new TableState<String, Integer>();
 	}
-
-	private void incrementCompute(ArrayList<Tuple2<String, Long>> tupleArray) {
+	
+	@Override
+	protected void incrementCompute(ArrayList<Tuple2<String, Long>> tupleArray) {
 		for (int i = 0; i < tupleArray.size(); ++i) {
 			String word = tupleArray.get(i).f0;
 			if (wordCounts.containsKey(word)) {
@@ -59,7 +50,8 @@ public class WindowWordCountCounter extends
 		}
 	}
 
-	private void decrementCompute(ArrayList<Tuple2<String, Long>> tupleArray) {
+	@Override
+	protected void decrementCompute(ArrayList<Tuple2<String, Long>> tupleArray) {
 		for (int i = 0; i < tupleArray.size(); ++i) {
 			String word = tupleArray.get(i).f0;
 			int count = wordCounts.get(word) - 1;
@@ -71,47 +63,15 @@ public class WindowWordCountCounter extends
 		}
 	}
 
-	private void produceOutput(long progress, Collector<Tuple3<String, Integer, Long>> out) {
-		MutableTableStateIterator<String, Integer> iterator = wordCounts.getIterator();
+	@Override
+	protected void produceOutput(long progress, Collector<Tuple3<String, Integer, Long>> out) {
+		TableStateIterator<String, Integer> iterator = wordCounts.getIterator();
 		while (iterator.hasNext()) {
 			Tuple2<String, Integer> tuple = iterator.next();
 			outTuple.f0 = tuple.f0;
 			outTuple.f1 = tuple.f1;
-			outTuple.f2 = timestamp;
+			outTuple.f2 = progress;
 			out.collect(outTuple);
 		}
-	}
-
-	@Override
-	public void flatMap(Tuple2<String, Long> value,
-			Collector<Tuple3<String, Integer, Long>> out) throws Exception {
-		timestamp = value.f1;
-		if (initTimestamp == -1) {
-			initTimestamp = timestamp;
-			nextTimestamp = initTimestamp + computeGranularity;
-			tempTupleArray = new ArrayList<Tuple2<String, Long>>();
-		} else {
-			if (timestamp >= nextTimestamp) {
-				if (window.isFull()) {
-					ArrayList<Tuple2<String, Long>> expiredTupleArray = window.popFront();
-					incrementCompute(tempTupleArray);
-					decrementCompute(expiredTupleArray);
-					window.pushBack(tempTupleArray);
-					if (window.isEmittable()) {
-						produceOutput(timestamp, out);
-					}
-				} else {
-					incrementCompute(tempTupleArray);
-					window.pushBack(tempTupleArray);
-					if (window.isFull()) {
-						produceOutput(timestamp, out);
-					}
-				}
-				initTimestamp = nextTimestamp;
-				nextTimestamp = initTimestamp + computeGranularity;
-				tempTupleArray = new ArrayList<Tuple2<String, Long>>();
-			}
-		}
-		tempTupleArray.add(value);		
 	}
 }
