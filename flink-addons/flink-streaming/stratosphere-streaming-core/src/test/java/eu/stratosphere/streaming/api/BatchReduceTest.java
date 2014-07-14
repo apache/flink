@@ -79,7 +79,8 @@ public class BatchReduceTest {
 	public void test() throws Exception {
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALlELISM);
 
-		DataStream<Tuple1<Double>> dataStream0 = env.addSource(new MySource())
+		@SuppressWarnings("unused")
+		DataStream<Tuple1<Double>> dataStream = env.addSource(new MySource())
 				.batchReduce(new MyBatchReduce(), BATCH_SIZE).addSink(new MySink());
 
 		env.executeTest(MEMORYSIZE);
