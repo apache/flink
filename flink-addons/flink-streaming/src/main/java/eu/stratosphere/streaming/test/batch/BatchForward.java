@@ -15,23 +15,20 @@
 
 package eu.stratosphere.streaming.test.batch;
 
-import eu.stratosphere.streaming.api.AtomRecord;
-import eu.stratosphere.streaming.api.StreamRecord;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.types.StringValue;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.test.util.TestBase2;
 
-public class MyBatchStreamSource  extends UserSourceInvokable {
-//	private final String motto = "Stratosphere Big Data looks tiny from here";
-	private final String motto = "Gyuszi Gabor Big Marci Gyuszi";
-	private final AtomRecord record=new AtomRecord();
-	private final StreamRecord mottoRecord=new StreamRecord();
-	
+public class BatchForward extends TestBase2{
+
 	@Override
-	public void invoke() throws Exception {
-		record.setField(0, new StringValue(motto));
-		mottoRecord.addRecord(record);
-		for (int i = 0; i < 100; i++) {
-			emit(mottoRecord);
-		}
+	public JobGraph getJobGraph() {
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
+		graphBuilder.setSource("StreamSource", BatchForwardSource.class);
+		graphBuilder.setSink("StreamSink", BachForwardSink.class);
+
+		graphBuilder.broadcastConnect("StreamSource", "StreamSink");
+
+		return graphBuilder.getJobGraph();
 	}
 }

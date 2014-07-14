@@ -16,17 +16,17 @@
 package eu.stratosphere.streaming.test.batch;
 
 import eu.stratosphere.streaming.api.StreamRecord;
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.types.StringValue;
 
-public class MyBatchStreamSink implements UserSinkInvokable {
-
-	private StringValue word = new StringValue("");
+public class BatchForwardSource extends UserSourceInvokable {
+	private final StringValue motto = new StringValue("Stratosphere Big Data looks tiny from here");
+	private final StreamRecord mottoRecord = new StreamRecord(motto);
 
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
-		word = (StringValue) record.getField(0, 0);
-		System.out.println("========" + word.getValue() + "=========");
-
+	public void invoke() throws Exception {
+		for (int i = 0; i < 10; i++) {
+			emit(mottoRecord);
+		}
 	}
 }
