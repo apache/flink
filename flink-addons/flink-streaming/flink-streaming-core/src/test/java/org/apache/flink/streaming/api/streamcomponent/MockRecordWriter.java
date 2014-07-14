@@ -18,8 +18,8 @@ import java.util.ArrayList;
 
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-import org.apache.flink.pact.runtime.task.DataSourceTask;
-import org.apache.flink.runtime.io.api.RecordWriter;
+import org.apache.flink.runtime.operators.DataSourceTask;
+import org.apache.flink.runtime.io.network.api.RecordWriter;
 
 public class MockRecordWriter extends RecordWriter<StreamRecord> {
 

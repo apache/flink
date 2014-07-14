@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
 import org.apache.flink.streaming.api.invokable.UserSinkInvokable;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.io.api.AbstractRecordReader;
+import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
 
 public class StreamSink extends AbstractStreamComponent {
 

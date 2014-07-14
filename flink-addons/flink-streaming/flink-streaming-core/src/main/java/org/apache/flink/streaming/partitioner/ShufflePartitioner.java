@@ -19,7 +19,7 @@ import java.util.Random;
 
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-import org.apache.flink.runtime.io.api.ChannelSelector;
+import org.apache.flink.runtime.io.network.api.ChannelSelector;
 
 //Randomly group, to distribute equally
 public class ShufflePartitioner implements ChannelSelector<StreamRecord> {

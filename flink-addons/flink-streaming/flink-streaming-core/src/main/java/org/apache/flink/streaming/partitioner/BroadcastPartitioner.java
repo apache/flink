@@ -17,7 +17,7 @@ package org.apache.flink.streaming.partitioner;
 
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-import org.apache.flink.runtime.io.api.ChannelSelector;
+import org.apache.flink.runtime.io.network.api.ChannelSelector;
 
 public class BroadcastPartitioner implements ChannelSelector<StreamRecord> {
 

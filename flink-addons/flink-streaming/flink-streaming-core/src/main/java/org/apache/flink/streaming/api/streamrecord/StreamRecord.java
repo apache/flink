@@ -43,8 +43,8 @@ import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.tuple.Tuple9;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.pact.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.pact.runtime.plugable.SerializationDelegate;
+import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 
 /**
  * Object for storing serializable records in batch (single records are

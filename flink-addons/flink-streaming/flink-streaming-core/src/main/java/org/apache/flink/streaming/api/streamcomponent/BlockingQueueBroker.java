@@ -19,7 +19,7 @@ import java.util.concurrent.BlockingQueue;
 
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-import org.apache.flink.pact.runtime.iterative.concurrent.Broker;
+import org.apache.flink.runtime.iterative.concurrent.Broker;
 
 public class BlockingQueueBroker extends Broker<BlockingQueue<StreamRecord>>{
 	/**

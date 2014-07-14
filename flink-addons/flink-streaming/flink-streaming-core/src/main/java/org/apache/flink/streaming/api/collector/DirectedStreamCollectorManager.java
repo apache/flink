@@ -21,8 +21,8 @@ import org.apache.flink.streaming.api.streamcomponent.AbstractCollector;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.pact.runtime.plugable.SerializationDelegate;
-import org.apache.flink.runtime.io.api.RecordWriter;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.runtime.io.network.api.RecordWriter;
 
 public class DirectedStreamCollectorManager<T extends Tuple> extends StreamCollectorManager<T> {
 

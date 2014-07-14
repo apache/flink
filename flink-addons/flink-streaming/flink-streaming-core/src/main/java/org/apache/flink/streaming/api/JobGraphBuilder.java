@@ -42,15 +42,15 @@ import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.nephele.jobgraph.AbstractJobVertex;
-import org.apache.flink.nephele.jobgraph.JobGraph;
-import org.apache.flink.nephele.jobgraph.JobGraphDefinitionException;
-import org.apache.flink.nephele.jobgraph.JobInputVertex;
-import org.apache.flink.nephele.jobgraph.JobOutputVertex;
-import org.apache.flink.nephele.jobgraph.JobTaskVertex;
-import org.apache.flink.pact.runtime.task.util.TaskConfig;
-import org.apache.flink.runtime.io.api.ChannelSelector;
-import org.apache.flink.runtime.io.channels.ChannelType;
+import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphDefinitionException;
+import org.apache.flink.runtime.jobgraph.JobInputVertex;
+import org.apache.flink.runtime.jobgraph.JobOutputVertex;
+import org.apache.flink.runtime.jobgraph.JobTaskVertex;
+import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.runtime.io.network.api.ChannelSelector;
+import org.apache.flink.runtime.io.network.channels.ChannelType;
 
 /**
  * Object for building Flink stream processing job graphs

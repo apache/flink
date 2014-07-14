@@ -19,11 +19,11 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
-import org.apache.flink.nephele.template.AbstractInvokable;
-import org.apache.flink.pact.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.runtime.io.api.AbstractSingleGateRecordReader;
-import org.apache.flink.runtime.io.api.Reader;
-import org.apache.flink.runtime.io.gates.InputChannelResult;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.runtime.io.network.api.AbstractSingleGateRecordReader;
+import org.apache.flink.runtime.io.network.api.Reader;
+import org.apache.flink.runtime.io.network.gates.InputChannelResult;
 
 /**
  * A record writer connects an input gate to an application. It allows the
