@@ -26,52 +26,52 @@ import eu.stratosphere.types.Record;
 
 public class StreamSink extends AbstractOutputTask {
 
-	private List<RecordReader<Record>> inputs;
-	private UserSinkInvokable userFunction;
+  private List<RecordReader<Record>> inputs;
+  private UserSinkInvokable userFunction;
 
-	private int numberOfInputs;
+  private int numberOfInputs;
 
-	public StreamSink() {
-		// TODO: Make configuration file visible and call setClassInputs() here
-		inputs = new LinkedList<RecordReader<Record>>();
-		userFunction = null;
-		numberOfInputs = 0;
-	}
+  public StreamSink() {
+    // TODO: Make configuration file visible and call setClassInputs() here
+    inputs = new LinkedList<RecordReader<Record>>();
+    userFunction = null;
+    numberOfInputs = 0;
+  }
 
-	private void setConfigInputs() {
+  private void setConfigInputs() {
 
-		numberOfInputs = getTaskConfiguration().getInteger("numberOfInputs", 0);
-		for (int i = 0; i < numberOfInputs; i++) {
-			inputs.add(new RecordReader<Record>(this, Record.class));
-		}
+    numberOfInputs = getTaskConfiguration().getInteger("numberOfInputs", 0);
+    for (int i = 0; i < numberOfInputs; i++) {
+      inputs.add(new RecordReader<Record>(this, Record.class));
+    }
 
-		Class<? extends UserSinkInvokable> userFunctionClass;
-		userFunctionClass = getTaskConfiguration().getClass("userfunction",
-				DefaultSinkInvokable.class, UserSinkInvokable.class);
-		try {
-			userFunction = userFunctionClass.newInstance();
-		} catch (Exception e) {
+    Class<? extends UserSinkInvokable> userFunctionClass;
+    userFunctionClass = getTaskConfiguration().getClass("userfunction",
+        DefaultSinkInvokable.class, UserSinkInvokable.class);
+    try {
+      userFunction = userFunctionClass.newInstance();
+    } catch (Exception e) {
 
-		}
-	}
+    }
+  }
 
-	@Override
-	public void registerInputOutput() {
-		setConfigInputs();
-	}
+  @Override
+  public void registerInputOutput() {
+    setConfigInputs();
+  }
 
-	@Override
-	public void invoke() throws Exception {
-		boolean hasInput = true;
-		while (hasInput) {
-			hasInput = false;
-			for (RecordReader<Record> input : inputs) {
-				if (input.hasNext()) {
-					hasInput = true;
-					userFunction.invoke(input.next(), input);
-				}
-			}
-		}
-	}
+  @Override
+  public void invoke() throws Exception {
+    boolean hasInput = true;
+    while (hasInput) {
+      hasInput = false;
+      for (RecordReader<Record> input : inputs) {
+        if (input.hasNext()) {
+          hasInput = true;
+          userFunction.invoke(input.next());
+        }
+      }
+    }
+  }
 
 }
