@@ -24,24 +24,24 @@ import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
-import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 /**
  * A record writer connects an input gate to an application. It allows the
  * application query for incoming records and read them from input gate.
  * 
  */
-public class StreamRecordReader extends AbstractSingleGateRecordReader<ArrayStreamRecord> implements
-		Reader<ArrayStreamRecord> {
+public class StreamRecordReader extends AbstractSingleGateRecordReader<StreamRecord> implements
+		Reader<StreamRecord> {
 
-	private final Class<ArrayStreamRecord> recordType;
+	private final Class<? extends StreamRecord> recordType;
 	private DeserializationDelegate<Tuple> deserializationDelegate;
 	private TupleSerializer<Tuple> tupleSerializer;
 
 	/**
 	 * Stores the last read record.
 	 */
-	private ArrayStreamRecord lookahead;
+	private StreamRecord lookahead;
 
 	/**
 	 * Stores if more no more records will be received from the assigned input
@@ -61,10 +61,11 @@ public class StreamRecordReader extends AbstractSingleGateRecordReader<ArrayStre
 	 *            The class of records that can be read from the record reader.
 	 */
 	public StreamRecordReader(AbstractTask taskBase,
+			Class<? extends StreamRecord> recordType,
 			DeserializationDelegate<Tuple> deserializationDelegate,
 			TupleSerializer<Tuple> tupleSerializer) {
-		super(taskBase, MutableRecordDeserializerFactory.<ArrayStreamRecord> get(), 0);
-		this.recordType = ArrayStreamRecord.class;
+		super(taskBase, MutableRecordDeserializerFactory.<StreamRecord> get(), 0);
+		this.recordType = recordType;
 		this.deserializationDelegate = deserializationDelegate;
 		this.tupleSerializer = tupleSerializer;
 	}
@@ -78,9 +79,14 @@ public class StreamRecordReader extends AbstractSingleGateRecordReader<ArrayStre
 	 * @param recordType
 	 *            The class of records that can be read from the record reader.
 	 */
-	public StreamRecordReader(AbstractOutputTask outputBase, Class<ArrayStreamRecord> recordType) {
-		super(outputBase, MutableRecordDeserializerFactory.<ArrayStreamRecord> get(), 0);
+	public StreamRecordReader(AbstractOutputTask outputBase, 
+			Class<? extends StreamRecord> recordType,
+			DeserializationDelegate<Tuple> deserializationDelegate,
+			TupleSerializer<Tuple> tupleSerializer) {
+		super(outputBase, MutableRecordDeserializerFactory.<StreamRecord> get(), 0);
 		this.recordType = recordType;
+		this.deserializationDelegate = deserializationDelegate;
+		this.tupleSerializer = tupleSerializer;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -102,7 +108,7 @@ public class StreamRecordReader extends AbstractSingleGateRecordReader<ArrayStre
 				return false;
 			}
 
-			ArrayStreamRecord record = instantiateRecordType();
+			StreamRecord record = instantiateRecordType();
 			record.setDeseralizationDelegate(deserializationDelegate, tupleSerializer);
 
 			while (true) {
@@ -143,9 +149,9 @@ public class StreamRecordReader extends AbstractSingleGateRecordReader<ArrayStre
 	 *             input gate
 	 */
 	@Override
-	public ArrayStreamRecord next() throws IOException, InterruptedException {
+	public StreamRecord next() throws IOException, InterruptedException {
 		if (hasNext()) {
-			ArrayStreamRecord tmp = this.lookahead;
+			StreamRecord tmp = this.lookahead;
 			this.lookahead = null;
 			return tmp;
 		} else {
@@ -158,7 +164,7 @@ public class StreamRecordReader extends AbstractSingleGateRecordReader<ArrayStre
 		return this.noMoreRecordsWillFollow;
 	}
 
-	private ArrayStreamRecord instantiateRecordType() {
+	private StreamRecord instantiateRecordType() {
 		try {
 			return this.recordType.newInstance();
 		} catch (InstantiationException e) {

@@ -25,13 +25,13 @@ public class StreamCollectorTest {
 
 	@Test
 	public void testStreamCollector() {
-		StreamCollector collector = new StreamCollector(10, 0);
+		StreamCollector collector = new StreamCollector(10, 0, null);
 		assertEquals(10, collector.batchSize);
 	}
 
 	@Test
 	public void testCollect() {
-		StreamCollector collector = new StreamCollector(2, 0);
+		StreamCollector collector = new StreamCollector(2, 0, null);
 		collector.collect(new Tuple1<Integer>(3));
 		collector.collect(new Tuple1<Integer>(4));
 		collector.collect(new Tuple1<Integer>(5));
