@@ -10,7 +10,6 @@ import org.junit.Test;
 import eu.stratosphere.api.datastream.DataStream;
 import eu.stratosphere.api.datastream.StreamExecutionEnvironment;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
-import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
@@ -22,7 +21,7 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.streaming.api.streamcomponent.StreamInvokableComponent;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.util.Collector;
 
 public class FlatMapTest {
@@ -71,7 +70,7 @@ public class FlatMapTest {
 
 				byte[] userFunctionSerialized = config.getBytes("serializedudf", null);
 				in = new ObjectInputStream(new ByteArrayInputStream(userFunctionSerialized));
-				StreamInvokableComponent userFunction = (StreamInvokableComponent) in.readObject();
+				UserTaskInvokable userFunction = (UserTaskInvokable) in.readObject();
 				System.out.println(userFunction.getClass());
 				assertTrue(true);
 				System.out.println("----------------");

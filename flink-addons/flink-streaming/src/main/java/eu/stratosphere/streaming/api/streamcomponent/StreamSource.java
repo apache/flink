@@ -70,13 +70,13 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 
 	@Override
 	public void registerInputOutput() {
-		Environment env=this.getEnvironment();
 		Configuration taskConfiguration = getTaskConfiguration();
 		name = taskConfiguration.getString("componentName", "MISSING_COMPONENT_NAME");
 
 		try {
 			streamSourceHelper.setSerializers(taskConfiguration);
 			streamSourceHelper.setConfigOutputs(this, taskConfiguration, outputs, partitioners);
+			streamSourceHelper.setCollector(taskConfiguration, sourceInstanceID, outputs);
 		} catch (StreamComponentException e) {
 			if (log.isErrorEnabled()) {
 				log.error("Cannot register outputs", e);
@@ -88,11 +88,8 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 			numberOfOutputChannels[i] = taskConfiguration.getInteger("channels_" + i, 0);
 		}
 
-		streamSourceHelper.setFaultTolerance(recordBuffer, faultToleranceType, taskConfiguration,
-				outputs, sourceInstanceID, name, numberOfOutputChannels);
-		
-		userFunction = (UserSourceInvokable) streamSourceHelper.getUserFunction(taskConfiguration,
-				outputs, sourceInstanceID, name, recordBuffer);
+		userFunction = (UserSourceInvokable) streamSourceHelper
+				.getSourceInvokable(taskConfiguration);
 		streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID, outputs);
 		streamSourceHelper.setFailListener(recordBuffer, sourceInstanceID, outputs);
 	}
@@ -102,11 +99,7 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 		if (log.isDebugEnabled()) {
 			log.debug("SOURCE " + name + " invoked with instance id " + sourceInstanceID);
 		}
-		StreamCollector<Tuple> collector = streamSourceHelper.collector;
 		userFunction.invoke(streamSourceHelper.collector);
-		// TODO print to file
-		System.out.println(userFunction.getResult());
-
 	}
 
 }
