@@ -27,7 +27,6 @@ import eu.stratosphere.streaming.util.LogUtils;
 
 public class RMQTopology {
 
-
 	public static class Sink extends UserSinkInvokable {
 		private static final long serialVersionUID = 1L;
 
@@ -41,7 +40,7 @@ public class RMQTopology {
 
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("RMQ", FaultToleranceType.NONE);
 		graphBuilder.setSource("Source", new RMQSource("localhost", "hello"), 1, 1);
-		graphBuilder.setSink("Sink", Sink.class, 1, 1);
+		graphBuilder.setSink("Sink", new Sink(), 1, 1);
 
 		graphBuilder.shuffleConnect("Source", "Sink");
 

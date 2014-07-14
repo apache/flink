@@ -69,6 +69,8 @@ public class JobGraphBuilder {
 	 * 
 	 * @param jobGraphName
 	 *            Name of the JobGraph
+	 * @param faultToleranceType
+	 *            Fault tolerance type
 	 */
 	public JobGraphBuilder(String jobGraphName, FaultToleranceType faultToleranceType) {
 		jobGraph = new JobGraph(jobGraphName);
@@ -79,6 +81,17 @@ public class JobGraphBuilder {
 		maxParallelism = 0;
 		log.debug("JobGraph created");
 		this.faultToleranceType = faultToleranceType;
+	}
+
+	/**
+	 * Creates a new JobGraph with the given name with fault tolerance turned
+	 * off
+	 * 
+	 * @param jobGraphName
+	 *            Name of the JobGraph
+	 */
+	public JobGraphBuilder(String jobGraphName) {
+		this(jobGraphName, FaultToleranceType.NONE);
 	}
 
 	/**

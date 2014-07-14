@@ -180,11 +180,11 @@ public class IncrementalOLS {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("IncrementalOLS",
 				FaultToleranceType.NONE);
 
-		graphBuilder.setSource("NewData", NewDataSource.class, 1, 1);
-		graphBuilder.setSource("TrainingData", TrainingDataSource.class, 1, 1);
-		graphBuilder.setTask("PartialModelBuilder", PartialModelBuilder.class, 1, 1);
-		graphBuilder.setTask("Predictor", Predictor.class, 1, 1);
-		graphBuilder.setSink("Sink", Sink.class, 1, 1);
+		graphBuilder.setSource("NewData", new NewDataSource(), 1, 1);
+		graphBuilder.setSource("TrainingData",new TrainingDataSource(), 1, 1);
+		graphBuilder.setTask("PartialModelBuilder",new PartialModelBuilder(), 1, 1);
+		graphBuilder.setTask("Predictor",new Predictor(), 1, 1);
+		graphBuilder.setSink("Sink",new Sink(), 1, 1);
 
 		graphBuilder.shuffleConnect("TrainingData", "PartialModelBuilder");
 		graphBuilder.shuffleConnect("NewData", "Predictor");

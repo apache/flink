@@ -42,6 +42,7 @@ public class WordCountRemote {
 	private final static int recordsEmitted = 100000;
 
 	public static class WordCountDebugSource extends UserSourceInvokable {
+		private static final long serialVersionUID = 1L;
 
 		private PerformanceCounter perf = new PerformanceCounter("SourceEmitCounter", 1000, 10000, "");
 
