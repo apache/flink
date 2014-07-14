@@ -44,7 +44,6 @@ import eu.stratosphere.api.java.tuple.Tuple6;
 import eu.stratosphere.api.java.tuple.Tuple7;
 import eu.stratosphere.api.java.tuple.Tuple8;
 import eu.stratosphere.api.java.tuple.Tuple9;
-import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
@@ -63,8 +62,9 @@ public class ArrayStreamRecord implements IOReadableWritable, Serializable {
 	private UID uid = new UID();
 	private int batchSize;
 
+	private SerializationDelegate<Tuple> serializationDelegate;
+	private DeserializationDelegate<Tuple> deserializationDelegate;
 	private TupleSerializer<Tuple> tupleSerializer;
-	SerializationDelegate<Tuple> serializationDelegate;
 
 	private static final Class<?>[] CLASSES = new Class<?>[] { Tuple1.class, Tuple2.class,
 			Tuple3.class, Tuple4.class, Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class,
@@ -104,9 +104,14 @@ public class ArrayStreamRecord implements IOReadableWritable, Serializable {
 		tupleBatch = tupleArray;
 	}
 
-	public void setTupleTypeInfo(TupleTypeInfo<Tuple> typeInfo) {
-		tupleSerializer = (TupleSerializer<Tuple>) typeInfo.createSerializer();
-		serializationDelegate = new SerializationDelegate<Tuple>(tupleSerializer);
+	public void setSeralizationDelegate(SerializationDelegate<Tuple> serializationDelegate) {
+		this.serializationDelegate = serializationDelegate;
+	}
+
+	public void setDeseralizationDelegate(DeserializationDelegate<Tuple> deserializationDelegate,
+			TupleSerializer<Tuple> tupleSerializer) {
+		this.deserializationDelegate = deserializationDelegate;
+		this.tupleSerializer = tupleSerializer;
 	}
 
 	/**
@@ -294,12 +299,11 @@ public class ArrayStreamRecord implements IOReadableWritable, Serializable {
 		uid.read(in);
 		batchSize = in.readInt();
 		tupleBatch = new Tuple[batchSize];
-		DeserializationDelegate<Tuple> dd = new DeserializationDelegate<Tuple>(tupleSerializer);
 
 		for (int k = 0; k < batchSize; ++k) {
-			dd.setInstance(tupleSerializer.createInstance());
-			dd.read(in);
-			tupleBatch[k] = dd.getInstance();
+			deserializationDelegate.setInstance(tupleSerializer.createInstance());
+			deserializationDelegate.read(in);
+			tupleBatch[k] = deserializationDelegate.getInstance();
 		}
 	}
 

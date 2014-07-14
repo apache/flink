@@ -15,141 +15,158 @@ package eu.stratosphere.streaming.api.streamcomponent;
 
 import java.io.IOException;
 
-import eu.stratosphere.core.io.IOReadableWritable;
+import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
 import eu.stratosphere.nephele.io.AbstractSingleGateRecordReader;
 import eu.stratosphere.nephele.io.InputChannelResult;
 import eu.stratosphere.nephele.io.MutableRecordDeserializerFactory;
 import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
+import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
 
 /**
- * A record writer connects an input gate to an application. It allows the application
- * query for incoming records and read them from input gate.
+ * A record writer connects an input gate to an application. It allows the
+ * application query for incoming records and read them from input gate.
  * 
- * @param <T> The type of the record that can be read from this record reader.
  */
-public class StreamRecordReader<T extends IOReadableWritable> extends AbstractSingleGateRecordReader<T> implements Reader<T> {
-	
-	private final Class<T> recordType;
-	
+public class StreamRecordReader extends AbstractSingleGateRecordReader<ArrayStreamRecord> implements
+		Reader<ArrayStreamRecord> {
+
+	private final Class<ArrayStreamRecord> recordType;
+	private DeserializationDelegate<Tuple> deserializationDelegate;
+	private TupleSerializer<Tuple> tupleSerializer;
+
 	/**
 	 * Stores the last read record.
 	 */
-	private T lookahead;
+	private ArrayStreamRecord lookahead;
 
 	/**
-	 * Stores if more no more records will be received from the assigned input gate.
+	 * Stores if more no more records will be received from the assigned input
+	 * gate.
 	 */
 	private boolean noMoreRecordsWillFollow;
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
+	 * Constructs a new record reader and registers a new input gate with the
+	 * application's environment.
 	 * 
 	 * @param taskBase
-	 *        The application that instantiated the record reader.
+	 *            The application that instantiated the record reader.
 	 * @param recordType
-	 *        The class of records that can be read from the record reader.
+	 *            The class of records that can be read from the record reader.
 	 */
-	public StreamRecordReader(AbstractTask taskBase, Class<T> recordType) {
-		super(taskBase, MutableRecordDeserializerFactory.<T>get(), 0);
-		this.recordType = recordType;
+	public StreamRecordReader(AbstractTask taskBase,
+			DeserializationDelegate<Tuple> deserializationDelegate,
+			TupleSerializer<Tuple> tupleSerializer) {
+		super(taskBase, MutableRecordDeserializerFactory.<ArrayStreamRecord> get(), 0);
+		this.recordType = ArrayStreamRecord.class;
+		this.deserializationDelegate = deserializationDelegate;
+		this.tupleSerializer = tupleSerializer;
 	}
 
 	/**
-	 * Constructs a new record reader and registers a new input gate with the application's environment.
+	 * Constructs a new record reader and registers a new input gate with the
+	 * application's environment.
 	 * 
 	 * @param outputBase
-	 *        The application that instantiated the record reader.
+	 *            The application that instantiated the record reader.
 	 * @param recordType
-	 *        The class of records that can be read from the record reader.
+	 *            The class of records that can be read from the record reader.
 	 */
-	public StreamRecordReader(AbstractOutputTask outputBase, Class<T> recordType) {
-		super(outputBase, MutableRecordDeserializerFactory.<T>get(), 0);
+	public StreamRecordReader(AbstractOutputTask outputBase, Class<ArrayStreamRecord> recordType) {
+		super(outputBase, MutableRecordDeserializerFactory.<ArrayStreamRecord> get(), 0);
 		this.recordType = recordType;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
-	 * Checks if at least one more record can be read from the associated input gate. This method may block
-	 * until the associated input gate is able to read the record from one of its input channels.
+	 * Checks if at least one more record can be read from the associated input
+	 * gate. This method may block until the associated input gate is able to
+	 * read the record from one of its input channels.
 	 * 
-	 * @return <code>true</code>it at least one more record can be read from the associated input gate, otherwise
-	 *         <code>false</code>
+	 * @return <code>true</code>it at least one more record can be read from the
+	 *         associated input gate, otherwise <code>false</code>
 	 */
 	@Override
-	public boolean hasNext() throws IOException, InterruptedException{
+	public boolean hasNext() throws IOException, InterruptedException {
 		if (this.lookahead != null) {
 			return true;
 		} else {
 			if (this.noMoreRecordsWillFollow) {
 				return false;
 			}
-			
-			T record = instantiateRecordType();
-			
+
+			ArrayStreamRecord record = instantiateRecordType();
+			record.setDeseralizationDelegate(deserializationDelegate, tupleSerializer);
+
 			while (true) {
 				InputChannelResult result = this.inputGate.readRecord(record);
 				switch (result) {
-					case INTERMEDIATE_RECORD_FROM_BUFFER:
-					case LAST_RECORD_FROM_BUFFER:
-						this.lookahead = record;
-						return true;
-						
-					case END_OF_SUPERSTEP:
-						if (incrementEndOfSuperstepEventAndCheck())
-							return false;
-						else
-							return false;
-					case TASK_EVENT:
-						handleEvent(this.inputGate.getCurrentEvent());
-						return false;	
-					case END_OF_STREAM:
-						this.noMoreRecordsWillFollow = true;
+				case INTERMEDIATE_RECORD_FROM_BUFFER:
+				case LAST_RECORD_FROM_BUFFER:
+					this.lookahead = record;
+					return true;
+
+				case END_OF_SUPERSTEP:
+					if (incrementEndOfSuperstepEventAndCheck())
 						return false;
-					case NONE: // internal event or an incomplete record that needs further chunks
-						// the current unit is exhausted
-						break;
-					default:
-						return false;
+					else
+						break; // fall through and wait for next record/event
+
+				case TASK_EVENT:
+					handleEvent(this.inputGate.getCurrentEvent());
+					break;
+
+				case END_OF_STREAM:
+					this.noMoreRecordsWillFollow = true;
+					return false;
+
+				default:
+					; // fall through the loop
 				}
 			}
 		}
 	}
-	
+
 	/**
 	 * Reads the current record from the associated input gate.
 	 * 
 	 * @return the current record from the associated input gate.
 	 * @throws IOException
-	 *         thrown if any error occurs while reading the record from the input gate
+	 *             thrown if any error occurs while reading the record from the
+	 *             input gate
 	 */
 	@Override
-	public T next() throws IOException, InterruptedException {
+	public ArrayStreamRecord next() throws IOException, InterruptedException {
 		if (hasNext()) {
-			T tmp = this.lookahead;
+			ArrayStreamRecord tmp = this.lookahead;
 			this.lookahead = null;
 			return tmp;
 		} else {
 			return null;
 		}
 	}
-	
+
 	@Override
 	public boolean isInputClosed() {
 		return this.noMoreRecordsWillFollow;
 	}
-	
-	private T instantiateRecordType() {
+
+	private ArrayStreamRecord instantiateRecordType() {
 		try {
 			return this.recordType.newInstance();
 		} catch (InstantiationException e) {
-			throw new RuntimeException("Cannot instantiate class '" + this.recordType.getName() + "'.", e);
+			throw new RuntimeException("Cannot instantiate class '" + this.recordType.getName()
+					+ "'.", e);
 		} catch (IllegalAccessException e) {
-			throw new RuntimeException("Cannot instantiate class '" + this.recordType.getName() + "'.", e);
+			throw new RuntimeException("Cannot instantiate class '" + this.recordType.getName()
+					+ "'.", e);
 		}
 	}
 }

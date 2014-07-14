@@ -72,7 +72,7 @@ public class ArrayStreamRecordTest {
 
 	@Test
 	public void StreamRecordSpeedTest() {
-		int len = 1000000;
+		int len = 100000;
 		ArrayStreamRecord arecord = new ArrayStreamRecord(len);
 		StreamRecord record = new StreamRecord(len);
 		Tuple2<Integer, String> tuple = new Tuple2<Integer, String>(2, "a");
