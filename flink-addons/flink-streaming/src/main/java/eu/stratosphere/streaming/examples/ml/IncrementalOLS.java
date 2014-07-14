@@ -14,7 +14,6 @@
  **********************************************************************************************************************/
 package eu.stratosphere.streaming.examples.ml;
 
-import java.net.InetSocketAddress;
 import java.util.Random;
 
 import org.apache.commons.lang.ArrayUtils;
@@ -24,9 +23,6 @@ import org.apache.log4j.Level;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.client.minicluster.NepheleMiniCluster;
-import eu.stratosphere.client.program.Client;
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
@@ -34,11 +30,14 @@ import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
+import eu.stratosphere.streaming.util.ClusterUtil;
 import eu.stratosphere.streaming.util.LogUtils;
 
 public class IncrementalOLS {
 
 	public static class NewDataSource extends UserSourceInvokable {
+
+		private static final long serialVersionUID = 1L;
 
 		StreamRecord record = new StreamRecord(2, 1);
 
@@ -47,7 +46,7 @@ public class IncrementalOLS {
 		@Override
 		public void invoke() throws Exception {
 			record.initRecords();
-			while(true) {
+			while (true) {
 				// pull new record from data source
 				record.setTuple(getNewData());
 				emit(record);
@@ -64,6 +63,8 @@ public class IncrementalOLS {
 
 	public static class TrainingDataSource extends UserSourceInvokable {
 
+		private static final long serialVersionUID = 1L;
+
 		private final int BATCH_SIZE = 1000;
 
 		StreamRecord record = new StreamRecord(2, BATCH_SIZE);
@@ -75,7 +76,7 @@ public class IncrementalOLS {
 
 			record.initRecords();
 
-			while(true) {
+			while (true) {
 				for (int i = 0; i < BATCH_SIZE; i++) {
 					record.setTuple(i, getTrainingData());
 				}
@@ -93,6 +94,8 @@ public class IncrementalOLS {
 	}
 
 	public static class PartialModelBuilder extends UserTaskInvokable {
+
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
@@ -126,6 +129,8 @@ public class IncrementalOLS {
 	}
 
 	public static class Predictor extends UserTaskInvokable {
+
+		private static final long serialVersionUID = 1L;
 
 		// StreamRecord batchModel = null;
 		Double[] partialModel = new Double[] { 0.0, 0.0 };
@@ -164,13 +169,16 @@ public class IncrementalOLS {
 
 	public static class Sink extends UserSinkInvokable {
 
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
 		}
 	}
 
-	private static JobGraph getJobGraph() throws Exception {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("IncrementalOLS", FaultToleranceType.NONE);
+	private static JobGraph getJobGraph() {
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("IncrementalOLS",
+				FaultToleranceType.NONE);
 
 		graphBuilder.setSource("NewData", NewDataSource.class, 1, 1);
 		graphBuilder.setSource("TrainingData", TrainingDataSource.class, 1, 1);
@@ -189,34 +197,18 @@ public class IncrementalOLS {
 	public static void main(String[] args) {
 
 		// set logging parameters for local run
-		LogUtils.initializeDefaultConsoleLogger(Level.INFO, Level.INFO);
+		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
-		try {
+		if (args.length == 0) {
+			args = new String[] { "local" };
+		}
 
-			// generate JobGraph
-			JobGraph jG = getJobGraph();
-			Configuration configuration = jG.getJobConfiguration();
+		if (args[0].equals("local")) {
+			ClusterUtil.runOnMiniCluster(getJobGraph());
 
-			if (args.length == 0 || args[0].equals("local")) {
-				System.out.println("Running in Local mode");
-				// start local cluster and submit JobGraph
-				NepheleMiniCluster exec = new NepheleMiniCluster();
-				exec.start();
+		} else if (args[0].equals("cluster")) {
+			ClusterUtil.runOnLocalCluster(getJobGraph(), "hadoop02.ilab.sztaki.hu", 6123);
 
-				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
-
-				client.run(jG, true);
-
-				exec.stop();
-			} else if (args[0].equals("cluster")) {
-				System.out.println("Running in Cluster mode");
-				// submit JobGraph to the running cluster
-				Client client = new Client(new InetSocketAddress("dell150", 6123), configuration);
-				client.run(jG, true);
-			}
-
-		} catch (Exception e) {
-			System.out.println(e);
 		}
 	}
 }
