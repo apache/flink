@@ -36,7 +36,7 @@ public class FieldsPartitioner implements ChannelSelector<StreamRecord> {
 
 	@Override
 	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
-		returnArray[0] = Math.abs(record.getTuple().hashCode()) % numberOfOutputChannels;
+		returnArray[0] = Math.abs(record.getTuple().getField(keyPosition).hashCode()) % numberOfOutputChannels;
 		return returnArray;
 	}
 }

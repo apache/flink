@@ -27,12 +27,18 @@ import org.junit.Test;
 
 public class BroadcastPartitionerTest {
 
-	private BroadcastPartitioner broadcastPartitioner;
+	private BroadcastPartitioner broadcastPartitioner1;
+	private BroadcastPartitioner broadcastPartitioner2;
+	private BroadcastPartitioner broadcastPartitioner3;
+	
 	private StreamRecord streamRecord = new StreamRecord();
 
 	@Before
 	public void setPartitioner() {
-		broadcastPartitioner = new BroadcastPartitioner();
+		broadcastPartitioner1 = new BroadcastPartitioner();
+		broadcastPartitioner2 = new BroadcastPartitioner();
+		broadcastPartitioner3 = new BroadcastPartitioner();
+
 	}
 
 	@Test
@@ -41,8 +47,8 @@ public class BroadcastPartitionerTest {
 		int[] second = new int[] { 0, 1 };
 		int[] sixth = new int[] { 0, 1, 2, 3, 4, 5 };
 
-		assertArrayEquals(first, broadcastPartitioner.selectChannels(streamRecord, 1));
-		assertArrayEquals(second, broadcastPartitioner.selectChannels(streamRecord, 2));
-		assertArrayEquals(sixth, broadcastPartitioner.selectChannels(streamRecord, 6));
+		assertArrayEquals(first, broadcastPartitioner1.selectChannels(streamRecord, 1));
+		assertArrayEquals(second, broadcastPartitioner2.selectChannels(streamRecord, 2));
+		assertArrayEquals(sixth, broadcastPartitioner3.selectChannels(streamRecord, 6));
 	}
 }
