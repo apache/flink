@@ -63,17 +63,33 @@ public abstract class FaultToleranceBuffer {
 
 		StreamRecord record = streamRecord.copy();
 		String id = record.getId();
-		
+
 		recordBuffer.put(id, record);
 
 		addTimestamp(id);
 		addToAckCounter(id);
 
+		log.trace("Record added to buffer: " + id);
+	}
+
+	public synchronized void add(StreamRecord streamRecord, int channel) {
+
+		StreamRecord record = streamRecord.copy();
+
+		String id = record.getId();
+		recordBuffer.put(id, record);
+		addTimestamp(id);
+
+		addToAckCounter(id, channel);
 
 		log.trace("Record added to buffer: " + id);
 	}
 
 	protected abstract void addToAckCounter(String id);
+
+	protected void addToAckCounter(String id, int channel) {
+		addToAckCounter(id);
+	}
 
 	protected abstract boolean removeFromAckCounter(String id);
 
@@ -96,7 +112,7 @@ public abstract class FaultToleranceBuffer {
 		Long currentTime = System.currentTimeMillis();
 
 		recordTimestamps.put(id, currentTime);
-		
+
 		Set<String> recordSet = recordsByTime.get(currentTime);
 
 		if (recordSet == null) {
@@ -111,9 +127,9 @@ public abstract class FaultToleranceBuffer {
 	public synchronized StreamRecord remove(String id) {
 
 		if (removeFromAckCounter(id)) {
-			
+
 			recordsByTime.get(recordTimestamps.remove(id)).remove(id);
-			
+
 			log.trace("Record removed from buffer: " + id);
 			return recordBuffer.remove(id);
 		} else {

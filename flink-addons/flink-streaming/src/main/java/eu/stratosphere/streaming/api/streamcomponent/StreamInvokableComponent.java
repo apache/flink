@@ -60,6 +60,7 @@ public abstract class StreamInvokableComponent {
 	//TODO: Add fault tolerance
 	public final void emit(StreamRecord record, int outputChannel) {
 		record.setId(channelID);
+		emittedRecords.addRecord(record,outputChannel);
 		try {
 			outputs.get(outputChannel).emit(record);
 		} catch (Exception e) {

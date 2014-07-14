@@ -52,7 +52,8 @@ public class FaultToleranceUtil {
 	 * @param numberOfChannels
 	 *            Number of output channels for the output components
 	 */
-	//TODO:get faulttolerancy type from user config, update logs for channel acks and fails 
+	// TODO:get faulttolerancy type from user config, update logs for channel
+	// acks and fails
 	public FaultToleranceUtil(List<RecordWriter<StreamRecord>> outputs, String componentID,
 			int[] numberOfChannels) {
 		this.outputs = outputs;
@@ -79,6 +80,12 @@ public class FaultToleranceUtil {
 	public void addRecord(StreamRecord streamRecord) {
 
 		buffer.add(streamRecord);
+
+	}
+
+	public void addRecord(StreamRecord streamRecord, int output) {
+
+		buffer.add(streamRecord, output);
 
 	}
 
@@ -125,8 +132,6 @@ public class FaultToleranceUtil {
 	 * 
 	 * @param recordID
 	 *            ID of the record that has been failed
-	 * @param channel
-	 *            Number of channel to be failed
 	 */
 	public void failRecord(String recordID) {
 		StreamRecord failed = buffer.fail(recordID);
