@@ -8,6 +8,7 @@ import java.io.ObjectInputStream;
 import org.junit.Test;
 
 import eu.stratosphere.api.datastream.DataStream;
+import eu.stratosphere.api.datastream.SinkFunction;
 import eu.stratosphere.api.datastream.StreamExecutionEnvironment;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
@@ -34,6 +35,16 @@ public class FlatMapTest {
 		}
 	}
 
+	public static final class MySink extends SinkFunction<Tuple1<String>> {
+
+		@Override
+		public void invoke(Tuple1<String> tuple) {
+			// TODO Auto-generated method stub
+			System.out.println(tuple);
+		}
+
+	}
+
 	@Test
 	public void test() throws Exception {
 		Tuple1<String> tup = new Tuple1<String>("asd");
@@ -42,9 +53,9 @@ public class FlatMapTest {
 		DataStream<Tuple1<String>> dataStream0 = context.setDummySource();
 
 		DataStream<Tuple1<String>> dataStream1 = context.setDummySource().connectWith(dataStream0)
-				.partitionBy(0).flatMap(new MyFlatMap()).broadcast().addDummySink();
+				.partitionBy(0).flatMap(new MyFlatMap()).broadcast().addSink(new MySink());
 
-		context.execute();
+		 context.execute();
 
 		JobGraphBuilder jgb = context.jobGB();
 
@@ -84,11 +95,11 @@ public class FlatMapTest {
 
 				ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes));
 
-				UserSinkInvokable<Tuple> f = (UserSinkInvokable<Tuple>) in.readObject();
+				SinkFunction<Tuple> f = (SinkFunction<Tuple>) in.readObject();
 
 				System.out.println(f.getClass().getGenericSuperclass());
 				TupleTypeInfo<Tuple> ts = (TupleTypeInfo) TypeExtractor.createTypeInfo(
-						UserSinkInvokable.class, f.getClass(), 0, null, null);
+						SinkFunction.class, f.getClass(), 0, null, null);
 
 				System.out.println(ts);
 

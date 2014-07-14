@@ -101,6 +101,28 @@ public class StreamExecutionEnvironment {
 		return returnStream;
 	}
 
+	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
+			SinkFunction<T> sinkFunction) {
+		DataStream<T> returnStream = new DataStream<T>(this);
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ObjectOutputStream oos;
+		try {
+			oos = new ObjectOutputStream(baos);
+			oos.writeObject(sinkFunction);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		jobGraphBuilder.setSink("sink", new SinkInvokable<T>(sinkFunction), "sink",
+				baos.toByteArray());
+
+		connectGraph(inputStream.connectIDs, "sink", inputStream.ctype, inputStream.cparam);
+
+		return returnStream;
+	}
+
 	public <T extends Tuple, R extends Tuple> DataStream<R> addMapFunction(
 			DataStream<T> inputStream, final MapFunction<T, R> mapper) {
 		DataStream<R> returnStream = new DataStream<R>(this);
@@ -120,39 +142,23 @@ public class StreamExecutionEnvironment {
 
 		connectGraph(inputStream.connectIDs, returnStream.getId(), inputStream.ctype,
 				inputStream.cparam);
-		
+
 		return returnStream;
 	}
 
-	public static final class DummySink extends UserSinkInvokable<Tuple1<String>> {
+	public static final class DummySink extends SinkFunction<Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(StreamRecord record, StreamCollector<Tuple> collector) throws Exception {
-			for (Tuple tuple : record.getBatchIterable()) {
-				System.out.println(tuple);
-			}
+		public void invoke(Tuple1<String> tuple) {
+			System.out.println(tuple);
 		}
 
 	}
 
-	public <T extends Tuple, R extends Tuple> DataStream<R> addDummySink(DataStream<T> inputStream) {
+	public <T extends Tuple> DataStream<T> addDummySink(DataStream<T> inputStream) {
 
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos;
-		try {
-			oos = new ObjectOutputStream(baos);
-			oos.writeObject(new DummySink());
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		jobGraphBuilder.setSink("sink", new DummySink(), "sink", baos.toByteArray());
-
-		connectGraph(inputStream.connectIDs, "sink", inputStream.ctype,
-				inputStream.cparam);
-		return new DataStream<R>(this);
+		return addSink(inputStream, (SinkFunction<T>) new DummySink());
 	}
 
 	public void execute() {
