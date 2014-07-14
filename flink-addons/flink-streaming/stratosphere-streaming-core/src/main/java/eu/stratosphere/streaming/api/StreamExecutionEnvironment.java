@@ -284,8 +284,6 @@ public abstract class StreamExecutionEnvironment {
 	 *            the user defined function
 	 * @param functionInvokable
 	 *            the wrapping JobVertex instance
-	 * @param parallelism
-	 *            number of parallel instances of the function
 	 * @param <T>
 	 *            type of the input stream
 	 * @param <R>
@@ -313,8 +311,6 @@ public abstract class StreamExecutionEnvironment {
 	 *            input data stream
 	 * @param sinkFunction
 	 *            the user defined function
-	 * @param parallelism
-	 *            number of parallel instances of the function
 	 * @param <T>
 	 *            type of the returned stream
 	 * @return the data stream constructed

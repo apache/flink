@@ -273,8 +273,6 @@ public class DataStream<T extends Tuple> {
 	 * @param flatMapper
 	 *            The FlatMapFunction that is called for each element of the
 	 *            DataStream
-	 * @param parallelism
-	 *            The number of threads the function runs on.
 	 * 
 	 * @param <R>
 	 *            output type
@@ -294,8 +292,6 @@ public class DataStream<T extends Tuple> {
 	 * @param filter
 	 *            The FilterFunction that is called for each element of the
 	 *            DataSet.
-	 * @param parallelism
-	 *            The number of threads the function runs on.
 	 * @return The filtered DataStream.
 	 */
 	public DataStream<T> filter(FilterFunction<T> filter) {
@@ -314,8 +310,6 @@ public class DataStream<T extends Tuple> {
 	 *            The GroupReduceFunction that is called for each tuple batch.
 	 * @param batchSize
 	 *            The number of tuples grouped together in the batch.
-	 * @param parallelism
-	 *            The number of threads the function runs on.
 	 * @param <R>
 	 *            output type
 	 * @return The modified DataStream.
@@ -333,8 +327,6 @@ public class DataStream<T extends Tuple> {
 	 * 
 	 * @param sinkFunction
 	 *            The object containing the sink's invoke function.
-	 * @param parallelism
-	 *            The number of threads the function runs on.
 	 * @return The modified DataStream.
 	 */
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
@@ -342,7 +334,7 @@ public class DataStream<T extends Tuple> {
 	}
 
 	/**
-	 * Writes a DataStream to the standard output stream (stdout).<br/>
+	 * Writes a DataStream to the standard output stream (stdout).
 	 * For each element of the DataStream the result of
 	 * {@link Object#toString()} is written.
 	 *
