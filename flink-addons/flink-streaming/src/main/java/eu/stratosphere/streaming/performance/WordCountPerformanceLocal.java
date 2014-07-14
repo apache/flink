@@ -19,24 +19,22 @@ import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.DataStream;
 import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
 import eu.stratosphere.streaming.examples.wordcount.WordCountCounter;
-import eu.stratosphere.streaming.examples.wordcount.WordCountSink;
-import eu.stratosphere.streaming.examples.wordcount.WordCountSplitter;
 import eu.stratosphere.streaming.util.TestDataUtil;
 
 public class WordCountPerformanceLocal {
 	public static void main(String[] args) {
-		
+
 		TestDataUtil.downloadIfNotExists("hamlet.txt");
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-		
-		@SuppressWarnings("unused")
+
 		DataStream<Tuple2<String, Integer>> dataStream = env
 				.readTextStream("src/test/resources/testdata/hamlet.txt")
 				.flatMap(new WordCountPerformanceSplitter(), 1)
 				.broadcast()
-				.map(new WordCountCounter(), 3)
-				.addSink(new WordCountSink(), 2);
-		
+				.map(new WordCountCounter(), 3);
+
+		dataStream.print();
+
 		env.execute();
 	}
 }

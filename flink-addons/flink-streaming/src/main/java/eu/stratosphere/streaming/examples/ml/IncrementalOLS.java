@@ -24,7 +24,6 @@ import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.DataStream;
-import eu.stratosphere.streaming.api.SinkFunction;
 import eu.stratosphere.streaming.api.SourceFunction;
 import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
 import eu.stratosphere.util.Collector;
@@ -150,15 +149,6 @@ public class IncrementalOLS {
 
 	}
 
-	public static class IncOLSSink extends SinkFunction<Tuple1<Double>> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void invoke(Tuple1<Double> inTuple) {
-			System.out.println(inTuple);
-		}
-	}
-
 	private static final int PARALELISM = 1;
 	private static final int SOURCE_PARALELISM = 1;
 
@@ -174,9 +164,10 @@ public class IncrementalOLS {
 		DataStream<Tuple1<Double>> prediction =
 				env.addSource(new NewDataSource(), SOURCE_PARALELISM)
 					.connectWith(model)
-					.map(new Predictor(), PARALELISM)
-					.addSink(new IncOLSSink());
-		
+					.map(new Predictor(), PARALELISM);
+
+		prediction.print();
+					
 		env.execute();
 	}
 }

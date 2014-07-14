@@ -46,6 +46,7 @@ public class StreamSink extends AbstractOutputTask {
 
 		try {
 			streamSinkHelper.setSerializers(taskConfiguration);
+			streamSinkHelper.setSinkSerializer();
 			inputs = streamSinkHelper.getConfigInputs(this, taskConfiguration);
 		} catch (Exception e) {
 			if (log.isErrorEnabled()) {
