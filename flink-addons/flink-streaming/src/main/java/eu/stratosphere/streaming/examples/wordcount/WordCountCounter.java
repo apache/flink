@@ -47,8 +47,6 @@ public class WordCountCounter extends MapFunction<Tuple1<String>, Tuple2<String,
 		outTuple.f1 = count;
 
 		return outTuple;
-		// performanceCounter.count();
-
 	}
 
 }

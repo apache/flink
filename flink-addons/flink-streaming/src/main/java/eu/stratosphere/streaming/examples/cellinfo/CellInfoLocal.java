@@ -30,8 +30,8 @@ public class CellInfoLocal {
 	private static Random rand = new Random();
 	private final static int CELL_COUNT = 10;
 	private final static int LAST_MILLIS = 1000;
-	private static final int PARALELISM = 1;
-	private static final int SOURCE_PARALELISM = 1;
+	private final static int PARALELISM = 1;
+	private final static int SOURCE_PARALELISM = 1;
 
 	private final static class QuerySource extends
 			SourceFunction<Tuple4<Boolean, Integer, Long, Integer>> {
@@ -52,7 +52,7 @@ public class CellInfoLocal {
 		}
 	}
 
-	private final static class InfoSource extends
+	public final static class InfoSource extends
 			SourceFunction<Tuple4<Boolean, Integer, Long, Integer>> {
 		private static final long serialVersionUID = 1L;
 
@@ -60,7 +60,7 @@ public class CellInfoLocal {
 				false, 0, 0L, 0);
 
 		@Override
-		public void invoke(Collector<Tuple4<Boolean, Integer, Long, Integer>> collector)
+		public void invoke(Collector<Tuple4<Boolean, Integer, Long, Integer>> out)
 				throws Exception {
 			for (int i = 0; i < 1000; i++) {
 				Thread.sleep(100);
@@ -68,7 +68,7 @@ public class CellInfoLocal {
 				tuple.f1 = rand.nextInt(CELL_COUNT);
 				tuple.f2 = System.currentTimeMillis();
 
-				collector.collect(tuple);
+				out.collect(tuple);
 			}
 		}
 	}
