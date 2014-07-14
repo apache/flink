@@ -22,6 +22,7 @@ import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.util.ClusterUtil;
 import eu.stratosphere.streaming.util.LogUtils;
@@ -31,7 +32,7 @@ public class BasicTopology {
 	public static class BasicSource extends UserSourceInvokable {
 
 		private static final long serialVersionUID = 1L;
-		StreamRecord record = new StreamRecord(new Tuple1<String>("streaming"));
+		StreamRecord record = (new ArrayStreamRecord(1)).setTuple(0, new Tuple1<String>("streaming"));
 
 		@Override
 		public void invoke() throws Exception {
@@ -63,7 +64,7 @@ public class BasicTopology {
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
 			// do nothing
-			System.out.println(record.getField(0));
+			System.out.println(record.getTuple(0).getField(0));
 		}
 	}
 

@@ -19,8 +19,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.io.AbstractRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.runtime.io.api.AbstractRecordReader;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamcomponent.StreamComponentHelper.RecordInvoker;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;

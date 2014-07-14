@@ -30,12 +30,12 @@ import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
-import eu.stratosphere.nephele.io.AbstractRecordReader;
-import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.MutableRecordReader;
-import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
+import eu.stratosphere.runtime.io.api.AbstractRecordReader;
+import eu.stratosphere.runtime.io.api.ChannelSelector;
+import eu.stratosphere.runtime.io.api.MutableRecordReader;
+import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
 import eu.stratosphere.streaming.api.invokable.RecordInvokable;
@@ -176,10 +176,10 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		for (ChannelSelector<StreamRecord> outputPartitioner : partitioners) {
 			if (taskBase instanceof StreamTask) {
 				outputs.add(new RecordWriter<StreamRecord>((StreamTask) taskBase,
-						StreamRecord.class, outputPartitioner));
+						outputPartitioner));
 			} else if (taskBase instanceof StreamSource) {
 				outputs.add(new RecordWriter<StreamRecord>((StreamSource) taskBase,
-						StreamRecord.class, outputPartitioner));
+						outputPartitioner));
 			} else {
 				throw new StreamComponentException("Nonsupported object passed to setConfigOutputs");
 			}

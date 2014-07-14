@@ -16,6 +16,7 @@
 package eu.stratosphere.streaming.api.streamcomponent;
 
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.state.MutableTableState;
 import eu.stratosphere.streaming.state.SlidingWindowState;
@@ -48,13 +49,14 @@ public class StreamWindowTask extends UserTaskInvokable {
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		int numTuple = record.getNumOfTuples();
+		int numTuple = record.getBatchSize();
+		int tupleIndex = 0;
 		for (int i = 0; i < numTuple; ++i) {
-			long progress = record.getLong(i, windowFieldId);
+			long progress = record.getTuple(i).getField(windowFieldId);
 			if (initTimestamp == -1) {
 				initTimestamp = progress;
 				nextTimestamp = initTimestamp + computeGranularity;
-				tempRecord = new StreamRecord(record.getNumOfFields());
+				tempRecord = new ArrayStreamRecord(record.getBatchSize());
 			} else {
 				if (progress > nextTimestamp) {
 					if (window.isFull()) {
@@ -74,9 +76,9 @@ public class StreamWindowTask extends UserTaskInvokable {
 					}
 					initTimestamp = nextTimestamp;
 					nextTimestamp = initTimestamp + computeGranularity;
-					tempRecord = new StreamRecord(record.getNumOfFields());
+					tempRecord = new ArrayStreamRecord(record.getBatchSize());
 				}
-				tempRecord.addTuple(record.getTuple(i));
+				tempRecord.setTuple(tupleIndex++, record.getTuple(i));
 			}
 		}
 	}
