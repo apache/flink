@@ -30,14 +30,14 @@ public class ClusterUtil {
 	 * 
 	 * @param jobGraph
 	 */
-	public static void runOnMiniCluster(JobGraph jobGraph) {
-		System.out.println("Running on mini cluster");
+	public static void runOnMiniCluster(JobGraph jobGraph, int numberOfTaskTrackers) {
 
 		Configuration configuration = jobGraph.getJobConfiguration();
 
 		NepheleMiniCluster exec = new NepheleMiniCluster();
+		exec.setNumTaskTracker(numberOfTaskTrackers);
 		Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
-
+		System.out.println("Running on mini cluster");
 		try {
 			exec.start();
 
@@ -45,6 +45,8 @@ public class ClusterUtil {
 
 			exec.stop();
 		} catch (Exception e) {
+
+			e.printStackTrace();
 		}
 	}
 
