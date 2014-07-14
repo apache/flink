@@ -25,6 +25,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
@@ -120,8 +121,20 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		int numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
 
 		// TODO get deserialization delegates
-		DeserializationDelegate<Tuple> deserializationDelegate = null;
-		TupleSerializer<Tuple> tupleSerializer = null;
+		// ObjectInputStream in = new ObjectInputStream(new
+		// ByteArrayInputStream(taskConfiguration.getBytes("operator", null)));
+		//
+		// MyGeneric<?> f = (MyGeneric<?>) in.readObject();
+		//
+		// TypeInformation<Tuple> ts =(TypeInformation<Tuple>)
+		// TypeExtractor.createTypeInfo(MyGeneric.class,
+		// f.getClass(), 0,
+		// null, null);
+		TupleTypeInfo<Tuple> ts = null;
+
+		TupleSerializer<Tuple> tupleSerializer = ts.createSerializer();
+		DeserializationDelegate<Tuple> deserializationDelegate = new DeserializationDelegate<Tuple>(
+				tupleSerializer);
 
 		if (numberOfInputs < 2) {
 			if (taskBase instanceof StreamTask) {

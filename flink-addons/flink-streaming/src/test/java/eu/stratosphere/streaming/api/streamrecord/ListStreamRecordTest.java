@@ -29,6 +29,7 @@ import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.types.TypeInformation;
 
@@ -66,8 +67,9 @@ public class ListStreamRecordTest {
 
 		TypeInformation<?> ti = TypeExtractor.createTypeInfo(MyGeneric.class, f.getClass(), 0,
 				null, null);
+		TupleTypeInfo<Tuple> tt= (TupleTypeInfo<Tuple>)ti;
 
-		System.out.println("Type info: " + ti);
+		System.out.println("Type info: " + tt);
 
 	}
 
