@@ -1,4 +1,4 @@
-package eu.stratosphere.streaming.cellinfo;
+package eu.stratosphere.streaming.test.cellinfo;
 
 public class Util {
   public static int mod(int x, int y) {

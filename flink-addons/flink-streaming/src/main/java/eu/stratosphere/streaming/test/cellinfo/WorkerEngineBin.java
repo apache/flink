@@ -1,6 +1,6 @@
-package eu.stratosphere.streaming.cellinfo;
+package eu.stratosphere.streaming.test.cellinfo;
 
-import eu.stratosphere.streaming.cellinfo.Util;
+import eu.stratosphere.streaming.test.cellinfo.Util;
 
 public class WorkerEngineBin implements java.io.Serializable, IWorkerEngine {
   private long unitLength_;
