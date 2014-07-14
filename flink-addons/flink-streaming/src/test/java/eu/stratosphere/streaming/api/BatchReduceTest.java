@@ -15,9 +15,6 @@
 
 package eu.stratosphere.streaming.api;
 
-import static org.junit.Assert.assertEquals;
-
-import java.util.ArrayList;
 import java.util.Iterator;
 
 import org.junit.Test;
@@ -27,9 +24,6 @@ import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.util.Collector;
 
 public class BatchReduceTest {
-
-	private static ArrayList<Double> avgs = new ArrayList<Double>();
-	private static final int BATCH_SIZE = 4;
 
 	public static final class MyBatchReduce extends
 			GroupReduceFunction<Tuple1<Double>, Tuple1<Double>> {
@@ -57,7 +51,6 @@ public class BatchReduceTest {
 		@Override
 		public void invoke(Tuple1<Double> tuple) {
 			System.out.println("AVG: " + tuple);
-			avgs.add(tuple.f0);
 		}
 
 	}
@@ -75,14 +68,11 @@ public class BatchReduceTest {
 
 	@Test
 	public void test() throws Exception {
+
 		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 		DataStream<Tuple1<Double>> dataStream0 = context.addSource(new MySource())
-				.batch(BATCH_SIZE).batchReduce(new MyBatchReduce()).addSink(new MySink());
+				.batch(4).batchReduce(new MyBatchReduce()).addSink(new MySink());
 
 		context.execute();
-
-		for (int i = 0; i < avgs.size(); i++) {
-			assertEquals(1.5 + i * BATCH_SIZE, avgs.get(i), 0);
-		}
 	}
 }
