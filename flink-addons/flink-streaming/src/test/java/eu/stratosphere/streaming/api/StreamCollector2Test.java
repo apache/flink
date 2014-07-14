@@ -15,6 +15,8 @@
 
 package eu.stratosphere.streaming.api;
 
+import static org.junit.Assert.*;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,13 +32,13 @@ import eu.stratosphere.streaming.util.MockRecordWriterFactory;
 public class StreamCollector2Test {
 
 	StreamCollector2<Tuple> collector;
-
+	
 	@Test
 	public void testCollect() {
 		List<Integer> batchSizesOfNotPartitioned = new ArrayList<Integer>();
 		List<Integer> batchSizesOfPartitioned = new ArrayList<Integer>();
 		batchSizesOfPartitioned.add(2);
-		batchSizesOfPartitioned.add(2);
+		batchSizesOfPartitioned.add(3);
 		List<Integer> parallelismOfOutput = new ArrayList<Integer>();
 		parallelismOfOutput.add(2);
 		parallelismOfOutput.add(2);
@@ -64,13 +66,24 @@ public class StreamCollector2Test {
 		t.f0 = 0;
 		collector.collect(t);
 		
-		System.out.println(rw1.emittedRecords);
-		System.out.println(rw2.emittedRecords);
+		StreamRecord r1 = rw1.emittedRecords.get(0);
+		assertEquals(1, rw1.emittedRecords.size());
+		assertEquals(0, r1.getTuple(0).getField(0));
+		assertEquals(0, r1.getTuple(1).getField(0));
 		
 		t.f0 = 1;
 		collector.collect(t);
+
+		StreamRecord r2 = rw1.emittedRecords.get(1);
+		assertEquals(2, rw1.emittedRecords.size());
+		assertEquals(1, r2.getTuple(0).getField(0));
+		assertEquals(1, r2.getTuple(1).getField(0));
 		
-
-
+		assertEquals(0, rw2.emittedRecords.size());
+		
+		t.f0 = 5;
+		collector.collect(t);
+		assertEquals(2, rw1.emittedRecords.size());
+		assertEquals(1, rw2.emittedRecords.size());
 	}
 }
