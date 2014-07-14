@@ -1,0 +1,79 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
+package org.apache.flink.streaming.state;
+
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.util.LinkedList;
+
+public class StateManager implements Runnable, Serializable {
+
+	private static final long serialVersionUID = 1L;
+	private LinkedList<Object> stateList = new LinkedList<Object>();
+	private long checkpointInterval;
+	private String filename;
+
+	public StateManager(String filename, long checkpointIntervalMS) {
+		this.filename = filename;
+		this.checkpointInterval = checkpointIntervalMS;
+	}
+
+	public void registerState(Object state) {
+		stateList.add(state);
+	}
+
+	public void restoreState(){
+		ObjectInputStream ois = null;
+		try {
+			ois=new ObjectInputStream(new FileInputStream(filename));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		for (Object state : stateList){
+			try {
+				state= ois.readObject();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	//run checkpoint.
+	@Override
+	public void run() {
+		ObjectOutputStream oos = null;
+		try {
+			oos = new ObjectOutputStream(new FileOutputStream(filename));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		// take snapshot of every registered state.
+		while (true) {
+			try {
+				Thread.sleep(checkpointInterval);
+				for (Object state : stateList) {
+					oos.writeObject(state);
+					oos.flush();
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+}
