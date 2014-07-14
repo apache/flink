@@ -29,38 +29,30 @@ public class WordCountSourceSplitter extends UserSourceInvokable {
 	private String line = new String();
 	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
 
-
 	@Override
 	public void invoke() throws Exception {
 
 		while (true) {
 			try {
-				br = new BufferedReader(new FileReader("/home/strato/stratosphere-distrib/resources/hamlet.txt"));
-
+				br = new BufferedReader(new FileReader(
+						"/home/strato/stratosphere-distrib/resources/hamlet.txt"));
 				line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
 				while (line != null) {
 					if (line != "") {
 						for (String word : line.split(" ")) {
 							outRecord.setString(0, word);
 							emit(outRecord);
+							performanceCounter.count();
 						}
 					}
 					line = br.readLine();
 				}
-
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
 			}
-			
-//			Thread.sleep(1);
+
 		}
-		
 
 	}
 
-	@Override
-	public String getResult() {
-		
-		return "";
-	}
 }

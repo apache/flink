@@ -30,6 +30,8 @@ public class PerformanceTracker {
 	protected long lastDump = System.currentTimeMillis();
 	protected String fname;
 
+	protected long startTime;
+
 	protected int interval;
 	protected int intervalCounter;
 	protected String name;
@@ -44,6 +46,7 @@ public class PerformanceTracker {
 		this.name = name;
 		this.fname = fname;
 		buffer = 0;
+		this.startTime = System.currentTimeMillis();
 	}
 
 	public PerformanceTracker(String name, int capacity, int interval, String fname) {
@@ -60,6 +63,7 @@ public class PerformanceTracker {
 		buffer = 0;
 		this.dumpInterval = dumpInterval;
 		this.fname = fname;
+		this.startTime = System.currentTimeMillis();
 	}
 
 	public void track(Long value, String label) {
@@ -75,7 +79,7 @@ public class PerformanceTracker {
 	}
 
 	public void add(Long value, String label) {
-		long ctime = System.currentTimeMillis();
+		long ctime = System.currentTimeMillis() - startTime;
 		values.add(value);
 		labels.add(label);
 		timeStamps.add(ctime);
@@ -130,7 +134,7 @@ public class PerformanceTracker {
 		}
 
 	}
-	
+
 	public void writeCSV(String fname) {
 
 		try {

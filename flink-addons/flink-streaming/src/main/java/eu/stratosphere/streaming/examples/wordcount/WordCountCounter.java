@@ -28,7 +28,6 @@ public class WordCountCounter extends UserTaskInvokable {
 	private String word = "";
 	private Integer count = 0;
 
-
 	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Integer>());
 
 	@Override
@@ -47,11 +46,8 @@ public class WordCountCounter extends UserTaskInvokable {
 		outRecord.setInteger(1, count);
 
 		emit(outRecord);
+		performanceCounter.count();
 
 	}
 
-	@Override
-	public String getResult() {
-		return "";
-	}
 }
