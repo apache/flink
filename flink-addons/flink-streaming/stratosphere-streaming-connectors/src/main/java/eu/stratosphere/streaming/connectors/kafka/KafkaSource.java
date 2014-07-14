@@ -24,7 +24,7 @@ import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
-import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.streaming.api.function.SourceFunction;
 import eu.stratosphere.util.Collector;
 
@@ -32,7 +32,7 @@ import eu.stratosphere.util.Collector;
  * Source for reading messages from a Kafka queue. 
  * The source currently only support string messages.
  */
-public class KafkaSource extends SourceFunction<Tuple1<String>> {
+public abstract class KafkaSource<IN extends Tuple, OUT> extends SourceFunction<IN>{
 	private static final long serialVersionUID = 1L;
 
 	private final String zkQuorum;
@@ -40,8 +40,9 @@ public class KafkaSource extends SourceFunction<Tuple1<String>> {
 	private final String topicId;
 	private final int numThreads;
 	private ConsumerConnector consumer;
+	private boolean close = false;
 
-	Tuple1<String> outTuple = new Tuple1<String>();
+	IN outTuple;
 
 	public KafkaSource(String zkQuorum, String groupId, String topicId,
 			int numThreads) {
@@ -63,7 +64,7 @@ public class KafkaSource extends SourceFunction<Tuple1<String>> {
 	}
 
 	@Override
-	public void invoke(Collector<Tuple1<String>> collector) throws Exception {
+	public void invoke(Collector<IN> collector) throws Exception {
 		initializeConnection();
 
 		Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
@@ -74,12 +75,20 @@ public class KafkaSource extends SourceFunction<Tuple1<String>> {
 		ConsumerIterator<byte[], byte[]> it = stream.iterator();
 
 		while (it.hasNext()) {
-			String message = new String(it.next().message());
-			if (message.equals("q")) {
+			IN out=deserialize(it.next().message());
+			if(!close){
+				collector.collect(out);
+			}
+			else {
 				break;
 			}
-			outTuple.f0 = message;
-			collector.collect(outTuple);
 		}
+		consumer.shutdown();
+	}
+	
+	public abstract IN deserialize(byte[] msg);
+	
+	public void close(){
+		close=true;
 	}
 }
