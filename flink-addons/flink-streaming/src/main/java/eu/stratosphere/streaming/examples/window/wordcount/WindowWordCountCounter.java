@@ -18,11 +18,9 @@ package eu.stratosphere.streaming.examples.window.wordcount;
 import java.util.HashMap;
 import java.util.Map;
 
+import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.LongValue;
-import eu.stratosphere.types.StringValue;
 
 public class WindowWordCountCounter extends UserTaskInvokable {
 
@@ -30,26 +28,29 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 	private int slidingStep = 20;
 
 	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
-	private StringValue wordValue = new StringValue();
-	private IntValue countValue = new IntValue();
-	private LongValue timestamp = new LongValue();
-	private String word = new String();
-	private int count = 1;
+	private String word = "";
+	private Integer count = 0;
+	private Long timestamp = 0L;
+	private StreamRecord outRecord = new StreamRecord(new Tuple3<String, Integer, Long>());
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		wordValue = (StringValue) record.getField(0, 0);
-		timestamp = (LongValue) record.getField(0, 1);
+		word = record.getString(0);
+		timestamp = record.getLong(1);
 
 		if (wordCounts.containsKey(word)) {
 			count = wordCounts.get(word) + 1;
 			wordCounts.put(word, count);
-			countValue.setValue(count);
 		} else {
+			count = 1;
 			wordCounts.put(word, 1);
-			countValue.setValue(1);
 		}
-		emit(new StreamRecord(wordValue, countValue, timestamp));
+
+		outRecord.setString(0, word);
+		outRecord.setInteger(1, count);
+		outRecord.setLong(2, timestamp);
+
+		emit(outRecord);
 
 	}
 }

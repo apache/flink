@@ -26,10 +26,10 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 public class BatchWordCountSource extends UserSourceInvokable {
 
 	private BufferedReader br = null;
-	private String line = new String();
+	private String line = "";
 	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Long>());
 
-	private final static int BATCH_SIZE = 10;
+	private final static int BATCH_SIZE = 20;
 
 	private Long timestamp = 0L;
 
@@ -55,10 +55,12 @@ public class BatchWordCountSource extends UserSourceInvokable {
 				timestamp++;
 				if (timestamp % BATCH_SIZE == 0) {
 					emit(outRecord);
-					outRecord = new StreamRecord(new Tuple2<String, Long>(), BATCH_SIZE);
+					outRecord = new StreamRecord(2);
 				}
 			}
+
 			line = br.readLine();
+
 		}
 	}
 
