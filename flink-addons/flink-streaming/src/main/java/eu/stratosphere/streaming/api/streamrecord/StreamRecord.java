@@ -181,6 +181,8 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * 
 	 * @param fieldNumber
 	 *            Position of the field in the record
+	 * @param value
+	 *            Value to set the given field to
 	 */
 	public void setField(int fieldNumber, Value value) {
 		try {
@@ -253,7 +255,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * Checks if the number of fields are equal to the batch field size then
 	 * adds the Value array to the end of the batch
 	 * 
-	 * @param record
+	 * @param fields
 	 *            Value array to be added as the next record of the batch
 	 */
 	public void addRecord(Value... fields) {
