@@ -264,8 +264,12 @@ public class StreamRecordTest {
 		int num = 42;
 		String str = "above clouds";
 		Integer[] intArray = new Integer[] { 1, 2 };
-		StreamRecord rec = new StreamRecord(new Tuple3<Integer, String, Integer[]>(num, str,
-				intArray));
+		Tuple3<Integer, String, Integer[]> tuple1 = new Tuple3<Integer, String, Integer[]>(num,
+				str, intArray);
+		Tuple3<Integer, String, Integer[]> tuple2 = new Tuple3<Integer, String, Integer[]>(1, "",
+				new Integer[] { 1, 2 });
+		StreamRecord rec = new StreamRecord(tuple1);
+		rec.addTuple(tuple2);
 
 		try {
 			rec.write(out);
@@ -273,13 +277,24 @@ public class StreamRecordTest {
 
 			StreamRecord newRec = new StreamRecord();
 			newRec.read(in);
+
+			assertEquals(2, newRec.getNumOfTuples());
+
 			@SuppressWarnings("unchecked")
-			Tuple3<Integer, String, Integer[]> tupleOut = (Tuple3<Integer, String, Integer[]>) newRec
+			Tuple3<Integer, String, Integer[]> tupleOut1 = (Tuple3<Integer, String, Integer[]>) newRec
 					.getTuple(0);
 
-			assertEquals(tupleOut.getField(0), 42);
-			assertEquals(str, tupleOut.getField(1));
-			assertArrayEquals(intArray, (Integer[]) tupleOut.getField(2));
+			assertEquals(tupleOut1.getField(0), 42);
+			assertEquals(str, tupleOut1.getField(1));
+			assertArrayEquals(intArray, (Integer[]) tupleOut1.getField(2));
+			
+			@SuppressWarnings("unchecked")
+			Tuple3<Integer, String, Integer[]> tupleOut2 = (Tuple3<Integer, String, Integer[]>) newRec
+					.getTuple(1);
+			assertEquals(tupleOut2.getField(0), 1);
+			assertEquals("", tupleOut2.getField(1));
+			assertArrayEquals(new Integer[] { 1, 2 }, (Integer[]) tupleOut2.getField(2));
+
 		} catch (IOException e) {
 			fail();
 			e.printStackTrace();
