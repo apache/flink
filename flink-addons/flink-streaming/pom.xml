@@ -5,7 +5,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>eu.stratosphere</groupId>
-	<version>0.5-rc1</version>
+	<version>0.5-rc2</version>
 	<artifactId>stratosphere-streaming</artifactId>
 	<name>stratosphere-streaming</name>
 
@@ -211,16 +211,16 @@
 						</excludes>
 				</configuration>
 			</plugin>
-						<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-assembly-plugin</artifactId>
-						<version>2.4</version>
-						<configuration>
-			   				<descriptorRefs>
-									<descriptorRef>jar-with-dependencies</descriptorRef>
-							</descriptorRefs>
-						</configuration>
-				</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>2.4</version>
+				<configuration>
+					<descriptorRefs>
+						<descriptorRef>jar-with-dependencies</descriptorRef>
+					</descriptorRefs>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 </project>

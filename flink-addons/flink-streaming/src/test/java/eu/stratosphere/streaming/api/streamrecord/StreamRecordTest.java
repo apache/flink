@@ -41,7 +41,7 @@ import eu.stratosphere.api.java.tuple.Tuple5;
 import eu.stratosphere.api.java.tuple.Tuple9;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 
 public class StreamRecordTest {
 
