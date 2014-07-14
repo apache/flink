@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test.wordcount;
+package eu.stratosphere.streaming.test.window.wordcount;
 
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
@@ -21,20 +21,20 @@ import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.StringValue;
 
-public class WordCount extends TestBase2 {
+public class WindowWordCount extends TestBase2 {
 
 	@Override
 	public JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountSource.class);
-		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 1);
-		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 1);
-		graphBuilder.setSink("WordCountSink", WordCountSink.class);
+		graphBuilder.setSource("WindowWordCountSource", WindowWordCountSource.class);
+		graphBuilder.setTask("WindowWordCountSplitter", WindowWordCountSplitter.class, 1);
+		graphBuilder.setTask("WindowWordCountCounter", WindowWordCountCounter.class, 1);
+		graphBuilder.setSink("WindowWordCountSink", WindowWordCountSink.class);
 
-		graphBuilder.broadcastConnect("WordCountSource", "WordCountSplitter");
-		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0,
+		graphBuilder.broadcastConnect("WindowWordCountSource", "WindowWordCountSplitter");
+		graphBuilder.fieldsConnect("WindowWordCountSplitter", "WindowWordCountCounter", 0,
 				StringValue.class);
-		graphBuilder.broadcastConnect("WordCountCounter", "WordCountSink");
+		graphBuilder.broadcastConnect("WindowWordCountCounter", "WindowWordCountSink");
 
 		return graphBuilder.getJobGraph();
 	}

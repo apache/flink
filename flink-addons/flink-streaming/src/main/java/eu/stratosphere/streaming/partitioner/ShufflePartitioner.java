@@ -18,13 +18,13 @@ package eu.stratosphere.streaming.partitioner;
 import java.util.Random;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.streaming.api.StreamRecord;
+import eu.stratosphere.types.Record;
 
 //Randomly group, to distribute equally
-public class ShufflePartitioner implements ChannelSelector<StreamRecord> {
+public class ShufflePartitioner implements ChannelSelector<Record> {
 	
 	@Override
-	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
+	public int[] selectChannels(Record record, int numberOfOutputChannels) {
 		Random random = new Random();
 		return new int[]{random.nextInt(numberOfOutputChannels)};
 	}

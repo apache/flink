@@ -13,25 +13,33 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test.wordcount;
+package eu.stratosphere.streaming.test.window.wordcount;
 
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.types.IntValue;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 
-public class WordCountSink implements UserSinkInvokable {
+public class WindowWordCountSplitter extends UserTaskInvokable {
 
-	private StringValue word = new StringValue("");
-	private IntValue count = new IntValue(1);
+	private StringValue sentence = new StringValue("");
+	private LongValue timestamp = new LongValue(0);
+	private String[] words = new String[0];
+	private StringValue wordValue = new StringValue("");
+	private Record outputRecord = new Record(wordValue, timestamp);
 
 	@Override
 	public void invoke(Record record) throws Exception {
-
-		record.getFieldInto(0, word);
-		record.getFieldInto(1, count);
-
-		System.out.println(word.getValue() + " " + count.getValue());
-
+		record.getFieldInto(0, sentence);
+		record.getFieldInto(1, timestamp);
+		System.out.println("************sentence=" + sentence.getValue() + ", timestamp="
+				+ timestamp.getValue()+"************");
+		words = sentence.getValue().split(" ");
+		for (CharSequence word : words) {
+			wordValue.setValue(word);
+			outputRecord.setField(0, wordValue);
+			outputRecord.setField(1, timestamp);
+			emit(outputRecord);
+		}
 	}
 }

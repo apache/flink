@@ -28,12 +28,13 @@ import eu.stratosphere.streaming.api.FailEvent;
 import eu.stratosphere.streaming.api.FaultTolerancyBuffer;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.types.Record;
 
 public class StreamTask extends AbstractTask {
 
-	private List<RecordReader<StreamRecord>> inputs;
-	private List<RecordWriter<StreamRecord>> outputs;
-	private List<ChannelSelector<StreamRecord>> partitioners;
+	private List<RecordReader<Record>> inputs;
+	private List<RecordWriter<Record>> outputs;
+	private List<ChannelSelector<Record>> partitioners;
 	private UserTaskInvokable userFunction;
 	private static int numTasks = 0;
 	private String taskInstanceID = "";
@@ -43,9 +44,9 @@ public class StreamTask extends AbstractTask {
 
 	public StreamTask() {
 		// TODO: Make configuration file visible and call setClassInputs() here
-		inputs = new LinkedList<RecordReader<StreamRecord>>();
-		outputs = new LinkedList<RecordWriter<StreamRecord>>();
-		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
+		inputs = new LinkedList<RecordReader<Record>>();
+		outputs = new LinkedList<RecordWriter<Record>>();
+		partitioners = new LinkedList<ChannelSelector<Record>>();
 		userFunction = null;
 		numTasks++;
 		taskInstanceID = Integer.toString(numTasks);
@@ -76,14 +77,14 @@ public class StreamTask extends AbstractTask {
 		boolean hasInput = true;
 		while (hasInput) {
 			hasInput = false;
-			for (RecordReader<StreamRecord> input : inputs) {
+			for (RecordReader<Record> input : inputs) {
 				if (input.hasNext()) {
 					hasInput = true;
-					StreamRecord streamRecord = input.next();
+					StreamRecord streamRecord = new StreamRecord(input.next());
 					String id = streamRecord.getId();
 					// TODO create method for concurrent publishing
 					try {
-						userFunction.invoke(streamRecord);
+						userFunction.invoke(streamRecord.getRecord());
 						streamTaskHelper.threadSafePublish(new AckEvent(id), input);
 					} catch (Exception e) {
 						streamTaskHelper.threadSafePublish(new FailEvent(id), input);

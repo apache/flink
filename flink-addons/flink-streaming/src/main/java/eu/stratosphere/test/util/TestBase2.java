@@ -136,12 +136,7 @@ public abstract class TestBase2 {
 		Assert.assertNotNull("Obtained null JobGraph", jobGraph);
 		
 		try {
-			JobClient client = null;
-			try {
-			client = this.executor.getJobClient(jobGraph); }
-			catch(Exception e) {
-				System.err.println("here");
-			}
+			JobClient client = this.executor.getJobClient(jobGraph);
 			client.setConsoleStreamForReporting(getNullPrintStream());
 			this.jobExecutionResult = client.submitJobAndWait();
 		}

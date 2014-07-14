@@ -13,29 +13,30 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test.wordcount;
+package eu.stratosphere.streaming.test.window.wordcount;
 
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 
-public class WordCount extends TestBase2 {
+public class WindowWordCountSink implements UserSinkInvokable {
+
+	private StringValue word = new StringValue("");
+	private IntValue count = new IntValue(1);
+	private LongValue timestamp = new LongValue(0);
 
 	@Override
-	public JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountSource.class);
-		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 1);
-		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 1);
-		graphBuilder.setSink("WordCountSink", WordCountSink.class);
+	public void invoke(Record record) throws Exception {
 
-		graphBuilder.broadcastConnect("WordCountSource", "WordCountSplitter");
-		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0,
-				StringValue.class);
-		graphBuilder.broadcastConnect("WordCountCounter", "WordCountSink");
+		record.getFieldInto(0, word);
+		record.getFieldInto(1, count);
+		record.getFieldInto(2, timestamp);
+		System.out.println("============================================");
+		System.out.println(word.getValue() + " " + count.getValue() + " "
+				+ timestamp.getValue());
+		System.out.println("============================================");
 
-		return graphBuilder.getJobGraph();
 	}
 }
