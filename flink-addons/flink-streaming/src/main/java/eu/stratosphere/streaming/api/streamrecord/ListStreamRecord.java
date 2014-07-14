@@ -18,7 +18,9 @@ package eu.stratosphere.streaming.api.streamrecord;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 
@@ -28,41 +30,52 @@ import eu.stratosphere.api.java.tuple.Tuple;
  * objects in Stratosphere stream processing. The elements of the batch are
  * Tuples.
  */
-public class ArrayStreamRecord extends StreamRecord {
+public class ListStreamRecord extends StreamRecord {
 	private static final long serialVersionUID = 1L;
 
-	private Tuple[] tupleBatch;
+	private List<Tuple> tupleBatch;
 
 	/**
 	 * Creates a new empty instance for read
 	 */
-	public ArrayStreamRecord() {
+	public ListStreamRecord() {
 	}
 
-	public ArrayStreamRecord(int batchsize) {
+	public ListStreamRecord(int batchsize) {
 		this.batchSize = batchsize;
-		tupleBatch = new Tuple[batchsize];
+		tupleBatch = new ArrayList<Tuple>(batchsize);
+		initRecords();
 	}
 
-	public ArrayStreamRecord(StreamRecord record) {
-		tupleBatch = new Tuple[record.getBatchSize()];
+	public ListStreamRecord(StreamRecord record) {
+		tupleBatch = new ArrayList<Tuple>();
 		this.uid = new UID(Arrays.copyOf(record.getId().getId(), 20));
 		for (int i = 0; i < record.getBatchSize(); ++i) {
-			this.tupleBatch[i] = copyTuple(record.getTuple(i));
+			this.tupleBatch.add(copyTuple(record.getTuple(i)));
 		}
-		this.batchSize = tupleBatch.length;
+		this.batchSize = tupleBatch.size();
 	}
 
 	/**
-	 * Creates a new batch of records containing the given Tuple array as
+	 * Creates a new batch of records containing the given Tuple list as
 	 * elements
 	 * 
 	 * @param tupleList
 	 *            Tuples to bes stored in the StreamRecord
 	 */
-	public ArrayStreamRecord(Tuple[] tupleArray) {
-		this.batchSize = tupleArray.length;
-		tupleBatch = tupleArray;
+	public ListStreamRecord(List<Tuple> tupleList) {
+		this.batchSize = tupleList.size();
+		tupleBatch = new ArrayList<Tuple>(tupleList);
+	}
+
+	/**
+	 * Initializes the record batch elemnts to null
+	 */
+	public void initRecords() {
+		tupleBatch.clear();
+		for (int i = 0; i < batchSize; i++) {
+			tupleBatch.add(null);
+		}
 	}
 
 	/**
@@ -71,7 +84,7 @@ public class ArrayStreamRecord extends StreamRecord {
 	 * @return batch iterable
 	 */
 	public Iterable<Tuple> getBatchIterable() {
-		return (Iterable<Tuple>) Arrays.asList(tupleBatch);
+		return (Iterable<Tuple>) tupleBatch;
 	}
 
 	/**
@@ -83,7 +96,7 @@ public class ArrayStreamRecord extends StreamRecord {
 	 */
 	public Tuple getTuple(int tupleNumber) throws NoSuchTupleException {
 		try {
-			return tupleBatch[tupleNumber];
+			return tupleBatch.get(tupleNumber);
 		} catch (IndexOutOfBoundsException e) {
 			throw (new NoSuchTupleException());
 		}
@@ -101,7 +114,7 @@ public class ArrayStreamRecord extends StreamRecord {
 	 */
 	public void setTuple(int tupleNumber, Tuple tuple) throws NoSuchTupleException {
 		try {
-			tupleBatch[tupleNumber] = tuple;
+			tupleBatch.set(tupleNumber, tuple);
 		} catch (IndexOutOfBoundsException e) {
 			throw (new NoSuchTupleException());
 		}
@@ -114,16 +127,33 @@ public class ArrayStreamRecord extends StreamRecord {
 	 * @return Copy of the StreamRecord
 	 * 
 	 */
-	public ArrayStreamRecord copy() {
-		ArrayStreamRecord newRecord = new ArrayStreamRecord(batchSize);
+	public ListStreamRecord copy() {
+		ListStreamRecord newRecord = new ListStreamRecord(batchSize);
 
 		newRecord.uid = new UID(Arrays.copyOf(uid.getId(), 20));
 
-		for (int i = 0; i < batchSize; i++) {
-			newRecord.tupleBatch[i] = copyTuple(tupleBatch[i]);
+		for (Tuple tuple : tupleBatch) {
+			newRecord.tupleBatch.add(copyTuple(tuple));
 		}
 
 		return newRecord;
+	}
+
+	/**
+	 * Creates a String representation as a list of tuples
+	 */
+	public String toString() {
+		StringBuilder outputString = new StringBuilder("[");
+
+		String prefix = "";
+
+		for (Tuple tuple : tupleBatch) {
+			outputString.append(prefix);
+			prefix = ",";
+			outputString.append(tuple.toString());
+		}
+		outputString.append("]");
+		return outputString.toString();
 	}
 
 	@Override
@@ -146,30 +176,13 @@ public class ArrayStreamRecord extends StreamRecord {
 		uid = new UID();
 		uid.read(in);
 		batchSize = in.readInt();
-		tupleBatch = new Tuple[batchSize];
+		tupleBatch = new ArrayList<Tuple>(batchSize);
 
 		for (int k = 0; k < batchSize; ++k) {
 			deserializationDelegate.setInstance(tupleSerializer.createInstance());
 			deserializationDelegate.read(in);
-			tupleBatch[k] = deserializationDelegate.getInstance();
+			tupleBatch.set(k, deserializationDelegate.getInstance());
 		}
-	}
-
-	/**
-	 * Creates a String representation as a list of tuples
-	 */
-	public String toString() {
-		StringBuilder outputString = new StringBuilder("[");
-
-		String prefix = "";
-
-		for (Tuple tuple : tupleBatch) {
-			outputString.append(prefix);
-			prefix = ",";
-			outputString.append(tuple.toString());
-		}
-		outputString.append("]");
-		return outputString.toString();
 	}
 
 }

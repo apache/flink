@@ -21,22 +21,22 @@ import eu.stratosphere.nephele.io.AbstractUnionRecordReader;
 import eu.stratosphere.nephele.io.MutableRecordReader;
 import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
-import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public final class UnionStreamRecordReader extends AbstractUnionRecordReader<ArrayStreamRecord>
-		implements Reader<ArrayStreamRecord> {
+public final class UnionStreamRecordReader extends AbstractUnionRecordReader<StreamRecord>
+		implements Reader<StreamRecord> {
 
-	private final Class<ArrayStreamRecord> recordType;
+	private final Class<? extends StreamRecord> recordType;
 
-	private ArrayStreamRecord lookahead;
+	private StreamRecord lookahead;
 	private DeserializationDelegate<Tuple> deserializationDelegate;
 	private TupleSerializer<Tuple> tupleSerializer;
 
-	public UnionStreamRecordReader(MutableRecordReader<ArrayStreamRecord>[] recordReaders,
+	public UnionStreamRecordReader(MutableRecordReader<StreamRecord>[] recordReaders, Class<? extends StreamRecord> recordType,
 			DeserializationDelegate<Tuple> deserializationDelegate,
 			TupleSerializer<Tuple> tupleSerializer) {
 		super(recordReaders);
-		this.recordType = ArrayStreamRecord.class;
+		this.recordType = recordType;
 		this.deserializationDelegate = deserializationDelegate;
 		this.tupleSerializer = tupleSerializer;
 	}
@@ -46,7 +46,7 @@ public final class UnionStreamRecordReader extends AbstractUnionRecordReader<Arr
 		if (this.lookahead != null) {
 			return true;
 		} else {
-			ArrayStreamRecord record = instantiateRecordType();
+			StreamRecord record = instantiateRecordType();
 			record.setDeseralizationDelegate(deserializationDelegate, tupleSerializer);
 			if (getNextRecord(record)) {
 				this.lookahead = record;
@@ -58,9 +58,9 @@ public final class UnionStreamRecordReader extends AbstractUnionRecordReader<Arr
 	}
 
 	@Override
-	public ArrayStreamRecord next() throws IOException, InterruptedException {
+	public StreamRecord next() throws IOException, InterruptedException {
 		if (hasNext()) {
-			ArrayStreamRecord tmp = this.lookahead;
+			StreamRecord tmp = this.lookahead;
 			this.lookahead = null;
 			return tmp;
 		} else {
@@ -68,7 +68,7 @@ public final class UnionStreamRecordReader extends AbstractUnionRecordReader<Arr
 		}
 	}
 
-	private ArrayStreamRecord instantiateRecordType() {
+	private StreamRecord instantiateRecordType() {
 		try {
 			return this.recordType.newInstance();
 		} catch (InstantiationException e) {

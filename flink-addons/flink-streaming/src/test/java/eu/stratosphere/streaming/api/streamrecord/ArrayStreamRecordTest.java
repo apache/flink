@@ -74,7 +74,7 @@ public class ArrayStreamRecordTest {
 	public void StreamRecordSpeedTest() {
 		int len = 100000;
 		ArrayStreamRecord arecord = new ArrayStreamRecord(len);
-		StreamRecord record = new StreamRecord(len);
+		StreamRecord record = new ListStreamRecord(len);
 		Tuple2<Integer, String> tuple = new Tuple2<Integer, String>(2, "a");
 		long standardTime=System.nanoTime();
 		
