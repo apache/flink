@@ -18,6 +18,7 @@ package eu.stratosphere.streaming.test.batch.wordcount;
 import java.util.HashMap;
 import java.util.Map;
 
+import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.types.IntValue;
@@ -27,10 +28,10 @@ import eu.stratosphere.types.StringValue;
 public class BatchWordCountCounter extends UserTaskInvokable {
 
 	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
-	private StringValue wordValue = new StringValue();
-	private IntValue countValue = new IntValue();
-	private LongValue timestamp = new LongValue();
-	private String word = new String();
+	private StringValue wordValue = new StringValue("");
+	private IntValue countValue = new IntValue(1);
+	private LongValue timestamp = new LongValue(0);
+	private String word = "";
 	private int count = 1;
 
 	@Override

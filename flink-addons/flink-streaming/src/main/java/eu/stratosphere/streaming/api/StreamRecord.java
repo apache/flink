@@ -37,11 +37,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
-	 * Creates a new empty batch of records and sets the field number to the given
-	 * number
+	 * Creates a new empty batch of records and sets the field number to the
+	 * given number
 	 * 
 	 * @param length
-	 *          Number of fields in the records
+	 *            Number of fields in the records
 	 */
 	public StreamRecord(int length) {
 		this.numOfFields = length;
@@ -62,11 +62,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
-	 * Given an array of Values, creates a new a record batch containing the array
-	 * as its first element
+	 * Given an array of Values, creates a new a record batch containing the
+	 * array as its first element
 	 * 
 	 * @param values
-	 *          Array containing the Values for the first record in the batch
+	 *            Array containing the Values for the first record in the batch
 	 */
 	public StreamRecord(Value... values) {
 		numOfFields = values.length;
@@ -95,7 +95,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * Set the ID of the StreamRecord object
 	 * 
 	 * @param channelID
-	 *          ID of the emitting task
+	 *            ID of the emitting task
 	 * @return The StreamRecord object
 	 */
 	public StreamRecord setId(String channelID) {
@@ -113,35 +113,50 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
-	 * Returns the Value of a field in the given position of a specific record in
-	 * the batch
+	 * Returns the Value of a field in the given position of a specific record
+	 * in the batch
 	 * 
 	 * @param recordNumber
-	 *          Position of the record in the batch
+	 *            Position of the record in the batch
 	 * @param fieldNumber
-	 *          Position of the field in the record
+	 *            Position of the field in the record
 	 * @return Value of the field
 	 */
 	public Value getField(int recordNumber, int fieldNumber) {
 		return recordBatch.get(recordNumber)[fieldNumber];
 	}
 
-	/**
-	 * 
-	 * @param recordNumber
-	 *          Position of the record in the batch
-	 * @return AtomRecord object containing the fields of the record
-	 */
-	public AtomRecord getRecord(int recordNumber) {
-		return new AtomRecord(recordBatch.get(recordNumber));
+	// TODO: javadoc
+	public void setRecord(int recordNumber, Value... values) {
+		if (values.length == numOfRecords) {
+			recordBatch.set(recordNumber, values);
+		}
+	}
+
+	public void setRecord(Value... values) {
+		// TODO: consider clearing the List
+		recordBatch = new ArrayList<Value[]>(1);
+		if (values.length == numOfRecords) {
+			recordBatch.set(0, values);
+		}
 	}
 
 	/**
-	 * Checks if the number of fields are equal to the batch field size then adds
-	 * the AtomRecord to the end of the batch
+	 * 
+	 * @param recordNumber
+	 *            Position of the record in the batch
+	 * @return Value array containing the fields of the record
+	 */
+	public Value[] getRecord(int recordNumber) {
+		return recordBatch.get(recordNumber);
+	}
+
+	/**
+	 * Checks if the number of fields are equal to the batch field size then
+	 * adds the AtomRecord to the end of the batch
 	 * 
 	 * @param record
-	 *          Record to be added
+	 *            Record to be added
 	 */
 	public void addRecord(AtomRecord record) {
 		Value[] fields = record.getFields();
@@ -152,11 +167,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
-	 * Checks if the number of fields are equal to the batch field size then adds
-	 * the Value Arrray to the end of the batch
+	 * Checks if the number of fields are equal to the batch field size then
+	 * adds the Value array to the end of the batch
 	 * 
 	 * @param record
-	 *          Value array to be added as the next record of the batch
+	 *            Value array to be added as the next record of the batch
 	 */
 	public void addRecord(Value[] fields) {
 		if (fields.length == numOfFields) {
@@ -209,8 +224,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 				StringValue stringValue = new StringValue("");
 				stringValue.read(in);
 				try {
-					record[i] = (Value) Class.forName(stringValue.getValue())
-							.newInstance();
+					record[i] = (Value) Class.forName(stringValue.getValue()).newInstance();
 				} catch (InstantiationException e) {
 					e.printStackTrace();
 				} catch (IllegalAccessException e) {
