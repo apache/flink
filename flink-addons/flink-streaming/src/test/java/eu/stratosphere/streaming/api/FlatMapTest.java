@@ -50,9 +50,9 @@ public class FlatMapTest {
 		Tuple1<String> tup = new Tuple1<String>("asd");
 
 		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		DataStream<Tuple1<String>> dataStream0 = context.setDummySource();
+		DataStream<Tuple1<String>> dataStream0 = context.addDummySource();
 
-		DataStream<Tuple1<String>> dataStream1 = context.setDummySource().connectWith(dataStream0)
+		DataStream<Tuple1<String>> dataStream1 = context.addDummySource().connectWith(dataStream0)
 				.partitionBy(0).flatMap(new MyFlatMap()).broadcast().addSink(new MySink());
 
 		 context.execute();
