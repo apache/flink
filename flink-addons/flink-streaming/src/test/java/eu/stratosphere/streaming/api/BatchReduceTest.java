@@ -29,8 +29,8 @@ import eu.stratosphere.util.Collector;
 public class BatchReduceTest {
 
 	private static ArrayList<Double> avgs = new ArrayList<Double>();
-	private static final int BATCH_SIZE = 4;
-	private static final int PARALELISM = 2;
+	private static final int BATCH_SIZE = 5;
+	private static final int PARALELISM = 1;
 
 	public static final class MyBatchReduce extends
 			GroupReduceFunction<Tuple1<Double>, Tuple1<Double>> {
@@ -47,8 +47,6 @@ public class BatchReduceTest {
 			}
 
 			out.collect(new Tuple1<Double>(sum / count));
-
-			System.out.println("batchReduce " + sum);
 		}
 	}
 
@@ -57,7 +55,6 @@ public class BatchReduceTest {
 
 		@Override
 		public void invoke(Tuple1<Double> tuple) {
-			System.out.println("AVG: " + tuple);
 			avgs.add(tuple.f0);
 		}
 
@@ -68,22 +65,23 @@ public class BatchReduceTest {
 
 		@Override
 		public void invoke(Collector<Tuple1<Double>> collector) {
-			for (Double i = 0.; i < 20; i++) {
+			for (Double i = 1.; i <= 100; i++) {
 				collector.collect(new Tuple1<Double>(i));
+				System.out.println("Source " + i);
 			}
 		}
 	}
 
 	@Test
 	public void test() throws Exception {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		DataStream<Tuple1<Double>> dataStream0 = context.addSource(new MySource(),1)
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		DataStream<Tuple1<Double>> dataStream0 = env.addSource(new MySource(),1)
 				.batchReduce(new MyBatchReduce(), BATCH_SIZE, PARALELISM).addSink(new MySink());
 
-		context.execute();
+		env.execute();
 
 		for (int i = 0; i < avgs.size(); i++) {
-			assertEquals(1.5 + i * BATCH_SIZE, avgs.get(i), 0);
+			assertEquals(3.0 + i * BATCH_SIZE, avgs.get(i), 0);
 		}
 	}
 }
