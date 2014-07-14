@@ -31,6 +31,7 @@ public class FailEventListener implements EventListener {
 
 	private String taskInstanceID;
 	private FaultToleranceUtil recordBuffer;
+	private int output;
 
 	/**
 	 * Creates a FailEventListener that monitors FailEvents sent to task with
@@ -41,9 +42,10 @@ public class FailEventListener implements EventListener {
 	 * @param recordBuffer
 	 *            The fault tolerance buffer associated with this task
 	 */
-	public FailEventListener(String taskInstanceID, FaultToleranceUtil recordBuffer) {
+	public FailEventListener(String taskInstanceID, FaultToleranceUtil recordBuffer, int output) {
 		this.taskInstanceID = taskInstanceID;
 		this.recordBuffer = recordBuffer;
+		this.output = output;
 	}
 
 	/**
@@ -56,9 +58,8 @@ public class FailEventListener implements EventListener {
 		String recordId = failEvent.getRecordId();
 		String failCID = recordId.split("-", 2)[0];
 		if (failCID.equals(taskInstanceID)) {
-			recordBuffer.failRecord(recordId,0);
-//			log.warn("FAIL RECIEVED: " + recordId + " containing: " + recordBuffer.getRecordBuffer());
-			//log.trace(recordBuffer.getRecordBuffer());
+			recordBuffer.failRecord(recordId, output);
+			log.warn("FAIL RECIEVED: "+output +" "+ recordId);
 		}
 
 	}

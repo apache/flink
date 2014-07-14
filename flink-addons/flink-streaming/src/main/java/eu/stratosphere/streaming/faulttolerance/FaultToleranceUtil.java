@@ -15,15 +15,7 @@
 
 package eu.stratosphere.streaming.faulttolerance;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -44,7 +36,8 @@ public class FaultToleranceUtil {
 	private final String componentID;
 
 	private int numberOfChannels;
-	private int[] numberOfOutputChannels;
+
+	boolean exactlyOnce;
 
 	private FaultToleranceBuffer buffer;
 
@@ -59,14 +52,20 @@ public class FaultToleranceUtil {
 	 * @param numberOfChannels
 	 *            Number of output channels for the output components
 	 */
+	//TODO:get faulttolerancy type from user config, update logs for channel acks and fails 
 	public FaultToleranceUtil(List<RecordWriter<StreamRecord>> outputs, String componentID,
 			int[] numberOfChannels) {
 		this.outputs = outputs;
 
-		this.numberOfOutputChannels = numberOfChannels;
 		this.componentID = componentID;
 
-		this.buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, componentID);
+		exactlyOnce = true;
+
+		if (exactlyOnce) {
+			this.buffer = new ExactlyOnceFaultToleranceBuffer(numberOfChannels, componentID);
+		} else {
+			this.buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, componentID);
+		}
 
 	}
 
@@ -109,15 +108,14 @@ public class FaultToleranceUtil {
 	 */
 	public void failRecord(String recordID, int channel) {
 		// if by ft type
-		if (true) {
-			failRecord(recordID);
-		} else {
+		if (exactlyOnce) {
 			StreamRecord failed = buffer.failChannel(recordID, channel);
 
 			if (failed != null) {
 				reEmit(failed, channel);
-
 			}
+		} else {
+			failRecord(recordID);
 		}
 	}
 
@@ -178,7 +176,6 @@ public class FaultToleranceUtil {
 		}
 
 	}
-
 
 	public List<RecordWriter<StreamRecord>> getOutputs() {
 		return this.outputs;
