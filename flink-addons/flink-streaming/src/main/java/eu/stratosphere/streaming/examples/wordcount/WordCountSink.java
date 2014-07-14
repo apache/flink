@@ -17,20 +17,16 @@ package eu.stratosphere.streaming.examples.wordcount;
 
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.util.PerformanceCounter;
 
 public class WordCountSink extends UserSinkInvokable {
 
-	PerformanceCounter perf = new PerformanceCounter("SinkEmitCounter", 1000, 1000, "");
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		perf.count();
 	}
 
 	@Override
 	public String getResult() {
-		perf.writeCSV("/home/strato/stratosphere-distrib/log/counter/Sink");
 		return "";
 	}
 
