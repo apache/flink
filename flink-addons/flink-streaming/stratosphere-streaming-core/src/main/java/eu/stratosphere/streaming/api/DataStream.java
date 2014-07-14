@@ -51,11 +51,11 @@ public class DataStream<T extends Tuple> {
 	protected final StreamExecutionEnvironment environment;
 	protected TypeInformation<T> type;
 	protected String id;
-	int dop;
-	List<String> connectIDs;
-	List<ConnectionType> ctypes;
-	List<Integer> cparams;
-	List<Integer> batchSizes;
+	protected int degreeOfParallelism;
+	protected List<String> connectIDs;
+	protected List<ConnectionType> ctypes;
+	protected List<Integer> cparams;
+	protected List<Integer> batchSizes;
 
 	/**
 	 * Create a new {@link DataStream} in the given execution environment
@@ -123,7 +123,7 @@ public class DataStream<T extends Tuple> {
 		copiedStream.ctypes = new ArrayList<StreamExecutionEnvironment.ConnectionType>(this.ctypes);
 		copiedStream.cparams = new ArrayList<Integer>(this.cparams);
 		copiedStream.batchSizes = new ArrayList<Integer>(this.batchSizes);
-		copiedStream.dop = this.dop;
+		copiedStream.degreeOfParallelism = this.degreeOfParallelism;
 		return copiedStream;
 	}
 	
@@ -148,7 +148,7 @@ public class DataStream<T extends Tuple> {
 		if (dop < 1) {
 			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
 		}
-		this.dop = dop;
+		this.degreeOfParallelism = dop;
 
 		environment.setOperatorParallelism(this);
 
@@ -162,7 +162,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The parallelism set for this operator.
 	 */
 	public int getParallelism() {
-		return this.dop;
+		return this.degreeOfParallelism;
 	}
 
 	/**
