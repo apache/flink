@@ -15,19 +15,28 @@
 
 package eu.stratosphere.streaming.state;
 
+import java.util.Iterator;
+import java.util.Map.Entry;
+
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WindowStateIterator<K>{
+public class MutableTableStateIterator<K, V> implements TableStateIterator<K, V>{
 
+	private Iterator<Entry<K, V>> iterator;
+	public MutableTableStateIterator(Iterator<Entry<K, V>> iter){
+		iterator=iter;
+	}
+	
+	@Override
 	public boolean hasNext() {
 		// TODO Auto-generated method stub
-		return false;
+		return iterator.hasNext();
 	}
 
-	public Tuple2<K, StreamRecord> next() {
+	@Override
+	public Tuple2<K, V> next() {
 		// TODO Auto-generated method stub
-		return null;
+		Entry<K, V> entry=iterator.next();
+		return new Tuple2<K, V>(entry.getKey(), entry.getValue());
 	}
-
 }

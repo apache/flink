@@ -18,16 +18,18 @@ package eu.stratosphere.streaming.examples.window.wordcount;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.state.MutableInternalState;
-import eu.stratosphere.streaming.state.WindowInternalState;
+import eu.stratosphere.streaming.state.MutableTableState;
+import eu.stratosphere.streaming.state.WindowState;
 
 public class WindowWordCountCounter extends UserTaskInvokable {
 
 	private int windowSize;
 	private int slidingStep;
+	private int computeGranularity;
+	private int windowFieldId;
 
-	private WindowInternalState<Integer> window;
-	private MutableInternalState<String, Integer> wordCounts;
+	private WindowState<Integer> window;
+	private MutableTableState<String, Integer> wordCounts;
 
 	private String word = "";
 	private Integer count = 0;
@@ -38,8 +40,10 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 	public WindowWordCountCounter() {
 		windowSize = 100;
 		slidingStep = 20;
-		window = new WindowInternalState<Integer>(windowSize, slidingStep);
-		wordCounts = new MutableInternalState<String, Integer>();
+		computeGranularity = 10;
+		windowFieldId = 2;
+		window = new WindowState<Integer>(windowSize, slidingStep, computeGranularity, windowFieldId);
+		wordCounts = new MutableTableState<String, Integer>();
 	}
 
 	private void incrementCompute(StreamRecord record) {

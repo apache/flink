@@ -13,30 +13,29 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.state;
+package eu.stratosphere.streaming.index;
 
-import java.util.Iterator;
-import java.util.Map.Entry;
-
-import eu.stratosphere.api.java.tuple.Tuple2;
-
-public class MutableStateIterator<K, V> implements StateIterator<K, V>{
-
-	private Iterator<Entry<K, V>> iterator;
-	public MutableStateIterator(Iterator<Entry<K, V>> iter){
-		iterator=iter;
+public class IndexPair{
+	public IndexPair(int block, int entry){
+		blockId=block;
+		entryId=entry;
 	}
 	
-	@Override
-	public boolean hasNext() {
-		// TODO Auto-generated method stub
-		return iterator.hasNext();
+	public IndexPair(IndexPair pair){
+		blockId=pair.blockId;
+		entryId=pair.entryId;
 	}
-
-	@Override
-	public Tuple2<K, V> next() {
-		// TODO Auto-generated method stub
-		Entry<K, V> entry=iterator.next();
-		return new Tuple2<K, V>(entry.getKey(), entry.getValue());
+	
+	public void setIndexPair(int block, int entry){
+		blockId=block;
+		entryId=entry;
 	}
+	
+	public void IncrementBlock(){
+		blockId=blockId+1;
+		entryId=0;
+	}
+	
+	public int blockId;
+	public int entryId;
 }
