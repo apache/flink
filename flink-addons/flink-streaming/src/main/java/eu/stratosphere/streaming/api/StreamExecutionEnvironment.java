@@ -350,9 +350,19 @@ public class StreamExecutionEnvironment {
 	// TODO: Link to JobGraph and ClusterUtil
 	/**
 	 * Executes the JobGraph of the on a mini cluster of CLusterUtil.
+	 * 
+	 * @param parallelism
+	 *            Number of parallel cores utilized.
 	 */
+	public void execute(int parallelism) {
+		ClusterUtil.runOnMiniCluster(jobGraphBuilder.getJobGraph(), parallelism);
+	}
+
+	/**
+	 * Executes the JobGraph of the on a mini cluster of CLusterUtil.
+	 **/
 	public void execute() {
-		ClusterUtil.runOnMiniCluster(jobGraphBuilder.getJobGraph());
+		execute(1);
 	}
 
 	// TODO: Link to DataStream
