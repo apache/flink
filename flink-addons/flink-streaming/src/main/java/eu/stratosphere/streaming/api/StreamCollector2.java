@@ -47,8 +47,10 @@ public class StreamCollector2<T extends Tuple> implements Collector<T> {
 		this.keyPostition = keyPosition;
 
 		for (int i = 0; i < batchSizesOfNotPartitioned.size(); i++) {
+			List<RecordWriter<StreamRecord>> output = new ArrayList<RecordWriter<StreamRecord>>();
+			output.add(notPartitionedOutputs.get(i));
 			notPartitionedCollectors.add(new StreamCollector<Tuple>(batchSizesOfNotPartitioned.get(i),
-					batchTimeout, channelID, serializationDelegate, notPartitionedOutputs));
+					batchTimeout, channelID, serializationDelegate, output));
 		}
 
 		for (int i = 0; i < batchSizesOfPartitioned.size(); i++) {
