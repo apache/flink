@@ -61,11 +61,11 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 	@Override
 	public void invoke() throws Exception {
 	  try {
-      userFunction = UserFunction.newInstance();
-    } catch (Exception e) {
+	    userFunction = UserFunction.newInstance();
+	  } catch (Exception e) {
 
-    }
-		userFunction.invoke(output);
+	  }
+	  	userFunction.invoke(output);
 	}
 
 }
