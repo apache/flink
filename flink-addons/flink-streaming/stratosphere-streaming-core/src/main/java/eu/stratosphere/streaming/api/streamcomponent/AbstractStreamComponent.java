@@ -98,8 +98,8 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 			collectorManager = new DirectedStreamCollectorManager<Tuple>(outSerializationDelegate,
 					instanceID, batchTimeout, outputSelector);
 		} else {
-			collectorManager = new StreamCollectorManager<Tuple>(outSerializationDelegate, instanceID,
-					batchTimeout);
+			collectorManager = new StreamCollectorManager<Tuple>(outSerializationDelegate,
+					instanceID, batchTimeout);
 		}
 		return collectorManager;
 	}
@@ -226,8 +226,10 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 				outputs.add(output);
 				partitioners.add(outputPartitioner);
 				String outputName = configuration.getString("outputName_" + numberOfOutputs, null);
-				collectorManager.addPartitionedCollector(output, parallelism, keyPosition, batchSize,
-						outputName);
+				if (collectorManager != null) {
+					collectorManager.addPartitionedCollector(output, parallelism, keyPosition,
+							batchSize, outputName);
+				}
 
 			} else {
 				ChannelSelector<StreamRecord> outputPartitioner = partitioner.newInstance();
@@ -236,7 +238,9 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 						outputPartitioner);
 				outputs.add(output);
 				String outputName = configuration.getString("outputName_" + numberOfOutputs, null);
-				collectorManager.addNotPartitionedCollector(output, batchSize, outputName);
+				if (collectorManager != null) {
+					collectorManager.addNotPartitionedCollector(output, batchSize, outputName);
+				}
 			}
 			if (log.isTraceEnabled()) {
 				log.trace("Partitioner set: " + partitioner.getSimpleName() + " with "
