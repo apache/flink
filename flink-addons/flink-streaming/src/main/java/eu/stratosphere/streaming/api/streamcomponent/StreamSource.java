@@ -39,7 +39,9 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 	private UserSourceInvokable userFunction;
 	private static int numSources = 0;
 	private String sourceInstanceID;
+	private String name;
 	private FaultToleranceBuffer recordBuffer;
+	StreamComponentHelper<StreamSource> streamSourceHelper;
 
 	public StreamSource() {
 		// TODO: Make configuration file visible and call setClassInputs() here
@@ -48,7 +50,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 		userFunction = null;
 		numSources++;
 		sourceInstanceID = Integer.toString(numSources);
-
+		streamSourceHelper = new StreamComponentHelper<StreamSource>();
 	}
 
 	@Override
@@ -64,25 +66,25 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 	@Override
 	public void registerInputOutput() {
 		Configuration taskConfiguration = getTaskConfiguration();
-		StreamComponentHelper<StreamSource> streamSourceHelper = new StreamComponentHelper<StreamSource>();
+		name = taskConfiguration.getString("componentName", "MISSING_COMPONENT_NAME");
 
 		try {
 			streamSourceHelper.setConfigOutputs(this, taskConfiguration, outputs,
 					partitioners);
 		} catch (StreamComponentException e) {
-			e.printStackTrace();
+			log.error("Cannot register outputs", e);
 		}
 		
 		recordBuffer = new FaultToleranceBuffer(outputs, sourceInstanceID, taskConfiguration.getInteger("numberOfOutputChannels", -1));
 		userFunction = (UserSourceInvokable) streamSourceHelper.getUserFunction(
-				taskConfiguration, outputs, sourceInstanceID, recordBuffer);
+				taskConfiguration, outputs, sourceInstanceID, name, recordBuffer);
 		streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID, outputs);
 		streamSourceHelper.setFailListener(recordBuffer, sourceInstanceID, outputs);
 	}
 
 	@Override
 	public void invoke() throws Exception {
-		log.debug("Invoking source: " + sourceInstanceID);
+		log.debug("Source " + name + " invoked with instance id " + sourceInstanceID);
 		userFunction.invoke();
 	}
 

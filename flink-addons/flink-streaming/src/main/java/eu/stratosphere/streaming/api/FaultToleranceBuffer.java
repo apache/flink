@@ -84,6 +84,7 @@ public class FaultToleranceBuffer {
 		recordBuffer.put(id, streamRecord.copy());
 		ackCounter.put(id, numberOfOutputs);
 		addTimestamp(id);
+		log.trace("Record added to buffer: " + id);
 	}
 
 	/**
@@ -95,6 +96,7 @@ public class FaultToleranceBuffer {
 	 */
 	List<String> timeoutRecords(Long currentTime) {
 		if (timeOfLastUpdate + TIMEOUT < currentTime) {
+			log.trace("Updating record buffer");
 			List<String> timedOutRecords = new LinkedList<String>();
 			Map<Long, Set<String>> timedOut = recordsByTime.subMap(0L, currentTime
 					- TIMEOUT);
@@ -150,7 +152,7 @@ public class FaultToleranceBuffer {
 	 *          The ID of the record that will be popped
 	 */
 	public StreamRecord popRecord(String recordID) {
-		System.out.println("Pop ID: " + recordID);
+		//System.out.println("Pop ID: " + recordID);
 		return removeRecord(recordID);
 	}
 
@@ -163,17 +165,18 @@ public class FaultToleranceBuffer {
 	 * 
 	 */
 	StreamRecord removeRecord(String recordID) {
-
+		StreamRecord recordToRemove = null;
 		ackCounter.remove(recordID);
 		try {
 			recordsByTime.get(recordTimestamps.remove(recordID)).remove(recordID);
+			recordToRemove = recordBuffer.remove(recordID);
+			log.trace("Record removed from buffer: " + recordID);
 		} catch (NullPointerException e) {
 
 		} catch (Exception e) {
-			e.printStackTrace();
-			System.out.println(recordID);
+			log.error("Cannot remove record from buffer: " + recordID, e);
 		}
-		return recordBuffer.remove(recordID);
+		return recordToRemove;
 	}
 
 	/**
@@ -221,9 +224,9 @@ public class FaultToleranceBuffer {
 		for (RecordWriter<StreamRecord> output : outputs) {
 			try {
 				output.emit(record);
-				log.warn("Re-emitted");
+				log.warn("RE-EMITTED: " + record.getId());
 			} catch (Exception e) {
-				log.warn("Re-emit failed");
+				log.error("RE-EMIT FAILED, avoiding record: " + record.getId());
 			}
 		}
 

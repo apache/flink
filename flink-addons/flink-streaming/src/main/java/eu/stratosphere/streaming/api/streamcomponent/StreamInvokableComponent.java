@@ -31,13 +31,15 @@ public abstract class StreamInvokableComponent {
 	private List<RecordWriter<StreamRecord>> outputs;
 
 	protected String channelID;
+	protected String name;
 	private FaultToleranceBuffer emittedRecords;
 
 	public final void declareOutputs(List<RecordWriter<StreamRecord>> outputs,
-			String channelID, FaultToleranceBuffer emittedRecords) {
+			String channelID, String name, FaultToleranceBuffer emittedRecords) {
 		this.outputs = outputs;
 		this.channelID = channelID;
 		this.emittedRecords = emittedRecords;
+		this.name =name;
 	}
 
 	public final void emit(StreamRecord record) {
@@ -47,10 +49,10 @@ public abstract class StreamInvokableComponent {
 		try {
 			for (RecordWriter<StreamRecord> output : outputs) {
 				output.emit(record);
-				log.debug("Record emitted: " + record.getId());
+				log.debug("EMITTED: " + record.getId() + " -- " + name);
 			}
 		} catch (Exception e) {
-			log.warn("Emit error: " + e.getMessage());
+			log.warn("EMIT ERROR: " + e.getMessage() + " -- " + name);
 			emittedRecords.failRecord(record.getId());
 		}
 	}

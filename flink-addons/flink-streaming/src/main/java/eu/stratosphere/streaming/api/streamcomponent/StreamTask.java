@@ -18,6 +18,9 @@ package eu.stratosphere.streaming.api.streamcomponent;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordReader;
@@ -31,13 +34,17 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class StreamTask extends AbstractTask {
 
+	private static final Log log = LogFactory.getLog(StreamTask.class);
+
 	private List<RecordReader<StreamRecord>> inputs;
 	private List<RecordWriter<StreamRecord>> outputs;
 	private List<ChannelSelector<StreamRecord>> partitioners;
 	private UserTaskInvokable userFunction;
 	private static int numTasks = 0;
 	private String taskInstanceID = "";
+	private String name;
 	StreamComponentHelper<StreamTask> streamTaskHelper;
+	Configuration taskConfiguration;
 
 	private FaultToleranceBuffer recordBuffer;
 
@@ -54,25 +61,29 @@ public class StreamTask extends AbstractTask {
 
 	@Override
 	public void registerInputOutput() {
-		Configuration taskConfiguration = getTaskConfiguration();
+		taskConfiguration = getTaskConfiguration();
+		name = taskConfiguration.getString("componentName", "MISSING_COMPONENT_NAME");
 
 		try {
 			streamTaskHelper.setConfigInputs(this, taskConfiguration, inputs);
-			streamTaskHelper.setConfigOutputs(this, taskConfiguration, outputs,
-					partitioners);
+			streamTaskHelper.setConfigOutputs(this, taskConfiguration, outputs, partitioners);
 		} catch (StreamComponentException e) {
-			e.printStackTrace();
+			log.error("Cannot register inputs/outputs for " + getClass().getSimpleName(), e);
 		}
 
-		recordBuffer = new FaultToleranceBuffer(outputs, taskInstanceID,taskConfiguration.getInteger("numberOfOutputChannels", -1));
-		userFunction = (UserTaskInvokable) streamTaskHelper.getUserFunction(
-				taskConfiguration, outputs, taskInstanceID, recordBuffer);
+		recordBuffer = new FaultToleranceBuffer(outputs, taskInstanceID, taskConfiguration.getInteger(
+				"numberOfOutputChannels", -1));
+		userFunction = (UserTaskInvokable) streamTaskHelper.getUserFunction(taskConfiguration, outputs, taskInstanceID, name,
+				recordBuffer);
 		streamTaskHelper.setAckListener(recordBuffer, taskInstanceID, outputs);
 		streamTaskHelper.setFailListener(recordBuffer, taskInstanceID, outputs);
 	}
 
+	// TODO: log userfunction name
 	@Override
 	public void invoke() throws Exception {
+		log.debug("Task " + name + " invoked with instance id " + taskInstanceID);
+
 		boolean hasInput = true;
 		while (hasInput) {
 			hasInput = false;
@@ -85,13 +96,15 @@ public class StreamTask extends AbstractTask {
 					try {
 						userFunction.invoke(streamRecord);
 						streamTaskHelper.threadSafePublish(new AckEvent(id), input);
+						log.debug("ACK: " + id + " -- " + name);
 					} catch (Exception e) {
 						streamTaskHelper.threadSafePublish(new FailEvent(id), input);
-						e.printStackTrace();
+						log.warn("INVOKE FAILED: " + id + " -- " + name + " -- due to " + e.getMessage());
 					}
 				}
 			}
 		}
+		log.debug("Task " + name + "invoke finished with instance id " + taskInstanceID);
 	}
 
 }
