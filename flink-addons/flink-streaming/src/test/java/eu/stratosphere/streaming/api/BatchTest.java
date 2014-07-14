@@ -60,9 +60,9 @@ public class BatchTest {
 	
 	@Test
 	public void test() throws Exception {
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 
-		DataStream<Tuple1<String>> dataStream = env
+		DataStream<Tuple1<String>> dataStream = context
 				.addSource(new MySource(), SOURCE_PARALELISM)
 				.flatMap(new MyMap(), PARALELISM).batch(4)
 				.flatMap(new MyMap(), PARALELISM).batch(2)
@@ -70,7 +70,7 @@ public class BatchTest {
 				.flatMap(new MyMap(), PARALELISM).batch(4)
 				.addSink(new MySink());
 
-		env.execute();
+		context.execute();
 		
 		assertEquals(20, count);
 	}

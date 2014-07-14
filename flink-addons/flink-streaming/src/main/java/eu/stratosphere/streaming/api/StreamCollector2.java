@@ -65,17 +65,15 @@ public class StreamCollector2<T extends Tuple> implements Collector<T> {
 
 	// TODO copy here instead of copying inside every StreamCollector
 	@Override
-	public void collect(T tuple) {
-		T copiedTuple = StreamRecord.copyTuple(tuple);
-		
+	public void collect(T record) {
 		for (StreamCollector<Tuple> collector : notPartitionedCollectors) {
-			collector.collect(copiedTuple);
+			collector.collect(record);
 		}
 
-		int partitionHash = Math.abs(copiedTuple.getField(keyPostition).hashCode());
+		int partitionHash = Math.abs(record.getField(keyPostition).hashCode());
 
 		for (StreamCollector<Tuple>[] collectors : partitionedCollectors) {
-			collectors[partitionHash % collectors.length].collect(copiedTuple);
+			collectors[partitionHash % collectors.length].collect(record);
 		}
 	}
 
