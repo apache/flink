@@ -18,6 +18,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 
@@ -28,6 +29,7 @@ import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.streaming.api.function.SinkFunction;
+import eu.stratosphere.streaming.api.streamrecord.OutputSelector;
 
 public class DirectedOutputTest {
 
@@ -71,18 +73,16 @@ public class DirectedOutputTest {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public List<String> select(Tuple1<Long> tuple) {
-			List<String> outputList = new ArrayList<String>();
+		public void select(Tuple1<Long> tuple, Collection<String> outputs) {
 			int mod = (int) (tuple.f0 % 2);
 			switch (mod) {
 				case 0:
-					outputList.add("ds1");
+					outputs.add("ds1");
 					break;
 				case 1:
-					outputList.add("ds2");
+					outputs.add("ds2");
 					break;
 			}
-			return outputList;
 		}
 	}
 	
@@ -121,7 +121,6 @@ public class DirectedOutputTest {
 	}
 	
 	@SuppressWarnings("unused")
-	@Ignore
 	@Test
 	public void directOutputTest() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
@@ -142,7 +141,7 @@ public class DirectedOutputTest {
 	@SuppressWarnings("unused")
 	@Test
 	public void directOutputPartitionedTest() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(4);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(2);
 		DataStream<Tuple1<Long>> s = env.generateSequence(1, 6).directTo(new MySelector());
 		DataStream<Tuple1<Long>> ds1 = s.map(new PlusTwo()).name("ds1").partitionBy(0).addSink(new EvenSink());
 		DataStream<Tuple1<Long>> ds2 = s.map(new PlusTwo()).name("ds2").addSink(new OddSink());

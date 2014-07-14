@@ -29,6 +29,7 @@ import eu.stratosphere.streaming.api.invokable.BatchReduceInvokable;
 import eu.stratosphere.streaming.api.invokable.FilterInvokable;
 import eu.stratosphere.streaming.api.invokable.FlatMapInvokable;
 import eu.stratosphere.streaming.api.invokable.MapInvokable;
+import eu.stratosphere.streaming.api.streamrecord.OutputSelector;
 import eu.stratosphere.types.TypeInformation;
 
 /**

@@ -22,7 +22,6 @@ import java.util.List;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.runtime.io.api.RecordWriter;
-import eu.stratosphere.streaming.api.OutputSelector;
 import eu.stratosphere.util.Collector;
 
 public class StreamCollectorManager<T extends Tuple> implements Collector<T> {

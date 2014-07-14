@@ -21,7 +21,6 @@ import java.util.List;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.runtime.io.api.RecordWriter;
-import eu.stratosphere.streaming.api.OutputSelector;
 import eu.stratosphere.util.Collector;
 
 public class DirectedStreamCollectorManager<T extends Tuple> extends StreamCollectorManager<T> {
@@ -100,8 +99,8 @@ public class DirectedStreamCollectorManager<T extends Tuple> extends StreamColle
 	public void collect(T tuple) {
 		T copiedTuple = StreamRecord.copyTuple(tuple);
 
-		List<String> outputs = outputSelector.select(tuple);
-
+		List<String> outputs = (List<String>) outputSelector.getOutputs(tuple);
+		
 		int partitionHash = Math.abs(copiedTuple.getField(keyPostition).hashCode());
 
 		for (String outputName : outputs) {
@@ -115,5 +114,7 @@ public class DirectedStreamCollectorManager<T extends Tuple> extends StreamColle
 						.collect(copiedTuple);
 			}
 		}
+
+		outputSelector.clearList();
 	}
 }
