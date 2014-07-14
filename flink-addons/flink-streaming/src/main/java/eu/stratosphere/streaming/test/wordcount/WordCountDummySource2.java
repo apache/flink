@@ -13,34 +13,35 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test.cellinfo;
-
-import java.util.Random;
+package eu.stratosphere.streaming.test.wordcount;
 
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.StringValue;
 
-public class InfoSourceInvokable extends UserSourceInvokable {
+public class WordCountDummySource2 extends UserSourceInvokable {
+
 	
-	Random _rand= new Random();
-	int _cellNumber=10;
+	private StringValue lineValue = new StringValue("");
+	StreamRecord record = new StreamRecord(lineValue);
 
-	private IntValue cellId = new IntValue(5);
-	private LongValue timeStamp = new LongValue(500);
-	private StreamRecord record = new StreamRecord(cellId, timeStamp);
+
+	public WordCountDummySource2() {
+
+	}
 
 	@Override
 	public void invoke() throws Exception {
-		for (int i = 0; i < 100000; i++) {
-			cellId.setValue(_rand.nextInt(_cellNumber));
-			timeStamp.setValue(System.currentTimeMillis());
-			
-			record.setRecord(cellId,timeStamp);
 		
+		for(int i=0;i<1000000;i++){
+			if(i%2==0) {
+				lineValue.setValue("Gyula Marci");
+			}else{
+				lineValue.setValue("Gabor Gyula");
+			}
+			record.setRecord(lineValue);
 			emit(record);
 		}
+		
 	}
-
 }

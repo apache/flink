@@ -17,14 +17,17 @@ package eu.stratosphere.streaming.test.cellinfo;
 
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.IntValue;
 
 public class CellSinkInvokable implements UserSinkInvokable {
 
+	int c=0;
   @Override
   public void invoke(StreamRecord record) throws Exception {  	
-  	IntValue value = (IntValue) record.getField(0, 0);
-    System.out.println(value.getValue());
+//  	c++;
+//		if((c % 10000)==0){
+//			System.out.println(c);
+//		}
+
   }
 
 }

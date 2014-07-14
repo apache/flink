@@ -15,15 +15,37 @@
 
 package eu.stratosphere.streaming.test.cellinfo;
 
+import java.io.File;
+import java.net.InetSocketAddress;
+
+import org.apache.log4j.Level;
+
+import eu.stratosphere.client.minicluster.NepheleMiniCluster;
+import eu.stratosphere.client.program.Client;
+import eu.stratosphere.client.program.JobWithJars;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.IntValue;
+import eu.stratosphere.util.LogUtils;
 
-public class CellInfo extends TestBase2 {
+public class CellInfo {
 
-  @Override
-  public JobGraph getJobGraph() {
+	protected final Configuration config;
+	
+	public CellInfo() {
+		this(new Configuration());
+	}
+
+	public CellInfo(Configuration config) {
+		this.config = config;
+
+		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
+	}
+	
+	
+  public static JobGraph getJobGraph() {
     JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
     graphBuilder.setSource("infoSource", InfoSourceInvokable.class);
     graphBuilder.setSource("querySource", QuerySourceInvokable.class);
@@ -36,5 +58,33 @@ public class CellInfo extends TestBase2 {
 
     return graphBuilder.getJobGraph();
   }
+  
+  public static void main(String[] args) {
+
+  	NepheleMiniCluster exec = new NepheleMiniCluster();
+		try {
+
+			File file = new File("target/stratosphere-streaming-0.5-SNAPSHOT.jar");
+			JobWithJars.checkJarFile(file);
+
+			JobGraph jG = getJobGraph();
+
+			jG.addJar(new Path(file.getAbsolutePath()));
+
+			Configuration configuration = jG.getJobConfiguration();
+			
+//			Client client = new Client(new InetSocketAddress("localhost", 6498),
+//					configuration);
+
+			Client client = new Client(new InetSocketAddress(
+					"hadoop02.ilab.sztaki.hu", 6123), configuration);
+			exec.start();
+			client.run(null, jG, true);
+			exec.stop();
+		} catch (Exception e) {
+			System.out.println(e);
+		}
+
+	}
 
 }

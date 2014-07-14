@@ -13,34 +13,18 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test.cellinfo;
+package eu.stratosphere.streaming.test.wordcount;
 
-import java.util.Random;
-
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.LongValue;
 
-public class InfoSourceInvokable extends UserSourceInvokable {
-	
-	Random _rand= new Random();
-	int _cellNumber=10;
+public class WordCountSink2 implements UserSinkInvokable {
 
-	private IntValue cellId = new IntValue(5);
-	private LongValue timeStamp = new LongValue(500);
-	private StreamRecord record = new StreamRecord(cellId, timeStamp);
 
 	@Override
-	public void invoke() throws Exception {
-		for (int i = 0; i < 100000; i++) {
-			cellId.setValue(_rand.nextInt(_cellNumber));
-			timeStamp.setValue(System.currentTimeMillis());
-			
-			record.setRecord(cellId,timeStamp);
-		
-			emit(record);
-		}
-	}
+	public void invoke(StreamRecord record) throws Exception {
 
+
+
+	}
 }

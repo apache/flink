@@ -23,27 +23,38 @@ import eu.stratosphere.types.StringValue;
 
 public class CellTaskInvokable extends UserTaskInvokable {
 
-	private WorkerEngineExact engine = new WorkerEngineExact(10, 1000, 0);
-	private StringValue infoValue = new StringValue();
-	private StringValue queryValue = new StringValue();
+	private WorkerEngineExact engine = new WorkerEngineExact(10, 500, System.currentTimeMillis());
+	private StringValue outValue = new StringValue();
+	IntValue cellID = new IntValue(0);
+	LongValue timeStamp =new LongValue(0);
+	IntValue lastMillis= new IntValue(0);
+	
+	StreamRecord outputRecord = new StreamRecord(outValue);
+	
+	int numOfFields;
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		IntValue value1 = (IntValue) record.getField(0, 0);
-		LongValue value2 = (LongValue) record.getField(0, 1);
+		
+		cellID = (IntValue) record.getField(0);
+		timeStamp = (LongValue) record.getField(1);
 
+		numOfFields=record.getNumOfFields();
 		// INFO
-		if (record.getNumOfFields() == 2) {
-			engine.put(value1.getValue(), value2.getValue());
-			infoValue.setValue(value1.toString() + " " + value2.toString());
-			emit(new StreamRecord(infoValue));
+		if (numOfFields == 2) {
+			engine.put(cellID.getValue(), timeStamp.getValue());
+			outValue.setValue(cellID.toString() + " " + timeStamp.toString());
+			outputRecord.setRecord(outValue);
+			emit(outputRecord);
 		}
 		// QUERY
-		else if (record.getNumOfFields() == 3) {
-			LongValue value3 = (LongValue) record.getField(0, 2);
-			queryValue.setValue(String.valueOf(engine.get(value2.getValue(),
-					value3.getValue(), value1.getValue())));
-			emit(new StreamRecord(queryValue));
+		else if (numOfFields == 3) {
+			lastMillis = (IntValue) record.getField(2);
+			outValue.setValue(String.valueOf(engine.get(timeStamp.getValue(),
+					lastMillis.getValue(), cellID.getValue())));
+			outputRecord.setRecord(outValue);
+			emit(outputRecord);
+		
 		}
 	}
 }
