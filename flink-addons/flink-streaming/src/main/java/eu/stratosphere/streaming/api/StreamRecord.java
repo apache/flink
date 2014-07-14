@@ -54,6 +54,10 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	public String getId() {
 		return uid.getValue();
 	}
+	
+	public Value[] getFields(){
+		return fields;
+	}
 
 	public Value getField(int fieldNumber) {
 		return fields[fieldNumber];
