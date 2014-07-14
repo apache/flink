@@ -15,7 +15,10 @@
 
 package eu.stratosphere.streaming.api;
 
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.Arrays;
@@ -201,6 +204,34 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Ads a sink to the data stream closing it.
+	 * 
+	 * @param streamId
+	 *            the stream id that identifies the stream.
+	 * @param inputStream
+	 *            input data stream
+	 * @param sinkFunction
+	 *            the user defined function
+	 * @param parallelism
+	 *            number of parallel instances of the function
+	 * @param <T>
+	 *            type of the returned stream
+	 * @return the data stream constructed
+	 */
+	public <T extends Tuple> DataStream<T> addSink(String streamId, DataStream<T> inputStream,
+			SinkFunction<T> sinkFunction, int parallelism) {
+		DataStream<T> returnStream = new DataStream<T>(this, "sink");
+
+		jobGraphBuilder.setSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction), "sink",
+				serializeToByteArray(sinkFunction), parallelism,
+				(int) Math.ceil(parallelism / clusterSize));
+
+		connectGraph(inputStream, returnStream.getId());
+
+		return returnStream;
+	}
+	
+	/**
 	 * Creates a new DataStream that contains a sequence of numbers.
 	 * 
 	 * @param from
@@ -332,6 +363,24 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Ads a sink to the data stream closing it. To parallelism is defaulted to
+	 * 1.
+	 * @param streamId
+	 *            the stream id that identifies the stream
+	 * @param inputStream
+	 *            input data stream
+	 * @param sinkFunction
+	 *            the user defined function
+	 * @param <T>
+	 *            type of the returned stream
+	 * @return the data stream constructed
+	 */
+	public <T extends Tuple> DataStream<T> addSink(String streamId, DataStream<T> inputStream,
+			SinkFunction<T> sinkFunction) {
+		return addSink(inputStream, sinkFunction, 1);
+	}
+	
+	/**
 	 * Dummy implementation of the SinkFunction writing every tuple to the
 	 * standard output. Used for print.
 	 * 
@@ -347,6 +396,37 @@ public class StreamExecutionEnvironment {
 		}
 
 	}
+	
+	/**
+	 * Disk implementation of the SinkFunction writing every tuple to the
+	 * local disk.
+	 * 
+	 * @param <IN>
+	 *            Input tuple type
+	 */
+	private static final class DiskSink<IN extends Tuple> extends SinkFunction<IN> {
+		private static final long serialVersionUID = 1L;
+		private String filename;
+		private BufferedWriter writer = null;
+		
+		public DiskSink(String filename){
+			this.filename = filename;
+		}
+		
+		@Override
+		public void invoke(IN tuple) {
+			try {
+				if (writer == null) {
+					writer = new BufferedWriter(new FileWriter(filename));
+				}
+				writer.write(tuple + "\n");
+				writer.flush();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
 
 	/**
 	 * Prints the tuples of the data stream to the standard output.
@@ -361,6 +441,25 @@ public class StreamExecutionEnvironment {
 	public <T extends Tuple> DataStream<T> print(DataStream<T> inputStream) {
 		DataStream<T> returnStream = addSink(inputStream, new DummySink<T>());
 
+		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+
+		return returnStream;
+	}
+
+	/**
+	 * Dump the tuples of the data stream to the local disk.
+	 * 
+	 * @param inputStream
+	 *            the input data stream
+	 * @param filename
+	 *            the name of the output file
+	 * @param <T>
+	 *            type of the returned stream
+	 * @return the data stream constructed
+	 */
+	public <T extends Tuple> DataStream<T> dumpDisk(DataStream<T> inputStream, String filename){
+		DataStream<T> returnStream = addSink(inputStream, new DiskSink<T>(filename));
+		
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 
 		return returnStream;
