@@ -17,43 +17,27 @@
  *
  **********************************************************************************************************************/
 
-package org.apache.flink.streaming.api.invokable;
+package org.apache.flink.streaming.api.invokable.operator;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.util.Collector;
 
-public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
-		UserTaskInvokable<IN, OUT> {
+public class MapInvokable<T extends Tuple, R extends Tuple> extends UserTaskInvokable<T, R> {
 	private static final long serialVersionUID = 1L;
-	private List<Tuple> tupleBatch;
-	private int counter;
-	private int batchSize;
 
-	private GroupReduceFunction<IN, OUT> reducer;
+	private MapFunction<T, R> mapper;
 
-	public BatchReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, int batchSize) {
-		this.reducer = reduceFunction;
-		this.tupleBatch = new ArrayList<Tuple>();
-		this.counter = 0;
-		this.batchSize = batchSize;
+	public MapInvokable(MapFunction<T, R> mapper) {
+		this.mapper = mapper;
 	}
 
 	@Override
-	public void invoke(StreamRecord record, Collector<OUT> collector) throws Exception {
-		
-		tupleBatch.add(record.getTuple());
-		counter++;
-		if(counter>= batchSize){
-			counter=0;
-			reducer.reduce((Iterator<IN>) tupleBatch.iterator(), collector);
-			tupleBatch.clear();
-		}
-		
+	public void invoke(StreamRecord record, Collector<R> collector) throws Exception {
+
+		T tuple = (T) record.getTuple();
+		collector.collect(mapper.map(tuple));
 	}
 }

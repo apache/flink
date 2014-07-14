@@ -17,27 +17,12 @@
  *
  **********************************************************************************************************************/
 
-package org.apache.flink.streaming.api.invokable;
+package org.apache.flink.streaming.api.streamrecord;
 
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+public class TupleSizeMismatchException extends StreamRecordException {
 
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.util.Collector;
-
-public class FlatMapInvokable<T extends Tuple, R extends Tuple> extends UserTaskInvokable<T, R> {
-	private static final long serialVersionUID = 1L;
-
-	private FlatMapFunction<T, R> flatMapper;
-
-	public FlatMapInvokable(FlatMapFunction<T, R> flatMapper) {
-		this.flatMapper = flatMapper;
-	}
-
-	@Override
-	public void invoke(StreamRecord record, Collector<R> collector) throws Exception {
-
-		T tuple = (T) record.getTuple();
-		flatMapper.flatMap(tuple, collector);
-	}
+	/**
+	 * Serial version UID for serialization interoperability.
+	 */
+	private static final long serialVersionUID = 3903394522099973064L;
 }
