@@ -38,6 +38,8 @@ import eu.stratosphere.util.Collector;
 // TODO: figure out generic dummysink
 public class StreamExecutionEnvironment {
 	JobGraphBuilder jobGraphBuilder;
+	
+	private float clusterSize = 1;
 
 	/**
 	 * General constructor specifying the batch size in which the tuples are
@@ -64,6 +66,11 @@ public class StreamExecutionEnvironment {
 	 */
 	public StreamExecutionEnvironment() {
 		this(1, 1000);
+	}
+
+	public StreamExecutionEnvironment setClusterSize(int clusterSize) {
+		this.clusterSize = clusterSize;
+		return this;
 	}
 
 	private static class DummySource extends UserSourceInvokable<Tuple1<String>> {
@@ -163,7 +170,7 @@ public class StreamExecutionEnvironment {
 		}
 
 		jobGraphBuilder.setTask(returnStream.getId(), functionInvokable, functionName,
-				baos.toByteArray(), parallelism, parallelism);
+				baos.toByteArray(), parallelism,(int) Math.ceil(parallelism/clusterSize));
 
 		connectGraph(inputStream, returnStream.getId());
 
@@ -185,7 +192,7 @@ public class StreamExecutionEnvironment {
 		}
 
 		jobGraphBuilder.setSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction), "sink",
-				baos.toByteArray(), parallelism, parallelism);
+				baos.toByteArray(), parallelism, (int) Math.ceil(parallelism/clusterSize));
 
 		connectGraph(inputStream, returnStream.getId());
 
@@ -234,7 +241,7 @@ public class StreamExecutionEnvironment {
 		}
 
 		jobGraphBuilder.setSource(returnStream.getId(), sourceFunction, "source",
-				baos.toByteArray(), parallelism, parallelism);
+				baos.toByteArray(), parallelism, (int) Math.ceil(parallelism/clusterSize));
 
 		return returnStream.copy();
 	}
@@ -242,9 +249,9 @@ public class StreamExecutionEnvironment {
 	public DataStream<Tuple1<String>> readTextFile(String path) {
 		return addSource(new FileSourceFunction(path), 1);
 	}
-	
+
 	public DataStream<Tuple1<String>> readTextStream(String path) {
-		return addSource(new FileStreamFunction(path),1);
+		return addSource(new FileStreamFunction(path), 1);
 	}
 
 	public DataStream<Tuple1<String>> addDummySource() {
