@@ -46,7 +46,7 @@ public class IncrementalOLS {
 		@Override
 		public void invoke() throws Exception {
 			record.initRecords();
-			for (int j = 0; j < 100; j++) {
+			while(true) {
 				// pull new record from data source
 				record.setTuple(getNewData());
 				emit(record);
@@ -63,7 +63,7 @@ public class IncrementalOLS {
 
 	public static class TrainingDataSource extends UserSourceInvokable {
 
-		private final int BATCH_SIZE = 10;
+		private final int BATCH_SIZE = 1000;
 
 		StreamRecord record = new StreamRecord(2, BATCH_SIZE);
 
@@ -74,7 +74,7 @@ public class IncrementalOLS {
 
 			record.initRecords();
 
-			for (int j = 0; j < 1000; j++) {
+			while(true) {
 				for (int i = 0; i < BATCH_SIZE; i++) {
 					record.setTuple(i, getTrainingData());
 				}
@@ -109,8 +109,8 @@ public class IncrementalOLS {
 			for (int i = 0; i < numOfTuples; i++) {
 
 				Tuple t = record.getTuple(i);
-				Double[] x_i = t.getField(1);
-				y[i] = t.getField(0);
+				Double[] x_i = (Double[]) t.getField(1);
+				y[i] = (Double) t.getField(0);
 				for (int j = 0; j < numOfFeatures; j++) {
 					x[i][j] = x_i[j];
 				}
@@ -165,7 +165,6 @@ public class IncrementalOLS {
 
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
-			System.out.println(record.getTuple());
 		}
 	}
 
