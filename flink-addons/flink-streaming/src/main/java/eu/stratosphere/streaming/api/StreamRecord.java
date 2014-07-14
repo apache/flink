@@ -1,31 +1,30 @@
 package eu.stratosphere.streaming.api;
 
-import java.util.Random;
+import java.util.UUID;
 
-import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
-import eu.stratosphere.types.Value;
+import eu.stratosphere.types.StringValue;
 
 //TODO: refactor access modifiers
 
 public class StreamRecord {
 	private Record record;
+	private StringValue uid = new StringValue("");
 	
 	public StreamRecord(Record record) {
 		this.record = record;
 	}
 	
 	public StreamRecord addId() {
-		Random rand = new Random();
-		record.addField(new LongValue(rand.nextLong()));
+		uid.setValue(UUID.randomUUID().toString()); 
+		record.addField(uid);
 		return this;
 	}
 	
-	public Long popId() {
-		LongValue id = new LongValue();
-		record.getFieldInto(record.getNumFields() - 1, id);
+	public String popId() {
+		record.getFieldInto(record.getNumFields() - 1, uid);
 		record.removeField(record.getNumFields() - 1);
-		return id.getValue();
+		return uid.getValue();
 	}
 
 	public Record getRecord() {

@@ -84,8 +84,8 @@ public class StreamTask extends AbstractTask {
 			@Override
 			public void eventOccurred(AbstractTaskEvent event) {
 				AckEvent ackEvent = (AckEvent) event;
-				Long recordId = ackEvent.getRecordId();
-				System.out.println("acked " + recordId);
+				String recordId = ackEvent.getRecordId();
+				//System.out.println("acked " + recordId);
 				//TODO: resend record with the given id
 			}
 		};
@@ -150,7 +150,7 @@ public class StreamTask extends AbstractTask {
         if (input.hasNext()) {
           hasInput = true;
           StreamRecord streamRecord = new StreamRecord(input.next());
-          Long id = streamRecord.popId();
+          String id = streamRecord.popId();
           userFunction.invoke(streamRecord.getRecord());
           input.publishEvent(new AckEvent(id));
           //TODO: ack here
