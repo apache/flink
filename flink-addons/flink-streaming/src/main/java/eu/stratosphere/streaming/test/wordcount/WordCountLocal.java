@@ -46,15 +46,23 @@ public class WordCountLocal {
 		return graphBuilder.getJobGraph();
 	}
 
-	public static void main(String[] args) {
-
-		Logger root = Logger.getRootLogger();
-		root.removeAllAppenders();
+	public static void setLogger() {
+		Logger logger = Logger.getLogger("eu.stratosphere.streaming");
+		logger.removeAllAppenders();
 		PatternLayout layout = new PatternLayout(
 				"%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
 		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
+		logger.addAppender(appender);
+		logger.setLevel(Level.DEBUG);
+		
+		Logger root = Logger.getRootLogger();
+		root.removeAllAppenders();
 		root.addAppender(appender);
-		root.setLevel(Level.DEBUG);
+		root.setLevel(Level.ERROR);
+	}
+	
+	public static void main(String[] args) {
+		setLogger();
 
 		try {
 
