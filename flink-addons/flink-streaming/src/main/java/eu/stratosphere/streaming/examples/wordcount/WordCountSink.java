@@ -21,7 +21,7 @@ import eu.stratosphere.streaming.util.PerformanceCounter;
 
 public class WordCountSink extends UserSinkInvokable {
 
-	PerformanceCounter perf = new PerformanceCounter("SinkEmitCounter", 1000, 10000);
+	PerformanceCounter perf = new PerformanceCounter("SinkEmitCounter", 1000, 1000);
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
