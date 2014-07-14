@@ -84,7 +84,6 @@ public class StreamTask extends AbstractTask {
 		streamTaskHelper.setFailListener(recordBuffer, taskInstanceID, outputs);
 	}
 
-	//TODO: eliminate code repetition (StreamSink)
 	@Override
 	public void invoke() throws Exception {
 		log.debug("TASK " + name + " invoked with instance id " + taskInstanceID);
@@ -97,6 +96,7 @@ public class StreamTask extends AbstractTask {
 					hasInput = true;
 					StreamRecord streamRecord = input.next();
 					String id = streamRecord.getId();
+					// TODO create method for concurrent publishing
 					try {
 						userFunction.invoke(streamRecord);
 						streamTaskHelper.threadSafePublish(new AckEvent(id), input);
@@ -108,7 +108,7 @@ public class StreamTask extends AbstractTask {
 				}
 			}
 		}
-		log.debug("TASK " + name + " invoke finished with instance id " + taskInstanceID);
+		log.debug("TASK " + name + "invoke finished with instance id " + taskInstanceID);
 	}
 
 }

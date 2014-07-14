@@ -25,8 +25,9 @@ public class WordCountDummySource2 extends UserSourceInvokable {
 	StreamRecord record = new StreamRecord(lineValue);
 	private long time;
 	private long prevTime = System.currentTimeMillis();
-
+	
 	public WordCountDummySource2() {
+
 	}
 
 	@Override
@@ -34,11 +35,11 @@ public class WordCountDummySource2 extends UserSourceInvokable {
 
 		for (int i = 0; i < 1000000; i++) {
 			if (i % 50000 == 0) {
-				time = System.currentTimeMillis();
-				System.out.println("Source:\t\t" + i + "\t\tTime: " + (time - prevTime));
-				prevTime = time;
+				time= System.currentTimeMillis();
+				System.out.println("Source:\t" + i + "\t----Time: "+(time-prevTime));
+				prevTime=time;
 			}
-
+			
 			if (i % 2 == 0) {
 				lineValue.setValue("Gyula Marci");
 			} else {

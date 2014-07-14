@@ -146,7 +146,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		return userFunction;
 	}
 
-	// TODO find a better solution for this
+	// TODO: use TCP-like waiting
 	public void threadSafePublish(AbstractTaskEvent event,
 			RecordReader<StreamRecord> input) throws InterruptedException,
 			IOException {
