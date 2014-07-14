@@ -20,9 +20,14 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class WordCountSink extends UserSinkInvokable {
 
+
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
+	}
 
+	@Override
+	public String getResult() {
+		return "";
 	}
 
 }

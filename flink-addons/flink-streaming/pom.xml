@@ -5,7 +5,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>eu.stratosphere</groupId>
-	<version>0.5-SNAPSHOT</version>
+	<version>0.5-rc1</version>
 	<artifactId>stratosphere-streaming</artifactId>
 	<name>stratosphere-streaming</name>
 
@@ -18,9 +18,9 @@
 
 	<repositories>
 		<repository>
-			<id>snapshots-repo</id>
+			<id>dms-repo</id>
 			<url>https://dms.sztaki.hu/maven-public</url>
-			<releases><enabled>false</enabled></releases>
+			<releases><enabled>true</enabled></releases>
 			<snapshots><enabled>true</enabled></snapshots>
 		</repository>
 	</repositories>
@@ -29,7 +29,7 @@
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-core</artifactId>
-			<version>${project.version}</version>
+			<version>0.5-rc1</version>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>

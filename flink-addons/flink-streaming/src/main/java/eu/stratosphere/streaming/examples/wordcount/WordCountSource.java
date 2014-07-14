@@ -22,12 +22,19 @@ import java.io.FileReader;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.util.PerformanceCounter;
+import eu.stratosphere.streaming.util.PerformanceTimer;
 
 public class WordCountSource extends UserSourceInvokable {
 
 	private BufferedReader br = null;
 	private String line = new String();
 	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
+
+	PerformanceCounter pCounter = new PerformanceCounter("SourceEmitCounter", 1000, 1000,
+			"/home/strato/stratosphere-distrib/log/counter/Source" + channelID);
+	PerformanceTimer pTimer = new PerformanceTimer("SourceEmitTimer", 1000, 1000, true,
+			"/home/strato/stratosphere-distrib/log/timer/Source" + channelID);
 
 	@Override
 	public void invoke() throws Exception {
@@ -41,8 +48,11 @@ public class WordCountSource extends UserSourceInvokable {
 				while (line != null) {
 					if (line != "") {
 						outRecord.setString(0, line);
+						// TODO: object reuse
+						pTimer.startTimer();
 						emit(outRecord);
-						performanceCounter.count();
+						pTimer.stopTimer();
+						pCounter.count();
 					}
 					line = br.readLine();
 				}
@@ -54,4 +64,11 @@ public class WordCountSource extends UserSourceInvokable {
 
 	}
 
+	@Override
+	public String getResult() {
+		pCounter.writeCSV();
+		pTimer.writeCSV();
+
+		return "";
+	}
 }
