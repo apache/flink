@@ -46,6 +46,7 @@ import eu.stratosphere.api.java.tuple.Tuple6;
 import eu.stratosphere.api.java.tuple.Tuple7;
 import eu.stratosphere.api.java.tuple.Tuple8;
 import eu.stratosphere.api.java.tuple.Tuple9;
+import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
 import eu.stratosphere.core.io.IOReadableWritable;
@@ -61,7 +62,8 @@ import eu.stratosphere.types.Value;
  * objects in Stratosphere stream processing. The elements of the batch are
  * Value arrays.
  */
-public class StreamRecord<T extends Tuple> implements IOReadableWritable, Serializable {
+public class StreamRecord<T extends Tuple> implements IOReadableWritable,
+		Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private List<T> recordBatch;
@@ -70,10 +72,13 @@ public class StreamRecord<T extends Tuple> implements IOReadableWritable, Serial
 	private int numOfRecords;
 	private Class<? extends Tuple> clazz = null;
 
-	private static final Class<?>[] CLASSES = new Class<?>[] { Tuple1.class, Tuple2.class, Tuple3.class, Tuple4.class,
-			Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class, Tuple9.class, Tuple10.class, Tuple11.class,
-			Tuple12.class, Tuple13.class, Tuple14.class, Tuple15.class, Tuple16.class, Tuple17.class, Tuple18.class,
-			Tuple19.class, Tuple20.class, Tuple21.class, Tuple22.class };
+	private static final Class<?>[] CLASSES = new Class<?>[] { Tuple1.class,
+			Tuple2.class, Tuple3.class, Tuple4.class, Tuple5.class,
+			Tuple6.class, Tuple7.class, Tuple8.class, Tuple9.class,
+			Tuple10.class, Tuple11.class, Tuple12.class, Tuple13.class,
+			Tuple14.class, Tuple15.class, Tuple16.class, Tuple17.class,
+			Tuple18.class, Tuple19.class, Tuple20.class, Tuple21.class,
+			Tuple22.class };
 
 	// TODO implement equals, clone
 	/**
@@ -323,22 +328,43 @@ public class StreamRecord<T extends Tuple> implements IOReadableWritable, Serial
 	}
 
 	private void writeTuple(Tuple tuple, DataOutput out) {
-		TypeInformation<? extends Tuple> typeInfo = TypeInformation.getForObject(tuple);
+		// Class basicType = CLASSES[tuple.getArity()-1];
+		// TypeInformation<? extends Tuple> typeInfo =
+		// TupleTypeInfo.getBasicTupleTypeInfo(basicType);
+
+		Class[] basicTypes = new Class[tuple.getArity()];
+		for (int i = 0; i < basicTypes.length; i++) {
+			basicTypes[i] = tuple.getField(i).getClass();
+		}
+		TypeInformation<? extends Tuple> typeInfo = TupleTypeInfo
+				.getBasicTupleTypeInfo(basicTypes);
 
 		@SuppressWarnings("unchecked")
-		TupleSerializer<Tuple> tupleSerializer = (TupleSerializer<Tuple>) typeInfo.createSerializer();
-		SerializationDelegate<Tuple> serializationDelegate = new SerializationDelegate<Tuple>(tupleSerializer);
+		TupleSerializer<Tuple> tupleSerializer = (TupleSerializer<Tuple>) typeInfo
+				.createSerializer();
+		SerializationDelegate<Tuple> serializationDelegate = new SerializationDelegate<Tuple>(
+				tupleSerializer);
 		serializationDelegate.setInstance(tuple);
+		try {
+			serializationDelegate.write(out);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
-	private void readTuple(Tuple tuple, DataInput in, int arity) throws IOException {
-		// TODO get the type somehow!s
-		TypeInformation<? extends Tuple> typeInfo = null;
-		TupleSerializer<Tuple> tupleSerializer = (TupleSerializer<Tuple>) typeInfo.createSerializer();
+	public Tuple readTuple(DataInput in, Class... basicTypes) throws IOException {
 
-		DeserializationDelegate<Tuple> dd = new DeserializationDelegate<Tuple>(tupleSerializer);
+		TypeInformation<? extends Tuple> typeInfo = TupleTypeInfo
+				.getBasicTupleTypeInfo(basicTypes);
+		TupleSerializer<Tuple> tupleSerializer = (TupleSerializer<Tuple>) typeInfo
+				.createSerializer();
+
+		DeserializationDelegate<Tuple> dd = new DeserializationDelegate<Tuple>(
+				tupleSerializer);
 		dd.setInstance(tupleSerializer.createInstance());
 		dd.read(in);
+		return dd.getInstance();
 	}
 
 	@Override

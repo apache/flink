@@ -52,6 +52,11 @@
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>stratosphere-java</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>4.7</version>
@@ -78,8 +83,8 @@
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
 			<version>1.2.16</version>
-            <!--<type>jar</type>
-            <scope>compile</scope>-->
+			<!--<type>jar</type>
+			<scope>compile</scope>-->
 		</dependency>
 	</dependencies>
 
@@ -214,16 +219,16 @@
 						</excludes>
 				</configuration>
 			</plugin>
-                        <plugin>
-            			<groupId>org.apache.maven.plugins</groupId>
-            			<artifactId>maven-assembly-plugin</artifactId>
-            			<version>2.4</version>
-            			<configuration>
-               				<descriptorRefs>
-                    				<descriptorRef>jar-with-dependencies</descriptorRef>
-                			</descriptorRefs>
-            			</configuration>
-        		</plugin>
+						<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>2.4</version>
+						<configuration>
+			   				<descriptorRefs>
+									<descriptorRef>jar-with-dependencies</descriptorRef>
+							</descriptorRefs>
+						</configuration>
+				</plugin>
 		</plugins>
 	</build>
 </project>

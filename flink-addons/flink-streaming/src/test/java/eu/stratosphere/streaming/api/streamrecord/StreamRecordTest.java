@@ -36,17 +36,20 @@ public class StreamRecordTest {
 
 	@Test
 	public void singleRecordSetGetTest() {
-		StreamRecord record = new StreamRecord(new StringValue("Stratosphere"), new IntValue(1));
+		StreamRecord record = new StreamRecord(new StringValue("Stratosphere"),
+				new IntValue(1));
 
 		assertEquals(2, record.getNumOfFields());
 		assertEquals(1, record.getNumOfRecords());
-		assertEquals("Stratosphere", ((StringValue) record.getField(0)).getValue());
+		assertEquals("Stratosphere",
+				((StringValue) record.getField(0)).getValue());
 		assertEquals(1, ((IntValue) record.getField(1)).getValue());
 
 		record.setField(1, new StringValue("Big Data"));
 		assertEquals("Big Data", ((StringValue) record.getField(1)).getValue());
 
-		record.setRecord(new IntValue(2), new StringValue("Big Data looks tiny from here."));
+		record.setRecord(new IntValue(2), new StringValue(
+				"Big Data looks tiny from here."));
 		assertEquals(2, record.getNumOfFields());
 		assertEquals(1, record.getNumOfRecords());
 		assertEquals(2, ((IntValue) record.getField(0)).getValue());
@@ -84,9 +87,11 @@ public class StreamRecordTest {
 		// TODO:test ID copy
 		StreamRecord a = new StreamRecord(new StringValue("Big"));
 		StreamRecord b = a.copy();
-		assertTrue(((StringValue) a.getField(0)).getValue().equals(((StringValue) b.getField(0)).getValue()));
+		assertTrue(((StringValue) a.getField(0)).getValue().equals(
+				((StringValue) b.getField(0)).getValue()));
 		b.setRecord(new StringValue("Data"));
-		assertFalse(((StringValue) a.getField(0)).getValue().equals(((StringValue) b.getField(0)).getValue()));
+		assertFalse(((StringValue) a.getField(0)).getValue().equals(
+				((StringValue) b.getField(0)).getValue()));
 	}
 
 	@Test
@@ -105,14 +110,16 @@ public class StreamRecordTest {
 		}
 
 		try {
-			a.setRecord(new StringValue("Data"), new StringValue("Stratosphere"));
+			a.setRecord(new StringValue("Data"),
+					new StringValue("Stratosphere"));
 			fail();
 		} catch (RecordSizeMismatchException e) {
 		}
 
 		StreamRecord b = new StreamRecord();
 		try {
-			b.addRecord(new StringValue("Data"), new StringValue("Stratosphere"));
+			b.addRecord(new StringValue("Data"),
+					new StringValue("Stratosphere"));
 			fail();
 		} catch (RecordSizeMismatchException e) {
 		}
@@ -131,17 +138,20 @@ public class StreamRecordTest {
 
 		int num = 42;
 		String str = "above clouds";
-		StreamRecord<Tuple2<Integer, String>> rec = new StreamRecord<Tuple2<Integer, String>>(new Tuple2<Integer, String>(num, str));
+		StreamRecord<Tuple2<Integer, String>> rec = new StreamRecord<Tuple2<Integer, String>>(
+				new Tuple2<Integer, String>(num, str));
 
 		try {
 			rec.write(out);
-			DataInputStream in = new DataInputStream(new ByteArrayInputStream(buff.toByteArray()));
+			DataInputStream in = new DataInputStream(new ByteArrayInputStream(
+					buff.toByteArray()));
 
-			StreamRecord<Tuple2<Integer, String>> newRec = new StreamRecord<Tuple2<Integer, String>>(2);
-			newRec.read(in);
+			Tuple2<Integer, String> tuple = new Tuple2<Integer, String>();
+			StreamRecord<Tuple2<Integer, String>> newRec = new StreamRecord<Tuple2<Integer, String>>(
+					2);
+			Tuple2<Integer, String> tupleOut = (Tuple2<Integer, String>) newRec.readTuple(in, Integer.class, String.class);
 
-			assertEquals(num, newRec.getField(0));
-			assertEquals(str, newRec.getField(1));
+			assertEquals(tupleOut.getField(0), tuple.getField(0));
 		} catch (IOException e) {
 			fail();
 			e.printStackTrace();
