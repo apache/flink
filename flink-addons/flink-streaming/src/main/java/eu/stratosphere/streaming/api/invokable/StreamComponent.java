@@ -15,10 +15,18 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
-import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.streaming.api.StreamCollector;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import java.io.Serializable;
 
-public interface RecordInvokable<OUT extends Tuple> extends UserInvokable {
-	public void invoke(StreamRecord record, StreamCollector<OUT> collector) throws Exception;
+public abstract class StreamComponent implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
+	private String componentName;
+	private int channelID;
+
+	public void setAttributes(String componentName, int channelID) {
+		this.componentName = componentName;
+		this.channelID = channelID;
+	}
+
 }

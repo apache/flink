@@ -33,15 +33,22 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 	private List<RecordWriter<StreamRecord>> outputs;
 
 	public StreamCollector(int batchSize, int channelID,
-			SerializationDelegate<Tuple> serializationDelegate) {
+			SerializationDelegate<Tuple> serializationDelegate,
+			List<RecordWriter<StreamRecord>> outputs) {
 		this.batchSize = batchSize;
 		this.streamRecord = new ArrayStreamRecord(batchSize);
 		this.streamRecord.setSeralizationDelegate(serializationDelegate);
 		this.channelID = channelID;
+		this.outputs = outputs;
+	}
+
+	public StreamCollector(int batchSize, int channelID,
+			SerializationDelegate<Tuple> serializationDelegate) {
+		this(batchSize, channelID, serializationDelegate, null);
 	}
 
 	public void setOutputs(List<RecordWriter<StreamRecord>> outputs) {
-		this.outputs = outputs;
+
 	}
 
 	@Override

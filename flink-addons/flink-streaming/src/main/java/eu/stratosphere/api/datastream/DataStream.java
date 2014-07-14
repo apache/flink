@@ -20,7 +20,6 @@ import java.util.Random;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.types.TypeInformation;
 
 public class DataStream<T extends Tuple> {
