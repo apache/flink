@@ -10,7 +10,6 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.types.Record;
 
 public class FaultTolerancyBuffer {
 
@@ -22,12 +21,12 @@ public class FaultTolerancyBuffer {
 	private SortedMap<Long, Set<String>> recordsByTime;
 	private Map<String, Long> recordTimestamps;
 	
-	private List<RecordWriter<Record>> outputs;
+	private List<RecordWriter<StreamRecord>> outputs;
 	private String channelID;
 
 	private int numberOfOutputs;
 
-	public FaultTolerancyBuffer(List<RecordWriter<Record>> outputs,
+	public FaultTolerancyBuffer(List<RecordWriter<StreamRecord>> outputs,
 			String channelID) {
 		this.timeOfLastUpdate = System.currentTimeMillis();
 		this.outputs = outputs;
@@ -80,13 +79,12 @@ public class FaultTolerancyBuffer {
 			recordSet.add(recordID);
 			recordsByTime.put(currentTime,recordSet);
 		}
-		System.out.println(currentTime.toString()+" : "+recordsByTime.get(currentTime).toString());
+		//System.out.println(currentTime.toString()+" : "+recordsByTime.get(currentTime).toString());
 	}
 
-	public Record popRecord(String recordID) {
+	public StreamRecord popRecord(String recordID) {
 		System.out.println("Pop ID: "+recordID);
-		Record record = recordBuffer.get(recordID)
-				.getRecord();
+		StreamRecord record = recordBuffer.get(recordID);
 		removeRecord(recordID);
 		return record;
 	}
@@ -114,17 +112,15 @@ public class FaultTolerancyBuffer {
 	public void failRecord(String recordID) {
 		// Create new id to avoid double counting acks
 		System.out.println("Fail ID: "+recordID);
-		StreamRecord newRecord = new StreamRecord(popRecord(recordID), channelID)
-				.addId();
-		addRecord(newRecord);
-		reEmit(newRecord.getRecordWithId());
-
+		StreamRecord newRecord = popRecord(recordID).setChannelId(channelID).setId();
+		reEmit(newRecord);
 	}
 
-	public void reEmit(Record record) {
-		for (RecordWriter<Record> output : outputs) {
+	public void reEmit(StreamRecord record) {
+		for (RecordWriter<StreamRecord> output : outputs) {
 			try {
 				output.emit(record);
+				System.out.println("Re-emitted");
 			} catch (Exception e) {
 				System.out.println("Re-emit failed");
 			}

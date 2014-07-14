@@ -17,7 +17,6 @@ package eu.stratosphere.streaming.test.wordcount;
 
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
-
 import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.StringValue;
 

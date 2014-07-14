@@ -23,14 +23,14 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.streaming.api.FaultTolerancyBuffer;
+import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.test.RandIS;
-import eu.stratosphere.types.Record;
 
 public class StreamSource extends AbstractInputTask<RandIS> {
 
-	private List<RecordWriter<Record>> outputs;
-	private List<ChannelSelector<Record>> partitioners;
+	private List<RecordWriter<StreamRecord>> outputs;
+	private List<ChannelSelector<StreamRecord>> partitioners;
 	private UserSourceInvokable userFunction;
 	private static int numSources = 0;
 	private String sourceInstanceID;
@@ -38,8 +38,8 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 
 	public StreamSource() {
 		// TODO: Make configuration file visible and call setClassInputs() here
-		outputs = new LinkedList<RecordWriter<Record>>();
-		partitioners = new LinkedList<ChannelSelector<Record>>();
+		outputs = new LinkedList<RecordWriter<StreamRecord>>();
+		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
 		userFunction = null;
 		numSources++;
 		sourceInstanceID = Integer.toString(numSources);
