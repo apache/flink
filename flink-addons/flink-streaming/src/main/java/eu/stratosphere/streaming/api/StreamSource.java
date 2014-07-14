@@ -13,16 +13,18 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api.streamcomponent;
+package eu.stratosphere.streaming.api;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.streaming.api.FaultTolerancyBuffer;
+import eu.stratosphere.streaming.api.invokable.DefaultSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.test.RandIS;
 import eu.stratosphere.types.Record;
@@ -32,17 +34,21 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 	private List<RecordWriter<Record>> outputs;
 	private List<ChannelSelector<Record>> partitioners;
 	private UserSourceInvokable userFunction;
+	private int numberOfOutputs;
+
 	private static int numSources = 0;
 	private String sourceInstanceID;
-	private FaultTolerancyBuffer recordBuffer;
+	private Map<String, StreamRecord> recordBuffer;
 
 	public StreamSource() {
 		// TODO: Make configuration file visible and call setClassInputs() here
 		outputs = new LinkedList<RecordWriter<Record>>();
 		partitioners = new LinkedList<ChannelSelector<Record>>();
 		userFunction = null;
+		numberOfOutputs = 0;
 		numSources++;
 		sourceInstanceID = Integer.toString(numSources);
+		recordBuffer = new TreeMap<String, StreamRecord>();
 
 	}
 
@@ -56,25 +62,26 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 		return null;
 	}
 
+	public void setUserFunction(Configuration taskConfiguration) {
+		Class<? extends UserSourceInvokable> userFunctionClass = taskConfiguration
+				.getClass("userfunction", DefaultSourceInvokable.class,
+						UserSourceInvokable.class);
+		try {
+			userFunction = userFunctionClass.newInstance();
+			userFunction
+					.declareOutputs(outputs, sourceInstanceID, recordBuffer);
+		} catch (Exception e) {
+
+		}
+	}
+
 	@Override
 	public void registerInputOutput() {
 		Configuration taskConfiguration = getTaskConfiguration();
-		StreamComponentHelper<StreamSource> streamSourceHelper = new StreamComponentHelper<StreamSource>();
-
-		try {
-			streamSourceHelper.setConfigOutputs(this, taskConfiguration,
-					outputs, partitioners);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
-		recordBuffer = new FaultTolerancyBuffer(outputs, sourceInstanceID);
-		userFunction = (UserSourceInvokable) streamSourceHelper
-				.getUserFunction(taskConfiguration, outputs, sourceInstanceID,
-						recordBuffer);
-		streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID,
-				outputs);
-		streamSourceHelper.setFailListener(recordBuffer, sourceInstanceID,
+		numberOfOutputs = StreamComponentFactory.setConfigOutputs(this,
+				taskConfiguration, outputs, partitioners);
+		setUserFunction(taskConfiguration);
+		StreamComponentFactory.setAckListener(recordBuffer, sourceInstanceID,
 				outputs);
 
 	}
@@ -84,7 +91,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 
 		userFunction.invoke();
 		System.out.println(this.getClass().getName() + "-" + sourceInstanceID);
-		System.out.println(recordBuffer.getRecordBuffer());
+		System.out.println(recordBuffer.toString());
 		System.out.println("---------------------");
 
 	}
