@@ -1,9 +1,7 @@
 package eu.stratosphere.streaming;
 
-import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
-import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.types.Record;
 
 public class StreamSink extends AbstractOutputTask{
@@ -30,13 +28,28 @@ public class StreamSink extends AbstractOutputTask{
 	
 	@Override
 	public void registerInputOutput() {
+		setClassInputs();
 		this.input = new RecordReader<Record>(this, Record.class);
 	}
 
 	@Override
 	public void invoke() throws Exception {
-		// TODO Auto-generated method stub
+		try {
+		    userFunction = UserFunction.newInstance();
+		} catch (Exception e) {
+
+		}
 		
+		boolean hasInput = true;
+		while (hasInput){
+		hasInput = false;
+			if (input.hasNext()){
+				hasInput = true;
+				userFunction.invoke(
+						input.next(), 
+						input);
+			}
+		}
 	}
 
 }

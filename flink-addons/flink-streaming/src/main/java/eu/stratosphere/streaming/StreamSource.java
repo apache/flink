@@ -65,7 +65,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 	  } catch (Exception e) {
 
 	  }
-	  	userFunction.invoke(output);
+	  userFunction.invoke(output);
 	}
 
 }

@@ -77,12 +77,14 @@ public class JobGraphBuilder {
 		config.setClass("userfunction", InvokableClass);
 		components.put(taskName, task);
 	}
-
+	
 	public void setSink(String sinkName,
-			final Class<? extends AbstractOutputTask> sinkClass) {
+			final Class<? extends UserSinkInvokable> InvokableClass) {
 
 		final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
-		sink.setOutputClass(sinkClass);
+		sink.setOutputClass(StreamSink.class);
+		Configuration config = new TaskConfig(sink.getConfiguration()).getConfiguration();
+		config.setClass("userfunction", InvokableClass);
 		components.put(sinkName, sink);
 	}
 
