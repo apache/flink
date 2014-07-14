@@ -32,19 +32,10 @@ import eu.stratosphere.util.Collector;
 //TODO: figure out generic dummysink
 public class StreamExecutionEnvironment {
 	JobGraphBuilder jobGraphBuilder;
-	
-	public StreamExecutionEnvironment(int defaultBatchSize, long defaultBatchTimeoutMillis) {
-		if (defaultBatchSize < 1) {
-			throw new IllegalArgumentException("Batch size must be positive.");
-		}
-		if (defaultBatchTimeoutMillis < 1) {
-			throw new IllegalArgumentException("Batch timeout must be positive.");
-		}
-		jobGraphBuilder = new JobGraphBuilder("jobGraph", FaultToleranceType.NONE, defaultBatchSize, defaultBatchTimeoutMillis);
-	}
 
 	public StreamExecutionEnvironment() {
-		this(1, 1000);
+		jobGraphBuilder = new JobGraphBuilder("jobGraph", FaultToleranceType.NONE);
+
 	}
 
 	private static class DummySource extends UserSourceInvokable<Tuple1<String>> {
@@ -57,9 +48,16 @@ public class StreamExecutionEnvironment {
 			}
 		}
 	}
-	
+
 	public static enum ConnectionType {
 		SHUFFLE, BROADCAST, FIELD
+	}
+
+	public <T extends Tuple> void setBatchSize(DataStream<T> inputStream) {
+		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
+			jobGraphBuilder.setBatchSize(inputStream.connectIDs.get(i),
+					inputStream.batchSizes.get(i));
+		}
 	}
 
 	private <T extends Tuple> void connectGraph(DataStream<T> inputStream, String outputID) {
@@ -83,16 +81,10 @@ public class StreamExecutionEnvironment {
 
 		}
 	}
-	
-	public <T extends Tuple> DataStream<T> setBatchSize(DataStream<T> stream, int batchSize) {
-		if (batchSize < 1) {
-			throw new IllegalArgumentException("Batch size must be positive.");
-		}
-		jobGraphBuilder.setComponentBatchSize(stream.getId(), batchSize);
-		return stream;
-	}
-	
-	public <T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName, DataStream<T> inputStream, final AbstractFunction function, UserTaskInvokable<T, R> functionInvokable) {
+
+	public <T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName,
+			DataStream<T> inputStream, final AbstractFunction function,
+			UserTaskInvokable<T, R> functionInvokable) {
 		DataStream<R> returnStream = new DataStream<R>(this);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -104,14 +96,13 @@ public class StreamExecutionEnvironment {
 			e.printStackTrace();
 		}
 
-		jobGraphBuilder.setTask(returnStream.getId(), functionInvokable,
-				functionName, baos.toByteArray());
+		jobGraphBuilder.setTask(returnStream.getId(), functionInvokable, functionName,
+				baos.toByteArray());
 
 		connectGraph(inputStream, returnStream.getId());
 
 		return returnStream;
 	}
-	
 
 	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
 			SinkFunction<T> sinkFunction) {
@@ -175,8 +166,8 @@ public class StreamExecutionEnvironment {
 
 	public DataStream<Tuple1<String>> readTextFile(String path) {
 		return addSource(new FileSourceFunction(path));
-	} 
-	
+	}
+
 	public DataStream<Tuple1<String>> addDummySource() {
 		DataStream<Tuple1<String>> returnStream = new DataStream<Tuple1<String>>(this);
 
