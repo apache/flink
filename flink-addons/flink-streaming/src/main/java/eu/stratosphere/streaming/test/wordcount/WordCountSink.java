@@ -31,6 +31,7 @@ public class WordCountSink implements UserSinkInvokable {
 		word = (StringValue) record.getField(0, 0);
 		count = (IntValue) record.getField(0, 1);
 
+		
 		System.out.println(word.getValue() + " " + count.getValue());
 
 	}

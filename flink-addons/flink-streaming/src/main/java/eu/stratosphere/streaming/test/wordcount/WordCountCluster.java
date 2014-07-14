@@ -18,16 +18,12 @@ package eu.stratosphere.streaming.test.wordcount;
 import java.io.File;
 import java.net.InetSocketAddress;
 
-import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 
-import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.JobWithJars;
-import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
-import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.types.StringValue;
@@ -49,10 +45,10 @@ public class WordCountCluster {
 
 	private static JobGraph getJobGraph() throws Exception {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountDummySource.class);
+		graphBuilder.setSource("WordCountSource", WordCountDummySource2.class);
 		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
 		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
-		graphBuilder.setSink("WordCountSink", WordCountSink.class);
+		graphBuilder.setSink("WordCountSink", WordCountSink2.class);
 
 		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");
 		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0,
