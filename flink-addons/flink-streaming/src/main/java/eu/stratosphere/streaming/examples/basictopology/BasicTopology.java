@@ -14,77 +14,45 @@
  **********************************************************************************************************************/
 package eu.stratosphere.streaming.examples.basictopology;
 
-import org.apache.log4j.Level;
-
+import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.util.ClusterUtil;
-import eu.stratosphere.streaming.util.LogUtils;
+import eu.stratosphere.streaming.api.DataStream;
+import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.util.Collector;
 
 public class BasicTopology {
 
-	public static class BasicSource extends UserSourceInvokable {
+	public static class BasicSource extends SourceFunction<Tuple1<String>> {
 
 		private static final long serialVersionUID = 1L;
-		StreamRecord record = (new ArrayStreamRecord(1)).setTuple(0, new Tuple1<String>("streaming"));
+		Tuple1<String> tuple =  new Tuple1<String>("streaming");
 
 		@Override
-		public void invoke() throws Exception {
-
+		public void invoke(Collector<Tuple1<String>> collector) throws Exception {
+			// emit continuously a tuple
 			while (true) {
-				// continuously emit records
-				emit(record);
-				performanceCounter.count();
+				collector.collect(tuple);
 			}
-
 		}
 	}
 
-	public static class BasicTask extends UserTaskInvokable {
+	public static class BasicMap extends MapFunction<Tuple1<String>, Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
+		// map to the same tuple
 		@Override
-		public void invoke(StreamRecord record) throws Exception {
-			// send record to sink without any modifications
-			emit(record);
-			performanceCounter.count();
+		public Tuple1<String> map(Tuple1<String> value) throws Exception {
+			return value;
 		}
 
-	}
-
-	public static class BasicSink extends UserSinkInvokable {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void invoke(StreamRecord record) throws Exception {
-			// do nothing
-			System.out.println(record.getTuple(0).getField(0));
-		}
-	}
-
-	private static JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("BasicStreamingTopology");
-		graphBuilder.setSource("BasicSource", new BasicSource(), 1, 1);
-		graphBuilder.setTask("BasicTask", new BasicTask(), 1, 1);
-		graphBuilder.setSink("BasicSink", new BasicSink(), 1, 1);
-
-		graphBuilder.shuffleConnect("BasicSource", "BasicTask");
-		graphBuilder.shuffleConnect("BasicTask", "BasicSink");
-
-		return graphBuilder.getJobGraph();
 	}
 
 	public static void main(String[] args) {
-
-		// set logging parameters for local run
-		LogUtils.initializeDefaultConsoleLogger(Level.INFO, Level.INFO);
-
-		ClusterUtil.runOnMiniCluster(getJobGraph());
+		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
+		
+		DataStream<Tuple1<String>> stream = context.addSource(new BasicSource()).map(new BasicMap()).addDummySink();
+		
+		context.execute();
 	}
 }
