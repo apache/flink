@@ -22,9 +22,7 @@ package org.apache.flink.streaming.partitioner;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.flink.streaming.api.streamrecord.ArrayStreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.partitioner.DefaultPartitioner;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -32,7 +30,7 @@ import org.junit.Test;
 public class DefaultPartitionerTest {
 
 	private DefaultPartitioner defaultPartitioner;
-	private StreamRecord streamRecord = new ArrayStreamRecord();
+	private StreamRecord streamRecord = new StreamRecord();
 
 	@Before
 	public void setPartitioner() {

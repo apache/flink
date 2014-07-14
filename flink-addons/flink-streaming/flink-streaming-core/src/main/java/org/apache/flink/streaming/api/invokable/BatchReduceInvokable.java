@@ -19,26 +19,41 @@
 
 package org.apache.flink.streaming.api.invokable;
 
+import java.util.ArrayList;
 import java.util.Iterator;
-
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import java.util.List;
 
 import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
-public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends UserTaskInvokable<IN, OUT> {
+public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
+		UserTaskInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
-	
+	private List<Tuple> tupleBatch;
+	private int counter;
+	private int batchSize;
+
 	private GroupReduceFunction<IN, OUT> reducer;
-	public BatchReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction) {
-		this.reducer = reduceFunction; 
+
+	public BatchReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, int batchSize) {
+		this.reducer = reduceFunction;
+		this.tupleBatch = new ArrayList<Tuple>();
+		this.counter = 0;
+		this.batchSize = batchSize;
 	}
-	
+
 	@Override
 	public void invoke(StreamRecord record, Collector<OUT> collector) throws Exception {
-		@SuppressWarnings("unchecked")
-		Iterator<IN> iterator = (Iterator<IN>) record.getBatchIterable().iterator();
-		reducer.reduce(iterator, collector);
+		
+		tupleBatch.add(record.getTuple());
+		counter++;
+		if(counter>= batchSize){
+			counter=0;
+			reducer.reduce((Iterator<IN>) tupleBatch.iterator(), collector);
+			tupleBatch.clear();
+		}
+		
 	}
 }

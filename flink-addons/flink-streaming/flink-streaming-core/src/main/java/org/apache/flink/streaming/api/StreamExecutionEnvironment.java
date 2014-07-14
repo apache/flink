@@ -24,6 +24,9 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.Collection;
 
+import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.function.FileSourceFunction;
 import org.apache.flink.streaming.api.function.FileStreamFunction;
@@ -34,13 +37,6 @@ import org.apache.flink.streaming.api.function.SinkFunction;
 import org.apache.flink.streaming.api.function.SourceFunction;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
-import org.apache.flink.streaming.faulttolerance.FaultToleranceType;
-
-import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.RemoteEnvironment;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple1;
 
 //TODO:add link to ExecutionEnvironment
 /**
@@ -82,7 +78,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Constructor for creating StreamExecutionEnvironment
 	 */
 	protected StreamExecutionEnvironment() {
-		jobGraphBuilder = new JobGraphBuilder("jobGraph", FaultToleranceType.NONE);
+		jobGraphBuilder = new JobGraphBuilder("jobGraph");
 	}
 
 	public int getExecutionParallelism() {
@@ -135,13 +131,6 @@ public abstract class StreamExecutionEnvironment {
 		this.executionParallelism = degreeOfParallelism;
 	}
 
-	public void setBatchTimeout(int timeout) {
-		if (timeout < 1) {
-			throw new IllegalArgumentException("Batch timeout must be positive.");
-		} else {
-			jobGraphBuilder.setBatchTimeout(timeout);
-		}
-	}
 
 	// --------------------------------------------------------------------------------------------
 	// Data stream creations
@@ -320,7 +309,6 @@ public abstract class StreamExecutionEnvironment {
 			jobGraphBuilder.shuffleConnect(input, returnStream.getId());
 
 		}
-		setBatchSize(inputStream);
 	}
 
 	/**
@@ -404,25 +392,7 @@ public abstract class StreamExecutionEnvironment {
 			}
 
 		}
-		setBatchSize(inputStream);
 
-	}
-
-	/**
-	 * Sets the batch size of the data stream in which the tuple are
-	 * transmitted.
-	 * 
-	 * @param inputStream
-	 *            input data stream
-	 * @param <T>
-	 *            type of the input stream
-	 */
-	protected <T extends Tuple> void setBatchSize(DataStream<T> inputStream) {
-
-		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
-			jobGraphBuilder.setBatchSize(inputStream.connectIDs.get(i),
-					inputStream.batchSizes.get(i));
-		}
 	}
 
 	protected <T extends Tuple> void setName(DataStream<T> stream, String name) {

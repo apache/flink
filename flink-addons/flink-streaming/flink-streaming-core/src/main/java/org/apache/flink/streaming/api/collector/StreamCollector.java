@@ -19,72 +19,55 @@
 
 package org.apache.flink.streaming.api.collector;
 
-import org.apache.flink.streaming.api.streamrecord.ArrayStreamRecord;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
-public class StreamCollector<T extends Tuple> implements Collector<T> {
+public class StreamCollector implements Collector<Tuple> {
 
 	protected StreamRecord streamRecord;
-	protected int batchSize;
-	protected long batchTimeout;
-	protected int counter = 0;
 	protected int channelID;
-	private long timeOfLastRecordEmitted = System.currentTimeMillis();;
-	private RecordWriter<StreamRecord> output;
+	private List<RecordWriter<StreamRecord>> outputs;
+	protected Map<String, RecordWriter<StreamRecord>> outputMap;
 
-	public StreamCollector(int batchSize, long batchTimeout, int channelID,
-			SerializationDelegate<Tuple> serializationDelegate, RecordWriter<StreamRecord> output, int partition) {
-		this.batchSize = batchSize;
-		this.batchTimeout = batchTimeout;
-		this.streamRecord = new ArrayStreamRecord(batchSize);
+	public StreamCollector(int channelID, SerializationDelegate<Tuple> serializationDelegate) {
+
+		this.streamRecord = new StreamRecord();
 		this.streamRecord.setSeralizationDelegate(serializationDelegate);
-		this.streamRecord.setPartition(partition);
 		this.channelID = channelID;
-		this.output = output;
+		this.outputs = new ArrayList<RecordWriter<StreamRecord>>();
+		this.outputMap = new HashMap<String, RecordWriter<StreamRecord>>();
 	}
 
-	public StreamCollector(int batchSize, long batchTimeout, int channelID,
-			SerializationDelegate<Tuple> serializationDelegate) {
-		this(batchSize, batchTimeout, channelID, serializationDelegate, null, 0);
+	public void addOutput(RecordWriter<StreamRecord> output, String outputName) {
+		outputs.add(output);
+		if (outputName != null) {
+			outputMap.put(outputName, output);
+		}
 	}
 
-	// TODO reconsider emitting mechanism at timeout (find a place to timeout)
 	@Override
-	public void collect(T tuple) {
-		streamRecord.setTuple(counter, tuple);
-		counter++;
-
-		if (counter >= batchSize) {
-			emit(streamRecord);
-			// timeOfLastRecordEmitted = System.currentTimeMillis();
-		} else {
-			// timeout();
-		}
-	}
-
-	public void timeout() {
-		if (timeOfLastRecordEmitted + batchTimeout < System.currentTimeMillis()) {
-			StreamRecord truncatedRecord = new ArrayStreamRecord(streamRecord, counter);
-			emit(truncatedRecord);
-			timeOfLastRecordEmitted = System.currentTimeMillis();
-		}
+	public void collect(Tuple tuple) {
+		streamRecord.setTuple(tuple);
+		emit(streamRecord);
 	}
 
 	private void emit(StreamRecord streamRecord) {
-		counter = 0;
 		streamRecord.setId(channelID);
-
-		try {
-			output.emit(streamRecord);
-			//output.flush();
-		} catch (Exception e) {
-			e.printStackTrace();
-			System.out.println("emit fail");
+		for (RecordWriter<StreamRecord> output : outputs) {
+			try {
+				output.emit(streamRecord);
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.out.println("emit fail");
+			}
 		}
 
 	}

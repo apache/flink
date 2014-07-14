@@ -30,7 +30,7 @@ public class DefaultSinkInvokable extends UserSinkInvokable<Tuple> {
 
 	@Override
 	public void invoke(StreamRecord record, Collector<Tuple> collector) throws Exception {
-		String value = (String) record.getTuple(0).getField(0);
+		String value = (String) record.getTuple().getField(0);
 		System.out.println(value);
 	}
 }

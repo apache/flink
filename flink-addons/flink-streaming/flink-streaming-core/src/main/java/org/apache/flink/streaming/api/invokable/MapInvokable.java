@@ -29,17 +29,15 @@ public class MapInvokable<T extends Tuple, R extends Tuple> extends UserTaskInvo
 	private static final long serialVersionUID = 1L;
 
 	private MapFunction<T, R> mapper;
+
 	public MapInvokable(MapFunction<T, R> mapper) {
 		this.mapper = mapper;
 	}
-	
+
 	@Override
 	public void invoke(StreamRecord record, Collector<R> collector) throws Exception {
-		int batchSize = record.getBatchSize();
-		for (int i = 0; i < batchSize; i++) {
-			@SuppressWarnings("unchecked")
-			T tuple = (T) record.getTuple(i);
-			collector.collect(mapper.map(tuple));
-		}
-	}		
+
+		T tuple = (T) record.getTuple();
+		collector.collect(mapper.map(tuple));
+	}
 }
