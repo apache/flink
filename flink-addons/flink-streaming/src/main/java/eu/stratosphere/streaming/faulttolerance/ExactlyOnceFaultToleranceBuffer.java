@@ -23,7 +23,7 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 
-	private Map<String, int[]> ackCounter;
+	protected Map<String, int[]> ackCounter;
 	int[] initialAckCounts;
 
 	public ExactlyOnceFaultToleranceBuffer(int[] numberOfChannels, String componentInstanceID) {
@@ -41,7 +41,7 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 	}
 	
 	
-	private void addToAckCounter(String id, int channel) {
+	protected void addToAckCounter(String id, int channel) {
 		int[] acks=new int[numberOfEffectiveChannels.length + 1];
 		acks[0]=numberOfEffectiveChannels.length-1;
 		acks[channel+1]=numberOfEffectiveChannels[channel];
@@ -65,7 +65,7 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 		}
 	}
 
-	private boolean decreaseAckCounter(int[] acks, int channel) {
+	protected boolean decreaseAckCounter(int[] acks, int channel) {
 
 		acks[channel + 1]--;
 		if (acks[channel + 1] == 0) {
@@ -79,15 +79,9 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 	protected StreamRecord failChannel(String id, int channel) {
 		
 		if(notAcked(id, channel)){
-			
 			int[] acks = ackCounter.get(id);
 			acks[channel + 1] = 0;
 			acks[0]++;
-			
-			if(acks[0]==numberOfEffectiveChannels.length){
-				remove(id);
-			}
-			
 			return addToChannel(id, channel);
 		} else{
 			
@@ -96,7 +90,7 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 		
 	}
 	
-	private StreamRecord addToChannel(String id, int channel) {
+	protected StreamRecord addToChannel(String id, int channel) {
 
 		StreamRecord record = recordBuffer.get(id).copy().setId(componentInstanceID);
 
@@ -108,7 +102,7 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 		return record;
 	}
 
-	private boolean notAcked(String id, int channel) {
+	protected boolean notAcked(String id, int channel) {
 		int[] acks = ackCounter.get(id);
 		if (acks != null) {
 			if(acks[channel+1]>0){
