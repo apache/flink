@@ -37,7 +37,8 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
  */
 public class FaultToleranceBuffer {
 
-	private static final Log log = LogFactory.getLog(FaultToleranceBuffer.class);
+	private static final Log log = LogFactory
+			.getLog(FaultToleranceBuffer.class);
 	private long timeout = 10000;
 	private Long timeOfLastUpdate;
 	private Map<String, StreamRecord> recordBuffer;
@@ -45,11 +46,12 @@ public class FaultToleranceBuffer {
 	private Map<String, int[]> ackMap;
 	private SortedMap<Long, Set<String>> recordsByTime;
 	private Map<String, Long> recordTimestamps;
+	private int numberofOutputs;
 
 	private List<RecordWriter<StreamRecord>> outputs;
 	private final String channelID;
 
-	private int numberOfOutputs;
+	private int numberOfChannels;
 	private int[] numberOfOutputChannels;
 
 	/**
@@ -63,7 +65,8 @@ public class FaultToleranceBuffer {
 	 * @param numberOfChannels
 	 *            Number of output channels for the output components
 	 */
-	public FaultToleranceBuffer(List<RecordWriter<StreamRecord>> outputs, String channelID, int[] numberOfChannels) {
+	public FaultToleranceBuffer(List<RecordWriter<StreamRecord>> outputs,
+			String channelID, int[] numberOfChannels) {
 		this.timeOfLastUpdate = System.currentTimeMillis();
 		this.outputs = outputs;
 		this.recordBuffer = new HashMap<String, StreamRecord>();
@@ -75,8 +78,8 @@ public class FaultToleranceBuffer {
 
 		for (int i : numberOfChannels)
 			totalChannels += i;
-
-		this.numberOfOutputs = totalChannels;
+		this.numberofOutputs = numberOfOutputChannels.length;
+		this.numberOfChannels = totalChannels;
 		this.channelID = channelID;
 		this.recordsByTime = new TreeMap<Long, Set<String>>();
 		this.recordTimestamps = new HashMap<String, Long>();
@@ -89,9 +92,16 @@ public class FaultToleranceBuffer {
 	public void addRecord(StreamRecord streamRecord) {
 		String id = streamRecord.getId();
 		recordBuffer.put(id, streamRecord.copy());
-		ackCounter.put(id, numberOfOutputs);
+		ackCounter.put(id, numberOfChannels);
 
-		ackMap.put(id, numberOfOutputChannels.clone());
+		//TODO: remove comments for exactly once processing
+//		int[] ackCounts = new int[numberOfChannels + 1];
+//
+//		for (int i = 0; i < numberOfOutputChannels.length; i++) {
+//			ackCounts[i + 1] = numberOfOutputChannels[i];
+//		}
+//
+//		ackMap.put(id, ackCounts);
 
 		addTimestamp(id);
 		log.trace("Record added to buffer: " + id);
@@ -110,7 +120,8 @@ public class FaultToleranceBuffer {
 		if (timeOfLastUpdate + timeout < currentTime) {
 			log.trace("Updating record buffer");
 			List<String> timedOutRecords = new LinkedList<String>();
-			Map<Long, Set<String>> timedOut = recordsByTime.subMap(0L, currentTime - timeout);
+			Map<Long, Set<String>> timedOut = recordsByTime.subMap(0L,
+					currentTime - timeout);
 
 			for (Set<String> recordSet : timedOut.values()) {
 				if (!recordSet.isEmpty()) {
@@ -197,34 +208,25 @@ public class FaultToleranceBuffer {
 	 * @param recordID
 	 *            ID of the record that has been acknowledged
 	 * 
-	 * @param outputChannel
+	 * @param output
 	 *            Number of the output channel that sent the ack
 	 */
-	public void ackRecord(String recordID, int outputChannel) {
+	public void ackRecord(String recordID, int output) {
 		if (ackMap.containsKey(recordID)) {
-			int[] acks = ackMap.get(recordID);
-			acks[outputChannel]--;
-
-			//TODO: consider a better solution (data structure) than iterating
-			if (allZero(acks)) {
+			if (decreaseAckCounter(recordID, output)) {
 				removeRecord(recordID);
 			}
 		}
 	}
-	
-	/**
-	 * Checks whether an int array contains only zeros.
-	 * 
-	 * @param values
-	 *            The array to check
-	 * @return true only if the array contains only zeros
-	 */
-	private static boolean allZero(int[] values) {
-		for (int value : values) {
-			if (value != 0)
-				return false;
+
+	private boolean decreaseAckCounter(String recordID, int output) {
+		int[] acks = ackMap.get(recordID);
+		acks[output + 1]--;
+		if (acks[output + 1] == 0) {
+			acks[0]++;
 		}
-		return true;
+
+		return (acks[0] == numberofOutputs);
 	}
 
 	/**
@@ -329,11 +331,11 @@ public class FaultToleranceBuffer {
 	}
 
 	public int getNumberOfOutputs() {
-		return this.numberOfOutputs;
+		return this.numberOfChannels;
 	}
 
 	void setNumberOfOutputs(int numberOfOutputs) {
-		this.numberOfOutputs = numberOfOutputs;
+		this.numberOfChannels = numberOfOutputs;
 	}
 
 }
