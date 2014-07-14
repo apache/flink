@@ -15,21 +15,71 @@
 
 package eu.stratosphere.streaming.examples.window.sum;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.DataStream;
-import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import java.net.InetSocketAddress;
+
+import org.apache.log4j.Level;
+
+import eu.stratosphere.client.minicluster.NepheleMiniCluster;
+import eu.stratosphere.client.program.Client;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.util.LogUtils;
 
 public class WindowSumLocal {
-	
+
+	public static JobGraph getJobGraph() {
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
+		graphBuilder.setSource("WindowSumSource", WindowSumSource.class);
+		graphBuilder.setTask("WindowSumMultiple", WindowSumMultiple.class, 1, 1);
+		graphBuilder.setTask("WindowSumAggregate", WindowSumAggregate.class, 1, 1);
+		graphBuilder.setSink("WindowSumSink", WindowSumSink.class);
+
+		graphBuilder.shuffleConnect("WindowSumSource", "WindowSumMultiple");
+		graphBuilder.shuffleConnect("WindowSumMultiple", "WindowSumAggregate");
+		graphBuilder.shuffleConnect("WindowSumAggregate", "WindowSumSink");
+
+		return graphBuilder.getJobGraph();
+	}
+
 	public static void main(String[] args) {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		@SuppressWarnings("unused")
-		DataStream<Tuple2<Integer, Long>> dataStream = context
-				.addSource(new WindowSumSource())
-				.map(new WindowSumMultiple())
-				.flatMap(new WindowSumAggregate())
-				.addSink(new WindowSumSink());
-		
-		context.execute();
+
+		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
+
+		try {
+
+			JobGraph jG = getJobGraph();
+			Configuration configuration = jG.getJobConfiguration();
+
+			if (args.length == 0) {
+				args = new String[] { "local" };
+			}
+
+			if (args[0].equals("local")) {
+				System.out.println("Running in Local mode");
+				NepheleMiniCluster exec = new NepheleMiniCluster();
+
+				exec.start();
+
+				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
+
+				client.run(jG, true);
+
+				exec.stop();
+
+			} else if (args[0].equals("cluster")) {
+				System.out.println("Running in Cluster2 mode");
+
+				Client client = new Client(new InetSocketAddress("hadoop02.ilab.sztaki.hu", 6123),
+						configuration);
+
+				client.run(jG, true);
+
+			}
+
+		} catch (Exception e) {
+			System.out.println(e);
+		}
+
 	}
 }

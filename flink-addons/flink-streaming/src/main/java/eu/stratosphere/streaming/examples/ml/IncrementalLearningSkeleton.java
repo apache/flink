@@ -14,188 +14,134 @@
  **********************************************************************************************************************/
 package eu.stratosphere.streaming.examples.ml;
 
-import java.net.InetSocketAddress;
-
-import org.apache.log4j.Level;
-
-import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.client.minicluster.NepheleMiniCluster;
-import eu.stratosphere.client.program.Client;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.util.LogUtils;
+import eu.stratosphere.streaming.api.DataStream;
+import eu.stratosphere.streaming.api.SinkFunction;
+import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.util.Collector;
 
 public class IncrementalLearningSkeleton {
 
 	// Source for feeding new data for prediction
-	public static class NewDataSource extends UserSourceInvokable {
+	public static class NewDataSource extends SourceFunction<Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
 		
-		StreamRecord record = new StreamRecord(new Tuple1<Integer>(1));
-
 		@Override
-		public void invoke() throws Exception {
-
+		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
 			while (true) {
-				record.setTuple(getNewData());
-				emit(record);
+				collector.collect(getNewData());
 			}
-
 		}
 
 		// Method for pulling new data for prediction
-		private Tuple getNewData() throws InterruptedException {
+		private Tuple1<Integer> getNewData() throws InterruptedException {
 			return new Tuple1<Integer>(1);
 		}
 	}
 
 	// Source for feeding new training data for partial model building
-	public static class TrainingDataSource extends UserSourceInvokable {
+	public static class TrainingDataSource extends SourceFunction<Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
 		
 		// Number of tuples grouped for building partial model
+		// TODO: batch training data
 		private final int BATCH_SIZE = 1000;
 
-		StreamRecord record = new StreamRecord(1, BATCH_SIZE);
-
 		@Override
-		public void invoke() throws Exception {
-
-			record.initRecords();
+		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
 
 			while (true) {
 				// Group the predefined number of records in a streamrecord then
 				// emit for model building
-				for (int i = 0; i < BATCH_SIZE; i++) {
-					record.setTuple(i, getTrainingData());
-				}
-				emit(record);
+				collector.collect(getTrainingData());;
 			}
 
 		}
 
 		// Method for pulling new training data
-		private Tuple getTrainingData() throws InterruptedException {
+		private Tuple1<Integer> getTrainingData() throws InterruptedException {
 			return new Tuple1<Integer>(1);
 
 		}
 	}
 
 	// Task for building up-to-date partial models on new training data
-	public static class PartialModelBuilder extends UserTaskInvokable {
+	public static class PartialModelBuilder extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void invoke(StreamRecord record) throws Exception {
-			emit(buildPartialModel(record));
+		public Tuple1<Integer> map(Tuple1<Integer> inTuple) throws Exception {
+			return buildPartialModel(inTuple);
 		}
 
 		// Method for building partial model on the grouped training data
-		protected StreamRecord buildPartialModel(StreamRecord record) {
-			return new StreamRecord(new Tuple1<Integer>(1));
+		protected Tuple1<Integer> buildPartialModel(Tuple1<Integer> inTuple) {
+			return new Tuple1<Integer>(1);
 		}
 
 	}
 
 	// Task for performing prediction using the model produced in
 	// batch-processing and the up-to-date partial model
-	public static class Predictor extends UserTaskInvokable {
+	public static class Predictor extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
 		
-		StreamRecord batchModel = null;
-		StreamRecord partialModel = null;
+		Tuple1<Integer> batchModel = null;
+		Tuple1<Integer> partialModel = null;
 
 		@Override
-		public void invoke(StreamRecord record) throws Exception {
-			if (isModel(record)) {
-				partialModel = record;
+		public Tuple1<Integer> map(Tuple1<Integer> inTuple) throws Exception {
+			if (isModel(inTuple)) {
+				partialModel = inTuple;
 				batchModel = getBatchModel();
+				return null; //TODO: fix
 			} else {
-				emit(predict(record));
+				return predict(inTuple);
 			}
 
 		}
 
 		// Pulls model built with batch-job on the old training data
-		protected StreamRecord getBatchModel() {
-			return new StreamRecord(new Tuple1<Integer>(1));
+		protected Tuple1<Integer> getBatchModel() {
+			return new Tuple1<Integer>(1);
 		}
 
 		// Checks whether the record is a model or a new data
-		protected boolean isModel(StreamRecord record) {
+		protected boolean isModel(Tuple1<Integer> inTuple) {
 			return true;
 		}
 
 		// Performs prediction using the two models
-		protected StreamRecord predict(StreamRecord record) {
-			return new StreamRecord(new Tuple1<Integer>(0));
+		protected Tuple1<Integer> predict(Tuple1<Integer> inTuple) {
+			return new Tuple1<Integer>(0);
 		}
 
 	}
 
-	public static class Sink extends UserSinkInvokable {
+	public static class IMLSink extends SinkFunction<Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void invoke(StreamRecord record) throws Exception {
+		public void invoke(Tuple1<Integer> inTuple) {
 			// do nothing
 		}
 	}
 
-	private static JobGraph getJobGraph() throws Exception {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("IncrementalLearning");
-
-		graphBuilder.setSource("NewData", NewDataSource.class, 1, 1);
-		graphBuilder.setSource("TrainingData", TrainingDataSource.class, 1, 1);
-		graphBuilder.setTask("PartialModelBuilder", PartialModelBuilder.class, 1, 1);
-		graphBuilder.setTask("Predictor", Predictor.class, 1, 1);
-		graphBuilder.setSink("Sink", Sink.class, 1, 1);
-
-		graphBuilder.shuffleConnect("TrainingData", "PartialModelBuilder");
-		graphBuilder.shuffleConnect("NewData", "Predictor");
-		graphBuilder.broadcastConnect("PartialModelBuilder", "Predictor");
-		graphBuilder.shuffleConnect("Predictor", "Sink");
-
-		return graphBuilder.getJobGraph();
-	}
-
 	public static void main(String[] args) {
 
-		// set logging parameters for local run
-		LogUtils.initializeDefaultConsoleLogger(Level.INFO, Level.INFO);
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
-		try {
-
-			// generate JobGraph
-			JobGraph jG = getJobGraph();
-			Configuration configuration = jG.getJobConfiguration();
-
-			if (args.length == 0 || args[0].equals("local")) {
-				System.out.println("Running in Local mode");
-				// start local cluster and submit JobGraph
-				NepheleMiniCluster exec = new NepheleMiniCluster();
-				exec.start();
-
-				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
-
-				client.run(jG, true);
-
-				exec.stop();
-			} else if (args[0].equals("cluster")) {
-				System.out.println("Running in Cluster mode");
-				// submit JobGraph to the running cluster
-				Client client = new Client(new InetSocketAddress("dell150", 6123), configuration);
-				client.run(jG, true);
-			}
-
-		} catch (Exception e) {
-			System.out.println(e);
-		}
+		DataStream<Tuple1<Integer>> model = 
+				env.addSource(new TrainingDataSource())
+					.map(new PartialModelBuilder())
+					.broadcast();
+		
+		DataStream<Tuple1<Integer>> prediction =
+				env.addSource(new NewDataSource())
+					.connectWith(model)
+					.map(new Predictor())
+					.addSink(new IMLSink());
 	}
 }
