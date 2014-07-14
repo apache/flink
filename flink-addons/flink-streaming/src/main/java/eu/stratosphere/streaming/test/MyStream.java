@@ -32,9 +32,9 @@ public class MyStream extends TestBase2 {
     graphBuilder.setTask("cellTask", DefaultTaskInvokable.class, 2);
     graphBuilder.setSink("sink", DefaultSinkInvokable.class);
 
-    graphBuilder.GlobalConnect("infoSource", "cellTask");
-    graphBuilder.BroadcastConnect("querySource", "cellTask");
-    graphBuilder.BroadcastConnect("cellTask", "sink");
+    graphBuilder.globalConnect("infoSource", "cellTask");
+    graphBuilder.broadcastConnect("querySource", "cellTask");
+    graphBuilder.broadcastConnect("cellTask", "sink");
 
     return graphBuilder.getJobGraph();
   }
