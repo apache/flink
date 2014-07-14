@@ -67,12 +67,6 @@
 			<version>3.3.2</version>
 		</dependency>
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-java</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
 			<groupId>commons-logging</groupId>
 			<artifactId>commons-logging</artifactId>
 			<version>1.1.1</version>
@@ -83,8 +77,6 @@
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
 			<version>1.2.16</version>
-			<!--<type>jar</type>
-			<scope>compile</scope>-->
 		</dependency>
 	</dependencies>
 
