@@ -15,12 +15,12 @@
 
 package org.apache.flink.streaming.api.streamrecord;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Arrays;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 
 /**
  * Object for storing serializable records in batch (single records are
@@ -132,7 +132,7 @@ public class ArrayStreamRecord extends StreamRecord {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 
 		uid.write(out);
 		out.writeInt(batchSize);
@@ -144,7 +144,7 @@ public class ArrayStreamRecord extends StreamRecord {
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		uid = new UID();
 		uid.read(in);
 		batchSize = in.readInt();

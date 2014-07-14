@@ -14,8 +14,6 @@
  **********************************************************************************************************************/
 package org.apache.flink.streaming.api.streamrecord;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -24,6 +22,8 @@ import java.util.Arrays;
 import java.util.Random;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 
 public class UID implements IOReadableWritable, Serializable {
 	private static final long serialVersionUID = 1L;
@@ -63,7 +63,7 @@ public class UID implements IOReadableWritable, Serializable {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		out.write(uid.array());
 	}
 	
@@ -80,7 +80,7 @@ public class UID implements IOReadableWritable, Serializable {
 	    }
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		byte[] uidByteArray = new byte[20];
 		in.readFully(uidByteArray, 0, 20);
 		uid = ByteBuffer.wrap(uidByteArray);
