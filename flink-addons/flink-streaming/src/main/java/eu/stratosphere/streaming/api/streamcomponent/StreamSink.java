@@ -24,7 +24,9 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.api.streamcomponent.StreamComponentHelper.RecordInvoker;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 
 public class StreamSink extends AbstractOutputTask {
 
@@ -34,6 +36,7 @@ public class StreamSink extends AbstractOutputTask {
 	private UserSinkInvokable userFunction;
 	private StreamComponentHelper<StreamSink> streamSinkHelper;
 	private String name;
+	private RecordInvoker invoker;
 
 	public StreamSink() {
 		// TODO: Make configuration file visible and call setClassInputs() here
@@ -52,13 +55,17 @@ public class StreamSink extends AbstractOutputTask {
 		} catch (Exception e) {
 			log.error("Cannot register inputs", e);
 		}
+		
+		FaultToleranceType faultToleranceType = FaultToleranceType.from(taskConfiguration.getInteger("faultToleranceType", 0));
+		invoker = streamSinkHelper.getRecordInvoker(faultToleranceType);
+		
 		userFunction = streamSinkHelper.getUserFunction(taskConfiguration);
 	}
 
 	@Override
 	public void invoke() throws Exception {
 		log.debug("SINK " + name + " invoked");
-		streamSinkHelper.invokeRecords(userFunction, inputs, name);
+		streamSinkHelper.invokeRecords(invoker, userFunction, inputs, name);
 		System.out.println("Result: "+userFunction.getResult());
 		log.debug("SINK " + name + " invoke finished");
 	}

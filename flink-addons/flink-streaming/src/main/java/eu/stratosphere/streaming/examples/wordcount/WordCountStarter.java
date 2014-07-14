@@ -24,6 +24,7 @@ import eu.stratosphere.client.program.Client;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.LogUtils;
 
 public class WordCountStarter {
@@ -31,7 +32,7 @@ public class WordCountStarter {
 	private static JobGraph getJobGraph(int sourceSubtasks, int sourceSubtasksPerInstance,
 			int counterSubtasks, int counterSubtasksPerInstance, int sinkSubtasks,
 			int sinkSubtasksPerInstance) throws Exception {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
 		graphBuilder.setSource("WordCountSourceSplitter", WordCountSourceSplitter.class,
 				sourceSubtasks, sourceSubtasksPerInstance);
 		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, counterSubtasks,

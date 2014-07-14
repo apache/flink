@@ -26,8 +26,10 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.streamcomponent.StreamComponentHelper.RecordInvoker;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.examples.DummyIS;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 
 public class StreamSource extends AbstractInputTask<DummyIS> {
@@ -41,6 +43,8 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 	private int sourceInstanceID;
 	private String name;
 	private FaultToleranceUtil recordBuffer;
+	private FaultToleranceType faultToleranceType;
+	private RecordInvoker invoker;
 	StreamComponentHelper<StreamSource> streamSourceHelper;
 
 	public StreamSource() {
@@ -79,8 +83,11 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 			numberOfOutputChannels[i] = taskConfiguration.getInteger("channels_" + i, 0);
 		}
 
-		recordBuffer = new FaultToleranceUtil(outputs, sourceInstanceID, name,
-				numberOfOutputChannels);
+		// recordBuffer = new FaultToleranceUtil(outputs, sourceInstanceID,name,
+		// numberOfOutputChannels);
+		invoker = streamSourceHelper.setFaultTolerance(recordBuffer, faultToleranceType,
+				taskConfiguration, outputs, sourceInstanceID, name, numberOfOutputChannels);
+
 		userFunction = (UserSourceInvokable) streamSourceHelper.getUserFunction(taskConfiguration,
 				outputs, sourceInstanceID, name, recordBuffer);
 		streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID, outputs);

@@ -44,6 +44,7 @@ import eu.stratosphere.streaming.api.streamcomponent.StreamSink;
 import eu.stratosphere.streaming.api.streamcomponent.StreamSource;
 import eu.stratosphere.streaming.api.streamcomponent.StreamTask;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.partitioner.BroadcastPartitioner;
 import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
 import eu.stratosphere.streaming.partitioner.GlobalPartitioner;
@@ -61,6 +62,7 @@ public class JobGraphBuilder {
 	private Map<String, List<Integer>> numberOfOutputChannels;
 	private String maxParallelismVertexName;
 	private int maxParallelism;
+	private FaultToleranceType faultToleranceType;
 
 	/**
 	 * Creates a new JobGraph with the given name
@@ -68,7 +70,7 @@ public class JobGraphBuilder {
 	 * @param jobGraphName
 	 *            Name of the JobGraph
 	 */
-	public JobGraphBuilder(String jobGraphName) {
+	public JobGraphBuilder(String jobGraphName, FaultToleranceType faultToleranceType) {
 		jobGraph = new JobGraph(jobGraphName);
 		components = new HashMap<String, AbstractJobVertex>();
 		numberOfInstances = new HashMap<String, Integer>();
@@ -76,10 +78,11 @@ public class JobGraphBuilder {
 		maxParallelismVertexName = "";
 		maxParallelism = 0;
 		log.debug("JobGraph created");
+		this.faultToleranceType = faultToleranceType;
 	}
 
 	/**
-	 * Adds a source component to the JobGraph
+	 * Adds a source component to the JobGraph with no parallelism
 	 * 
 	 * @param sourceName
 	 *            Name of the source component
@@ -112,6 +115,33 @@ public class JobGraphBuilder {
 		log.debug("SOURCE: " + sourceName);
 	}
 
+	/**
+	 * Adds source to the JobGraph by user defined object with no parallelism
+	 * 
+	 * @param sourceName
+	 *            Name of the source component
+	 * @param InvokableObject
+	 *            User defined UserSourceInvokable object or other predefined
+	 *            source object
+	 */
+	public void setSource(String sourceName, UserSourceInvokable InvokableObject) {
+		setSource(sourceName, InvokableObject, 1, 1);
+	}
+
+	/**
+	 * Adds source to the JobGraph by user defined object with the set
+	 * parallelism
+	 * 
+	 * @param sourceName
+	 *            Name of the source component
+	 * @param InvokableObject
+	 *            User defined UserSourceInvokable object or other predefined
+	 *            source object
+	 * @param parallelism
+	 *            Number of task instances of this type to run in parallel
+	 * @param subtasksPerInstance
+	 *            Number of subtasks allocated to a machine
+	 */
 	public void setSource(String sourceName, UserSourceInvokable InvokableObject, int parallelism,
 			int subtasksPerInstance) {
 		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
@@ -121,7 +151,7 @@ public class JobGraphBuilder {
 	}
 
 	/**
-	 * Adds a task component to the JobGraph
+	 * Adds a task component to the JobGraph with no parallelism
 	 * 
 	 * @param taskName
 	 *            Name of the task component
@@ -152,6 +182,30 @@ public class JobGraphBuilder {
 		log.debug("TASK: " + taskName);
 	}
 
+	/**
+	 * Adds a task component to the JobGraph with no parallelism
+	 * 
+	 * @param taskName
+	 *            Name of the task component
+	 * @param TaskInvokableObject
+	 *            User defined UserTaskInvokable object
+	 */
+	public void setTask(String taskName, UserTaskInvokable TaskInvokableObject) {
+		setTask(taskName, TaskInvokableObject, 1, 1);
+	}
+
+	/**
+	 * Adds a task component to the JobGraph
+	 * 
+	 * @param taskName
+	 *            Name of the task component
+	 * @param TaskInvokableObject
+	 *            User defined UserTaskInvokable object
+	 * @param parallelism
+	 *            Number of task instances of this type to run in parallel
+	 * @param subtasksPerInstance
+	 *            Number of subtasks allocated to a machine
+	 */
 	public void setTask(String taskName, UserTaskInvokable TaskInvokableObject, int parallelism,
 			int subtasksPerInstance) {
 		final JobTaskVertex task = new JobTaskVertex(taskName, jobGraph);
@@ -161,7 +215,7 @@ public class JobGraphBuilder {
 	}
 
 	/**
-	 * Adds a sink component to the JobGraph
+	 * Adds a sink component to the JobGraph with no parallelism
 	 * 
 	 * @param sinkName
 	 *            Name of the sink component
@@ -192,6 +246,30 @@ public class JobGraphBuilder {
 		log.debug("SINK: " + sinkName);
 	}
 
+	/**
+	 * Adds a sink component to the JobGraph with no parallelism
+	 * 
+	 * @param sinkName
+	 *            Name of the sink component
+	 * @param InvokableObject
+	 *            User defined UserSinkInvokable object
+	 */
+	public void setSink(String sinkName, UserSinkInvokable InvokableObject) {
+		setSink(sinkName, InvokableObject, 1, 1);
+	}
+
+	/**
+	 * Adds a sink component to the JobGraph with no parallelism
+	 * 
+	 * @param sinkName
+	 *            Name of the sink component
+	 * @param InvokableObject
+	 *            User defined UserSinkInvokable object
+	 * @param parallelism
+	 *            Number of task instances of this type to run in parallel
+	 * @param subtasksPerInstance
+	 *            Number of subtasks allocated to a machine
+	 */
 	public void setSink(String sinkName, UserSinkInvokable InvokableObject, int parallelism,
 			int subtasksPerInstance) {
 		final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
@@ -199,6 +277,21 @@ public class JobGraphBuilder {
 		setComponent(sinkName, InvokableObject, parallelism, subtasksPerInstance, sink);
 		log.debug("SINK: " + sinkName);
 	}
+
+	/**
+	 * Sets JobVertex configuration based on the given parameters
+	 * 
+	 * @param componentName
+	 *            Name of the component
+	 * @param InvokableClass
+	 *            Class of the user defined Invokable
+	 * @param parallelism
+	 *            Number of subtasks
+	 * @param subtasksPerInstance
+	 *            Number of subtasks per instance
+	 * @param component
+	 *            AbstractJobVertex associated with the component
+	 */
 
 	private void setComponent(String componentName,
 			final Class<? extends UserInvokable> InvokableClass, int parallelism,
@@ -214,6 +307,9 @@ public class JobGraphBuilder {
 		Configuration config = new TaskConfig(component.getConfiguration()).getConfiguration();
 		config.setClass("userfunction", InvokableClass);
 		config.setString("componentName", componentName);
+
+		config.setInteger("faultToleranceType", faultToleranceType.id);
+
 		components.put(componentName, component);
 		numberOfInstances.put(componentName, parallelism);
 	}
@@ -242,6 +338,14 @@ public class JobGraphBuilder {
 		addSerializedObject(InvokableObject, component);
 	}
 
+	/**
+	 * Adds serialized invokable object to the JobVertex configuration
+	 * 
+	 * @param InvokableObject
+	 *            Invokable object to serialize
+	 * @param component
+	 *            JobVertex to which the serialized invokable will be added
+	 */
 	private void addSerializedObject(Serializable InvokableObject, AbstractJobVertex component) {
 
 		Configuration config = component.getConfiguration();
@@ -298,6 +402,13 @@ public class JobGraphBuilder {
 		}
 	}
 
+	/**
+	 * Sets instance sharing between the given components
+	 * 
+	 * @param component1
+	 *            Share will be called on this component
+	 * @param component2
+	 */
 	public void setInstanceSharing(String component1, String component2) {
 		AbstractJobVertex c1 = components.get(component1);
 		AbstractJobVertex c2 = components.get(component2);
@@ -305,6 +416,9 @@ public class JobGraphBuilder {
 		c1.setVertexToShareInstancesWith(c2);
 	}
 
+	/**
+	 * Sets all components to share with the one with highest parallelism
+	 */
 	public void setAutomaticInstanceSharing() {
 
 		AbstractJobVertex maxParallelismVertex = components.get(maxParallelismVertexName);
@@ -421,6 +535,9 @@ public class JobGraphBuilder {
 		}
 	}
 
+	/**
+	 * Writes number of inputs into each JobVertex's config
+	 */
 	private void setNumberOfJobInputs() {
 		for (AbstractJobVertex component : components.values()) {
 			component.getConfiguration().setInteger("numberOfInputs",
@@ -428,6 +545,10 @@ public class JobGraphBuilder {
 		}
 	}
 
+	/**
+	 * Writes the number of outputs and output channels into each JobVertex's
+	 * config
+	 */
 	private void setNumberOfJobOutputs() {
 		for (AbstractJobVertex component : components.values()) {
 			component.getConfiguration().setInteger("numberOfOutputs",
@@ -444,7 +565,9 @@ public class JobGraphBuilder {
 	}
 
 	/**
-	 * @return The JobGraph object
+	 * Returns the JobGraph
+	 * 
+	 * @return JobGraph object
 	 */
 	public JobGraph getJobGraph() {
 		setAutomaticInstanceSharing();

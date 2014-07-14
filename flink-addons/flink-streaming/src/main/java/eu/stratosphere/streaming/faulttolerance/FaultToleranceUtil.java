@@ -39,10 +39,9 @@ public class FaultToleranceUtil {
 	private final int componentID;
 
 	private int numberOfChannels;
-
-	boolean exactlyOnce;
-
+	
 	private FaultToleranceBuffer buffer;
+	public FaultToleranceType type;
 	public PerformanceTracker tracker;
 	public PerformanceCounter counter;
 
@@ -57,20 +56,22 @@ public class FaultToleranceUtil {
 	 * @param numberOfChannels
 	 *            Number of output channels for the output components
 	 */
-	// TODO:get faulttolerancy type from user config, update logs for channel
+	// TODO:update logs for channel
 	// acks and fails
-	public FaultToleranceUtil(List<RecordWriter<StreamRecord>> outputs, int sourceInstanceID,
+	public FaultToleranceUtil(FaultToleranceType type, List<RecordWriter<StreamRecord>> outputs, int sourceInstanceID,
 			int[] numberOfChannels) {
 		this.outputs = outputs;
 
 		this.componentID = sourceInstanceID;
-
-		exactlyOnce = true;
-
-		if (exactlyOnce) {
+		
+		this.type = type;
+		
+		switch (type) {
+		case EXACTLY_ONCE:
 			this.buffer = new ExactlyOnceFaultToleranceBuffer(numberOfChannels, sourceInstanceID);
-		} else {
-			this.buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, sourceInstanceID);
+			break;
+		case AT_LEAST_ONCE: case NONE: default:
+			this.buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, sourceInstanceID);		
 		}
 
 		tracker = new PerformanceTracker("pc", 1000, 1000, 30000,
@@ -80,18 +81,19 @@ public class FaultToleranceUtil {
 
 	}
 
-	public FaultToleranceUtil(List<RecordWriter<StreamRecord>> outputs, int sourceInstanceID,
-			String componentName, int[] numberOfChannels) {
+	public FaultToleranceUtil(FaultToleranceType type, List<RecordWriter<StreamRecord>> outputs,
+			int sourceInstanceID, String componentName, int[] numberOfChannels) {
 		this.outputs = outputs;
-
 		this.componentID = sourceInstanceID;
 
-		exactlyOnce = false;
-
-		if (exactlyOnce) {
-			this.buffer = new ExactlyOnceFaultToleranceBuffer(numberOfChannels, sourceInstanceID);
-		} else {
+		switch (type) {
+		case AT_LEAST_ONCE:
+		default:
 			this.buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, sourceInstanceID);
+			break;
+		case EXACTLY_ONCE:
+			this.buffer = new ExactlyOnceFaultToleranceBuffer(numberOfChannels, sourceInstanceID);
+			break;
 		}
 
 		tracker = new PerformanceTracker("pc", 1000, 1000, 10000,
@@ -149,7 +151,7 @@ public class FaultToleranceUtil {
 	 */
 	public void failRecord(UID recordID, int channel) {
 		// if by ft type
-		if (exactlyOnce) {
+		if (type == FaultToleranceType.EXACTLY_ONCE) {
 			StreamRecord failed = buffer.failChannel(recordID, channel);
 
 			if (failed != null) {
