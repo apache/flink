@@ -26,16 +26,16 @@ public class WordCount extends TestBase2 {
 	@Override
 	public JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WorCountSource", WordCountSource.class);
-		graphBuilder.setTask("WorCountSplitter", WordCountSplitter.class, 2);
-		graphBuilder.setTask("WorCountCounter", WordCountCounter.class, 2);
+		graphBuilder.setSource("WordCountSource", WordCountSource.class);
+		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
+		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
 		graphBuilder.setSink("WordCountSink", WordCountSink.class);
 
-		graphBuilder.fieldsConnect("WorCountSource", "WorCountSplitter", 0,
+		graphBuilder.fieldsConnect("WordCountSource", "WordCountSplitter", 0,
 				StringValue.class);
-		graphBuilder.fieldsConnect("WorCountSplitter", "WorCountCounter", 0,
+		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0,
 				StringValue.class);
-		graphBuilder.broadcastConnect("WorCountCounter", "WordCountSink");
+		graphBuilder.broadcastConnect("WordCountCounter", "WordCountSink");
 
 		return graphBuilder.getJobGraph();
 	}

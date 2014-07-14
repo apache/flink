@@ -127,12 +127,11 @@ public class StreamTask extends AbstractTask {
       for (RecordReader<Record> input : inputs) {
         if (input.hasNext()) {
           hasInput = true;
-          Record record = input.next();
-          Long id = StreamRecordProvider.popUUID(record);
+          StreamRecord streamRecord = new StreamRecord(input.next());
+          Long id = streamRecord.popId();
           
-          userFunction.invoke(record);
-          
-          //TODO: ack here          
+          userFunction.invoke(streamRecord.getRecord());
+          //TODO: ack here
         }
       }
     }
