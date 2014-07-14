@@ -22,7 +22,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
@@ -31,14 +30,14 @@ public class StreamSink extends AbstractOutputTask {
 
 	private static final Log log = LogFactory.getLog(StreamSink.class);
 
-	private List<RecordReader<StreamRecord>> inputs;
+	private List<StreamRecordReader<StreamRecord>> inputs;
 	private UserSinkInvokable userFunction;
 	private StreamComponentHelper<StreamSink> streamSinkHelper;
 	private String name;
 
 	public StreamSink() {
 		// TODO: Make configuration file visible and call setClassInputs() here
-		inputs = new LinkedList<RecordReader<StreamRecord>>();
+		inputs = new LinkedList<StreamRecordReader<StreamRecord>>();
 		userFunction = null;
 		streamSinkHelper = new StreamComponentHelper<StreamSink>();
 	}
