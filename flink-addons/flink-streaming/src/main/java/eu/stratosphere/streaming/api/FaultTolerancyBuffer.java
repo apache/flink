@@ -61,14 +61,14 @@ public class FaultTolerancyBuffer {
 	}
 
 	// TODO: use this method!
-	private void timeoutRecords() {
-		Long currentTime = System.currentTimeMillis();
+	List<String> timeoutRecords(Long currentTime) {
 
 		if (timeOfLastUpdate + TIMEOUT < currentTime) {
 
 			List<String> timedOutRecords = new LinkedList<String>();
 			Map<Long, Set<String>> timedOut = recordsByTime.subMap(0L, currentTime
 					- TIMEOUT);
+
 			for (Set<String> recordSet : timedOut.values()) {
 				if (!recordSet.isEmpty()) {
 					for (String recordID : recordSet) {
@@ -81,7 +81,12 @@ public class FaultTolerancyBuffer {
 			for (String recordID : timedOutRecords) {
 				failRecord(recordID);
 			}
+
+			timeOfLastUpdate = currentTime;
+			return timedOutRecords;
 		}
+
+		return null;
 	}
 
 	public void addTimestamp(String recordID) {
@@ -95,7 +100,6 @@ public class FaultTolerancyBuffer {
 			recordSet.add(recordID);
 			recordsByTime.put(currentTime, recordSet);
 		}
-		// System.out.println(currentTime.toString()+" : "+recordsByTime.get(currentTime).toString());
 	}
 
 	public StreamRecord popRecord(String recordID) {
@@ -105,15 +109,17 @@ public class FaultTolerancyBuffer {
 		return record;
 	}
 
-	private void removeRecord(String recordID) {
+	void removeRecord(String recordID) {
 		recordBuffer.remove(recordID);
 		ackCounter.remove(recordID);
 		try {
-
 			Long ts = recordTimestamps.remove(recordID);
 			recordsByTime.get(ts).remove(recordID);
-		} catch (Exception e) {
-			System.out.println(e.getMessage());
+		} catch (NullPointerException e) {
+			
+		}
+		catch (Exception e) {
+			e.printStackTrace();
 			System.out.println(recordID);
 		}
 	}
@@ -136,6 +142,7 @@ public class FaultTolerancyBuffer {
 		// Create new id to avoid double counting acks
 		System.out.println("Fail ID: " + recordID);
 		StreamRecord newRecord = popRecord(recordID).setId(channelID);
+		addRecord(newRecord);
 		reEmit(newRecord);
 	}
 

@@ -15,10 +15,6 @@
 
 package eu.stratosphere.streaming.test.window.wordcount;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-
 import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
@@ -26,38 +22,19 @@ import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
 
 public class WindowWordCountSource extends UserSourceInvokable {
-	private BufferedReader br = null;
-	private String line;
+	private final String motto = "Gyuszi Gabor Big Marci Gyuszi";
 	private long timestamp;
-	private AtomRecord hamletRecord = null;
-
-	public WindowWordCountSource() {
-		try {
-			br = new BufferedReader(
-					new FileReader(
-							"src/main/java/eu/stratosphere/streaming/test/window/wordcount/hamlet.txt"));
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
+	private AtomRecord mottoRecord = null;
 
 	@Override
 	public void invoke() throws Exception {
-		line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
 		timestamp = 0;
-		// while (line != null) {
 		for (int i = 0; i < 2; ++i) {
-			if (line != "") {
-				hamletRecord = new AtomRecord(2);
-				hamletRecord.setField(0, new StringValue(line));
-				hamletRecord.setField(1, new LongValue(timestamp));
-				System.out.println("========line number: " + timestamp + ", "
-						+ line + "==========");
-				emit(new StreamRecord(hamletRecord));
-				line = br.readLine();
-				++timestamp;
-			}
+			mottoRecord = new AtomRecord(2);
+			mottoRecord.setField(0, new StringValue(motto));
+			mottoRecord.setField(1, new LongValue(timestamp));
+			emit(new StreamRecord(mottoRecord));
+			++timestamp;
 		}
 	}
 }
