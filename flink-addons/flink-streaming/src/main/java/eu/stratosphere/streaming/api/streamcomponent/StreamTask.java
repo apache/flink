@@ -41,7 +41,7 @@ public class StreamTask extends AbstractTask {
 	private List<RecordWriter<StreamRecord>> outputs;
 	private List<ChannelSelector<StreamRecord>> partitioners;
 	private UserTaskInvokable userFunction;
-	private static int numTasks = StreamComponentHelper.newComponent();
+	private static int numTasks;
 	private String taskInstanceID = "";
 	private String name;
 	StreamComponentHelper<StreamTask> streamTaskHelper;
@@ -55,6 +55,7 @@ public class StreamTask extends AbstractTask {
 		outputs = new LinkedList<RecordWriter<StreamRecord>>();
 		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
 		userFunction = null;
+		numTasks = StreamComponentHelper.newComponent();
 		taskInstanceID = Integer.toString(numTasks);
 		streamTaskHelper = new StreamComponentHelper<StreamTask>();
 	}
