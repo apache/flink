@@ -15,7 +15,9 @@
 
 package eu.stratosphere.streaming.api.streamcomponent;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.ConcurrentModificationException;
 import java.util.LinkedList;
 import java.util.List;
@@ -34,12 +36,10 @@ import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
 import eu.stratosphere.streaming.api.invokable.RecordInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.api.streamrecord.UID;
 import eu.stratosphere.streaming.faulttolerance.AckEvent;
 import eu.stratosphere.streaming.faulttolerance.AckEventListener;
 import eu.stratosphere.streaming.faulttolerance.FailEvent;
 import eu.stratosphere.streaming.faulttolerance.FailEventListener;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
@@ -51,37 +51,6 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 	public static int newComponent() {
 		numComponents++;
 		return numComponents;
-	}
-
-	public RecordInvoker setFaultTolerance(FaultToleranceUtil util, FaultToleranceType type,
-			Configuration config, List<RecordWriter<StreamRecord>> outputs, int taskInstanceID,
-			String name, int[] numberOfOutputChannels) {
-		type = FaultToleranceType.from(config.getInteger("faultToleranceType", 0));
-
-		RecordInvoker invoker = getRecordInvoker(type);
-		switch (type) {
-		case AT_LEAST_ONCE:
-		case EXACTLY_ONCE:
-			util = new FaultToleranceUtil(type, outputs, taskInstanceID, name,
-					numberOfOutputChannels);
-			break;
-		case NONE:
-		default:
-			util = null;
-			break;
-		}
-		return invoker;
-	}
-
-	public RecordInvoker getRecordInvoker(FaultToleranceType type) {
-		switch (type) {
-		case AT_LEAST_ONCE:
-		case EXACTLY_ONCE:
-			return new InvokerWithFaultTolerance();
-		case NONE:
-		default:
-			return new Invoker();
-		}
 	}
 
 	public void setAckListener(FaultToleranceUtil recordBuffer, int sourceInstanceID,
@@ -146,19 +115,33 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 	}
 
 	public UserSinkInvokable getUserFunction(Configuration taskConfiguration) {
+
 		Class<? extends UserSinkInvokable> userFunctionClass = taskConfiguration.getClass(
 				"userfunction", DefaultSinkInvokable.class, UserSinkInvokable.class);
 		UserSinkInvokable userFunction = null;
 
-		try {
-			userFunction = userFunctionClass.newInstance();
-		} catch (Exception e) {
-			log.error("Cannot instanciate user function: " + userFunctionClass.getSimpleName());
+		byte[] userFunctionSerialized = taskConfiguration.getBytes("serializedudf", null);
+
+		if (userFunctionSerialized != null) {
+			try {
+				ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(
+						userFunctionSerialized));
+				userFunction = (UserSinkInvokable) ois.readObject();
+			} catch (Exception e) {
+				log.error("Cannot instanciate user function: " + userFunctionClass.getSimpleName());
+			}
+		} else {
+
+			try {
+				userFunction = userFunctionClass.newInstance();
+			} catch (Exception e) {
+				log.error("Cannot instanciate user function: " + userFunctionClass.getSimpleName());
+			}
 		}
+
 		return userFunction;
 	}
 
-	// TODO consider logging stack trace!
 	public StreamInvokableComponent getUserFunction(Configuration taskConfiguration,
 			List<RecordWriter<StreamRecord>> outputs, int instanceID, String name,
 			FaultToleranceUtil recordBuffer) {
@@ -167,19 +150,28 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		Class<? extends StreamInvokableComponent> userFunctionClass = taskConfiguration.getClass(
 				"userfunction", DefaultTaskInvokable.class, StreamInvokableComponent.class);
 		StreamInvokableComponent userFunction = null;
-		FaultToleranceType faultToleranceType = FaultToleranceType.from(taskConfiguration
-				.getInteger("faultToleranceBuffer", 0));
 
-		try {
-			userFunction = userFunctionClass.newInstance();
-			userFunction
-					.declareOutputs(outputs, instanceID, name, recordBuffer, faultToleranceType);
-		} catch (InstantiationException e) {
-			log.error("Cannot instanciate user function: " + userFunctionClass.getSimpleName());
-			// log.error(e.getStackTrace());
-		} catch (Exception e) {
-			log.error("Cannot use user function: " + userFunctionClass.getSimpleName());
-			// log.error(e.getStackTrace());
+		byte[] userFunctionSerialized = taskConfiguration.getBytes("serializedudf", null);
+
+		if (userFunctionSerialized != null) {
+			try {
+				ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(
+						userFunctionSerialized));
+				userFunction = (StreamInvokableComponent) ois.readObject();
+				userFunction.declareOutputs(outputs, instanceID, name, recordBuffer);
+			} catch (Exception e) {
+				log.error("Cannot instanciate user function: " + userFunctionClass.getSimpleName());
+			}
+		} else {
+
+			try {
+				userFunction = userFunctionClass.newInstance();
+				userFunction.declareOutputs(outputs, instanceID, name, recordBuffer);
+			} catch (InstantiationException e) {
+				log.error("Cannot instanciate user function: " + userFunctionClass.getSimpleName());
+			} catch (Exception e) {
+				log.error("Cannot use user function: " + userFunctionClass.getSimpleName());
+			}
 		}
 		return userFunction;
 	}
@@ -222,7 +214,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		}
 	}
 
-	public void invokeRecords(RecordInvoker invoker, RecordInvokable userFunction,
+	public void invokeRecords(RecordInvokable userFunction,
 			List<StreamRecordReader<StreamRecord>> inputs, String name) throws Exception {
 		List<StreamRecordReader<StreamRecord>> closedInputs = new LinkedList<StreamRecordReader<StreamRecord>>();
 		boolean hasInput = true;
@@ -231,38 +223,16 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			for (StreamRecordReader<StreamRecord> input : inputs) {
 				if (input.hasNext()) {
 					hasInput = true;
-					invoker.call(name, userFunction, input);
+					StreamRecord record = input.next();
+					// UID id = record.getId();
+					userFunction.invoke(record);
+					// threadSafePublish(new AckEvent(id), input);
+					// log.debug("ACK: " + id + " -- " + name);
 				} else if (input.isInputClosed()) {
 					closedInputs.add(input);
 				}
 			}
 			inputs.removeAll(closedInputs);
-		}
-	}
-
-	public static interface RecordInvoker {
-		void call(String name, RecordInvokable userFunction, StreamRecordReader<StreamRecord> input)
-				throws Exception;
-	}
-
-	public class InvokerWithFaultTolerance implements RecordInvoker {
-		@Override
-		public void call(String name, RecordInvokable userFunction,
-				StreamRecordReader<StreamRecord> input) throws Exception {
-			StreamRecord record = input.next();
-			UID id = record.getId();
-			userFunction.invoke(record);
-			threadSafePublish(new AckEvent(id), input);
-			log.debug("ACK: " + id + " -- " + name);
-		}
-	}
-
-	public static class Invoker implements RecordInvoker {
-		@Override
-		public void call(String name, RecordInvokable userFunction,
-				StreamRecordReader<StreamRecord> input) throws Exception {
-			StreamRecord record = input.next();
-			userFunction.invoke(record);
 		}
 	}
 
