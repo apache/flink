@@ -16,6 +16,7 @@
 package eu.stratosphere.streaming.api.streamcomponent;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,11 +41,13 @@ import eu.stratosphere.runtime.io.api.AbstractRecordReader;
 import eu.stratosphere.runtime.io.api.ChannelSelector;
 import eu.stratosphere.runtime.io.api.MutableRecordReader;
 import eu.stratosphere.runtime.io.api.RecordWriter;
+import eu.stratosphere.streaming.api.OutputSelector;
 import eu.stratosphere.streaming.api.function.SinkFunction;
 import eu.stratosphere.streaming.api.invokable.StreamComponentInvokable;
 import eu.stratosphere.streaming.api.invokable.StreamRecordInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
+import eu.stratosphere.streaming.api.streamrecord.DirectedStreamCollectorManager;
 import eu.stratosphere.streaming.api.streamrecord.StreamCollectorManager;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
@@ -75,23 +78,54 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 	protected int instanceID;
 	protected String name;
 	private static int numComponents = 0;
-	
+
 	protected static int newComponent() {
 		numComponents++;
 		return numComponents;
 	}
-	
+
 	protected void initialize() {
 		configuration = getTaskConfiguration();
 		name = configuration.getString("componentName", "MISSING_COMPONENT_NAME");
 	}
-	
+
 	protected Collector<Tuple> setCollector(List<RecordWriter<StreamRecord>> outputs) {
 		long batchTimeout = configuration.getLong("batchTimeout", 1000);
 
-		collector = new StreamCollectorManager<Tuple>(batchSizesNotPartitioned,
-				batchSizesPartitioned, numOfOutputsPartitioned, keyPosition, batchTimeout,
-				instanceID, outSerializationDelegate, outputsPartitioned, outputsNotPartitioned);
+		if (configuration.getBoolean("directedEmit", false)) {
+			OutputSelector outputSelector = null;
+			try {
+				outputSelector = (OutputSelector) deserializeObject(configuration.getBytes(
+						"outputSelector", null));
+			} catch (Exception e) {
+				if (log.isErrorEnabled()) {
+					log.error("Cannot instantiate OutputSelector");
+				}
+			}
+
+			int numberOfOutputs = configuration.getInteger("numberOfOutputs", 0);
+			List<String> partitionedOutputNames = new ArrayList<String>();
+			List<String> notPartitionedOutputNames = new ArrayList<String>();
+
+			for (int i = 0; i < numberOfOutputs; i++) {
+				String outputName = configuration.getString("outputName_" + i, "");
+				if (configuration.getBoolean("isPartitionedOutput_" + i, false)) {
+					partitionedOutputNames.add(outputName);
+				} else {
+					notPartitionedOutputNames.add(outputName);
+				}
+			}
+
+			collector = new DirectedStreamCollectorManager<Tuple>(batchSizesNotPartitioned,
+					batchSizesPartitioned, numOfOutputsPartitioned, keyPosition, batchTimeout,
+					instanceID, outSerializationDelegate, outputsPartitioned,
+					outputsNotPartitioned, outputSelector, partitionedOutputNames,
+					notPartitionedOutputNames);
+		} else {
+			collector = new StreamCollectorManager<Tuple>(batchSizesNotPartitioned,
+					batchSizesPartitioned, numOfOutputsPartitioned, keyPosition, batchTimeout,
+					instanceID, outSerializationDelegate, outputsPartitioned, outputsNotPartitioned);
+		}
 		return collector;
 	}
 
@@ -163,14 +197,13 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 		}
 	}
 
-	protected AbstractRecordReader getConfigInputs()
-			throws StreamComponentException {
+	protected AbstractRecordReader getConfigInputs() throws StreamComponentException {
 		int numberOfInputs = configuration.getInteger("numberOfInputs", 0);
 
 		if (numberOfInputs < 2) {
 
-			return new StreamRecordReader(this, ArrayStreamRecord.class,
-					inDeserializationDelegate, inTupleSerializer);
+			return new StreamRecordReader(this, ArrayStreamRecord.class, inDeserializationDelegate,
+					inTupleSerializer);
 
 		} else {
 			@SuppressWarnings("unchecked")
@@ -217,8 +250,8 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 		try {
 			if (partitioner.equals(FieldsPartitioner.class)) {
 				batchSizesPartitioned.add(batchSize);
-				numOfOutputsPartitioned.add(configuration
-						.getInteger("numOfOutputs_" + numberOfOutputs, -1));
+				numOfOutputsPartitioned.add(configuration.getInteger("numOfOutputs_"
+						+ numberOfOutputs, -1));
 				// TODO:force one partitioning field
 				keyPosition = configuration.getInteger("partitionerIntParam_" + numberOfOutputs, 1);
 
@@ -258,7 +291,7 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 			}
 		}
 	}
-	
+
 	/**
 	 * Reads and creates a StreamComponent from the config.
 	 * 
@@ -266,26 +299,31 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 	 *            Class of the invokable function
 	 * @return The StreamComponent object
 	 */
-	protected StreamComponentInvokable getInvokable(Class<? extends StreamComponentInvokable> userFunctionClass) {
+	protected StreamComponentInvokable getInvokable(
+			Class<? extends StreamComponentInvokable> userFunctionClass) {
 		StreamComponentInvokable userFunction = null;
 
 		byte[] userFunctionSerialized = configuration.getBytes("serializedudf", null);
 
 		try {
-			ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(
-					userFunctionSerialized));
-			userFunction = (StreamComponentInvokable) ois.readObject();
+			userFunction = (StreamComponentInvokable) deserializeObject(userFunctionSerialized);
 		} catch (Exception e) {
 			if (log.isErrorEnabled()) {
-				log.error("Cannot instanciate user function: " + userFunctionClass.getSimpleName());
+				log.error("Cannot instantiate user function: " + userFunctionClass.getSimpleName());
 			}
 		}
 
 		return userFunction;
 	}
-	
+
+	private static Object deserializeObject(byte[] serializedObject) throws IOException,
+			ClassNotFoundException {
+		ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(serializedObject));
+		return ois.readObject();
+	}
+
 	protected abstract void setInvokable();
-	
+
 	// protected void threadSafePublish(AbstractTaskEvent event,
 	// AbstractRecordReader inputs)
 	// throws InterruptedException, IOException {

@@ -12,10 +12,9 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-
 package eu.stratosphere.streaming.api.streamrecord;
 
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
@@ -25,35 +24,29 @@ import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.streaming.api.OutputSelector;
 import eu.stratosphere.util.Collector;
 
-public class StreamCollectorManager<T extends Tuple> implements Collector<T> {
+public class DirectedStreamCollectorManager<T extends Tuple> extends StreamCollectorManager<T> {
 
-	Collection<StreamCollector<Tuple>> notPartitionedCollectors;
-	Collection<StreamCollector<Tuple>[]> partitionedCollectors;
-	int keyPostition;
+	OutputSelector<T> outputSelector;
+	HashMap<String, StreamCollector<Tuple>> notPartitionedOutputNameMap;
+	HashMap<String, StreamCollector<Tuple>[]> partitionedOutputNameMap;
 
-	// TODO consider channelID
-	public StreamCollectorManager(List<Integer> batchSizesOfNotPartitioned,
+	public DirectedStreamCollectorManager(List<Integer> batchSizesOfNotPartitioned,
 			List<Integer> batchSizesOfPartitioned, List<Integer> parallelismOfOutput,
 			int keyPosition, long batchTimeout, int channelID,
 			SerializationDelegate<Tuple> serializationDelegate,
 			List<RecordWriter<StreamRecord>> partitionedOutputs,
-			List<RecordWriter<StreamRecord>> notPartitionedOutputs) {
-
-		this.keyPostition = keyPosition;
-		setPartitionedCollectors(batchSizesOfNotPartitioned, batchSizesOfPartitioned,
-				parallelismOfOutput, keyPosition, batchTimeout, channelID, serializationDelegate,
-				partitionedOutputs, notPartitionedOutputs);
-		setNotPartitionedCollectors(batchSizesOfNotPartitioned, batchSizesOfPartitioned,
-				parallelismOfOutput, keyPosition, batchTimeout, channelID, serializationDelegate,
-				partitionedOutputs, notPartitionedOutputs);
-	}
-
-	protected void setPartitionedCollectors(List<Integer> batchSizesOfNotPartitioned,
-			List<Integer> batchSizesOfPartitioned, List<Integer> parallelismOfOutput,
-			int keyPosition, long batchTimeout, int channelID,
-			SerializationDelegate<Tuple> serializationDelegate,
-			List<RecordWriter<StreamRecord>> partitionedOutputs,
-			List<RecordWriter<StreamRecord>> notPartitionedOutputs) {
+			List<RecordWriter<StreamRecord>> notPartitionedOutputs,
+			OutputSelector<T> outputSelector, List<String> partitionedOutputNames,
+			List<String> notPartitionedOutputNames) {
+		super(batchSizesOfNotPartitioned, batchSizesOfPartitioned, parallelismOfOutput,
+				keyPosition, batchTimeout, channelID, serializationDelegate, partitionedOutputs,
+				notPartitionedOutputs);
+		
+		this.outputSelector = outputSelector;
+		this.notPartitionedOutputNameMap = new HashMap<String, StreamCollector<Tuple>>();
+		this.partitionedOutputNameMap = new HashMap<String, StreamCollector<Tuple>[]>();
+		
+		// TODO init outputNameMap
 		partitionedCollectors = new HashSet<StreamCollector<Tuple>[]>(
 				batchSizesOfPartitioned.size());
 		for (int i = 0; i < batchSizesOfPartitioned.size(); i++) {
@@ -63,42 +56,64 @@ public class StreamCollectorManager<T extends Tuple> implements Collector<T> {
 				collectors[j] = new StreamCollector<Tuple>(batchSizesOfPartitioned.get(i),
 						batchTimeout, channelID, serializationDelegate, partitionedOutputs.get(i));
 			}
+			partitionedOutputNameMap.put(partitionedOutputNames.get(i), collectors);
 			partitionedCollectors.add(collectors);
+		}
+		
+		notPartitionedCollectors = new HashSet<StreamCollector<Tuple>>(
+				batchSizesOfNotPartitioned.size());
+		for (int i = 0; i < batchSizesOfNotPartitioned.size(); i++) {
+			StreamCollector<Tuple> collector = new StreamCollector<Tuple>(batchSizesOfNotPartitioned
+					.get(i), batchTimeout, channelID, serializationDelegate, notPartitionedOutputs
+					.get(i));
+			notPartitionedCollectors.add(collector);
+			notPartitionedOutputNameMap
+			.put(
+					notPartitionedOutputNames
+					.get(i),
+					collector);
 		}
 	}
 
+	@Override
+	protected void setPartitionedCollectors(List<Integer> batchSizesOfNotPartitioned,
+			List<Integer> batchSizesOfPartitioned, List<Integer> parallelismOfOutput,
+			int keyPosition, long batchTimeout, int channelID,
+			SerializationDelegate<Tuple> serializationDelegate,
+			List<RecordWriter<StreamRecord>> partitionedOutputs,
+			List<RecordWriter<StreamRecord>> notPartitionedOutputs) {
+
+	}
+	
+	@Override
 	protected void setNotPartitionedCollectors(List<Integer> batchSizesOfNotPartitioned,
 			List<Integer> batchSizesOfPartitioned, List<Integer> parallelismOfOutput,
 			int keyPosition, long batchTimeout, int channelID,
 			SerializationDelegate<Tuple> serializationDelegate,
 			List<RecordWriter<StreamRecord>> partitionedOutputs,
 			List<RecordWriter<StreamRecord>> notPartitionedOutputs) {
-		notPartitionedCollectors = new HashSet<StreamCollector<Tuple>>(
-				batchSizesOfNotPartitioned.size());
-		for (int i = 0; i < batchSizesOfNotPartitioned.size(); i++) {
-			notPartitionedCollectors.add(new StreamCollector<Tuple>(batchSizesOfNotPartitioned
-					.get(i), batchTimeout, channelID, serializationDelegate, notPartitionedOutputs
-					.get(i)));
-		}
+
 	}
 
+	// TODO make this method faster
 	@Override
 	public void collect(T tuple) {
 		T copiedTuple = StreamRecord.copyTuple(tuple);
 
-		for (StreamCollector<Tuple> collector : notPartitionedCollectors) {
-			collector.collect(copiedTuple);
-		}
+		List<String> outputs = outputSelector.select(tuple);
 
 		int partitionHash = Math.abs(copiedTuple.getField(keyPostition).hashCode());
 
-		for (StreamCollector<Tuple>[] collectors : partitionedCollectors) {
-			collectors[partitionHash % collectors.length].collect(copiedTuple);
+		for (String outputName : outputs) {
+			Collector<Tuple> notPartitionedCollector = notPartitionedOutputNameMap.get(outputName);
+			Collector<Tuple>[] partitionedCollector = partitionedOutputNameMap.get(outputName);
+
+			if (notPartitionedCollector != null) {
+				notPartitionedCollector.collect(copiedTuple);
+			} else if (partitionedCollector != null) {
+				partitionedCollector[partitionHash % partitionedCollector.length]
+						.collect(copiedTuple);
+			}
 		}
-	}
-
-	@Override
-	public void close() {
-
 	}
 }

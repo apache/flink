@@ -52,11 +52,14 @@ public class DataStream<T extends Tuple> {
 	protected TypeInformation<T> type;
 	protected String id;
 	protected int degreeOfParallelism;
+	protected String userDefinedName;
+	protected OutputSelector<T> outputSelector;
 	protected List<String> connectIDs;
 	protected List<ConnectionType> ctypes;
 	protected List<Integer> cparams;
 	protected List<Integer> batchSizes;
 
+	
 	/**
 	 * Create a new {@link DataStream} in the given execution environment
 	 * 
@@ -188,6 +191,25 @@ public class DataStream<T extends Tuple> {
 	}
 
 	/**
+	 * Gives the data transformation a user defined name in order to use at
+	 * directed outputs
+	 * 
+	 * @param name
+	 *            The name to set
+	 * @return The named DataStream.
+	 */
+	public DataStream<T> name(String name) {
+		// copy?
+		if (name == "") {
+			throw new IllegalArgumentException("User defined name must not be empty string");
+		}
+		
+		userDefinedName = name;
+		environment.setName(this, name);
+		return this;
+	}
+
+	/**
 	 * Connecting {@link DataStream} outputs with each other for applying joint
 	 * operators on them. The DataStreams connected using this operator will be
 	 * transformed simultaneously. It creates a joint output of the connected
@@ -215,6 +237,13 @@ public class DataStream<T extends Tuple> {
 		return returnStream;
 	}
 
+	
+	public DataStream<T> directTo(OutputSelector<T> outputSelector) {
+		this.outputSelector = outputSelector;
+		environment.addDirectedEmit(id, outputSelector);
+		return this;
+	}
+	
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
 	 * are partitioned by their hashcode and are sent to only one component.
