@@ -29,7 +29,7 @@ import eu.stratosphere.streaming.util.LogUtils;
 public class KMeansLocal {
 
 	public static void main(String[] args) {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
 //		@SuppressWarnings("unused")
 //		DataStream<Tuple2<String, Integer>> dataStream = env

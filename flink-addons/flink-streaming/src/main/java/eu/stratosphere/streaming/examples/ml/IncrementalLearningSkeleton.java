@@ -124,7 +124,7 @@ public class IncrementalLearningSkeleton {
 
 	public static void main(String[] args) {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
 		DataStream<Tuple1<Integer>> model = 
 				env.addSource(new TrainingDataSource(), SOURCE_PARALELISM)

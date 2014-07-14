@@ -21,35 +21,48 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.runtime.io.api.ChannelSelector;
-import eu.stratosphere.runtime.io.api.RecordWriter;
+import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.examples.DummyIS;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 
-public class StreamSource extends AbstractInvokable {
+public class StreamSource extends AbstractInputTask<DummyIS> {
 
 	private static final Log log = LogFactory.getLog(StreamSource.class);
 
 	private List<RecordWriter<StreamRecord>> outputs;
 	private List<ChannelSelector<StreamRecord>> partitioners;
-	private UserSourceInvokable<Tuple> userFunction;
+	private UserSourceInvokable userFunction;
 	private static int numSources;
 	private int sourceInstanceID;
 	private String name;
-	// private FaultToleranceUtil recordBuffer;
-	// private FaultToleranceType faultToleranceType;
-	StreamComponentHelper streamSourceHelper;
+	private FaultToleranceUtil recordBuffer;
+	private FaultToleranceType faultToleranceType;
+	StreamComponentHelper<StreamSource> streamSourceHelper;
 
 	public StreamSource() {
+		// TODO: Make configuration file visible and call setClassInputs() here
 		outputs = new LinkedList<RecordWriter<StreamRecord>>();
 		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
 		userFunction = null;
-		streamSourceHelper = new StreamComponentHelper();
+		streamSourceHelper = new StreamComponentHelper<StreamSource>();
 		numSources = StreamComponentHelper.newComponent();
 		sourceInstanceID = numSources;
+	}
+
+	@Override
+	public DummyIS[] computeInputSplits(int requestedMinNumber) throws Exception {
+		return null;
+	}
+
+	@Override
+	public Class<DummyIS> getInputSplitType() {
+		return null;
 	}
 
 	@Override
@@ -72,20 +85,16 @@ public class StreamSource extends AbstractInvokable {
 			numberOfOutputChannels[i] = taskConfiguration.getInteger("channels_" + i, 0);
 		}
 
-		userFunction = (UserSourceInvokable<Tuple>) streamSourceHelper
+		userFunction = (UserSourceInvokable) streamSourceHelper
 				.getSourceInvokable(taskConfiguration);
-//		streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID, outputs);
-//		streamSourceHelper.setFailListener(recordBuffer, sourceInstanceID, outputs);
+		streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID, outputs);
+		streamSourceHelper.setFailListener(recordBuffer, sourceInstanceID, outputs);
 	}
 
 	@Override
 	public void invoke() throws Exception {
 		if (log.isDebugEnabled()) {
 			log.debug("SOURCE " + name + " invoked with instance id " + sourceInstanceID);
-		}
-
-		for (RecordWriter<StreamRecord> output : outputs) {
-			output.initializeSerializers();
 		}
 		userFunction.invoke(streamSourceHelper.collector);
 	}

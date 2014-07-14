@@ -28,6 +28,8 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
@@ -35,8 +37,6 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.runtime.io.api.ChannelSelector;
-import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
@@ -63,8 +63,8 @@ public class JobGraphBuilder {
 	protected String maxParallelismVertexName;
 	protected int maxParallelism;
 	protected FaultToleranceType faultToleranceType;
-	private int batchSize = 1;
-	private long batchTimeout = 1000;
+	private int batchSize;
+	private long batchTimeout;
 
 	/**
 	 * Creates a new JobGraph with the given name
@@ -87,12 +87,24 @@ public class JobGraphBuilder {
 		this.faultToleranceType = faultToleranceType;
 	}
 
-	public void setDefaultBatchSize(int batchSize) {
-		this.batchSize = batchSize;
-	}
+	/**
+	 * Creates a new JobGraph with the given parameters
+	 * 
+	 * @param jobGraphName
+	 *            Name of the JobGraph
+	 * @param faultToleranceType
+	 *            Type of fault tolerance
+	 * @param defaultBatchSize
+	 *            Default number of records to send at one emit
+	 * @param defaultBatchTimeoutMillis
+	 *            defaultBatchTimeoutMillis
+	 */
 
-	public void setBatchTimeout(int timeout) {
-		this.batchTimeout = timeout;
+	public JobGraphBuilder(String jobGraphName, FaultToleranceType faultToleranceType,
+			int defaultBatchSize, long defaultBatchTimeoutMillis) {
+		this(jobGraphName, faultToleranceType);
+		this.batchSize = defaultBatchSize;
+		this.batchTimeout = defaultBatchTimeoutMillis;
 	}
 
 	/**
@@ -112,14 +124,14 @@ public class JobGraphBuilder {
 	 *            Number of parallel instances on one task manager
 	 */
 	public void setSource(String sourceName, UserSourceInvokable<? extends Tuple> InvokableObject,
-			String operatorName, byte[] serializedFunction, int parallelism) {
+			String operatorName, byte[] serializedFunction, int parallelism, int subtasksPerInstance) {
 
 		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
 
-		source.setInvokableClass(StreamSource.class);
+		source.setInputClass(StreamSource.class);
 
 		setComponent(sourceName, source, InvokableObject, operatorName, serializedFunction,
-				parallelism);
+				parallelism, subtasksPerInstance);
 
 		if (log.isDebugEnabled()) {
 			log.debug("SOURCE: " + sourceName);
@@ -144,12 +156,12 @@ public class JobGraphBuilder {
 	 */
 	public void setTask(String taskName,
 			UserTaskInvokable<? extends Tuple, ? extends Tuple> TaskInvokableObject,
-			String operatorName, byte[] serializedFunction, int parallelism) {
+			String operatorName, byte[] serializedFunction, int parallelism, int subtasksPerInstance) {
 
 		final JobTaskVertex task = new JobTaskVertex(taskName, jobGraph);
-		task.setInvokableClass(StreamTask.class);
+		task.setTaskClass(StreamTask.class);
 		setComponent(taskName, task, TaskInvokableObject, operatorName, serializedFunction,
-				parallelism);
+				parallelism, subtasksPerInstance);
 
 		if (log.isDebugEnabled()) {
 			log.debug("TASK: " + taskName);
@@ -173,11 +185,12 @@ public class JobGraphBuilder {
 	 *            Number of parallel instances on one task manager
 	 */
 	public void setSink(String sinkName, UserSinkInvokable<? extends Tuple> InvokableObject,
-			String operatorName, byte[] serializedFunction, int parallelism) {
+			String operatorName, byte[] serializedFunction, int parallelism, int subtasksPerInstance) {
 
 		final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
-		sink.setInvokableClass(StreamSink.class);
-		setComponent(sinkName, sink, InvokableObject, operatorName, serializedFunction, parallelism);
+		sink.setOutputClass(StreamSink.class);
+		setComponent(sinkName, sink, InvokableObject, operatorName, serializedFunction,
+				parallelism, subtasksPerInstance);
 
 		if (log.isDebugEnabled()) {
 			log.debug("SINK: " + sinkName);
@@ -205,11 +218,10 @@ public class JobGraphBuilder {
 	 */
 	private void setComponent(String componentName, AbstractJobVertex component,
 			Serializable InvokableObject, String operatorName, byte[] serializedFunction,
-			int parallelism) {
+			int parallelism, int subtasksPerInstance) {
 
 		component.setNumberOfSubtasks(parallelism);
-		// TODO remove all NumberOfSubtasks setting
-		// component.setNumberOfSubtasksPerInstance(subtasksPerInstance);
+		component.setNumberOfSubtasksPerInstance(subtasksPerInstance);
 
 		if (parallelism > maxParallelism) {
 			maxParallelism = parallelism;

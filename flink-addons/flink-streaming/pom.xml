@@ -12,10 +12,19 @@
 	<packaging>jar</packaging>
 
 	<properties>
-		<stratosphere.version>0.6-SNAPSHOT</stratosphere.version>
+		<stratosphere.version>0.5</stratosphere.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
+
+	<repositories>
+		<repository>
+			<id>dms-repo</id>
+			<url>https://dms.sztaki.hu/maven-public</url>
+			<releases><enabled>true</enabled></releases>
+			<snapshots><enabled>true</enabled></snapshots>
+		</repository>
+	</repositories>
 
 	<dependencies>
 		<dependency>
