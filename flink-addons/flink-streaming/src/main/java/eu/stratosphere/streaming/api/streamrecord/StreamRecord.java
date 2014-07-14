@@ -95,7 +95,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		tupleBatch = new ArrayList<Tuple>();
 
 	}
-	
+
 	public StreamRecord(int numOfFields, int batchSize) {
 		this.numOfFields = numOfFields;
 		this.numOfTuples = 0;
@@ -208,6 +208,21 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		}
 	}
 
+	public Object getFieldFast(int tupleNumber, int fieldNumber)
+			throws NoSuchTupleException, NoSuchFieldException {
+		Tuple tuple;
+		try {
+			tuple = tupleBatch.get(tupleNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchTupleException());
+		}
+		try {
+			return tuple.getFieldFast(fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchFieldException());
+		}
+	}
+
 	/**
 	 * Get a Boolean from the given field of the first Tuple of the batch
 	 * 
@@ -244,8 +259,9 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * 
 	 * @param fieldNumber
 	 *            Position of the field in the tuple
-	 * @return value of the field as Double * @throws NoSuchTupleException ,
-	 *         NoSuchFieldException
+	 * @return value of the field as Double
+	 * @throws NoSuchTupleException
+	 *             , NoSuchFieldException
 	 */
 	public Double getDouble(int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
@@ -259,8 +275,9 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            Position of the tuple in the batch
 	 * @param fieldNumber
 	 *            Position of the field in the tuple
-	 * @return value of the field as Double * @throws NoSuchTupleException ,
-	 *         NoSuchFieldException
+	 * @return value of the field as Double
+	 * @throws NoSuchTupleException
+	 *             , NoSuchFieldException
 	 */
 	public Double getDouble(int tupleNumber, int fieldNumber)
 			throws NoSuchTupleException, NoSuchFieldException {
@@ -464,7 +481,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public void setInteger(int fieldNumber, Integer i)
 			throws NoSuchFieldException {
-		setInteger(0, fieldNumber,i);
+		setInteger(0, fieldNumber, i);
 	}
 
 	/**
@@ -669,7 +686,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		}
 	}
 
-	
 	public StreamRecord copySerialized() {
 
 		ByteArrayOutputStream buff = new ByteArrayOutputStream();
@@ -686,7 +702,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 
 		return newRecord;
 	}
-	
+
 	/**
 	 * Creates a deep copy of the StreamRecord
 	 * 
@@ -694,13 +710,13 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * 
 	 */
 	public StreamRecord copy() {
-		StreamRecord newRecord= new StreamRecord(numOfFields,numOfTuples);
-		newRecord.uid=new StringValue(uid.getValue());
-		
-		for(Tuple tuple: tupleBatch){
-			newRecord.tupleBatch.add(StreamRecord.copyTuple(tuple));
+		StreamRecord newRecord = new StreamRecord(numOfFields, numOfTuples);
+		newRecord.uid = new StringValue(uid.getValue());
+
+		for (Tuple tuple : tupleBatch) {
+			newRecord.tupleBatch.add(copyTuple(tuple));
 		}
-		
+
 		return newRecord;
 	}
 
