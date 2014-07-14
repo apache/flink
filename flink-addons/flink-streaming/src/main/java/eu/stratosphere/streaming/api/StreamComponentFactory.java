@@ -8,6 +8,8 @@ import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
 import eu.stratosphere.types.Key;
@@ -48,7 +50,7 @@ public final class StreamComponentFactory {
 		return numberOfInputs;
 	}
 
-	//for StreamTask
+	// for StreamTask
 	public static int setConfigOutputs(StreamTask taskBase,
 			Configuration taskConfiguration,
 			List<RecordWriter<Record>> outputs,
@@ -65,7 +67,7 @@ public final class StreamComponentFactory {
 		}
 		return numberOfOutputs;
 	}
-	
+
 	// this function can be removed as duplication of the above function if
 	// modification on kernel is allowed.
 	// for StreamSource
@@ -84,6 +86,25 @@ public final class StreamComponentFactory {
 					outputPartitioner));
 		}
 		return numberOfOutputs;
+	}
+
+	public static UserTaskInvokable setUserFunction(
+			Configuration taskConfiguration,
+			List<RecordWriter<Record>> outputs, String instanceID,
+			Map<String, StreamRecord> recordBuffer) {
+		
+		Class<? extends UserTaskInvokable> userFunctionClass = taskConfiguration
+				.getClass("userfunction", DefaultTaskInvokable.class,
+						UserTaskInvokable.class);
+		UserTaskInvokable userFunction = null;
+		
+		try {
+			userFunction = userFunctionClass.newInstance();
+			userFunction.declareOutputs(outputs, instanceID, recordBuffer);
+		} catch (Exception e) {
+
+		}
+		return userFunction;
 	}
 
 	public static void setPartitioner(Configuration taskConfiguration,

@@ -25,7 +25,6 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.types.Record;
 
@@ -56,18 +55,6 @@ public class StreamTask extends AbstractTask {
 		recordBuffer = new TreeMap<String, StreamRecord>();
 	}
 
-	public void setUserFunction(Configuration taskConfiguration) {
-		Class<? extends UserTaskInvokable> userFunctionClass = taskConfiguration
-				.getClass("userfunction", DefaultTaskInvokable.class,
-						UserTaskInvokable.class);
-		try {
-			userFunction = userFunctionClass.newInstance();
-			userFunction.declareOutputs(outputs, taskInstanceID, recordBuffer);
-		} catch (Exception e) {
-
-		}
-	}
-
 	@Override
 	public void registerInputOutput() {
 		Configuration taskConfiguration = getTaskConfiguration();
@@ -77,7 +64,8 @@ public class StreamTask extends AbstractTask {
 		numberOfOutputs = StreamComponentFactory.setConfigOutputs(this,
 				taskConfiguration, outputs, partitioners);
 
-		setUserFunction(taskConfiguration);
+		userFunction = StreamComponentFactory.setUserFunction(taskConfiguration, outputs,
+				taskInstanceID, recordBuffer);
 		StreamComponentFactory.setAckListener(recordBuffer, taskInstanceID,
 				outputs);
 	}
