@@ -45,13 +45,15 @@ public class PrintTest {
 	@Test
 	public void test() throws Exception {
 
-		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 		env.fromElements(2, 3, 4).print();
 		env.generateSequence(1, 10).print();
 		Set<Integer> a = new HashSet<Integer>();
 		a.add(-2);
 		a.add(-100);
 		env.fromCollection(a).print();
+
+		env.setDegreeOfParallelism(1);
 		env.executeTest(MEMORYSIZE);
 	}
 

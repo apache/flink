@@ -23,7 +23,7 @@ import eu.stratosphere.util.Collector;
 
 public class KMeansSource extends SourceFunction<Tuple2<String, Long>> {
 	private static final long serialVersionUID = 1L;
-	private static final long DEFAULT_SEED = 4650285087650871364L;
+	private final long DEFAULT_SEED = 4650285087650871364L;
 	private Random random = new Random(DEFAULT_SEED);
 	private Tuple2<String, Long> outRecord = new Tuple2<String, Long>();
 	private int numCenter;

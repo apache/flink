@@ -13,15 +13,38 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.sum;
+package eu.stratosphere.streaming.examples.window.wordcount;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.function.SinkFunction;
+import eu.stratosphere.streaming.api.function.SourceFunction;
+import eu.stratosphere.util.Collector;
 
-public class WindowSumSink extends SinkFunction<Tuple2<Integer, Long>> {
+public class WindowWordCountSource extends SourceFunction<Tuple2<String, Long>> {
 	private static final long serialVersionUID = 1L;
+	
+	private String line = "";
+	private Tuple2<String, Long> outRecord = new Tuple2<String, Long>();
+	private Long timestamp = 0L;
+
+	// Reads the lines of the input file and adds a timestamp to it.
 	@Override
-	public void invoke(Tuple2<Integer, Long> inTuple) {
-		System.out.println(inTuple);
+	public void invoke(Collector<Tuple2<String, Long>> collector) throws Exception {
+		BufferedReader br = new BufferedReader(new FileReader("src/test/resources/testdata/hamlet.txt"));
+		while(true){
+			line = br.readLine();
+			if(line==null){
+				break;
+			}
+			if (line != "") {
+				line=line.replaceAll("[\\-\\+\\.\\^:,]", "");
+				outRecord.f0 = line;
+				outRecord.f1 = timestamp;
+				collector.collect(outRecord);
+				timestamp++;
+			}
+		}		
 	}
 }

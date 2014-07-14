@@ -18,26 +18,23 @@ package eu.stratosphere.streaming.examples.window.wordcount;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.streaming.api.DataStream;
 import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
-import eu.stratosphere.streaming.util.TestDataUtil;
 
 public class WindowWordCountLocal {
 
-	private static final int PARALLELISM = 1;
+	private static final int PARALELISM = 1;
+	private static final int SOURCE_PARALELISM = 1;
 
 	// This example will count the occurrence of each word in the input file with a sliding window.
 	
 	public static void main(String[] args) {
-		
-		TestDataUtil.downloadIfNotExists("hamlet.txt");
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 		
 		@SuppressWarnings("unused")
 		DataStream<Tuple3<String, Integer, Long>> dataStream = env
-				.readTextStream("src/test/resources/testdata/hamlet.txt")
-				.flatMap(new WindowWordCountSplitter())
+				.addSource(new WindowWordCountSource(), SOURCE_PARALELISM)
+				.flatMap(new WindowWordCountSplitter(), PARALELISM)
 				.partitionBy(0)
-				.flatMap(new WindowWordCountCounter())
+				.flatMap(new WindowWordCountCounter(10, 2, 1, 1), PARALELISM)
 				.addSink(new WindowWordCountSink());
 		
 		env.execute();
