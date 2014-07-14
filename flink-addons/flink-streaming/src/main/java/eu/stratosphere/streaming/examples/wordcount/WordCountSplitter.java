@@ -19,12 +19,14 @@ import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.util.PerformanceCounter;
+import eu.stratosphere.streaming.util.PerformanceTimer;
 
 public class WordCountSplitter extends UserTaskInvokable {
 
 	private String[] words = new String[] {};
 	private StreamRecord outputRecord = new StreamRecord(new Tuple1<String>());
-	PerformanceCounter perf = new PerformanceCounter("SplitterEmitCounter", 1000, 10000);
+	PerformanceCounter pCounter = new PerformanceCounter("SplitterEmitCounter", 1000, 10000);
+	PerformanceTimer pTimer = new PerformanceTimer("SplitterEmitTimer", 1000, 10000, true);
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
@@ -32,14 +34,17 @@ public class WordCountSplitter extends UserTaskInvokable {
 		words = record.getString(0).split(" ");
 		for (String word : words) {
 			outputRecord.setString(0, word);
+			pTimer.startTimer();
 			emit(outputRecord);
-			perf.count();
+			pTimer.stopTimer();
+			pCounter.count();
 		}
 	}
 
 	@Override
 	public String getResult() {
-		perf.writeCSV("C:/temp/strato/Splitter"+channelID+".csv");
+		pCounter.writeCSV("/home/strato/strato-dist/log/counter/Splitter" + channelID);
+		pTimer.writeCSV("/home/strato/strato-dist/log/timer/Splitter" + channelID);
 		return "";
 	}
 }
