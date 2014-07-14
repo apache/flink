@@ -74,6 +74,11 @@ public class DataStream<T extends Tuple> {
 	}
 
 	public DataStream<T> batch(int batchSize) {
+
+		if (batchSize < 1) {
+			throw new IllegalArgumentException("Batch size must be positive.");
+		}
+
 		for (int i = 0; i < batchSizes.size(); i++) {
 			batchSizes.set(i, batchSize);
 		}
@@ -85,6 +90,7 @@ public class DataStream<T extends Tuple> {
 		connectIDs.addAll(stream.connectIDs);
 		ctypes.addAll(stream.ctypes);
 		cparams.addAll(stream.cparams);
+		batchSizes.addAll(stream.batchSizes);
 		return this;
 	}
 

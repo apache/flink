@@ -64,6 +64,8 @@ public class JobGraphBuilder {
 	protected String maxParallelismVertexName;
 	protected int maxParallelism;
 	protected FaultToleranceType faultToleranceType;
+	private int batchSize;
+	private long batchTimeout;
 
 	/**
 	 * Creates a new JobGraph with the given name
@@ -97,8 +99,11 @@ public class JobGraphBuilder {
 		this(jobGraphName, FaultToleranceType.NONE);
 	}
 
-	public JobGraphBuilder(String jobGraphName, FaultToleranceType faultToleranceType, int batchSize) {
+	public JobGraphBuilder(String jobGraphName, FaultToleranceType faultToleranceType,
+			int defaultBatchSize, long defaultBatchTimeoutMillis) {
 		this(jobGraphName, faultToleranceType);
+		this.batchSize = defaultBatchSize;
+		this.batchTimeout = defaultBatchTimeoutMillis;
 	}
 
 	/**
@@ -244,7 +249,6 @@ public class JobGraphBuilder {
 	 * @param component
 	 *            AbstractJobVertex associated with the component
 	 */
-
 	private Configuration setComponent(String componentName,
 			final Class<? extends StreamComponent> InvokableClass, int parallelism,
 			int subtasksPerInstance, AbstractJobVertex component) {
@@ -259,6 +263,8 @@ public class JobGraphBuilder {
 		Configuration config = new TaskConfig(component.getConfiguration()).getConfiguration();
 		config.setClass("userfunction", InvokableClass);
 		config.setString("componentName", componentName);
+		config.setInteger("batchSize", batchSize);
+		config.setLong("batchTimeout", batchTimeout);
 		// config.setBytes("operator", getSerializedFunction());
 
 		config.setInteger("faultToleranceType", faultToleranceType.id);
@@ -266,12 +272,6 @@ public class JobGraphBuilder {
 		components.put(componentName, component);
 		numberOfInstances.put(componentName, parallelism);
 		return config;
-	}
-
-	public void setBatchSize(String componentName, int batchSize) {
-		AbstractJobVertex component = components.get(componentName);
-		Configuration config = component.getConfiguration();
-		config.setInteger("batchSize", batchSize);
 	}
 
 	private Configuration setComponent(String componentName,
@@ -302,6 +302,11 @@ public class JobGraphBuilder {
 
 		addSerializedObject(InvokableObject, component);
 		return config;
+	}
+
+	public void setBatchSize(String componentName, int batchSize) {
+		Configuration config = components.get(componentName).getConfiguration();
+		config.setInteger("batchSize", batchSize);
 	}
 
 	/**

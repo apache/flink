@@ -33,9 +33,19 @@ import eu.stratosphere.util.Collector;
 public class StreamExecutionEnvironment {
 	JobGraphBuilder jobGraphBuilder;
 
-	public StreamExecutionEnvironment() {
-		jobGraphBuilder = new JobGraphBuilder("jobGraph", FaultToleranceType.NONE);
+	public StreamExecutionEnvironment(int defaultBatchSize, long defaultBatchTimeoutMillis) {
+		if (defaultBatchSize < 1) {
+			throw new IllegalArgumentException("Batch size must be positive.");
+		}
+		if (defaultBatchTimeoutMillis < 1) {
+			throw new IllegalArgumentException("Batch timeout must be positive.");
+		}
+		jobGraphBuilder = new JobGraphBuilder("jobGraph", FaultToleranceType.NONE,
+				defaultBatchSize, defaultBatchTimeoutMillis);
+	}
 
+	public StreamExecutionEnvironment() {
+		this(1, 1000);
 	}
 
 	private static class DummySource extends UserSourceInvokable<Tuple1<String>> {
@@ -54,6 +64,7 @@ public class StreamExecutionEnvironment {
 	}
 
 	public <T extends Tuple> void setBatchSize(DataStream<T> inputStream) {
+
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
 			jobGraphBuilder.setBatchSize(inputStream.connectIDs.get(i),
 					inputStream.batchSizes.get(i));

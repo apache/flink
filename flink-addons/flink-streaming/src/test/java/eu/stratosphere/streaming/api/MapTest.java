@@ -72,7 +72,7 @@ public class MapTest {
 
 				MapFunction<Tuple, Tuple> f = (MapFunction<Tuple, Tuple>) in.readObject();
 
-				StreamCollector<Tuple> s = new StreamCollector<Tuple>(1, 1, null);
+				StreamCollector<Tuple> s = new StreamCollector<Tuple>(1, 1000, 1, null);
 				Tuple t = new Tuple1<String>("asd");
 
 				s.collect(f.map(t));
