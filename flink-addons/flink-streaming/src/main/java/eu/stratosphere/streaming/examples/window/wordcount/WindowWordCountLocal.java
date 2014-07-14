@@ -34,7 +34,7 @@ public class WindowWordCountLocal {
 				.addSource(new WindowWordCountSource(), SOURCE_PARALELISM)
 				.flatMap(new WindowWordCountSplitter(), PARALELISM)
 				.partitionBy(0)
-				.flatMap(new WindowWordCountCounter(), PARALELISM)
+				.flatMap(new WindowWordCountCounter(10, 2, 1, 1), PARALELISM)
 				.addSink(new WindowWordCountSink());
 		
 		env.execute();

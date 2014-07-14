@@ -22,16 +22,16 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.runtime.io.api.AbstractRecordReader;
-import eu.stratosphere.runtime.io.api.ChannelSelector;
-import eu.stratosphere.runtime.io.api.RecordWriter;
+import eu.stratosphere.nephele.io.AbstractRecordReader;
+import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 
-public class StreamTask extends AbstractInvokable {
+public class StreamTask extends AbstractTask {
 
 	private static final Log log = LogFactory.getLog(StreamTask.class);
 
@@ -90,11 +90,6 @@ public class StreamTask extends AbstractInvokable {
 		if (log.isDebugEnabled()) {
 			log.debug("TASK " + name + " invoked with instance id " + taskInstanceID);
 		}
-
-		for (RecordWriter<StreamRecord> output : outputs) {
-			output.initializeSerializers();
-		}
-
 		streamTaskHelper.invokeRecords(userFunction, inputs);
 
 		if (log.isDebugEnabled()) {
