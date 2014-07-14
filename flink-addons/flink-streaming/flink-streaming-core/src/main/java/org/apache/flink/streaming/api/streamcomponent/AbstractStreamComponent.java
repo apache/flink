@@ -44,13 +44,13 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.nephele.template.AbstractInvokable;
-import org.apache.flink.pact.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.pact.runtime.plugable.SerializationDelegate;
-import org.apache.flink.runtime.io.api.AbstractRecordReader;
-import org.apache.flink.runtime.io.api.ChannelSelector;
-import org.apache.flink.runtime.io.api.MutableRecordReader;
-import org.apache.flink.runtime.io.api.RecordWriter;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
+import org.apache.flink.runtime.io.network.api.ChannelSelector;
+import org.apache.flink.runtime.io.network.api.MutableRecordReader;
+import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.util.Collector;
 
 public abstract class AbstractStreamComponent extends AbstractInvokable {

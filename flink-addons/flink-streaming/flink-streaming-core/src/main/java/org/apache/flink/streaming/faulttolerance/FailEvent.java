@@ -21,7 +21,7 @@ import java.io.IOException;
 
 import org.apache.flink.streaming.api.streamrecord.UID;
 
-import org.apache.flink.nephele.event.task.AbstractTaskEvent;
+import org.apache.flink.runtime.event.task.AbstractTaskEvent;
 
 /**
  * TaskEvent for sending record fails to the input's fault tolerance buffer

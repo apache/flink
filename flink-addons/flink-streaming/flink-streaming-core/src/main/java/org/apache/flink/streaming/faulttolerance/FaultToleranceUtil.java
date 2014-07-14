@@ -22,7 +22,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.UID;
 
-import org.apache.flink.runtime.io.api.RecordWriter;
+import org.apache.flink.runtime.io.network.api.RecordWriter;
 
 /**
  * An object to provide fault tolerance for Stratosphere stream processing. It

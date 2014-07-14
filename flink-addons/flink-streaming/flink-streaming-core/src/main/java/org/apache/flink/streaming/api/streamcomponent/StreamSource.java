@@ -25,8 +25,8 @@ import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.io.api.ChannelSelector;
-import org.apache.flink.runtime.io.api.RecordWriter;
+import org.apache.flink.runtime.io.network.api.ChannelSelector;
+import org.apache.flink.runtime.io.network.api.RecordWriter;
 
 public class StreamSource extends AbstractStreamComponent {
 

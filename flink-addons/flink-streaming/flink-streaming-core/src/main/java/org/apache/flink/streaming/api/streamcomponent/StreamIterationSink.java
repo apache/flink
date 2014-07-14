@@ -21,7 +21,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-import org.apache.flink.runtime.io.api.AbstractRecordReader;
+import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
 
 public class StreamIterationSink extends AbstractStreamComponent {
 

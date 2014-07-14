@@ -21,7 +21,7 @@ import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.nephele.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 
 public class ClusterUtil {
 

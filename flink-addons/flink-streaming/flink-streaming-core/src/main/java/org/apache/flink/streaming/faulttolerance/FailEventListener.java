@@ -19,8 +19,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.streaming.api.streamrecord.UID;
 
-import org.apache.flink.nephele.event.task.AbstractTaskEvent;
-import org.apache.flink.nephele.event.task.EventListener;
+import org.apache.flink.runtime.event.task.AbstractTaskEvent;
+import org.apache.flink.runtime.event.task.EventListener;
 
 /**
  * EventListener for record fail events. When a FailEvent occurs, uses the

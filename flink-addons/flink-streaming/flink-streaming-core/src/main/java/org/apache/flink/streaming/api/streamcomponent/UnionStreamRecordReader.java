@@ -21,10 +21,10 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
-import org.apache.flink.pact.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.runtime.io.api.AbstractUnionRecordReader;
-import org.apache.flink.runtime.io.api.MutableRecordReader;
-import org.apache.flink.runtime.io.api.Reader;
+import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.runtime.io.network.api.AbstractUnionRecordReader;
+import org.apache.flink.runtime.io.network.api.MutableRecordReader;
+import org.apache.flink.runtime.io.network.api.Reader;
 
 public final class UnionStreamRecordReader extends AbstractUnionRecordReader<StreamRecord>
 		implements Reader<StreamRecord> {
