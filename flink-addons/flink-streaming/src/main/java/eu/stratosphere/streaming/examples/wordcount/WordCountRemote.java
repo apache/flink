@@ -27,7 +27,6 @@ import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.streaming.util.LogUtils;
-import eu.stratosphere.types.StringValue;
 
 public class WordCountRemote {
 
@@ -39,7 +38,7 @@ public class WordCountRemote {
 		graphBuilder.setSink("WordCountSink", WordCountSink.class);
 
 		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");
-		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0, StringValue.class);
+		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0);
 		graphBuilder.shuffleConnect("WordCountCounter", "WordCountSink");
 
 		return graphBuilder.getJobGraph();

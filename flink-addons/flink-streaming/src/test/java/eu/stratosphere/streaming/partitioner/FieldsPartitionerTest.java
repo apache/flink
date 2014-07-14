@@ -23,7 +23,6 @@ import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.StringValue;
 
 public class FieldsPartitionerTest {
 
@@ -35,7 +34,7 @@ public class FieldsPartitionerTest {
 
 	@Before
 	public void setPartitioner() {
-		fieldsPartitioner = new FieldsPartitioner(0, StringValue.class);
+		fieldsPartitioner = new FieldsPartitioner(0);
 	}
 
 	@Test

@@ -25,7 +25,6 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.streaming.util.LogUtils;
-import eu.stratosphere.types.StringValue;
 
 //TODO: window operator remains unfinished.
 public class WindowWordCountLocal {
@@ -38,8 +37,7 @@ public class WindowWordCountLocal {
 		graphBuilder.setSink("WindowWordCountSink", WindowWordCountSink.class);
 
 		graphBuilder.broadcastConnect("WindowWordCountSource", "WindowWordCountSplitter");
-		graphBuilder.fieldsConnect("WindowWordCountSplitter", "WindowWordCountCounter", 0,
-				StringValue.class);
+		graphBuilder.fieldsConnect("WindowWordCountSplitter", "WindowWordCountCounter", 0);
 		graphBuilder.broadcastConnect("WindowWordCountCounter", "WindowWordCountSink");
 
 		return graphBuilder.getJobGraph();

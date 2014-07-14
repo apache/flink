@@ -42,8 +42,6 @@ import eu.stratosphere.streaming.faulttolerance.FailEventListener;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
-import eu.stratosphere.types.Key;
-import eu.stratosphere.types.StringValue;
 
 public final class StreamComponentHelper<T extends AbstractInvokable> {
 	private static final Log log = LogFactory.getLog(StreamComponentHelper.class);
@@ -171,11 +169,10 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			if (partitioner.equals(FieldsPartitioner.class)) {
 				int keyPosition = taskConfiguration
 						.getInteger("partitionerIntParam_" + nrOutput, 1);
-				Class<? extends Key> keyClass = taskConfiguration.getClass("partitionerClassParam_"
-						+ nrOutput, StringValue.class, Key.class);
+				
 
-				partitioners.add(partitioner.getConstructor(int.class, Class.class).newInstance(
-						keyPosition, keyClass));
+				partitioners.add(partitioner.getConstructor(int.class).newInstance(
+						keyPosition));
 
 			} else {
 				partitioners.add(partitioner.newInstance());

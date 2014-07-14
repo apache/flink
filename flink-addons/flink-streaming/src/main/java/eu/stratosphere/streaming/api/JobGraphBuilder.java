@@ -236,8 +236,7 @@ public class JobGraphBuilder {
 	 *            Class of the key Value stored in the record
 	 */
 	//TODO: remove unused third parameter
-	public void fieldsConnect(String upStreamComponentName, String downStreamComponentName, int keyPosition,
-			Class<? extends Key> keyClass) {
+	public void fieldsConnect(String upStreamComponentName, String downStreamComponentName, int keyPosition) {
 
 		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
 		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
@@ -249,9 +248,6 @@ public class JobGraphBuilder {
 
 			config.setClass("partitionerClass_" + (upStreamComponent.getNumberOfForwardConnections() - 1),
 					FieldsPartitioner.class);
-
-			config.setClass("partitionerClassParam_" + (upStreamComponent.getNumberOfForwardConnections() - 1),
-					keyClass);
 
 			config.setInteger("partitionerIntParam_" + (upStreamComponent.getNumberOfForwardConnections() - 1),
 					keyPosition);
