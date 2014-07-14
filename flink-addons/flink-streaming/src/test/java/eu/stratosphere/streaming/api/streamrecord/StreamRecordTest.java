@@ -30,12 +30,14 @@ import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.api.java.tuple.Tuple4;
 
 public class StreamRecordTest {
 
 	@Test
 	public void singleRecordSetGetTest() {
-		StreamRecord record = new StreamRecord(new Tuple2<String, Integer>("Stratosphere", 1));
+		StreamRecord record = new StreamRecord(new Tuple2<String, Integer>(
+				"Stratosphere", 1));
 
 		assertEquals(2, record.getNumOfFields());
 		assertEquals(1, record.getNumOfTuples());
@@ -46,19 +48,21 @@ public class StreamRecordTest {
 		record.setInteger(1, 2);
 		assertEquals("Big Data", record.getString(0));
 		assertEquals((Integer) 2, record.getInteger(1));
-		
 
-		record.setTuple(new Tuple2<String, Long>("Big Data looks tiny from here.", 2L));
+		record.setTuple(new Tuple2<String, Long>(
+				"Big Data looks tiny from here.", 2L));
 		assertEquals(2, record.getNumOfFields());
 		assertEquals(1, record.getNumOfTuples());
 		assertEquals((Long) 2L, record.getLong(1));
 
-		record.setTuple(new Tuple2<String, Boolean>("Big Data looks tiny from here.", true));
+		record.setTuple(new Tuple2<String, Boolean>(
+				"Big Data looks tiny from here.", true));
 		assertEquals(2, record.getNumOfFields());
 		assertEquals(1, record.getNumOfTuples());
 		assertEquals(true, record.getBoolean(1));
 
-		record.setTuple(new Tuple2<String, Double>("Big Data looks tiny from here.", 2.5));
+		record.setTuple(new Tuple2<String, Double>(
+				"Big Data looks tiny from here.", 2.5));
 		assertEquals(2, record.getNumOfFields());
 		assertEquals(1, record.getNumOfTuples());
 		assertEquals((Double) 2.5, record.getDouble(1));
@@ -78,7 +82,8 @@ public class StreamRecordTest {
 
 	@Test
 	public void batchRecordSetGetTest() {
-		StreamRecord record = new StreamRecord(new Tuple2<Integer, Integer>(1, 2));
+		StreamRecord record = new StreamRecord(new Tuple2<Integer, Integer>(1,
+				2));
 		record.addTuple(new Tuple2<Integer, Integer>(2, 2));
 		try {
 			record.addTuple(new Tuple1<String>("4"));
@@ -100,7 +105,6 @@ public class StreamRecordTest {
 
 	@Test
 	public void copyTest() {
-		// TODO:test ID copy
 		StreamRecord a = new StreamRecord(new Tuple1<String>("Big"));
 		StreamRecord b = a.copy();
 		assertTrue(a.getField(0).equals(b.getField(0)));
@@ -109,16 +113,48 @@ public class StreamRecordTest {
 		b.setTuple(new Tuple1<String>("Data"));
 		assertFalse(a.getId().equals(b.getId()));
 		assertFalse(a.getField(0).equals(b.getField(0)));
+		final int ITERATION = 10000;
 
 		StreamRecord c = new StreamRecord(new Tuple1<String>("Big"));
 
 		long t = System.nanoTime();
-		c.copySerialized();
-		System.out.println("Serialized copy:\t" + (System.nanoTime() - t));
+		for (int i = 0; i < ITERATION; i++) {
+			c.copySerialized();
+		}
+		long t2 = System.nanoTime() - t;
+		System.out.println("Serialized copy:\t" + t2 + " ns");
 
 		t = System.nanoTime();
-		c.copy();
-		System.out.println("New copy:\t" + (System.nanoTime() - t));
+		for (int i = 0; i < ITERATION; i++) {
+			c.copy();
+		}
+		t2 = System.nanoTime() - t;
+		System.out.println("Copy:\t" + t2 + " ns");
+
+	}
+
+	@Test
+	public void getFieldSpeedTest() {
+
+		final int ITERATION = 10000;
+
+		StreamRecord record = new StreamRecord(
+				new Tuple4<Integer, Long, String, String>(0, 42L,
+						"Stratosphere", "Streaming"));
+
+		long t = System.nanoTime();
+		for (int i = 0; i < ITERATION; i++) {
+			record.getField(0, 3);
+		}
+		long t2 = System.nanoTime() - t;
+		System.out.println("getField:\t" + t2 + " ns");
+
+		t = System.nanoTime();
+		for (int i = 0; i < ITERATION; i++) {
+			record.getFieldFast(0, 3);
+		}
+		t2 = System.nanoTime() - t;
+		System.out.println("getFieldFast:\t" + t2 + " ns");
 
 	}
 
@@ -158,16 +194,19 @@ public class StreamRecordTest {
 
 		int num = 42;
 		String str = "above clouds";
-		StreamRecord rec = new StreamRecord(new Tuple2<Integer, String>(num, str));
+		StreamRecord rec = new StreamRecord(new Tuple2<Integer, String>(num,
+				str));
 
 		try {
 			rec.write(out);
-			DataInputStream in = new DataInputStream(new ByteArrayInputStream(buff.toByteArray()));
+			DataInputStream in = new DataInputStream(new ByteArrayInputStream(
+					buff.toByteArray()));
 
 			StreamRecord newRec = new StreamRecord();
 			newRec.read(in);
 			@SuppressWarnings("unchecked")
-			Tuple2<Integer, String> tupleOut = (Tuple2<Integer, String>) newRec.getTuple(0);
+			Tuple2<Integer, String> tupleOut = (Tuple2<Integer, String>) newRec
+					.getTuple(0);
 
 			assertEquals(tupleOut.getField(0), 42);
 		} catch (IOException e) {
