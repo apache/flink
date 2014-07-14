@@ -17,7 +17,6 @@ package eu.stratosphere.streaming.api.streamcomponent;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Random;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.io.RecordReader;
@@ -32,20 +31,25 @@ public class StreamSink extends AbstractOutputTask {
 
 	private List<RecordReader<Record>> inputs;
 	private UserSinkInvokable userFunction;
-
-	private Random rnd = new Random();
+	private StreamComponentHelper<StreamSink> streamSinkHelper;
 
 	public StreamSink() {
 		// TODO: Make configuration file visible and call setClassInputs() here
 		inputs = new LinkedList<RecordReader<Record>>();
 		userFunction = null;
+		streamSinkHelper = new StreamComponentHelper<StreamSink>();
 	}
 
 	@Override
 	public void registerInputOutput() {
 		Configuration taskConfiguration = getTaskConfiguration();
-		StreamComponentFactory.setConfigInputs(this, taskConfiguration, inputs);
-		userFunction = StreamComponentFactory.setUserFunction(taskConfiguration);
+		
+		try {
+			streamSinkHelper.setConfigInputs(this, taskConfiguration, inputs);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		userFunction = streamSinkHelper.getUserFunction(taskConfiguration);
 	}
 
 	@Override
@@ -60,26 +64,10 @@ public class StreamSink extends AbstractOutputTask {
 					String id = rec.getId();
 					try {
 						userFunction.invoke(rec.getRecord());
-						//TODO create concurrent publish method
-						boolean concurrentModificationOccured = false;
-						while (!concurrentModificationOccured) {
-							try {
-								input.publishEvent(new AckEvent(id));
-								concurrentModificationOccured = true;
-							} catch (Exception f) {
-								Thread.sleep(rnd.nextInt(50));
-							}
-						}
+						streamSinkHelper.threadSafePublish(new AckEvent(id), input);
 					} catch (Exception e) {
-						boolean concurrentModificationOccured = false;
-						while (!concurrentModificationOccured) {
-							try {
-								input.publishEvent(new FailEvent(id));
-								concurrentModificationOccured = true;
-							} catch (Exception f) {
-								Thread.sleep(rnd.nextInt(50));
-							}
-						}
+						streamSinkHelper.threadSafePublish(new FailEvent(id), input);
+
 					}
 				}
 
