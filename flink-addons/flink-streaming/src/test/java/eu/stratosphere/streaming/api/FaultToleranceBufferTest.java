@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -145,6 +146,24 @@ public class FaultToleranceBufferTest {
 				record1.getId()));
 		assertFalse(faultTolerancyBuffer.getRecordsByTime().get(record1TS)
 				.contains(record1.getId()));
+		
+		
+		 List<String> addedRecords = new ArrayList<String>();
+		
+		for(int i=0;i<10000;i++){
+			StreamRecord record = (new StreamRecord(1)).setId(String.valueOf(i%5));
+			addedRecords.add(record.getId());
+			faultTolerancyBuffer.addRecord(record);
+		}
+	
+		for(int i=0;i<10000;i++){
+			String id=addedRecords.get(i);
+			assertFalse(faultTolerancyBuffer.getAckCounter().get(id)==null);
+			assertFalse(faultTolerancyBuffer.getRecordTimestamps().get(id)==null);
+			faultTolerancyBuffer.removeRecord(id);
+			assertTrue(faultTolerancyBuffer.getAckCounter().get(id)==null);
+			assertTrue(faultTolerancyBuffer.getRecordTimestamps().get(id)==null);
+		}
 
 	}
 
