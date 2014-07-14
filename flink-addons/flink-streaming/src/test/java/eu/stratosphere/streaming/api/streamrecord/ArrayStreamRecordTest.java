@@ -110,4 +110,15 @@ public class ArrayStreamRecordTest {
 		assertEquals(0, truncatedRecord.getTuple(0).getField(0));
 		assertEquals(1, truncatedRecord.getTuple(1).getField(0));
 	}
+	
+	@Test
+	public void copyTupleTest() {
+		Tuple1<String> t1 = new Tuple1<String>("T1");
+		Tuple1<String> t2 = (Tuple1<String>) StreamRecord.copyTuple(t1);
+		assertEquals("T1", t2.f0);
+		
+		t2.f0 = "T2";
+		assertEquals("T1", t1.f0);
+		assertEquals("T2", t2.f0);
+	}
 }
