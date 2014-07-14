@@ -24,20 +24,20 @@ public abstract class StreamInvokable {
 
 		record.setId(channelID);
 		emittedRecords.addRecord(record);
-	
-		for (RecordWriter<StreamRecord> output : outputs) {
-			try {
+		try {
+			for (RecordWriter<StreamRecord> output : outputs) {
+
 				output.emit(record);
 
-//				System.out.println(this.getClass().getName());
-//				System.out.println("Emitted " + record.getId() + "-"
-//						+ record.toString());
-//				System.out.println("---------------------");
+				// System.out.println(this.getClass().getName());
+				// System.out.println("Emitted " + record.getId() + "-"
+				// + record.toString());
+				// System.out.println("---------------------");
 
-			} catch (Exception e) {
-				System.out.println("Emit error: " + e.getMessage());
-				emittedRecords.failRecord(record.getId());
 			}
+		} catch (Exception e) {
+			System.out.println("Emit error: " + e.getMessage());
+			emittedRecords.failRecord(record.getId());
 		}
 	}
 }
