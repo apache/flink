@@ -22,7 +22,7 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class AtLeastOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 
-	private Map<String, Integer> ackCounter;
+	protected Map<String, Integer> ackCounter;
 
 	public AtLeastOnceFaultToleranceBuffer(int[] numberOfChannels, String componentInstanceID) {
 		super(numberOfChannels, componentInstanceID);
