@@ -59,9 +59,13 @@ public class StreamExecutionEnvironment {
 		SHUFFLE, BROADCAST, FIELD
 	}
 
-	private void connectGraph(List<String> inputIDs, String outputID, ConnectionType type, int param) {
+	private <T extends Tuple> void connectGraph(DataStream<T> inputStream, String outputID) {
 
-		for (String input : inputIDs) {
+		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
+			ConnectionType type = inputStream.ctypes.get(i);
+			String input = inputStream.connectIDs.get(i);
+			int param = inputStream.cparams.get(i);
+
 			switch (type) {
 			case SHUFFLE:
 				jobGraphBuilder.shuffleConnect(input, outputID);
@@ -94,8 +98,7 @@ public class StreamExecutionEnvironment {
 		jobGraphBuilder.setTask(returnStream.getId(), new FlatMapInvokable<T, R>(flatMapper),
 				"flatMap", baos.toByteArray());
 
-		connectGraph(inputStream.connectIDs, returnStream.getId(), inputStream.ctype,
-				inputStream.cparam);
+		connectGraph(inputStream, returnStream.getId());
 
 		return returnStream;
 	}
@@ -117,8 +120,7 @@ public class StreamExecutionEnvironment {
 		jobGraphBuilder.setTask(returnStream.getId(), new MapInvokable<T, R>(mapper), "map",
 				baos.toByteArray());
 
-		connectGraph(inputStream.connectIDs, returnStream.getId(), inputStream.ctype,
-				inputStream.cparam);
+		connectGraph(inputStream, returnStream.getId());
 
 		return returnStream;
 	}
@@ -140,7 +142,7 @@ public class StreamExecutionEnvironment {
 		jobGraphBuilder.setSink("sink", new SinkInvokable<T>(sinkFunction), "sink",
 				baos.toByteArray());
 
-		connectGraph(inputStream.connectIDs, "sink", inputStream.ctype, inputStream.cparam);
+		connectGraph(inputStream, "sink");
 
 		return returnStream;
 	}
