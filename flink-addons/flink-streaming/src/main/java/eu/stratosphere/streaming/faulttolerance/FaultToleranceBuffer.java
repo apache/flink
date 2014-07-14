@@ -29,8 +29,7 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public abstract class FaultToleranceBuffer {
 
-	private static final Log log = LogFactory
-			.getLog(FaultToleranceBuffer.class);
+	private static final Log log = LogFactory.getLog(FaultToleranceBuffer.class);
 
 	protected Map<String, StreamRecord> recordBuffer;
 	protected Map<String, Long> recordTimestamps;
@@ -48,7 +47,7 @@ public abstract class FaultToleranceBuffer {
 			totalNumberOfEffectiveChannels += i;
 		}
 
-		this.componentInstanceID=componentInstanceID;
+		this.componentInstanceID = componentInstanceID;
 		this.timeOfLastUpdate = System.currentTimeMillis();
 
 		this.recordBuffer = new HashMap<String, StreamRecord>();
@@ -66,35 +65,24 @@ public abstract class FaultToleranceBuffer {
 
 		addToAckCounter(id);
 
-		// ackCounter.put(id, numberOfChannels);
-
-		// TODO: remove comments for exactly once processing
-		// int[] ackCounts = new int[numberOfChannels + 1];
-		//
-		// for (int i = 0; i < numberOfOutputChannels.length; i++) {
-		// ackCounts[i + 1] = numberOfOutputChannels[i];
-		// }
-		//
-		// ackMap.put(id, ackCounts);
-
 		log.trace("Record added to buffer: " + id);
 	}
 
 	protected abstract void addToAckCounter(String id);
 
 	protected abstract boolean removeFromAckCounter(String id);
-	
+
 	protected abstract void ack(String id, int channel);
-	
+
+	//TODO:count fails
 	protected StreamRecord fail(String id) {
 		StreamRecord newRecord = remove(id).setId(componentInstanceID);
 		add(newRecord);
 		return newRecord;
 	}
-	
+
 	protected abstract StreamRecord failChannel(String id, int channel);
 
-	
 	protected void addTimestamp(String id) {
 		Long currentTime = System.currentTimeMillis();
 		recordTimestamps.put(id, currentTime);
