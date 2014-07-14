@@ -49,6 +49,7 @@ public class StreamComponentTest {
 	public static class MySource extends UserSourceInvokable {
 		public MySource() {
 		}
+
 		StreamRecord record = new StreamRecord(new Tuple1<Integer>());
 
 		@Override
@@ -98,7 +99,7 @@ public class StreamComponentTest {
 
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
 		graphBuilder.setSource("MySource", MySource.class);
-		graphBuilder.setTask("MyTask", MyTask.class, 2);
+		graphBuilder.setTask("MyTask", MyTask.class, 2, 2);
 		graphBuilder.setSink("MySink", MySink.class);
 
 		graphBuilder.shuffleConnect("MySource", "MyTask");

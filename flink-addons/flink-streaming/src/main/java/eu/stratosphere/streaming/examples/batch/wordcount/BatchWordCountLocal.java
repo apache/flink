@@ -31,8 +31,8 @@ public class BatchWordCountLocal {
 	public static JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
 		graphBuilder.setSource("BatchWordCountSource", BatchWordCountSource.class);
-		graphBuilder.setTask("BatchWordCountSplitter", BatchWordCountSplitter.class, 2);
-		graphBuilder.setTask("BatchWordCountCounter", BatchWordCountCounter.class, 2);
+		graphBuilder.setTask("BatchWordCountSplitter", BatchWordCountSplitter.class, 2, 1);
+		graphBuilder.setTask("BatchWordCountCounter", BatchWordCountCounter.class, 2, 1);
 		graphBuilder.setSink("BatchWordCountSink", BatchWordCountSink.class);
 
 		graphBuilder.shuffleConnect("BatchWordCountSource", "BatchWordCountSplitter");

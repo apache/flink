@@ -32,7 +32,7 @@ public class WordCountDummySource extends UserSourceInvokable {
 			if (i % 2 == 0) {
 				record.setString(0, "Gyula Marci");
 			} else {
-				record.setString(0, "Gabor Gyula");
+				record.setString(0, "Gabor Frank");
 			}
 			emit(record);
 		}

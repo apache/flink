@@ -31,21 +31,21 @@ public class WordCountLocal {
 	private static JobGraph getJobGraph() throws Exception {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
 		graphBuilder.setSource("WordCountSource", WordCountDummySource.class);
-		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
-		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
+		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2, 1);
+		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2, 1);
 		graphBuilder.setSink("WordCountSink", WordCountSink.class);
 
 		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");
 		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0);
 		graphBuilder.shuffleConnect("WordCountCounter", "WordCountSink");
-				
+
 		return graphBuilder.getJobGraph();
 	}
 
-	//TODO: arguments check
+	// TODO: arguments check
 	public static void main(String[] args) {
-				 
-		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
+
+		LogUtils.initializeDefaultConsoleLogger(Level.ERROR, Level.INFO);
 
 		try {
 			JobGraph jG = getJobGraph();
@@ -62,14 +62,15 @@ public class WordCountLocal {
 				exec.start();
 
 				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
-				
+
 				client.run(jG, true);
 
 				exec.stop();
 			} else if (args[0].equals("cluster")) {
 				System.out.println("Running in Cluster2 mode");
 
-				Client client = new Client(new InetSocketAddress("hadoop02.ilab.sztaki.hu", 6123), configuration);
+				Client client = new Client(new InetSocketAddress("hadoop02.ilab.sztaki.hu", 6123),
+						configuration);
 				client.run(jG, true);
 			}
 

@@ -31,7 +31,7 @@ public class WordCountDummySource2 extends UserSourceInvokable {
 	@Override
 	public void invoke() throws Exception {
 
-		for (int i = 0; i < 1000000; i++) {
+		for (int i = 0; i < 100000; i++) {
 			if (i % 50000 == 0) {
 				time = System.currentTimeMillis();
 				System.out.println("Source:\t\t" + i + "\t\tTime: " + (time - prevTime));
@@ -41,7 +41,7 @@ public class WordCountDummySource2 extends UserSourceInvokable {
 			if (i % 2 == 0) {
 				record.setString(0, "Gyula Marci");
 			} else {
-				record.setString(0, "Gabor Gyula");
+				record.setString(0, "Gabor Frank");
 			}
 			emit(record);
 		}
