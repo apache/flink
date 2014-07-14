@@ -23,7 +23,7 @@ import eu.stratosphere.types.StringValue;
 public class WordCountSink implements UserSinkInvokable {
 
 	private StringValue word = new StringValue("");
-	private IntValue count = new IntValue(1);
+	private IntValue count = new IntValue();
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {

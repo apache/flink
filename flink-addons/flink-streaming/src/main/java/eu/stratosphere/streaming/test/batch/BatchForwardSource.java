@@ -15,20 +15,18 @@
 
 package eu.stratosphere.streaming.test.batch;
 
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.streaming.api.StreamRecord;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.types.StringValue;
 
-public class MyBatchStream extends TestBase2{
+public class BatchForwardSource extends UserSourceInvokable {
+	private final StringValue motto = new StringValue("Stratosphere Big Data looks tiny from here");
+	private final StreamRecord mottoRecord = new StreamRecord(motto);
 
 	@Override
-	public JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("StreamSource", MyBatchStreamSource.class);
-		graphBuilder.setSink("StreamSink", MyBatchStreamSink.class);
-
-		graphBuilder.broadcastConnect("StreamSource", "StreamSink");
-
-		return graphBuilder.getJobGraph();
+	public void invoke() throws Exception {
+		for (int i = 0; i < 10; i++) {
+			emit(mottoRecord);
+		}
 	}
 }

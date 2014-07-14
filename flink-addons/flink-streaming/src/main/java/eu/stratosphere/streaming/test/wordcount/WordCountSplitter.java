@@ -15,7 +15,6 @@
 
 package eu.stratosphere.streaming.test.wordcount;
 
-import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.types.StringValue;
@@ -25,18 +24,15 @@ public class WordCountSplitter extends UserTaskInvokable {
 	private StringValue sentence = new StringValue("");
 	private String[] words = new String[0];
 	private StringValue wordValue = new StringValue("");
-	private AtomRecord outputRecord = new AtomRecord(wordValue);
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		//record.getFieldInto(0, sentence);
 		sentence = (StringValue) record.getRecord(0).getField(0);
 		System.out.println("to split: " + sentence.getValue());
 		words = sentence.getValue().split(" ");
 		for (CharSequence word : words) {
 			wordValue.setValue(word);
-			outputRecord.setField(0, wordValue);
-			emit(new StreamRecord(outputRecord));
+			emit(new StreamRecord(wordValue));
 		}
 	}
 }
