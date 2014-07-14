@@ -8,6 +8,7 @@ Created on Wed Apr 30 15:40:17 2014
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+import operator
 
 
 linestyles = ['_', '-', '--', ':']
@@ -54,8 +55,43 @@ def plotCounter(csv_dir, smooth=5):
         pd.rolling_mean(dataframe[2].speed,smooth).plot(marker=m,markevery=10,markersize=10)
     plt.legend([x[0] for x in dataframes])
         
-        
+def plotThroughput(csv_dir,taskname, smooth=5):
+    dataframes= readFiles(csv_dir)
 
+    for dataframe in dataframes:
+        df=dataframe[2]
+        speed=[0]
+        values=list(df.ix[:,0])
+        for i in range(1,len(values)):
+            speed.append(float(values[i]-values[i-1])/float(df.index[i]-df.index[i-1]))
+        df['speed']=speed     
+    
+    selected={}
+    
+    for df in dataframes:
+        if taskname in df[0]:
+            if df[1] in selected:
+                selected[df[1]].append(df[2])
+            else:
+                selected[df[1]]=[df[2]]
+    plt.figure()    
+    plt.title(taskname)
+    for i in selected:
+        selected[i]=reduce(operator.add,selected[i])
+        m=markers[i%len(markers)]       
+        selected[i].ix[:,0].plot(marker=m,markevery=10,markersize=10)
+
+        
+    plt.legend(selected.keys())
+    
+    plt.figure()    
+    plt.title(taskname+" - dC/dT")
+    for i in selected:
+        m=markers[i%len(markers)]       
+        pd.rolling_mean(selected[i].speed,smooth).plot(marker=m,markevery=10,markersize=10)
+        
+    plt.legend(selected.keys())
+    
 def plotTimer(csv_dir,smooth=5,std=50):
     dataframes= readFiles(csv_dir)
     
