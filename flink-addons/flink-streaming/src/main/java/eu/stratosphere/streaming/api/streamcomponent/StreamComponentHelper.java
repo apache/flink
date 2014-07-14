@@ -15,7 +15,7 @@ import eu.stratosphere.streaming.api.AckEvent;
 import eu.stratosphere.streaming.api.AckEventListener;
 import eu.stratosphere.streaming.api.FailEvent;
 import eu.stratosphere.streaming.api.FailEventListener;
-import eu.stratosphere.streaming.api.FaultTolerancyBuffer;
+import eu.stratosphere.streaming.api.FaultToleranceBuffer;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
@@ -28,7 +28,7 @@ import eu.stratosphere.types.StringValue;
 
 public final class StreamComponentHelper<T extends AbstractInvokable> {
 	
-	public void setAckListener(FaultTolerancyBuffer recordBuffer,
+	public void setAckListener(FaultToleranceBuffer recordBuffer,
 			String sourceInstanceID, List<RecordWriter<StreamRecord>> outputs) {
 		EventListener eventListener = new AckEventListener(sourceInstanceID,
 				recordBuffer);
@@ -38,7 +38,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		}
 	}
 
-	public void setFailListener(FaultTolerancyBuffer recordBuffer,
+	public void setFailListener(FaultToleranceBuffer recordBuffer,
 			String sourceInstanceID, List<RecordWriter<StreamRecord>> outputs) {
 		EventListener eventListener = new FailEventListener(sourceInstanceID,
 				recordBuffer);
@@ -101,7 +101,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 	public StreamInvokable getUserFunction(Configuration taskConfiguration,
 			List<RecordWriter<StreamRecord>> outputs, String instanceID,
-			FaultTolerancyBuffer recordBuffer) {
+			FaultToleranceBuffer recordBuffer) {
 
 		// Default value is a TaskInvokable even if it was called from a source
 		Class<? extends StreamInvokable> userFunctionClass = taskConfiguration

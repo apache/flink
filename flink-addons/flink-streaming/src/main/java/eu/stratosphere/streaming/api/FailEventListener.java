@@ -6,10 +6,10 @@ import eu.stratosphere.nephele.event.task.EventListener;
 public class FailEventListener implements EventListener {
 
 	private String taskInstanceID;
-	private FaultTolerancyBuffer recordBuffer;
+	private FaultToleranceBuffer recordBuffer;
 
 	public FailEventListener(String taskInstanceID,
-			FaultTolerancyBuffer recordBuffer) {
+			FaultToleranceBuffer recordBuffer) {
 		this.taskInstanceID = taskInstanceID;
 		this.recordBuffer = recordBuffer;
 	}
