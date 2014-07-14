@@ -15,56 +15,61 @@
 
 package eu.stratosphere.streaming.api;
 
+import java.util.LinkedList;
+import java.util.List;
+
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.test.TestSinkInvokable;
 import eu.stratosphere.types.Record;
 
-public class StreamSink extends AbstractOutputTask{
-	
-	//TODO: Refactor names
-	private RecordReader<Record> input = null;
-	private Class<? extends UserSinkInvokable> UserFunction;
+public class StreamSink extends AbstractOutputTask {
+
+	private List<RecordReader<Record>> inputs;
 	private UserSinkInvokable userFunction;
-	
-	public StreamSink(){
-		//TODO: Make configuration file visible and call setClassInputs() here
-		UserFunction = null;
+
+	private int numberOfInputs;
+
+	public StreamSink() {
+		// TODO: Make configuration file visible and call setClassInputs() here
+		inputs = new LinkedList<RecordReader<Record>>();
 		userFunction = null;
+		numberOfInputs = 0;
 	}
-	
-	//TODO:Refactor key names,
-	//TODO:Add output/input number to config and store class instances in list
-	//TODO:Change default classes when done with JobGraphBuilder
-	//TODO:Change partitioning from component level to connection level -> output_1_partitioner, output_2_partitioner etc.
-	private void setClassInputs() {
-		UserFunction = getTaskConfiguration().getClass("userfunction",
-						TestSinkInvokable.class, UserSinkInvokable.class);
+
+	private void setConfigInputs() {
+
+		numberOfInputs = getTaskConfiguration().getInteger("numberOfInputs", 0);
+		for (int i = 0; i < numberOfInputs; i++) {
+			inputs.add(new RecordReader<Record>(this, Record.class));
 		}
-	
+
+		Class<? extends UserSinkInvokable> userFunctionClass;
+		userFunctionClass = getTaskConfiguration().getClass("userfunction",
+				DefaultSinkInvokable.class, UserSinkInvokable.class);
+		try {
+			userFunction = userFunctionClass.newInstance();
+		} catch (Exception e) {
+
+		}
+	}
+
 	@Override
 	public void registerInputOutput() {
-		setClassInputs();
-		this.input = new RecordReader<Record>(this, Record.class);
+		setConfigInputs();
 	}
 
 	@Override
 	public void invoke() throws Exception {
-		try {
-		    userFunction = UserFunction.newInstance();
-		} catch (Exception e) {
-
-		}
-		
 		boolean hasInput = true;
-		while (hasInput){
-		hasInput = false;
-			if (input.hasNext()){
-				hasInput = true;
-				userFunction.invoke(
-						input.next(), 
-						input);
+		while (hasInput) {
+			hasInput = false;
+			for (RecordReader<Record> input : inputs) {
+				if (input.hasNext()) {
+					hasInput = true;
+					userFunction.invoke(input.next(), input);
+				}
 			}
 		}
 	}
