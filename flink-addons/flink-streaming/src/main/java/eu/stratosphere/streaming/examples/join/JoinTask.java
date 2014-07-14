@@ -40,9 +40,8 @@ public class JoinTask extends
 		String streamId = value.f0;
 		String name = value.f1;
 
-		// Joins the input value with the already known values. If it is a grade
-		// then with the salaries, if it is a salary then with the grades. Also
-		// stores the new element.
+		// From the input value that only contains the grade or the salary of a
+		// person generates a tuple that contains both the name and the salary
 		if (streamId.equals("grade")) {
 			if (salaryHashmap.containsKey(name)) {
 				for (Integer salary : salaryHashmap.get(name)) {

@@ -22,11 +22,9 @@ import java.io.ObjectOutputStream;
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.ClusterUtil;
-import eu.stratosphere.util.Collector;
 
 //TODO:add link to ExecutionEnvironment
 /**
@@ -34,8 +32,6 @@ import eu.stratosphere.util.Collector;
  * construct streaming topologies.
  * 
  */
-// TODO: add file, elements, rmq source
-// TODO: figure out generic dummysink
 public class StreamExecutionEnvironment {
 	JobGraphBuilder jobGraphBuilder;
 
@@ -66,17 +62,6 @@ public class StreamExecutionEnvironment {
 		this(1, 1000);
 	}
 
-	private static class DummySource extends UserSourceInvokable<Tuple1<String>> {
-		private static final long serialVersionUID = 1L;
-
-		public void invoke(Collector<Tuple1<String>> collector) {
-
-			for (int i = 0; i < 10; i++) {
-				collector.collect(new Tuple1<String>("source"));
-			}
-		}
-	}
-
 	/**
 	 * Partitioning strategy on the stream.
 	 */
@@ -85,10 +70,10 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Sets the batch size of the datastream in which the tuple are transmitted.
+	 * Sets the batch size of the data stream in which the tuple are transmitted.
 	 * 
 	 * @param inputStream
-	 *            input datastream
+	 *            input data stream
 	 */
 	public <T extends Tuple> void setBatchSize(DataStream<T> inputStream) {
 
@@ -103,7 +88,7 @@ public class StreamExecutionEnvironment {
 	 * Internal function for assembling the underlying JobGraph of the job.
 	 * 
 	 * @param inputStream
-	 *            input datastream
+	 *            input data stream
 	 * @param outputID
 	 *            ID of the output
 	 */
@@ -131,7 +116,7 @@ public class StreamExecutionEnvironment {
 
 	}
 
-	// TODO: link to JobGraph, JobVertex, user-defined spellcheck
+	// TODO: link to JobGraph, JobVertex
 	/**
 	 * Internal function for passing the user defined functions to the JobGraph
 	 * of the job.
@@ -170,6 +155,17 @@ public class StreamExecutionEnvironment {
 		return returnStream;
 	}
 
+	/**
+	 * Ads a sink to the data stream closing it.
+	 * 
+	 * @param inputStream
+	 *            input data stream
+	 * @param sinkFunction
+	 *            the user defined function
+	 * @param parallelism
+	 *            number of parallel instances of the function
+	 * @return the data stream constructed
+	 */
 	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
 			SinkFunction<T> sinkFunction, int parallelism) {
 		DataStream<T> returnStream = new DataStream<T>(this);
@@ -192,12 +188,32 @@ public class StreamExecutionEnvironment {
 		return returnStream;
 	}
 
+	/**
+	 * Ads a sink to the data stream closing it. To parallelism is defaulted to
+	 * 1.
+	 * 
+	 * @param inputStream
+	 *            input data stream
+	 * @param sinkFunction
+	 *            the user defined function
+	 * @param parallelism
+	 *            number of parallel instances of the function
+	 * @return the data stream constructed
+	 */
 	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
 			SinkFunction<T> sinkFunction) {
 		return addSink(inputStream, sinkFunction, 1);
 	}
 
-	public static final class DummySink<IN extends Tuple> extends SinkFunction<IN> {
+	// TODO: link to SinkFunction
+	/**
+	 * Dummy implementation of the SinkFunction writing every tuple to the
+	 * standard output.
+	 * 
+	 * @param <IN>
+	 *            Input tuple type
+	 */
+	private static final class DummySink<IN extends Tuple> extends SinkFunction<IN> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -207,6 +223,13 @@ public class StreamExecutionEnvironment {
 
 	}
 
+	/**
+	 * Prints the tuples of the data stream to the standard output.
+	 * 
+	 * @param inputStream
+	 *            the input data stream
+	 * @return the data stream constructed
+	 */
 	public <T extends Tuple> DataStream<T> print(DataStream<T> inputStream) {
 		DataStream<T> returnStream = addSink(inputStream, new DummySink<T>());
 
@@ -215,10 +238,24 @@ public class StreamExecutionEnvironment {
 		return returnStream;
 	}
 
+	// TODO: Link to JobGraph and ClusterUtil
+	/**
+	 * Executes the JobGraph of the on a mini cluster of CLusterUtil.
+	 */
 	public void execute() {
 		ClusterUtil.runOnMiniCluster(jobGraphBuilder.getJobGraph());
 	}
 
+	// TODO: Link to DataStream
+	/**
+	 * Ads a data source thus opening a data stream.
+	 * 
+	 * @param sourceFunction
+	 *            the user defined function
+	 * @param parallelism
+	 *            number of parallel instances of the function
+	 * @return the data stream constructed
+	 */
 	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction,
 			int parallelism) {
 		DataStream<T> returnStream = new DataStream<T>(this);
@@ -239,32 +276,20 @@ public class StreamExecutionEnvironment {
 		return returnStream.copy();
 	}
 
+	//TODO: understand difference
 	public DataStream<Tuple1<String>> readTextFile(String path) {
 		return addSource(new FileSourceFunction(path), 1);
 	}
-	
+
 	public DataStream<Tuple1<String>> readTextStream(String path) {
-		return addSource(new FileStreamFunction(path),1);
+		return addSource(new FileStreamFunction(path), 1);
 	}
 
-	public DataStream<Tuple1<String>> addDummySource() {
-		DataStream<Tuple1<String>> returnStream = new DataStream<Tuple1<String>>(this);
-
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos;
-		try {
-			oos = new ObjectOutputStream(baos);
-			oos.writeObject(new DummySource());
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		jobGraphBuilder.setSource(returnStream.getId(), new DummySource(), "source",
-				baos.toByteArray(), 1, 1);
-		return returnStream;
-	}
-
+	//TODO: Add link to JobGraphBuilder
+	/**
+	 * Getter of the JobGraphBuilder of the streaming job.
+	 * @return
+	 */
 	public JobGraphBuilder jobGB() {
 		return jobGraphBuilder;
 	}

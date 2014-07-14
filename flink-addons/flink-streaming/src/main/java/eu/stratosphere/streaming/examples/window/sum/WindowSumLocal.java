@@ -24,8 +24,6 @@ public class WindowSumLocal {
 	private static final int PARALELISM = 1;
 	private static final int SOURCE_PARALELISM = 1;
 
-	
-	
 	public static void main(String[] args) {
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 		
