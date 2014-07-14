@@ -63,7 +63,7 @@ public class IncrementalLearning {
 		@Override
 		public void invoke() throws Exception {
 
-			record.InitRecords();
+			record.initRecords();
 
 			while (true) {
 				for (int i = 0; i < BATCH_SIZE; i++) {

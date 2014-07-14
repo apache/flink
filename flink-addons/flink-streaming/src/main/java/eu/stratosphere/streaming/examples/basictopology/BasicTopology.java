@@ -34,7 +34,7 @@ public class BasicTopology {
 
 	public static class BasicSource extends UserSourceInvokable {
 
-		StreamRecord record = new StreamRecord(new Tuple1<String[]>(new String[] {"streaming", "flink"}));
+		StreamRecord record = new StreamRecord(new Tuple1<String>("streaming"));
 
 		@Override
 		public void invoke() throws Exception {
@@ -64,6 +64,7 @@ public class BasicTopology {
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
 			// do nothing
+			record.getField(0);
 		}
 	}
 
