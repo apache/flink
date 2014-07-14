@@ -17,10 +17,11 @@ package eu.stratosphere.streaming.test.wordcount;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
+import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 
 public class WordCountCounter extends UserTaskInvokable {
@@ -29,25 +30,28 @@ public class WordCountCounter extends UserTaskInvokable {
 	private StringValue wordValue = new StringValue("");
 	private IntValue countValue = new IntValue(1);
 	private String word = "";
-	private Record outputRecord = new Record(2);
+	private StreamRecord outputRecord = new StreamRecord(2);
 	private int count = 1;
 
 	@Override
-	public void invoke(Record record) throws Exception {
-
-		record.getFieldInto(0, wordValue);
+	public void invoke(StreamRecord record) throws Exception {
+		wordValue = (StringValue) record.getField(0);
 		word = wordValue.getValue();
-
+		
 		if (wordCounts.containsKey(word)) {
 			count = wordCounts.get(word) + 1;
 			wordCounts.put(word, count);
 			countValue.setValue(count);
+			outputRecord.setField(0, wordValue);
+			outputRecord.setField(1, countValue);
+			emit(outputRecord);
 		} else {
 			wordCounts.put(word, 1);
 			countValue.setValue(1);
+			outputRecord.setField(0, wordValue);
+			outputRecord.setField(1, countValue);
+			emit(outputRecord);
 		}
-		outputRecord.setField(0, wordValue);
-		outputRecord.setField(1, countValue);
-		emit(outputRecord);
+
 	}
 }

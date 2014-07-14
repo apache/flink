@@ -17,7 +17,6 @@ package eu.stratosphere.streaming.test.wordcount;
 
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
-
 import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.StringValue;
 
@@ -27,8 +26,8 @@ public class WordCount extends TestBase2 {
 	public JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
 		graphBuilder.setSource("WordCountSource", WordCountSource.class);
-		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 1);
-		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 1);
+		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
+		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
 		graphBuilder.setSink("WordCountSink", WordCountSink.class);
 
 		graphBuilder.broadcastConnect("WordCountSource", "WordCountSplitter");
