@@ -13,22 +13,18 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.sum;
+package eu.stratosphere.streaming.faulttolerance;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import static org.junit.Assert.*;
 
-public class WindowSumMultiple extends UserTaskInvokable {
+import org.junit.Test;
 
-	private StreamRecord outputRecord = new StreamRecord(new Tuple2<Integer, Long>());
-	
-	@Override
-	public void invoke(StreamRecord record) throws Exception {
-		Integer number = record.getInteger(0);
-		Long timestamp = record.getLong(1);
-		outputRecord.setInteger(0, number+1);
-		outputRecord.setLong(1, timestamp);
-		emit(outputRecord);
+public class FaultToleranceTypeTest {
+
+	@Test
+	public void test() {
+		assertEquals(FaultToleranceType.NONE, FaultToleranceType.from(0));
+		assertEquals(FaultToleranceType.AT_LEAST_ONCE, FaultToleranceType.from(1));
+		assertEquals(FaultToleranceType.EXACTLY_ONCE, FaultToleranceType.from(2));
 	}
 }

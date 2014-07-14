@@ -15,24 +15,22 @@
 
 package eu.stratosphere.streaming.examples.wordcount;
 
-import java.net.InetSocketAddress;
-
 import org.apache.log4j.Level;
 
-import eu.stratosphere.client.minicluster.NepheleMiniCluster;
-import eu.stratosphere.client.program.Client;
-import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
+import eu.stratosphere.streaming.util.ClusterUtil;
 import eu.stratosphere.streaming.util.LogUtils;
 
 public class WordCountLocal {
 
 	public static JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSourceSplitter", WordCountSourceSplitter.class);
-		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 1, 1);
-		graphBuilder.setSink("WordCountSink", WordCountSink.class);
+
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
+		graphBuilder.setSource("WordCountSourceSplitter", new WordCountSourceSplitter("src/test/resources/testdata/hamlet.txt"));
+		graphBuilder.setTask("WordCountCounter", new WordCountCounter());
+		graphBuilder.setSink("WordCountSink", new WordCountSink());
 
 		graphBuilder.fieldsConnect("WordCountSourceSplitter", "WordCountCounter", 0);
 		graphBuilder.shuffleConnect("WordCountCounter", "WordCountSink");
@@ -44,39 +42,15 @@ public class WordCountLocal {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
-		try {
+		if (args.length == 0) {
+			args = new String[] { "local" };
+		}
 
-			JobGraph jG = getJobGraph();
-			Configuration configuration = jG.getJobConfiguration();
+		if (args[0].equals("local")) {
+			ClusterUtil.runOnMiniCluster(getJobGraph());
 
-			if (args.length == 0) {
-				args = new String[] { "local" };
-			}
-
-			if (args[0].equals("local")) {
-				System.out.println("Running in Local mode");
-				NepheleMiniCluster exec = new NepheleMiniCluster();
-
-				exec.start();
-
-				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
-
-				client.run(jG, true);
-
-				exec.stop();
-
-			} else if (args[0].equals("cluster")) {
-				System.out.println("Running in Cluster2 mode");
-
-				Client client = new Client(new InetSocketAddress("hadoop02.ilab.sztaki.hu", 6123),
-						configuration);
-
-				client.run(jG, true);
-
-			}
-
-		} catch (Exception e) {
-			System.out.println(e);
+		} else if (args[0].equals("cluster")) {
+			ClusterUtil.runOnLocalCluster(getJobGraph(), "hadoop02.ilab.sztaki.hu", 6123);
 		}
 
 	}

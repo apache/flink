@@ -26,7 +26,9 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamcomponent.StreamComponentHelper.RecordInvoker;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 
 public class StreamTask extends AbstractTask {
@@ -40,7 +42,9 @@ public class StreamTask extends AbstractTask {
 	private static int numTasks;
 	private int taskInstanceID;
 	private String name;
-	StreamComponentHelper<StreamTask> streamTaskHelper;
+	private StreamComponentHelper<StreamTask> streamTaskHelper;
+	private FaultToleranceType faultToleranceType;
+	private RecordInvoker invoker;
 	Configuration taskConfiguration;
 
 	private FaultToleranceUtil recordBuffer;
@@ -73,7 +77,9 @@ public class StreamTask extends AbstractTask {
 			numberOfOutputChannels[i] = taskConfiguration.getInteger("channels_" + i, 0);
 		}
 
-		recordBuffer = new FaultToleranceUtil(outputs, taskInstanceID, name, numberOfOutputChannels);
+		invoker = streamTaskHelper.setFaultTolerance(recordBuffer, faultToleranceType,
+				taskConfiguration, outputs, taskInstanceID, name, numberOfOutputChannels);
+
 		userFunction = (UserTaskInvokable) streamTaskHelper.getUserFunction(taskConfiguration,
 				outputs, taskInstanceID, name, recordBuffer);
 
@@ -84,10 +90,10 @@ public class StreamTask extends AbstractTask {
 	@Override
 	public void invoke() throws Exception {
 		log.debug("TASK " + name + " invoked with instance id " + taskInstanceID);
-		streamTaskHelper.invokeRecords(userFunction, inputs, name);
+		streamTaskHelper.invokeRecords(invoker, userFunction, inputs, name);
+
 		// TODO print to file
 		System.out.println(userFunction.getResult());
 		log.debug("TASK " + name + " invoke finished with instance id " + taskInstanceID);
 	}
-
 }
