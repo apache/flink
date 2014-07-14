@@ -19,6 +19,7 @@ import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.util.Collector;
 
 public class MapInvokable<T extends Tuple, R extends Tuple> extends UserTaskInvokable<T, R> {
 	private static final long serialVersionUID = 1L;
@@ -29,7 +30,7 @@ public class MapInvokable<T extends Tuple, R extends Tuple> extends UserTaskInvo
 	}
 	
 	@Override
-	public void invoke(StreamRecord record, StreamCollector<R> collector) throws Exception {
+	public void invoke(StreamRecord record, Collector<R> collector) throws Exception {
 		int batchSize = record.getBatchSize();
 		for (int i = 0; i < batchSize; i++) {
 			@SuppressWarnings("unchecked")

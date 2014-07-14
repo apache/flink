@@ -16,11 +16,11 @@
 package eu.stratosphere.streaming.api.invokable;
 
 import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.streaming.api.StreamCollector;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.util.Collector;
 
 public abstract class StreamRecordInvokable<IN extends Tuple, OUT extends Tuple> extends
 		StreamComponent {
-	public abstract void invoke(StreamRecord record, StreamCollector<OUT> collector)
+	public abstract void invoke(StreamRecord record, Collector<OUT> collector)
 			throws Exception;
 }

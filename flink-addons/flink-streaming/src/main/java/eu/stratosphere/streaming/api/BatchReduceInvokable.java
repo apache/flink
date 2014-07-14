@@ -20,6 +20,7 @@ import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.util.Collector;
 
 public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends UserTaskInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
@@ -30,7 +31,7 @@ public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends U
 	}
 	
 	@Override
-	public void invoke(StreamRecord record, StreamCollector<OUT> collector) throws Exception {
+	public void invoke(StreamRecord record, Collector<OUT> collector) throws Exception {
 		Iterator<IN> iterator = (Iterator<IN>) record.getBatchIterable().iterator();
 		reducer.reduce(iterator, collector);
 	}
