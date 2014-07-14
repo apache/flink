@@ -95,6 +95,13 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		tupleBatch = new ArrayList<Tuple>();
 
 	}
+	
+	public StreamRecord(int numOfFields, int batchSize) {
+		this.numOfFields = numOfFields;
+		this.numOfTuples = 0;
+		tupleBatch = new ArrayList<Tuple>(batchSize);
+
+	}
 
 	/**
 	 * Creates a new batch of records containing only the given Tuple as element
@@ -457,7 +464,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public void setInteger(int fieldNumber, Integer i)
 			throws NoSuchFieldException {
-		setInteger(0, i);
+		setInteger(0, fieldNumber,i);
 	}
 
 	/**
@@ -662,13 +669,8 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		}
 	}
 
-	/**
-	 * Creates a deep copy of the StreamRecord
-	 * 
-	 * @return Copy of the StreamRecord
-	 * 
-	 */
-	public StreamRecord copy() {
+	
+	public StreamRecord copySerialized() {
 
 		ByteArrayOutputStream buff = new ByteArrayOutputStream();
 		DataOutputStream out = new DataOutputStream(buff);
@@ -682,6 +684,23 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		} catch (Exception e) {
 		}
 
+		return newRecord;
+	}
+	
+	/**
+	 * Creates a deep copy of the StreamRecord
+	 * 
+	 * @return Copy of the StreamRecord
+	 * 
+	 */
+	public StreamRecord copy() {
+		StreamRecord newRecord= new StreamRecord(numOfFields,numOfTuples);
+		newRecord.uid=new StringValue(uid.getValue());
+		
+		for(Tuple tuple: tupleBatch){
+			newRecord.tupleBatch.add(StreamRecord.copyTuple(tuple));
+		}
+		
 		return newRecord;
 	}
 

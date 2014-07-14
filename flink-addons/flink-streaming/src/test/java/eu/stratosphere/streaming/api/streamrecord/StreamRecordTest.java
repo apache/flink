@@ -42,8 +42,11 @@ public class StreamRecordTest {
 		assertEquals("Stratosphere", record.getString(0));
 		assertEquals((Integer) 1, record.getInteger(1));
 
-		record.setField(1, "Big Data");
-		assertEquals("Big Data", record.getString(1));
+		record.setString(0, "Big Data");
+		record.setInteger(1, 2);
+		assertEquals("Big Data", record.getString(0));
+		assertEquals((Integer) 2, record.getInteger(1));
+		
 
 		record.setTuple(new Tuple2<String, Long>("Big Data looks tiny from here.", 2L));
 		assertEquals(2, record.getNumOfFields());
@@ -66,9 +69,9 @@ public class StreamRecordTest {
 
 		assertEquals("Big Data looks tiny from here.", tuple.getField(0));
 		assertEquals((Double) 2.5, tuple.getField(1));
-		
-		record.setDouble(1,3.3);
-		
+
+		record.setDouble(1, 3.3);
+
 		assertEquals("Big Data looks tiny from here.", tuple.getField(0));
 		assertEquals((Double) 2.5, tuple.getField(1));
 	}
@@ -106,6 +109,16 @@ public class StreamRecordTest {
 		b.setTuple(new Tuple1<String>("Data"));
 		assertFalse(a.getId().equals(b.getId()));
 		assertFalse(a.getField(0).equals(b.getField(0)));
+
+		StreamRecord c = new StreamRecord(new Tuple1<String>("Big"));
+
+		long t = System.nanoTime();
+		c.copySerialized();
+		System.out.println("Serialized copy:\t" + (System.nanoTime() - t));
+
+		t = System.nanoTime();
+		c.copy();
+		System.out.println("New copy:\t" + (System.nanoTime() - t));
 
 	}
 
@@ -163,19 +176,22 @@ public class StreamRecordTest {
 		}
 
 	}
+
 	@Test
-	public void tupleCopyTest(){
-		Tuple2<String, Integer> t1 = new Tuple2<String, Integer>("a",1);
-		@SuppressWarnings("unchecked")
-		Tuple2<String, Integer> t2 = (Tuple2<String, Integer>) StreamRecord
-				.copyTuple(t1);
-		
+	public void tupleCopyTest() {
+		Tuple2<String, Integer> t1 = new Tuple2<String, Integer>("a", 1);
+
+		Tuple2 t2 = (Tuple2) StreamRecord.copyTuple(t1);
+
 		assertEquals("a", t2.getField(0));
 		assertEquals(1, t2.getField(1));
-		
+
 		t1.setField(2, 1);
 		assertEquals(1, t2.getField(1));
 		assertEquals(2, t1.getField(1));
+
+		assertEquals(t1.getField(0).getClass(), t2.getField(0).getClass());
+		assertEquals(t1.getField(1).getClass(), t2.getField(1).getClass());
 
 	}
 
