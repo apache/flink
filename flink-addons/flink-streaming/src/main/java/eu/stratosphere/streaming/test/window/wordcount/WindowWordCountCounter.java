@@ -18,7 +18,6 @@ package eu.stratosphere.streaming.test.window.wordcount;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.types.IntValue;
@@ -35,7 +34,6 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 	private IntValue countValue = new IntValue(1);
 	private LongValue timestamp = new LongValue(0);
 	private String word = "";
-	private AtomRecord outputRecord = new AtomRecord(3);
 	private int count = 1;
 
 	@Override
@@ -51,10 +49,7 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 			wordCounts.put(word, 1);
 			countValue.setValue(1);
 		}
-		outputRecord.setField(0, wordValue);
-		outputRecord.setField(1, countValue);
-		outputRecord.setField(2, timestamp);
-		emit(new StreamRecord(outputRecord));
+		emit(new StreamRecord(wordValue, countValue, timestamp));
 
 	}
 }

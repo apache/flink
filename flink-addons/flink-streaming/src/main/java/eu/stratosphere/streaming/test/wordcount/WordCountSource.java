@@ -29,8 +29,7 @@ public class WordCountSource extends UserSourceInvokable {
 	private BufferedReader br = null;
 	private String line = new String();
 	private StringValue lineValue = new StringValue();
-	private Value[] hamletValues = new StringValue[1];
-	private StreamRecord hamletRecord = new StreamRecord(1);
+	private Value[] values = new StringValue[1];
 
 	public WordCountSource() {
 		try {
@@ -47,9 +46,9 @@ public class WordCountSource extends UserSourceInvokable {
 		while (line != null) {
 			if (line != "") {
 				lineValue.setValue(line);
-				hamletValues[0] = lineValue;
-				// TODO: use hamletRecord instead
-				emit(new StreamRecord(hamletValues));
+				values[0] = lineValue;
+				// TODO: object reuse
+				emit(new StreamRecord(values));
 			}
 			line = br.readLine();
 		}
