@@ -74,7 +74,7 @@ public class WordCountLocal {
 				Client client = new Client(new InetSocketAddress("localhost",
 						6498), configuration);
 
-				client.run(jG, true);
+				client.run(null, jG, true);
 
 				exec.stop();
 
@@ -84,7 +84,7 @@ public class WordCountLocal {
 				Client client = new Client(new InetSocketAddress(
 						"hadoop02.ilab.sztaki.hu", 6123), configuration);
 
-				client.run(jG, true);
+				client.run(null, jG, true);
 
 			}
 

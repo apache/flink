@@ -107,7 +107,7 @@ public class FaultToleranceBufferTest {
 		faultTolerancyBuffer.addRecord(record1);
 
 		assertArrayEquals(record1.getRecord(0),
-				faultTolerancyBuffer.popRecord(record1.getId()).getRecord(0));
+				faultTolerancyBuffer.removeRecord(record1.getId()).getRecord(0));
 		System.out.println("---------");
 	}
 
