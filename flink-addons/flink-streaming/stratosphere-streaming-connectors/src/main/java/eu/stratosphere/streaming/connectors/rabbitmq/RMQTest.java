@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.addons.rabbitmq;
+package eu.stratosphere.streaming.connectors.rabbitmq;
 
 
 import static org.junit.Assert.*;

@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Stack;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -61,6 +62,8 @@ public class JobGraphBuilder {
 	protected Map<String, Integer> numberOfInstances;
 	protected Map<String, List<String>> edgeList;
 	protected Map<String, List<Class<? extends ChannelSelector<StreamRecord>>>> connectionTypes;
+	protected boolean iterationStart;
+	protected Stack<String> iterationStartPoints;
 	protected String maxParallelismVertexName;
 	protected int maxParallelism;
 	protected FaultToleranceType faultToleranceType;
@@ -75,12 +78,14 @@ public class JobGraphBuilder {
 	 * @param faultToleranceType
 	 *            Fault tolerance type
 	 */
-	public JobGraphBuilder(String jobGraphName, FaultToleranceType faultToleranceType) {
+	public JobGraphBuilder(String jobGraphName,
+			FaultToleranceType faultToleranceType) {
 		jobGraph = new JobGraph(jobGraphName);
 		components = new HashMap<String, AbstractJobVertex>();
 		numberOfInstances = new HashMap<String, Integer>();
 		edgeList = new HashMap<String, List<String>>();
 		connectionTypes = new HashMap<String, List<Class<? extends ChannelSelector<StreamRecord>>>>();
+		iterationStartPoints = new Stack<String>();
 		maxParallelismVertexName = "";
 		maxParallelism = 0;
 		if (log.isDebugEnabled()) {
@@ -111,15 +116,16 @@ public class JobGraphBuilder {
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
-	public void setSource(String sourceName, UserSourceInvokable<? extends Tuple> InvokableObject,
+	public void setSource(String sourceName,
+			UserSourceInvokable<? extends Tuple> InvokableObject,
 			String operatorName, byte[] serializedFunction, int parallelism) {
 
 		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
 
 		source.setInvokableClass(StreamSource.class);
 
-		setComponent(sourceName, source, InvokableObject, operatorName, serializedFunction,
-				parallelism);
+		setComponent(sourceName, source, InvokableObject, operatorName,
+				serializedFunction, parallelism);
 
 		if (log.isDebugEnabled()) {
 			log.debug("SOURCE: " + sourceName);
@@ -140,14 +146,15 @@ public class JobGraphBuilder {
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
-	public void setTask(String taskName,
+	public void setTask(
+			String taskName,
 			UserTaskInvokable<? extends Tuple, ? extends Tuple> TaskInvokableObject,
 			String operatorName, byte[] serializedFunction, int parallelism) {
 
 		final JobTaskVertex task = new JobTaskVertex(taskName, jobGraph);
 		task.setInvokableClass(StreamTask.class);
-		setComponent(taskName, task, TaskInvokableObject, operatorName, serializedFunction,
-				parallelism);
+		setComponent(taskName, task, TaskInvokableObject, operatorName,
+				serializedFunction, parallelism);
 
 		if (log.isDebugEnabled()) {
 			log.debug("TASK: " + taskName);
@@ -168,12 +175,14 @@ public class JobGraphBuilder {
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
-	public void setSink(String sinkName, UserSinkInvokable<? extends Tuple> InvokableObject,
+	public void setSink(String sinkName,
+			UserSinkInvokable<? extends Tuple> InvokableObject,
 			String operatorName, byte[] serializedFunction, int parallelism) {
 
 		final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
 		sink.setInvokableClass(StreamSink.class);
-		setComponent(sinkName, sink, InvokableObject, operatorName, serializedFunction, parallelism);
+		setComponent(sinkName, sink, InvokableObject, operatorName,
+				serializedFunction, parallelism);
 
 		if (log.isDebugEnabled()) {
 			log.debug("SINK: " + sinkName);
@@ -199,18 +208,24 @@ public class JobGraphBuilder {
 	 * @param subtasksPerInstance
 	 *            Number of parallel instances on one task manager
 	 */
-	private void setComponent(String componentName, AbstractJobVertex component,
-			Serializable InvokableObject, String operatorName, byte[] serializedFunction,
-			int parallelism) {
+	private void setComponent(String componentName,
+			AbstractJobVertex component, Serializable InvokableObject,
+			String operatorName, byte[] serializedFunction, int parallelism) {
 
 		component.setNumberOfSubtasks(parallelism);
+
+		if (iterationStart) {
+			iterationStartPoints.push(componentName);
+			iterationStart = false;
+		}
 
 		if (parallelism > maxParallelism) {
 			maxParallelism = parallelism;
 			maxParallelismVertexName = componentName;
 		}
 
-		Configuration config = new TaskConfig(component.getConfiguration()).getConfiguration();
+		Configuration config = new TaskConfig(component.getConfiguration())
+				.getConfiguration();
 		config.setClass("userfunction", InvokableObject.getClass());
 		config.setString("componentName", componentName);
 		config.setInteger("batchSize", batchSize);
@@ -233,7 +248,8 @@ public class JobGraphBuilder {
 	 *            JobVertex configuration to which the serialized invokable will
 	 *            be added
 	 */
-	private void addSerializedObject(Serializable InvokableObject, Configuration config) {
+	private void addSerializedObject(Serializable InvokableObject,
+			Configuration config) {
 
 		ByteArrayOutputStream baos = null;
 		ObjectOutputStream oos = null;
@@ -247,7 +263,8 @@ public class JobGraphBuilder {
 			config.setBytes("serializedudf", baos.toByteArray());
 		} catch (Exception e) {
 			e.printStackTrace();
-			System.out.println("Serialization error " + InvokableObject.getClass());
+			System.out.println("Serialization error "
+					+ InvokableObject.getClass());
 		}
 
 	}
@@ -263,7 +280,8 @@ public class JobGraphBuilder {
 	public void setBatchSize(String componentName, int batchSize) {
 		Configuration config = components.get(componentName).getConfiguration();
 		config.setInteger("batchSize_"
-				+ (components.get(componentName).getNumberOfForwardConnections() - 1), batchSize);
+				+ (components.get(componentName)
+						.getNumberOfForwardConnections() - 1), batchSize);
 	}
 
 	/**
@@ -296,9 +314,12 @@ public class JobGraphBuilder {
 	 *            Name of the downstream component, that will receive the
 	 *            records
 	 */
-	public void broadcastConnect(String upStreamComponentName, String downStreamComponentName) {
-		connect(upStreamComponentName, downStreamComponentName, BroadcastPartitioner.class);
-		log.info("Broadcastconnected: " + upStreamComponentName + " to " + downStreamComponentName);
+	public void broadcastConnect(String upStreamComponentName,
+			String downStreamComponentName) {
+		connect(upStreamComponentName, downStreamComponentName,
+				BroadcastPartitioner.class);
+		log.info("Broadcastconnected: " + upStreamComponentName + " to "
+				+ downStreamComponentName);
 	}
 
 	/**
@@ -316,52 +337,65 @@ public class JobGraphBuilder {
 	 * @param keyPosition
 	 *            Position of key in the tuple
 	 */
-	public void fieldsConnect(String upStreamComponentName, String downStreamComponentName,
-			int keyPosition) {
+	public void fieldsConnect(String upStreamComponentName,
+			String downStreamComponentName, int keyPosition) {
 
-		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
-		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
+		AbstractJobVertex upStreamComponent = components
+				.get(upStreamComponentName);
+		AbstractJobVertex downStreamComponent = components
+				.get(downStreamComponentName);
 
-		addToEdges(upStreamComponentName, downStreamComponentName, FieldsPartitioner.class);
+		addToEdges(upStreamComponentName, downStreamComponentName,
+				FieldsPartitioner.class);
 
 		try {
-			upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK);
+			upStreamComponent.connectTo(downStreamComponent,
+					ChannelType.NETWORK);
 
-			Configuration config = new TaskConfig(upStreamComponent.getConfiguration())
-					.getConfiguration();
+			Configuration config = new TaskConfig(
+					upStreamComponent.getConfiguration()).getConfiguration();
 
 			config.setClass(
-					"partitionerClass_" + (upStreamComponent.getNumberOfForwardConnections() - 1),
+					"partitionerClass_"
+							+ (upStreamComponent
+									.getNumberOfForwardConnections() - 1),
 					FieldsPartitioner.class);
 
 			config.setInteger(
 					"partitionerIntParam_"
-							+ (upStreamComponent.getNumberOfForwardConnections() - 1), keyPosition);
+							+ (upStreamComponent
+									.getNumberOfForwardConnections() - 1),
+					keyPosition);
 
 			if (log.isDebugEnabled()) {
-				log.debug("CONNECTED: FIELD PARTITIONING - " + upStreamComponentName + " -> "
+				log.debug("CONNECTED: FIELD PARTITIONING - "
+						+ upStreamComponentName + " -> "
 						+ downStreamComponentName + ", KEY: " + keyPosition);
 			}
 		} catch (JobGraphDefinitionException e) {
 			if (log.isErrorEnabled()) {
-				log.error("Cannot connect components by field: " + upStreamComponentName + " to "
+				log.error("Cannot connect components by field: "
+						+ upStreamComponentName + " to "
 						+ downStreamComponentName, e);
 			}
 		}
-		log.info("Fieldsconnected " + upStreamComponentName + " to " + downStreamComponentName
-				+ " on " + keyPosition);
+		log.info("Fieldsconnected " + upStreamComponentName + " to "
+				+ downStreamComponentName + " on " + keyPosition);
 
 	}
 
-	private void addToEdges(String upStreamComponentName, String downStreamComponentName,
-			Class<?> ctype) {
+	private void addToEdges(String upStreamComponentName,
+			String downStreamComponentName, Class<?> ctype) {
 		if (edgeList.containsKey(upStreamComponentName)) {
-			connectionTypes.get(upStreamComponentName).add(FieldsPartitioner.class);
+			connectionTypes.get(upStreamComponentName).add(
+					FieldsPartitioner.class);
 			edgeList.get(upStreamComponentName).add(downStreamComponentName);
 		} else {
-			connectionTypes.put(upStreamComponentName,
-					new ArrayList<Class<? extends ChannelSelector<StreamRecord>>>());
-			connectionTypes.get(upStreamComponentName).add(FieldsPartitioner.class);
+			connectionTypes
+					.put(upStreamComponentName,
+							new ArrayList<Class<? extends ChannelSelector<StreamRecord>>>());
+			connectionTypes.get(upStreamComponentName).add(
+					FieldsPartitioner.class);
 
 			edgeList.put(upStreamComponentName, new ArrayList<String>());
 			edgeList.get(upStreamComponentName).add(downStreamComponentName);
@@ -379,9 +413,12 @@ public class JobGraphBuilder {
 	 * @param downStreamComponentName
 	 *            Name of the downstream component, that will receive the tuples
 	 */
-	public void globalConnect(String upStreamComponentName, String downStreamComponentName) {
-		connect(upStreamComponentName, downStreamComponentName, GlobalPartitioner.class);
-		log.info("Globalconnected: " + upStreamComponentName + " to " + downStreamComponentName);
+	public void globalConnect(String upStreamComponentName,
+			String downStreamComponentName) {
+		connect(upStreamComponentName, downStreamComponentName,
+				GlobalPartitioner.class);
+		log.info("Globalconnected: " + upStreamComponentName + " to "
+				+ downStreamComponentName);
 
 	}
 
@@ -396,9 +433,12 @@ public class JobGraphBuilder {
 	 * @param downStreamComponentName
 	 *            Name of the downstream component, that will receive the tuples
 	 */
-	public void shuffleConnect(String upStreamComponentName, String downStreamComponentName) {
-		connect(upStreamComponentName, downStreamComponentName, ShufflePartitioner.class);
-		log.info("Shuffleconnected: " + upStreamComponentName + " to " + downStreamComponentName);
+	public void shuffleConnect(String upStreamComponentName,
+			String downStreamComponentName) {
+		connect(upStreamComponentName, downStreamComponentName,
+				ShufflePartitioner.class);
+		log.info("Shuffleconnected: " + upStreamComponentName + " to "
+				+ downStreamComponentName);
 	}
 
 	/**
@@ -412,29 +452,40 @@ public class JobGraphBuilder {
 	 * @param PartitionerClass
 	 *            Class of the partitioner
 	 */
-	private void connect(String upStreamComponentName, String downStreamComponentName,
+	private void connect(String upStreamComponentName,
+			String downStreamComponentName,
 			Class<? extends ChannelSelector<StreamRecord>> PartitionerClass) {
 
-		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
-		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
+		AbstractJobVertex upStreamComponent = components
+				.get(upStreamComponentName);
+		AbstractJobVertex downStreamComponent = components
+				.get(downStreamComponentName);
 
-		addToEdges(upStreamComponentName, downStreamComponentName, PartitionerClass);
+		addToEdges(upStreamComponentName, downStreamComponentName,
+				PartitionerClass);
 
 		try {
-			upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK);
-			Configuration config = new TaskConfig(upStreamComponent.getConfiguration())
-					.getConfiguration();
+			upStreamComponent.connectTo(downStreamComponent,
+					ChannelType.NETWORK);
+			Configuration config = new TaskConfig(
+					upStreamComponent.getConfiguration()).getConfiguration();
 			config.setClass(
-					"partitionerClass_" + (upStreamComponent.getNumberOfForwardConnections() - 1),
+					"partitionerClass_"
+							+ (upStreamComponent
+									.getNumberOfForwardConnections() - 1),
 					PartitionerClass);
 			if (log.isDebugEnabled()) {
-				log.debug("CONNECTED: " + PartitionerClass.getSimpleName() + " - "
-						+ upStreamComponentName + " -> " + downStreamComponentName);
+				log.debug("CONNECTED: " + PartitionerClass.getSimpleName()
+						+ " - " + upStreamComponentName + " -> "
+						+ downStreamComponentName);
 			}
 		} catch (JobGraphDefinitionException e) {
 			if (log.isErrorEnabled()) {
-				log.error("Cannot connect components with " + PartitionerClass.getSimpleName()
-						+ " : " + upStreamComponentName + " -> " + downStreamComponentName, e);
+				log.error(
+						"Cannot connect components with "
+								+ PartitionerClass.getSimpleName() + " : "
+								+ upStreamComponentName + " -> "
+								+ downStreamComponentName, e);
 			}
 		}
 	}
@@ -451,7 +502,8 @@ public class JobGraphBuilder {
 		Configuration fromConfig = components.get(from).getConfiguration();
 		Configuration toConfig = components.get(to).getConfiguration();
 
-		toConfig.setString("operatorName", fromConfig.getString("operatorName", null));
+		toConfig.setString("operatorName",
+				fromConfig.getString("operatorName", null));
 		toConfig.setBytes("operator", fromConfig.getBytes("operator", null));
 
 	}
@@ -476,11 +528,13 @@ public class JobGraphBuilder {
 	 */
 	private void setAutomaticInstanceSharing() {
 
-		AbstractJobVertex maxParallelismVertex = components.get(maxParallelismVertexName);
+		AbstractJobVertex maxParallelismVertex = components
+				.get(maxParallelismVertexName);
 
 		for (String componentName : components.keySet()) {
 			if (componentName != maxParallelismVertexName) {
-				components.get(componentName).setVertexToShareInstancesWith(maxParallelismVertex);
+				components.get(componentName).setVertexToShareInstancesWith(
+						maxParallelismVertex);
 			}
 		}
 
@@ -516,9 +570,10 @@ public class JobGraphBuilder {
 			int i = 0;
 			for (Class<?> ctype : connectionTypes.get(componentName)) {
 				if (ctype.equals(FieldsPartitioner.class)) {
-					Configuration config = components.get(componentName).getConfiguration();
-					config.setInteger("numOfOutputs_" + i,
-							numberOfInstances.get(edgeList.get(componentName).get(i)));
+					Configuration config = components.get(componentName)
+							.getConfiguration();
+					config.setInteger("numOfOutputs_" + i, numberOfInstances
+							.get(edgeList.get(componentName).get(i)));
 				}
 				i++;
 			}

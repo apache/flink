@@ -21,7 +21,6 @@ import java.net.InetSocketAddress;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.JobWithJars;
 import eu.stratosphere.client.program.ProgramInvocationException;
@@ -29,19 +28,6 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 
-/**
- * An {@link StreamExecutionEnvironment} that sends programs 
- * to a cluster for execution. Note that all file paths used in the program must be accessible from the
- * cluster. The execution will use the cluster's default degree of parallelism, unless the parallelism is
- * set explicitly via {@link ExecutionEnvironment#setDegreeOfParallelism(int)}.
- * 
- * @param host The host name or address of the master (JobManager), where the program should be executed.
- * @param port The port of the master (JobManager), where the program should be executed. 
- * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
- *                 user-defined functions, user-defined input formats, or any libraries, those must be
- *                 provided in the JAR files.
- * @return A remote environment that executes the program on a cluster.
- */
 public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	private static final Log log = LogFactory.getLog(RemoteStreamEnvironment.class);
 
@@ -74,7 +60,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 				JobWithJars.checkJarFile(file);
 				jobGraph.addJar(new Path(file.getAbsolutePath()));
 			}
-			
+
 			Configuration configuration = jobGraph.getJobConfiguration();
 			Client client = new Client(new InetSocketAddress(host, port), configuration);
 
@@ -83,20 +69,12 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		} catch (IOException e) {
 			if (log.isErrorEnabled()) {
 				log.error(e.getMessage());
-				e.printStackTrace();
 			}
 		} catch (ProgramInvocationException e) {
 			if (log.isErrorEnabled()) {
 				log.error(e.getMessage());
-				e.printStackTrace();
 			}
 		}
-	}
-	
-	@Override
-	public String toString() {
-		return "Remote Environment (" + this.host + ":" + this.port + " - DOP = " + 
-				(getDegreeOfParallelism() == -1 ? "default" : getDegreeOfParallelism()) + ")";
 	}
 
 }
