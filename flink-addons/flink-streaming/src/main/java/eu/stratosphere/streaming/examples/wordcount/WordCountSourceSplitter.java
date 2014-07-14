@@ -59,6 +59,11 @@ public class WordCountSourceSplitter extends UserSourceInvokable {
 				e.printStackTrace();
 			}
 		}
+		
+		Thread.sleep(15000);
+		emit(outRecord);
+		Thread.sleep(15000);
+		emit(outRecord);
 
 	}
 

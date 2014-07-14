@@ -23,7 +23,7 @@ def readFiles(csv_dir):
             dataframes.append((fname.rstrip('.csv'),int(fname.rstrip('.csv').split('-')[-1])-1,pd.read_csv(os.path.join(csv_dir,fname),index_col='Time')))
     return dataframes
     
-def plotCounter(csv_dir, smooth=5):
+def plotCounter(csv_dir,name='', smooth=5):
     dataframes= readFiles(csv_dir)
         
     
@@ -38,22 +38,47 @@ def plotCounter(csv_dir, smooth=5):
     plt.figure(figsize=(12, 8), dpi=80)
     plt.title('Counter')
     
-    for dataframe in dataframes:
-        
-        m=markers[dataframe[1]%len(markers)]    
-          
-        dataframe[2].ix[:,0].plot(marker=m,markevery=10,markersize=10)
-    plt.legend([x[0] for x in dataframes])
+    if name=='':
     
-    plt.figure(figsize=(12, 8), dpi=80)
-    plt.title('dC/dT')
-
-    for dataframe in dataframes:
+        for dataframe in dataframes:
+            
+            m=markers[dataframe[1]%len(markers)]    
+              
+            dataframe[2].ix[:,0].plot(marker=m,markevery=10,markersize=10)
+        plt.legend([x[0] for x in dataframes])
         
-        m=markers[dataframe[1]%len(markers)]            
+        plt.figure(figsize=(12, 8), dpi=80)
+        plt.title('dC/dT')
+    
+        for dataframe in dataframes:
+            
+            m=markers[dataframe[1]%len(markers)]            
+            
+            pd.rolling_mean(dataframe[2].speed,smooth).plot(marker=m,markevery=10,markersize=10)
+        plt.legend([x[0] for x in dataframes])
+    else:
+        df2=[]
+        for dataframe in dataframes:
+            if name in dataframe[0]:
+                 df2.append(dataframe)
         
-        pd.rolling_mean(dataframe[2].speed,smooth).plot(marker=m,markevery=10,markersize=10)
-    plt.legend([x[0] for x in dataframes])
+        
+        for dataframe in df2:
+            
+            m=markers[dataframe[1]%len(markers)]    
+              
+            dataframe[2].ix[:,0].plot(marker=m,markevery=10,markersize=10)
+        plt.legend([x[0] for x in df2])
+        
+        plt.figure(figsize=(12, 8), dpi=80)
+        plt.title('dC/dT')
+    
+        for dataframe in df2:
+            
+            m=markers[dataframe[1]%len(markers)]            
+            
+            pd.rolling_mean(dataframe[2].speed,smooth).plot(marker=m,markevery=10,markersize=10)
+        plt.legend([x[0] for x in df2])
         
 def plotThroughput(csv_dir,taskname, smooth=5):
     dataframes= readFiles(csv_dir)
