@@ -19,13 +19,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import scala.Array;
 import eu.stratosphere.api.datastream.StreamExecutionEnvironment.ConnectionType;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.types.TypeInformation;
 
+//TODO:get batchsize from user -> put in config -> set in streamcomponenthelper for collector
+//TODO:batchReduce -> tuple iterator over tuplebatch, out tuple (reduce function)
 public class DataStream<T extends Tuple> {
 
 	private final StreamExecutionEnvironment context;

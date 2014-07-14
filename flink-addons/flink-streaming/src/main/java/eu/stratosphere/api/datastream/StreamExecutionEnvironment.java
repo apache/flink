@@ -18,22 +18,19 @@ package eu.stratosphere.api.datastream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.util.List;
 
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.nephele.io.InputChannelResult;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.api.StreamCollector;
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.ClusterUtil;
 import eu.stratosphere.util.Collector;
 
+//TODO: add file, elements, rmq source
+//TODO: figure out generic dummysink
 public class StreamExecutionEnvironment {
 	JobGraphBuilder jobGraphBuilder;
 
