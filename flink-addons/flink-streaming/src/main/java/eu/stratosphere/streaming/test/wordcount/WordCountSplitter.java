@@ -24,14 +24,15 @@ public class WordCountSplitter extends UserTaskInvokable {
 	private StringValue sentence = new StringValue("");
 	private String[] words = new String[0];
 	private StringValue wordValue = new StringValue("");
-
+	private Record outputRecord = new Record(wordValue);
+	
 	@Override
 	public void invoke(Record record) throws Exception {
 		record.getFieldInto(0, sentence);
 		words = sentence.getValue().split(" ");
 		for (CharSequence word : words) {
 			wordValue.setValue(word);
-			Record outputRecord = new Record(wordValue);
+			outputRecord.setField(0, wordValue);
 			emit(outputRecord);
 		}
 	}

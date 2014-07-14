@@ -21,10 +21,10 @@ public abstract class StreamInvokable {
 		this.emittedRecords = emittedRecords;
 	}
 
-	public final void emit(Record record) {		
-		StreamRecord streamRecord = new StreamRecord(record, channelID).setId();
+	public final void emit(Record record) {
 		for (RecordWriter<Record> output : outputs) {
 			try {
+				StreamRecord streamRecord = new StreamRecord(record, channelID).addId();
 				output.emit(streamRecord.getRecord());
 				emittedRecords.put(streamRecord.getId(), streamRecord);
 				

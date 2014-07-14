@@ -17,15 +17,14 @@ public final class StreamRecord {
 	}
 
 	public StreamRecord(Record record, String channelID) {
-		this(record);
-		record.addField(uid);
+		this.record = record.createCopy();
 		this.channelID = channelID;
 	}
 	
-	public StreamRecord setId() {
+	public StreamRecord addId() {
 		Random rnd = new Random();
 		uid.setValue(channelID + "-" + rnd.nextInt(1000));
-		record.setField(record.getNumFields() - 1, uid);
+		record.addField(uid);
 		return this;
 	}
 
