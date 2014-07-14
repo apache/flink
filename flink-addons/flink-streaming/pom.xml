@@ -5,13 +5,14 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>eu.stratosphere</groupId>
-	<version>0.5</version>
+	<version>0.2-SNAPSHOT</version>
 	<artifactId>stratosphere-streaming</artifactId>
 	<name>stratosphere-streaming</name>
 
 	<packaging>jar</packaging>
 
 	<properties>
+		<stratosphere.version>0.5</stratosphere.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
@@ -29,32 +30,32 @@
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-core</artifactId>
-            <version>${project.version}</version>
+            <version>${stratosphere.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-tests</artifactId>
-			<version>${project.version}</version>
+			<version>${stratosphere.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-compiler</artifactId>
-			<version>${project.version}</version>
+			<version>${stratosphere.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-runtime</artifactId>
-			<version>${project.version}</version>
+			<version>${stratosphere.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-clients</artifactId>
-			<version>${project.version}</version>
+			<version>${stratosphere.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-java</artifactId>
-			<version>${project.version}</version>
+			<version>${stratosphere.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
