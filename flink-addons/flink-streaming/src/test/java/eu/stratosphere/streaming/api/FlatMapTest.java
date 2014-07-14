@@ -1,3 +1,18 @@
+/***********************************************************************************************************************
+ *
+ * Copyright (C) 2010-2014 by the Stratosphere project (http://stratosphere.eu)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ **********************************************************************************************************************/
+
 package eu.stratosphere.streaming.api;
 
 import static org.junit.Assert.assertTrue;
@@ -9,6 +24,7 @@ import org.junit.Test;
 
 import eu.stratosphere.api.datastream.DataStream;
 import eu.stratosphere.api.datastream.SinkFunction;
+import eu.stratosphere.api.datastream.SourceFunction;
 import eu.stratosphere.api.datastream.StreamExecutionEnvironment;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
@@ -45,17 +61,28 @@ public class FlatMapTest {
 
 	}
 
+	public static final class MySource extends SourceFunction<Tuple1<String>> {
+
+		@Override
+		public void invoke(Collector<Tuple1<String>> collector) {
+			for (int i = 0; i < 5; i++) {
+				collector.collect(new Tuple1<String>("hi"));
+			}
+
+		}
+
+	}
+
 	@Test
 	public void test() throws Exception {
-		Tuple1<String> tup = new Tuple1<String>("asd");
 
 		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		DataStream<Tuple1<String>> dataStream0 = context.addDummySource();
+		DataStream<Tuple1<String>> dataStream0 = context.addSource(new MySource());
 
 		DataStream<Tuple1<String>> dataStream1 = context.addDummySource().connectWith(dataStream0)
 				.partitionBy(0).flatMap(new MyFlatMap()).broadcast().addSink(new MySink());
 
-		 context.execute();
+		context.execute();
 
 		JobGraphBuilder jgb = context.jobGB();
 

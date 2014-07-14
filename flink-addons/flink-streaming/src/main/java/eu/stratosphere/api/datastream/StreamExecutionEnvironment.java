@@ -46,7 +46,7 @@ public class StreamExecutionEnvironment {
 	private static class DummySource extends UserSourceInvokable<Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
-		public void invoke(Collector<Tuple1<String>> collector) throws Exception {
+		public void invoke(Collector<Tuple1<String>> collector) {
 
 			for (int i = 0; i < 10; i++) {
 				collector.collect(new Tuple1<String>("source"));
@@ -144,7 +144,7 @@ public class StreamExecutionEnvironment {
 
 		return returnStream;
 	}
-	
+
 	public static final class DummySink extends SinkFunction<Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
@@ -164,8 +164,7 @@ public class StreamExecutionEnvironment {
 		ClusterUtil.runOnMiniCluster(jobGraphBuilder.getJobGraph());
 	}
 
-	public <T extends Tuple> DataStream<T> addSource(DataStream<T> outputStream,
-			SourceFunction<T> sourceFunction) {
+	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction) {
 		DataStream<T> returnStream = new DataStream<T>(this);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -178,14 +177,12 @@ public class StreamExecutionEnvironment {
 			e.printStackTrace();
 		}
 
-		jobGraphBuilder.setSource("source", new SourceInvokable<T>(sourceFunction), "source",
+		jobGraphBuilder.setSource(returnStream.getId(), sourceFunction, "source",
 				baos.toByteArray());
-
-		connectGraph(outputStream.connectIDs, "source", outputStream.ctype, outputStream.cparam);
 
 		return returnStream;
 	}
-	
+
 	public DataStream<Tuple1<String>> addDummySource() {
 		DataStream<Tuple1<String>> returnStream = new DataStream<Tuple1<String>>(this);
 

@@ -75,10 +75,6 @@ public class DataStream<T extends Tuple> {
 		return this;
 	}
 
-	public DataStream<T> addSource(SourceFunction<T> sourceFunction) {
-		return context.addSource(this, sourceFunction);
-	}
-	
 	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper) {
 		return context.addFlatMapFunction(this, flatMapper);
 	}
