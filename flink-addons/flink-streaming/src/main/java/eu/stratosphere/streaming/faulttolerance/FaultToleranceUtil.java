@@ -15,6 +15,7 @@
 
 package eu.stratosphere.streaming.faulttolerance;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -37,22 +38,15 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
  */
 public class FaultToleranceUtil {
 
-	private static final Log log = LogFactory
-			.getLog(FaultToleranceUtil.class);
-	private long timeout = 10000;
-	private Long timeOfLastUpdate;
-	private Map<String, StreamRecord> recordBuffer;
-	private Map<String, Integer> ackCounter;
-	private Map<String, int[]> ackMap;
-	private SortedMap<Long, Set<String>> recordsByTime;
-	private Map<String, Long> recordTimestamps;
-	private int numberofOutputs;
+	private static final Log log = LogFactory.getLog(FaultToleranceUtil.class);
 
 	private List<RecordWriter<StreamRecord>> outputs;
-	private final String channelID;
+	private final String componentID;
 
 	private int numberOfChannels;
 	private int[] numberOfOutputChannels;
+
+	private FaultToleranceBuffer buffer;
 
 	/**
 	 * Creates fault tolerance buffer object for the given output channels and
@@ -60,178 +54,48 @@ public class FaultToleranceUtil {
 	 * 
 	 * @param outputs
 	 *            List of outputs
-	 * @param channelID
+	 * @param componentID
 	 *            ID of the task object that uses this buffer
 	 * @param numberOfChannels
 	 *            Number of output channels for the output components
 	 */
-	public FaultToleranceUtil(List<RecordWriter<StreamRecord>> outputs,
-			String channelID, int[] numberOfChannels) {
-		this.timeOfLastUpdate = System.currentTimeMillis();
+	public FaultToleranceUtil(List<RecordWriter<StreamRecord>> outputs, String componentID,
+			int[] numberOfChannels) {
 		this.outputs = outputs;
-		this.recordBuffer = new HashMap<String, StreamRecord>();
-		this.ackCounter = new HashMap<String, Integer>();
-		this.ackMap = new HashMap<String, int[]>();
+
 		this.numberOfOutputChannels = numberOfChannels;
+		this.componentID = componentID;
 
-		int totalChannels = 0;
+		this.buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, componentID);
 
-		for (int i : numberOfChannels)
-			totalChannels += i;
-		this.numberofOutputs = numberOfOutputChannels.length;
-		this.numberOfChannels = totalChannels;
-		this.channelID = channelID;
-		this.recordsByTime = new TreeMap<Long, Set<String>>();
-		this.recordTimestamps = new HashMap<String, Long>();
 	}
 
 	/**
 	 * Adds the record to the fault tolerance buffer. This record will be
 	 * monitored for acknowledgements and timeout.
+	 * 
+	 * @param streamRecord
+	 *            Record to add
 	 */
 	public void addRecord(StreamRecord streamRecord) {
-		String id = streamRecord.getId();
-		recordBuffer.put(id, streamRecord.copy());
-		ackCounter.put(id, numberOfChannels);
 
-		// TODO: remove comments for exactly once processing
-		// int[] ackCounts = new int[numberOfChannels + 1];
-		//
-		// for (int i = 0; i < numberOfOutputChannels.length; i++) {
-		// ackCounts[i + 1] = numberOfOutputChannels[i];
-		// }
-		//
-		// ackMap.put(id, ackCounts);
-		addTimestamp(id);
-		log.trace("Record added to buffer: " + id);
+		buffer.add(streamRecord);
+
 	}
 
-	/**
-	 * Checks for records that have timed out since the last check and fails
-	 * them.
-	 * 
-	 * @param currentTime
-	 *            Time when the check should be made, usually current system
-	 *            time.
-	 * @return Returns the list of the records that have timed out.
-	 */
-	public List<String> timeoutRecords(Long currentTime) {
-		if (timeOfLastUpdate + timeout < currentTime) {
-			log.trace("Updating record buffer");
-			List<String> timedOutRecords = new LinkedList<String>();
-			Map<Long, Set<String>> timedOut = recordsByTime.subMap(0L,
-					currentTime - timeout);
-
-			for (Set<String> recordSet : timedOut.values()) {
-				if (!recordSet.isEmpty()) {
-					for (String recordID : recordSet) {
-						timedOutRecords.add(recordID);
-					}
-				}
-			}
-
-			for (String recordID : timedOutRecords) {
-				failRecord(recordID);
-			}
-
-			timedOut.clear();
-
-			timeOfLastUpdate = currentTime;
-			return timedOutRecords;
-		}
-		return null;
-	}
-
-	/**
-	 * Stores time stamp for a record by recordID and also adds the record to a
-	 * map which maps a time stamp to the IDs of records that were emitted at
-	 * that time.
-	 * <p>
-	 * Later used for timeouts.
-	 * 
-	 * @param recordID
-	 *            ID of the record
-	 */
-	public void addTimestamp(String recordID) {
-		Long currentTime = System.currentTimeMillis();
-		recordTimestamps.put(recordID, currentTime);
-
-		Set<String> recordSet = recordsByTime.get(currentTime);
-
-		if (recordSet != null) {
-			recordSet.add(recordID);
-		} else {
-			recordSet = new HashSet<String>();
-			recordSet.add(recordID);
-			recordsByTime.put(currentTime, recordSet);
-		}
-	}
-
-	/**
-	 * Removes a StreamRecord by ID from the fault tolerance buffer, further
-	 * acks will have no effects for this record.
-	 * 
-	 * @param recordID
-	 *            The ID of the record that will be removed
-	 */
-	public StreamRecord removeRecord(String recordID) {
-		ackCounter.remove(recordID);
-		try {
-			recordsByTime.get(recordTimestamps.remove(recordID)).remove(
-					recordID);
-		} catch (Exception e) {
-			
-		}
-		log.trace("Record removed from buffer: " + recordID);
-		return recordBuffer.remove(recordID);
-	}
-	
-	
 	/**
 	 * Acknowledges the record of the given ID, if all the outputs have sent
 	 * acknowledgments, removes it from the buffer
 	 * 
 	 * @param recordID
 	 *            ID of the record that has been acknowledged
+	 * @param channel
+	 *            Number of channel to be acked
+	 * 
 	 */
 	// TODO: find a place to call timeoutRecords
-	public void ackRecord(String recordID) {
-		if (ackCounter.containsKey(recordID)) {
-			Integer ackCount = ackCounter.get(recordID) - 1;
-			if (ackCount == 0) {
-				removeRecord(recordID);
-			} else {
-				ackCounter.put(recordID, ackCount);
-			}
-		}
-	}
-
-	/**
-	 * Acknowledges the record of the given ID from one output, if all the
-	 * outputs have sent acknowledgments, removes it from the buffer
-	 * 
-	 * @param recordID
-	 *            ID of the record that has been acknowledged
-	 * 
-	 * @param output
-	 *            Number of the output channel that sent the ack
-	 */
-	public void ackRecord(String recordID, int output) {
-		if (ackMap.containsKey(recordID)) {
-			if (decreaseAckCounter(recordID, output)) {
-				removeRecord(recordID);
-			}
-		}
-	}
-
-	private boolean decreaseAckCounter(String recordID, int output) {
-		int[] acks = ackMap.get(recordID);
-		acks[output + 1]--;
-		if (acks[output + 1] == 0) {
-			acks[0]++;
-		}
-
-		return (acks[0] == numberofOutputs);
+	public void ackRecord(String recordID, int channel) {
+		buffer.ack(recordID, channel);
 	}
 
 	/**
@@ -240,26 +104,41 @@ public class FaultToleranceUtil {
 	 * 
 	 * @param recordID
 	 *            ID of the record that has been failed
+	 * @param channel
+	 *            Number of channel to be failed
 	 */
-	public String failRecord(String recordID) {
-		// Create new id to avoid double counting acks
-		StreamRecord newRecord = removeRecord(recordID).setId(channelID);
-		addRecord(newRecord);
-		reEmit(newRecord);
-		return newRecord.getId();
+	public void failRecord(String recordID, int channel) {
+		// if by ft type
+		if (true) {
+			failRecord(recordID);
+		} else {
+			StreamRecord failed = buffer.failChannel(recordID, channel);
+
+			if (failed != null) {
+				reEmit(failed, channel);
+
+			}
+		}
 	}
 
 	/**
-	 * Re-emits the failed record for the given ID to a specific output with a
-	 * new id
+	 * Re-emits the failed record for the given ID, removes the old record and
+	 * stores it with a new ID.
 	 * 
 	 * @param recordID
 	 *            ID of the record that has been failed
-	 * @param outputChannel
-	 *            Number of the output channel
+	 * @param channel
+	 *            Number of channel to be failed
 	 */
-	public void failRecord(String recordID, int outputChannel) {
-		// TODO: Implement functionality
+	public void failRecord(String recordID) {
+		StreamRecord failed = buffer.fail(recordID);
+
+		if (failed != null) {
+
+			reEmit(failed);
+
+		}
+
 	}
 
 	/**
@@ -292,7 +171,7 @@ public class FaultToleranceUtil {
 		{
 			try {
 				outputs.get(outputChannel).emit(record);
-				log.warn("RE-EMITTED: " + record.getId());
+				log.warn("RE-EMITTED: " + record.getId() + " " + outputChannel);
 			} catch (Exception e) {
 				log.error("RE-EMIT FAILED, avoiding record: " + record.getId());
 			}
@@ -300,40 +179,13 @@ public class FaultToleranceUtil {
 
 	}
 
-	public long getTimeout() {
-		return this.timeout;
-	}
-
-	public void setTimeout(long timeout) {
-		this.timeout = timeout;
-	}
-
-	public Map<String, StreamRecord> getRecordBuffer() {
-		return this.recordBuffer;
-	}
-
-	public Long getTimeOfLastUpdate() {
-		return this.timeOfLastUpdate;
-	}
-
-	public Map<String, Integer> getAckCounter() {
-		return this.ackCounter;
-	}
-
-	public SortedMap<Long, Set<String>> getRecordsByTime() {
-		return this.recordsByTime;
-	}
-
-	public Map<String, Long> getRecordTimestamps() {
-		return this.recordTimestamps;
-	}
 
 	public List<RecordWriter<StreamRecord>> getOutputs() {
 		return this.outputs;
 	}
 
 	public String getChannelID() {
-		return this.channelID;
+		return this.componentID;
 	}
 
 	public int getNumberOfOutputs() {
