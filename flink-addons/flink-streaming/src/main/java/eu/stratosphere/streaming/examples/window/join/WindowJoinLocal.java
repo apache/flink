@@ -38,17 +38,16 @@ public class WindowJoinLocal {
 
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
-		DataStream<Tuple4<String, String, Integer, Long>> dataStream1 = env.addSource(
+		DataStream<Tuple4<String, String, Integer, Long>> source1 = env.addSource(
 				new WindowJoinSourceOne(), SOURCE_PARALELISM);
 
-		DataStream<Tuple3<String, Integer, Integer>> dataStream2 = env
+		@SuppressWarnings("unused")
+		DataStream<Tuple3<String, Integer, Integer>> source2 = env
 				.addSource(new WindowJoinSourceTwo(), SOURCE_PARALELISM)
-				.connectWith(dataStream1)
+				.connectWith(source1)
 				.partitionBy(1)
 				.flatMap(new WindowJoinTask(), PARALELISM)
 				.addSink(new JoinSink());
-		
-		dataStream2.print();
 
 		env.execute();
 
