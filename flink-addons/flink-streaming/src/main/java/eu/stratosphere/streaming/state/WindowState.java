@@ -25,14 +25,14 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
  * compose time based window operator by extending this class by splitting the
  * stream into multiple mini batches.
  */
-public class SlidingWindowState<K> {
+public class WindowState<K> {
 	private int currentRecordCount;
 	private int fullRecordCount;
 	private int slideRecordCount;
 
 	CircularFifoBuffer buffer;
 
-	public SlidingWindowState(int windowSize, int slidingStep, int computeGranularity) {
+	public WindowState(int windowSize, int slidingStep, int computeGranularity) {
 		this.currentRecordCount = 0;
 		// here we assume that windowSize and slidingStep is divisible by
 		// computeGranularity.

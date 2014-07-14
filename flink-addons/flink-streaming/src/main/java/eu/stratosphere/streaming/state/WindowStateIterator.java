@@ -13,32 +13,21 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.join;
+package eu.stratosphere.streaming.state;
 
-import java.util.Random;
-
-import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class JoinSourceTwo extends UserSourceInvokable {
+public class WindowStateIterator<K>{
 
-	private static final long serialVersionUID = -5897483980082089771L;
-
-	private String[] names = { "tom", "jerry", "alice", "bob", "john", "grace",
-			"sasa", "lawrance", "andrew", "jean", "richard", "smith", "gorge",
-			"black", "peter" };
-	private Random rand = new Random();
-	private StreamRecord outRecord = new StreamRecord(
-			new Tuple3<String, String, String>());
-
-	@Override
-	public void invoke() throws Exception {
-		while (true) {
-			outRecord.setString(0, "grade");
-			outRecord.setString(1, names[rand.nextInt(names.length)]);
-			outRecord.setString(2, String.valueOf((char)(rand.nextInt(26)+'A')));
-			emit(outRecord);
-		}
+	public boolean hasNext() {
+		// TODO Auto-generated method stub
+		return false;
 	}
+
+	public Tuple2<K, StreamRecord> next() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 }
