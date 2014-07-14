@@ -26,37 +26,21 @@ import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
 
 public class BatchWordCountSource extends UserSourceInvokable {
-	private BufferedReader br = null;
-	private String line;
+	private final String motto = "Gyuszi Gabor Big Marci Gyuszi";
 	private long timestamp;
-	private StreamRecord hamletRecords = new StreamRecord(2);
-
-	public BatchWordCountSource() {
-		try {
-			br = new BufferedReader(
-					new FileReader(
-							"src/main/java/eu/stratosphere/streaming/test/batch/wordcount/hamlet.txt"));
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
+	private StreamRecord mottoRecords = new StreamRecord(2);
 
 	@Override
 	public void invoke() throws Exception {
-		line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
 		timestamp = 0;
-		while (line != null) {
-			if (line != "") {
-				AtomRecord hamletRecord = new AtomRecord(2);
-				hamletRecord.setField(0, new StringValue(line));
-				hamletRecord.setField(1, new LongValue(timestamp));
-				hamletRecords.addRecord(hamletRecord);
-				++timestamp;
-				if(timestamp%10==0){
-					emit(hamletRecords);
-				}
-				line = br.readLine();
+		for (int i = 0; i < 100; ++i) {
+			AtomRecord mottoRecord = new AtomRecord(2);
+			mottoRecord.setField(0, new StringValue(motto));
+			mottoRecord.setField(1, new LongValue(timestamp));
+			mottoRecords.addRecord(mottoRecord);
+			++timestamp;
+			if (timestamp % 10 == 0) {
+				emit(mottoRecords);
 			}
 		}
 	}
