@@ -15,13 +15,27 @@
 
 package eu.stratosphere.api.datastream;
 
-import eu.stratosphere.types.TypeInformation;
+import eu.stratosphere.api.java.functions.MapFunction;
+import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.streaming.api.StreamCollector;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public abstract class SingleStreamInputOperator<IN, OUT, O extends SingleStreamInputOperator<IN, OUT, O>> extends StreamOperator<OUT, O> {
+public class MapInvokable<T extends Tuple, R extends Tuple> extends UserTaskInvokable<T, R> {
+	private static final long serialVersionUID = 1L;
 
-	protected SingleStreamInputOperator(StreamExecutionEnvironment context,
-			TypeInformation<OUT> type) {
-		super(context, type);
+	private MapFunction<T, R> mapper;
+	public MapInvokable(MapFunction<T, R> mapper) {
+		this.mapper = mapper;
 	}
-
+	
+	@Override
+	public void invoke(StreamRecord record, StreamCollector<R> collector) throws Exception {
+		int batchSize = record.getBatchSize();
+		for (int i = 0; i < batchSize; i++) {
+			@SuppressWarnings("unchecked")
+			T tuple = (T) record.getTuple(i);
+			collector.collect(mapper.map(tuple));
+		}
+	}		
 }
