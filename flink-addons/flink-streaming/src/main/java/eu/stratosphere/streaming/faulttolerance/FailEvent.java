@@ -41,6 +41,10 @@ public class FailEvent extends AbstractTaskEvent {
 		setRecordId(recordId);
 	}
 
+	public FailEvent() {
+		this.recordId = "";
+	}
+
 	@Override
 	public void write(DataOutput out) throws IOException {
 		StringValue recordIdValue = new StringValue(recordId);

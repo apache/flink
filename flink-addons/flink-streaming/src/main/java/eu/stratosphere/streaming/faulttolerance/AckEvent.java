@@ -40,6 +40,10 @@ public class AckEvent extends AbstractTaskEvent {
 		setRecordId(recordId);
 	}
 
+	public AckEvent() {
+		this.recordId = "";
+	}
+
 	@Override
 	public void write(DataOutput out) throws IOException {
 		StringValue recordIdValue = new StringValue(recordId);
