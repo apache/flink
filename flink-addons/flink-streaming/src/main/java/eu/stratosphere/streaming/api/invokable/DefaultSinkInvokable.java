@@ -19,7 +19,10 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.types.StringValue;
 
 public class DefaultSinkInvokable extends UserSinkInvokable {
-  @Override
+
+	private static final long serialVersionUID = 1L;
+
+@Override
   public void invoke(StreamRecord record) throws Exception {
     StringValue value = (StringValue) record.getField(0, 0);
     System.out.println(value.getValue());

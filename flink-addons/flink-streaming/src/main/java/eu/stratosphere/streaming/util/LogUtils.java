@@ -29,6 +29,7 @@ public class LogUtils {
 	public static void initializeDefaultConsoleLogger(Level logLevel, Level rootLevel) {
 		Logger logger = Logger.getLogger("eu.stratosphere.streaming");
 		logger.removeAllAppenders();
+		logger.setAdditivity(false);
 		PatternLayout layout = new PatternLayout();
 		//layout.setConversionPattern("%highlight{%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n}");
 		//TODO Add highlight
