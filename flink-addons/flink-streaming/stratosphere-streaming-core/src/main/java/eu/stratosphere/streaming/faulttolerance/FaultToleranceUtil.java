@@ -23,8 +23,6 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.UID;
-import eu.stratosphere.streaming.util.PerformanceCounter;
-import eu.stratosphere.streaming.util.PerformanceTracker;
 
 /**
  * An object to provide fault tolerance for Stratosphere stream processing. It
@@ -42,8 +40,6 @@ public class FaultToleranceUtil {
 
 	private FaultToleranceBuffer buffer;
 	public FaultToleranceType type;
-	public PerformanceTracker tracker;
-	public PerformanceCounter counter;
 
 	public FaultToleranceUtil(FaultToleranceType type, List<RecordWriter<StreamRecord>> outputs,
 			int sourceInstanceID, int[] numberOfChannels) {
@@ -63,11 +59,6 @@ public class FaultToleranceUtil {
 			this.buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, sourceInstanceID);
 		}
 
-		tracker = new PerformanceTracker("pc", 1000, 1000, 30000,
-				"/home/strato/stratosphere-distrib/log/counter/Buffer" + sourceInstanceID);
-		counter = new PerformanceCounter("pc", 1000, 1000, 30000,
-				"/home/strato/stratosphere-distrib/log/counter/Emitted" + sourceInstanceID);
-
 	}
 
 	public FaultToleranceUtil(FaultToleranceType type, List<RecordWriter<StreamRecord>> outputs,
@@ -85,12 +76,6 @@ public class FaultToleranceUtil {
 			break;
 		}
 
-		tracker = new PerformanceTracker("pc", 1000, 1000, 10000,
-				"/home/strato/stratosphere-distrib/log/counter/Buffer" + componentName
-						+ sourceInstanceID);
-		counter = new PerformanceCounter("pc", 1000, 1000, 10000,
-				"/home/strato/stratosphere-distrib/log/counter/Emitted" + componentName
-						+ sourceInstanceID);
 	}
 
 	/**
@@ -103,8 +88,6 @@ public class FaultToleranceUtil {
 	public void addRecord(StreamRecord streamRecord) {
 
 		buffer.add(streamRecord);
-		tracker.track(this.buffer.recordBuffer.size());
-		counter.count();
 	}
 
 	public void addRecord(StreamRecord streamRecord, int output) {
@@ -126,7 +109,6 @@ public class FaultToleranceUtil {
 	// TODO: find a place to call timeoutRecords
 	public void ackRecord(UID recordID, int channel) {
 		buffer.ack(recordID, channel);
-		tracker.track(this.buffer.recordBuffer.size());
 	}
 
 	/**
