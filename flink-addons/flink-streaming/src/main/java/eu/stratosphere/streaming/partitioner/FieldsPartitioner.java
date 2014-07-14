@@ -23,25 +23,29 @@ import eu.stratosphere.types.Key;
 public class FieldsPartitioner implements ChannelSelector<StreamRecord> {
 
 	private int keyPosition;
-	private Class<? extends Key> keyClass;
+//	private Class<? extends Key> keyClass;
 
 	public FieldsPartitioner(int keyPosition, Class<? extends Key> keyClass) {
 		this.keyPosition = keyPosition;
-		this.keyClass = keyClass;
+//		this.keyClass = keyClass;
 	}
 
 	@Override
 	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
-		Key key = null;
-		try {
-			key = keyClass.newInstance();
-		} catch (InstantiationException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		}
+		//TODO:fix this
+//		Key key = null;
+//		try {
+//			key = keyClass.newInstance();
+//		} catch (InstantiationException e) {
+//			e.printStackTrace();
+//		} catch (IllegalAccessException e) {
+//			e.printStackTrace();
+//		}
 		// TODO: consider hash partition the whole record batch.
-		key = keyClass.cast(record.getField(0, keyPosition));
-		return new int[] { Math.abs(key.hashCode()) % numberOfOutputChannels };
+		
+//
+//		}
+//		key = keyClass.cast(record.getField(0, keyPosition));
+		return new int[] { Math.abs(record.getField(0, keyPosition).hashCode()) % numberOfOutputChannels };
 	}
 }

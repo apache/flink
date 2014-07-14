@@ -58,6 +58,13 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	public StreamRecord() {
 	}
 
+	public StreamRecord(int numOfFields) {
+		this.numOfFields = numOfFields;
+		this.numOfRecords = 0;
+		recordBatch = new ArrayList<Tuple>();
+
+	}
+
 	/**
 	 * Creates a new empty batch of records and sets the field number to the
 	 * given number, and the number of records to the given number. Setting
@@ -155,7 +162,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchFieldException());
 		}
 	}
-	
+
 	public String getString(int fieldNumber) {
 		try {
 			return (String) recordBatch.get(0).getField(fieldNumber);
@@ -163,7 +170,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchFieldException());
 		}
 	}
-	
+
 	public Integer getInteger(int fieldNumber) {
 		try {
 			return (Integer) recordBatch.get(0).getField(fieldNumber);
@@ -171,7 +178,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchFieldException());
 		}
 	}
-	
+
 	public Long getLong(int fieldNumber) {
 		try {
 			return (Long) recordBatch.get(0).getField(fieldNumber);
@@ -179,7 +186,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchFieldException());
 		}
 	}
-	
+
 	public Boolean getBoolean(int fieldNumber) {
 		try {
 			return (Boolean) recordBatch.get(0).getField(fieldNumber);
@@ -187,7 +194,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchFieldException());
 		}
 	}
-	
+
 	public Double getDouble(int fieldNumber) {
 		try {
 			return (Double) recordBatch.get(0).getField(fieldNumber);
@@ -195,7 +202,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchFieldException());
 		}
 	}
-	
+
 	public String getString(int recordNumber, int fieldNumber) {
 		try {
 			return (String) recordBatch.get(recordNumber).getField(fieldNumber);
@@ -203,7 +210,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchFieldException());
 		}
 	}
-	
+
 	public Integer getInteger(int recordNumber, int fieldNumber) {
 		try {
 			return (Integer) recordBatch.get(recordNumber).getField(fieldNumber);
@@ -211,7 +218,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchFieldException());
 		}
 	}
-	
+
 	public Long getLong(int recordNumber, int fieldNumber) {
 		try {
 			return (Long) recordBatch.get(recordNumber).getField(fieldNumber);
@@ -219,7 +226,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchFieldException());
 		}
 	}
-	
+
 	public Boolean getBoolean(int recordNumber, int fieldNumber) {
 		try {
 			return (Boolean) recordBatch.get(recordNumber).getField(fieldNumber);
@@ -227,7 +234,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchFieldException());
 		}
 	}
-	
+
 	public Double getDouble(int recordNumber, int fieldNumber) {
 		try {
 			return (Double) recordBatch.get(recordNumber).getField(fieldNumber);
@@ -235,7 +242,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchFieldException());
 		}
 	}
-	
 
 	/**
 	 * Sets a field in the given position of a specific record in the batch
@@ -254,7 +260,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchRecordException());
 		}
 	}
-	
+
 	public void setString(int recordNumber, int fieldNumber, String o) {
 		try {
 			recordBatch.get(recordNumber).setField(o, fieldNumber);
@@ -262,7 +268,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchRecordException());
 		}
 	}
-	
+
 	public void setInteger(int recordNumber, int fieldNumber, Integer o) {
 		try {
 			recordBatch.get(recordNumber).setField(o, fieldNumber);
@@ -270,7 +276,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchRecordException());
 		}
 	}
-	
+
 	public void setLong(int recordNumber, int fieldNumber, Long o) {
 		try {
 			recordBatch.get(recordNumber).setField(o, fieldNumber);
@@ -278,7 +284,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchRecordException());
 		}
 	}
-	
+
 	public void setDouble(int recordNumber, int fieldNumber, Double o) {
 		try {
 			recordBatch.get(recordNumber).setField(o, fieldNumber);
@@ -286,7 +292,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchRecordException());
 		}
 	}
-	
+
 	public void setBoolean(int recordNumber, int fieldNumber, Boolean o) {
 		try {
 			recordBatch.get(recordNumber).setField(o, fieldNumber);
@@ -294,7 +300,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchRecordException());
 		}
 	}
-	
+
 	public void setString(int fieldNumber, String o) {
 		try {
 			recordBatch.get(0).setField(o, fieldNumber);
@@ -302,7 +308,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchRecordException());
 		}
 	}
-	
+
 	public void setInteger(int fieldNumber, Integer o) {
 		try {
 			recordBatch.get(0).setField(o, fieldNumber);
@@ -310,7 +316,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchRecordException());
 		}
 	}
-	
+
 	public void setLong(int fieldNumber, Long o) {
 		try {
 			recordBatch.get(0).setField(o, fieldNumber);
@@ -318,7 +324,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchRecordException());
 		}
 	}
-	
+
 	public void setDouble(int fieldNumber, Double o) {
 		try {
 			recordBatch.get(0).setField(o, fieldNumber);
@@ -326,7 +332,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchRecordException());
 		}
 	}
-	
+
 	public void setBoolean(int fieldNumber, Boolean o) {
 		try {
 			recordBatch.get(0).setField(o, fieldNumber);
@@ -334,7 +340,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchRecordException());
 		}
 	}
-
 
 	/**
 	 * Sets a field in the given position of the first record in the batch
@@ -371,13 +376,13 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	public Tuple getRecord() {
 		return getRecord(0);
 	}
-	
-	public void getTupleInto(Tuple tuple){
-		
+
+	public void getTupleInto(Tuple tuple) {
+
 		if (tuple.getArity() == numOfFields) {
 			try {
 				Tuple source = recordBatch.get(0);
-				for(int i=0;i<numOfFields;i++){
+				for (int i = 0; i < numOfFields; i++) {
 					tuple.setField(source.getField(i), i);
 				}
 			} catch (IndexOutOfBoundsException e) {
@@ -386,7 +391,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		} else {
 			throw (new RecordSizeMismatchException());
 		}
-		
+
 	}
 
 	/**
@@ -454,11 +459,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 
 		ByteArrayOutputStream buff = new ByteArrayOutputStream();
 		DataOutputStream out = new DataOutputStream(buff);
-		StreamRecord newRecord = new StreamRecord(); 
+		StreamRecord newRecord = new StreamRecord();
 		try {
 			this.write(out);
 			DataInputStream in = new DataInputStream(new ByteArrayInputStream(buff.toByteArray()));
-			
+
 			newRecord.read(in);
 		} catch (Exception e) {
 		}
@@ -467,11 +472,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	private void writeTuple(Tuple tuple, DataOutput out) {
-		
+
 		Class[] basicTypes = new Class[tuple.getArity()];
 		StringBuilder basicTypeNames = new StringBuilder();
 
-		//TODO: exception for empty record - no getField!
+		// TODO: exception for empty record - no getField!
 		for (int i = 0; i < basicTypes.length; i++) {
 			basicTypes[i] = tuple.getField(i).getClass();
 			basicTypeNames.append(basicTypes[i].getName() + ",");
