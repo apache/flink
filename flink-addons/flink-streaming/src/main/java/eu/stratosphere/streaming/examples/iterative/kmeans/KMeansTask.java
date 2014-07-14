@@ -13,22 +13,30 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.iterative;
+package eu.stratosphere.streaming.examples.iterative.kmeans;
 
-
+import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class IterativeStateHolder extends UserTaskInvokable {
+public class KMeansTask extends UserTaskInvokable {
 
-	private static final long serialVersionUID = -3042489460184024483L;
-
-	public IterativeStateHolder() {
+	private static final long serialVersionUID = 1L;
+	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
+	private double[] point=null;
+	public KMeansTask(int dimension){
+		point = new double[dimension];
 	}
-
+	
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
 		// TODO Auto-generated method stub
-
+		String[] pointStr = record.getString(0, 0).split(" ");
+		for(int i=0; i<pointStr.length; ++i){
+			point[i]=Double.valueOf(pointStr[i]);
+		}
+		outRecord.setString(0, record.getString(0, 0));
+		emit(outRecord);
 	}
+
 }

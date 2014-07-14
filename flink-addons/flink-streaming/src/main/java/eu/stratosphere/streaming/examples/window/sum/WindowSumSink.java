@@ -15,21 +15,15 @@
 
 package eu.stratosphere.streaming.examples.window.sum;
 
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.streaming.api.SinkFunction;
 
-public class WindowSumSink extends UserSinkInvokable {
+public class WindowSumSink extends SinkFunction<Tuple2<Integer, Long>> {
 	private static final long serialVersionUID = 1L;
 	
-	private Integer sum = 0;
-	private long timestamp = 0;
-
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
-		sum = record.getInteger(0);
-		timestamp = record.getLong(1);
-		System.out.println("============================================");
-		System.out.println(sum + " " + timestamp);
-		System.out.println("============================================");
+	public void invoke(Tuple2<Integer, Long> inTuple) {
+		// TODO Auto-generated method stub
+		System.out.println(inTuple);
 	}
 }

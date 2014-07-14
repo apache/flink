@@ -13,18 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.iterative;
+package eu.stratosphere.streaming.examples.iterative.collaborativefilter;
 
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class IterativeSource extends UserSourceInvokable {
-
-	private static final long serialVersionUID = 8983174839600079890L;
+public class CollaborativeFilteringSink extends UserSinkInvokable {
+	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void invoke() throws Exception {
+	public void invoke(StreamRecord record) throws Exception {
 		// TODO Auto-generated method stub
-		
+		System.out.println("received record...");
+		int tupleNum = record.getNumOfTuples();
+		System.out.println("============================================");
+		for (int i = 0; i < tupleNum; ++i) {
+			System.out.println("name=" + record.getField(i, 0) + ", grade="
+					+ record.getField(i, 1) + ", salary="
+					+ record.getField(i, 2));
+		}
+		System.out.println("============================================");		
 	}
-
 }

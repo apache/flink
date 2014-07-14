@@ -16,23 +16,23 @@
 package eu.stratosphere.streaming.examples.window.sum;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.util.Collector;
 
-public class WindowSumSource extends UserSourceInvokable {
+public class WindowSumSource extends SourceFunction<Tuple2<Integer, Long>> {
 	private static final long serialVersionUID = 1L;
 	
-	private StreamRecord outRecord = new StreamRecord(
-			new Tuple2<Integer, Long>());
+	private Tuple2<Integer, Long> outRecord = new Tuple2<Integer, Long>();
 	private Long timestamp = 0L;
 
 	@Override
-	public void invoke() throws Exception {
+	public void invoke(Collector<Tuple2<Integer, Long>> collector) throws Exception {
+		// TODO Auto-generated method stub
 		for (int i = 0; i < 1000; ++i) {
-			outRecord.setInteger(0, i);
-			outRecord.setLong(1, timestamp);
+			outRecord.f0 = i;
+			outRecord.f1 = timestamp;
+			collector.collect(outRecord);
 			timestamp++;
-			emit(outRecord);
-		}
+		}		
 	}
 }

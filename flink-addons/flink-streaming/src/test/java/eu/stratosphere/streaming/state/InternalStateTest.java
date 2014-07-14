@@ -18,7 +18,6 @@ package eu.stratosphere.streaming.state;
 import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.state.LogTableState;
 import eu.stratosphere.streaming.state.MutableTableState;
 import eu.stratosphere.streaming.state.TableStateIterator;
 import eu.stratosphere.streaming.state.SlidingWindowState;
@@ -28,34 +27,6 @@ public class InternalStateTest {
 	@Test
 	public void MutableTableStateTest(){
 		MutableTableState<String, String> state=new MutableTableState<String, String>();
-		state.put("abc", "hello");
-		state.put("test", "world");
-		state.put("state", "mutable");
-		state.put("streaming", "persist");
-		String s=state.get("streaming");
-		if(s==null){
-			System.out.println("key does not exist!");
-		}
-		else{
-			System.out.println("value="+s);
-		}
-		s=state.get("null");
-		if(s==null){
-			System.out.println("key does not exist!");
-		}
-		else{
-			System.out.println("value="+s);
-		}
-		TableStateIterator<String, String> iterator=state.getIterator();
-		while(iterator.hasNext()){
-			Tuple2<String, String> tuple=iterator.next();
-			System.out.println(tuple.getField(0)+", "+tuple.getField(1));
-		}
-	}
-	
-	@Test
-	public void LogTableStateTest(){
-		LogTableState<String, String> state=new LogTableState<String, String>();
 		state.put("abc", "hello");
 		state.put("test", "world");
 		state.put("state", "mutable");

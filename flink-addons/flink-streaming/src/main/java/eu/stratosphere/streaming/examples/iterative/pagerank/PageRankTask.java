@@ -13,23 +13,27 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.sum;
+package eu.stratosphere.streaming.examples.iterative.pagerank;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.DataStream;
-import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WindowSumLocal {
+public class PageRankTask extends UserTaskInvokable {
+
+	private static final long serialVersionUID = 1L;
+	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
+	private Graph linkGraph = new Graph();
 	
-	public static void main(String[] args) {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		@SuppressWarnings("unused")
-		DataStream<Tuple2<Integer, Long>> dataStream = context
-				.addSource(new WindowSumSource())
-				.map(new WindowSumMultiple())
-				.flatMap(new WindowSumAggregate())
-				.addSink(new WindowSumSink());
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
+		// TODO Auto-generated method stub
+		Integer sourceNode = record.getInteger(0, 0);
+		Integer targetNode = record.getInteger(0, 1);
+		// set the input graph.
+		linkGraph.insertDirectedEdge(sourceNode, targetNode);
 		
-		context.execute();
+		//outRecord.setString(0, line);
 	}
+
 }

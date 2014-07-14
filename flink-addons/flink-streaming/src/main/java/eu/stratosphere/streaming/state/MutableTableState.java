@@ -15,13 +15,14 @@
 
 package eu.stratosphere.streaming.state;
 
+import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * The most general internal state that stores data in a mutable map.
  */
-public class MutableTableState<K, V> implements TableState<K, V> {
+public class MutableTableState<K, V> implements TableState<K, V>, Serializable {
 
 	private Map<K, V> state=new LinkedHashMap<K, V>();
 	@Override

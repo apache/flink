@@ -13,28 +13,40 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.wordcount;
+package eu.stratosphere.streaming.examples.iterative.pagerank;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.util.Collector;
-import eu.stratosphere.api.java.functions.FlatMapFunction;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WindowWordCountSplitter extends FlatMapFunction<Tuple2<String, Long>, Tuple2<String, Long>> {
+public class PageRankSource extends UserSourceInvokable {
 	private static final long serialVersionUID = 1L;
 	
-	private String[] words = new String[] {};
-	private Long timestamp = 0L;
-	private Tuple2<String, Long> outTuple = new Tuple2<String, Long>();
-
+	private BufferedReader br = null;
+	private StreamRecord outRecord = new StreamRecord(new Tuple2<Integer, Integer>());
+	
 	@Override
-	public void flatMap(Tuple2<String, Long> inTuple, Collector<Tuple2<String, Long>> out) throws Exception {
-
-		words=inTuple.f0.split(" ");
-		timestamp=inTuple.f1;
-		for(String word : words){
-			outTuple.f0 = word;
-			outTuple.f1 = timestamp;
-			out.collect(outTuple);
+	public void invoke() throws Exception {
+		// TODO Auto-generated method stub
+		br = new BufferedReader(new FileReader(
+				"src/test/resources/testdata/ASTopology.data"));
+		while (true) {
+			String line = br.readLine();
+			if (line == null) {
+				break;
+			}
+			if (line != "") {
+				String[] link=line.split(":");
+				outRecord.setInteger(0, Integer.valueOf(link[0]));
+				outRecord.setInteger(0, Integer.valueOf(link[1]));
+				emit(outRecord);
+				performanceCounter.count();
+			}
+			line = br.readLine();
 		}
 	}
+
 }

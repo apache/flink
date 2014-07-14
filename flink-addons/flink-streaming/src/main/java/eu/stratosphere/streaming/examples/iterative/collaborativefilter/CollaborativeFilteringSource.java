@@ -13,38 +13,42 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.wordcount;
+package eu.stratosphere.streaming.examples.iterative.collaborativefilter;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.SourceFunction;
-import eu.stratosphere.util.Collector;
+import eu.stratosphere.api.java.tuple.Tuple3;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WindowWordCountSource extends SourceFunction<Tuple2<String, Long>> {
+public class CollaborativeFilteringSource extends UserSourceInvokable {
 	private static final long serialVersionUID = 1L;
 	
-	private String line = "";
-	private Tuple2<String, Long> outRecord = new Tuple2<String, Long>();
-	private Long timestamp = 0L;
-
+	private BufferedReader br = null;
+	private String line = new String();
+	private StreamRecord outRecord = new StreamRecord(new Tuple3<Integer, Integer, Integer>());
+	
 	@Override
-	public void invoke(Collector<Tuple2<String, Long>> collector) throws Exception {
+	public void invoke() throws Exception {
 		// TODO Auto-generated method stub
-		BufferedReader br = new BufferedReader(new FileReader("src/test/resources/testdata/hamlet.txt"));
-		while(true){
+		br = new BufferedReader(new FileReader(
+				"src/test/resources/testdata/MovieLens100k.data"));
+		while (true) {
 			line = br.readLine();
-			if(line==null){
+			if (line == null) {
 				break;
 			}
 			if (line != "") {
-				line=line.replaceAll("[\\-\\+\\.\\^:,]", "");
-				outRecord.f0 = line;
-				outRecord.f1 = timestamp;
-				collector.collect(outRecord);
-				timestamp++;
+				String[] items=line.split("\t");
+				outRecord.setInteger(0, Integer.valueOf(items[0]));
+				outRecord.setInteger(1, Integer.valueOf(items[1]));
+				outRecord.setInteger(2, Integer.valueOf(items[2]));
+				emit(outRecord);
+				performanceCounter.count();
 			}
+			line = br.readLine();
 		}		
 	}
+
 }

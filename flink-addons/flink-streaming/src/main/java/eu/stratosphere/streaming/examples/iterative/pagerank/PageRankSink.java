@@ -13,16 +13,17 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.join;
+package eu.stratosphere.streaming.examples.iterative.pagerank;
 
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WindowJoinSink extends UserSinkInvokable {
+public class PageRankSink extends UserSinkInvokable {
 	private static final long serialVersionUID = 1L;
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
+		// TODO Auto-generated method stub
 		System.out.println("received record...");
 		int tupleNum = record.getNumOfTuples();
 		System.out.println("============================================");
@@ -31,6 +32,6 @@ public class WindowJoinSink extends UserSinkInvokable {
 					+ record.getField(i, 1) + ", salary="
 					+ record.getField(i, 2));
 		}
-		System.out.println("============================================");
+		System.out.println("============================================");		
 	}
 }
