@@ -12,10 +12,25 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.streaming.api.streamrecord;
 
-public class FieldTypeMismatchException extends StreamRecordException{
+package eu.stratosphere.streaming.state.manager;
+
+import java.util.LinkedList;
+
+import eu.stratosphere.streaming.state.TableState;
+
+public class StateCheckpointer {
+
+	private LinkedList<TableState> stateList = new LinkedList<TableState>();
 	
-	private static final long serialVersionUID = 591915105653934643L;
-
+	public void RegisterState(TableState state){
+		stateList.add(state);
+	}
+	
+	public void CheckpointStates(){
+		for(TableState state: stateList){
+			//take snapshot of every registered state.
+			
+		}		
+	}
 }

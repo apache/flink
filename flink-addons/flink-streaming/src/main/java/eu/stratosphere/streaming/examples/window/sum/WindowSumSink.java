@@ -13,27 +13,22 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.faulttolerance;
+package eu.stratosphere.streaming.examples.window.sum;
 
-import java.util.HashMap;
-import java.util.Map;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public enum FaultToleranceType {
-	NONE(0), AT_LEAST_ONCE(1), EXACTLY_ONCE(2);
+public class WindowSumSink extends UserSinkInvokable {
 
-	public final int id;
+	private Integer sum = 0;
+	private long timestamp = 0;
 
-	FaultToleranceType(int id) {
-		this.id = id;
-	}
-
-	private static final Map<Integer, FaultToleranceType> map = new HashMap<Integer, FaultToleranceType>();
-	static {
-		for (FaultToleranceType type : FaultToleranceType.values())
-			map.put(type.id, type);
-	}
-
-	public static FaultToleranceType from(int id) {
-		return map.get(id);
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
+		sum = record.getInteger(0);
+		timestamp = record.getLong(1);
+		System.out.println("============================================");
+		System.out.println(sum + " " + timestamp);
+		System.out.println("============================================");
 	}
 }

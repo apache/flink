@@ -28,7 +28,6 @@ import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.LogUtils;
 
 public class BasicTopology {
@@ -70,7 +69,7 @@ public class BasicTopology {
 	}
 
 	private static JobGraph getJobGraph() throws Exception {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("BasicStreamingTopology", FaultToleranceType.NONE);
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("BasicStreamingTopology");
 		graphBuilder.setSource("BasicSource", BasicSource.class, 1, 1);
 		graphBuilder.setTask("BasicTask", BasicTask.class, 1, 1);
 		graphBuilder.setSink("BasicSink", BasicSink.class, 1, 1);
