@@ -24,7 +24,7 @@ public class JobGraphBuilder {
 	public JobGraphBuilder(String jobGraphName) {
    
 	  jobGraph = new JobGraph(jobGraphName);
-	  components=new HashMap<String, AbstractJobVertex>();
+	  components = new HashMap<String, AbstractJobVertex>();
   }
 	
 	//TODO: Add source parallelism 
@@ -44,28 +44,28 @@ public class JobGraphBuilder {
     components.put(taskName, task);
   }
 	
-public void setSink(String sinkName, final Class<? extends AbstractOutputTask> sinkClass) {    
+  public void setSink(String sinkName, final Class<? extends AbstractOutputTask> sinkClass) {    
+      
+      final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
+      sink.setOutputClass(sinkClass);
+      components.put(sinkName, sink);
+    }
+  
+  
+  public void connect(String upStreamComponentName, String downStreamComponentName, ChannelType channelType) {
     
-    final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
-    sink.setOutputClass(sinkClass);
-    components.put(sinkName, sink);
-  }
-
-
-public void connect(String upStreamComponentName, String downStreamComponentName, ChannelType channelType) {
-  
-  AbstractJobVertex upStreamComponent=null;
-  AbstractJobVertex downStreamComponent=null;
-  
-  upStreamComponent = components.get(upStreamComponentName);
-  downStreamComponent = components.get(downStreamComponentName);
-  
-  try {
-    upStreamComponent.connectTo(downStreamComponent, channelType);
-  }
-  catch (JobGraphDefinitionException e) {
-    e.printStackTrace();
-  }
+    AbstractJobVertex upStreamComponent=null;
+    AbstractJobVertex downStreamComponent=null;
+    
+    upStreamComponent = components.get(upStreamComponentName);
+    downStreamComponent = components.get(downStreamComponentName);
+    
+    try {
+      upStreamComponent.connectTo(downStreamComponent, channelType);
+    }
+    catch (JobGraphDefinitionException e) {
+      e.printStackTrace();
+    }
 }
 
 

@@ -1,14 +1,19 @@
 package eu.stratosphere.streaming;
 
 import eu.stratosphere.streaming.cellinfo.WorkerEngineExact;
+import eu.stratosphere.configuration.Configuration;
+
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.util.Random;
 
+import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.InputSplit;
 import eu.stratosphere.core.io.StringRecord;
+import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.io.channels.ChannelType;
@@ -20,35 +25,15 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.test.util.TestBase2;
 
 public class MyStream extends TestBase2 {
 
-	public static class RandIS implements InputSplit {
-
-		@Override
-		public void write(DataOutput out) throws IOException {
-			// TODO Auto-generated method stub
-			
-		}
-
-		@Override
-		public void read(DataInput in) throws IOException {
-			// TODO Auto-generated method stub
-			
-		}
-
-		@Override
-		public int getSplitNumber() {
-			// TODO Auto-generated method stub
-			return 0;
-		}
-		
-	}
 	
 	public static class InfoSource extends AbstractInputTask<RandIS> {
 
-		private RecordWriter<StringRecord> output;
+		private RecordWriter<IOReadableWritable> output;
 		
 		@Override
 		public RandIS[] computeInputSplits(int requestedMinNumber)
@@ -65,13 +50,22 @@ public class MyStream extends TestBase2 {
 
 		@Override
 		public void registerInputOutput() {
-			output = new RecordWriter<StringRecord>(this, StringRecord.class, new StreamPartitioner());
+		  
+		  Class<? extends ChannelSelector<IOReadableWritable>> myPartitioner = getTaskConfiguration().getClass("partitioner",DefaultPartitioner.class, ChannelSelector.class);
+		  try {
+	      ChannelSelector<IOReadableWritable> mP = myPartitioner.newInstance();
+	      output = new RecordWriter<IOReadableWritable>(this, IOReadableWritable.class, mP);
+
+		  }
+		  catch (Exception e) {
+	      // TODO Auto-generated catch block
+	      e.printStackTrace();
+	    }
 		}
 
 		@Override
 		public void invoke() throws Exception {
 			
-			Random rnd = new Random();
 			
 			for(int i=0; i<10; i++) {
 				//output.emit(new StringRecord(rnd.nextInt(10)+" "+rnd.nextInt(1000)));
@@ -198,11 +192,12 @@ public class MyStream extends TestBase2 {
 		// SOURCE
 		
 		final JobInputVertex infoSource = new JobInputVertex("MyInfoSource", myJG);
-		// final TaskConfig config = new TaskConfig(source.getConfiguration());
+		//Configuration config = infoSource.getConfiguration();
+		//config.setClass("partition",StreamPartitioner.class);
 		infoSource.setInputClass(InfoSource.class);
 		
 		final JobInputVertex querySource = new JobInputVertex("MyQuerySource", myJG);
-		// final TaskConfig config = new TaskConfig(source.getConfiguration());
+		//final TaskConfig config = new TaskConfig(querySource.getConfiguration());
 		querySource.setInputClass(QuerySource.class);
 		
 		// TASK
@@ -225,9 +220,10 @@ public class MyStream extends TestBase2 {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+	
+				
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("infoSource", InfoSource.class);
+		graphBuilder.setSource("infoSource", StreamSource.class);
 		graphBuilder.setSource("querySource", QuerySource.class);
 		graphBuilder.setTask("cellTask", MyStreamMap.class, 2);
 		graphBuilder.setSink("sink", MySink.class);
@@ -237,7 +233,7 @@ public class MyStream extends TestBase2 {
     graphBuilder.connect("cellTask", "sink", ChannelType.INMEMORY);
 		
 		return graphBuilder.getJobGraph();
-		
+		//return myJG;
 	}
 	
 }
