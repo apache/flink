@@ -18,7 +18,7 @@ public class FlatStreamRecord {
 		this();
 		
 		this.numberOfFields = numberOfFields;
-		record = new Record(numberOfFields + 1);
+		record = new Record(numberOfFields);
 		LongValue idValue = new LongValue(id);
 		record.addField(idValue);
 	}

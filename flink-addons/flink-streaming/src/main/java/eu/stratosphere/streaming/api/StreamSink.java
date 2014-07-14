@@ -68,7 +68,9 @@ public class StreamSink extends AbstractOutputTask {
       for (RecordReader<Record> input : inputs) {
         if (input.hasNext()) {
           hasInput = true;
-          userFunction.invoke(input.next());
+          Record rec = input.next();
+          rec.removeField(rec.getNumFields()-1);
+          userFunction.invoke(rec);
         }
       }
     }

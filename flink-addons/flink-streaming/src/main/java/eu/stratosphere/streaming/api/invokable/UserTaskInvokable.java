@@ -15,11 +15,11 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
-import eu.stratosphere.streaming.api.FlatStreamRecord;
+import eu.stratosphere.types.Record;
 
 public abstract class UserTaskInvokable extends StreamInvokable {
 
-  public void invoke(FlatStreamRecord record) throws Exception {
+  public void invoke(Record record) throws Exception {
 
   }
 }

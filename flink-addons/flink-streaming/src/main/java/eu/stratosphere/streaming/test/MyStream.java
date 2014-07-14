@@ -15,11 +15,10 @@
 
 package eu.stratosphere.streaming.test;
 
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.api.invokable.DefaultSourceInvokable;
-import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
-import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
+import eu.stratosphere.streaming.api.JobGraphBuilder.Partitioning;
 import eu.stratosphere.test.util.TestBase2;
 
 public class MyStream extends TestBase2 {
@@ -27,14 +26,17 @@ public class MyStream extends TestBase2 {
   @Override
   public JobGraph getJobGraph() {
     JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-    graphBuilder.setSource("infoSource", DefaultSourceInvokable.class);
-    graphBuilder.setSource("querySource", DefaultSourceInvokable.class);
-    graphBuilder.setTask("cellTask", DefaultTaskInvokable.class, 2);
-    graphBuilder.setSink("sink", DefaultSinkInvokable.class);
+    graphBuilder.setSource("infoSource", TestSourceInvokable.class);
+    graphBuilder.setSource("querySource", QuerySourceInvokable.class);
+    graphBuilder.setTask("cellTask", TestTaskInvokable.class, 2);
+    graphBuilder.setSink("sink", TestSinkInvokable.class);
 
-    graphBuilder.globalConnect("infoSource", "cellTask");
-    graphBuilder.broadcastConnect("querySource", "cellTask");
-    graphBuilder.broadcastConnect("cellTask", "sink");
+    graphBuilder.connect("infoSource", "cellTask", Partitioning.BROADCAST,
+        ChannelType.INMEMORY);
+    graphBuilder.connect("querySource", "cellTask", Partitioning.BROADCAST,
+        ChannelType.INMEMORY);
+    graphBuilder.connect("cellTask", "sink", Partitioning.BROADCAST,
+        ChannelType.INMEMORY);
 
     return graphBuilder.getJobGraph();
   }
