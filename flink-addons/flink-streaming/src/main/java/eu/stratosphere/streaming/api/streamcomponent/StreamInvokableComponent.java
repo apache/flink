@@ -22,13 +22,11 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.faulttolerance.FailEvent;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 
 public abstract class StreamInvokableComponent {
 
-	private static final Log log = LogFactory
-			.getLog(StreamInvokableComponent.class);
+	private static final Log log = LogFactory.getLog(StreamInvokableComponent.class);
 
 	private List<RecordWriter<StreamRecord>> outputs;
 
@@ -36,8 +34,8 @@ public abstract class StreamInvokableComponent {
 	protected String name;
 	private FaultToleranceUtil emittedRecords;
 
-	public final void declareOutputs(List<RecordWriter<StreamRecord>> outputs,
-			String channelID, String name, FaultToleranceUtil emittedRecords) {
+	public final void declareOutputs(List<RecordWriter<StreamRecord>> outputs, String channelID, String name,
+			FaultToleranceUtil emittedRecords) {
 		this.outputs = outputs;
 		this.channelID = channelID;
 		this.emittedRecords = emittedRecords;
@@ -46,27 +44,30 @@ public abstract class StreamInvokableComponent {
 
 	public final void emit(StreamRecord record) {
 		record.setId(channelID);
-		//emittedRecords.addRecord(record);
+		// emittedRecords.addRecord(record);
 		try {
 			for (RecordWriter<StreamRecord> output : outputs) {
 				output.emit(record);
 				log.info("EMITTED: " + record.getId() + " -- " + name);
 			}
 		} catch (Exception e) {
-			//emittedRecords.failRecord(record.getId());
-			log.warn("FAILED: " + record.getId() + " -- " + name + " -- due to "
-					+ e.getClass().getSimpleName());
+			// emittedRecords.failRecord(record.getId());
+			log.warn("FAILED: " + record.getId() + " -- " + name + " -- due to " + e.getClass().getSimpleName());
 		}
 	}
-	
-	//TODO: Add fault tolerance
+
+	// TODO: Add fault tolerance
 	public final void emit(StreamRecord record, int outputChannel) {
 		record.setId(channelID);
-		emittedRecords.addRecord(record,outputChannel);
+		emittedRecords.addRecord(record, outputChannel);
 		try {
 			outputs.get(outputChannel).emit(record);
 		} catch (Exception e) {
 			log.warn("EMIT ERROR: " + e.getClass().getSimpleName() + " -- " + name);
 		}
+	}
+
+	public String getResult() {
+		return "Override getResult() to pass your own results";
 	}
 }

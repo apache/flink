@@ -91,6 +91,8 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 	public void invoke() throws Exception {
 		log.debug("SOURCE " + name + " invoked with instance id " + sourceInstanceID);
 		userFunction.invoke();
+		// TODO print to file
+		System.out.println(userFunction.getResult());
 	}
 
 }

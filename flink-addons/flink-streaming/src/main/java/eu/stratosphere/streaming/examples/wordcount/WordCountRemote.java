@@ -18,6 +18,8 @@ package eu.stratosphere.streaming.examples.wordcount;
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Level;
@@ -37,21 +39,29 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.util.LogUtils;
 
 public class WordCountRemote {
+	private final static int recordsEmitted = 100000;
+	private final static int statPerRecords = 10000;
+	private final static int recordsEmittedFromSplitter = 350000; // recordsEmitted * wordsEmittedInARecord
+	private final static int statPerRecordsAfterSplit = recordsEmittedFromSplitter / recordsEmitted * statPerRecords;
 
 	public static class WordCountDebugSource extends UserSourceInvokable {
+		int statCounter = 0;
+		int[] atNumOfRecords = new int[recordsEmitted / statPerRecords + 1];
+		long[] times = new long[recordsEmitted / statPerRecords + 1];
 
 		StreamRecord record = new StreamRecord(new Tuple1<String>());
 
 		@Override
 		public void invoke() throws Exception {
-			long time = System.currentTimeMillis();
+			atNumOfRecords[statCounter] = 0;
+			times[statCounter] = System.currentTimeMillis();
+			statCounter++;
 
-			for (int i = 1; i <= 100000; i++) {
-
-				if (i % 10000 == 0) {
-					System.out.println("Source: " + i + "\t time: "
-							+ (System.currentTimeMillis() - time) + " ms");
-					time = System.currentTimeMillis();
+			for (int i = 1; i <= recordsEmitted; i++) {
+				if (i % statPerRecords == 0) {
+					atNumOfRecords[statCounter] = i;
+					times[statCounter] = System.currentTimeMillis();
+					statCounter++;
 				}
 
 				if (i % 2 == 0) {
@@ -62,22 +72,36 @@ public class WordCountRemote {
 				emit(record);
 			}
 		}
+
+		@Override
+		public String getResult() {
+			StringBuilder result = new StringBuilder("");
+			result.append("Source result:\n");
+			for (int i = 0; i < atNumOfRecords.length; i++) {
+				result.append(atNumOfRecords[i] + ";" + times[i] + ";\n");
+			}
+			return result.toString();
+		}
 	}
 
 	public static class WordCountDebugSplitter extends UserTaskInvokable {
+		int statCounter = 0;
+		int[] atNumOfRecords = new int[recordsEmitted / statPerRecords + 1];
+		long[] times = new long[atNumOfRecords.length];
 
 		private String[] words = new String[] {};
 		private int i = 0;
 		private StreamRecord outputRecord = new StreamRecord(new Tuple1<String>());
 		long time = System.currentTimeMillis();
 
+		
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
 			i++;
-			if (i % 10000 == 0) {
-				System.out.println("Splitter: " + i + "\t time: "
-						+ (System.currentTimeMillis() - time) + " ms");
-				time = System.currentTimeMillis();
+			if (i % statPerRecords == 0) {
+				atNumOfRecords[statCounter] = i;
+				times[statCounter] = System.currentTimeMillis();
+				statCounter++;
 			}
 
 			words = record.getString(0).split(" ");
@@ -86,16 +110,28 @@ public class WordCountRemote {
 				emit(outputRecord);
 			}
 		}
+
+		@Override
+		public String getResult() {
+			StringBuilder result = new StringBuilder("");
+			result.append("Splitter result:\n");
+			for (int i = 0; i < atNumOfRecords.length; i++) {
+				result.append(atNumOfRecords[i] + ";" + times[i] + ";\n");
+			}
+			return result.toString();
+		}
 	}
 
 	public static class WordCountDebugCounter extends UserTaskInvokable {
-
+		int statCounter = 0;
+		int[] atNumOfRecords = new int[recordsEmitted / statPerRecords + 1];
+		long[] times = new long[atNumOfRecords.length];
+		
 		private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
 		private String word = "";
 		private Integer count = 0;
 
 		private int i = 0;
-		private long time = System.currentTimeMillis();
 
 		private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Integer>());
 
@@ -103,11 +139,13 @@ public class WordCountRemote {
 		public void invoke(StreamRecord record) throws Exception {
 			word = record.getString(0);
 			i++;
-			if (i % 30000 == 0) {
-				System.out.println("Counter: " + i + "\t time: "
-						+ (System.currentTimeMillis() - time) + " ms");
-				time = System.currentTimeMillis();
+			
+			if (i % statPerRecordsAfterSplit == 0) {
+				atNumOfRecords[statCounter] = i;
+				times[statCounter] = System.currentTimeMillis();
+				statCounter++;
 			}
+			
 			if (wordCounts.containsKey(word)) {
 				count = wordCounts.get(word) + 1;
 				wordCounts.put(word, count);
@@ -121,28 +159,42 @@ public class WordCountRemote {
 
 			emit(outRecord);
 		}
+		
+		@Override
+		public String getResult() {
+			StringBuilder result = new StringBuilder("");
+			result.append("Counter result:\n");
+			for (int i = 0; i < atNumOfRecords.length; i++) {
+				result.append(atNumOfRecords[i] + ";" + times[i] + ";\n");
+			}
+			return result.toString();
+		}
 	}
 
 	public static class WordCountDebugSink extends UserSinkInvokable {
-
 		int nrOfRecords = 0;
-		private long time = System.currentTimeMillis();
-
+		int[] atNumOfRecords = new int[recordsEmitted / statPerRecords + 1];
+		long[] times = new long[atNumOfRecords.length];
+		
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
-			nrOfRecords++;
-			if (nrOfRecords % 30000 == 0) {
-				System.out.println("Sink: " + nrOfRecords + "\t time: "
-						+ (System.currentTimeMillis() - time) + " ms");
-				time = System.currentTimeMillis();
+			if (nrOfRecords % statPerRecordsAfterSplit == 0) {
+				atNumOfRecords[nrOfRecords] = nrOfRecords;
+				times[nrOfRecords] = System.currentTimeMillis();
+				nrOfRecords++;
 			}
 		}
 
 		@Override
 		public String getResult() {
-			return String.valueOf(nrOfRecords);
+			StringBuilder result = new StringBuilder("");
+			result.append("Sink result:\n");
+			for (int i = 0; i < atNumOfRecords.length; i++) {
+				result.append(atNumOfRecords[i] + ";" + times[i] + ";\n");
+			}
+			result.append("RESULT: " + nrOfRecords);
+			return result.toString();
 		}
-
 	}
 
 	private static JobGraph getJobGraph() throws Exception {
@@ -171,8 +223,7 @@ public class WordCountRemote {
 			jG.addJar(new Path(file.getAbsolutePath()));
 
 			Configuration configuration = jG.getJobConfiguration();
-			Client client = new Client(new InetSocketAddress("hadoop00.ilab.sztaki.hu", 6123),
-					configuration);
+			Client client = new Client(new InetSocketAddress("hadoop00.ilab.sztaki.hu", 6123), configuration);
 			client.run(jG, true);
 		} catch (Exception e) {
 			System.out.println(e);

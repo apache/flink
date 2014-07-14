@@ -86,6 +86,8 @@ public class StreamTask extends AbstractTask {
 	public void invoke() throws Exception {
 		log.debug("TASK " + name + " invoked with instance id " + taskInstanceID);
 		streamTaskHelper.invokeRecords(userFunction, inputs, name);
+		// TODO print to file
+		System.out.println(userFunction.getResult());
 		log.debug("TASK " + name + " invoke finished with instance id " + taskInstanceID);
 	}
 
