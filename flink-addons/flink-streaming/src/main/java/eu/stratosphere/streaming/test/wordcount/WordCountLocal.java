@@ -110,10 +110,10 @@ public class WordCountLocal {
 		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
 		graphBuilder.setSink("WordCountSink", WordCountSink.class);
 
-		graphBuilder.broadcastConnect("WordCountSource", "WordCountSplitter");
+		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");
 		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0,
 				StringValue.class);
-		graphBuilder.broadcastConnect("WordCountCounter", "WordCountSink");
+		graphBuilder.shuffleConnect("WordCountCounter", "WordCountSink");
 
 		return graphBuilder.getJobGraph();
 	}

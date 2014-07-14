@@ -25,9 +25,9 @@ public class BatchForward extends TestBase2{
 	public JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
 		graphBuilder.setSource("StreamSource", BatchForwardSource.class);
-		graphBuilder.setSink("StreamSink", BachForwardSink.class);
+		graphBuilder.setSink("StreamSink", BatchForwardSink.class);
 
-		graphBuilder.broadcastConnect("StreamSource", "StreamSink");
+		graphBuilder.shuffleConnect("StreamSource", "StreamSink");
 
 		return graphBuilder.getJobGraph();
 	}

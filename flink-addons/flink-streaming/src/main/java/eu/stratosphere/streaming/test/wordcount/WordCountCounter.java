@@ -26,9 +26,9 @@ import eu.stratosphere.types.StringValue;
 public class WordCountCounter extends UserTaskInvokable {
 
 	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
-	private StringValue wordValue = new StringValue("");
-	private IntValue countValue = new IntValue(1);
-	private String word = "";
+	private StringValue wordValue = new StringValue();
+	private IntValue countValue = new IntValue();
+	private String word = new String();
 	private int count = 1;
 
 	@Override

@@ -21,9 +21,9 @@ import eu.stratosphere.types.StringValue;
 
 public class WordCountSplitter extends UserTaskInvokable {
 
-	private StringValue sentence = new StringValue("");
-	private String[] words = new String[0];
-	private StringValue wordValue = new StringValue("");
+	private StringValue sentence = new StringValue();
+	private String[] words = new String[] {};
+	private StringValue wordValue = new StringValue();
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
