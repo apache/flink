@@ -32,7 +32,7 @@ public class SSSPLocal {
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
 //		@SuppressWarnings("unused")
-//		DataStream<Tuple2<String, Integer>> dataStream = context
+//		DataStream<Tuple2<String, Integer>> dataStream = env
 //				.addSource(new SSSPSource())
 //				.flatMap(new SSSPCounter())
 //				.addSink(new SSSPSink());

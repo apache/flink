@@ -13,7 +13,6 @@
  *
  **********************************************************************************************************************/
 
-
 package eu.stratosphere.streaming.util;
 
 import java.net.InetSocketAddress;
