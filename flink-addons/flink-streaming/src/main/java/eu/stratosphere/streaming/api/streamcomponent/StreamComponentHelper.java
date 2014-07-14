@@ -49,7 +49,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 	}
 
 	public void setConfigInputs(T taskBase, Configuration taskConfiguration,
-			List<RecordReader<StreamRecord>> inputs) throws Exception {
+			List<RecordReader<StreamRecord>> inputs) throws StreamComponentException {
 		int numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
 		for (int i = 0; i < numberOfInputs; i++) {
 			if (taskBase instanceof StreamTask) {
@@ -59,14 +59,14 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				inputs.add(new RecordReader<StreamRecord>((StreamSink) taskBase,
 						StreamRecord.class));
 			} else {
-				throw new Exception("Nonsupported object passed to setConfigInputs");
+				throw new StreamComponentException("Nonsupported object passed to setConfigInputs");
 			}
 		}
 	}
 
 	public void setConfigOutputs(T taskBase, Configuration taskConfiguration,
 			List<RecordWriter<StreamRecord>> outputs,
-			List<ChannelSelector<StreamRecord>> partitioners) throws Exception {
+			List<ChannelSelector<StreamRecord>> partitioners) throws StreamComponentException {
 		int numberOfOutputs = taskConfiguration.getInteger("numberOfOutputs", 0);
 		for (int i = 1; i <= numberOfOutputs; i++) {
 			setPartitioner(taskConfiguration, i, partitioners);
@@ -79,7 +79,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				outputs.add(new RecordWriter<StreamRecord>((StreamSource) taskBase,
 						StreamRecord.class, outputPartitioner));
 			} else {
-				throw new Exception("Nonsupported object passed to setConfigOutputs");
+				throw new StreamComponentException("Nonsupported object passed to setConfigOutputs");
 			}
 		}
 	}
