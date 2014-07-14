@@ -264,8 +264,6 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 	 * 
 	 * @param userFunctionClass
 	 *            Class of the invokable function
-	 * @param configuration
-	 *            Configuration object
 	 * @return The StreamComponent object
 	 */
 	protected StreamComponentInvokable getInvokable(Class<? extends StreamComponentInvokable> userFunctionClass) {

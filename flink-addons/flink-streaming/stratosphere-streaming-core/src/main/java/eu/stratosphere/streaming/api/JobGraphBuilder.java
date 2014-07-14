@@ -108,8 +108,6 @@ public class JobGraphBuilder {
 	 *            Serialized udf
 	 * @param parallelism
 	 *            Number of parallel instances created
-	 * @param subtasksPerInstance
-	 *            Number of parallel instances on one task manager
 	 */
 	public void setSource(String sourceName, UserSourceInvokable<? extends Tuple> InvokableObject,
 			String operatorName, byte[] serializedFunction, int parallelism) {
@@ -139,8 +137,6 @@ public class JobGraphBuilder {
 	 *            Serialized udf
 	 * @param parallelism
 	 *            Number of parallel instances created
-	 * @param subtasksPerInstance
-	 *            Number of parallel instances on one task manager
 	 */
 	public void setTask(String taskName,
 			UserTaskInvokable<? extends Tuple, ? extends Tuple> TaskInvokableObject,
@@ -169,8 +165,6 @@ public class JobGraphBuilder {
 	 *            Serialized udf
 	 * @param parallelism
 	 *            Number of parallel instances created
-	 * @param subtasksPerInstance
-	 *            Number of parallel instances on one task manager
 	 */
 	public void setSink(String sinkName, UserSinkInvokable<? extends Tuple> InvokableObject,
 			String operatorName, byte[] serializedFunction, int parallelism) {
