@@ -12,16 +12,14 @@ public class StreamCollector implements Collector<Tuple> {
 	protected int channelID;
 
 	public StreamCollector(int batchSize, int channelID) {
-		this.streamRecord = new StreamRecord();
 		this.batchSize = batchSize;
-		streamRecord.batchSize = batchSize;
-		streamRecord.initRecords();
+		this.streamRecord = new StreamRecord(batchSize);
 		this.channelID = channelID;
 	}
 
 	@Override
 	public void collect(Tuple tuple) {
-		streamRecord.setTuple(counter, tuple);
+		streamRecord.setTuple(counter, StreamRecord.copyTuple(tuple));
 		counter++;
 		if (counter >= batchSize) {
 			counter = 0;
