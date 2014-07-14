@@ -15,31 +15,20 @@
 
 package eu.stratosphere.streaming.api;
 
+import static org.junit.Assert.assertEquals;
+
 import org.junit.Test;
 
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.streaming.api.function.SinkFunction;
 import eu.stratosphere.util.Collector;
 
 public class IterateTest {
 
 	private static final long MEMORYSIZE = 32;
-
-	public static final class MyFlatMap extends
-			FlatMapFunction<Tuple2<Integer, String>, Tuple2<Integer, String>> {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void flatMap(Tuple2<Integer, String> value,
-				Collector<Tuple2<Integer, String>> out) throws Exception {
-			out.collect(new Tuple2<Integer, String>(value.f0 * value.f0,
-					value.f1));
-
-		}
-
-	}
+	private static int iterationTimes = 0;
+	private static int iterationResult = 0;
 
 	public static final class Increment extends
 			FlatMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
@@ -49,7 +38,7 @@ public class IterateTest {
 		@Override
 		public void flatMap(Tuple1<Integer> value,
 				Collector<Tuple1<Integer>> out) throws Exception {
-			if (value.f0 < 20) {
+			if (value.f0 < 5) {
 				out.collect(new Tuple1<Integer>(value.f0 + 1));
 			}
 
@@ -70,24 +59,36 @@ public class IterateTest {
 		}
 
 	}
+	
+	public static final class MySink extends SinkFunction<Tuple1<Integer>> {
+		
+		private static final long serialVersionUID = 1L;
 
+		@Override
+		public void invoke(Tuple1<Integer> tuple) {
+			iterationTimes++;
+			iterationResult += tuple.f0;
+		}
+		
+	}
 	@Test
 	public void test() throws Exception {
 
 		LocalStreamEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(1);
 
-		// Only works if jobgraph.acyclic check is disabled in JobManager
+		IterativeDataStream<Tuple1<Integer>> source = env.fromElements(1).flatMap(new Forward()).
+				iterate();
+		
+		DataStream<Tuple1<Integer>> increment = source.flatMap(new Increment());
+		
+		source.closeWith(increment).addSink(new MySink());
 
-		DataStream<Tuple1<Integer>> source = env.fromElements(1);
-
-		IterativeDataStream<Tuple1<Integer>> i = source.iterate();
-
-		DataStream<Tuple1<Integer>> j = source.flatMap(new Increment())
-				.flatMap(new Forward());
-
-		i.closeWith(j).print();
 		env.executeTest(MEMORYSIZE);
+		
+		assertEquals(4, iterationTimes);
+		assertEquals(14, iterationResult);
+
 	}
 
 }

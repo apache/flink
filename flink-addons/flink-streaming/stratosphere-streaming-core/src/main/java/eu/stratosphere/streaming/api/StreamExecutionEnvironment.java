@@ -303,7 +303,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	protected <T extends Tuple, R extends Tuple> void addIterationSource(DataStream<T> inputStream) {
-		DataStream<R> returnStream = new DataStream<R>(this, "");
+		DataStream<R> returnStream = new DataStream<R>(this, "iterationHead");
 
 		jobGraphBuilder.setIterationSource(returnStream.getId(), inputStream.getId(),
 				degreeOfParallelism);
@@ -312,7 +312,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	protected <T extends Tuple, R extends Tuple> void addIterationSink(DataStream<T> inputStream) {
-		DataStream<R> returnStream = new DataStream<R>(this, "");
+		DataStream<R> returnStream = new DataStream<R>(this, "iterationTail");
 
 		jobGraphBuilder.setIterationSink(returnStream.getId(), inputStream.getId(),
 				degreeOfParallelism);
