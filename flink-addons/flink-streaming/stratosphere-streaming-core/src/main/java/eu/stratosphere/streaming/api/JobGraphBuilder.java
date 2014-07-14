@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Stack;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -64,9 +63,9 @@ public class JobGraphBuilder {
 	protected Map<String, Integer> numberOfInstances;
 	protected Map<String, List<String>> edgeList;
 	protected Map<String, List<Class<? extends ChannelSelector<StreamRecord>>>> connectionTypes;
+	protected Map<String, Integer> connectionParams;
+	
 	protected Map<String, String> userDefinedNames;
-	protected boolean iterationStart;
-	protected Stack<String> iterationStartPoints;
 	protected String maxParallelismVertexName;
 	protected int maxParallelism;
 	protected FaultToleranceType faultToleranceType;
@@ -88,7 +87,6 @@ public class JobGraphBuilder {
 		edgeList = new HashMap<String, List<String>>();
 		connectionTypes = new HashMap<String, List<Class<? extends ChannelSelector<StreamRecord>>>>();
 		userDefinedNames = new HashMap<String, String>();
-		iterationStartPoints = new Stack<String>();
 		maxParallelismVertexName = "";
 		maxParallelism = 0;
 		if (log.isDebugEnabled()) {
@@ -247,11 +245,6 @@ public class JobGraphBuilder {
 			int parallelism) {
 
 		component.setNumberOfSubtasks(parallelism);
-
-		if (iterationStart) {
-			iterationStartPoints.push(componentName);
-			iterationStart = false;
-		}
 
 		if (parallelism > maxParallelism) {
 			maxParallelism = parallelism;
