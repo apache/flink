@@ -28,6 +28,7 @@ import java.io.IOException;
 
 import org.junit.Test;
 
+import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
@@ -36,90 +37,76 @@ public class StreamRecordTest {
 
 	@Test
 	public void singleRecordSetGetTest() {
-		StreamRecord record = new StreamRecord(new StringValue("Stratosphere"),
-				new IntValue(1));
+		StreamRecord record = new StreamRecord(new Tuple2<String, Integer>("Stratosphere",1));
 
 		assertEquals(2, record.getNumOfFields());
 		assertEquals(1, record.getNumOfRecords());
-		assertEquals("Stratosphere",
-				((StringValue) record.getField(0)).getValue());
-		assertEquals(1, ((IntValue) record.getField(1)).getValue());
+		assertEquals("Stratosphere",record.getField(0));
+		assertEquals(1, record.getField(1));
 
-		record.setField(1, new StringValue("Big Data"));
-		assertEquals("Big Data", ((StringValue) record.getField(1)).getValue());
+		record.setField(1, "Big Data");
+		assertEquals("Big Data", record.getField(1));
 
-		record.setRecord(new IntValue(2), new StringValue(
-				"Big Data looks tiny from here."));
+		record.setRecord(new Tuple2<String, Integer>("Big Data looks tiny from here.",2));
 		assertEquals(2, record.getNumOfFields());
 		assertEquals(1, record.getNumOfRecords());
-		assertEquals(2, ((IntValue) record.getField(0)).getValue());
+		assertEquals(2, record.getField(1));
 	}
 
 	@Test
 	public void batchRecordSetGetTest() {
-		StreamRecord record = new StreamRecord(1, 2);
-		record.addRecord(new StringValue("1"));
-		record.addRecord(new IntValue(2));
-		record.addRecord(new StringValue("three"));
-
+		StreamRecord record = new StreamRecord(new Tuple2<Integer, Integer>(1, 2));
+		record.addRecord(new Tuple2<Integer, Integer>(2, 2));
 		try {
-			record.addRecord(new StringValue("4"), new IntValue(5));
+			record.addRecord(new Tuple1<String>("4"));
 			fail();
 		} catch (RecordSizeMismatchException e) {
 		}
 
-		assertEquals(1, record.getNumOfFields());
-		assertEquals(3, record.getNumOfRecords());
-		assertEquals("1", ((StringValue) record.getField(0, 0)).getValue());
-		assertEquals(2, ((IntValue) record.getField(1, 0)).getValue());
-		assertEquals("three", ((StringValue) record.getField(2, 0)).getValue());
+		assertEquals(2, record.getNumOfFields());
+		assertEquals(2, record.getNumOfRecords());
+		assertEquals(1, record.getField(0, 0));
+		assertEquals(2, record.getField(1, 1));
+		
+		record.setRecord(1, new Tuple2<Integer, Integer>(-1, -3));
+		assertEquals(-1, record.getField(1, 0));
 
-		record.setRecord(1, new StringValue("2"));
-		assertEquals("2", ((StringValue) record.getField(1, 0)).getValue());
-
-		record.addRecord(new StringValue("4"));
-		assertEquals(1, record.getNumOfFields());
-		assertEquals(4, record.getNumOfRecords());
+		assertEquals(2, record.getNumOfFields());
+		assertEquals(2, record.getNumOfRecords());
 	}
 
 	@Test
 	public void copyTest() {
 		// TODO:test ID copy
-		StreamRecord a = new StreamRecord(new StringValue("Big"));
+		StreamRecord a = new StreamRecord(new Tuple1<String>("Big"));
 		StreamRecord b = a.copy();
-		assertTrue(((StringValue) a.getField(0)).getValue().equals(
-				((StringValue) b.getField(0)).getValue()));
-		b.setRecord(new StringValue("Data"));
-		assertFalse(((StringValue) a.getField(0)).getValue().equals(
-				((StringValue) b.getField(0)).getValue()));
-	}
+		assertTrue(a.getField(0).equals(b.getField(0)));
+		assertTrue(a.getId().equals(b.getId()));
+		b.setId("2");
+		b.setRecord(new Tuple1<String>("Data"));
+		assertFalse(a.getId().equals(b.getId()));
+		assertFalse(a.getField(0).equals(b.getField(0)));
 
-	@Test
-	public void cloneTest() {
-		StringValue sv = new StringValue("V1");
-		StreamRecord a = new StreamRecord(sv);
 	}
 
 	@Test
 	public void exceptionTest() {
-		StreamRecord a = new StreamRecord(new StringValue("Big"));
+		StreamRecord a = new StreamRecord(new Tuple1<String>("Big"));
 		try {
-			a.setRecord(4, new StringValue("Data"));
+			a.setRecord(4, new Tuple1<String>("Data"));
 			fail();
 		} catch (NoSuchRecordException e) {
 		}
 
 		try {
-			a.setRecord(new StringValue("Data"),
-					new StringValue("Stratosphere"));
+			a.setRecord(new Tuple2<String,String>("Data","Stratosphere"));
 			fail();
 		} catch (RecordSizeMismatchException e) {
 		}
 
 		StreamRecord b = new StreamRecord();
 		try {
-			b.addRecord(new StringValue("Data"),
-					new StringValue("Stratosphere"));
+			b.addRecord(new Tuple2<String,String>("Data","Stratosphere"));
 			fail();
 		} catch (RecordSizeMismatchException e) {
 		}
@@ -138,7 +125,7 @@ public class StreamRecordTest {
 
 		int num = 42;
 		String str = "above clouds";
-		StreamRecord<Tuple2<Integer, String>> rec = new StreamRecord<Tuple2<Integer, String>>(
+		StreamRecord rec = new StreamRecord(
 				new Tuple2<Integer, String>(num, str));
 
 		try {
@@ -146,12 +133,11 @@ public class StreamRecordTest {
 			DataInputStream in = new DataInputStream(new ByteArrayInputStream(
 					buff.toByteArray()));
 
-			Tuple2<Integer, String> tuple = new Tuple2<Integer, String>();
-			StreamRecord<Tuple2<Integer, String>> newRec = new StreamRecord<Tuple2<Integer, String>>(
-					2);
-			Tuple2<Integer, String> tupleOut = newRec.read(in);
+			StreamRecord newRec = new StreamRecord();
+			newRec.read(in);
+			Tuple2<Integer, String> tupleOut =  (Tuple2<Integer, String>) newRec.getRecord(0);
 
-			assertEquals(tupleOut.getField(0), tuple.getField(0));
+			assertEquals(tupleOut.getField(0), 42);
 		} catch (IOException e) {
 			fail();
 			e.printStackTrace();

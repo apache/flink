@@ -15,8 +15,8 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
+import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.StringValue;
 
 public class DefaultSourceInvokable extends UserSourceInvokable {
 
@@ -25,8 +25,8 @@ public class DefaultSourceInvokable extends UserSourceInvokable {
 
   @Override
   public void invoke() throws Exception {
-    for (CharSequence word : mottoArray) {
-      emit(new StreamRecord(new StringValue(word)));
+    for (String word : mottoArray) {
+      emit( new StreamRecord(new Tuple1<String>(word)));
     }
   }
 

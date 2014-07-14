@@ -20,6 +20,7 @@ import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.types.StringValue;
 
@@ -40,7 +41,7 @@ public class AtLeastOnceBufferTest {
 	@Test
 	public void testAddToAckCounter() {
 
-		StreamRecord record1 = new StreamRecord(new StringValue("R1")).setId("1");
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
 
 		buffer.addToAckCounter(record1.getId());
 
@@ -50,8 +51,8 @@ public class AtLeastOnceBufferTest {
 
 	@Test
 	public void testRemoveFromAckCounter() {
-		StreamRecord record1 = new StreamRecord(new StringValue("R1")).setId("1");
-		StreamRecord record2 = new StreamRecord(new StringValue("R2")).setId("1");
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
+		StreamRecord record2 = new StreamRecord(new Tuple1<String>("R2")).setId("1");
 
 		String id = record1.getId();
 
@@ -69,7 +70,7 @@ public class AtLeastOnceBufferTest {
 
 	@Test
 	public void testAck() {
-		StreamRecord record1 = new StreamRecord(new StringValue("R1")).setId("1");
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
 		String id = record1.getId();
 
 		buffer.add(record1);
@@ -103,7 +104,7 @@ public class AtLeastOnceBufferTest {
 	@Test
 	public void testAdd() {
 
-		StreamRecord record1 = new StreamRecord(new StringValue("R1")).setId("1");
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
 
 		String id1 = record1.getId();
 
@@ -113,7 +114,7 @@ public class AtLeastOnceBufferTest {
 
 		System.out.println("ADD - " + " exec. time (ns): " + (System.nanoTime() - nt));
 
-		record1.setRecord(new StringValue("R2"));
+		record1.setRecord(new Tuple1<String>("R2"));
 		record1.setId("1");
 		String id2 = record1.getId();
 
@@ -126,10 +127,10 @@ public class AtLeastOnceBufferTest {
 		assertEquals((Integer) 3, buffer.ackCounter.get(id1));
 		assertEquals((Integer) 3, buffer.ackCounter.get(id2));
 
-		assertEquals(new StringValue("R1"), buffer.recordBuffer.get(id1).getField(0));
+		assertEquals("R1", buffer.recordBuffer.get(id1).getField(0));
 		assertEquals(id1, buffer.recordBuffer.get(id1).getId());
 
-		assertEquals(new StringValue("R2"), buffer.recordBuffer.get(id2).getField(0));
+		assertEquals("R2", buffer.recordBuffer.get(id2).getField(0));
 		assertEquals(id2, buffer.recordBuffer.get(id2).getId());
 
 		assertEquals(2, buffer.recordTimestamps.size());
@@ -141,7 +142,7 @@ public class AtLeastOnceBufferTest {
 
 	@Test
 	public void testFail() {
-		StreamRecord record1 = new StreamRecord(new StringValue("R1")).setId("1");
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
 		String id1 = record1.getId();
 
 		buffer.add(record1);
@@ -184,12 +185,12 @@ public class AtLeastOnceBufferTest {
 
 	@Test
 	public void testRemove() {
-		StreamRecord record1 = new StreamRecord(new StringValue("R1")).setId("1");
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
 
 		String id1 = record1.getId();
 		buffer.add(record1);
 
-		record1.setRecord(new StringValue("R2"));
+		record1.setRecord(new Tuple1<String>("R2"));
 		record1.setId("1");
 		String id2 = record1.getId();
 		buffer.add(record1);
@@ -207,7 +208,7 @@ public class AtLeastOnceBufferTest {
 		assertEquals(2, buffer.ackCounter.size());
 
 		StreamRecord removed = buffer.remove(id1);
-		assertEquals(new StringValue("R1"), removed.getField(0));
+		assertEquals("R1", removed.getField(0));
 		assertEquals(id1, removed.getId());
 
 		assertFalse(buffer.ackCounter.containsKey(id1));
