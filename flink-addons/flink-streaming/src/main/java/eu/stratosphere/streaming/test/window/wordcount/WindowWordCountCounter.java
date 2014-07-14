@@ -13,37 +13,49 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test;
+package eu.stratosphere.streaming.test.window.wordcount;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.test.cellinfo.WorkerEngineExact;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 
-public class TestTaskInvokable extends UserTaskInvokable {
+public class WindowWordCountCounter extends UserTaskInvokable {
+	
+	private int windowSize = 100;
+	private int slidingStep = 20;
+	
+	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
+	private StringValue wordValue = new StringValue("");
+	private IntValue countValue = new IntValue(1);
+	private LongValue timestamp = new LongValue(0);
+	private String word = "";
+	private Record outputRecord = new Record(3);
+	private int count = 1;
 
-  private WorkerEngineExact engine = new WorkerEngineExact(10, 1000, 0);
+	@Override
+	public void invoke(Record record) throws Exception {
 
-  @Override
-  public void invoke(Record record) throws Exception {
-    IntValue value1 = new IntValue(0);
-    record.getFieldInto(0, value1);
-    LongValue value2 = new LongValue(0);
-    record.getFieldInto(1, value2);
-    
-    // INFO
-    if (record.getNumFields() == 2) {
-      engine.put(value1.getValue(), value2.getValue());
-      emit(new Record(new StringValue(value1 + " " + value2)));
-    }
-    // QUERY
-    else if (record.getNumFields() == 3) {
-      LongValue value3 = new LongValue(0);
-      record.getFieldInto(2, value3);
-      emit(new Record(new StringValue(String.valueOf(engine.get(
-          value2.getValue(), value3.getValue(), value1.getValue())))));
-    }
-  }
+		record.getFieldInto(0, wordValue);
+		word = wordValue.getValue();
+		record.getFieldInto(1, timestamp);
+
+		if (wordCounts.containsKey(word)) {
+			count = wordCounts.get(word) + 1;
+			wordCounts.put(word, count);
+			countValue.setValue(count);
+		} else {
+			wordCounts.put(word, 1);
+			countValue.setValue(1);
+		}
+		outputRecord.setField(0, wordValue);
+		outputRecord.setField(1, countValue);
+		outputRecord.setField(2, timestamp);
+		emit(outputRecord);
+
+	}
 }

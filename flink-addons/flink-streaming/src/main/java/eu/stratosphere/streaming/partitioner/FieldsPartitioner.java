@@ -16,11 +16,11 @@
 package eu.stratosphere.streaming.partitioner;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.types.Key;
+import eu.stratosphere.types.Record;
 
 //Grouping by a key
-public class FieldsPartitioner implements ChannelSelector<StreamRecord> {
+public class FieldsPartitioner implements ChannelSelector<Record> {
 
 	private int keyPosition;
 	private Class<? extends Key> keyClass;
@@ -32,7 +32,7 @@ public class FieldsPartitioner implements ChannelSelector<StreamRecord> {
 	}
 
 	@Override
-	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
+	public int[] selectChannels(Record record, int numberOfOutputChannels) {
 		Key key = null;
 		try {
 			key = keyClass.newInstance();
@@ -41,7 +41,7 @@ public class FieldsPartitioner implements ChannelSelector<StreamRecord> {
 		} catch (IllegalAccessException e) {
 			e.printStackTrace();
 		}
-		key = keyClass.cast(record.getField(keyPosition));
+		record.getFieldInto(keyPosition, key);
 		return new int[] { Math.abs(key.hashCode()) % numberOfOutputChannels };
 	}
 }
