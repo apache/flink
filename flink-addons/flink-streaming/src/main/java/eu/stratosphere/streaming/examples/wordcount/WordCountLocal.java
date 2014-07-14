@@ -24,12 +24,13 @@ import eu.stratosphere.client.program.Client;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.LogUtils;
 
 public class WordCountLocal {
 
 	public static JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
 		graphBuilder.setSource("WordCountSourceSplitter", WordCountSourceSplitter.class);
 		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 1, 1);
 		graphBuilder.setSink("WordCountSink", WordCountSink.class);

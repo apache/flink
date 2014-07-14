@@ -33,6 +33,7 @@ import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.LogUtils;
 
 public class IncrementalOLS {
@@ -46,7 +47,7 @@ public class IncrementalOLS {
 		@Override
 		public void invoke() throws Exception {
 			record.initRecords();
-			while(true) {
+			for (int j = 0; j < 100; j++) {
 				// pull new record from data source
 				record.setTuple(getNewData());
 				emit(record);
@@ -63,7 +64,7 @@ public class IncrementalOLS {
 
 	public static class TrainingDataSource extends UserSourceInvokable {
 
-		private final int BATCH_SIZE = 1000;
+		private final int BATCH_SIZE = 10;
 
 		StreamRecord record = new StreamRecord(2, BATCH_SIZE);
 
@@ -74,7 +75,7 @@ public class IncrementalOLS {
 
 			record.initRecords();
 
-			while(true) {
+			for (int j = 0; j < 1000; j++) {
 				for (int i = 0; i < BATCH_SIZE; i++) {
 					record.setTuple(i, getTrainingData());
 				}
@@ -165,11 +166,12 @@ public class IncrementalOLS {
 
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
+			System.out.println(record.getTuple());
 		}
 	}
 
 	private static JobGraph getJobGraph() throws Exception {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("IncrementalOLS");
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("IncrementalOLS", FaultToleranceType.NONE);
 
 		graphBuilder.setSource("NewData", NewDataSource.class, 1, 1);
 		graphBuilder.setSource("TrainingData", TrainingDataSource.class, 1, 1);

@@ -41,6 +41,7 @@ import eu.stratosphere.streaming.api.streamcomponent.StreamSink;
 import eu.stratosphere.streaming.api.streamcomponent.StreamSource;
 import eu.stratosphere.streaming.api.streamcomponent.StreamTask;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.partitioner.BroadcastPartitioner;
 import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
 import eu.stratosphere.streaming.partitioner.GlobalPartitioner;
@@ -58,14 +59,14 @@ public class JobGraphBuilder {
 	private Map<String, List<Integer>> numberOfOutputChannels;
 	private String maxParallelismVertexName;
 	private int maxParallelism;
-
+	private FaultToleranceType faultToleranceType;
 	/**
 	 * Creates a new JobGraph with the given name
 	 * 
 	 * @param jobGraphName
 	 *            Name of the JobGraph
 	 */
-	public JobGraphBuilder(String jobGraphName) {
+	public JobGraphBuilder(String jobGraphName, FaultToleranceType faultToleranceType) {
 		jobGraph = new JobGraph(jobGraphName);
 		components = new HashMap<String, AbstractJobVertex>();
 		numberOfInstances = new HashMap<String, Integer>();
@@ -73,6 +74,7 @@ public class JobGraphBuilder {
 		maxParallelismVertexName = "";
 		maxParallelism = 0;
 		log.debug("JobGraph created");
+		this.faultToleranceType = faultToleranceType;
 	}
 
 	/**
@@ -187,6 +189,9 @@ public class JobGraphBuilder {
 		Configuration config = new TaskConfig(component.getConfiguration()).getConfiguration();
 		config.setClass("userfunction", InvokableClass);
 		config.setString("componentName", componentName);
+		
+		config.setInteger("faultToleranceType", faultToleranceType.id);
+		
 		components.put(componentName, component);
 		numberOfInstances.put(componentName, parallelism);
 	}

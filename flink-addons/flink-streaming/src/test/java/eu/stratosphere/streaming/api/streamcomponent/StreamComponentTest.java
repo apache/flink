@@ -21,11 +21,7 @@ import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 
-import junit.framework.Assert;
-
-import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -40,11 +36,12 @@ import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
+import eu.stratosphere.streaming.util.LogUtils;
 
 public class StreamComponentTest {
 
 	private static Map<Integer, Integer> data = new HashMap<Integer, Integer>();
-	private static boolean fPTest = true;
 
 	public static class MySource extends UserSourceInvokable {
 		public MySource() {
@@ -54,7 +51,7 @@ public class StreamComponentTest {
 
 		@Override
 		public void invoke() throws Exception {
-			for (int i = 0; i < 1000; i++) {
+			for (int i = 0; i < 100; i++) {
 				record.setField(0, i);
 				emit(record);
 			}
@@ -92,12 +89,9 @@ public class StreamComponentTest {
 
 	@BeforeClass
 	public static void runStream() {
-		Logger root = Logger.getRootLogger();
-		root.removeAllAppenders();
-		root.addAppender(new ConsoleAppender());
-		root.setLevel(Level.OFF);
+		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
 		graphBuilder.setSource("MySource", MySource.class);
 		graphBuilder.setTask("MyTask", MyTask.class, 2, 2);
 		graphBuilder.setSink("MySink", MySink.class);
@@ -123,10 +117,7 @@ public class StreamComponentTest {
 
 	@Test
 	public void test() {
-
-		Assert.assertTrue(fPTest);
-
-		assertEquals(1000, data.keySet().size());
+		assertEquals(100, data.keySet().size());
 
 		for (Integer k : data.keySet()) {
 			assertEquals((Integer) (k + 1), data.get(k));
