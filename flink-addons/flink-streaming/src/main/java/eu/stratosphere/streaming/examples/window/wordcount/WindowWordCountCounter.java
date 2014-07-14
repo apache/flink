@@ -15,41 +15,40 @@
 
 package eu.stratosphere.streaming.examples.window.wordcount;
 
-import java.util.ArrayList;
-
-import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.state.MutableTableState;
 import eu.stratosphere.streaming.state.MutableTableStateIterator;
 import eu.stratosphere.streaming.state.SlidingWindowState;
-import eu.stratosphere.util.Collector;
 
-public class WindowWordCountCounter extends
-		FlatMapFunction<Tuple2<String, Long>, Tuple3<String, Integer, Long>> {
+public class WindowWordCountCounter extends UserTaskInvokable {
 	private static final long serialVersionUID = 1L;
+	
+	private int windowSize=10;
+	private int slidingStep=2;
+	private int computeGranularity=1;
+	private int windowFieldId=2;
 
-	private int windowSize = 10;
-	private int slidingStep = 2;
-	private int computeGranularity = 1;
-
-	private ArrayList<Tuple2<String, Long>> tempTupleArray = null;
-	private Tuple3<String, Integer, Long> outTuple = new Tuple3<String, Integer, Long>();
-	private SlidingWindowState window;
+	private StreamRecord tempRecord;
+	private SlidingWindowState<Integer> window;
 	private MutableTableState<String, Integer> wordCounts;
-	private long initTimestamp = -1;
-	private long nextTimestamp = -1;
+	private long initTimestamp=-1;
+	private long nextTimestamp=-1;
 	private Long timestamp = 0L;
+	private StreamRecord outRecord = new StreamRecord(3);
 
 	public WindowWordCountCounter() {
-		window = new SlidingWindowState(windowSize, slidingStep,
+		window = new SlidingWindowState<Integer>(windowSize, slidingStep,
 				computeGranularity);
 		wordCounts = new MutableTableState<String, Integer>();
 	}
 
-	private void incrementCompute(ArrayList<Tuple2<String, Long>> tupleArray) {
-		for (int i = 0; i < tupleArray.size(); ++i) {
-			String word = tupleArray.get(i).f0;
+	private void incrementCompute(StreamRecord record) {
+		int numTuple = record.getNumOfTuples();
+		for (int i = 0; i < numTuple; ++i) {
+			String word = record.getString(i, 0);
 			if (wordCounts.containsKey(word)) {
 				int count = wordCounts.get(word) + 1;
 				wordCounts.put(word, count);
@@ -59,9 +58,10 @@ public class WindowWordCountCounter extends
 		}
 	}
 
-	private void decrementCompute(ArrayList<Tuple2<String, Long>> tupleArray) {
-		for (int i = 0; i < tupleArray.size(); ++i) {
-			String word = tupleArray.get(i).f0;
+	private void decrementCompute(StreamRecord record) {
+		int numTuple = record.getNumOfTuples();
+		for (int i = 0; i < numTuple; ++i) {
+			String word = record.getString(i, 0);
 			int count = wordCounts.get(word) - 1;
 			if (count == 0) {
 				wordCounts.delete(word);
@@ -71,48 +71,51 @@ public class WindowWordCountCounter extends
 		}
 	}
 
-	private void produceOutput(long progress, Collector<Tuple3<String, Integer, Long>> out) {
-		MutableTableStateIterator<String, Integer> iterator = wordCounts.getIterator();
+	private void produceRecord(long progress){
+		outRecord.Clear();
+		MutableTableStateIterator<String, Integer> iterator = wordCounts
+				.getIterator();
 		while (iterator.hasNext()) {
 			Tuple2<String, Integer> tuple = iterator.next();
-			outTuple.f0 = tuple.f0;
-			outTuple.f1 = tuple.f1;
-			outTuple.f2 = timestamp;
-			out.collect(outTuple);
+			Tuple3<String, Integer, Long> outputTuple = new Tuple3<String, Integer, Long>(
+					(String) tuple.getField(0), (Integer) tuple.getField(1), timestamp);
+			outRecord.addTuple(outputTuple);
 		}
+		emit(outRecord);
 	}
-
+	
 	@Override
-	public void flatMap(Tuple2<String, Long> value,
-			Collector<Tuple3<String, Integer, Long>> out) throws Exception {
-		// TODO Auto-generated method stub
-		timestamp = value.f1;
-		if (initTimestamp == -1) {
-			initTimestamp = timestamp;
-			nextTimestamp = initTimestamp + computeGranularity;
-			tempTupleArray = new ArrayList<Tuple2<String, Long>>();
-		} else {
-			if (timestamp >= nextTimestamp) {
-				if (window.isFull()) {
-					ArrayList<Tuple2<String, Long>> expiredTupleArray = window.popFront();
-					incrementCompute(tempTupleArray);
-					decrementCompute(expiredTupleArray);
-					window.pushBack(tempTupleArray);
-					if (window.isEmittable()) {
-						produceOutput(timestamp, out);
-					}
-				} else {
-					incrementCompute(tempTupleArray);
-					window.pushBack(tempTupleArray);
-					if (window.isFull()) {
-						produceOutput(timestamp, out);
-					}
-				}
-				initTimestamp = nextTimestamp;
+	public void invoke(StreamRecord record) throws Exception {
+		int numTuple = record.getNumOfTuples();
+		for (int i = 0; i < numTuple; ++i) {
+			long progress = record.getLong(i, windowFieldId);
+			if (initTimestamp == -1) {
+				initTimestamp = progress;
 				nextTimestamp = initTimestamp + computeGranularity;
-				tempTupleArray = new ArrayList<Tuple2<String, Long>>();
+				tempRecord = new StreamRecord(record.getNumOfFields());
+			} else {
+				if (progress >= nextTimestamp) {
+					if (window.isFull()) {
+						StreamRecord expiredRecord = window.popFront();
+						incrementCompute(tempRecord);
+						decrementCompute(expiredRecord);
+						window.pushBack(tempRecord);
+						if (window.isEmittable()) {
+							produceRecord(progress);
+						}
+					} else {
+						incrementCompute(tempRecord);
+						window.pushBack(tempRecord);
+						if (window.isFull()) {
+							produceRecord(progress);
+						}
+					}
+					initTimestamp = nextTimestamp;
+					nextTimestamp = initTimestamp + computeGranularity;
+					tempRecord = new StreamRecord(record.getNumOfFields());
+				}
 			}
+			tempRecord.addTuple(record.getTuple(i));
 		}
-		tempTupleArray.add(value);		
 	}
 }

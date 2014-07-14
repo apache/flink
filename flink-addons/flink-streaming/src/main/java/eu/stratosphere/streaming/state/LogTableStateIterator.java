@@ -13,35 +13,34 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.iterative.pagerank;
+package eu.stratosphere.streaming.state;
 
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.Iterator;
+import java.util.Map.Entry;
 
-public class Graph {
-	public Map<Integer, Set<Integer>> _vertices = null;
+import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.streaming.index.IndexPair;
 
-	public Graph() {
-		_vertices = new HashMap<Integer, Set<Integer>>();
+public class LogTableStateIterator<K, V> implements TableStateIterator<K ,V>{
+
+	private Iterator<Entry<K, IndexPair>> iterator;
+	private HashMap<Integer, ArrayList<V>> blockList;
+	public LogTableStateIterator(Iterator<Entry<K, IndexPair>> iter, HashMap<Integer, ArrayList<V>> blocks){
+		iterator=iter;
+		blockList=blocks;
+	}
+	@Override
+	public boolean hasNext() {
+		// TODO Auto-generated method stub
+		return false;
 	}
 
-	public void insertDirectedEdge(int sourceNode, int targetNode) {
-		if (!_vertices.containsKey(sourceNode)) {
-			_vertices.put(sourceNode, new HashSet<Integer>());
-		}
-		_vertices.get(sourceNode).add(targetNode);
+	@Override
+	public Tuple2<K, V> next() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 	
-	public void insertUndirectedEdge(int sourceNode, int targetNode){
-		if(!_vertices.containsKey(sourceNode)){
-			_vertices.put(sourceNode, new HashSet<Integer>());
-		}
-		if(!_vertices.containsKey(targetNode)){
-			_vertices.put(targetNode, new HashSet<Integer>());
-		}
-		_vertices.get(sourceNode).add(targetNode);
-		_vertices.get(targetNode).add(sourceNode);
-	}
 }
