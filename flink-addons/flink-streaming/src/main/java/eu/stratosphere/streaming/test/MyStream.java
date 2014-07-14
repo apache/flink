@@ -13,22 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test.cellinfo;
+package eu.stratosphere.streaming.test;
 
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.api.invokable.DefaultSourceInvokable;
+import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
+import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.StringValue;
 
-public class CellInfo extends TestBase2 {
+public class MyStream extends TestBase2 {
 
   @Override
   public JobGraph getJobGraph() {
     JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-    graphBuilder.setSource("infoSource", InfoSourceInvokable.class);
-    graphBuilder.setSource("querySource", QuerySourceInvokable.class);
-    graphBuilder.setTask("cellTask", CellTaskInvokable.class, 2);
-    graphBuilder.setSink("sink", CellSinkInvokable.class);
+    graphBuilder.setSource("infoSource", DefaultSourceInvokable.class);
+    graphBuilder.setSource("querySource", DefaultSourceInvokable.class);
+    graphBuilder.setTask("cellTask", DefaultTaskInvokable.class, 2);
+    graphBuilder.setSink("sink", DefaultSinkInvokable.class);
     
     graphBuilder.fieldsConnect("infoSource", "cellTask", 0, StringValue.class);
     graphBuilder.fieldsConnect("querySource", "cellTask",0, StringValue.class);
