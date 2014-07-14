@@ -38,28 +38,16 @@ public class PrintTest {
 
 	}
 
-	public static final class MySource extends SourceFunction<Tuple2<Integer, String>> {
-
-		@Override
-		public void invoke(Collector<Tuple2<Integer, String>> collector) throws Exception {
-			for (int i = 0; i < 10; i++) {
-				collector.collect(new Tuple2<Integer, String>(i, "test"));
-			}
-		}
-	}
-
 	@Test
 	public void test() throws Exception {
 
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-		DataStream<Tuple2<Integer, String>> source = env.addSource(new MySource(), 1);
-		DataStream<Tuple2<Integer, String>> map = source.flatMap(new MyFlatMap(), 1).print();
 		env.fromElements(2, 3, 4).print();
+		env.generateSequence(1, 10).print();
 		Set<Integer> a = new HashSet<Integer>();
 		a.add(-2);
 		a.add(-100);
 		env.fromCollection(a).print();
-		source.print();
 		env.execute();
 
 	}
