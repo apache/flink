@@ -34,9 +34,8 @@ public class WordCountSplitter extends UserTaskInvokable {
 		i++;
 		if (i % 50000 == 0) {
 			time = System.currentTimeMillis();
-			System.out.println("Splitter:\t" + i + "\t----Time: "
-					+ (time - prevTime));
-			prevTime=time;
+			System.out.println("Splitter:\t" + i + "\t----Time: " + (time - prevTime));
+			prevTime = time;
 		}
 		sentence = (StringValue) record.getRecord(0)[0];
 		words = sentence.getValue().split(" ");

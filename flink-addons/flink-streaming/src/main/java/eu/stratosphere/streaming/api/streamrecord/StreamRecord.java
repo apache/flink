@@ -105,6 +105,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		return numOfRecords;
 	}
 
+	// TODO: use UUID
 	/**
 	 * Set the ID of the StreamRecord object
 	 * 

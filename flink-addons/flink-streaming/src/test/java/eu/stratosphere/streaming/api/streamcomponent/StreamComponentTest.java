@@ -12,6 +12,7 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+
 package eu.stratosphere.streaming.api.streamcomponent;
 
 import static org.junit.Assert.assertEquals;

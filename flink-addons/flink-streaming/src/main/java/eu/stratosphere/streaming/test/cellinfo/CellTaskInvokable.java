@@ -40,6 +40,8 @@ public class CellTaskInvokable extends UserTaskInvokable {
 		timeStamp = (LongValue) record.getField(1);
 
 		numOfFields=record.getNumOfFields();
+		
+		//TODO: consider adding source to StreamRecord as a workaround
 		// INFO
 		if (numOfFields == 2) {
 			engine.put(cellID.getValue(), timeStamp.getValue());
