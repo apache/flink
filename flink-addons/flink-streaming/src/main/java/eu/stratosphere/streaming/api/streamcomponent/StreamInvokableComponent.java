@@ -23,6 +23,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
+import eu.stratosphere.streaming.util.PerformanceCounter;
 
 public abstract class StreamInvokableComponent {
 
@@ -33,18 +34,21 @@ public abstract class StreamInvokableComponent {
 	protected int channelID;
 	protected String name;
 	private FaultToleranceUtil emittedRecords;
+	protected PerformanceCounter performanceCounter;
 
-	public final void declareOutputs(List<RecordWriter<StreamRecord>> outputs, int channelID, String name,
-			FaultToleranceUtil emittedRecords) {
+	public final void declareOutputs(List<RecordWriter<StreamRecord>> outputs, int channelID,
+			String name, FaultToleranceUtil emittedRecords) {
 		this.outputs = outputs;
 		this.channelID = channelID;
 		this.emittedRecords = emittedRecords;
 		this.name = name;
+		this.performanceCounter = new PerformanceCounter("pc", 1000, 1000, 30000,
+				"/home/strato/stratosphere-distrib/log/counter/" + name + channelID);
 	}
 
 	public final void emit(StreamRecord record) {
 		record.setId(channelID);
-		emittedRecords.addRecord(record);
+		// emittedRecords.addRecord(record);
 		try {
 			for (RecordWriter<StreamRecord> output : outputs) {
 				output.emit(record);
@@ -52,14 +56,15 @@ public abstract class StreamInvokableComponent {
 			}
 		} catch (Exception e) {
 			emittedRecords.failRecord(record.getId());
-			log.warn("FAILED: " + record.getId() + " -- " + name + " -- due to " + e.getClass().getSimpleName());
+			log.warn("FAILED: " + record.getId() + " -- " + name + " -- due to "
+					+ e.getClass().getSimpleName());
 		}
 	}
 
 	// TODO: Add fault tolerance
 	public final void emit(StreamRecord record, int outputChannel) {
 		record.setId(channelID);
-		emittedRecords.addRecord(record, outputChannel);
+		// emittedRecords.addRecord(record, outputChannel);
 		try {
 			outputs.get(outputChannel).emit(record);
 		} catch (Exception e) {
