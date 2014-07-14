@@ -42,7 +42,7 @@ public class WordCountRemote {
 
 	public static class WordCountDebugSource extends UserSourceInvokable {
 
-		private PerformanceTracker perf = new PerformanceTracker(1000, 10000);
+		private PerformanceTracker perf = new PerformanceTracker("SourceEmitCounter",1000, 10000);
 
 		StreamRecord record = new StreamRecord(new Tuple1<String>());
 
@@ -64,13 +64,13 @@ public class WordCountRemote {
 
 		@Override
 		public String getResult() {
-			return perf.createCSV();
+			return perf.toString();
 		}
 	}
 
 	public static class WordCountDebugSplitter extends UserTaskInvokable {
 
-		private PerformanceTracker perf = new PerformanceTracker(1000, 10000);
+		private PerformanceTracker perf = new PerformanceTracker("SplitterEmitCounter",1000, 10000);
 
 		private String[] words = new String[] {};
 		private StreamRecord outputRecord = new StreamRecord(new Tuple1<String>());
@@ -88,12 +88,12 @@ public class WordCountRemote {
 
 		@Override
 		public String getResult() {
-			return perf.createCSV();
+			return perf.toString();
 		}
 	}
 
 	public static class WordCountDebugCounter extends UserTaskInvokable {
-		private PerformanceTracker perf = new PerformanceTracker(1000, 10000);
+		private PerformanceTracker perf = new PerformanceTracker("CounterEmitCounter",1000, 10000);
 
 		private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
 		private String word = "";
@@ -122,12 +122,12 @@ public class WordCountRemote {
 
 		@Override
 		public String getResult() {
-			return perf.createCSV();
+			return perf.toString();
 		}
 	}
 
 	public static class WordCountDebugSink extends UserSinkInvokable {
-		private PerformanceTracker perf = new PerformanceTracker(1000, 10000);
+		private PerformanceTracker perf = new PerformanceTracker("SinkEmitCounter",1000, 10000);
 
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
@@ -136,7 +136,7 @@ public class WordCountRemote {
 
 		@Override
 		public String getResult() {
-			return perf.createCSV();
+			return perf.toString();
 		}
 	}
 
