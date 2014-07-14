@@ -21,12 +21,11 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.StringValue;
 
 public class BroadcastPartitionerTest {
 
 	private BroadcastPartitioner broadcastPartitioner;
-	private StreamRecord streamRecord = new StreamRecord(new StringValue());
+	private StreamRecord streamRecord = new StreamRecord();
 
 	@Before
 	public void setPartitioner() {

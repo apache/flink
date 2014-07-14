@@ -21,17 +21,17 @@ import static org.junit.Assert.assertEquals;
 import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
 
 public class FieldsPartitionerTest {
 
 	private FieldsPartitioner fieldsPartitioner;
-	private StreamRecord streamRecord1 = new StreamRecord(new StringValue(
-			"test"), new IntValue(0));
-	private StreamRecord streamRecord2 = new StreamRecord(new StringValue(
-			"test"), new IntValue(42));
+	private StreamRecord streamRecord1 = new StreamRecord(
+			new Tuple2<String, Integer>("test", 0));
+	private StreamRecord streamRecord2 = new StreamRecord(
+			new Tuple2<String, Integer>("test", 42));
 
 	@Before
 	public void setPartitioner() {
