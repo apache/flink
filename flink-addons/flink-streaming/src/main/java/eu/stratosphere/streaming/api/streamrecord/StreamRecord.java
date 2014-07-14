@@ -614,12 +614,8 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            Tuple to set
 	 * @throws TupleSizeMismatchException
 	 */
-	public void setTuple(Tuple tuple) throws TupleSizeMismatchException {
-		if (tuple.getArity() == numOfFields) {
-			setTuple(0, tuple);
-		} else {
-			throw (new TupleSizeMismatchException());
-		}
+	public void setTuple(Tuple tuple) throws NoSuchTupleException, TupleSizeMismatchException {
+		setTuple(0, tuple);
 	}
 
 	/**
@@ -653,9 +649,22 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @param tuple
 	 *            Tuple to be added as the next record of the batch
 	 */
-	public void addTuple(Tuple tuple) {
+	public void addTuple(Tuple tuple) throws TupleSizeMismatchException{
+			addTuple(numOfTuples,tuple);
+	}
+
+	/**
+	 * Checks if the number of fields are equal to the batch field size then
+	 * inserts the deep copy of Tuple to the given position into the recordbatch
+	 * 
+	 * @param index
+	 *            Position of the added tuple
+	 * @param tuple
+	 *            Tuple to be added as the next record of the batch
+	 */
+	public void addTuple(int index, Tuple tuple) throws TupleSizeMismatchException{
 		if (tuple.getArity() == numOfFields) {
-			tupleBatch.add(copyTuple(tuple));
+			tupleBatch.add(index, copyTuple(tuple));
 			numOfTuples++;
 		} else {
 			throw new TupleSizeMismatchException();
