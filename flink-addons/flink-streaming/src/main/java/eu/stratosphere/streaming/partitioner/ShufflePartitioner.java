@@ -16,16 +16,30 @@
 package eu.stratosphere.streaming.partitioner;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
 
-public class StreamPartitioner implements ChannelSelector<Record> {
+public class ShufflePartitioner implements ChannelSelector<Record> {
 
+	private int keyPosition;
+	private Class<? extends Key> keyClass;
+	
+	//TODO: make sure it is actually a key
+	public ShufflePartitioner(int keyPosition, Class<? extends Key> keyClass){
+		this.keyPosition = keyPosition;
+	}
+	
 	@Override
 	public int[] selectChannels(Record record, int numberOfOutputChannels) {
-		IntValue value = new IntValue();
-		record.getFieldInto(0, value);
-		int cellId = value.getValue();
-		return new int[]{cellId % numberOfOutputChannels};
+		Key key = null;
+		try {
+			key = keyClass.newInstance();
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		}
+		record.getFieldInto(keyPosition, key);
+		return new int[]{key.hashCode() % numberOfOutputChannels};
 	}
 }
