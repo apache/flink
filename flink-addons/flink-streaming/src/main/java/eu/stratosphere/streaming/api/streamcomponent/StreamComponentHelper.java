@@ -26,6 +26,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.datastream.SinkFunction;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
+import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
@@ -104,10 +105,12 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 	public StreamCollector<Tuple> setCollector(Configuration taskConfiguration, int id,
 			List<RecordWriter<StreamRecord>> outputs) {
-		collector = new StreamCollector<Tuple>(1, id, outSerializationDelegate, outputs);
+		int batchSize = taskConfiguration.getInteger("batchSize", -1);
+		collector = new StreamCollector<Tuple>(batchSize, id, outSerializationDelegate, outputs);
 		return collector;
 	}
 
+	// TODO add type parameters to avoid redundant code
 	public void setSerializers(Configuration taskConfiguration) {
 		byte[] operatorBytes = taskConfiguration.getBytes("operator", null);
 		String operatorName = taskConfiguration.getString("operatorName", "");
@@ -142,6 +145,22 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
 
 				outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(MapFunction.class,
+						f.getClass(), 1, null, null);
+
+				outTupleSerializer = outTupleTypeInfo.createSerializer();
+				outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
+
+			} else if (operatorName.equals("batchReduce")) {
+
+				GroupReduceFunction<Tuple, Tuple> f = (GroupReduceFunction<Tuple, Tuple>) in.readObject();
+
+				inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(GroupReduceFunction.class,
+						f.getClass(), 0, null, null);
+
+				inTupleSerializer = inTupleTypeInfo.createSerializer();
+				inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
+
+				outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(GroupReduceFunction.class,
 						f.getClass(), 1, null, null);
 
 				outTupleSerializer = outTupleTypeInfo.createSerializer();
