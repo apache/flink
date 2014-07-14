@@ -349,6 +349,19 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
+	 * Sets a field in the given position of the first record in the batch
+	 * 
+	 * @param fieldNumber
+	 *            Position of the field in the record
+	 * @param o
+	 *            New value
+	 * @throws NoSuchFieldException
+	 */
+	public void setField(int fieldNumber, Object o) throws NoSuchFieldException {
+		setField(0, fieldNumber, o);
+	}
+
+	/**
 	 * Sets a field in the given position of a specific tuple in the batch
 	 * 
 	 * @param tupleNumber
@@ -357,169 +370,13 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            Position of field in tuple
 	 * @param o
 	 *            New value
+	 * @throws NoSuchFieldException
 	 */
-	public void setField(int tupleNumber, int fieldNumber, Object o) {
+	// TODO: consider no such tuple exception and interaction with batch size
+	public void setField(int tupleNumber, int fieldNumber, Object o)
+			throws NoSuchFieldException {
 		try {
 			tupleBatch.get(tupleNumber).setField(o, fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchTupleException());
-		}
-	}
-
-	/**
-	 * Sets a String field in the given position of a specific tuple in the
-	 * batch
-	 * 
-	 * @param tupleNumber
-	 *            Position of tuple in batch
-	 * @param fieldNumber
-	 *            Position of field in tuple
-	 * @param str
-	 *            New value
-	 */
-	public void setString(int tupleNumber, int fieldNumber, String str) {
-		try {
-			tupleBatch.get(tupleNumber).setField(str, fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchTupleException());
-		}
-	}
-
-	/**
-	 * Sets an Integer field in the given position of a specific tuple in the
-	 * batch
-	 * 
-	 * @param tupleNumber
-	 *            Position of tuple in batch
-	 * @param fieldNumber
-	 *            Position of field in tuple
-	 * @param i
-	 *            New value
-	 */
-	public void setInteger(int tupleNumber, int fieldNumber, Integer i) {
-		try {
-			tupleBatch.get(tupleNumber).setField(i, fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchTupleException());
-		}
-	}
-
-	/**
-	 * Sets a Long field in the given position of a specific tuple in the batch
-	 * 
-	 * @param tupleNumber
-	 *            Position of tuple in batch
-	 * @param fieldNumber
-	 *            Position of field in tuple
-	 * @param l
-	 *            New value
-	 */
-	public void setLong(int tupleNumber, int fieldNumber, Long l) {
-		try {
-			tupleBatch.get(tupleNumber).setField(l, fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchTupleException());
-		}
-	}
-
-	/**
-	 * Sets a Double field in the given position of a specific tuple in the
-	 * batch
-	 * 
-	 * @param tupleNumber
-	 *            Position of tuple in batch
-	 * @param fieldNumber
-	 *            Position of field in tuple
-	 * @param d
-	 *            New value
-	 */
-	public void setDouble(int tupleNumber, int fieldNumber, Double d) {
-		try {
-			tupleBatch.get(tupleNumber).setField(d, fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchTupleException());
-		}
-	}
-
-	/**
-	 * Sets a Boolean field in the given position of a specific tuple in the
-	 * batch
-	 * 
-	 * @param tupleNumber
-	 *            Position of tuple in batch
-	 * @param fieldNumber
-	 *            Position of field in tuple
-	 * @param b
-	 *            New value
-	 */
-	public void setBoolean(int tupleNumber, int fieldNumber, Boolean b) {
-		try {
-			tupleBatch.get(tupleNumber).setField(b, fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchTupleException());
-		}
-	}
-
-	/**
-	 * Sets a String field in the given position of the first tuple in the batch
-	 * 
-	 * @param fieldNumber
-	 *            Position of field in tuple
-	 * @param str
-	 *            New value
-	 */
-	public void setString(int fieldNumber, String str) {
-		try {
-			tupleBatch.get(0).setField(str, fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchTupleException());
-		}
-	}
-
-	/**
-	 * Sets an Integer field in the given position of the first tuple in the
-	 * batch
-	 * 
-	 * @param fieldNumber
-	 *            Position of field in tuple
-	 * @param i
-	 *            New value
-	 */
-	public void setInteger(int fieldNumber, Integer i) {
-		try {
-			tupleBatch.get(0).setField(i, fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchTupleException());
-		}
-	}
-
-	/**
-	 * Sets a Long field in the given position of the first tuple in the batch
-	 * 
-	 * @param fieldNumber
-	 *            Position of field in tuple
-	 * @param l
-	 *            New value
-	 */
-	public void setLong(int fieldNumber, Long l) {
-		try {
-			tupleBatch.get(0).setField(l, fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchTupleException());
-		}
-	}
-
-	/**
-	 * Sets a Double field in the given position of the first tuple in the batch
-	 * 
-	 * @param fieldNumber
-	 *            Position of field in tuple
-	 * @param d
-	 *            New value
-	 */
-	public void setDouble(int fieldNumber, Double d) {
-		try {
-			tupleBatch.get(0).setField(d, fieldNumber);
 		} catch (IndexOutOfBoundsException e) {
 			throw (new NoSuchTupleException());
 		}
@@ -533,37 +390,168 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            Position of field in tuple
 	 * @param b
 	 *            New value
+	 * @throws NoSuchFieldException
 	 */
-	public void setBoolean(int fieldNumber, Boolean b) {
-		try {
-			tupleBatch.get(0).setField(b, fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchTupleException());
-		}
+	public void setBoolean(int fieldNumber, Boolean b)
+			throws NoSuchFieldException {
+		setBoolean(0, fieldNumber, b);
 	}
 
 	/**
-	 * Sets a field in the given position of the first record in the batch
+	 * Sets a Boolean field in the given position of a specific tuple in the
+	 * batch
+	 * 
+	 * @param tupleNumber
+	 *            Position of tuple in batch
+	 * @param fieldNumber
+	 *            Position of field in tuple
+	 * @param b
+	 *            New value
+	 * @throws NoSuchFieldException
+	 */
+	public void setBoolean(int tupleNumber, int fieldNumber, Boolean b)
+			throws NoSuchFieldException {
+		setField(tupleNumber, fieldNumber, b);
+	}
+
+	/**
+	 * Sets a Double field in the given position of the first tuple in the batch
 	 * 
 	 * @param fieldNumber
-	 *            Position of the field in the record
-	 * @param o
+	 *            Position of field in tuple
+	 * @param d
 	 *            New value
+	 * @throws NoSuchFieldException
 	 */
-	public void setField(int fieldNumber, Object o) {
-		try {
-			tupleBatch.get(0).setField(o, fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchFieldException());
-		}
+	public void setDouble(int fieldNumber, Double d)
+			throws NoSuchFieldException {
+		setDouble(0, fieldNumber, d);
+	}
+
+	/**
+	 * Sets a Double field in the given position of a specific tuple in the
+	 * batch
+	 * 
+	 * @param tupleNumber
+	 *            Position of tuple in batch
+	 * @param fieldNumber
+	 *            Position of field in tuple
+	 * @param d
+	 *            New value
+	 * @throws NoSuchFieldException
+	 */
+	public void setDouble(int tupleNumber, int fieldNumber, Double d)
+			throws NoSuchFieldException {
+		setField(tupleNumber, fieldNumber, d);
+	}
+
+	/**
+	 * Sets an Integer field in the given position of the first tuple in the
+	 * batch
+	 * 
+	 * @param fieldNumber
+	 *            Position of field in tuple
+	 * @param i
+	 *            New value
+	 * @throws NoSuchFieldException
+	 */
+	public void setInteger(int fieldNumber, Integer i)
+			throws NoSuchFieldException {
+		setInteger(0, i);
+	}
+
+	/**
+	 * Sets an Integer field in the given position of a specific tuple in the
+	 * batch
+	 * 
+	 * @param tupleNumber
+	 *            Position of tuple in batch
+	 * @param fieldNumber
+	 *            Position of field in tuple
+	 * @param i
+	 *            New value
+	 * @throws NoSuchFieldException
+	 */
+	public void setInteger(int tupleNumber, int fieldNumber, Integer i)
+			throws NoSuchFieldException {
+		setField(tupleNumber, fieldNumber, i);
+	}
+
+	/**
+	 * Sets a Long field in the given position of the first tuple in the batch
+	 * 
+	 * @param fieldNumber
+	 *            Position of field in tuple
+	 * @param l
+	 *            New value
+	 * @throws NoSuchFieldException
+	 */
+	public void setLong(int fieldNumber, Long l) throws NoSuchFieldException {
+		setLong(0, fieldNumber, l);
+	}
+
+	/**
+	 * Sets a Long field in the given position of a specific tuple in the batch
+	 * 
+	 * @param tupleNumber
+	 *            Position of tuple in batch
+	 * @param fieldNumber
+	 *            Position of field in tuple
+	 * @param l
+	 *            New value
+	 * @throws NoSuchFieldException
+	 */
+	public void setLong(int tupleNumber, int fieldNumber, Long l)
+			throws NoSuchFieldException {
+		setField(tupleNumber, fieldNumber, l);
+	}
+
+	/**
+	 * Sets a String field in the given position of the first tuple in the batch
+	 * 
+	 * @param fieldNumber
+	 *            Position of field in tuple
+	 * @param str
+	 *            New value
+	 * @throws NoSuchFieldException
+	 */
+	public void setString(int fieldNumber, String str)
+			throws NoSuchFieldException {
+		setField(0, fieldNumber, str);
+	}
+
+	/**
+	 * Sets a String field in the given position of a specific tuple in the
+	 * batch
+	 * 
+	 * @param tupleNumber
+	 *            Position of tuple in batch
+	 * @param fieldNumber
+	 *            Position of field in tuple
+	 * @param str
+	 *            New value
+	 * @throws NoSuchFieldException
+	 */
+	public void setString(int tupleNumber, int fieldNumber, String str)
+			throws NoSuchFieldException {
+		setField(tupleNumber, fieldNumber, str);
+	}
+
+	/**
+	 * @return First tuple of the batch
+	 * @throws NoSuchTupleException
+	 */
+	public Tuple getTuple() throws NoSuchTupleException {
+		return getTuple(0);
 	}
 
 	/**
 	 * @param tupleNumber
 	 *            Position of the record in the batch
 	 * @return Chosen tuple
+	 * @throws NoSuchTupleException
 	 */
-	public Tuple getTuple(int tupleNumber) {
+	public Tuple getTuple(int tupleNumber) throws NoSuchTupleException {
 		try {
 			return tupleBatch.get(tupleNumber);
 		} catch (IndexOutOfBoundsException e) {
@@ -572,19 +560,15 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
-	 * @return First tuple of the batch
-	 */
-	public Tuple getTuple() {
-		return getTuple(0);
-	}
-
-	/**
 	 * Gets the fields of the first tuple of the batch into the parameter tuple
 	 * 
 	 * @param tuple
 	 *            Target tuple
+	 * @throws NoSuchTupleException
+	 *             , TupleSizeMismatchException
 	 */
-	public void getTupleInto(Tuple tuple) {
+	public void getTupleInto(Tuple tuple) throws NoSuchTupleException,
+			TupleSizeMismatchException {
 		getTupleInto(0, tuple);
 	}
 
@@ -597,8 +581,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * 
 	 * @param tuple
 	 *            Target tuple
+	 * @throws NoSuchTupleException
+	 *             , TupleSizeMismatchException
 	 */
-	public void getTupleInto(int tupleNumber, Tuple tuple) {
+	public void getTupleInto(int tupleNumber, Tuple tuple)
+			throws NoSuchTupleException, TupleSizeMismatchException {
 
 		if (tuple.getArity() == numOfFields) {
 			try {
@@ -620,9 +607,10 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * 
 	 * @param tuple
 	 *            Tuple to set
+	 * @throws TupleSizeMismatchException
 	 */
 	// TODO: refactor this functionality - why new list?
-	public void setTuple(Tuple tuple) {
+	public void setTuple(Tuple tuple) throws TupleSizeMismatchException {
 		if (tuple.getArity() == numOfFields) {
 			if (numOfTuples != 1) {
 				tupleBatch = new ArrayList<Tuple>(1);
@@ -642,8 +630,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            Position of tuple in the batch
 	 * @param tuple
 	 *            Value to set
+	 * @throws NoSuchTupleException
+	 *             , TupleSizeMismatchException
 	 */
-	public void setTuple(int tupleNumber, Tuple tuple) {
+	public void setTuple(int tupleNumber, Tuple tuple)
+			throws NoSuchTupleException, TupleSizeMismatchException {
 		if (tuple.getArity() == numOfFields) {
 			try {
 				tupleBatch.set(tupleNumber, tuple);
@@ -694,6 +685,13 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		return newRecord;
 	}
 
+	/**
+	 * Creates deep copy of Tuple
+	 * 
+	 * @param tuple
+	 *            Tuple to copy
+	 * @return Copy of the tuple
+	 */
 	public static Tuple copyTuple(Tuple tuple) {
 		int numofFields = tuple.getArity();
 		Tuple newTuple = null;
