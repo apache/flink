@@ -19,17 +19,15 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 
+import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.StringValue;
-import eu.stratosphere.types.Value;
 
 public class WordCountSource extends UserSourceInvokable {
 
 	private BufferedReader br = null;
 	private String line = new String();
-	private StringValue lineValue = new StringValue();
-	private Value[] values = new StringValue[1];
+	private Tuple1<String> lineTuple = new Tuple1<String>();
 
 	public WordCountSource() {
 		try {
@@ -44,10 +42,9 @@ public class WordCountSource extends UserSourceInvokable {
 		line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
 		while (line != null) {
 			if (line != "") {
-				lineValue.setValue(line);
-				values[0] = lineValue;
+				lineTuple.setField(line, 0);
 				// TODO: object reuse
-				emit(new StreamRecord(values));
+				emit(new StreamRecord(lineTuple));
 			}
 			line = br.readLine();
 		}

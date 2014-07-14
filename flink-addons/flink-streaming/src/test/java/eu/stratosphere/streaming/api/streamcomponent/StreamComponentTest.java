@@ -18,7 +18,6 @@ package eu.stratosphere.streaming.api.streamcomponent;
 import static org.junit.Assert.assertEquals;
 
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -41,8 +40,6 @@ import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
-import eu.stratosphere.types.IntValue;
 
 public class StreamComponentTest {
 
@@ -52,10 +49,10 @@ public class StreamComponentTest {
 	public static class MySource extends UserSourceInvokable {
 		public MySource() {
 		}
+		StreamRecord record = new StreamRecord(new Tuple1<Integer>());
 
 		@Override
 		public void invoke() throws Exception {
-			StreamRecord record = new StreamRecord(new Tuple1<Integer>(-1));
 			for (int i = 0; i < 1000; i++) {
 				record.setField(0, i);
 				emit(record);
@@ -70,7 +67,7 @@ public class StreamComponentTest {
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
 
-			Integer i = (Integer) record.getField(0);
+			Integer i = record.getInteger(0);
 			emit(new StreamRecord(new Tuple2<Integer, Integer>(i, i + 1)));
 		}
 	}
@@ -81,8 +78,8 @@ public class StreamComponentTest {
 
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
-			Integer k = (Integer) record.getField(0);
-			Integer v = (Integer) record.getField(1);
+			Integer k = record.getInteger(0);
+			Integer v = record.getInteger(1);
 			data.put(k, v);
 		}
 
@@ -100,7 +97,7 @@ public class StreamComponentTest {
 		root.setLevel(Level.OFF);
 
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("MySource", StreamComponentTest.MySource.class);
+		graphBuilder.setSource("MySource", MySource.class);
 		graphBuilder.setTask("MyTask", MyTask.class, 2);
 		graphBuilder.setSink("MySink", MySink.class);
 
