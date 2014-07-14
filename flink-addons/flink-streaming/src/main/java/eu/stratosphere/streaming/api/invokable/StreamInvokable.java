@@ -17,7 +17,9 @@ public abstract class StreamInvokable {
   public final void emit(Record record) {
     for (RecordWriter<Record> output : outputs) {
       try {
-        output.emit(StreamRecordProvider.addUUID(record));
+      	//TODO: use this id for acking
+        Long uuid = StreamRecordProvider.addUUID(record);
+      	output.emit(record);
       } catch (Exception e) {
         System.out.println("Emit error");
       }
