@@ -25,8 +25,8 @@ public class WordCountSplitter extends UserTaskInvokable {
 
 	private String[] words = new String[] {};
 	private StreamRecord outputRecord = new StreamRecord(new Tuple1<String>());
-	PerformanceCounter pCounter = new PerformanceCounter("SplitterEmitCounter", 1000, 10000);
-	PerformanceTimer pTimer = new PerformanceTimer("SplitterEmitTimer", 1000, 10000, true);
+	PerformanceCounter pCounter = new PerformanceCounter("SplitterEmitCounter", 1000, 1000);
+	PerformanceTimer pTimer = new PerformanceTimer("SplitterEmitTimer", 1000, 1000, true);
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {

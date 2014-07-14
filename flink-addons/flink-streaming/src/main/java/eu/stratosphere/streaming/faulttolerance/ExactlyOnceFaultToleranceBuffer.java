@@ -20,16 +20,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.api.streamrecord.UID;
 
 public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 
-	protected Map<UID, int[]> ackCounter;
+	protected Map<String, int[]> ackCounter;
 	int[] initialAckCounts;
 
-	public ExactlyOnceFaultToleranceBuffer(int[] numberOfChannels, int sourceInstanceID) {
-		super(numberOfChannels, sourceInstanceID);
-		this.ackCounter = new HashMap<UID, int[]>();
+	public ExactlyOnceFaultToleranceBuffer(int[] numberOfChannels, String componentInstanceID) {
+		super(numberOfChannels, componentInstanceID);
+		this.ackCounter = new HashMap<String, int[]>();
 		this.initialAckCounts = new int[numberOfEffectiveChannels.length + 1];
 		for (int i = 0; i < numberOfEffectiveChannels.length; i++) {
 			this.initialAckCounts[i + 1] = numberOfEffectiveChannels[i];
@@ -37,12 +36,12 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 	}
 
 	@Override
-	protected void addToAckCounter(UID id) {
+	protected void addToAckCounter(String id) {
 		ackCounter.put(id, Arrays.copyOf(initialAckCounts, numberOfEffectiveChannels.length + 1));
 	}
 
 	@Override
-	protected void addToAckCounter(UID id, int channel) {
+	protected void addToAckCounter(String id, int channel) {
 		int[] acks = new int[numberOfEffectiveChannels.length + 1];
 		acks[0] = numberOfEffectiveChannels.length - 1;
 		acks[channel + 1] = numberOfEffectiveChannels[channel];
@@ -50,12 +49,12 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 	}
 
 	@Override
-	protected boolean removeFromAckCounter(UID id) {
+	protected boolean removeFromAckCounter(String id) {
 		return (ackCounter.remove(id) != null);
 	}
 
 	@Override
-	protected void ack(UID id, int channel) {
+	protected void ack(String id, int channel) {
 
 		int[] acks = ackCounter.get(id);
 
@@ -77,7 +76,7 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 	}
 
 	@Override
-	protected StreamRecord failChannel(UID id, int channel) {
+	protected StreamRecord failChannel(String id, int channel) {
 
 		if (notAcked(id, channel)) {
 			int[] acks = ackCounter.get(id);
@@ -96,11 +95,11 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 
 	}
 
-	protected StreamRecord addToChannel(UID id, int channel) {
+	protected StreamRecord addToChannel(String id, int channel) {
 
 		StreamRecord record = recordBuffer.get(id).copy().setId(componentInstanceID);
 
-		UID new_id = record.getId();
+		String new_id = record.getId();
 		recordBuffer.put(new_id, record);
 		addTimestamp(new_id);
 
@@ -108,7 +107,7 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 		return record;
 	}
 
-	protected boolean notAcked(UID id, int channel) {
+	protected boolean notAcked(String id, int channel) {
 		int[] acks = ackCounter.get(id);
 		if (acks != null) {
 			if (acks[channel + 1] > 0) {

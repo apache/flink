@@ -19,30 +19,29 @@ import java.util.HashMap;
 import java.util.Map;
 
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.api.streamrecord.UID;
 
 public class AtLeastOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 	
-	protected Map<UID, Integer> ackCounter;
+	protected Map<String, Integer> ackCounter;
 
-	public AtLeastOnceFaultToleranceBuffer(int[] numberOfChannels, int componentInstanceID) {
+	public AtLeastOnceFaultToleranceBuffer(int[] numberOfChannels, String componentInstanceID) {
 		super(numberOfChannels, componentInstanceID);
-		this.ackCounter = new HashMap<UID, Integer>();
+		this.ackCounter = new HashMap<String, Integer>();
 	}
 	
 
 	@Override
-	protected void addToAckCounter(UID id) {
+	protected void addToAckCounter(String id) {
 		ackCounter.put(id, totalNumberOfEffectiveChannels);
 	}
 
 	@Override
-	protected boolean removeFromAckCounter(UID id) {
+	protected boolean removeFromAckCounter(String id) {
 		return (ackCounter.remove(id) != null);
 	}
 
 	@Override
-	protected void ack(UID id, int channel) {
+	protected void ack(String id, int channel) {
 		Integer ackCount = ackCounter.get(id);
 
 		if (ackCount != null) {
@@ -58,7 +57,7 @@ public class AtLeastOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 	}
 
 	@Override
-	protected StreamRecord failChannel(UID id, int channel) {
+	protected StreamRecord failChannel(String id, int channel) {
 		return fail(id);
 	}
 

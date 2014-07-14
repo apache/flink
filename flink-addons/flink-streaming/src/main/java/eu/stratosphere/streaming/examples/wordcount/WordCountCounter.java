@@ -30,8 +30,8 @@ public class WordCountCounter extends UserTaskInvokable {
 	private String word = "";
 	private Integer count = 0;
 
-	PerformanceCounter pCounter = new PerformanceCounter("CounterEmitCounter", 1000, 10000);
-	PerformanceTimer pTimer = new PerformanceTimer("CounterEmitTimer", 1000, 10000, true);
+	PerformanceCounter pCounter = new PerformanceCounter("CounterEmitCounter", 1000, 1000);
+	PerformanceTimer pTimer = new PerformanceTimer("CounterEmitTimer", 1000, 1000, true);
 
 	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Integer>());
 
