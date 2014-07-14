@@ -80,8 +80,8 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 	public void invoke() throws Exception {
 
 		userFunction.invoke();
-		System.out.println(this.getClass().getName() + "-" + sourceInstanceID);
-		System.out.println("---------------------");
+//		System.out.println(this.getClass().getName() + "-" + sourceInstanceID);
+//		System.out.println("---------------------");
 
 	}
 

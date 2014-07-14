@@ -248,6 +248,8 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public StreamRecord copy() {
 		StreamRecord copiedRecord = new StreamRecord(this.numOfFields, this.numOfRecords);
+		copiedRecord.uid = this.uid;
+		
 		for (Value[] record : recordBatch) {
 			copiedRecord.recordBatch.add(record);
 		}
