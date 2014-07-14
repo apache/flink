@@ -36,7 +36,6 @@ public class StreamSink extends AbstractStreamComponent {
 	private StreamRecordInvokable<Tuple, Tuple> userFunction;
 
 	public StreamSink() {
-		// TODO: Make configuration file visible and call setClassInputs() here
 		userFunction = null;
 	}
 

@@ -40,16 +40,13 @@ public class StreamTask extends AbstractStreamComponent {
 
 	private AbstractRecordReader inputs;
 	private List<RecordWriter<StreamRecord>> outputs;
-	private List<ChannelSelector<StreamRecord>> partitioners;
 	private StreamRecordInvokable<Tuple, Tuple> userFunction;
 	private int[] numberOfOutputChannels;
 	private static int numTasks;
 
 	public StreamTask() {
 		
-		// TODO: Make configuration file visible and call setClassInputs() here
 		outputs = new LinkedList<RecordWriter<StreamRecord>>();
-		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
 		userFunction = null;
 		numTasks = newComponent();
 		instanceID = numTasks;
@@ -63,7 +60,7 @@ public class StreamTask extends AbstractStreamComponent {
 			setSerializers();
 			setCollector();
 			inputs = getConfigInputs();
-			setConfigOutputs(outputs, partitioners);
+			setConfigOutputs(outputs);
 		} catch (StreamComponentException e) {
 			if (log.isErrorEnabled()) {
 				log.error("Cannot register inputs/outputs for " + getClass().getSimpleName(), e);
