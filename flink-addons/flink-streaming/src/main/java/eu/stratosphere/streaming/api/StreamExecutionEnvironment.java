@@ -154,7 +154,7 @@ public class StreamExecutionEnvironment {
 	<T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName,
 			DataStream<T> inputStream, final AbstractFunction function,
 			UserTaskInvokable<T, R> functionInvokable, int parallelism) {
-		DataStream<R> returnStream = new DataStream<R>(this);
+		DataStream<R> returnStream = new DataStream<R>(this, functionName);
 
 		jobGraphBuilder.setTask(returnStream.getId(), functionInvokable, functionName,
 				serializeToByteArray(function), parallelism,
@@ -178,7 +178,7 @@ public class StreamExecutionEnvironment {
 	 */
 	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
 			SinkFunction<T> sinkFunction, int parallelism) {
-		DataStream<T> returnStream = new DataStream<T>(this);
+		DataStream<T> returnStream = new DataStream<T>(this, "sink");
 
 		jobGraphBuilder.setSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction), "sink",
 				serializeToByteArray(sinkFunction), parallelism,
@@ -241,7 +241,7 @@ public class StreamExecutionEnvironment {
 	 * @return The DataStream representing the elements.
 	 */
 	public <X> DataStream<Tuple1<X>> fromElements(X... data) {
-		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this);
+		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
 
 		jobGraphBuilder.setSource(returnStream.getId(), new FromElementsSource<X>(data),
 				"elements", serializeToByteArray(data[0]), 1, 1);
@@ -260,7 +260,7 @@ public class StreamExecutionEnvironment {
 	 * @return The DataStream representing the elements.
 	 */
 	public <X> DataStream<Tuple1<X>> fromCollection(Collection<X> data) {
-		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this);
+		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
 
 		jobGraphBuilder.setSource(returnStream.getId(), new FromElementsSource<X>(data),
 				"elements", serializeToByteArray(data.toArray()[0]), 1, 1);
@@ -355,6 +355,10 @@ public class StreamExecutionEnvironment {
 		ClusterUtil.runOnMiniCluster(jobGraphBuilder.getJobGraph());
 	}
 
+	public void executeCluster() {
+		ClusterUtil.runOnLocalCluster(jobGraphBuilder.getJobGraph(), "10.1.3.150", 6123);
+	}
+
 	// TODO: Link to DataStream
 	/**
 	 * Ads a data source thus opening a data stream.
@@ -367,7 +371,7 @@ public class StreamExecutionEnvironment {
 	 */
 	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction,
 			int parallelism) {
-		DataStream<T> returnStream = new DataStream<T>(this);
+		DataStream<T> returnStream = new DataStream<T>(this, "source");
 
 		jobGraphBuilder.setSource(returnStream.getId(), sourceFunction, "source",
 				serializeToByteArray(sourceFunction), parallelism,
@@ -390,6 +394,10 @@ public class StreamExecutionEnvironment {
 		return addSource(new FileSourceFunction(filePath), 1);
 	}
 
+	public DataStream<Tuple1<String>> readTextFile(String filePath, int parallelism) {
+		return addSource(new FileSourceFunction(filePath), parallelism);
+	}
+
 	/**
 	 * Creates a DataStream that represents the Strings produced by reading the
 	 * given file line wise multiple times(infinite). The file will be read with
@@ -402,6 +410,10 @@ public class StreamExecutionEnvironment {
 	 */
 	public DataStream<Tuple1<String>> readTextStream(String filePath) {
 		return addSource(new FileStreamFunction(filePath), 1);
+	}
+
+	public DataStream<Tuple1<String>> readTextStream(String filePath, int parallelism) {
+		return addSource(new FileStreamFunction(filePath), parallelism);
 	}
 
 	/**

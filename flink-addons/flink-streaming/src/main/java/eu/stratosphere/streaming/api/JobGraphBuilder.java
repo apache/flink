@@ -28,6 +28,8 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
@@ -35,8 +37,6 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.runtime.io.api.ChannelSelector;
-import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
@@ -127,7 +127,7 @@ public class JobGraphBuilder {
 
 		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
 
-		source.setInvokableClass(StreamSource.class);
+		source.setInputClass(StreamSource.class);
 
 		setComponent(sourceName, source, InvokableObject, operatorName, serializedFunction,
 				parallelism, subtasksPerInstance);
@@ -158,7 +158,7 @@ public class JobGraphBuilder {
 			String operatorName, byte[] serializedFunction, int parallelism, int subtasksPerInstance) {
 
 		final JobTaskVertex task = new JobTaskVertex(taskName, jobGraph);
-		task.setInvokableClass(StreamTask.class);
+		task.setTaskClass(StreamTask.class);
 		setComponent(taskName, task, TaskInvokableObject, operatorName, serializedFunction,
 				parallelism, subtasksPerInstance);
 
@@ -187,7 +187,7 @@ public class JobGraphBuilder {
 			String operatorName, byte[] serializedFunction, int parallelism, int subtasksPerInstance) {
 
 		final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
-		sink.setInvokableClass(StreamSink.class);
+		sink.setOutputClass(StreamSink.class);
 		setComponent(sinkName, sink, InvokableObject, operatorName, serializedFunction,
 				parallelism, subtasksPerInstance);
 
@@ -220,8 +220,7 @@ public class JobGraphBuilder {
 			int parallelism, int subtasksPerInstance) {
 
 		component.setNumberOfSubtasks(parallelism);
-		// TODO remove all NumberOfSubtasks setting
-//		component.setNumberOfSubtasksPerInstance(subtasksPerInstance);
+		component.setNumberOfSubtasksPerInstance(subtasksPerInstance);
 
 		if (parallelism > maxParallelism) {
 			maxParallelism = parallelism;
