@@ -22,10 +22,7 @@ public class DefaultPartitioner implements ChannelSelector<StreamRecord> {
 
 	@Override
 	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
-
 		return new ShufflePartitioner().selectChannels(record,
 				numberOfOutputChannels);
-
 	}
-
 }

@@ -37,7 +37,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 	private List<RecordWriter<StreamRecord>> outputs;
 	private List<ChannelSelector<StreamRecord>> partitioners;
 	private UserSourceInvokable userFunction;
-	private static int numSources = 0;
+	private static int numSources = StreamComponentHelper.newComponent();
 	private String sourceInstanceID;
 	private String name;
 	private FaultToleranceBuffer recordBuffer;
@@ -48,7 +48,6 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 		outputs = new LinkedList<RecordWriter<StreamRecord>>();
 		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
 		userFunction = null;
-		numSources++;
 		sourceInstanceID = Integer.toString(numSources);
 		streamSourceHelper = new StreamComponentHelper<StreamSource>();
 	}

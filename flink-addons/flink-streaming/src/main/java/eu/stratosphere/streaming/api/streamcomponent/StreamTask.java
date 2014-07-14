@@ -30,6 +30,7 @@ import eu.stratosphere.streaming.api.AckEvent;
 import eu.stratosphere.streaming.api.FailEvent;
 import eu.stratosphere.streaming.api.FaultToleranceBuffer;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.RecordSizeMismatchException;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class StreamTask extends AbstractTask {
@@ -40,7 +41,7 @@ public class StreamTask extends AbstractTask {
 	private List<RecordWriter<StreamRecord>> outputs;
 	private List<ChannelSelector<StreamRecord>> partitioners;
 	private UserTaskInvokable userFunction;
-	private static int numTasks = 0;
+	private static int numTasks = StreamComponentHelper.newComponent();
 	private String taskInstanceID = "";
 	private String name;
 	StreamComponentHelper<StreamTask> streamTaskHelper;
@@ -54,7 +55,6 @@ public class StreamTask extends AbstractTask {
 		outputs = new LinkedList<RecordWriter<StreamRecord>>();
 		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
 		userFunction = null;
-		numTasks++;
 		taskInstanceID = Integer.toString(numTasks);
 		streamTaskHelper = new StreamComponentHelper<StreamTask>();
 	}
@@ -84,6 +84,7 @@ public class StreamTask extends AbstractTask {
 		streamTaskHelper.setFailListener(recordBuffer, taskInstanceID, outputs);
 	}
 
+	//TODO: eliminate code repetition (StreamSink)
 	@Override
 	public void invoke() throws Exception {
 		log.debug("TASK " + name + " invoked with instance id " + taskInstanceID);
@@ -96,19 +97,22 @@ public class StreamTask extends AbstractTask {
 					hasInput = true;
 					StreamRecord streamRecord = input.next();
 					String id = streamRecord.getId();
-					// TODO create method for concurrent publishing
 					try {
 						userFunction.invoke(streamRecord);
 						streamTaskHelper.threadSafePublish(new AckEvent(id), input);
 						log.debug("ACK: " + id + " -- " + name);
+						//TODO: write an exception class to throw forward (set this for Sink too)
+					} catch (RecordSizeMismatchException e) {
+						throw (e);
 					} catch (Exception e) {
+						e.printStackTrace();
 						streamTaskHelper.threadSafePublish(new FailEvent(id), input);
-						log.warn("FAILED: " + id + " -- " + name + " -- due to " + e.getMessage());
+						log.warn("FAILED: " + id + " -- " + name + " -- due to " + e.getClass().getSimpleName());
 					}
 				}
 			}
 		}
-		log.debug("TASK " + name + "invoke finished with instance id " + taskInstanceID);
+		log.debug("TASK " + name + " invoke finished with instance id " + taskInstanceID);
 	}
 
 }

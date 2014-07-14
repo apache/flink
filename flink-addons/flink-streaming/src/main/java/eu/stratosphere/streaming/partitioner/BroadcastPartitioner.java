@@ -22,12 +22,10 @@ public class BroadcastPartitioner implements ChannelSelector<StreamRecord> {
 
 	@Override
 	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
-
 		int[] returnChannels = new int[numberOfOutputChannels];
 		for (int i = 0; i < numberOfOutputChannels; i++) {
 			returnChannels[i] = i;
 		}
 		return returnChannels;
 	}
-
 }

@@ -19,7 +19,6 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.types.StringValue;
 
 public class DefaultSinkInvokable extends UserSinkInvokable {
-
   @Override
   public void invoke(StreamRecord record) throws Exception {
     StringValue value = (StringValue) record.getField(0, 0);

@@ -25,8 +25,7 @@ public class WorkerEngineBin implements java.io.Serializable, IWorkerEngine {
 	private int[][] counters_;
 	private int pointer_;
 
-	public WorkerEngineBin(long unitLength, int numOfCells, int bufferInterval,
-			long currentTime) {
+	public WorkerEngineBin(long unitLength, int numOfCells, int bufferInterval, long currentTime) {
 		lastTimeUpdated_ = currentTime / unitLength * unitLength;
 		unitLength_ = unitLength;
 		counters_ = new int[(int) (bufferInterval / unitLength) + 1][numOfCells];
@@ -64,15 +63,11 @@ public class WorkerEngineBin implements java.io.Serializable, IWorkerEngine {
 		int shift = refresh(timeStamp);
 		int numOfLastIntervals = (int) (lastMillis / unitLength_);
 		if (shift >= counters_.length || numOfLastIntervals >= counters_.length) {
-			// System.out.println(counters_.length);
-			// System.out.println(shift);
-			// System.out.println(numOfLastIntervals);
 			return -1;
 		}
 		int sum = 0;
 		for (int i = shift + 1; i < shift + numOfLastIntervals + 1; ++i) {
 			sum += getCell(i, cellId);
-			// System.out.println(i + " " + getCell(i, cellId));
 		}
 		return sum;
 	}
@@ -83,12 +78,10 @@ public class WorkerEngineBin implements java.io.Serializable, IWorkerEngine {
 		int retVal;
 		if (shiftBy > 0) {
 			lastTimeUpdated_ = timeStamp / unitLength_ * unitLength_;
-			// System.out.println(lastTimeUpdated_);
 			retVal = 0;
 		} else {
 			retVal = -shiftBy;
 		}
-		// System.out.println("Shiftby " + shiftBy + " at " + timeStamp);
 		return retVal;
 	}
 
@@ -97,7 +90,5 @@ public class WorkerEngineBin implements java.io.Serializable, IWorkerEngine {
 		if (shift >= counters_.length)
 			return;
 		incrCell(shift, cellId);
-		// System.out.println("Pointer:" + pointer_);
-		// System.out.println(getCell(shift, cellId));
 	}
 }

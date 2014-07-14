@@ -18,7 +18,6 @@ package eu.stratosphere.streaming.api.invokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class DefaultTaskInvokable extends UserTaskInvokable {
-
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
 		emit(record);
