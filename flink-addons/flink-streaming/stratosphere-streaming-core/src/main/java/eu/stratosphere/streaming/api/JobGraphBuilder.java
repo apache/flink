@@ -38,9 +38,12 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.runtime.io.api.ChannelSelector;
 import eu.stratosphere.runtime.io.channels.ChannelType;
+import eu.stratosphere.streaming.api.invokable.StreamComponentInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamcomponent.StreamIterationSink;
+import eu.stratosphere.streaming.api.streamcomponent.StreamIterationSource;
 import eu.stratosphere.streaming.api.streamcomponent.StreamSink;
 import eu.stratosphere.streaming.api.streamcomponent.StreamSource;
 import eu.stratosphere.streaming.api.streamcomponent.StreamTask;
@@ -131,6 +134,22 @@ public class JobGraphBuilder {
 			log.debug("SOURCE: " + sourceName);
 		}
 	}
+	
+	public void setIterationSource(String sourceName,
+			StreamComponentInvokable InvokableObject,
+			String operatorName, byte[] serializedFunction, int parallelism) {
+
+		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
+
+		source.setInvokableClass(StreamIterationSource.class);
+
+		setComponent(sourceName, source, InvokableObject, operatorName,
+				serializedFunction, parallelism);
+
+		if (log.isDebugEnabled()) {
+			log.debug("SOURCE: " + sourceName);
+		}
+	}
 
 	/**
 	 * Adds task to the JobGraph with the given parameters
@@ -181,6 +200,21 @@ public class JobGraphBuilder {
 
 		final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
 		sink.setInvokableClass(StreamSink.class);
+		setComponent(sinkName, sink, InvokableObject, operatorName,
+				serializedFunction, parallelism);
+
+		if (log.isDebugEnabled()) {
+			log.debug("SINK: " + sinkName);
+		}
+
+	}
+	
+	public void setIterationSink(String sinkName,
+			StreamComponentInvokable InvokableObject,
+			String operatorName, byte[] serializedFunction, int parallelism) {
+
+		final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
+		sink.setInvokableClass(StreamIterationSink.class);
 		setComponent(sinkName, sink, InvokableObject, operatorName,
 				serializedFunction, parallelism);
 
