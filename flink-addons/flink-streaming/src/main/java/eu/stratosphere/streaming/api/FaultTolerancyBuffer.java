@@ -12,14 +12,16 @@ public class FaultTolerancyBuffer {
 	private Map<String, StreamRecord> recordBuffer;
 	private Map<String, Integer> ackCounter;
 	private List<RecordWriter<Record>> outputs;
+	private String channelID;
 
 	private int numberOfOutputs;
 
-	public FaultTolerancyBuffer(List<RecordWriter<Record>> outputs) {
+	public FaultTolerancyBuffer(List<RecordWriter<Record>> outputs, String channelID) {
 		this.outputs=outputs;
 		this.recordBuffer = new HashMap<String, StreamRecord>();
 		this.ackCounter = new HashMap<String, Integer>();
 		this.numberOfOutputs = outputs.size();
+		this.channelID=channelID;
 
 	}
 
@@ -52,7 +54,7 @@ public class FaultTolerancyBuffer {
 
 	public void failRecord(String recordID) {
 		// Create new id to avoid double counting acks
-		StreamRecord newRecord = new StreamRecord(popRecord(recordID)).addId();
+		StreamRecord newRecord = new StreamRecord(popRecord(recordID),channelID).addId();
 		addRecord(newRecord);
 		reEmit(newRecord.getRecord());
 

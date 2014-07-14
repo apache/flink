@@ -1,7 +1,5 @@
 package eu.stratosphere.streaming.api;
 
-import java.util.Map;
-
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 
@@ -11,7 +9,6 @@ public class AckEventListener implements EventListener {
 	private FaultTolerancyBuffer recordBuffer;
 
 	public AckEventListener(String taskInstanceID,FaultTolerancyBuffer recordBuffer) {
-//	public AckEventListener(String taskInstanceID,Map<String, StreamRecord> recordBuffer) {
 		this.taskInstanceID=taskInstanceID;
 		this.recordBuffer=recordBuffer;
 	}
