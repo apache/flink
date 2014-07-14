@@ -33,7 +33,7 @@ import eu.stratosphere.util.LogUtils;
 public class CellInfo {
 
 	protected final Configuration config;
-	
+
 	public CellInfo() {
 		this(new Configuration());
 	}
@@ -43,32 +43,35 @@ public class CellInfo {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
 	}
-	
-	
-  public static JobGraph getJobGraph() {
-    JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-    graphBuilder.setSource("infoSource", InfoSourceInvokable.class);
-//    graphBuilder.setSource("infoSource2", InfoSourceInvokable.class);
-    graphBuilder.setSource("querySource", QuerySourceInvokable.class);
-//    graphBuilder.setSource("querySource2", QuerySourceInvokable.class);
-    graphBuilder.setTask("cellTask", CellTaskInvokable.class, 3);
-    graphBuilder.setSink("sink", CellSinkInvokable.class);
-    
-    graphBuilder.fieldsConnect("infoSource", "cellTask", 0, IntValue.class);
-    graphBuilder.fieldsConnect("querySource", "cellTask",0, IntValue.class);
-//    graphBuilder.fieldsConnect("infoSource2", "cellTask", 0, IntValue.class);
-//    graphBuilder.fieldsConnect("querySource2", "cellTask",0, IntValue.class);
-    graphBuilder.shuffleConnect("cellTask", "sink");
 
-    return graphBuilder.getJobGraph();
-  }
-  
-  public static void main(String[] args) {
+	public static JobGraph getJobGraph() {
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
+		graphBuilder.setSource("infoSource", InfoSourceInvokable.class);
+		// graphBuilder.setSource("infoSource2", InfoSourceInvokable.class);
+		graphBuilder.setSource("querySource", QuerySourceInvokable.class);
+		// graphBuilder.setSource("querySource2", QuerySourceInvokable.class);
+		graphBuilder.setTask("cellTask", CellTaskInvokable.class, 3);
+		graphBuilder.setSink("sink", CellSinkInvokable.class);
 
-  	NepheleMiniCluster exec = new NepheleMiniCluster();
+		graphBuilder.fieldsConnect("infoSource", "cellTask", 0, IntValue.class);
+		graphBuilder
+				.fieldsConnect("querySource", "cellTask", 0, IntValue.class);
+		// graphBuilder.fieldsConnect("infoSource2", "cellTask", 0,
+		// IntValue.class);
+		// graphBuilder.fieldsConnect("querySource2", "cellTask",0,
+		// IntValue.class);
+		graphBuilder.shuffleConnect("cellTask", "sink");
+
+		return graphBuilder.getJobGraph();
+	}
+
+	public static void main(String[] args) {
+
+		NepheleMiniCluster exec = new NepheleMiniCluster();
 		try {
 
-			File file = new File("target/stratosphere-streaming-0.5-SNAPSHOT.jar");
+			File file = new File(
+					"target/stratosphere-streaming-0.5-SNAPSHOT.jar");
 			JobWithJars.checkJarFile(file);
 
 			JobGraph jG = getJobGraph();
@@ -76,14 +79,15 @@ public class CellInfo {
 			jG.addJar(new Path(file.getAbsolutePath()));
 
 			Configuration configuration = jG.getJobConfiguration();
-			
-//			Client client = new Client(new InetSocketAddress("localhost", 6498),
-//					configuration);
+
+			// Client client = new Client(new InetSocketAddress("localhost",
+			// 6498),
+			// configuration);
 
 			Client client = new Client(new InetSocketAddress(
 					"hadoop02.ilab.sztaki.hu", 6123), configuration);
 			exec.start();
-			client.run(null, jG, true);
+			client.run(jG, true);
 			exec.stop();
 		} catch (Exception e) {
 			System.out.println(e);
