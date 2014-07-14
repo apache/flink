@@ -28,6 +28,28 @@ import java.util.List;
 import java.util.UUID;
 
 import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.api.java.tuple.Tuple10;
+import eu.stratosphere.api.java.tuple.Tuple11;
+import eu.stratosphere.api.java.tuple.Tuple12;
+import eu.stratosphere.api.java.tuple.Tuple13;
+import eu.stratosphere.api.java.tuple.Tuple14;
+import eu.stratosphere.api.java.tuple.Tuple15;
+import eu.stratosphere.api.java.tuple.Tuple16;
+import eu.stratosphere.api.java.tuple.Tuple17;
+import eu.stratosphere.api.java.tuple.Tuple18;
+import eu.stratosphere.api.java.tuple.Tuple19;
+import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.api.java.tuple.Tuple20;
+import eu.stratosphere.api.java.tuple.Tuple21;
+import eu.stratosphere.api.java.tuple.Tuple22;
+import eu.stratosphere.api.java.tuple.Tuple3;
+import eu.stratosphere.api.java.tuple.Tuple4;
+import eu.stratosphere.api.java.tuple.Tuple5;
+import eu.stratosphere.api.java.tuple.Tuple6;
+import eu.stratosphere.api.java.tuple.Tuple7;
+import eu.stratosphere.api.java.tuple.Tuple8;
+import eu.stratosphere.api.java.tuple.Tuple9;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
@@ -43,7 +65,7 @@ import eu.stratosphere.types.StringValue;
  * objects in Stratosphere stream processing. The elements of the batch are
  * Value arrays.
  */
-//TODO: update documentation
+// TODO: update documentation
 public class StreamRecord implements IOReadableWritable, Serializable {
 	private static final long serialVersionUID = 1L;
 
@@ -51,6 +73,12 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	private StringValue uid = new StringValue("");
 	private int numOfFields;
 	private int numOfRecords;
+
+	private static final Class<?>[] CLASSES = new Class<?>[] { Tuple1.class, Tuple2.class,
+			Tuple3.class, Tuple4.class, Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class,
+			Tuple9.class, Tuple10.class, Tuple11.class, Tuple12.class, Tuple13.class,
+			Tuple14.class, Tuple15.class, Tuple16.class, Tuple17.class, Tuple18.class,
+			Tuple19.class, Tuple20.class, Tuple21.class, Tuple22.class };
 
 	// TODO implement equals, clone
 	/**
@@ -470,6 +498,22 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		}
 
 		return newRecord;
+	}
+
+	public static Tuple copyTuple(Tuple tuple) {
+		int numofFields = tuple.getArity();
+		Tuple newTuple = null;
+		try {
+			newTuple = (Tuple) CLASSES[numofFields - 1].newInstance();
+		} catch (Exception e) {
+
+		}
+
+		for (int i = 0; i < numofFields; i++) {
+			newTuple.setField(tuple.getField(i), i);
+		}
+
+		return newTuple;
 	}
 
 	private void writeTuple(Tuple tuple, DataOutput out) {
