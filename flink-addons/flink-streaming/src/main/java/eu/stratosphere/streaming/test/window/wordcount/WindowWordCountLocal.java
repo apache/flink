@@ -17,10 +17,7 @@ package eu.stratosphere.streaming.test.window.wordcount;
 
 import java.net.InetSocketAddress;
 
-import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.client.program.Client;
@@ -75,7 +72,7 @@ public class WindowWordCountLocal {
 				Client client = new Client(new InetSocketAddress("localhost",
 						6498), configuration);
 
-				client.run(null, jG, true);
+				client.run(jG, true);
 
 				exec.stop();
 
@@ -85,7 +82,7 @@ public class WindowWordCountLocal {
 				Client client = new Client(new InetSocketAddress(
 						"hadoop02.ilab.sztaki.hu", 6123), configuration);
 
-				client.run(null, jG, true);
+				client.run(jG, true);
 
 			}
 

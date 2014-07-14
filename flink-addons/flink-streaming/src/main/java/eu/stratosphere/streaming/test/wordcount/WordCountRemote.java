@@ -18,10 +18,7 @@ package eu.stratosphere.streaming.test.wordcount;
 import java.io.File;
 import java.net.InetSocketAddress;
 
-import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
 
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.JobWithJars;
@@ -67,7 +64,7 @@ public class WordCountRemote {
 			Client client = new Client(new InetSocketAddress(
 					"hadoop02.ilab.sztaki.hu", 6123), configuration);
 
-			client.run(null, jG, true);
+			client.run(jG, true);
 
 		} catch (Exception e) {
 			System.out.println(e);
