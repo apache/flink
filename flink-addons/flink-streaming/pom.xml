@@ -5,18 +5,42 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>eu.stratosphere</groupId>
-	<version>0.2-SNAPSHOT</version>
+	<version>0.3-SNAPSHOT</version>
 	<artifactId>stratosphere-streaming</artifactId>
-	<name>stratosphere-streaming</name>
 
-	<packaging>jar</packaging>
+	<name>stratosphere-streaming</name>
+	<packaging>pom</packaging>
+	<url>http://github.com/stratosphere/stratosphere-streaming</url>
+	<inceptionYear>2014</inceptionYear>
+
+	<licenses>
+		<license>
+			<name>The Apache Software License, Version 2.0</name>
+			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<distribution>stratosphere</distribution>
+		</license>
+	</licenses>
+
+	<scm>
+		<url>https://github.com/stratosphere/stratosphere-streaming</url>
+		<connection>scm:git:git@github.com:stratosphere/stratosphere-streaming.git</connection>
+		<developerConnection>scm:git:git@github.com:stratosphere/stratosphere-streaming.git</developerConnection>
+	</scm>
+
+	<developers>
+	</developers>
+
+	<modules>
+		<module>stratosphere-streaming-core</module>
+		<module>stratosphere-streaming-examples</module>
+		<module>stratosphere-streaming-addons</module>
+	</modules>
 
 	<properties>
-		<stratosphere.version>0.5</stratosphere.version>
+		<stratosphere.version>0.6-SNAPSHOT</stratosphere.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
-
 	<repositories>
 		<repository>
 			<id>dms-repo</id>
@@ -25,47 +49,54 @@
 			<snapshots><enabled>true</enabled></snapshots>
 		</repository>
 	</repositories>
-
 	<dependencies>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-core</artifactId>
-            <version>${stratosphere.version}</version>
+            		<version>${stratosphere.version}</version>
+			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-tests</artifactId>
 			<version>${stratosphere.version}</version>
+			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-compiler</artifactId>
 			<version>${stratosphere.version}</version>
+			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-runtime</artifactId>
 			<version>${stratosphere.version}</version>
+			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-clients</artifactId>
 			<version>${stratosphere.version}</version>
+			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-java</artifactId>
 			<version>${stratosphere.version}</version>
+			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>4.7</version>
+			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
 			<version>3.3.2</version>
+			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>commons-logging</groupId>
@@ -78,27 +109,14 @@
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
 			<version>1.2.16</version>
-		</dependency>
-		<dependency>
-			<groupId>com.rabbitmq</groupId>
-			<artifactId>amqp-client</artifactId>
-			<version>3.3.1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka_2.10</artifactId>
-			<version>0.8.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.jblas</groupId>
-			<artifactId>jblas</artifactId>
-			<version>1.2.3</version>
+			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-all</artifactId>
 			<version>1.8.5</version>
 			<scope>test</scope>
+			<type>jar</type>
   		</dependency>
 	</dependencies>
 
@@ -218,6 +236,7 @@
 						<excludes>
 							<!-- Additional files like .gitignore etc.-->
 							<exclude>**/.*</exclude>
+							<exclude>**/.*/**</exclude>
 							<!-- Resource files which have values. -->
 							<exclude>**/resources/**</exclude>
 							<!-- Configuration Files. -->
