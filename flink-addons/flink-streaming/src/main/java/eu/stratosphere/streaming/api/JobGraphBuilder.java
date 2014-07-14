@@ -90,7 +90,7 @@ public class JobGraphBuilder {
 		config.setString("componentName", sourceName);
 		components.put(sourceName, source);
 		numberOfInstances.put(sourceName, 1);
-		log.debug("Source set: " + sourceName);
+		log.debug("SOURCE: " + sourceName);
 	}
 
 	/**
@@ -116,7 +116,7 @@ public class JobGraphBuilder {
 		config.setString("componentName", sourceName);
 		components.put(sourceName, source);
 		numberOfInstances.put(sourceName, 1);
-		log.debug("Source set: " + sourceName);
+		log.debug("SOURCE: " + sourceName);
 	}
 
 	/**
@@ -138,7 +138,7 @@ public class JobGraphBuilder {
 		config.setString("componentName", taskName);
 		components.put(taskName, task);
 		numberOfInstances.put(taskName, 1);
-		log.debug("Task set: " + taskName);
+		log.debug("TASK: " + taskName);
 	}
 
 	/**
@@ -164,7 +164,7 @@ public class JobGraphBuilder {
 		config.setString("componentName", taskName);
 		components.put(taskName, task);
 		numberOfInstances.put(taskName, parallelism);
-		log.debug("Task set: " + taskName);
+		log.debug("TASK: " + taskName);
 	}
 
 	/**
@@ -186,7 +186,7 @@ public class JobGraphBuilder {
 		config.setString("componentName", sinkName);
 		components.put(sinkName, sink);
 		numberOfInstances.put(sinkName, 1);
-		log.debug("Sink set: " + sinkName);
+		log.debug("SINK: " + sinkName);
 	}
 
 	/**
@@ -212,7 +212,7 @@ public class JobGraphBuilder {
 		config.setString("componentName", sinkName);
 		components.put(sinkName, sink);
 		numberOfInstances.put(sinkName, 1);
-		log.debug("Sink set: " + sinkName);
+		log.debug("TASK: " + sinkName);
 	}
 
 	/**
@@ -247,14 +247,14 @@ public class JobGraphBuilder {
 					"partitionerClass_"
 							+ upStreamComponent.getNumberOfForwardConnections(),
 					PartitionerClass);
-			log.debug("Components connected with "
-					+ PartitionerClass.getSimpleName() + ": "
-					+ upStreamComponentName + " to " + downStreamComponentName);
+			log.debug("CONNECTED: "
+					+ PartitionerClass.getSimpleName() + " - "
+					+ upStreamComponentName + " -> " + downStreamComponentName);
 		} catch (JobGraphDefinitionException e) {
 			log.error(
 					"Cannot connect components with "
 							+ PartitionerClass.getSimpleName() + " : "
-							+ upStreamComponentName + " to "
+							+ upStreamComponentName + " -> "
 							+ downStreamComponentName, e);
 		}
 	}
@@ -338,8 +338,8 @@ public class JobGraphBuilder {
 					keyPosition);
 
 			addOutputChannels(upStreamComponentName);
-			log.debug("Components connected by field: " + upStreamComponentName
-					+ " to " + downStreamComponentName + " by key position "
+			log.debug("CONNECTED: FIELD PARTITIONING - " + upStreamComponentName
+					+ " -> " + downStreamComponentName + ", KEY: "
 					+ keyPosition);
 		} catch (JobGraphDefinitionException e) {
 			log.error("Cannot connect components by field: "

@@ -196,7 +196,6 @@ public class FaultToleranceBuffer {
 	 */
 	public void failRecord(String recordID) {
 		// Create new id to avoid double counting acks
-		log.warn("Fail ID: " + recordID);
 		StreamRecord newRecord = removeRecord(recordID).setId(channelID);
 		addRecord(newRecord);
 		reEmit(newRecord);

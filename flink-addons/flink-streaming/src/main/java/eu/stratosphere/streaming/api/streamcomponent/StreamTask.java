@@ -81,7 +81,7 @@ public class StreamTask extends AbstractTask {
 
 	@Override
 	public void invoke() throws Exception {
-		log.debug("Task " + name + " invoked with instance id " + taskInstanceID);
+		log.debug("TASK " + name + " invoked with instance id " + taskInstanceID);
 
 		boolean hasInput = true;
 		while (hasInput) {
@@ -98,12 +98,12 @@ public class StreamTask extends AbstractTask {
 						log.debug("ACK: " + id + " -- " + name);
 					} catch (Exception e) {
 						streamTaskHelper.threadSafePublish(new FailEvent(id), input);
-						log.warn("INVOKE FAILED: " + id + " -- " + name + " -- due to " + e.getMessage());
+						log.warn("FAILED: " + id + " -- " + name + " -- due to " + e.getMessage());
 					}
 				}
 			}
 		}
-		log.debug("Task " + name + "invoke finished with instance id " + taskInstanceID);
+		log.debug("TASK " + name + "invoke finished with instance id " + taskInstanceID);
 	}
 
 }
