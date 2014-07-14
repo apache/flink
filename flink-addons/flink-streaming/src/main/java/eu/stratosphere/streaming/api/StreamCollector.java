@@ -15,6 +15,8 @@
 
 package eu.stratosphere.streaming.api;
 
+import java.util.List;
+
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
@@ -30,16 +32,17 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 	protected int counter = 0;
 	protected int channelID;
 	private long timeOfLastRecordEmitted = System.currentTimeMillis();;
-	private RecordWriter<StreamRecord> output;
+	private List<RecordWriter<StreamRecord>> outputs;
 
 	public StreamCollector(int batchSize, long batchTimeout, int channelID,
-			SerializationDelegate<Tuple> serializationDelegate, RecordWriter<StreamRecord> output) {
+			SerializationDelegate<Tuple> serializationDelegate,
+			List<RecordWriter<StreamRecord>> outputs) {
 		this.batchSize = batchSize;
 		this.batchTimeout = batchTimeout;
 		this.streamRecord = new ArrayStreamRecord(batchSize);
 		this.streamRecord.setSeralizationDelegate(serializationDelegate);
 		this.channelID = channelID;
-		this.output = output;
+		this.outputs = outputs;
 	}
 
 	public StreamCollector(int batchSize, long batchTimeout, int channelID,
@@ -50,6 +53,7 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 	// TODO reconsider emitting mechanism at timeout (find a place to timeout)
 	@Override
 	public void collect(T tuple) {
+		//TODO: move copy to StreamCollector2
 		streamRecord.setTuple(counter, tuple);
 		counter++;
 
@@ -73,14 +77,19 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 		counter = 0;
 		streamRecord.setId(channelID);
 
-		try {
-			output.emit(streamRecord);
-			output.flush();
-		} catch (Exception e) {
-			e.printStackTrace();
-			System.out.println("emit fail");
+		if (outputs == null) {
+			System.out.println(streamRecord);
+		} else {
+			for (RecordWriter<StreamRecord> output : outputs) {
+				try {
+					output.emit(streamRecord);
+					output.flush();
+				} catch (Exception e) {
+					e.printStackTrace();
+					System.out.println("emit fail");
+				}
+			}
 		}
-
 	}
 
 	@Override
