@@ -12,20 +12,27 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.streaming.api;
 
-package eu.stratosphere.streaming.api.invokable;
-
+import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.util.Collector;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class DefaultSourceInvokable extends UserSourceInvokable<Tuple> {
-
-	private static final long serialVersionUID = 1L;
-
-	@Override
-	public void invoke(Collector<Tuple> collector) throws Exception {
-		collector.collect(new Tuple1<String>("hello flink!"));
+public class FilterInvokable<IN extends Tuple> extends UserTaskInvokable<IN, IN>  {
+	FilterFunction<IN> filterFunction;
+	
+	public FilterInvokable(FilterFunction<IN> filterFunction) {
+		this.filterFunction = filterFunction;
 	}
-
+	
+	@Override
+	public void invoke(StreamRecord record, StreamCollector<IN> collector) throws Exception {
+		for (int i = 0; i < record.getBatchSize(); i++) {
+			IN tuple = (IN) record.getTuple(i);
+			if (filterFunction.filter(tuple)) {
+				collector.collect(tuple);
+			}
+		}
+	}
 }
