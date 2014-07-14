@@ -14,8 +14,8 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
-import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.types.Record;
 
 public class JobGraphBuilder {
@@ -57,21 +57,24 @@ public class JobGraphBuilder {
 	public void setSource(String sourceName,
       final Class<? extends UserSourceInvokable> InvokableClass, Partitioning partitionType) {
 
-    final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
-    source.setInputClass(StreamSource.class);
-    Configuration config = new TaskConfig(source.getConfiguration()).getConfiguration();
-    config.setClass("partitioner", getPartitioningClass(partitionType));
-    config.setClass("userfunction", InvokableClass);
-    components.put(sourceName, source);
+		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
+		source.setInputClass(StreamSource.class);
+		Configuration config = new TaskConfig(source.getConfiguration()).getConfiguration();
+		config.setClass("partitioner", getPartitioningClass(partitionType));
+		config.setClass("userfunction", InvokableClass);
+		components.put(sourceName, source);
 
-  }
-
+	}
+	
 	public void setTask(String taskName,
-			final Class<? extends AbstractTask> taskClass, int parallelism) {
-
+	     final Class<? extends UserTaskInvokable> InvokableClass, Partitioning partitionType, int parallelism) {
+		
 		final JobTaskVertex task = new JobTaskVertex(taskName, jobGraph);
-		task.setTaskClass(taskClass);
+		task.setTaskClass(StreamTask.class);
 		task.setNumberOfSubtasks(parallelism);
+		Configuration config = new TaskConfig(task.getConfiguration()).getConfiguration();
+		config.setClass("partitioner", getPartitioningClass(partitionType));
+		config.setClass("userfunction", InvokableClass);
 		components.put(taskName, task);
 	}
 

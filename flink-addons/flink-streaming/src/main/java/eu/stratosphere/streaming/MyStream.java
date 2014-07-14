@@ -35,7 +35,7 @@ public static class MySink extends AbstractOutputTask {
     JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
     graphBuilder.setSource("infoSource", TestSourceInvokable.class, Partitioning.BROADCAST);
     graphBuilder.setSource("querySource", QuerySourceInvokable.class, Partitioning.BROADCAST);
-    graphBuilder.setTask("cellTask", StreamTask.class, 2);
+    graphBuilder.setTask("cellTask", TestTaskInvokable.class, Partitioning.BROADCAST, 2);
     graphBuilder.setSink("sink", MySink.class);
     
     graphBuilder.connect("infoSource", "cellTask", ChannelType.INMEMORY);

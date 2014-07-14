@@ -3,6 +3,7 @@ package eu.stratosphere.streaming;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
+import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.types.Record;
 
 public class StreamSource extends AbstractInputTask<RandIS> {
