@@ -124,7 +124,7 @@ public class StreamExecutionEnvironment {
 	}
 	
 	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
-			SinkFunction<T> sinkFunction) {
+			SinkFunction<T> sinkFunction, int paralelism) {
 		DataStream<T> returnStream = new DataStream<T>(this);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -138,11 +138,16 @@ public class StreamExecutionEnvironment {
 		}
 
 		jobGraphBuilder.setSink("sink", new SinkInvokable<T>(sinkFunction), "sink",
-				baos.toByteArray(),1,1);
+				baos.toByteArray(),paralelism,paralelism);
 
 		connectGraph(inputStream, "sink");
 
 		return returnStream;
+	}
+	
+	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
+			SinkFunction<T> sinkFunction) {
+		return addSink(inputStream, sinkFunction, 1);
 	}
 
 	public static final class DummySink extends SinkFunction<Tuple1<String>> {
