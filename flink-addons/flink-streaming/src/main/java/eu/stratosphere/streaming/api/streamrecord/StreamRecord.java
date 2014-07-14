@@ -1154,55 +1154,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
-	 * Writes tuple to the specified DataOutput
-	 * 
-	 * @param tuple
-	 *            Tuple to be written
-	 * @param out
-	 *            Output chosen
-	 * @throws IOException
-	 */
-	private void writeTuple(Tuple tuple, DataOutput out) throws IOException {
-		// TODO: exception for empty record - no getField
-		byte[] typesInByte = tupleTypesToByteArray(getTuple());
-
-		TupleTypeInfo<Tuple> typeInfo = new TupleTypeInfo<Tuple>(
-				tupleTypesFromByteArray(typesInByte));
-		TupleSerializer<Tuple> tupleSerializer = (TupleSerializer<Tuple>) typeInfo
-				.createSerializer();
-		SerializationDelegate<Tuple> serializationDelegate = new SerializationDelegate<Tuple>(
-				tupleSerializer);
-		serializationDelegate.setInstance(tuple);
-
-		out.write(typesInByte);
-		serializationDelegate.write(out);
-	}
-
-	/**
-	 * Reads a tuple from the specified DataInput
-	 * 
-	 * @param in
-	 *            Input chosen
-	 * @return Tuple read
-	 * @throws IOException
-	 */
-	private Tuple readTuple(DataInput in, int numberOfFields) throws IOException {
-
-		byte[] typesInByte = new byte[numberOfFields];
-		in.readFully(typesInByte, 0, numberOfFields);
-
-		TupleTypeInfo<Tuple> typeInfo = new TupleTypeInfo<Tuple>(
-				tupleTypesFromByteArray(typesInByte));
-		TupleSerializer<Tuple> tupleSerializer = typeInfo.createSerializer();
-
-		DeserializationDelegate<Tuple> dd = new DeserializationDelegate<Tuple>(tupleSerializer);
-		dd.setInstance(tupleSerializer.createInstance());
-
-		dd.read(in);
-		return dd.getInstance();
-	}
-
-	/**
 	 * Write method definition for the IOReadableWritable interface
 	 */
 	@Override
@@ -1213,8 +1164,19 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		out.writeByte(numOfFields);
 		out.writeInt(numOfTuples);
 
+		byte[] typesInByte = tupleTypesToByteArray(getTuple());
+		out.write(typesInByte);
+
+		TupleTypeInfo<Tuple> typeInfo = new TupleTypeInfo<Tuple>(
+				tupleTypesFromByteArray(typesInByte));
+		TupleSerializer<Tuple> tupleSerializer = (TupleSerializer<Tuple>) typeInfo
+				.createSerializer();
+		SerializationDelegate<Tuple> serializationDelegate = new SerializationDelegate<Tuple>(
+				tupleSerializer);
+
 		for (Tuple tuple : tupleBatch) {
-			writeTuple(tuple, out);
+			serializationDelegate.setInstance(tuple);
+			serializationDelegate.write(out);
 		}
 	}
 
@@ -1231,8 +1193,19 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 
 		tupleBatch = new ArrayList<Tuple>(numOfTuples);
 
+		byte[] typesInByte = new byte[numOfFields];
+		in.readFully(typesInByte, 0, numOfFields);
+
+		TupleTypeInfo<Tuple> typeInfo = new TupleTypeInfo<Tuple>(
+				tupleTypesFromByteArray(typesInByte));
+		TupleSerializer<Tuple> tupleSerializer = typeInfo.createSerializer();
+
+		DeserializationDelegate<Tuple> dd = new DeserializationDelegate<Tuple>(tupleSerializer);
+
 		for (int k = 0; k < numOfTuples; ++k) {
-			tupleBatch.add(readTuple(in, numOfFields));
+			dd.setInstance(tupleSerializer.createInstance());
+			dd.read(in);
+			tupleBatch.add(dd.getInstance());
 		}
 	}
 
