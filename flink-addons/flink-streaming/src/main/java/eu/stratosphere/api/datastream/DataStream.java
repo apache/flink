@@ -38,8 +38,8 @@ public class DataStream<T extends Tuple> {
 		return context.addFlatMapFunction(this, flatMapper);
 	}
 
-	public <R extends Tuple> void addSink() {
-		context.addSink(this);
+	public <R extends Tuple> DataStream<R> addDummySink() {
+		return context.addDummySink(this);
 	}
 
 	// public <R> DataStream<R> map(MapFunction<T, R> mapper) {

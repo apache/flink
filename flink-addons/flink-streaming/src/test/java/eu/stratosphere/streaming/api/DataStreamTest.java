@@ -10,7 +10,6 @@ import org.junit.Test;
 import eu.stratosphere.api.datastream.DataStream;
 import eu.stratosphere.api.datastream.StreamExecutionEnvironment;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
-import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
@@ -27,15 +26,6 @@ import eu.stratosphere.util.Collector;
 
 public class DataStreamTest {
 
-	public static final class MyMap extends MapFunction<Tuple1<String>, Tuple1<String>> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public Tuple1<String> map(Tuple1<String> value) throws Exception {
-			System.out.println("in map: " + value.f0);
-			return new Tuple1<String>("hahahahaha");
-		}
-	}
 
 	public static final class MyFlatMap extends FlatMapFunction<Tuple1<String>, Tuple1<String>> {
 		@Override
@@ -54,9 +44,7 @@ public class DataStreamTest {
 		// DataStream<Tuple1<String>> dataStream =
 		// context.setDummySource().map(new MyMap());
 
-		DataStream<Tuple1<String>> dataStream = context.setDummySource().flatMap(new MyFlatMap());
-
-		dataStream.addSink();
+		DataStream<Tuple1<String>> dataStream = context.setDummySource().flatMap(new MyFlatMap()).addDummySink();
 		
 		context.execute();
 
@@ -68,6 +56,7 @@ public class DataStreamTest {
 				Configuration config = c.getConfiguration();
 				System.out.println(config.getString("componentName", "default"));
 				byte[] bytes = config.getBytes("operator", null);
+				
 
 				ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes));
 
@@ -99,11 +88,11 @@ public class DataStreamTest {
 
 				ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes));
 
-				FlatMapFunction<Tuple, Tuple> f = (FlatMapFunction<Tuple, Tuple>) in.readObject();
+				UserSinkInvokable<Tuple> f = (UserSinkInvokable<Tuple>) in.readObject();
 
 				System.out.println(f.getClass().getGenericSuperclass());
 				TupleTypeInfo<Tuple> ts = (TupleTypeInfo) TypeExtractor.createTypeInfo(
-						FlatMapFunction.class, f.getClass(), 0, null, null);
+						UserSinkInvokable.class, f.getClass(), 0, null, null);
 
 				System.out.println(ts);
 

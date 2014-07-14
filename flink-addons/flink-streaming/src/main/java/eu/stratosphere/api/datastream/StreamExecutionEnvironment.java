@@ -9,7 +9,9 @@ import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.api.StreamCollector;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
@@ -57,7 +59,7 @@ public class StreamExecutionEnvironment {
 		}
 
 		jobGraphBuilder.setTask(returnStream.getId(), new FlatMapInvokable<T, R>(flatMapper),
-				baos.toByteArray());
+				"flatMap", baos.toByteArray());
 
 		jobGraphBuilder.shuffleConnect(inputStream.getId(), returnStream.getId());
 
@@ -87,27 +89,33 @@ public class StreamExecutionEnvironment {
 	// returnStream.getId());
 	// return returnStream;
 	// }
-	public static final class Sink extends FlatMapFunction<Tuple1<String>, Tuple1<String>> {
+
+	public static final class DummySink extends UserSinkInvokable<Tuple1<String>> {
+		private static final long serialVersionUID = 1L;
+
 		@Override
-		public void flatMap(Tuple1<String> value, Collector<Tuple1<String>> out) throws Exception {
-			System.out.println("sink");
+		public void invoke(StreamRecord record, StreamCollector<Tuple1<String>> collector)
+				throws Exception {
+			for (Tuple tuple : record.getBatchIterable()) {
+				System.out.println(tuple);
+			}
 		}
+
 	}
 
-	public <T extends Tuple, R extends Tuple> DataStream<R> addSink(DataStream<T> inputStream) {
+	public <T extends Tuple, R extends Tuple> DataStream<R> addDummySink(DataStream<T> inputStream) {
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		ObjectOutputStream oos;
 		try {
 			oos = new ObjectOutputStream(baos);
-			oos.writeObject(new Sink());
+			oos.writeObject(new DummySink());
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
-		jobGraphBuilder.setSink("sink", new FlatMapInvokableSink<Tuple1<String>, Tuple1<String>>(
-				new Sink()), baos.toByteArray());
+		jobGraphBuilder.setSink("sink", new DummySink(),"sink" ,baos.toByteArray());
 
 		jobGraphBuilder.shuffleConnect(inputStream.getId(), "sink");
 		return new DataStream<R>(this);
@@ -130,7 +138,7 @@ public class StreamExecutionEnvironment {
 			e.printStackTrace();
 		}
 
-		jobGraphBuilder.setSource(returnStream.getId(), new DummySource(), baos.toByteArray());
+		jobGraphBuilder.setSource(returnStream.getId(), new DummySource(), "source",baos.toByteArray());
 		return returnStream;
 	}
 

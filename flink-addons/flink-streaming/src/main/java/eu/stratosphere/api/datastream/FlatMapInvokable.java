@@ -10,8 +10,8 @@ public class FlatMapInvokable<T extends Tuple, R extends Tuple> extends UserTask
 	private static final long serialVersionUID = 1L;
 
 	private FlatMapFunction<T, R> flatMapper;
-	public FlatMapInvokable(FlatMapFunction<T, R> flatMapper2) {
-		this.flatMapper = flatMapper2;
+	public FlatMapInvokable(FlatMapFunction<T, R> flatMapper) {
+		this.flatMapper = flatMapper;
 	}
 	
 	@Override

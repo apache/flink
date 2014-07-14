@@ -24,9 +24,9 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.execution.Environment;
+import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.runtime.io.api.ChannelSelector;
-import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.streaming.api.StreamCollector;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
@@ -75,6 +75,7 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 		name = taskConfiguration.getString("componentName", "MISSING_COMPONENT_NAME");
 
 		try {
+			streamSourceHelper.setSerializers(taskConfiguration);
 			streamSourceHelper.setConfigOutputs(this, taskConfiguration, outputs, partitioners);
 		} catch (StreamComponentException e) {
 			if (log.isErrorEnabled()) {

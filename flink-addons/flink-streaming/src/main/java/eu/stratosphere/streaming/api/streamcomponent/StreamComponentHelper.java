@@ -32,13 +32,13 @@ import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
+import eu.stratosphere.nephele.io.AbstractRecordReader;
+import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
-import eu.stratosphere.runtime.io.api.AbstractRecordReader;
-import eu.stratosphere.runtime.io.api.ChannelSelector;
-import eu.stratosphere.runtime.io.api.MutableRecordReader;
-import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.streaming.api.StreamCollector;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
@@ -131,16 +131,15 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 	}
 
-	public AbstractRecordReader getConfigInputs(T taskBase, Configuration taskConfiguration)
-			throws StreamComponentException {
-		int numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
+	public void setSerializers(Configuration taskConfiguration) {
+		byte[] operatorBytes = taskConfiguration.getBytes("operator", null);
+		String operatorName = taskConfiguration.getString("operatorName", "");
 
-		if (taskBase instanceof StreamTask || taskBase instanceof StreamSink) {
-			byte[] bytes = taskConfiguration.getBytes("operator", null);
+		try {
+			ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(operatorBytes));
 
-			ObjectInputStream in;
-			try {
-				in = new ObjectInputStream(new ByteArrayInputStream(bytes));
+			if (operatorName.equals("flatMap")) {
+
 				FlatMapFunction<Tuple, Tuple> f = (FlatMapFunction<Tuple, Tuple>) in.readObject();
 
 				inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
@@ -149,33 +148,46 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				inTupleSerializer = inTupleTypeInfo.createSerializer();
 				inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
 
-			} catch (Exception e) {
-
-			}
-
-		}
-		if (taskBase instanceof StreamTask) {
-			byte[] bytes = taskConfiguration.getBytes("operator", null);
-
-			ObjectInputStream in;
-			try {
-				in = new ObjectInputStream(new ByteArrayInputStream(bytes));
-				FlatMapFunction<Tuple, Tuple> f = (FlatMapFunction<Tuple, Tuple>) in.readObject();
-
 				outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
 						FlatMapFunction.class, f.getClass(), 1, null, null);
 
 				outTupleSerializer = outTupleTypeInfo.createSerializer();
 				outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
 
-				collector = new StreamCollector<Tuple>(1, 1, outSerializationDelegate);
+			} else if (operatorName.equals("sink")) {
 
-			} catch (Exception e) {
+				UserSinkInvokable<Tuple> f = (UserSinkInvokable<Tuple>) in.readObject();
 
+				inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
+						UserSinkInvokable.class, f.getClass(), 0, null, null);
+
+				inTupleSerializer = inTupleTypeInfo.createSerializer();
+				inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
+			} else if (operatorName.equals("source")) {
+
+				UserSourceInvokable<Tuple> f = (UserSourceInvokable<Tuple>) in.readObject();
+
+				outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
+						UserSourceInvokable.class, f.getClass(), 0, null, null);
+
+				outTupleSerializer = outTupleTypeInfo.createSerializer();
+				outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
+
+			} else {
+
+				throw new Exception();
 			}
-		}
+			collector = new StreamCollector<Tuple>(1, 1, outSerializationDelegate);
 
-		
+		} catch (Exception e) {
+			throw new StreamComponentException("Nonsupported object passed as operator");
+
+		}
+	}
+
+	public AbstractRecordReader getConfigInputs(T taskBase, Configuration taskConfiguration)
+			throws StreamComponentException {
+		int numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
 
 		if (numberOfInputs < 2) {
 			if (taskBase instanceof StreamTask) {
@@ -210,20 +222,14 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 	public void setConfigOutputs(T taskBase, Configuration taskConfiguration,
 			List<RecordWriter<StreamRecord>> outputs,
 			List<ChannelSelector<StreamRecord>> partitioners) throws StreamComponentException {
-		
+
 		if (taskBase instanceof StreamSource) {
 			byte[] bytes = taskConfiguration.getBytes("operator", null);
 
 			ObjectInputStream in;
 			try {
 				in = new ObjectInputStream(new ByteArrayInputStream(bytes));
-				UserSourceInvokable<Tuple> f = (UserSourceInvokable<Tuple>) in.readObject();
-
-				outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
-						UserSourceInvokable.class, f.getClass(), 0, null, null);
-
-				outTupleSerializer = outTupleTypeInfo.createSerializer();
-				outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
+				
 
 				collector = new StreamCollector<Tuple>(1, 1, outSerializationDelegate);
 
@@ -231,17 +237,18 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 			}
 		}
-		
+
 		int numberOfOutputs = taskConfiguration.getInteger("numberOfOutputs", 0);
 		for (int i = 0; i < numberOfOutputs; i++) {
 			setPartitioner(taskConfiguration, i, partitioners);
 		}
 		for (ChannelSelector<StreamRecord> outputPartitioner : partitioners) {
 			if (taskBase instanceof StreamTask) {
-				outputs.add(new RecordWriter<StreamRecord>((StreamTask) taskBase, outputPartitioner));
+				outputs.add(new RecordWriter<StreamRecord>((StreamTask) taskBase,
+						StreamRecord.class, outputPartitioner));
 			} else if (taskBase instanceof StreamSource) {
 				outputs.add(new RecordWriter<StreamRecord>((StreamSource) taskBase,
-						outputPartitioner));
+						StreamRecord.class, outputPartitioner));
 			} else {
 				throw new StreamComponentException("Nonsupported object passed to setConfigOutputs");
 			}

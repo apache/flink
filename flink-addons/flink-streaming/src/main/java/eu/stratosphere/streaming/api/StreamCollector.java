@@ -15,12 +15,11 @@
 
 package eu.stratosphere.streaming.api;
 
-import java.io.IOException;
 import java.util.List;
 
 import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
-import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.util.Collector;
@@ -63,6 +62,7 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 			for (RecordWriter<StreamRecord> output : outputs) {
 				try {
 					output.emit(streamRecord);
+					output.flush();
 				} catch (Exception e) {
 					e.printStackTrace();
 					System.out.println("emit fail");
