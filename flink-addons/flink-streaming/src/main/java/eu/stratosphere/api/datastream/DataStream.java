@@ -21,12 +21,11 @@ import java.util.Random;
 
 import eu.stratosphere.api.datastream.StreamExecutionEnvironment.ConnectionType;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
+import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.types.TypeInformation;
 
-//TODO:get batchsize from user -> put in config -> set in streamcomponenthelper for collector
-//TODO:batchReduce -> tuple iterator over tuplebatch, out tuple (reduce function)
 public class DataStream<T extends Tuple> {
 
 	private final StreamExecutionEnvironment context;
@@ -48,7 +47,7 @@ public class DataStream<T extends Tuple> {
 		if (context == null) {
 			throw new NullPointerException("context is null");
 		}
-
+		
 		// TODO add name based on component number an preferable sequential id
 		this.id = Long.toHexString(random.nextLong()) + Long.toHexString(random.nextLong());
 		this.context = context;
@@ -95,6 +94,10 @@ public class DataStream<T extends Tuple> {
 		return context.addMapFunction(this, mapper);
 	}
 
+	public <R extends Tuple> DataStream<R> flatMap(GroupReduceFunction<T, R> reducer) {
+		return context.addBatchReduceFunction(this, reducer);
+	}
+	
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
 		return context.addSink(this, sinkFunction);
 	}

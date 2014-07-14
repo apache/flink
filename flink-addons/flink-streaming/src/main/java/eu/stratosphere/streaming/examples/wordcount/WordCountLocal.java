@@ -15,43 +15,23 @@
 
 package eu.stratosphere.streaming.examples.wordcount;
 
-import org.apache.log4j.Level;
-
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
-import eu.stratosphere.streaming.util.ClusterUtil;
-import eu.stratosphere.streaming.util.LogUtils;
+import eu.stratosphere.api.datastream.DataStream;
+import eu.stratosphere.api.datastream.StreamExecutionEnvironment;
+import eu.stratosphere.api.java.tuple.Tuple2;
 
 public class WordCountLocal {
 
-	public static JobGraph getJobGraph() {
-
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
-		graphBuilder.setSource("WordCountSourceSplitter", new WordCountSourceSplitter("src/test/resources/testdata/hamlet.txt"));
-		graphBuilder.setTask("WordCountCounter", new WordCountCounter());
-		graphBuilder.setSink("WordCountSink", new WordCountSink());
-
-		graphBuilder.fieldsConnect("WordCountSourceSplitter", "WordCountCounter", 0);
-		graphBuilder.shuffleConnect("WordCountCounter", "WordCountSink");
-
-		return graphBuilder.getJobGraph();
-	}
-
 	public static void main(String[] args) {
+		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 
-		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
-
-		if (args.length == 0) {
-			args = new String[] { "local" };
-		}
-
-		if (args[0].equals("local")) {
-			ClusterUtil.runOnMiniCluster(getJobGraph());
-
-		} else if (args[0].equals("cluster")) {
-			ClusterUtil.runOnLocalCluster(getJobGraph(), "hadoop02.ilab.sztaki.hu", 6123);
-		}
-
+		@SuppressWarnings("unused")
+		DataStream<Tuple2<String, Integer>> dataStream = context
+				.addFileSource("src/test/resources/testdata/hamlet.txt")
+				.flatMap(new WordCountSplitter())
+				.partitionBy(0)
+				.map(new WordCountCounter())
+				.addSink(new WordCountSink());
+		
+		context.execute();
 	}
 }

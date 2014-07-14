@@ -15,26 +15,14 @@
 
 package eu.stratosphere.streaming.examples.wordcount;
 
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.api.datastream.SinkFunction;
+import eu.stratosphere.api.java.tuple.Tuple2;
 
-public class WordCountSink extends UserSinkInvokable {
+public class WordCountSink extends SinkFunction<Tuple2<String, Integer>> {
 	private static final long serialVersionUID = 1L;
 
-	private String word = "";
-	private Integer count = 0;
-	private Long timestamp = 0L;
-
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
-		int numTuple = record.getNumOfTuples();
-		for (int i = 0; i < numTuple; ++i) {
-			word = record.getString(i, 0);
-			count = record.getInteger(i, 1);
-			timestamp = record.getLong(i, 2);
-			System.out.println("============================================");
-			System.out.println(word + " " + count + " " + timestamp);
-			System.out.println("============================================");
-		}
+	public void invoke(Tuple2<String, Integer> inTuple) {
+		System.out.println(inTuple);
 	}
 }
