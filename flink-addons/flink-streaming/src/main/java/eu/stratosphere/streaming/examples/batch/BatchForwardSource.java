@@ -15,13 +15,13 @@
 
 package eu.stratosphere.streaming.examples.batch;
 
+import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.StringValue;
 
 public class BatchForwardSource extends UserSourceInvokable {
-	private final StringValue motto = new StringValue("Stratosphere Big Data looks tiny from here");
-	private final StreamRecord mottoRecord = new StreamRecord(motto);
+	private final StreamRecord mottoRecord = new StreamRecord(
+			new Tuple1<String>("Stratosphere Big Data looks tiny from here"));
 
 	@Override
 	public void invoke() throws Exception {
