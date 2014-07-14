@@ -26,12 +26,14 @@ public class WindowWordCountSink extends UserSinkInvokable {
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		word = record.getString(0);
-		count = record.getInteger(1);
-		timestamp = record.getLong(2);
-		System.out.println("============================================");
-		System.out.println(word + " " + count + " " + timestamp);
-		System.out.println("============================================");
-
+		int numTuple = record.getNumOfTuples();
+		for (int i = 0; i < numTuple; ++i) {
+			word = record.getString(i, 0);
+			count = record.getInteger(i, 1);
+			timestamp = record.getLong(i, 2);
+			System.out.println("============================================");
+			System.out.println(word + " " + count + " " + timestamp);
+			System.out.println("============================================");
+		}
 	}
 }

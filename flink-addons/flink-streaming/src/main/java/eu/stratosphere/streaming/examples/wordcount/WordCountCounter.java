@@ -19,7 +19,6 @@ import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.state.MutableTableState;
-import eu.stratosphere.streaming.util.PerformanceCounter;
 
 public class WordCountCounter extends UserTaskInvokable {
 
