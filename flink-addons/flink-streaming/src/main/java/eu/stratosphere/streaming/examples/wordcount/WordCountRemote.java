@@ -35,14 +35,14 @@ import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.util.LogUtils;
-import eu.stratosphere.streaming.util.PerformanceTracker;
+import eu.stratosphere.streaming.util.PerformanceCounter;
 
 public class WordCountRemote {
 	private final static int recordsEmitted = 100000;
 
 	public static class WordCountDebugSource extends UserSourceInvokable {
 
-		private PerformanceTracker perf = new PerformanceTracker("SourceEmitCounter",1000, 10000);
+		private PerformanceCounter perf = new PerformanceCounter("SourceEmitCounter", 1000, 10000);
 
 		StreamRecord record = new StreamRecord(new Tuple1<String>());
 
@@ -70,7 +70,7 @@ public class WordCountRemote {
 
 	public static class WordCountDebugSplitter extends UserTaskInvokable {
 
-		private PerformanceTracker perf = new PerformanceTracker("SplitterEmitCounter",1000, 10000);
+		private PerformanceCounter perf = new PerformanceCounter("SplitterEmitCounter", 1000, 10000);
 
 		private String[] words = new String[] {};
 		private StreamRecord outputRecord = new StreamRecord(new Tuple1<String>());
@@ -93,7 +93,7 @@ public class WordCountRemote {
 	}
 
 	public static class WordCountDebugCounter extends UserTaskInvokable {
-		private PerformanceTracker perf = new PerformanceTracker("CounterEmitCounter",1000, 10000);
+		private PerformanceCounter perf = new PerformanceCounter("CounterEmitCounter", 1000, 10000);
 
 		private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
 		private String word = "";
@@ -127,7 +127,7 @@ public class WordCountRemote {
 	}
 
 	public static class WordCountDebugSink extends UserSinkInvokable {
-		private PerformanceTracker perf = new PerformanceTracker("SinkEmitCounter",1000, 10000);
+		private PerformanceCounter perf = new PerformanceCounter("SinkEmitCounter", 1000, 10000);
 
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
@@ -145,7 +145,7 @@ public class WordCountRemote {
 		graphBuilder.setSource("WordCountSource", WordCountDebugSource.class, 2, 1);
 		graphBuilder.setTask("WordCountSplitter", WordCountDebugSplitter.class, 2, 1);
 		graphBuilder.setTask("WordCountCounter", WordCountDebugCounter.class, 2, 1);
-		graphBuilder.setSink("WordCountSink", WordCountDebugSink.class,2,1);
+		graphBuilder.setSink("WordCountSink", WordCountDebugSink.class, 2, 1);
 
 		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");
 		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0);
