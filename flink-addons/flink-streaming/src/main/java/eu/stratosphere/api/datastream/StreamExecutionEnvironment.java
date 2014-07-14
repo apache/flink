@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 
 import eu.stratosphere.api.java.functions.FlatMapFunction;
+import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
@@ -36,8 +37,15 @@ public class StreamExecutionEnvironment {
 
 	private static final int BATCH_SIZE = 1;
 
+	public StreamExecutionEnvironment(int batchSize) {
+		if (batchSize < 1) {
+			throw new IllegalArgumentException("Batch size must be positive.");
+		}
+		jobGraphBuilder = new JobGraphBuilder("jobGraph", FaultToleranceType.NONE, batchSize);
+	}
+
 	public StreamExecutionEnvironment() {
-		jobGraphBuilder = new JobGraphBuilder("jobGraph", FaultToleranceType.NONE);
+		this(1);
 	}
 
 	private static class DummySource extends UserSourceInvokable<Tuple1<String>> {
@@ -116,6 +124,27 @@ public class StreamExecutionEnvironment {
 
 		jobGraphBuilder.setTask(returnStream.getId(), new MapInvokable<T, R>(mapper), "map",
 				baos.toByteArray());
+
+		connectGraph(inputStream, returnStream.getId());
+
+		return returnStream;
+	}
+
+	public <T extends Tuple, R extends Tuple> DataStream<R> addBatchReduceFunction(
+			DataStream<T> inputStream, final GroupReduceFunction<T, R> reducer) {
+		DataStream<R> returnStream = new DataStream<R>(this);
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ObjectOutputStream oos;
+		try {
+			oos = new ObjectOutputStream(baos);
+			oos.writeObject(reducer);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		jobGraphBuilder.setTask(returnStream.getId(), new BatchReduceInvokable<T, R>(reducer),
+				"batchReduce", baos.toByteArray());
 
 		connectGraph(inputStream, returnStream.getId());
 
