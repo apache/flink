@@ -18,13 +18,11 @@ package eu.stratosphere.streaming.partitioner;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.types.Record;
 
-public class DefaultPartitioner  implements ChannelSelector<Record> {
-
-  @Override
-  public int[] selectChannels(Record record, int numberOfOutputChannels) {
-
-    return new BroadcastPartitioner().selectChannels(record, numberOfOutputChannels);
-    
-  }
-
+//Randomly group, to distribute equally
+public class GlobalPartitioner implements ChannelSelector<Record> {
+	
+	@Override
+	public int[] selectChannels(Record record, int numberOfOutputChannels) {
+		return new int[]{0};
+	}
 }

@@ -18,14 +18,17 @@ package eu.stratosphere.streaming.api;
 import java.util.LinkedList;
 import java.util.List;
 
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
+import eu.stratosphere.types.Key;
 import eu.stratosphere.streaming.api.invokable.DefaultSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.streaming.test.RandIS;
 import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 
 public class StreamSource extends AbstractInputTask<RandIS> {
 
@@ -55,21 +58,12 @@ public class StreamSource extends AbstractInputTask<RandIS> {
   }
 
   private void setConfigInputs() {
+    Configuration taskConfiguration = getTaskConfiguration();
 
-    numberOfOutputs = getTaskConfiguration().getInteger("numberOfOutputs", 0);
-    Class<? extends ChannelSelector<Record>> partitioner;
+    numberOfOutputs = taskConfiguration.getInteger("numberOfOutputs", 0);
 
     for (int i = 1; i <= numberOfOutputs; i++) {
-      partitioner = getTaskConfiguration().getClass("partitioner_" + i,
-          DefaultPartitioner.class, ChannelSelector.class);
-
-      try {
-        partitioners.add(partitioner.newInstance());
-        // System.out.println("partitioner added");
-      } catch (Exception e) {
-        // System.out.println("partitioner error" + " " + "partitioner_"
-        // + i);
-      }
+      setPartitioner(taskConfiguration, i);
     }
 
     for (ChannelSelector<Record> outputPartitioner : partitioners) {
@@ -77,15 +71,48 @@ public class StreamSource extends AbstractInputTask<RandIS> {
           outputPartitioner));
     }
 
-    Class<? extends UserSourceInvokable> userFunctionClass;
-    userFunctionClass = getTaskConfiguration().getClass("userfunction",
-        DefaultSourceInvokable.class, UserSourceInvokable.class);
+    setUserFunction(taskConfiguration);
+
+  }
+
+  public void setUserFunction(Configuration taskConfiguration) {
+
+    Class<? extends UserSourceInvokable> userFunctionClass = taskConfiguration
+        .getClass("userfunction", DefaultSourceInvokable.class,
+            UserSourceInvokable.class);
 
     try {
-      userFunction = userFunctionClass.newInstance();
-      userFunction.declareOutputs(outputs);
+      this.userFunction = userFunctionClass.newInstance();
+      this.userFunction.declareOutputs(outputs);
     } catch (Exception e) {
 
+    }
+
+  }
+
+  private void setPartitioner(Configuration taskConfiguration, int nrOutput) {
+    Class<? extends ChannelSelector<Record>> partitioner = taskConfiguration
+        .getClass("partitionerClass_" + nrOutput, DefaultPartitioner.class,
+            ChannelSelector.class);
+
+    try {
+      // TODO: Fix class comparison
+      if (partitioner.getName().equals(
+          "eu.stratosphere.streaming.partitioner.FieldsPartitioner")) {
+        int keyPosition = taskConfiguration.getInteger("partitionerIntParam_"
+            + nrOutput, 1);
+        Class<? extends Key> keyClass = taskConfiguration.getClass(
+            "partitionerClassParam_" + nrOutput, StringValue.class, Key.class);
+
+        partitioners.add(partitioner.getConstructor(int.class, Class.class)
+            .newInstance(keyPosition, keyClass));
+
+      } else {
+        partitioners.add(partitioner.newInstance());
+      }
+    } catch (Exception e) {
+      System.out.println("partitioner error" + " " + "partitioner_" + nrOutput);
+      System.out.println(e);
     }
 
   }

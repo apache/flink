@@ -16,15 +16,32 @@
 package eu.stratosphere.streaming.partitioner;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
 
-public class DefaultPartitioner  implements ChannelSelector<Record> {
+//Grouping by a key
+public class FieldsPartitioner implements ChannelSelector<Record> {
 
-  @Override
-  public int[] selectChannels(Record record, int numberOfOutputChannels) {
+	private int keyPosition;
+	private Class<? extends Key> keyClass;
 
-    return new BroadcastPartitioner().selectChannels(record, numberOfOutputChannels);
-    
-  }
+	// TODO: make sure it is actually a key
+	public FieldsPartitioner(int keyPosition, Class<? extends Key> keyClass) {
+		this.keyPosition = keyPosition;
+		this.keyClass = keyClass;
+	}
 
+	@Override
+	public int[] selectChannels(Record record, int numberOfOutputChannels) {
+		Key key = null;
+		try {
+			key = keyClass.newInstance();
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		}
+		record.getFieldInto(keyPosition, key);
+		return new int[] { key.hashCode() % numberOfOutputChannels };
+	}
 }
