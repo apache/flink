@@ -20,7 +20,6 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
-import eu.stratosphere.streaming.api.streamrecord.UID;
 
 /**
  * EventListener for record fail events. When a FailEvent occurs, uses the
@@ -30,7 +29,7 @@ public class FailEventListener implements EventListener {
 
 	private static final Log log = LogFactory.getLog(FailEventListener.class);
 
-	private int taskInstanceID;
+	private String taskInstanceID;
 	private FaultToleranceUtil recordBuffer;
 	private int output;
 
@@ -38,15 +37,15 @@ public class FailEventListener implements EventListener {
 	 * Creates a FailEventListener that monitors FailEvents sent to task with
 	 * the given ID.
 	 * 
-	 * @param sourceInstanceID
+	 * @param taskInstanceID
 	 *            ID of the task that creates the listener
 	 * @param recordBuffer
 	 *            The fault tolerance buffer associated with this task
 	 * @param output
 	 *            output channel
 	 */
-	public FailEventListener(int sourceInstanceID, FaultToleranceUtil recordBuffer, int output) {
-		this.taskInstanceID = sourceInstanceID;
+	public FailEventListener(String taskInstanceID, FaultToleranceUtil recordBuffer, int output) {
+		this.taskInstanceID = taskInstanceID;
 		this.recordBuffer = recordBuffer;
 		this.output = output;
 	}
@@ -58,9 +57,9 @@ public class FailEventListener implements EventListener {
 	 */
 	public void eventOccurred(AbstractTaskEvent event) {
 		FailEvent failEvent = (FailEvent) event;
-		UID recordId = failEvent.getRecordId();
-		int failCID = recordId.getChannelId();
-		if (failCID == taskInstanceID) {
+		String recordId = failEvent.getRecordId();
+		String failCID = recordId.split("-", 2)[0];
+		if (failCID.equals(taskInstanceID)) {
 			recordBuffer.failRecord(recordId, output);
 			log.warn("FAIL RECIEVED: "+output +" "+ recordId);
 		}

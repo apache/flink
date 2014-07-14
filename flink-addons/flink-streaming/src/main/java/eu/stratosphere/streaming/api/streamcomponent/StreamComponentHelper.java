@@ -34,7 +34,6 @@ import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
 import eu.stratosphere.streaming.api.invokable.RecordInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.api.streamrecord.UID;
 import eu.stratosphere.streaming.faulttolerance.AckEvent;
 import eu.stratosphere.streaming.faulttolerance.AckEventListener;
 import eu.stratosphere.streaming.faulttolerance.FailEvent;
@@ -52,7 +51,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		return numComponents;
 	}
 
-	public void setAckListener(FaultToleranceUtil recordBuffer, int sourceInstanceID,
+	public void setAckListener(FaultToleranceUtil recordBuffer, String sourceInstanceID,
 			List<RecordWriter<StreamRecord>> outputs) {
 
 		EventListener[] ackListeners = new EventListener[outputs.size()];
@@ -64,7 +63,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 	}
 
-	public void setFailListener(FaultToleranceUtil recordBuffer, int sourceInstanceID,
+	public void setFailListener(FaultToleranceUtil recordBuffer, String sourceInstanceID,
 			List<RecordWriter<StreamRecord>> outputs) {
 
 		EventListener[] failListeners = new EventListener[outputs.size()];
@@ -124,7 +123,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 	}
 
 	public StreamInvokableComponent getUserFunction(Configuration taskConfiguration,
-			List<RecordWriter<StreamRecord>> outputs, int instanceID, String name, FaultToleranceUtil recordBuffer) {
+			List<RecordWriter<StreamRecord>> outputs, String instanceID, String name, FaultToleranceUtil recordBuffer) {
 
 		// Default value is a TaskInvokable even if it was called from a source
 		Class<? extends StreamInvokableComponent> userFunctionClass = taskConfiguration.getClass("userfunction",
@@ -188,7 +187,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				if (input.hasNext()) {
 					hasInput = true;
 					StreamRecord record = input.next();
-					UID id = record.getId();
+					String id = record.getId();
 					userFunction.invoke(record);
 					threadSafePublish(new AckEvent(id), input);
 					log.debug("ACK: " + id + " -- " + name);
