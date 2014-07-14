@@ -15,15 +15,11 @@
 package eu.stratosphere.streaming.examples.ml;
 
 import java.net.InetSocketAddress;
-import java.util.Random;
 
-import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.math.stat.regression.OLSMultipleLinearRegression;
 import org.apache.log4j.Level;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.configuration.Configuration;
@@ -35,18 +31,16 @@ import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.util.LogUtils;
 
-public class IncrementalOLS {
+public class IncrementalLearning {
 
 	public static class NewDataSource extends UserSourceInvokable {
 
-		StreamRecord record = new StreamRecord(2, 1);
-
-		Random rnd = new Random();
+		StreamRecord record = new StreamRecord(new Tuple1<Integer>(1));
 
 		@Override
 		public void invoke() throws Exception {
-			record.initRecords();
-			for (int j = 0; j < 100; j++) {
+
+			while (true) {
 				// pull new record from data source
 				record.setTuple(getNewData());
 				emit(record);
@@ -55,26 +49,22 @@ public class IncrementalOLS {
 		}
 
 		private Tuple getNewData() throws InterruptedException {
-
-			return new Tuple2<Boolean, Double[]>(false, new Double[] { rnd.nextDouble() * 3,
-					rnd.nextDouble() * 5 });
+			return new Tuple1<Integer>(1);
 		}
 	}
 
 	public static class TrainingDataSource extends UserSourceInvokable {
 
-		private final int BATCH_SIZE = 10;
+		private final int BATCH_SIZE = 1000;
 
-		StreamRecord record = new StreamRecord(2, BATCH_SIZE);
-
-		Random rnd = new Random();
+		StreamRecord record = new StreamRecord(1, BATCH_SIZE);
 
 		@Override
 		public void invoke() throws Exception {
 
 			record.initRecords();
 
-			for (int j = 0; j < 1000; j++) {
+			for (int j = 0; j < 10; j++) {
 				for (int i = 0; i < BATCH_SIZE; i++) {
 					record.setTuple(i, getTrainingData());
 				}
@@ -84,9 +74,7 @@ public class IncrementalOLS {
 		}
 
 		private Tuple getTrainingData() throws InterruptedException {
-
-			return new Tuple2<Double, Double[]>(rnd.nextDouble() * 10, new Double[] {
-					rnd.nextDouble() * 3, rnd.nextDouble() * 5 });
+			return new Tuple1<Integer>(1);
 
 		}
 	}
@@ -99,64 +87,37 @@ public class IncrementalOLS {
 		}
 
 		protected StreamRecord buildPartialModel(StreamRecord record) {
-
-			Integer numOfTuples = record.getNumOfTuples();
-			Integer numOfFeatures = ((Double[]) record.getField(1)).length;
-
-			double[][] x = new double[numOfTuples][numOfFeatures];
-			double[] y = new double[numOfTuples];
-
-			for (int i = 0; i < numOfTuples; i++) {
-
-				Tuple t = record.getTuple(i);
-				Double[] x_i = t.getField(1);
-				y[i] = t.getField(0);
-				for (int j = 0; j < numOfFeatures; j++) {
-					x[i][j] = x_i[j];
-				}
-			}
-
-			OLSMultipleLinearRegression ols = new OLSMultipleLinearRegression();
-			ols.newSampleData(y, x);
-
-			return new StreamRecord(new Tuple2<Boolean, Double[]>(true,
-					(Double[]) ArrayUtils.toObject(ols.estimateRegressionParameters())));
+			return new StreamRecord(new Tuple1<Integer>(1));
 		}
+
 	}
 
 	public static class Predictor extends UserTaskInvokable {
 
-		// StreamRecord batchModel = null;
-		Double[] partialModel = new Double[] { 0.0, 0.0 };
+		StreamRecord batchModel = null;
+		StreamRecord partialModel = null;
 
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
 			if (isModel(record)) {
-				partialModel = (Double[]) record.getField(1);
-				// batchModel = getBatchModel();
+				partialModel = record;
+				batchModel = getBatchModel();
 			} else {
 				emit(predict(record));
 			}
 
 		}
 
-		// protected StreamRecord getBatchModel() {
-		// return new StreamRecord(new Tuple1<Integer>(1));
-		// }
+		protected StreamRecord getBatchModel() {
+			return new StreamRecord(new Tuple1<Integer>(1));
+		}
 
 		protected boolean isModel(StreamRecord record) {
-			return record.getBoolean(0);
+			return true;
 		}
 
 		protected StreamRecord predict(StreamRecord record) {
-			Double[] x = (Double[]) record.getField(1);
-
-			Double prediction = 0.0;
-			for (int i = 0; i < x.length; i++) {
-				prediction = prediction + x[i] * partialModel[i];
-			}
-
-			return new StreamRecord(new Tuple1<Double>(prediction));
+			return new StreamRecord(new Tuple1<Integer>(0));
 		}
 
 	}
@@ -165,12 +126,12 @@ public class IncrementalOLS {
 
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
-			System.out.println(record.getTuple());
+			// do nothing
 		}
 	}
 
 	private static JobGraph getJobGraph() throws Exception {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("IncrementalOLS");
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("IncrementalLearning");
 
 		graphBuilder.setSource("NewData", NewDataSource.class, 1, 1);
 		graphBuilder.setSource("TrainingData", TrainingDataSource.class, 1, 1);

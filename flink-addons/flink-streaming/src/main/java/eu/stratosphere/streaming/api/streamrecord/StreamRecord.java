@@ -53,7 +53,7 @@ import eu.stratosphere.api.java.tuple.Tuple9;
 import eu.stratosphere.api.java.typeutils.BasicArrayTypeInfo;
 import eu.stratosphere.api.java.typeutils.BasicTypeInfo;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
-import eu.stratosphere.api.java.typeutils.TypeInformation;
+import eu.stratosphere.types.TypeInformation;
 import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
 import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
