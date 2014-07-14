@@ -45,10 +45,10 @@ public class WordCountCluster {
 
 	private static JobGraph getJobGraph() throws Exception {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountDummySource2.class);
+		graphBuilder.setSource("WordCountSource", WordCountDummySource.class);
 		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
 		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
-		graphBuilder.setSink("WordCountSink", WordCountSink2.class);
+		graphBuilder.setSink("WordCountSink", WordCountSink.class);
 
 		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");
 		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0,
