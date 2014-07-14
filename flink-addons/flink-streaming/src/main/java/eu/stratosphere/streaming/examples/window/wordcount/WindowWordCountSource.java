@@ -29,6 +29,7 @@ public class WindowWordCountSource extends SourceFunction<Tuple2<String, Long>> 
 	private Tuple2<String, Long> outRecord = new Tuple2<String, Long>();
 	private Long timestamp = 0L;
 
+	// Reads the lines of the input file and adds a timestamp to it.
 	@Override
 	public void invoke(Collector<Tuple2<String, Long>> collector) throws Exception {
 		BufferedReader br = new BufferedReader(new FileReader("src/test/resources/testdata/hamlet.txt"));

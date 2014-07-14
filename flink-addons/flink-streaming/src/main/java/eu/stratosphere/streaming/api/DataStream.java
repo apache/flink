@@ -160,8 +160,8 @@ public class DataStream<T extends Tuple> {
 		return context.addSink(this.copy(), sinkFunction);
 	}
 
-	public DataStream<T> addDummySink() {
-		return context.addDummySink(this.copy());
+	public DataStream<T> print() {
+		return context.print(this.copy());
 	}
 
 	protected void setType(TypeInformation<T> type) {

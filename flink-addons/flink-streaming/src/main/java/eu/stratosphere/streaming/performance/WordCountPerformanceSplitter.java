@@ -13,43 +13,40 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.wordcount;
+package eu.stratosphere.streaming.performance;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import eu.stratosphere.api.java.functions.MapFunction;
+import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.streaming.util.PerformanceCounter;
+import eu.stratosphere.util.Collector;
 
-public class WordCountCounter extends MapFunction<Tuple1<String>, Tuple2<String, Integer>> {
+public class WordCountPerformanceSplitter extends FlatMapFunction<Tuple1<String>, Tuple1<String>> {
+
 	private static final long serialVersionUID = 1L;
 
-	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
-	private String word = "";
-	private Integer count = 0;
+	private Tuple1<String> outTuple = new Tuple1<String>();
 
-	private Tuple2<String, Integer> outTuple = new Tuple2<String, Integer>();
-	
-	// Increments the counter of the occurrence of the input word
+	 PerformanceCounter pCounter = new
+	 PerformanceCounter("SplitterEmitCounter", 1000, 1000, 30000,
+	 "/home/judit/strato/perf/broadcast4.csv");
+
 	@Override
-	public Tuple2<String, Integer> map(Tuple1<String> inTuple) throws Exception {
-		word = inTuple.f0;
+	public void flatMap(Tuple1<String> inTuple, Collector<Tuple1<String>> out) throws Exception {
 
-		if (wordCounts.containsKey(word)) {
-			count = wordCounts.get(word) + 1;
-			wordCounts.put(word, count);
-		} else {
-			count = 1;
-			wordCounts.put(word, 1);
+		for (String word : inTuple.f0.split(" ")) {
+			outTuple.f0 = word;
+			// pTimer.startTimer();
+			out.collect(outTuple);
+			// pTimer.stopTimer();
+			pCounter.count();
 		}
-
-		outTuple.f0 = word;
-		outTuple.f1 = count;
-
-		return outTuple;
-		// performanceCounter.count();
-
 	}
+
+	// @Override
+	// public String getResult() {
+	// pCounter.writeCSV();
+	// pTimer.writeCSV();
+	// return "";
+	// }
 
 }

@@ -13,43 +13,38 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.wordcount;
+package eu.stratosphere.streaming.api;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 
-import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.util.Collector;
 
-public class WordCountCounter extends MapFunction<Tuple1<String>, Tuple2<String, Integer>> {
+public class FileStreamFunction extends SourceFunction<Tuple1<String>>{
 	private static final long serialVersionUID = 1L;
-
-	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
-	private String word = "";
-	private Integer count = 0;
-
-	private Tuple2<String, Integer> outTuple = new Tuple2<String, Integer>();
 	
-	// Increments the counter of the occurrence of the input word
-	@Override
-	public Tuple2<String, Integer> map(Tuple1<String> inTuple) throws Exception {
-		word = inTuple.f0;
-
-		if (wordCounts.containsKey(word)) {
-			count = wordCounts.get(word) + 1;
-			wordCounts.put(word, count);
-		} else {
-			count = 1;
-			wordCounts.put(word, 1);
-		}
-
-		outTuple.f0 = word;
-		outTuple.f1 = count;
-
-		return outTuple;
-		// performanceCounter.count();
-
+	private final String path;
+	private Tuple1<String> outTuple = new Tuple1<String>();
+	
+	public FileStreamFunction(String path) {
+		this.path = path;
 	}
-
+	
+	@Override
+	public void invoke(Collector<Tuple1<String>> collector) throws IOException {
+		while(true){
+			BufferedReader br = new BufferedReader(new FileReader(path));
+			String line = br.readLine();
+			while (line != null) {
+				if (line != "") {
+					outTuple.f0 = line;
+					collector.collect(outTuple);
+				}
+				line = br.readLine();
+			}
+			br.close();
+		}
+	}
 }

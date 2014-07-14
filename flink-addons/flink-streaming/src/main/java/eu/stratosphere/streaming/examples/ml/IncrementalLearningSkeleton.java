@@ -17,7 +17,6 @@ package eu.stratosphere.streaming.examples.ml;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.DataStream;
-import eu.stratosphere.streaming.api.SinkFunction;
 import eu.stratosphere.streaming.api.SourceFunction;
 import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
 import eu.stratosphere.util.Collector;
@@ -120,15 +119,6 @@ public class IncrementalLearningSkeleton {
 
 	}
 
-	public static class IMLSink extends SinkFunction<Tuple1<Integer>> {
-		private static final long serialVersionUID = 1L;
-		
-		@Override
-		public void invoke(Tuple1<Integer> inTuple) {
-			// do nothing
-		}
-	}
-
 	private static final int PARALELISM = 1;
 	private static final int SOURCE_PARALELISM = 1;
 
@@ -144,8 +134,9 @@ public class IncrementalLearningSkeleton {
 		DataStream<Tuple1<Integer>> prediction =
 				env.addSource(new NewDataSource(), SOURCE_PARALELISM)
 					.connectWith(model)
-					.map(new Predictor(), PARALELISM)
-					.addSink(new IMLSink());
+					.map(new Predictor(), PARALELISM);
+	
+		prediction.print();
 		
 		env.execute();
 	}

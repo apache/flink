@@ -131,14 +131,21 @@ public class StreamExecutionEnvironment {
 
 	}
 
-	//TODO: link to JobGraph, JobVertex, user-defined spellcheck
+	// TODO: link to JobGraph, JobVertex, user-defined spellcheck
 	/**
-	 * Internal function for passing the user defined functions to the JobGraph of the job.
-	 * @param functionName name of the function
-	 * @param inputStream input data stream
-	 * @param function the user defined function
-	 * @param functionInvokable the wrapping JobVertex instance
-	 * @param parallelism number of parallel instances of the function
+	 * Internal function for passing the user defined functions to the JobGraph
+	 * of the job.
+	 * 
+	 * @param functionName
+	 *            name of the function
+	 * @param inputStream
+	 *            input data stream
+	 * @param function
+	 *            the user defined function
+	 * @param functionInvokable
+	 *            the wrapping JobVertex instance
+	 * @param parallelism
+	 *            number of parallel instances of the function
 	 * @return the data stream constructed
 	 */
 	<T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName,
@@ -177,10 +184,10 @@ public class StreamExecutionEnvironment {
 			e.printStackTrace();
 		}
 
-		jobGraphBuilder.setSink("sink", new SinkInvokable<T>(sinkFunction), "sink",
+		jobGraphBuilder.setSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction), "sink",
 				baos.toByteArray(), parallelism, parallelism);
 
-		connectGraph(inputStream, "sink");
+		connectGraph(inputStream, returnStream.getId());
 
 		return returnStream;
 	}
@@ -190,19 +197,22 @@ public class StreamExecutionEnvironment {
 		return addSink(inputStream, sinkFunction, 1);
 	}
 
-	public static final class DummySink extends SinkFunction<Tuple1<String>> {
+	public static final class DummySink<IN extends Tuple> extends SinkFunction<IN> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<String> tuple) {
+		public void invoke(IN tuple) {
 			System.out.println(tuple);
 		}
 
 	}
 
-	public <T extends Tuple> DataStream<T> addDummySink(DataStream<T> inputStream) {
+	public <T extends Tuple> DataStream<T> print(DataStream<T> inputStream) {
+		DataStream<T> returnStream = addSink(inputStream, new DummySink<T>());
 
-		return addSink(inputStream, (SinkFunction<T>) new DummySink());
+		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+
+		return returnStream;
 	}
 
 	public void execute() {
@@ -226,11 +236,15 @@ public class StreamExecutionEnvironment {
 		jobGraphBuilder.setSource(returnStream.getId(), sourceFunction, "source",
 				baos.toByteArray(), parallelism, parallelism);
 
-		return returnStream;
+		return returnStream.copy();
 	}
 
 	public DataStream<Tuple1<String>> readTextFile(String path) {
 		return addSource(new FileSourceFunction(path), 1);
+	}
+	
+	public DataStream<Tuple1<String>> readTextStream(String path) {
+		return addSource(new FileStreamFunction(path),1);
 	}
 
 	public DataStream<Tuple1<String>> addDummySource() {

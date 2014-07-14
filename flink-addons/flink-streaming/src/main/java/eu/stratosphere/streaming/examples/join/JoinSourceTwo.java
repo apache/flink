@@ -32,6 +32,7 @@ public class JoinSourceTwo extends SourceFunction<Tuple3<String, String, Integer
 
 	@Override
 	public void invoke(Collector<Tuple3<String, String, Integer>> collector) throws Exception {
+		// Continuously emit tuples with random names and integers (grades).
 		while (true) {
 			outRecord.f0 = "grade";
 			outRecord.f1 = names[rand.nextInt(names.length)];

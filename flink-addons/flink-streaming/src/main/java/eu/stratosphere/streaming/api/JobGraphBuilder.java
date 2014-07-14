@@ -460,10 +460,10 @@ public class JobGraphBuilder {
 					"partitionerIntParam_"
 							+ (upStreamComponent.getNumberOfForwardConnections() - 1), keyPosition);
 
-			config.setInteger(
-					"numOfOutputs_"
-							+ (upStreamComponent.getNumberOfForwardConnections() - 1), numberOfInstances.get(downStreamComponentName));
-			
+			config.setInteger("numOfOutputs_"
+					+ (upStreamComponent.getNumberOfForwardConnections() - 1),
+					numberOfInstances.get(downStreamComponentName));
+
 			addOutputChannels(upStreamComponentName, 1);
 			if (log.isDebugEnabled()) {
 				log.debug("CONNECTED: FIELD PARTITIONING - " + upStreamComponentName + " -> "
@@ -565,5 +565,14 @@ public class JobGraphBuilder {
 		setNumberOfJobInputs();
 		setNumberOfJobOutputs();
 		return jobGraph;
+	}
+
+	public void setBytesFrom(String from, String to) {
+		Configuration fromConfig = components.get(from).getConfiguration();
+		Configuration toConfig = components.get(to).getConfiguration();
+
+		toConfig.setString("operatorName", fromConfig.getString("operatorName", null));
+		toConfig.setBytes("operator", fromConfig.getBytes("operator", null));
+
 	}
 }
