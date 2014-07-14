@@ -34,7 +34,6 @@ import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.LogUtils;
 import eu.stratosphere.streaming.util.PerformanceCounter;
 
@@ -142,7 +141,7 @@ public class WordCountRemote {
 	}
 
 	private static JobGraph getJobGraph() throws Exception {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
 		graphBuilder.setSource("WordCountSource", WordCountDebugSource.class, 2, 1);
 		graphBuilder.setTask("WordCountSplitter", WordCountDebugSplitter.class, 2, 1);
 		graphBuilder.setTask("WordCountCounter", WordCountDebugCounter.class, 2, 1);

@@ -24,14 +24,13 @@ import eu.stratosphere.client.program.Client;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.LogUtils;
 
 //TODO: window operator remains unfinished.
 public class WindowWordCountLocal {
 
 	public static JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
 		graphBuilder.setSource("WindowWordCountSource", WindowWordCountSource.class);
 		graphBuilder.setTask("WindowWordCountSplitter", WindowWordCountSplitter.class, 1, 1);
 		graphBuilder.setTask("WindowWordCountCounter", WindowWordCountCounter.class, 1, 1);

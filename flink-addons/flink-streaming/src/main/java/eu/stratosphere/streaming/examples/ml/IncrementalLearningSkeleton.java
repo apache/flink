@@ -29,7 +29,6 @@ import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.LogUtils;
 
 public class IncrementalLearningSkeleton {
@@ -145,7 +144,7 @@ public class IncrementalLearningSkeleton {
 	}
 
 	private static JobGraph getJobGraph() throws Exception {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("IncrementalLearning", FaultToleranceType.NONE);
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("IncrementalLearning");
 
 		graphBuilder.setSource("NewData", NewDataSource.class, 1, 1);
 		graphBuilder.setSource("TrainingData", TrainingDataSource.class, 1, 1);
