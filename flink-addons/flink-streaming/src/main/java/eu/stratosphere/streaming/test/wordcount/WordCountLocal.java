@@ -16,6 +16,7 @@
 package eu.stratosphere.streaming.test.wordcount;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.junit.Assert;
 
@@ -106,7 +107,7 @@ public class WordCountLocal {
 
 	protected JobGraph getJobGraph() throws Exception {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountSource.class);
+		graphBuilder.setSource("WordCountSource", WordCountDummySource.class);
 		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
 		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
 		graphBuilder.setSink("WordCountSink", WordCountSink.class);
@@ -123,6 +124,7 @@ public class WordCountLocal {
 	
 	public static void main(String[] args){
 		WordCountLocal wC = new WordCountLocal();
+		BasicConfigurator.configure();
 		
 		try {
 			wC.startCluster();

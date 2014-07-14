@@ -15,6 +15,11 @@
 
 package eu.stratosphere.streaming.test.wordcount;
 
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
+
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.test.util.TestBase2;
@@ -24,6 +29,15 @@ public class WordCount extends TestBase2 {
 
 	@Override
 	public JobGraph getJobGraph() {
+
+		Logger root = Logger.getRootLogger();
+		root.removeAllAppenders();
+		PatternLayout layout = new PatternLayout(
+				"%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
+		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
+		root.addAppender(appender);
+		root.setLevel(Level.DEBUG);
+
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
 		graphBuilder.setSource("WordCountSource", WordCountDummySource.class);
 		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
