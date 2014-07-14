@@ -15,20 +15,18 @@
 
 package eu.stratosphere.streaming.test.batch;
 
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.streaming.api.StreamRecord;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.types.StringValue;
 
-public class MyBatchStream extends TestBase2{
+public class BachForwardSink implements UserSinkInvokable {
+
+	private StringValue word = new StringValue("");
 
 	@Override
-	public JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("StreamSource", MyBatchStreamSource.class);
-		graphBuilder.setSink("StreamSink", MyBatchStreamSink.class);
+	public void invoke(StreamRecord record) throws Exception {
+		word = (StringValue) record.getField(0, 0);
+		System.out.println("========" + word.getValue() + "=========");
 
-		graphBuilder.broadcastConnect("StreamSource", "StreamSink");
-
-		return graphBuilder.getJobGraph();
 	}
 }
