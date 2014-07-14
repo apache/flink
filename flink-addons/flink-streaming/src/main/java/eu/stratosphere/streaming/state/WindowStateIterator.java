@@ -18,13 +18,15 @@ package eu.stratosphere.streaming.state;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WindowStateIterator<K>{
+public class WindowStateIterator<K> implements StateIterator<K, StreamRecord>{
 
+	@Override
 	public boolean hasNext() {
 		// TODO Auto-generated method stub
 		return false;
 	}
 
+	@Override
 	public Tuple2<K, StreamRecord> next() {
 		// TODO Auto-generated method stub
 		return null;
