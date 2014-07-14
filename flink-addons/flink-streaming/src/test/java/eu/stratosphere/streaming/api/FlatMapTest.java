@@ -158,28 +158,25 @@ public class FlatMapTest {
 	private static Set<Long> sequenceLongExpected = new HashSet<Long>();
 	private static Set<Integer> fromCollectionResult = new HashSet<Integer>();
 	private static Set<Long> generateSequenceResult = new HashSet<Long>();
+	
 
 	@Test
 	public void test() throws Exception {
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment(2, 1000);
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		
+		//flatmapTest
 		
 		fillFromCollectionSet();
 		
 		DataStream<Tuple1<Integer>> dataStream = env.fromCollection(fromCollectionSet)
 				.flatMap(new MyFlatMap(), PARALELISM).addSink(new MySink());
 
-		env.execute();
 
 		fillExpectedList();
 
-		assertTrue(expected.equals(result));
-
-	}
-
-	@Test
-	public void parallelShuffleconnectTest() throws Exception {
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 		
+		
+		//parallelShuffleconnectTest
 		fillFromCollectionSet();
 		
 		DataStream<Tuple1<Integer>> source = env.fromCollection(fromCollectionSet);
@@ -188,55 +185,36 @@ public class FlatMapTest {
 		DataStream<Tuple1<Integer>> map2 = source.flatMap(new ParallelFlatMap(), 1).addSink(
 				new MySink());
 
-		env.execute();
-
-		assertEquals(20, numberOfElements);
-		numberOfElements=0;
-		
-
-	}
-
-	@Test
-	public void fromElementsTest() throws Exception {
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-		DataStream<Tuple1<Integer>> map = env.fromElements(2, 5, 9).flatMap(new MyFlatMap(), 1);
-		DataStream<Tuple1<Integer>> sink = map.addSink(new FromElementsSink());
+		//fromElementsTest
+		DataStream<Tuple1<Integer>> fromElementsMap = env.fromElements(2, 5, 9).flatMap(new MyFlatMap(), 1);
+		DataStream<Tuple1<Integer>> sink = fromElementsMap.addSink(new FromElementsSink());
 
 		fillFromElementsExpected();
 
-		env.execute();
-		assertEquals(fromElementsExpected, fromElementsResult);
-
-	}
-
-	@Test
-	public void fromCollectionTest() throws Exception {
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-
+		//fromCollectionTest
 		fillFromCollectionSet();
 
-		DataStream<Tuple1<Integer>> map = env.fromCollection(fromCollectionSet).flatMap(
+		
+		
+		DataStream<Tuple1<Integer>> fromCollectionMap = env.fromCollection(fromCollectionSet).flatMap(
 				new MyFlatMap(), 1);
-		DataStream<Tuple1<Integer>> sink = map.addSink(new FromCollectionSink());
+		DataStream<Tuple1<Integer>> fromCollectionSink = fromCollectionMap.addSink(new FromCollectionSink());
 
+		// generateSequenceTest
 		fillSequenceSet();
 
-		env.execute();
-		assertEquals(sequenceExpected, fromCollectionResult);
-
-	}
-
-	@Test
-	public void generateSequenceTest() throws Exception {
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-
-		DataStream<Tuple1<Long>> map = env.generateSequence(0, 9).flatMap(
+		DataStream<Tuple1<Long>> generateSequenceMap = env.generateSequence(0, 9).flatMap(
 				new GenerateSequenceFlatMap(), 1);
-		DataStream<Tuple1<Long>> sink = map.addSink(new GenerateSequenceSink());
+		DataStream<Tuple1<Long>> generateSequenceSink = generateSequenceMap.addSink(new GenerateSequenceSink());
 
 		fillLongSequenceSet();
 
 		env.execute();
+		
+		assertTrue(expected.equals(result));
+		assertEquals(20, numberOfElements);
+		assertEquals(fromElementsExpected, fromElementsResult);
+		assertEquals(sequenceExpected, fromCollectionResult);
 		assertEquals(sequenceLongExpected, generateSequenceResult);
 	}
 }

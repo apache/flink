@@ -57,11 +57,12 @@ public class ArrayStreamRecord extends StreamRecord {
 		this.batchSize = tupleBatch.length;
 	}
 
+	
 	/**
 	 * Creates a new batch of records containing the given Tuple array as
 	 * elements
 	 * 
-	 * @param tupleArray
+	 * @param tupleList
 	 *            Tuples to bes stored in the StreamRecord
 	 */
 	public ArrayStreamRecord(Tuple[] tupleArray) {
@@ -142,6 +143,9 @@ public class ArrayStreamRecord extends StreamRecord {
 		}
 	}
 
+	/**
+	 * Read method definition for the IOReadableWritable interface
+	 */
 	@Override
 	public void read(DataInput in) throws IOException {
 		uid = new UID();
