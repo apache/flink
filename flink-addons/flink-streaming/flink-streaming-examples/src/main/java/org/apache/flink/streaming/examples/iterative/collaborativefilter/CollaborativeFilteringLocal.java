@@ -19,11 +19,6 @@
 
 package org.apache.flink.streaming.examples.iterative.collaborativefilter;
 
-import org.apache.flink.streaming.api.JobGraphBuilder;
-import org.apache.flink.streaming.faulttolerance.FaultToleranceType;
-import org.apache.flink.streaming.util.ClusterUtil;
-import org.apache.flink.streaming.util.LogUtils;
-import org.apache.log4j.Level;
 
 public class CollaborativeFilteringLocal {
 	public static void main(String[] args) {

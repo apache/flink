@@ -22,7 +22,7 @@ package org.apache.flink.streaming.api;
 import org.apache.flink.api.java.tuple.Tuple;
 
 public class IterativeDataStream<T extends Tuple> extends DataStream<T> {
-
+	
 	public IterativeDataStream(DataStream<T> dataStream) {
 		super(dataStream.environment, "iteration", dataStream.id);
 	}
