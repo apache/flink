@@ -24,8 +24,8 @@ public class MyBatchStream extends TestBase2{
 	@Override
 	public JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("StreamSource", StreamSource.class);
-		graphBuilder.setSink("StreamSink", StreamSink.class);
+		graphBuilder.setSource("StreamSource", MyBatchStreamSource.class);
+		graphBuilder.setSink("StreamSink", MyBatchStreamSink.class);
 
 		graphBuilder.broadcastConnect("StreamSource", "StreamSink");
 
