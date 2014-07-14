@@ -5,7 +5,6 @@ import java.util.List;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.streaming.api.FaultTolerancyBuffer;
 import eu.stratosphere.streaming.api.StreamRecord;
-import eu.stratosphere.types.Record;
 
 public abstract class StreamInvokable {
 
@@ -37,7 +36,7 @@ public abstract class StreamInvokable {
 				System.out.println("---------------------");
 
 			} catch (Exception e) {
-				System.out.println("Emit error");
+				System.out.println("Emit error: " + e.getMessage());
 				emittedRecords.failRecord(record.getId());
 			}
 		}

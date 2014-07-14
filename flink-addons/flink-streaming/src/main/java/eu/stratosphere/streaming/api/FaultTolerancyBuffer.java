@@ -14,13 +14,13 @@ import eu.stratosphere.nephele.io.RecordWriter;
 public class FaultTolerancyBuffer {
 
 	private final static long TIMEOUT = 1000;
-	
+
 	private Long timeOfLastUpdate;
 	private Map<String, StreamRecord> recordBuffer;
 	private Map<String, Integer> ackCounter;
 	private SortedMap<Long, Set<String>> recordsByTime;
 	private Map<String, Long> recordTimestamps;
-	
+
 	private List<RecordWriter<StreamRecord>> outputs;
 	private String channelID;
 
@@ -35,7 +35,7 @@ public class FaultTolerancyBuffer {
 		this.numberOfOutputs = outputs.size();
 		this.channelID = channelID;
 		this.recordsByTime = new TreeMap<Long, Set<String>>();
-		this.recordTimestamps=new HashMap<String, Long>();
+		this.recordTimestamps = new HashMap<String, Long>();
 	}
 
 	public void addRecord(StreamRecord streamRecord) {
@@ -44,15 +44,16 @@ public class FaultTolerancyBuffer {
 		ackCounter.put(streamRecord.getId(), numberOfOutputs);
 		addTimestamp(streamRecord.getId());
 	}
-	
-	//TODO: use this method!
+
+	// TODO: use this method!
 	private void timeoutRecords() {
 		Long currentTime = System.currentTimeMillis();
-		
+
 		if (timeOfLastUpdate + TIMEOUT < currentTime) {
-			
+
 			List<String> timedOutRecords = new LinkedList<String>();
-			Map<Long, Set<String>> timedOut = recordsByTime.subMap(0L, currentTime - TIMEOUT);
+			Map<Long, Set<String>> timedOut = recordsByTime.subMap(0L, currentTime
+					- TIMEOUT);
 			for (Set<String> recordSet : timedOut.values()) {
 				if (!recordSet.isEmpty()) {
 					for (String recordID : recordSet) {
@@ -60,30 +61,30 @@ public class FaultTolerancyBuffer {
 					}
 				}
 			}
-			
+
 			recordsByTime.keySet().removeAll(timedOut.keySet());
-			for (String recordID: timedOutRecords) {
+			for (String recordID : timedOutRecords) {
 				failRecord(recordID);
 			}
 		}
 	}
-	
+
 	public void addTimestamp(String recordID) {
 		Long currentTime = System.currentTimeMillis();
-		recordTimestamps.put(recordID,currentTime);
-		
+		recordTimestamps.put(recordID, currentTime);
+
 		if (recordsByTime.containsKey(currentTime)) {
 			recordsByTime.get(currentTime).add(recordID);
 		} else {
 			Set<String> recordSet = new HashSet<String>();
 			recordSet.add(recordID);
-			recordsByTime.put(currentTime,recordSet);
+			recordsByTime.put(currentTime, recordSet);
 		}
-		//System.out.println(currentTime.toString()+" : "+recordsByTime.get(currentTime).toString());
+		// System.out.println(currentTime.toString()+" : "+recordsByTime.get(currentTime).toString());
 	}
 
 	public StreamRecord popRecord(String recordID) {
-		System.out.println("Pop ID: "+recordID);
+		System.out.println("Pop ID: " + recordID);
 		StreamRecord record = recordBuffer.get(recordID);
 		removeRecord(recordID);
 		return record;
@@ -94,7 +95,7 @@ public class FaultTolerancyBuffer {
 		ackCounter.remove(recordID);
 		recordsByTime.get(recordTimestamps.remove(recordID)).remove(recordID);
 	}
-	
+
 	public void ackRecord(String recordID) {
 
 		if (ackCounter.containsKey(recordID)) {
@@ -111,8 +112,9 @@ public class FaultTolerancyBuffer {
 
 	public void failRecord(String recordID) {
 		// Create new id to avoid double counting acks
-		System.out.println("Fail ID: "+recordID);
-		StreamRecord newRecord = popRecord(recordID).setChannelId(channelID).setId();
+		System.out.println("Fail ID: " + recordID);
+		StreamRecord newRecord = popRecord(recordID).setChannelId(channelID)
+				.setId();
 		reEmit(newRecord);
 	}
 
