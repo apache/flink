@@ -69,7 +69,9 @@ public class StreamTask extends AbstractTask {
 			inputs = streamTaskHelper.getConfigInputs(this, taskConfiguration);
 			streamTaskHelper.setConfigOutputs(this, taskConfiguration, outputs, partitioners);
 		} catch (StreamComponentException e) {
-			log.error("Cannot register inputs/outputs for " + getClass().getSimpleName(), e);
+			if (log.isErrorEnabled()) {
+				log.error("Cannot register inputs/outputs for " + getClass().getSimpleName(), e);
+			}
 		}
 
 		int[] numberOfOutputChannels = new int[outputs.size()];
@@ -89,11 +91,15 @@ public class StreamTask extends AbstractTask {
 
 	@Override
 	public void invoke() throws Exception {
-		log.debug("TASK " + name + " invoked with instance id " + taskInstanceID);
+		if (log.isDebugEnabled()) {
+			log.debug("TASK " + name + " invoked with instance id " + taskInstanceID);
+		}
 		streamTaskHelper.invokeRecords(invoker, userFunction, inputs, name);
 
 		// TODO print to file
 		System.out.println(userFunction.getResult());
-		log.debug("TASK " + name + " invoke finished with instance id " + taskInstanceID);
+		if (log.isDebugEnabled()) {
+			log.debug("TASK " + name + " invoke finished with instance id " + taskInstanceID);
+		}
 	}
 }

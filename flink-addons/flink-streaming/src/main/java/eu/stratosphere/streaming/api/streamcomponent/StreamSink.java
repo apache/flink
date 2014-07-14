@@ -36,7 +36,7 @@ public class StreamSink extends AbstractOutputTask {
 	private RecordInvoker invoker;
 
 	public StreamSink() {
-		// TODO: Make configuration file visible and call setClassInputs() here		
+		// TODO: Make configuration file visible and call setClassInputs() here
 		userFunction = null;
 		streamSinkHelper = new StreamComponentHelper<StreamSink>();
 	}
@@ -49,20 +49,27 @@ public class StreamSink extends AbstractOutputTask {
 		try {
 			inputs = streamSinkHelper.getConfigInputs(this, taskConfiguration);
 		} catch (Exception e) {
-			log.error("Cannot register inputs", e);
+			if (log.isErrorEnabled()) {
+				log.error("Cannot register inputs", e);
+			}
 		}
-		
-		FaultToleranceType faultToleranceType = FaultToleranceType.from(taskConfiguration.getInteger("faultToleranceType", 0));
+
+		FaultToleranceType faultToleranceType = FaultToleranceType.from(taskConfiguration
+				.getInteger("faultToleranceType", 0));
 		invoker = streamSinkHelper.getRecordInvoker(faultToleranceType);
-		
+
 		userFunction = streamSinkHelper.getUserFunction(taskConfiguration);
 	}
 
 	@Override
 	public void invoke() throws Exception {
-		log.debug("SINK " + name + " invoked");
+		if (log.isDebugEnabled()) {
+			log.debug("SINK " + name + " invoked");
+		}
 		streamSinkHelper.invokeRecords(invoker, userFunction, inputs, name);
-		System.out.println("Result: "+userFunction.getResult());
-		log.debug("SINK " + name + " invoke finished");
+		System.out.println("Result: " + userFunction.getResult());
+		if (log.isDebugEnabled()) {
+			log.debug("SINK " + name + " invoke finished");
+		}
 	}
 }
