@@ -159,6 +159,7 @@ public class FlatMapTest {
 
 		fillFromCollectionSet();
 
+		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> dataStream = env.fromCollection(fromCollectionSet)
 				.flatMap(new MyFlatMap()).addSink(new MySink());
 
@@ -168,14 +169,17 @@ public class FlatMapTest {
 		fillFromCollectionSet();
 
 		DataStream<Tuple1<Integer>> source = env.fromCollection(fromCollectionSet);
+		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> map = source.flatMap(new ParallelFlatMap()).addSink(
 				new MySink());
+		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> map2 = source.flatMap(new ParallelFlatMap()).addSink(
 				new MySink());
 
 		// fromElementsTest
 		DataStream<Tuple1<Integer>> fromElementsMap = env.fromElements(2, 5, 9).flatMap(
 				new MyFlatMap());
+		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> sink = fromElementsMap.addSink(new FromElementsSink());
 
 		fillFromElementsExpected();
@@ -185,6 +189,7 @@ public class FlatMapTest {
 
 		DataStream<Tuple1<Integer>> fromCollectionMap = env.fromCollection(fromCollectionSet)
 				.flatMap(new MyFlatMap());
+		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> fromCollectionSink = fromCollectionMap
 				.addSink(new FromCollectionSink());
 
@@ -193,6 +198,7 @@ public class FlatMapTest {
 
 		DataStream<Tuple1<Long>> generateSequenceMap = env.generateSequence(0, 9).flatMap(
 				new GenerateSequenceFlatMap());
+		@SuppressWarnings("unused")
 		DataStream<Tuple1<Long>> generateSequenceSink = generateSequenceMap
 				.addSink(new GenerateSequenceSink());
 

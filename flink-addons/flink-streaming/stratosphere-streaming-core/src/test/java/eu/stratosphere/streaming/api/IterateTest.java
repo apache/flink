@@ -15,34 +15,20 @@
 
 package eu.stratosphere.streaming.api;
 
-import java.util.HashSet;
-import java.util.Set;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.streaming.api.function.SinkFunction;
 import eu.stratosphere.util.Collector;
 
-public class PrintTest {
-
-	public static final class MyFlatMap extends
-			FlatMapFunction<Tuple2<Integer, String>, Tuple2<Integer, String>> {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void flatMap(Tuple2<Integer, String> value,
-				Collector<Tuple2<Integer, String>> out) throws Exception {
-			out.collect(new Tuple2<Integer, String>(value.f0 * value.f0,
-					value.f1));
-
-		}
-
-	}
+public class IterateTest {
 
 	private static final long MEMORYSIZE = 32;
+	private static int iterationTimes = 0;
+	private static int iterationResult = 0;
 
 	public static final class Increment extends
 			FlatMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
@@ -73,19 +59,35 @@ public class PrintTest {
 		}
 
 	}
+	
+	public static final class MySink extends SinkFunction<Tuple1<Integer>> {
+		
+		private static final long serialVersionUID = 1L;
 
+		@Override
+		public void invoke(Tuple1<Integer> tuple) {
+			iterationTimes++;
+			iterationResult += tuple.f0;
+		}
+		
+	}
 	@Test
 	public void test() throws Exception {
 
 		LocalStreamEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(1);
+
+		IterativeDataStream<Tuple1<Integer>> source = env.fromElements(1).flatMap(new Forward()).
+				iterate();
 		
-		 env.generateSequence(1, 10).print();
-		 Set<Integer> a = new HashSet<Integer>();
-		 a.add(-2);
-		 a.add(-100);
-		 env.fromCollection(a).print();
+		DataStream<Tuple1<Integer>> increment = source.flatMap(new Increment());
+		
+		source.closeWith(increment).addSink(new MySink());
+
 		env.executeTest(MEMORYSIZE);
+		
+		assertEquals(4, iterationTimes);
+		assertEquals(14, iterationResult);
 
 	}
 

@@ -47,10 +47,10 @@ import eu.stratosphere.types.TypeInformation;
  */
 public class DataStream<T extends Tuple> {
 
-	private static Integer counter = 0;
-	private final StreamExecutionEnvironment environment;
-	private TypeInformation<T> type;
-	private String id;
+	protected static Integer counter = 0;
+	protected final StreamExecutionEnvironment environment;
+	protected TypeInformation<T> type;
+	protected String id;
 	int dop;
 	List<String> connectIDs;
 	List<ConnectionType> ctypes;
@@ -87,9 +87,10 @@ public class DataStream<T extends Tuple> {
 	 * @param id
 	 *            The id of the DataStream
 	 */
-	private DataStream(StreamExecutionEnvironment environment, String operatorType, String id) {
+	protected DataStream(StreamExecutionEnvironment environment, String operatorType, String id) {
 		this.environment = environment;
 		this.id = id;
+		initConnections();
 	}
 
 	/**
@@ -125,7 +126,7 @@ public class DataStream<T extends Tuple> {
 		copiedStream.dop = this.dop;
 		return copiedStream;
 	}
-
+	
 	/**
 	 * Returns the ID of the {@link DataStream}.
 	 * 
@@ -334,16 +335,31 @@ public class DataStream<T extends Tuple> {
 	}
 
 	/**
-	 * Writes a DataStream to the standard output stream (stdout).
-	 * For each element of the DataStream the result of
-	 * {@link Object#toString()} is written.
-	 *
+	 * Writes a DataStream to the standard output stream (stdout). For each
+	 * element of the DataStream the result of {@link Object#toString()} is
+	 * written.
+	 * 
 	 * @return The closed DataStream.
 	 */
 	public DataStream<T> print() {
 		return environment.print(this.copy());
 	}
-	
+
+	public DataStream<T> addIterationSource() {
+		environment.addIterationSource(this);
+		return this.copy();
+	}
+
+	public DataStream<T> addIterationSink() {
+		environment.addIterationSink(this);
+		return this;
+	}
+
+	public IterativeDataStream<T> iterate() {
+		addIterationSource();
+		return new IterativeDataStream<T>(this);
+	}
+
 	/**
 	 * Set the type parameter.
 	 * 

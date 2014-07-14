@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Stack;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -40,6 +41,8 @@ import eu.stratosphere.runtime.io.channels.ChannelType;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamcomponent.StreamIterationSink;
+import eu.stratosphere.streaming.api.streamcomponent.StreamIterationSource;
 import eu.stratosphere.streaming.api.streamcomponent.StreamSink;
 import eu.stratosphere.streaming.api.streamcomponent.StreamSource;
 import eu.stratosphere.streaming.api.streamcomponent.StreamTask;
@@ -61,6 +64,8 @@ public class JobGraphBuilder {
 	protected Map<String, Integer> numberOfInstances;
 	protected Map<String, List<String>> edgeList;
 	protected Map<String, List<Class<? extends ChannelSelector<StreamRecord>>>> connectionTypes;
+	protected boolean iterationStart;
+	protected Stack<String> iterationStartPoints;
 	protected String maxParallelismVertexName;
 	protected int maxParallelism;
 	protected FaultToleranceType faultToleranceType;
@@ -81,6 +86,7 @@ public class JobGraphBuilder {
 		numberOfInstances = new HashMap<String, Integer>();
 		edgeList = new HashMap<String, List<String>>();
 		connectionTypes = new HashMap<String, List<Class<? extends ChannelSelector<StreamRecord>>>>();
+		iterationStartPoints = new Stack<String>();
 		maxParallelismVertexName = "";
 		maxParallelism = 0;
 		if (log.isDebugEnabled()) {
@@ -123,6 +129,24 @@ public class JobGraphBuilder {
 
 		if (log.isDebugEnabled()) {
 			log.debug("SOURCE: " + sourceName);
+		}
+	}
+
+	public void setIterationSource(String sourceName, String iterationHead, int parallelism) {
+
+		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
+
+		source.setInvokableClass(StreamIterationSource.class);
+
+		setComponent(sourceName, source, null, null, null, parallelism);
+
+		setBytesFrom(iterationHead, sourceName);
+		
+		//TODO: get iteration-id from IterativeDataSet
+		components.get(sourceName).getConfiguration().setString("iteration-id", "iteration-0");
+
+		if (log.isDebugEnabled()) {
+			log.debug("Iteration head source: " + sourceName);
 		}
 	}
 
@@ -181,6 +205,23 @@ public class JobGraphBuilder {
 
 	}
 
+	public void setIterationSink(String sinkName, String iterationTail, int parallelism) {
+
+		final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
+		sink.setInvokableClass(StreamIterationSink.class);
+		setComponent(sinkName, sink, null, null, null, parallelism);
+
+		setBytesFrom(iterationTail, sinkName);
+
+		if (log.isDebugEnabled()) {
+			log.debug("Iteration tail sink: " + sinkName);
+		}
+		
+		//TODO: get iteration-id from IterativeDataSet
+		components.get(sinkName).getConfiguration().setString("iteration-id", "iteration-0");
+
+	}
+
 	/**
 	 * Sets component parameters in the JobGraph
 	 * 
@@ -205,20 +246,29 @@ public class JobGraphBuilder {
 
 		component.setNumberOfSubtasks(parallelism);
 
+		if (iterationStart) {
+			iterationStartPoints.push(componentName);
+			iterationStart = false;
+		}
+
 		if (parallelism > maxParallelism) {
 			maxParallelism = parallelism;
 			maxParallelismVertexName = componentName;
 		}
 
 		Configuration config = new TaskConfig(component.getConfiguration()).getConfiguration();
-		config.setClass("userfunction", InvokableObject.getClass());
+		if (InvokableObject != null) {
+			config.setClass("userfunction", InvokableObject.getClass());
+			addSerializedObject(InvokableObject, config);
+		}
 		config.setString("componentName", componentName);
 		config.setInteger("batchSize", batchSize);
 		config.setLong("batchTimeout", batchTimeout);
 		config.setInteger("faultToleranceType", faultToleranceType.id);
-		config.setBytes("operator", serializedFunction);
-		config.setString("operatorName", operatorName);
-		addSerializedObject(InvokableObject, config);
+		if (serializedFunction != null) {
+			config.setBytes("operator", serializedFunction);
+			config.setString("operatorName", operatorName);
+		}
 
 		components.put(componentName, component);
 		numberOfInstances.put(componentName, parallelism);

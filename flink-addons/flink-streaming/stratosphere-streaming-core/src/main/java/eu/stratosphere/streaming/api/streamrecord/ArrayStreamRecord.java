@@ -164,11 +164,12 @@ public class ArrayStreamRecord extends StreamRecord {
 		StringBuilder outputString = new StringBuilder("[");
 
 		String prefix = "";
-
-		for (Tuple tuple : tupleBatch) {
-			outputString.append(prefix);
-			prefix = ",";
-			outputString.append(tuple.toString());
+		if(tupleBatch!=null){
+			for (Tuple tuple : tupleBatch) {
+				outputString.append(prefix);
+				prefix = ",";
+				outputString.append(tuple.toString());
+			}
 		}
 		outputString.append("]");
 		return outputString.toString();

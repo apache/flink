@@ -273,6 +273,7 @@ public class MapTest {
 
 		fillFromCollectionSet();
 		
+		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> dataStream = env.fromCollection(fromCollectionSet)
 				.map(new MyMap()).addSink(new MySink());
 
@@ -283,6 +284,7 @@ public class MapTest {
 		//broadcastSinkTest
 		fillFromCollectionSet();
 		
+		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> dataStream1 = env
 				.fromCollection(fromCollectionSet)
 				.broadcast()
@@ -293,6 +295,7 @@ public class MapTest {
 		//shuffleSinkTest
 		fillFromCollectionSet();
 		
+		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> dataStream2 = env
 				.fromCollection(fromCollectionSet)
 				.map(new MyMap()).setParallelism(3)
@@ -302,6 +305,7 @@ public class MapTest {
 		//fieldsMapTest
 		fillFromCollectionFieldsSet();
 		
+		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> dataStream3 = env
 				.fromCollection(fromCollectionFields)
 				.partitionBy(0)
@@ -312,6 +316,7 @@ public class MapTest {
 		//diffFieldsMapTest
 		fillFromCollectionDiffFieldsSet();
 		
+		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> dataStream4 = env
 				.fromCollection(fromCollectionDiffFieldsSet)
 				.partitionBy(0)
@@ -323,6 +328,7 @@ public class MapTest {
 		DataStream<Tuple1<Integer>> source1 = env.addSource(new MySource1(),
 				1);
 		
+		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> source2 = env
 				.addSource(new MySource2(), 1)
 				.connectWith(source1)
@@ -340,6 +346,8 @@ public class MapTest {
 		
 		DataStream<Tuple1<Integer>> source4 = env.addSource(new MySource2(),
 				1);
+		
+		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> source5 = env
 				.addSource(new MySource3(), 1)
 				.connectWith(source3, source4)

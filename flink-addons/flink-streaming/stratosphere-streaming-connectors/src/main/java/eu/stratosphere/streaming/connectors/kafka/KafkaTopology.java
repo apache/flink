@@ -51,6 +51,7 @@ public class KafkaTopology {
 			if(s.equals("q")){
 				close();
 			}
+			//System.out.println("ki: " + s);
 			return new Tuple1<String>(s);
 		}
 		
