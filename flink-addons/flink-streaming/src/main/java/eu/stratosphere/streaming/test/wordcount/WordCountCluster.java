@@ -15,10 +15,8 @@
 
 package eu.stratosphere.streaming.test.wordcount;
 
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
-import org.junit.Assert;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.configuration.ConfigConstants;
@@ -29,76 +27,20 @@ import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.LogUtils;
 
-public class WordCountLocal {
+public class WordCountCluster {
 
-	private static final int MINIMUM_HEAP_SIZE_MB = 192;
 
 	protected final Configuration config;
 
-	private NepheleMiniCluster executor;
-
-	public WordCountLocal() {
+	
+	public WordCountCluster() {
 		this(new Configuration());
 	}
 
-	public WordCountLocal(Configuration config) {
-		verifyJvmOptions();
+	public WordCountCluster(Configuration config) {
 		this.config = config;
 
 		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
-	}
-
-	private void verifyJvmOptions() {
-		long heap = Runtime.getRuntime().maxMemory() >> 20;
-		Assert.assertTrue("Insufficient java heap space " + heap
-				+ "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB + "m",
-				heap > MINIMUM_HEAP_SIZE_MB - 50);
-	}
-
-	public void startCluster() throws Exception {
-		this.executor = new NepheleMiniCluster();
-		this.executor.setDefaultOverwriteFiles(true);
-		this.executor.start();
-	}
-
-	public void stopCluster() throws Exception {
-		try {
-			if (this.executor != null) {
-				this.executor.stop();
-				this.executor = null;
-				FileSystem.closeAll();
-				System.gc();
-			}
-		} finally {
-		}
-	}
-
-	public void runJob() throws Exception {
-		// submit job
-		JobGraph jobGraph = null;
-		try {
-			jobGraph = getJobGraph();
-		} catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Failed to obtain JobGraph!");
-		}
-
-		Assert.assertNotNull("Obtained null JobGraph", jobGraph);
-
-		try {
-			JobClient client = null;
-			try {
-				client = this.executor.getJobClient(jobGraph);
-			} catch (Exception e) {
-				System.err.println("here");
-			}
-			client.submitJobAndWait();
-		} catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Job execution failed!");
-		}
 	}
 
 	private static JobGraph getJobGraph() throws Exception {
@@ -117,31 +59,24 @@ public class WordCountLocal {
 	}
 
 	public static void main(String[] args) {
-		WordCountLocal wC = new WordCountLocal();
-		BasicConfigurator.configure();
 		
-		
-
-		NepheleMiniCluster exec = new NepheleMiniCluster();
 		try {
 
 			JobGraph jG = getJobGraph();
 			
-			int jobManagerRpcPort = 6498;
+			int jobManagerRpcPort = 6123;
 			Configuration configuration = jG.getJobConfiguration();
-			configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
+			configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "hadoop02.ilab.sztaki.hu");
 			configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRpcPort);
 			
 			
 			JobClient client= new JobClient(jG, configuration);
 			
 			
-			exec.start();
 			//JobClient client = exec.getJobClient(jG);
 
 			client.submitJobAndWait();
 
-			exec.stop();
 		} catch (Exception e) {
 			System.out.println(e);
 		}
