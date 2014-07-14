@@ -13,36 +13,33 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test;
+package eu.stratosphere.streaming.test.cellinfo;
 
-import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.LongValue;
+import eu.stratosphere.types.StringValue;
 
-public class QuerySourceInvokable extends UserSourceInvokable {
+public class CellTaskInvokable extends UserTaskInvokable {
+
+	private WorkerEngineExact engine = new WorkerEngineExact(10, 1000, 0);
 
 	@Override
-	public void invoke() throws Exception {
-		for (int i = 0; i < 5; i++) {
-			StreamRecord batch1 = new StreamRecord(3);
-			AtomRecord record1 = new AtomRecord(3);
-			record1.setField(0, new IntValue(5));
-			record1.setField(1, new LongValue(510));
-			record1.setField(2, new LongValue(100));
-			batch1.addRecord(record1);
-			
-			StreamRecord batch2 = new StreamRecord(3);
-			AtomRecord record2=new AtomRecord(3);
-			record2.setField(0, new IntValue(4));
-			record2.setField(1, new LongValue(510));
-			record2.setField(2, new LongValue(100));
-			batch2.addRecord(record2);
-			
-			emit(batch1);
-			emit(batch2);
+	public void invoke(StreamRecord record) throws Exception {
+		IntValue value1 = (IntValue) record.getField(0, 0);
+		LongValue value2 = (LongValue) record.getField(0, 1);
+
+		// INFO
+		if (record.getNumOfFields() == 2) {
+			engine.put(value1.getValue(), value2.getValue());
+			emit(new StreamRecord(new StringValue(value1 + " " + value2)));
+		}
+		// QUERY
+		else if (record.getNumOfFields() == 3) {
+			LongValue value3 = (LongValue) record.getField(0, 2);
+			emit(new StreamRecord(new StringValue(String.valueOf(engine.get(
+					value2.getValue(), value3.getValue(), value1.getValue())))));
 		}
 	}
-
 }

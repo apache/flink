@@ -13,13 +13,13 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test;
+package eu.stratosphere.streaming.test.cellinfo;
 
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.types.StringValue;
 
-public class TestSinkInvokable implements UserSinkInvokable {
+public class CellSinkInvokable implements UserSinkInvokable {
 
   @Override
   public void invoke(StreamRecord record) throws Exception {  	
