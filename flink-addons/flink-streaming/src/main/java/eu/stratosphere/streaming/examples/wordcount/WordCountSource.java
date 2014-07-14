@@ -37,7 +37,7 @@ public class WordCountSource extends UserSourceInvokable {
 	@Override
 	public void invoke() throws Exception {
 
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < 2; i++) {
 			try {
 				br = new BufferedReader(new FileReader("/home/strato/strato-dist/resources/hamlet.txt"));
 
