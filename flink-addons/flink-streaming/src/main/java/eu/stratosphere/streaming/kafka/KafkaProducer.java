@@ -29,12 +29,13 @@ public class KafkaProducer {
 	public static void ProducerPrepare(String brokerAddr) {
 		props.put("serializer.class", "kafka.serializer.StringEncoder");
 		props.put("metadata.broker.list", brokerAddr);
+
 		producer = new kafka.javaapi.producer.Producer<Integer, String>(
 				new ProducerConfig(props));
 	}
 
 	public static void main(String[] args) throws Exception{
-		if (args.length == 1) {
+		if (args.length >= 1) {
 			String infilename=args[0];
 			String topicId=args[1];
 			String brokerAddr=args[2];

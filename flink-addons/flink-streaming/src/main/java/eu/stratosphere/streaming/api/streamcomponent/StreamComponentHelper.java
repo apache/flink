@@ -37,13 +37,13 @@ import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
+import eu.stratosphere.nephele.io.AbstractRecordReader;
+import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
-import eu.stratosphere.runtime.io.api.AbstractRecordReader;
-import eu.stratosphere.runtime.io.api.ChannelSelector;
-import eu.stratosphere.runtime.io.api.MutableRecordReader;
-import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.streaming.api.SinkFunction;
 import eu.stratosphere.streaming.api.StreamCollectorManager;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
@@ -65,7 +65,7 @@ import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
 import eu.stratosphere.util.Collector;
 
-public final class StreamComponentHelper {
+public final class StreamComponentHelper<T extends AbstractInvokable> {
 	private static final Log log = LogFactory.getLog(StreamComponentHelper.class);
 	private static int numComponents = 0;
 
@@ -194,30 +194,41 @@ public final class StreamComponentHelper {
 		}
 	}
 
-	public AbstractRecordReader getConfigInputs(AbstractInvokable taskBase,
-			Configuration taskConfiguration) throws StreamComponentException {
+	public AbstractRecordReader getConfigInputs(T taskBase, Configuration taskConfiguration)
+			throws StreamComponentException {
 		int numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
 
 		if (numberOfInputs < 2) {
-
-			return new StreamRecordReader(taskBase, ArrayStreamRecord.class,
-					inDeserializationDelegate, inTupleSerializer);
-
+			if (taskBase instanceof StreamTask) {
+				return new StreamRecordReader((StreamTask) taskBase, ArrayStreamRecord.class,
+						inDeserializationDelegate, inTupleSerializer);
+			} else if (taskBase instanceof StreamSink) {
+				return new StreamRecordReader((StreamSink) taskBase, ArrayStreamRecord.class,
+						inDeserializationDelegate, inTupleSerializer);
+			} else {
+				throw new StreamComponentException("Nonsupported object passed to setConfigInputs");
+			}
 		} else {
 			@SuppressWarnings("unchecked")
 			MutableRecordReader<StreamRecord>[] recordReaders = (MutableRecordReader<StreamRecord>[]) new MutableRecordReader<?>[numberOfInputs];
 
 			for (int i = 0; i < numberOfInputs; i++) {
 
-				recordReaders[i] = new MutableRecordReader<StreamRecord>(taskBase);
-
+				if (taskBase instanceof StreamTask) {
+					recordReaders[i] = new MutableRecordReader<StreamRecord>((StreamTask) taskBase);
+				} else if (taskBase instanceof StreamSink) {
+					recordReaders[i] = new MutableRecordReader<StreamRecord>((StreamSink) taskBase);
+				} else {
+					throw new StreamComponentException(
+							"Nonsupported object passed to setConfigInputs");
+				}
 			}
 			return new UnionStreamRecordReader(recordReaders, ArrayStreamRecord.class,
 					inDeserializationDelegate, inTupleSerializer);
 		}
 	}
 
-	public void setConfigOutputs(AbstractInvokable taskBase, Configuration taskConfiguration,
+	public void setConfigOutputs(T taskBase, Configuration taskConfiguration,
 			List<RecordWriter<StreamRecord>> outputs,
 			List<ChannelSelector<StreamRecord>> partitioners) throws StreamComponentException {
 
@@ -227,8 +238,15 @@ public final class StreamComponentHelper {
 			setPartitioner(taskConfiguration, i, partitioners);
 			ChannelSelector<StreamRecord> outputPartitioner = partitioners.get(i);
 
-			outputs.add(new RecordWriter<StreamRecord>(taskBase, outputPartitioner));
-
+			if (taskBase instanceof StreamTask) {
+				outputs.add(new RecordWriter<StreamRecord>((StreamTask) taskBase,
+						StreamRecord.class, outputPartitioner));
+			} else if (taskBase instanceof StreamSource) {
+				outputs.add(new RecordWriter<StreamRecord>((StreamSource) taskBase,
+						StreamRecord.class, outputPartitioner));
+			} else {
+				throw new StreamComponentException("Nonsupported object passed to setConfigOutputs");
+			}
 			if (outputsPartitioned.size() < batchSizesPartitioned.size()) {
 				outputsPartitioned.add(outputs.get(i));
 			} else {
@@ -265,30 +283,30 @@ public final class StreamComponentHelper {
 		return userFunction;
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public UserSinkInvokable<Tuple> getSinkInvokable(Configuration config) {
+	@SuppressWarnings("rawtypes")
+	public UserSinkInvokable getSinkInvokable(Configuration config) {
 		Class<? extends UserSinkInvokable> userFunctionClass = config.getClass("userfunction",
 				DefaultSinkInvokable.class, UserSinkInvokable.class);
-		return (UserSinkInvokable<Tuple>) getInvokable(userFunctionClass, config);
+		return (UserSinkInvokable) getInvokable(userFunctionClass, config);
 	}
 
 	// TODO consider logging stack trace!
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public UserTaskInvokable<Tuple, Tuple> getTaskInvokable(Configuration config) {
+	@SuppressWarnings("rawtypes")
+	public UserTaskInvokable getTaskInvokable(Configuration config) {
 
 		// Default value is a TaskInvokable even if it was called from a source
 		Class<? extends UserTaskInvokable> userFunctionClass = config.getClass("userfunction",
 				DefaultTaskInvokable.class, UserTaskInvokable.class);
-		return (UserTaskInvokable<Tuple, Tuple>) getInvokable(userFunctionClass, config);
+		return (UserTaskInvokable) getInvokable(userFunctionClass, config);
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public UserSourceInvokable<Tuple> getSourceInvokable(Configuration config) {
-
+	@SuppressWarnings("rawtypes")
+	public UserSourceInvokable getSourceInvokable(Configuration config) {
+		
 		// Default value is a TaskInvokable even if it was called from a source
 		Class<? extends UserSourceInvokable> userFunctionClass = config.getClass("userfunction",
 				DefaultSourceInvokable.class, UserSourceInvokable.class);
-		return (UserSourceInvokable<Tuple>) getInvokable(userFunctionClass, config);
+		return (UserSourceInvokable) getInvokable(userFunctionClass, config);
 	}
 
 	// TODO find a better solution for this
@@ -310,7 +328,6 @@ public final class StreamComponentHelper {
 
 	private void setPartitioner(Configuration config, int numberOfOutputs,
 			List<ChannelSelector<StreamRecord>> partitioners) {
-
 		Class<? extends ChannelSelector<StreamRecord>> partitioner = config.getClass(
 				"partitionerClass_" + numberOfOutputs, DefaultPartitioner.class,
 				ChannelSelector.class);
@@ -343,8 +360,8 @@ public final class StreamComponentHelper {
 		}
 	}
 
-	public void invokeRecords(StreamRecordInvokable<Tuple, Tuple> userFunction,
-			AbstractRecordReader inputs) throws Exception {
+	public void invokeRecords(StreamRecordInvokable userFunction, AbstractRecordReader inputs)
+			throws Exception {
 		if (inputs instanceof UnionStreamRecordReader) {
 			UnionStreamRecordReader recordReader = (UnionStreamRecordReader) inputs;
 			while (recordReader.hasNext()) {

@@ -17,29 +17,24 @@ package eu.stratosphere.streaming.performance;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.DataStream;
-import eu.stratosphere.streaming.api.SinkFunction;
 import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
 import eu.stratosphere.streaming.examples.wordcount.WordCountCounter;
+import eu.stratosphere.streaming.util.TestDataUtil;
 
 public class WordCountPerformanceLocal {
-
-	public static class Mysink extends SinkFunction<Tuple2<String, Integer>> {
-
-		@Override
-		public void invoke(Tuple2<String, Integer> tuple) {
-		}
-
-	}
-
 	public static void main(String[] args) {
 
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment().setClusterSize(2);
+		TestDataUtil.downloadIfNotExists("hamlet.txt");
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
 		DataStream<Tuple2<String, Integer>> dataStream = env
-				.readTextStream("/home/strato/stratosphere-distrib/resources/hamlet.txt", 4)
-				.flatMap(new WordCountPerformanceSplitter(), 2).partitionBy(0)
-				.map(new WordCountCounter(), 2).addSink(new Mysink(), 2);
+				.readTextStream("src/test/resources/testdata/hamlet.txt")
+				.flatMap(new WordCountPerformanceSplitter(), 1)
+				.broadcast()
+				.map(new WordCountCounter(), 3);
 
-		env.executeCluster();
+		dataStream.print();
+
+		env.execute();
 	}
 }

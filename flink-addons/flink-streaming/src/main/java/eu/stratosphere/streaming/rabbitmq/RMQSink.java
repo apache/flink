@@ -69,7 +69,6 @@ public class RMQSink extends SinkFunction<Tuple1<String>>{
 			channel.queueDeclare(QUEUE_NAME, false, false, false, null);
 			String message = tuple.f0;
 		    channel.basicPublish("", QUEUE_NAME, null, message.getBytes());
-		    System.out.println(" [x] Sent '" + message + "'");
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();

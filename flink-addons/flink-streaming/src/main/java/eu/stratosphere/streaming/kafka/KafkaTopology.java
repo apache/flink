@@ -26,7 +26,7 @@ public class KafkaTopology {
 	public static void main(String[] args) {
 		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 		
-		DataStream<Tuple1<String>> stream = context.addSource(new KafkaSource("localhost:7077", "group", "topic", 1), SOURCE_PARALELISM)
+		DataStream<Tuple1<String>> stream = context.addSource(new KafkaSource("localhost:2181", "group", "test", 1), SOURCE_PARALELISM)
 				.print();
 		
 		context.execute();
