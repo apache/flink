@@ -15,10 +15,10 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
-import eu.stratosphere.streaming.api.streamcomponent.StreamInvokable;
+import eu.stratosphere.streaming.api.streamcomponent.StreamInvokableComponent;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public abstract class UserTaskInvokable extends StreamInvokable {
+public abstract class UserTaskInvokable extends StreamInvokableComponent {
 	
   public void invoke(StreamRecord record) throws Exception {
 

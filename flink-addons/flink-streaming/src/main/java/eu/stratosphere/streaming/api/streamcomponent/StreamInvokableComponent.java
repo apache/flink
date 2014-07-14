@@ -21,13 +21,12 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.streaming.api.FailEvent;
 import eu.stratosphere.streaming.api.FaultToleranceBuffer;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public abstract class StreamInvokable {
+public abstract class StreamInvokableComponent {
 
-	private static final Log log = LogFactory.getLog(StreamInvokable.class);
+	private static final Log log = LogFactory.getLog(StreamInvokableComponent.class);
 
 	private List<RecordWriter<StreamRecord>> outputs;
 

@@ -113,15 +113,15 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		return userFunction;
 	}
 
-	public StreamInvokable getUserFunction(Configuration taskConfiguration,
+	public StreamInvokableComponent getUserFunction(Configuration taskConfiguration,
 			List<RecordWriter<StreamRecord>> outputs, String instanceID,
 			FaultToleranceBuffer recordBuffer) {
 
 		// Default value is a TaskInvokable even if it was called from a source
-		Class<? extends StreamInvokable> userFunctionClass = taskConfiguration
+		Class<? extends StreamInvokableComponent> userFunctionClass = taskConfiguration
 				.getClass("userfunction", DefaultTaskInvokable.class,
-						StreamInvokable.class);
-		StreamInvokable userFunction = null;
+						StreamInvokableComponent.class);
+		StreamInvokableComponent userFunction = null;
 
 		try {
 			userFunction = userFunctionClass.newInstance();
