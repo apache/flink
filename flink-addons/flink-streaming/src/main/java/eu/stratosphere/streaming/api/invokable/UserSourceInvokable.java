@@ -15,9 +15,9 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
-public abstract class UserSourceInvokable extends StreamInvokable {
+import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.types.Record;
 
-  public void invoke() throws Exception {
-
-  }
+public interface UserSourceInvokable {
+  public void invoke(RecordWriter<Record> output) throws Exception ;
 }
