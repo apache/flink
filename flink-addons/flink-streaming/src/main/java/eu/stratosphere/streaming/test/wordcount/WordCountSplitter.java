@@ -24,18 +24,27 @@ public class WordCountSplitter extends UserTaskInvokable {
 	private StringValue sentence = new StringValue();
 	private String[] words = new String[] {};
 	private StringValue wordValue = new StringValue("");
-
- private StreamRecord outputRecord = new StreamRecord(wordValue);
+	private int i = 0;
+	private StreamRecord outputRecord = new StreamRecord(wordValue);
+	private long time;
+	private long prevTime = System.currentTimeMillis();
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
+		i++;
+		if (i % 50000 == 0) {
+			time = System.currentTimeMillis();
+			System.out.println("Splitter:\t" + i + "\t----Time: "
+					+ (time - prevTime));
+			prevTime=time;
+		}
 		sentence = (StringValue) record.getRecord(0)[0];
 		words = sentence.getValue().split(" ");
 		for (CharSequence word : words) {
 			wordValue.setValue(word);
 			outputRecord.setRecord(wordValue);
 			emit(outputRecord);
-			//emit(new StreamRecord(wordValue));
+			// emit(new StreamRecord(wordValue));
 		}
 	}
 }

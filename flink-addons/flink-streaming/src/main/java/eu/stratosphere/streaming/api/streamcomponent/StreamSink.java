@@ -72,10 +72,10 @@ public class StreamSink extends AbstractOutputTask {
 					try {
 						userFunction.invoke(rec);
 						streamSinkHelper.threadSafePublish(new AckEvent(id), input);
-						log.debug("Ack sent from " + name + ": " + id);
+						log.debug("ACK: " + id + " -- " + name);
 					} catch (Exception e) {
 						streamSinkHelper.threadSafePublish(new FailEvent(id), input);
-						log.warn("Invoking record " + id + " at " + name + " failed due to " + e.getMessage());
+						log.warn("INVOKE FAILED: " + id + " -- " + name + " -- due to " + e.getMessage());
 					}
 				}
 

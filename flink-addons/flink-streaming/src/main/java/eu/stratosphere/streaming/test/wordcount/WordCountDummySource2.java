@@ -15,27 +15,38 @@
 
 package eu.stratosphere.streaming.test.wordcount;
 
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.types.StringValue;
 
-public class WordCountSink extends UserSinkInvokable {
+public class WordCountDummySource2 extends UserSourceInvokable {
 
-	int nrOfRecords=0;
+	private StringValue lineValue = new StringValue("");
+	StreamRecord record = new StreamRecord(lineValue);
 	private long time;
 	private long prevTime = System.currentTimeMillis();
+	
+	public WordCountDummySource2() {
+
+	}
+
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
-		nrOfRecords++;
-		if (nrOfRecords % 50000 == 0) {
-			time= System.currentTimeMillis();
-			System.out.println("Sink:\t" + nrOfRecords + "\t----Time: "+(time-prevTime));
-			prevTime=time;
+	public void invoke() throws Exception {
+
+		for (int i = 0; i < 1000000; i++) {
+			if (i % 50000 == 0) {
+				time= System.currentTimeMillis();
+				System.out.println("Source:\t" + i + "\t----Time: "+(time-prevTime));
+				prevTime=time;
+			}
+			
+			if (i % 2 == 0) {
+				lineValue.setValue("Gyula Marci");
+			} else {
+				lineValue.setValue("Gabor Gyula");
+			}
+			record.setRecord(lineValue);
+			emit(record);
 		}
 	}
-	
-	@Override
-	public String getResult(){
-		return String.valueOf(nrOfRecords);
-	}
-	
 }

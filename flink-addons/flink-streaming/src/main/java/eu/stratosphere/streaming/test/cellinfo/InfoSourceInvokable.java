@@ -33,7 +33,7 @@ public class InfoSourceInvokable extends UserSourceInvokable {
 
 	@Override
 	public void invoke() throws Exception {
-		for (int i = 0; i < 100000; i++) {
+		for (int i = 0; i < 500000; i++) {
 			cellId.setValue(_rand.nextInt(_cellNumber));
 			timeStamp.setValue(System.currentTimeMillis());
 			

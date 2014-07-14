@@ -23,11 +23,13 @@ public class CellSinkInvokable extends UserSinkInvokable {
 	int c=0;
   @Override
   public void invoke(StreamRecord record) throws Exception {  	
-//  	c++;
-//		if((c % 10000)==0){
-//			System.out.println(c);
-//		}
 
+	  c++;
+  }
+  
+  @Override
+  public String getResult(){
+	  return String.valueOf(c);
   }
 
 }

@@ -68,6 +68,7 @@ public class JobGraphBuilder {
 		numberOfInstances = new HashMap<String, Integer>();
 		numberOfOutputChannels = new HashMap<String, Integer>();
 		log.debug("JobGraph created");
+		
 	}
 
 	/**
