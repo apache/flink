@@ -33,7 +33,6 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
-import eu.stratosphere.streaming.api.invokable.UserInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
@@ -81,9 +80,17 @@ public class JobGraphBuilder {
 	 *            User defined class describing the source
 	 */
 	public void setSource(String sourceName, final Class<? extends UserSourceInvokable> InvokableClass) {
-		setSource(sourceName, InvokableClass, 1);
+		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
+		source.setInputClass(StreamSource.class);
+		Configuration config = new TaskConfig(source.getConfiguration()).getConfiguration();
+		config.setClass("userfunction", InvokableClass);
+		config.setString("componentName", sourceName);
+		components.put(sourceName, source);
+		numberOfInstances.put(sourceName, 1);
+		log.debug("SOURCE: " + sourceName);
 	}
 
+	// TODO: eliminate code repetition
 	/**
 	 * Adds a source component to the JobGraph
 	 * 
@@ -97,7 +104,12 @@ public class JobGraphBuilder {
 	public void setSource(String sourceName, final Class<? extends UserSourceInvokable> InvokableClass, int parallelism) {
 		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
 		source.setInputClass(StreamSource.class);
-		setComponent(sourceName, InvokableClass, parallelism, source);
+		source.setNumberOfSubtasks(parallelism);
+		Configuration config = new TaskConfig(source.getConfiguration()).getConfiguration();
+		config.setClass("userfunction", InvokableClass);
+		config.setString("componentName", sourceName);
+		components.put(sourceName, source);
+		numberOfInstances.put(sourceName, 1);
 		log.debug("SOURCE: " + sourceName);
 	}
 
@@ -110,7 +122,14 @@ public class JobGraphBuilder {
 	 *            User defined class describing the task
 	 */
 	public void setTask(String taskName, final Class<? extends UserTaskInvokable> InvokableClass) {
-		setTask(taskName, InvokableClass, 1);
+		final JobTaskVertex task = new JobTaskVertex(taskName, jobGraph);
+		task.setTaskClass(StreamTask.class);
+		Configuration config = new TaskConfig(task.getConfiguration()).getConfiguration();
+		config.setClass("userfunction", InvokableClass);
+		config.setString("componentName", taskName);
+		components.put(taskName, task);
+		numberOfInstances.put(taskName, 1);
+		log.debug("TASK: " + taskName);
 	}
 
 	/**
@@ -126,7 +145,12 @@ public class JobGraphBuilder {
 	public void setTask(String taskName, final Class<? extends UserTaskInvokable> InvokableClass, int parallelism) {
 		final JobTaskVertex task = new JobTaskVertex(taskName, jobGraph);
 		task.setTaskClass(StreamTask.class);
-		setComponent(taskName, InvokableClass, parallelism, task);
+		task.setNumberOfSubtasks(parallelism);
+		Configuration config = new TaskConfig(task.getConfiguration()).getConfiguration();
+		config.setClass("userfunction", InvokableClass);
+		config.setString("componentName", taskName);
+		components.put(taskName, task);
+		numberOfInstances.put(taskName, parallelism);
 		log.debug("TASK: " + taskName);
 	}
 
@@ -139,7 +163,14 @@ public class JobGraphBuilder {
 	 *            User defined class describing the sink
 	 */
 	public void setSink(String sinkName, final Class<? extends UserSinkInvokable> InvokableClass) {
-		setSink(sinkName, InvokableClass, 1);
+		final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
+		sink.setOutputClass(StreamSink.class);
+		Configuration config = new TaskConfig(sink.getConfiguration()).getConfiguration();
+		config.setClass("userfunction", InvokableClass);
+		config.setString("componentName", sinkName);
+		components.put(sinkName, sink);
+		numberOfInstances.put(sinkName, 1);
+		log.debug("SINK: " + sinkName);
 	}
 
 	/**
@@ -153,21 +184,18 @@ public class JobGraphBuilder {
 	 *            Number of task instances of this type to run in parallel
 	 */
 	public void setSink(String sinkName, final Class<? extends UserSinkInvokable> InvokableClass, int parallelism) {
+
 		final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
 		sink.setOutputClass(StreamSink.class);
-		setComponent(sinkName, InvokableClass, parallelism, sink);
-		log.debug("SINK: " + sinkName);
+		sink.setNumberOfSubtasks(parallelism);
+		Configuration config = new TaskConfig(sink.getConfiguration()).getConfiguration();
+		config.setClass("userfunction", InvokableClass);
+		config.setString("componentName", sinkName);
+		components.put(sinkName, sink);
+		numberOfInstances.put(sinkName, 1);
+		log.debug("TASK: " + sinkName);
 	}
 
-	private void setComponent(String componentName, final Class<? extends UserInvokable> InvokableClass, int parallelism, AbstractJobVertex component) {
-		component.setNumberOfSubtasks(parallelism);
-		Configuration config = new TaskConfig(component.getConfiguration()).getConfiguration();
-		config.setClass("userfunction", InvokableClass);
-		config.setString("componentName", componentName);
-		components.put(componentName, component);
-		numberOfInstances.put(componentName, parallelism);
-	}
-	
 	/**
 	 * Connects to JobGraph components with the given names, partitioning and
 	 * channel type
