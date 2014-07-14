@@ -4,12 +4,13 @@ import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
+import eu.stratosphere.types.Record;
 
 public class StreamSource extends AbstractInputTask<RandIS> {
 
-  private RecordWriter<IOReadableWritable> output;
-  private Class<? extends ChannelSelector<IOReadableWritable>> Partitioner;
-  ChannelSelector<IOReadableWritable> partitioner;
+  private RecordWriter<Record> output;
+  private Class<? extends ChannelSelector<Record>> Partitioner;
+  ChannelSelector<Record> partitioner;
   private Class<? extends UserSourceInvokable> UserFunction;
   private UserSourceInvokable userFunction;
   
@@ -53,16 +54,14 @@ public class StreamSource extends AbstractInputTask<RandIS> {
   @Override
   public void registerInputOutput() {
     setClassInputs();
-    output = new RecordWriter<IOReadableWritable>(this,
-        IOReadableWritable.class, this.partitioner);
+    output = new RecordWriter<Record>(this,
+        Record.class, this.partitioner);
 
   }
 
   @Override
   public void invoke() throws Exception {
-
     userFunction.invoke(output);
-
   }
 
 }
