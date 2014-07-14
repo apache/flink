@@ -13,25 +13,30 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.sum;
+package eu.stratosphere.streaming.examples.iterative.pagerank;
+
+import org.apache.log4j.Level;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.SourceFunction;
-import eu.stratosphere.util.Collector;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.streaming.api.DataStream;
+import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
+import eu.stratosphere.streaming.util.ClusterUtil;
+import eu.stratosphere.streaming.util.LogUtils;
 
-public class WindowSumSource extends SourceFunction<Tuple2<Integer, Long>> {
-	private static final long serialVersionUID = 1L;
-	
-	private Tuple2<Integer, Long> outRecord = new Tuple2<Integer, Long>();
-	private Long timestamp = 0L;
+public class PageRankLocal {
 
-	@Override
-	public void invoke(Collector<Tuple2<Integer, Long>> collector) throws Exception {
-		for (int i = 0; i < 1000; ++i) {
-			outRecord.f0 = i;
-			outRecord.f1 = timestamp;
-			collector.collect(outRecord);
-			timestamp++;
-		}		
+	public static void main(String[] args) {
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+
+//		@SuppressWarnings("unused")
+//		DataStream<Tuple2<String, Integer>> dataStream = env
+//				.addSource(new PageRankSource())
+//				.map(new Counter())
+//				.addSink(new PageRankSink());
+		
+		env.execute();
 	}
 }

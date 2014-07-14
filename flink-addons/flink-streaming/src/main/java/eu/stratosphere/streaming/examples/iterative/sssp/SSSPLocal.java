@@ -13,17 +13,30 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.state;
+package eu.stratosphere.streaming.examples.iterative.sssp;
 
-/**
- * An internal state interface that supports stateful operator.
- */
-public interface TableState<K, V>{
-	public void put(K key, V value);
-	public V get(K key);
-	public void delete(K key);
-	public boolean containsKey(K key);
-	public String serialize();
-	public void deserialize(String str);
-	public TableStateIterator<K, V> getIterator();
+import org.apache.log4j.Level;
+
+import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.streaming.api.DataStream;
+import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
+import eu.stratosphere.streaming.util.ClusterUtil;
+import eu.stratosphere.streaming.util.LogUtils;
+
+public class SSSPLocal {
+
+	public static void main(String[] args) {
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+
+//		@SuppressWarnings("unused")
+//		DataStream<Tuple2<String, Integer>> dataStream = context
+//				.addSource(new SSSPSource())
+//				.flatMap(new SSSPCounter())
+//				.addSink(new SSSPSink());
+		
+		env.execute();
+	}
 }

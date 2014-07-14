@@ -13,25 +13,43 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.sum;
+package eu.stratosphere.streaming.examples.iterative.collaborativefilter;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
+import java.io.BufferedReader;
+import java.io.FileReader;
+
+import eu.stratosphere.api.java.tuple.Tuple4;
 import eu.stratosphere.streaming.api.SourceFunction;
 import eu.stratosphere.util.Collector;
 
-public class WindowSumSource extends SourceFunction<Tuple2<Integer, Long>> {
+public class CollaborativeFilteringSource extends SourceFunction<Tuple4<Integer, Integer, Integer, Long>> {
 	private static final long serialVersionUID = 1L;
 	
-	private Tuple2<Integer, Long> outRecord = new Tuple2<Integer, Long>();
+	private String line = "";
+	private Tuple4<Integer, Integer, Integer, Long> outRecord = new Tuple4<Integer, Integer, Integer, Long>();
 	private Long timestamp = 0L;
-
+	
 	@Override
-	public void invoke(Collector<Tuple2<Integer, Long>> collector) throws Exception {
-		for (int i = 0; i < 1000; ++i) {
-			outRecord.f0 = i;
-			outRecord.f1 = timestamp;
-			collector.collect(outRecord);
-			timestamp++;
+	public void invoke(
+			Collector<Tuple4<Integer, Integer, Integer, Long>> collector)
+			throws Exception {
+		BufferedReader br = new BufferedReader(new FileReader(
+				"src/test/resources/testdata/MovieLens100k.data"));
+		while (true) {
+			line = br.readLine();
+			if (line == null) {
+				break;
+			}
+			if (line != "") {
+				String[] items=line.split("\t");
+				outRecord.f0 = Integer.valueOf(items[0]);
+				outRecord.f1 = Integer.valueOf(items[1]);
+				outRecord.f2 = Integer.valueOf(items[2]);
+				outRecord.f3 = timestamp;
+				collector.collect(outRecord);
+				timestamp++;
+			}
 		}		
 	}
+
 }

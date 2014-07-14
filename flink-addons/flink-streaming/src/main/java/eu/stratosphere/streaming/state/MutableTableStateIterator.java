@@ -29,13 +29,11 @@ public class MutableTableStateIterator<K, V> implements TableStateIterator<K, V>
 	
 	@Override
 	public boolean hasNext() {
-		// TODO Auto-generated method stub
 		return iterator.hasNext();
 	}
 
 	@Override
 	public Tuple2<K, V> next() {
-		// TODO Auto-generated method stub
 		Entry<K, V> entry=iterator.next();
 		return new Tuple2<K, V>(entry.getKey(), entry.getValue());
 	}

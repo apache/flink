@@ -13,25 +13,40 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.sum;
+package eu.stratosphere.streaming.examples.iterative.sssp;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
+import java.io.BufferedReader;
+import java.io.FileReader;
+
+import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.streaming.api.SourceFunction;
 import eu.stratosphere.util.Collector;
 
-public class WindowSumSource extends SourceFunction<Tuple2<Integer, Long>> {
+public class SSSPSource extends SourceFunction<Tuple3<Integer, Integer, Long>> {
 	private static final long serialVersionUID = 1L;
 	
-	private Tuple2<Integer, Long> outRecord = new Tuple2<Integer, Long>();
+	private Tuple3<Integer, Integer, Long> outRecord = new Tuple3<Integer, Integer, Long>();
 	private Long timestamp = 0L;
-
+	
 	@Override
-	public void invoke(Collector<Tuple2<Integer, Long>> collector) throws Exception {
-		for (int i = 0; i < 1000; ++i) {
-			outRecord.f0 = i;
-			outRecord.f1 = timestamp;
-			collector.collect(outRecord);
-			timestamp++;
+	public void invoke(Collector<Tuple3<Integer, Integer, Long>> collector)
+			throws Exception {
+		BufferedReader br = new BufferedReader(new FileReader(
+				"src/test/resources/testdata/ASTopology.data"));
+		while (true) {
+			String line = br.readLine();
+			if (line == null) {
+				break;
+			}
+			if (line != "") {
+				String[] link=line.split(":");
+				outRecord.f0 = Integer.valueOf(link[0]);
+				outRecord.f1 = Integer.valueOf(link[1]);
+				outRecord.f2 = timestamp;
+				collector.collect(outRecord);
+				timestamp += 1;
+			}
 		}		
 	}
+
 }

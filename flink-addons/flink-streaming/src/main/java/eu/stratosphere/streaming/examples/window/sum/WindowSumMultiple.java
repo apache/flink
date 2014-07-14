@@ -15,21 +15,18 @@
 
 package eu.stratosphere.streaming.examples.window.sum;
 
+import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WindowSumMultiple extends UserTaskInvokable {
+public class WindowSumMultiple extends MapFunction<Tuple2<Integer, Long>, Tuple2<Integer, Long>> {
 	private static final long serialVersionUID = 1L;
 	
-	private StreamRecord outputRecord = new StreamRecord(new Tuple2<Integer, Long>());
-	
+	private Tuple2<Integer, Long> outTuple = new Tuple2<Integer, Long>();
+
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
-		Integer number = record.getInteger(0);
-		Long timestamp = record.getLong(1);
-		outputRecord.setInteger(0, number+1);
-		outputRecord.setLong(1, timestamp);
-		emit(outputRecord);
+	public Tuple2<Integer, Long> map(Tuple2<Integer, Long> inTuple) throws Exception {
+		outTuple.f0 = inTuple.f0 * 2;
+		outTuple.f1 = inTuple.f1;
+		return outTuple;
 	}
 }
