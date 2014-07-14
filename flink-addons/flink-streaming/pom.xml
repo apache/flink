@@ -5,7 +5,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>eu.stratosphere</groupId>
-	<version>0.5</version>
+	<version>0.5-rc2</version>
 	<artifactId>stratosphere-streaming</artifactId>
 	<name>stratosphere-streaming</name>
 
@@ -82,6 +82,11 @@
 			<groupId>com.rabbitmq</groupId>
 			<artifactId>amqp-client</artifactId>
 			<version>3.3.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.kafka</groupId>
+			<artifactId>kafka_2.10</artifactId>
+			<version>0.8.1.1</version>
 		</dependency>
 	</dependencies>
 

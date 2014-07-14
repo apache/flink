@@ -13,21 +13,24 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.state;
+package eu.stratosphere.streaming.examples.join;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WindowStateIterator<K>{
+public class JoinSink extends UserSinkInvokable {
+	private static final long serialVersionUID = 1L;
 
-	public boolean hasNext() {
-		// TODO Auto-generated method stub
-		return false;
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
+		System.out.println("received record...");
+		int tupleNum = record.getNumOfTuples();
+		System.out.println("============================================");
+		for (int i = 0; i < tupleNum; ++i) {
+			System.out.println("name=" + record.getField(i, 0) + ", grade="
+					+ record.getField(i, 1) + ", salary="
+					+ record.getField(i, 2));
+		}
+		System.out.println("============================================");
 	}
-
-	public Tuple2<K, StreamRecord> next() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
 }
