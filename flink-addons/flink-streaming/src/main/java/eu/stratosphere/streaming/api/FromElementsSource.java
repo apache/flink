@@ -13,22 +13,34 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.rabbitmq;
+package eu.stratosphere.streaming.api;
+
+import java.util.Arrays;
+import java.util.Collection;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.streaming.api.DataStream;
-import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.util.Collector;
 
-public class RMQTopology {
+public class FromElementsSource<T> extends SourceFunction<Tuple1<T>> {
+	private static final long serialVersionUID = 1L;
 
-	private static final int SOURCE_PARALELISM = 1;
+	Iterable<T> iterable;
+	Tuple1<T> outTuple = new Tuple1<T>();
 
-	public static void main(String[] args) {
-		StreamExecutionEnvironment context = StreamExecutionEnvironment.createLocalEnvironment();
-
-		DataStream<Tuple1<String>> stream = context.addSource(new RMQSource("localhost", "hello"),
-				SOURCE_PARALELISM).print();
-
-		context.execute();
+	public FromElementsSource(T... elements) {
+		this.iterable = (Iterable<T>) Arrays.asList(elements);
 	}
+
+	public FromElementsSource(Collection<T> elements) {
+		this.iterable = (Iterable<T>) elements;
+	}
+
+	@Override
+	public void invoke(Collector<Tuple1<T>> collector) throws Exception {
+		for (T element : iterable) {
+			outTuple.f0 = element;
+			collector.collect(outTuple);
+		}
+	}
+
 }

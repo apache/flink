@@ -154,7 +154,7 @@ public class IncrementalOLS {
 
 	public static void main(String[] args) {
 
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		StreamExecutionEnvironment env =StreamExecutionEnvironment.createLocalEnvironment();
 
 		DataStream<Tuple2<Boolean, Double[]>> model = 
 				env.addSource(new TrainingDataSource(), SOURCE_PARALELISM)

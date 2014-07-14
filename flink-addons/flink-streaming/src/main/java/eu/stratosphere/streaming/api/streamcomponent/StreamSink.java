@@ -18,25 +18,25 @@ package eu.stratosphere.streaming.api.streamcomponent;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.io.AbstractRecordReader;
-import eu.stratosphere.nephele.template.AbstractOutputTask;
+import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.runtime.io.api.AbstractRecordReader;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 
-public class StreamSink extends AbstractOutputTask {
+public class StreamSink extends AbstractInvokable {
 
 	private static final Log log = LogFactory.getLog(StreamSink.class);
 
 	private AbstractRecordReader inputs;
-	private UserSinkInvokable userFunction;
-	private StreamComponentHelper<StreamSink> streamSinkHelper;
+	private UserSinkInvokable<Tuple> userFunction;
+	private StreamComponentHelper streamSinkHelper;
 	private String name;
 
 	public StreamSink() {
 		// TODO: Make configuration file visible and call setClassInputs() here
 		userFunction = null;
-		streamSinkHelper = new StreamComponentHelper<StreamSink>();
+		streamSinkHelper = new StreamComponentHelper();
 	}
 
 	@Override
@@ -54,8 +54,9 @@ public class StreamSink extends AbstractOutputTask {
 			}
 		}
 
-		FaultToleranceType faultToleranceType = FaultToleranceType.from(taskConfiguration
-				.getInteger("faultToleranceType", 0));
+		// FaultToleranceType faultToleranceType =
+		// FaultToleranceType.from(taskConfiguration
+		// .getInteger("faultToleranceType", 0));
 
 		userFunction = streamSinkHelper.getSinkInvokable(taskConfiguration);
 	}
@@ -65,6 +66,7 @@ public class StreamSink extends AbstractOutputTask {
 		if (log.isDebugEnabled()) {
 			log.debug("SINK " + name + " invoked");
 		}
+
 		streamSinkHelper.invokeRecords(userFunction, inputs);
 		if (log.isDebugEnabled()) {
 			log.debug("SINK " + name + " invoke finished");
