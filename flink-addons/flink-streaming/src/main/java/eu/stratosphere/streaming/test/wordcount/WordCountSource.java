@@ -22,11 +22,12 @@ import eu.stratosphere.types.StringValue;
 public class WordCountSource extends UserSourceInvokable {
 	
 	private final String motto = "Stratosphere Big Data looks tiny from here";
+	private final Record mottoRecord = new Record(new StringValue(motto));
 
 	@Override
 	public void invoke() throws Exception {
 		for (int i = 0; i < 10; i++) {
-			emit(new Record(new StringValue(motto)));
+			emit(mottoRecord);
 		}
 	}
 
