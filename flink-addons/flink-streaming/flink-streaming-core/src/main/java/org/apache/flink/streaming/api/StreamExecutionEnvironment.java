@@ -323,7 +323,6 @@ public abstract class StreamExecutionEnvironment {
 
 		jobGraphBuilder.setIterationSink(returnStream.getId(), inputStream.getId(),
 				degreeOfParallelism);
-
 		jobGraphBuilder.shuffleConnect(inputStream.getId(), returnStream.getId());
 	}
 
