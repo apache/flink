@@ -127,7 +127,7 @@ public class DataStream<T extends Tuple> {
 		}
 		return returnStream;
 	}
-
+	
 	/**
 	 * Connecting DataStream outputs with each other. The streams connected
 	 * using this operator will be transformed simultaneously. It creates a
@@ -137,13 +137,21 @@ public class DataStream<T extends Tuple> {
 	 *            The DataStream to connect output with.
 	 * @return The connected DataStream.
 	 */
-	public DataStream<T> connectWith(DataStream<T> stream) {
+	public DataStream<T> connectWith(DataStream<T>... streams) {
 		DataStream<T> returnStream = copy();
-
+		
+		for(DataStream<T> stream:streams){
+			addConnection(returnStream, stream);
+		}
+		return returnStream;
+	}
+	
+	public DataStream<T> addConnection(DataStream<T> returnStream, DataStream<T> stream){
 		returnStream.connectIDs.addAll(stream.connectIDs);
 		returnStream.ctypes.addAll(stream.ctypes);
 		returnStream.cparams.addAll(stream.cparams);
 		returnStream.batchSizes.addAll(stream.batchSizes);
+		
 		return returnStream;
 	}
 

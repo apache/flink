@@ -26,6 +26,7 @@ import org.junit.Test;
 
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.util.Collector;
 
 public class MapTest {
@@ -39,6 +40,36 @@ public class MapTest {
 			}
 		}
 	}
+	
+	public static final class MySource1 extends SourceFunction<Tuple1<Integer>> {
+
+		@Override
+		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
+			for (int i = 0; i < 5; i++) {
+				collector.collect(new Tuple1<Integer>(i));
+			}
+		}
+	}
+	
+	public static final class MySource2 extends SourceFunction<Tuple1<Integer>> {
+
+		@Override
+		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
+			for (int i = 5; i < 10; i++) {
+				collector.collect(new Tuple1<Integer>(i));
+			}
+		}
+	}
+	
+	public static final class MySource3 extends SourceFunction<Tuple1<Integer>> {
+
+		@Override
+		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
+			for (int i = 10; i < 15; i++) {
+				collector.collect(new Tuple1<Integer>(i));
+			}
+		}
+	}
 
 	public static final class MyMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
 
@@ -46,6 +77,15 @@ public class MapTest {
 		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
 			map++;
 			return new Tuple1<Integer>(value.f0 * value.f0);
+		}
+	}
+	
+	public static final class MyJoinMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+
+		@Override
+		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
+			joinSetResult.add(value.f0);
+			return new Tuple1<Integer>(value.f0);
 		}
 	}
 
@@ -122,6 +162,13 @@ public class MapTest {
 			graphResult++;
 		}
 	}
+	
+	public static final class JoinSink extends SinkFunction<Tuple1<Integer>> {
+
+		@Override
+		public void invoke(Tuple1<Integer> tuple) {
+		}
+	}
 
 	private static Set<Integer> expected = new HashSet<Integer>();
 	private static Set<Integer> result = new HashSet<Integer>();
@@ -138,6 +185,9 @@ public class MapTest {
 	private static Set<Integer> fromCollectionSet = new HashSet<Integer>();
 	private static List<Integer> fromCollectionFields = new ArrayList<Integer>();
 	private static Set<Integer> fromCollectionDiffFieldsSet = new HashSet<Integer>();
+	private static Set<Integer> singleJoinSetExpected = new HashSet<Integer>();
+	private static Set<Integer> multipleJoinSetExpected = new HashSet<Integer>();
+	private static Set<Integer> joinSetResult = new HashSet<Integer>();
 
 	private static void fillExpectedList() {
 		for (int i = 0; i < 10; i++) {
@@ -169,6 +219,19 @@ public class MapTest {
 			}
 		}
 	}
+	
+	private static void fillSingleJoinSet() {
+		for (int i = 0; i < 10; i++) {
+			singleJoinSetExpected.add(i);
+		}
+	}
+	
+	private static void fillMultipleJoinSet() {
+		for (int i = 0; i < 15; i++) {
+			multipleJoinSetExpected.add(i);
+		}
+	}
+
 
 	@Test
 	public void mapTest() throws Exception {
@@ -287,5 +350,51 @@ public class MapTest {
 //		}
 //		
 //	}
+	
+	@Test
+	public void singleConnectWithTest() throws Exception {
+		
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+
+		DataStream<Tuple1<Integer>> source1 = env.addSource(new MySource1(),
+				1);
+		
+		DataStream<Tuple1<Integer>> source2 = env
+				.addSource(new MySource2(), 1)
+				.connectWith(source1)
+				.partitionBy(0)
+				.map(new MyJoinMap(), 1)
+				.addSink(new JoinSink());
+
+		env.execute();
+		
+		fillSingleJoinSet();
+		
+		assertEquals(singleJoinSetExpected, joinSetResult);
+	}
+	
+	@Test
+	public void multipleConnectWithTest() throws Exception {
+		
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+
+		DataStream<Tuple1<Integer>> source1 = env.addSource(new MySource1(),
+				1);
+		
+		DataStream<Tuple1<Integer>> source2 = env.addSource(new MySource2(),
+				1);
+		DataStream<Tuple1<Integer>> source3 = env
+				.addSource(new MySource3(), 1)
+				.connectWith(source1, source2)
+				.partitionBy(0)
+				.map(new MyJoinMap(), 1)
+				.addSink(new JoinSink());
+
+		env.execute();
+		
+		fillMultipleJoinSet();
+		
+		assertEquals(multipleJoinSetExpected, joinSetResult);
+	}
 
 }
