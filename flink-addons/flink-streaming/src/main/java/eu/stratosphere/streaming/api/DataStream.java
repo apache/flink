@@ -56,6 +56,8 @@ public class DataStream<T extends Tuple> {
 		initConnections();
 
 	}
+	
+	//TODO: create copy method (or constructor) and copy datastream at every operator
 
 	private void initConnections() {
 		connectIDs = new ArrayList<String>();
@@ -82,7 +84,6 @@ public class DataStream<T extends Tuple> {
 		for (int i = 0; i < batchSizes.size(); i++) {
 			batchSizes.set(i, batchSize);
 		}
-		context.setBatchSize(this);
 		return this;
 	}
 
