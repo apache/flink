@@ -24,6 +24,8 @@ import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 /**
  * TaskEvent for sending record acknowledgements to the input's fault tolerance
  * buffer
+ * 
+ * 
  */
 public class AckEvent extends AbstractTaskEvent {
 

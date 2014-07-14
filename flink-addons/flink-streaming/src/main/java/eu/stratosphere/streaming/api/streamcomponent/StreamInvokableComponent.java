@@ -44,6 +44,7 @@ public abstract class StreamInvokableComponent {
 	}
 
 	public final void emit(StreamRecord record) {
+
 		record.setId(channelID);
 		emittedRecords.addRecord(record);
 		try {
@@ -57,13 +58,19 @@ public abstract class StreamInvokableComponent {
 		}
 	}
 	
-	//TODO: Add fault tolerance
+	//TODO:Add fault tolreance
 	public final void emit(StreamRecord record, int outputChannel) {
 		record.setId(channelID);
 		try {
+			
 			outputs.get(outputChannel).emit(record);
+			
 		} catch (Exception e) {
+			
 			log.warn("EMIT ERROR: " + e.getMessage() + " -- " + name);
+			
 		}
+
 	}
+
 }
