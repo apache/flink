@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.addons.rabbitmq;
+package eu.stratosphere.streaming.connectors.rabbitmq;
 
 import java.io.IOException;
 

@@ -54,7 +54,8 @@ public abstract class StreamExecutionEnvironment {
 	/** flag to disable local executor when using the ContextEnvironment */
 	private static boolean allowLocalExecution = true;
 
-	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
+	private static int defaultLocalDop = Runtime.getRuntime()
+			.availableProcessors();
 
 	private int degreeOfParallelism = 1;
 
@@ -77,11 +78,13 @@ public abstract class StreamExecutionEnvironment {
 	 * Constructor for creating StreamExecutionEnvironment
 	 */
 	protected StreamExecutionEnvironment() {
-		jobGraphBuilder = new JobGraphBuilder("jobGraph", FaultToleranceType.NONE);
+		jobGraphBuilder = new JobGraphBuilder("jobGraph",
+				FaultToleranceType.NONE);
 	}
 
 	public int getExecutionParallelism() {
-		return executionParallelism == -1 ? degreeOfParallelism : executionParallelism;
+		return executionParallelism == -1 ? degreeOfParallelism
+				: executionParallelism;
 	}
 
 	/**
@@ -111,7 +114,8 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	protected void setDegreeOfParallelism(int degreeOfParallelism) {
 		if (degreeOfParallelism < 1)
-			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
+			throw new IllegalArgumentException(
+					"Degree of parallelism must be at least one.");
 
 		this.degreeOfParallelism = degreeOfParallelism;
 	}
@@ -125,7 +129,8 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public void setExecutionParallelism(int degreeOfParallelism) {
 		if (degreeOfParallelism < 1)
-			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
+			throw new IllegalArgumentException(
+					"Degree of parallelism must be at least one.");
 
 		this.executionParallelism = degreeOfParallelism;
 	}
@@ -140,7 +145,8 @@ public abstract class StreamExecutionEnvironment {
 
 	public void setBatchTimeout(int timeout) {
 		if (timeout < 1) {
-			throw new IllegalArgumentException("Batch timeout must be positive.");
+			throw new IllegalArgumentException(
+					"Batch timeout must be positive.");
 		} else {
 			jobGraphBuilder.setBatchTimeout(timeout);
 		}
@@ -164,7 +170,8 @@ public abstract class StreamExecutionEnvironment {
 		return addSource(new FileSourceFunction(filePath), 1);
 	}
 
-	public DataStream<Tuple1<String>> readTextFile(String filePath, int parallelism) {
+	public DataStream<Tuple1<String>> readTextFile(String filePath,
+			int parallelism) {
 		return addSource(new FileSourceFunction(filePath), parallelism);
 	}
 
@@ -182,7 +189,8 @@ public abstract class StreamExecutionEnvironment {
 		return addSource(new FileStreamFunction(filePath), 1);
 	}
 
-	public DataStream<Tuple1<String>> readTextStream(String filePath, int parallelism) {
+	public DataStream<Tuple1<String>> readTextStream(String filePath,
+			int parallelism) {
 		return addSource(new FileStreamFunction(filePath), parallelism);
 	}
 
@@ -200,10 +208,12 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The DataStream representing the elements.
 	 */
 	public <X> DataStream<Tuple1<X>> fromElements(X... data) {
-		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
+		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this,
+				"elements");
 
-		jobGraphBuilder.setSource(returnStream.getId(), new FromElementsFunction<X>(data),
-				"elements", serializeToByteArray(data[0]), 1);
+		jobGraphBuilder.setSource(returnStream.getId(),
+				new FromElementsFunction<X>(data), "elements",
+				serializeToByteArray(data[0]), 1);
 
 		return returnStream.copy();
 	}
@@ -221,10 +231,12 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The DataStream representing the elements.
 	 */
 	public <X> DataStream<Tuple1<X>> fromCollection(Collection<X> data) {
-		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
+		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this,
+				"elements");
 
-		jobGraphBuilder.setSource(returnStream.getId(), new FromElementsFunction<X>(data),
-				"elements", serializeToByteArray(data.toArray()[0]), 1);
+		jobGraphBuilder.setSource(returnStream.getId(),
+				new FromElementsFunction<X>(data), "elements",
+				serializeToByteArray(data.toArray()[0]), 1);
 
 		return returnStream.copy();
 	}
@@ -254,17 +266,18 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
-	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction,
-			int parallelism) {
+	public <T extends Tuple> DataStream<T> addSource(
+			SourceFunction<T> sourceFunction, int parallelism) {
 		DataStream<T> returnStream = new DataStream<T>(this, "source");
 
-		jobGraphBuilder.setSource(returnStream.getId(), sourceFunction, "source",
-				serializeToByteArray(sourceFunction), parallelism);
+		jobGraphBuilder.setSource(returnStream.getId(), sourceFunction,
+				"source", serializeToByteArray(sourceFunction), parallelism);
 
 		return returnStream.copy();
 	}
 
-	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction) {
+	public <T extends Tuple> DataStream<T> addSource(
+			SourceFunction<T> sourceFunction) {
 		return addSource(sourceFunction, 1);
 	}
 
@@ -290,13 +303,15 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
-	protected <T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName,
-			DataStream<T> inputStream, final AbstractFunction function,
+	protected <T extends Tuple, R extends Tuple> DataStream<R> addFunction(
+			String functionName, DataStream<T> inputStream,
+			final AbstractFunction function,
 			UserTaskInvokable<T, R> functionInvokable) {
 		DataStream<R> returnStream = new DataStream<R>(this, functionName);
 
-		jobGraphBuilder.setTask(returnStream.getId(), functionInvokable, functionName,
-				serializeToByteArray(function), degreeOfParallelism);
+		jobGraphBuilder.setTask(returnStream.getId(), functionInvokable,
+				functionName, serializeToByteArray(function),
+				degreeOfParallelism);
 
 		connectGraph(inputStream, returnStream.getId());
 
@@ -315,12 +330,13 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
-	protected <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
-			SinkFunction<T> sinkFunction) {
+	protected <T extends Tuple> DataStream<T> addSink(
+			DataStream<T> inputStream, SinkFunction<T> sinkFunction) {
 		DataStream<T> returnStream = new DataStream<T>(this, "sink");
 
-		jobGraphBuilder.setSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction), "sink",
-				serializeToByteArray(sinkFunction), degreeOfParallelism);
+		jobGraphBuilder.setSink(returnStream.getId(), new SinkInvokable<T>(
+				sinkFunction), "sink", serializeToByteArray(sinkFunction),
+				degreeOfParallelism);
 
 		connectGraph(inputStream, returnStream.getId());
 
@@ -340,13 +356,25 @@ public abstract class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	protected <T extends Tuple> DataStream<T> print(DataStream<T> inputStream) {
-		DataStream<T> returnStream = addSink(inputStream, new PrintSinkFunction<T>());
+		DataStream<T> returnStream = addSink(inputStream,
+				new PrintSinkFunction<T>());
 
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 
 		return returnStream;
 	}
 
+	// TODO iterative datastream
+	protected void iterate() {
+		jobGraphBuilder.iterationStart = true;
+	}
+
+	protected <T extends Tuple> DataStream<T> closeIteration(DataStream<T> inputStream){
+		connectGraph(inputStream, jobGraphBuilder.iterationStartPoints.pop());
+		
+		return inputStream;
+	}
+	
 	/**
 	 * Internal function for assembling the underlying
 	 * {@link eu.stratosphere.nephele.jobgraph.JobGraph} of the job. Connects
@@ -360,7 +388,8 @@ public abstract class StreamExecutionEnvironment {
 	 * @param <T>
 	 *            type of the input stream
 	 */
-	private <T extends Tuple> void connectGraph(DataStream<T> inputStream, String outputID) {
+	private <T extends Tuple> void connectGraph(DataStream<T> inputStream,
+			String outputID) {
 
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
 			ConnectionType type = inputStream.ctypes.get(i);
@@ -409,7 +438,8 @@ public abstract class StreamExecutionEnvironment {
 	 * @param <T>
 	 *            type of the operator
 	 */
-	protected <T extends Tuple> void setOperatorParallelism(DataStream<T> inputStream) {
+	protected <T extends Tuple> void setOperatorParallelism(
+			DataStream<T> inputStream) {
 		jobGraphBuilder.setParallelism(inputStream.getId(), inputStream.dop);
 	}
 
@@ -447,7 +477,8 @@ public abstract class StreamExecutionEnvironment {
 	 *         executed.
 	 */
 	public static StreamExecutionEnvironment getExecutionEnvironment() {
-		return contextEnvironment == null ? createLocalEnvironment() : contextEnvironment;
+		return contextEnvironment == null ? createLocalEnvironment()
+				: contextEnvironment;
 	}
 
 	/**
@@ -475,7 +506,8 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A local execution environment with the specified degree of
 	 *         parallelism.
 	 */
-	public static LocalStreamEnvironment createLocalEnvironment(int degreeOfParallelism) {
+	public static LocalStreamEnvironment createLocalEnvironment(
+			int degreeOfParallelism) {
 		LocalStreamEnvironment lee = new LocalStreamEnvironment();
 		lee.setDegreeOfParallelism(degreeOfParallelism);
 		return lee;
@@ -502,9 +534,9 @@ public abstract class StreamExecutionEnvironment {
 	 *            provided in the JAR files.
 	 * @return A remote environment that executes the program on a cluster.
 	 */
-	public static StreamExecutionEnvironment createRemoteEnvironment(String host, int port,
-			String... jarFiles) {
-		return new RemoteStreamEnvironment(host, port, jarFiles);
+	public static ExecutionEnvironment createRemoteEnvironment(String host,
+			int port, String... jarFiles) {
+		return new RemoteEnvironment(host, port, jarFiles);
 	}
 
 	/**
@@ -528,9 +560,10 @@ public abstract class StreamExecutionEnvironment {
 	 *            provided in the JAR files.
 	 * @return A remote environment that executes the program on a cluster.
 	 */
-	public static StreamExecutionEnvironment createRemoteEnvironment(String host, int port,
-			int degreeOfParallelism, String... jarFiles) {
-		RemoteStreamEnvironment rec = new RemoteStreamEnvironment(host, port, jarFiles);
+	public static StreamExecutionEnvironment createRemoteEnvironment(
+			String host, int port, int degreeOfParallelism, String... jarFiles) {
+		RemoteStreamEnvironment rec = new RemoteStreamEnvironment(host, port,
+				jarFiles);
 		rec.setDegreeOfParallelism(degreeOfParallelism);
 		return rec;
 	}
@@ -540,7 +573,8 @@ public abstract class StreamExecutionEnvironment {
 	// packaged programs
 	// --------------------------------------------------------------------------------------------
 
-	protected static void initializeContextEnvironment(StreamExecutionEnvironment ctx) {
+	protected static void initializeContextEnvironment(
+			StreamExecutionEnvironment ctx) {
 		contextEnvironment = ctx;
 	}
 

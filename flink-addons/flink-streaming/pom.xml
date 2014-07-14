@@ -33,7 +33,7 @@
 	<modules>
 		<module>stratosphere-streaming-core</module>
 		<module>stratosphere-streaming-examples</module>
-		<module>stratosphere-streaming-addons</module>
+		<module>stratosphere-streaming-connectors</module>
 	</modules>
 
 	<properties>

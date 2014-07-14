@@ -344,6 +344,11 @@ public class DataStream<T extends Tuple> {
 		return environment.print(this.copy());
 	}
 	
+	public IterativeDataStream<T> iterate(){
+		environment.iterate();
+		return new IterativeDataStream<T>(environment);
+	}
+	
 	/**
 	 * Set the type parameter.
 	 * 
