@@ -22,6 +22,8 @@ import java.io.FileReader;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.util.PerformanceCounter;
+import eu.stratosphere.streaming.util.PerformanceTimer;
 
 public class WordCountSource extends UserSourceInvokable {
 
@@ -29,24 +31,41 @@ public class WordCountSource extends UserSourceInvokable {
 	private String line = new String();
 	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
 
-	public WordCountSource() {
-		try {
-			br = new BufferedReader(new FileReader("src/test/resources/testdata/hamlet.txt"));
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-	}
+	PerformanceCounter pCounter = new PerformanceCounter("SourceEmitCounter", 1000, 1000);
+	PerformanceTimer pTimer = new PerformanceTimer("SourceEmitTimer", 1000, 1000, true);
 
 	@Override
 	public void invoke() throws Exception {
-		line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
-		while (line != null) {
-			if (line != "") {
-				outRecord.setString(0,line);
-				// TODO: object reuse
-				emit(outRecord);
+
+		for (int i = 0; i < 10; i++) {
+			try {
+				br = new BufferedReader(new FileReader("/home/strato/strato-dist/resources/hamlet.txt"));
+
+				line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
+				while (line != null) {
+					if (line != "") {
+						outRecord.setString(0, line);
+						// TODO: object reuse
+						pTimer.startTimer();
+						emit(outRecord);
+						pTimer.stopTimer();
+						pCounter.count();
+					}
+					line = br.readLine();
+				}
+
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
 			}
-			line = br.readLine();
 		}
+
+	}
+
+	@Override
+	public String getResult() {
+		pCounter.writeCSV("/home/strato/strato-dist/log/counter/Source" + channelID);
+		pTimer.writeCSV("/home/strato/strato-dist/log/timer/Source" + channelID);
+
+		return "";
 	}
 }

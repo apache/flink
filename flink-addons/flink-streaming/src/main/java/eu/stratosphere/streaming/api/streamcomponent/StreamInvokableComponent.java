@@ -44,14 +44,14 @@ public abstract class StreamInvokableComponent {
 
 	public final void emit(StreamRecord record) {
 		record.setId(channelID);
-		// emittedRecords.addRecord(record);
+		emittedRecords.addRecord(record);
 		try {
 			for (RecordWriter<StreamRecord> output : outputs) {
 				output.emit(record);
 				log.info("EMITTED: " + record.getId() + " -- " + name);
 			}
 		} catch (Exception e) {
-			// emittedRecords.failRecord(record.getId());
+			emittedRecords.failRecord(record.getId());
 			log.warn("FAILED: " + record.getId() + " -- " + name + " -- due to " + e.getClass().getSimpleName());
 		}
 	}

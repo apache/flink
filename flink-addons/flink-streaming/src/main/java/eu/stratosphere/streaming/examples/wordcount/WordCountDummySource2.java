@@ -19,11 +19,13 @@ import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.util.PerformanceCounter;
+import eu.stratosphere.streaming.util.PerformanceTimer;
 
 public class WordCountDummySource2 extends UserSourceInvokable {
 
 	StreamRecord record = new StreamRecord(new Tuple1<String>());
-	PerformanceCounter perf = new PerformanceCounter("SourceEmitCounter", 1000, 10000);
+	PerformanceCounter pCounter = new PerformanceCounter("SourceEmitCounter", 1000, 1000);
+	PerformanceTimer pTimer = new PerformanceTimer("SourceEmitTimer", 1000, 1000, true);
 
 	public WordCountDummySource2() {
 	}
@@ -38,14 +40,18 @@ public class WordCountDummySource2 extends UserSourceInvokable {
 			} else {
 				record.setString(0, "Gabor Frank");
 			}
+			pTimer.startTimer();
 			emit(record);
-			perf.count();
+			pTimer.stopTimer();
+			pCounter.count();
 		}
 	}
 
 	@Override
 	public String getResult() {
-		perf.writeCSV("C:/temp/strato/Source"+channelID+".csv");
+		pCounter.writeCSV("/home/strato/log/counter/Source" + channelID);
+		pTimer.writeCSV("/home/strato/log/timer/Source" + channelID);
+
 		return "";
 	}
 }

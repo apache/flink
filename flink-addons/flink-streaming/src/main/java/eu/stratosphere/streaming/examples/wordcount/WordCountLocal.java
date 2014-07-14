@@ -28,12 +28,19 @@ import eu.stratosphere.streaming.util.LogUtils;
 
 public class WordCountLocal {
 
-	private static JobGraph getJobGraph() throws Exception {
+	private static JobGraph getJobGraph(int sourceSubtasks, int sourceSubtasksPerInstance,
+			int splitterSubtasks, int splitterSubtasksPerInstance, int counterSubtasks,
+			int counterSubtasksPerInstance, int sinkSubtasks, int sinkSubtasksPerInstance)
+			throws Exception {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountDummySource2.class,1,1);
-		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2, 2);
-		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 3, 3);
-		graphBuilder.setSink("WordCountSink", WordCountSink.class);
+		graphBuilder.setSource("WordCountSource", WordCountSource.class, sourceSubtasks,
+				sourceSubtasksPerInstance);
+		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, splitterSubtasks,
+				splitterSubtasksPerInstance);
+		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, counterSubtasks,
+				counterSubtasksPerInstance);
+		graphBuilder.setSink("WordCountSink", WordCountSink.class, sinkSubtasks,
+				sinkSubtasksPerInstance);
 
 		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");
 		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0);
@@ -42,41 +49,75 @@ public class WordCountLocal {
 		return graphBuilder.getJobGraph();
 	}
 
+	private static void wrongArgs() {
+		System.out
+				.println("USAGE:\n"
+						+ "run <local/cluster> <SOURCE num of subtasks> <SOURCE subtasks per instance> <SPLITTER num of subtasks> <SPLITTER subtasks per instance> <COUNTER num of subtasks> <COUNTER subtasks per instance> <SINK num of subtasks> <SINK subtasks per instance>");
+	}
+
 	// TODO: arguments check
 	public static void main(String[] args) {
 
-		LogUtils.initializeDefaultConsoleLogger(Level.ERROR, Level.INFO);
+		if (args.length != 9) {
+			wrongArgs();
+		} else {
+			LogUtils.initializeDefaultConsoleLogger(Level.ERROR, Level.INFO);
 
-		try {
-			JobGraph jG = getJobGraph();
-			Configuration configuration = jG.getJobConfiguration();
+			int sourceSubtasks = 1;
+			int sourceSubtasksPerInstance = 1;
+			int splitterSubtasks = 1;
+			int splitterSubtasksPerInstance = 1;
+			int counterSubtasks = 1;
+			int counterSubtasksPerInstance = 1;
+			int sinkSubtasks = 1;
+			int sinkSubtasksPerInstance = 1;
 
-			if (args.length == 0) {
-				args = new String[] { "local" };
+			try {
+				sourceSubtasks = Integer.parseInt(args[1]);
+				sourceSubtasksPerInstance = Integer.parseInt(args[2]);
+				splitterSubtasks = Integer.parseInt(args[3]);
+				splitterSubtasksPerInstance = Integer.parseInt(args[4]);
+				counterSubtasks = Integer.parseInt(args[5]);
+				counterSubtasksPerInstance = Integer.parseInt(args[6]);
+				sinkSubtasks = Integer.parseInt(args[7]);
+				sinkSubtasksPerInstance = Integer.parseInt(args[8]);
+			} catch (Exception e) {
+				wrongArgs();
 			}
 
-			if (args[0].equals("local")) {
-				System.out.println("Running in Local mode");
-				NepheleMiniCluster exec = new NepheleMiniCluster();
+			try {
+				JobGraph jG = getJobGraph(sourceSubtasks, sourceSubtasksPerInstance,
+						splitterSubtasks, splitterSubtasksPerInstance, counterSubtasks,
+						counterSubtasksPerInstance, sinkSubtasks, sinkSubtasksPerInstance);
+				Configuration configuration = jG.getJobConfiguration();
 
-				exec.start();
+				if (args.length == 0) {
+					args = new String[] { "local" };
+				}
 
-				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
+				if (args[0].equals("local")) {
+					System.out.println("Running in Local mode");
+					NepheleMiniCluster exec = new NepheleMiniCluster();
 
-				client.run(jG, true);
+					exec.start();
 
-				exec.stop();
-			} else if (args[0].equals("cluster")) {
-				System.out.println("Running in Cluster2 mode");
+					Client client = new Client(new InetSocketAddress("localhost", 6498),
+							configuration);
 
-				Client client = new Client(new InetSocketAddress("hadoop02.ilab.sztaki.hu", 6123),
-						configuration);
-				client.run(jG, true);
+					client.run(jG, true);
+
+					exec.stop();
+				} else if (args[0].equals("cluster")) {
+					System.out.println("Running in Cluster mode");
+
+					Client client = new Client(new InetSocketAddress("hadoop01",
+							6123), configuration);
+					client.run(jG, true);
+				}
+
+			} catch (Exception e) {
+				System.out.println(e);
 			}
-
-		} catch (Exception e) {
-			System.out.println(e);
 		}
-
 	}
 }

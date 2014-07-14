@@ -9,16 +9,22 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 
+linestyles = ['_', '-', '--', ':']
+markers=['x','o','^','+']
 def readFiles(csv_dir):
     dataframes={}
+    machine=[]
     
     for fname in os.listdir(csv_dir):
         if '.csv' in fname:
             dataframes[fname.rstrip('.csv')]=pd.read_csv(os.path.join(csv_dir,fname),index_col='Time')
-    return dataframes
+            machine.append(int(fname.rstrip('.csv')[-1]))
+    return dataframes,machine
     
 def plotCounter(csv_dir, smooth=5):
-    dataframes= readFiles(csv_dir)
+    dataframes,machine= readFiles(csv_dir)
+        
+    
     for name in dataframes:
         df=dataframes[name]
         speed=[0]
@@ -30,21 +36,28 @@ def plotCounter(csv_dir, smooth=5):
     plt.figure(figsize=(12, 8), dpi=80)
     plt.title('Counter')
     
-    for name in dataframes:
-        dataframes[name].ix[:,0].plot()
+    for name in enumerate(dataframes):
+        if len(markers)>machine[name[0]]:
+            m=markers[machine[name[0]]]            
+        else: m='*'  
+
+        dataframes[name[1]].ix[:,0].plot(marker=m,markevery=10,markersize=10)
     plt.legend(dataframes.keys())
     
     plt.figure(figsize=(12, 8), dpi=80)
     plt.title('dC/dT')
 
-    for name in dataframes:
-        pd.rolling_mean(dataframes[name].speed,smooth).plot()
+    for name in enumerate(dataframes):
+        if len(markers)>machine[name[0]]:
+            m=markers[machine[name[0]]]            
+        else: m='*'
+        pd.rolling_mean(dataframes[name[1]].speed,smooth).plot(marker=m,markevery=10,markersize=10)
     plt.legend(dataframes.keys())
         
         
 
 def plotTimer(csv_dir,smooth=5,std=50):
-    dataframes= readFiles(csv_dir)
+    dataframes,machine= readFiles(csv_dir)
     
     plt.figure(figsize=(12, 8), dpi=80)
     plt.title('Timer')

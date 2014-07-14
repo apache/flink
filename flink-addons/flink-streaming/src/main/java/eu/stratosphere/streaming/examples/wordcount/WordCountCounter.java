@@ -22,6 +22,7 @@ import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.util.PerformanceCounter;
+import eu.stratosphere.streaming.util.PerformanceTimer;
 
 public class WordCountCounter extends UserTaskInvokable {
 
@@ -29,33 +30,37 @@ public class WordCountCounter extends UserTaskInvokable {
 	private String word = "";
 	private Integer count = 0;
 
-	PerformanceCounter perf = new PerformanceCounter("CounterEmitCounter", 1000, 10000);
+	PerformanceCounter pCounter = new PerformanceCounter("CounterEmitCounter", 1000, 10000);
+	PerformanceTimer pTimer = new PerformanceTimer("CounterEmitTimer", 1000, 10000, true);
 
-	
 	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Integer>());
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
 		word = record.getString(0);
-		
+
 		if (wordCounts.containsKey(word)) {
 			count = wordCounts.get(word) + 1;
 			wordCounts.put(word, count);
 		} else {
-			count=1;
+			count = 1;
 			wordCounts.put(word, 1);
 		}
-		
-		outRecord.setString(0,word);
-		outRecord.setInteger(1,count);
 
+		outRecord.setString(0, word);
+		outRecord.setInteger(1, count);
+
+		pTimer.startTimer();
 		emit(outRecord);
-		perf.count();
+		pTimer.stopTimer();
+
+		pCounter.count();
 	}
-	
+
 	@Override
-	public String getResult(){
-		perf.writeCSV("C:/temp/strato/Counter"+channelID+".csv");
+	public String getResult() {
+		pCounter.writeCSV("/home/strato/strato-dist/log/counter/Counter" + channelID);
+		pTimer.writeCSV("/home/strato/strato-dist/log/timer/Counter" + channelID);
 		return "";
 	}
 }
