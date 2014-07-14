@@ -15,10 +15,15 @@
 
 package eu.stratosphere.streaming.api;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class StreamCollector2Test {
 
@@ -26,14 +31,23 @@ public class StreamCollector2Test {
 
 	@Test
 	public void testCollect() {
-		int[] batchSizesOfNotPartitioned = new int[] {};
-		int[] batchSizesOfPartitioned = new int[] {2, 2};
-		int[] parallelismOfOutput = new int[] {2, 1};
+		List<Integer> batchSizesOfNotPartitioned = new ArrayList<Integer>();
+		List<Integer> batchSizesOfPartitioned = new ArrayList<Integer>();
+		batchSizesOfPartitioned.add(2);
+		batchSizesOfPartitioned.add(2);
+		List<Integer> parallelismOfOutput = new ArrayList<Integer>();
+		parallelismOfOutput.add(2);
+		parallelismOfOutput.add(2);
 		int keyPosition = 0;
 		long batchTimeout = 1000;
 		int channelID = 1;
 		
-		collector = new StreamCollector2<Tuple>(batchSizesOfNotPartitioned, batchSizesOfPartitioned, parallelismOfOutput, keyPosition, batchTimeout, channelID, null, null);
+		List<RecordWriter<StreamRecord>> fOut = new ArrayList<RecordWriter<StreamRecord>>();
+		
+		fOut.add(null);
+		fOut.add(null);
+		
+		collector = new StreamCollector2<Tuple>(batchSizesOfNotPartitioned, batchSizesOfPartitioned, parallelismOfOutput, keyPosition, batchTimeout, channelID, null, fOut,fOut);
 	
 		Tuple1<Integer> t = new Tuple1<Integer>();
 		StreamCollector<Tuple> sc1 = new StreamCollector<Tuple>(1, batchTimeout, channelID, null);

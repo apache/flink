@@ -46,6 +46,7 @@ import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.streaming.api.SinkFunction;
 import eu.stratosphere.streaming.api.StreamCollector;
+import eu.stratosphere.streaming.api.StreamCollector2;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
@@ -62,6 +63,7 @@ import eu.stratosphere.streaming.faulttolerance.FailEventListener;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
+import eu.stratosphere.util.Collector;
 
 public final class StreamComponentHelper<T extends AbstractInvokable> {
 	private static final Log log = LogFactory.getLog(StreamComponentHelper.class);
@@ -75,9 +77,10 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 	private TupleSerializer<Tuple> outTupleSerializer = null;
 	private SerializationDelegate<Tuple> outSerializationDelegate = null;
 
-	public StreamCollector<Tuple> collector;
+	public Collector<Tuple> collector;
 	private List<Integer> batchsizes_s = new ArrayList<Integer>();
 	private List<Integer> batchsizes_f = new ArrayList<Integer>();
+	private List<Integer> numOfOutputs_f = new ArrayList<Integer>();
 	private int keyPosition = 0;
 
 	private List<RecordWriter<StreamRecord>> outputs_s = new ArrayList<RecordWriter<StreamRecord>>();
@@ -112,14 +115,17 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 	}
 
-	public StreamCollector<Tuple> setCollector(Configuration taskConfiguration, int id,
+	public Collector<Tuple> setCollector(Configuration taskConfiguration, int id,
 			List<RecordWriter<StreamRecord>> outputs) {
 
 		int batchSize = taskConfiguration.getInteger("batchSize", 1);
 
 		long batchTimeout = taskConfiguration.getLong("batchTimeout", 1000);
-		collector = new StreamCollector<Tuple>(batchSize, batchTimeout, id,
-				outSerializationDelegate, outputs);
+//		collector = new StreamCollector<Tuple>(batchSize, batchTimeout, id,
+//				outSerializationDelegate, outputs);
+
+		collector = new StreamCollector2<Tuple>(batchsizes_s, batchsizes_f, numOfOutputs_f,
+				keyPosition, batchTimeout, id, outSerializationDelegate, outputs_f, outputs_s);
 		return collector;
 	}
 
@@ -340,6 +346,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		try {
 			if (partitioner.equals(FieldsPartitioner.class)) {
 				batchsizes_f.add(batchSize);
+				numOfOutputs_f.add(taskConfiguration.getInteger("numOfOutputs_" + nrOutput, -1));
 				// TODO:force one partitioning field
 				keyPosition = taskConfiguration.getInteger("partitionerIntParam_" + nrOutput, 1);
 

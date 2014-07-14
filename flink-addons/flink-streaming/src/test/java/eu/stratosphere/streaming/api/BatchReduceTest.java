@@ -69,9 +69,9 @@ public class BatchReduceTest {
 	@Test
 	public void test() throws Exception {
 
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment(4, 1000);
+		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 		DataStream<Tuple1<Double>> dataStream0 = context.addSource(new MySource())
-				.batchReduce(new MyBatchReduce()).addSink(new MySink());
+				.batch(4).batchReduce(new MyBatchReduce()).addSink(new MySink());
 
 		context.execute();
 	}
