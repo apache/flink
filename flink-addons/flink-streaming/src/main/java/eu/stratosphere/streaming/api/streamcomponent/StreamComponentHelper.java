@@ -1,5 +1,7 @@
 package eu.stratosphere.streaming.api.streamcomponent;
 
+import java.io.IOException;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Random;
 
@@ -15,6 +17,7 @@ import eu.stratosphere.streaming.api.AckEventListener;
 import eu.stratosphere.streaming.api.FailEvent;
 import eu.stratosphere.streaming.api.FailEventListener;
 import eu.stratosphere.streaming.api.FaultTolerancyBuffer;
+import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
 import eu.stratosphere.streaming.api.invokable.StreamInvokable;
@@ -22,67 +25,63 @@ import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
 import eu.stratosphere.types.Key;
-import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 
 public final class StreamComponentHelper<T extends AbstractInvokable> {
 	private Random random = new Random();
-	
+
 	public void setAckListener(FaultTolerancyBuffer recordBuffer,
-			String sourceInstanceID, List<RecordWriter<Record>> outputs) {
+			String sourceInstanceID, List<RecordWriter<StreamRecord>> outputs) {
 		EventListener eventListener = new AckEventListener(sourceInstanceID,
 				recordBuffer);
-		for (RecordWriter<Record> output : outputs) {
+		for (RecordWriter<StreamRecord> output : outputs) {
 			// TODO: separate outputs
 			output.subscribeToEvent(eventListener, AckEvent.class);
 		}
 	}
 
 	public void setFailListener(FaultTolerancyBuffer recordBuffer,
-			String sourceInstanceID, List<RecordWriter<Record>> outputs) {
+			String sourceInstanceID, List<RecordWriter<StreamRecord>> outputs) {
 		EventListener eventListener = new FailEventListener(sourceInstanceID,
 				recordBuffer);
-		for (RecordWriter<Record> output : outputs) {
+		for (RecordWriter<StreamRecord> output : outputs) {
 			// TODO: separate outputs
 			output.subscribeToEvent(eventListener, FailEvent.class);
 		}
 	}
 
 	public void setConfigInputs(T taskBase, Configuration taskConfiguration,
-			List<RecordReader<Record>> inputs) throws Exception {
+			List<RecordReader<StreamRecord>> inputs) throws Exception {
 		int numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
 		for (int i = 0; i < numberOfInputs; i++) {
 			if (taskBase instanceof StreamTask) {
-				inputs.add(new RecordReader<Record>((StreamTask) taskBase,
-						Record.class));
+				inputs.add(new RecordReader<StreamRecord>((StreamTask) taskBase,
+						StreamRecord.class));
 			} else if (taskBase instanceof StreamSink) {
-				inputs.add(new RecordReader<Record>((StreamSink) taskBase,
-						Record.class));
+				inputs.add(new RecordReader<StreamRecord>((StreamSink) taskBase,
+						StreamRecord.class));
 			} else {
-				throw new Exception(
-						"Nonsupported object passed to setConfigInputs");
+				throw new Exception("Nonsupported object passed to setConfigInputs");
 			}
 		}
 	}
 
 	public void setConfigOutputs(T taskBase, Configuration taskConfiguration,
-			List<RecordWriter<Record>> outputs,
-			List<ChannelSelector<Record>> partitioners) throws Exception {
-		int numberOfOutputs = taskConfiguration
-				.getInteger("numberOfOutputs", 0);
+			List<RecordWriter<StreamRecord>> outputs,
+			List<ChannelSelector<StreamRecord>> partitioners) throws Exception {
+		int numberOfOutputs = taskConfiguration.getInteger("numberOfOutputs", 0);
 		for (int i = 1; i <= numberOfOutputs; i++) {
 			setPartitioner(taskConfiguration, i, partitioners);
 		}
-		for (ChannelSelector<Record> outputPartitioner : partitioners) {
+		for (ChannelSelector<StreamRecord> outputPartitioner : partitioners) {
 			if (taskBase instanceof StreamTask) {
-				outputs.add(new RecordWriter<Record>((StreamTask) taskBase,
-						Record.class, outputPartitioner));
+				outputs.add(new RecordWriter<StreamRecord>((StreamTask) taskBase,
+						StreamRecord.class, outputPartitioner));
 			} else if (taskBase instanceof StreamSource) {
-				outputs.add(new RecordWriter<Record>((StreamSource) taskBase,
-						Record.class, outputPartitioner));
+				outputs.add(new RecordWriter<StreamRecord>((StreamSource) taskBase,
+						StreamRecord.class, outputPartitioner));
 			} else {
-				throw new Exception(
-						"Nonsupported object passed to setConfigOutputs");
+				throw new Exception("Nonsupported object passed to setConfigOutputs");
 			}
 		}
 	}
@@ -103,7 +102,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 	}
 
 	public StreamInvokable getUserFunction(Configuration taskConfiguration,
-			List<RecordWriter<Record>> outputs, String instanceID,
+			List<RecordWriter<StreamRecord>> outputs, String instanceID,
 			FaultTolerancyBuffer recordBuffer) {
 
 		// Default value is a TaskInvokable even if it was called from a source
@@ -121,42 +120,43 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		return userFunction;
 	}
 
-	//TODO: use TCP-like waiting
-	public void threadSafePublish (AbstractTaskEvent e, RecordReader<Record> input) throws InterruptedException {
+	// TODO: use TCP-like waiting
+	public void threadSafePublish(AbstractTaskEvent event,
+			RecordReader<StreamRecord> input) throws InterruptedException,
+			IOException {
+
 		boolean concurrentModificationOccured = false;
 		while (!concurrentModificationOccured) {
 			try {
-				input.publishEvent(e);
+				input.publishEvent(event);
 				concurrentModificationOccured = true;
-			} catch (Exception exeption) {
-				Thread.sleep(random.nextInt(50));
+			} catch (ConcurrentModificationException exeption) {
+				System.out.println("waiting...");
 			}
 		}
 	}
-	
+
 	private void setPartitioner(Configuration taskConfiguration, int nrOutput,
-			List<ChannelSelector<Record>> partitioners) {
-		Class<? extends ChannelSelector<Record>> partitioner = taskConfiguration
-				.getClass("partitionerClass_" + nrOutput,
-						DefaultPartitioner.class, ChannelSelector.class);
+			List<ChannelSelector<StreamRecord>> partitioners) {
+		Class<? extends ChannelSelector<StreamRecord>> partitioner = taskConfiguration
+				.getClass("partitionerClass_" + nrOutput, DefaultPartitioner.class,
+						ChannelSelector.class);
 
 		try {
 			if (partitioner.equals(FieldsPartitioner.class)) {
-				int keyPosition = taskConfiguration.getInteger(
-						"partitionerIntParam_" + nrOutput, 1);
+				int keyPosition = taskConfiguration.getInteger("partitionerIntParam_"
+						+ nrOutput, 1);
 				Class<? extends Key> keyClass = taskConfiguration.getClass(
-						"partitionerClassParam_" + nrOutput, StringValue.class,
-						Key.class);
+						"partitionerClassParam_" + nrOutput, StringValue.class, Key.class);
 
-				partitioners.add(partitioner.getConstructor(int.class,
-						Class.class).newInstance(keyPosition, keyClass));
+				partitioners.add(partitioner.getConstructor(int.class, Class.class)
+						.newInstance(keyPosition, keyClass));
 
 			} else {
 				partitioners.add(partitioner.newInstance());
 			}
 		} catch (Exception e) {
-			System.out.println("partitioner error" + " " + "partitioner_"
-					+ nrOutput);
+			System.out.println("partitioner error" + " " + "partitioner_" + nrOutput);
 			System.out.println(e);
 		}
 	}

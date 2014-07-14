@@ -16,12 +16,12 @@
 package eu.stratosphere.streaming.partitioner;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.types.Record;
+import eu.stratosphere.streaming.api.StreamRecord;
 
-public class DefaultPartitioner  implements ChannelSelector<Record> {
+public class DefaultPartitioner implements ChannelSelector<StreamRecord> {
 
   @Override
-  public int[] selectChannels(Record record, int numberOfOutputChannels) {
+  public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
 
     return new BroadcastPartitioner().selectChannels(record, numberOfOutputChannels);
     

@@ -25,17 +25,16 @@ import eu.stratosphere.streaming.api.AckEvent;
 import eu.stratosphere.streaming.api.FailEvent;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.types.Record;
 
 public class StreamSink extends AbstractOutputTask {
 
-	private List<RecordReader<Record>> inputs;
+	private List<RecordReader<StreamRecord>> inputs;
 	private UserSinkInvokable userFunction;
 	private StreamComponentHelper<StreamSink> streamSinkHelper;
 
 	public StreamSink() {
 		// TODO: Make configuration file visible and call setClassInputs() here
-		inputs = new LinkedList<RecordReader<Record>>();
+		inputs = new LinkedList<RecordReader<StreamRecord>>();
 		userFunction = null;
 		streamSinkHelper = new StreamComponentHelper<StreamSink>();
 	}
@@ -57,13 +56,13 @@ public class StreamSink extends AbstractOutputTask {
 		boolean hasInput = true;
 		while (hasInput) {
 			hasInput = false;
-			for (RecordReader<Record> input : inputs) {
+			for (RecordReader<StreamRecord> input : inputs) {
 				if (input.hasNext()) {
 					hasInput = true;
-					StreamRecord rec = new StreamRecord(input.next());
+					StreamRecord rec = input.next();
 					String id = rec.getId();
 					try {
-						userFunction.invoke(rec.getRecord());
+						userFunction.invoke(rec);
 						streamSinkHelper.threadSafePublish(new AckEvent(id), input);
 					} catch (Exception e) {
 						streamSinkHelper.threadSafePublish(new FailEvent(id), input);

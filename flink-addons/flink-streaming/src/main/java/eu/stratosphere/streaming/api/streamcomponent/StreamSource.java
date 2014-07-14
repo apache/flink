@@ -23,14 +23,14 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.streaming.api.FaultTolerancyBuffer;
+import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.test.RandIS;
-import eu.stratosphere.types.Record;
 
 public class StreamSource extends AbstractInputTask<RandIS> {
 
-	private List<RecordWriter<Record>> outputs;
-	private List<ChannelSelector<Record>> partitioners;
+	private List<RecordWriter<StreamRecord>> outputs;
+	private List<ChannelSelector<StreamRecord>> partitioners;
 	private UserSourceInvokable userFunction;
 	private static int numSources = 0;
 	private String sourceInstanceID;
@@ -38,8 +38,8 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 
 	public StreamSource() {
 		// TODO: Make configuration file visible and call setClassInputs() here
-		outputs = new LinkedList<RecordWriter<Record>>();
-		partitioners = new LinkedList<ChannelSelector<Record>>();
+		outputs = new LinkedList<RecordWriter<StreamRecord>>();
+		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
 		userFunction = null;
 		numSources++;
 		sourceInstanceID = Integer.toString(numSources);
@@ -62,20 +62,17 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 		StreamComponentHelper<StreamSource> streamSourceHelper = new StreamComponentHelper<StreamSource>();
 
 		try {
-			streamSourceHelper.setConfigOutputs(this, taskConfiguration,
-					outputs, partitioners);
+			streamSourceHelper.setConfigOutputs(this, taskConfiguration, outputs,
+					partitioners);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
 		recordBuffer = new FaultTolerancyBuffer(outputs, sourceInstanceID);
-		userFunction = (UserSourceInvokable) streamSourceHelper
-				.getUserFunction(taskConfiguration, outputs, sourceInstanceID,
-						recordBuffer);
-		streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID,
-				outputs);
-		streamSourceHelper.setFailListener(recordBuffer, sourceInstanceID,
-				outputs);
+		userFunction = (UserSourceInvokable) streamSourceHelper.getUserFunction(
+				taskConfiguration, outputs, sourceInstanceID, recordBuffer);
+		streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID, outputs);
+		streamSourceHelper.setFailListener(recordBuffer, sourceInstanceID, outputs);
 
 	}
 
@@ -84,7 +81,6 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 
 		userFunction.invoke();
 		System.out.println(this.getClass().getName() + "-" + sourceInstanceID);
-		System.out.println(recordBuffer.getRecordBuffer());
 		System.out.println("---------------------");
 
 	}
