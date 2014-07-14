@@ -15,9 +15,7 @@
 
 package eu.stratosphere.streaming.util;
 
-import java.io.Serializable;
-
-public class PerformanceCounter extends PerformanceTracker implements Serializable{
+public class PerformanceCounter extends PerformanceTracker {
 
 	public PerformanceCounter(String name, int counterLength, int countInterval, String fname) {
 		super(name, counterLength, countInterval, fname);

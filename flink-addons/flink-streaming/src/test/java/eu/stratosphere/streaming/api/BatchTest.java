@@ -15,7 +15,7 @@
 
 package eu.stratosphere.streaming.api;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
@@ -28,7 +28,6 @@ public class BatchTest {
 	private static final int PARALELISM = 1;
 	private static final int SOURCE_PARALELISM = 1;
 	private static int count = 0;
-	private static boolean partitionCorrect = true;
 	
 	private static final class MySource extends SourceFunction<Tuple1<String>> {
 
@@ -59,18 +58,6 @@ public class BatchTest {
 		}
 	}
 	
-	private static final class MyPartitionSink extends SinkFunction<Tuple1<String>> {
-		
-		int hash=-1000;
-		@Override
-		public void invoke(Tuple1<String> tuple) {
-			if(hash==-1000) hash=tuple.f0.hashCode() % 93;
-			else{
-				if(hash!=tuple.f0.hashCode() % 93) partitionCorrect=false;
-			}
-		}
-	}
-	
 	@Test
 	public void test() throws Exception {
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
@@ -86,20 +73,5 @@ public class BatchTest {
 		env.execute();
 		
 		assertEquals(20, count);
-	}
-	
-	@Test
-	public void partitionTest() throws Exception {
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-
-		DataStream<Tuple1<String>> dataStream = env
-				.addSource(new MySource(), SOURCE_PARALELISM)
-				.flatMap(new MyMap(), PARALELISM).batch(4)
-				.partitionBy(0)
-				.addSink(new MyPartitionSink(), 93);
-
-		env.execute();
-		
-		assertTrue(partitionCorrect);
 	}
 }

@@ -13,28 +13,16 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.performance;
+package eu.stratosphere.streaming.examples.wordcount;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.DataStream;
-import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
-import eu.stratosphere.streaming.examples.wordcount.WordCountCounter;
-import eu.stratosphere.streaming.util.TestDataUtil;
+import eu.stratosphere.streaming.api.SinkFunction;
 
-public class WordCountPerformanceLocal {
-	public static void main(String[] args) {
+public class WordCountSink extends SinkFunction<Tuple2<String, Integer>> {
+	private static final long serialVersionUID = 1L;
 
-		TestDataUtil.downloadIfNotExists("hamlet.txt");
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-
-		DataStream<Tuple2<String, Integer>> dataStream = env
-				.readTextStream("src/test/resources/testdata/hamlet.txt")
-				.flatMap(new WordCountPerformanceSplitter(), 1)
-				.broadcast()
-				.map(new WordCountCounter(), 3);
-
-		dataStream.print();
-
-		env.execute();
+	@Override
+	public void invoke(Tuple2<String, Integer> inTuple) {
+		System.out.println(inTuple);
 	}
 }

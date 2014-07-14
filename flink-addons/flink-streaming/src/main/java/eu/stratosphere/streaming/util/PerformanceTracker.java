@@ -17,11 +17,10 @@ package eu.stratosphere.streaming.util;
 
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class PerformanceTracker implements Serializable{
+public class PerformanceTracker {
 
 	protected List<Long> timeStamps;
 	protected List<Long> values;
@@ -87,7 +86,6 @@ public class PerformanceTracker implements Serializable{
 
 		if (dumpInterval > 0) {
 			if (ctime - lastDump > dumpInterval) {
-				System.out.println("csv-be iras!!");
 				writeCSV();
 				lastDump = ctime;
 			}

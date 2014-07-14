@@ -32,7 +32,6 @@ public class JoinSourceOne extends SourceFunction<Tuple3<String, String, Integer
 
 	@Override
 	public void invoke(Collector<Tuple3<String, String, Integer>> collector) throws Exception {
-		// Continuously emit tuples with random names and integers (salaries).
 		while (true) {
 
 			outRecord.f0 = "salary";
