@@ -45,19 +45,6 @@ public class FaultToleranceUtil {
 	public PerformanceTracker tracker;
 	public PerformanceCounter counter;
 
-	/**
-	 * Creates fault tolerance buffer object for the given output channels and
-	 * channel ID
-	 * 
-	 * @param outputs
-	 *            List of outputs
-	 * @param sourceInstanceID
-	 *            ID of the task object that uses this buffer
-	 * @param numberOfChannels
-	 *            Number of output channels for the output components
-	 */
-	// TODO:update logs for channel
-	// acks and fails
 	public FaultToleranceUtil(FaultToleranceType type, List<RecordWriter<StreamRecord>> outputs,
 			int sourceInstanceID, int[] numberOfChannels) {
 		this.outputs = outputs;

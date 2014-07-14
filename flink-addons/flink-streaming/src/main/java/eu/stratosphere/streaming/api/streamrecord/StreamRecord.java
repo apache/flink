@@ -145,6 +145,8 @@ public abstract class StreamRecord implements IOReadableWritable, Serializable {
 	 * 
 	 * @param tuple
 	 *            Tuple to copy
+	 * @param <T>
+	 *            type of the tuple
 	 * @return Copy of the tuple
 	 */
 	public static <T extends Tuple> T copyTuple(T tuple) {

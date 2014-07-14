@@ -41,6 +41,9 @@ public class DataStream<T extends Tuple> {
 	 * Create a new DataStream in the given environment
 	 * 
 	 * @param environment
+	 *            StreamExecutionEnvironment
+	 * @param operatorType
+	 *            The type of the operator in the component
 	 */
 	protected DataStream(StreamExecutionEnvironment environment, String operatorType) {
 		if (environment == null) {
@@ -59,7 +62,9 @@ public class DataStream<T extends Tuple> {
 	 * Create a new DataStream in the given environment with the given id
 	 * 
 	 * @param environment
+	 *            StreamExecutionEnvironment
 	 * @param id
+	 *            The id of the stream
 	 */
 	private DataStream(StreamExecutionEnvironment environment, String operatorType, String id) {
 		this.environment = environment;
@@ -101,7 +106,7 @@ public class DataStream<T extends Tuple> {
 	/**
 	 * Returns the id of the DataStream.
 	 * 
-	 * @return ID
+	 * @return ID ID of the datastream
 	 */
 	public String getId() {
 		return id;
@@ -133,7 +138,7 @@ public class DataStream<T extends Tuple> {
 	 * using this operator will be transformed simultaneously. It creates a
 	 * joint output of the connected streams.
 	 * 
-	 * @param stream
+	 * @param streams
 	 *            The DataStream to connect output with.
 	 * @return The connected DataStream.
 	 */
@@ -198,6 +203,9 @@ public class DataStream<T extends Tuple> {
 	 *            DataStream
 	 * @param parallelism
 	 *            The number of threads the function runs on.
+	 * 
+	 * @param <R>
+	 *            output type
 	 * @return The transformed DataStream.
 	 */
 	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper, int parallelism) {
@@ -215,6 +223,8 @@ public class DataStream<T extends Tuple> {
 	 *            DataStream.
 	 * @param parallelism
 	 *            The number of threads the function runs on.
+	 * @param <R>
+	 *            output type
 	 * @return The transformed DataStream.
 	 */
 	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper, int parallelism) {
@@ -235,12 +245,14 @@ public class DataStream<T extends Tuple> {
 	 *            The number of tuples grouped together in the batch.
 	 * @param parallelism
 	 *            The number of threads the function runs on.
+	 * @param <R>
+	 *            output type
 	 * @return The modified datastream.
 	 */
 	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer,
-			int batchSize, int paralelism) {
+			int batchSize, int parallelism) {
 		return environment.addFunction("batchReduce", batch(batchSize).copy(), reducer,
-				new BatchReduceInvokable<T, R>(reducer), paralelism);
+				new BatchReduceInvokable<T, R>(reducer), parallelism);
 	}
 
 	/**
@@ -252,13 +264,13 @@ public class DataStream<T extends Tuple> {
 	 * @param filter
 	 *            The FilterFunction that is called for each element of the
 	 *            DataSet.
-	 * @param paralelism
+	 * @param parallelism
 	 *            The number of threads the function runs on.
 	 * @return The filtered DataStream.
 	 */
-	public DataStream<T> filter(FilterFunction<T> filter, int paralelism) {
+	public DataStream<T> filter(FilterFunction<T> filter, int parallelism) {
 		return environment.addFunction("filter", this.copy(), filter,
-				new FilterInvokable<T>(filter), paralelism);
+				new FilterInvokable<T>(filter), parallelism);
 	}
 
 	/**
@@ -266,12 +278,12 @@ public class DataStream<T extends Tuple> {
 	 * 
 	 * @param sinkFunction
 	 *            The object containing the sink's invoke function.
-	 * @param paralelism
+	 * @param parallelism
 	 *            The number of threads the function runs on.
 	 * @return The modified datastream.
 	 */
-	public DataStream<T> addSink(SinkFunction<T> sinkFunction, int paralelism) {
-		return environment.addSink(this.copy(), sinkFunction, paralelism);
+	public DataStream<T> addSink(SinkFunction<T> sinkFunction, int parallelism) {
+		return environment.addSink(this.copy(), sinkFunction, parallelism);
 	}
 
 	/**
@@ -279,7 +291,7 @@ public class DataStream<T extends Tuple> {
 	 * 
 	 * @param sinkFunction
 	 *            The object containing the sink's invoke function.
-	 * @return
+	 * @return The closed datastream.
 	 */
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
 		return environment.addSink(this.copy(), sinkFunction);
@@ -288,7 +300,7 @@ public class DataStream<T extends Tuple> {
 	/**
 	 * Prints the tuples from the DataStream.
 	 * 
-	 * @return
+	 * @return The closed datastream.
 	 */
 	public DataStream<T> print() {
 		return environment.print(this.copy());
