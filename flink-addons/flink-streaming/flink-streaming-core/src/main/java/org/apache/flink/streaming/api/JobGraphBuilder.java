@@ -198,13 +198,13 @@ public class JobGraphBuilder {
 
 	}
 
-	public void setIterationSink(String componentName, String iterationTail, int parallelism) {
+	public void setIterationSink(String componentName, String iterationTail, int parallelism, String directName) {
 
 		setComponent(componentName, StreamIterationSink.class, null, null, null, parallelism);
 
 		setBytesFrom(iterationTail, componentName);
 
-		setUserDefinedName(componentName, "iterate");
+		setUserDefinedName(componentName, directName);
 
 		if (log.isDebugEnabled()) {
 			log.debug("Iteration tail sink: " + componentName);

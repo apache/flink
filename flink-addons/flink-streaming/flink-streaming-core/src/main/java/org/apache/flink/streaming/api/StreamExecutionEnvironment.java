@@ -131,7 +131,6 @@ public abstract class StreamExecutionEnvironment {
 		this.executionParallelism = degreeOfParallelism;
 	}
 
-
 	// --------------------------------------------------------------------------------------------
 	// Data stream creations
 	// --------------------------------------------------------------------------------------------
@@ -302,7 +301,7 @@ public abstract class StreamExecutionEnvironment {
 		DataStream<R> returnStream = new DataStream<R>(this, "iterationTail");
 
 		jobGraphBuilder.setIterationSink(returnStream.getId(), inputStream.getId(),
-				degreeOfParallelism);
+				degreeOfParallelism, "iterate");
 
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
 			String input = inputStream.connectIDs.get(i);

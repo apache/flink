@@ -19,15 +19,7 @@
 
 package org.apache.flink.streaming.examples.iterative.sssp;
 
-import org.apache.flink.streaming.api.DataStream;
-import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
-import org.apache.flink.streaming.faulttolerance.FaultToleranceType;
-import org.apache.flink.streaming.util.ClusterUtil;
-import org.apache.flink.streaming.util.LogUtils;
-import org.apache.log4j.Level;
-
-import org.apache.flink.api.java.tuple.Tuple2;
 
 public class SSSPLocal {
 

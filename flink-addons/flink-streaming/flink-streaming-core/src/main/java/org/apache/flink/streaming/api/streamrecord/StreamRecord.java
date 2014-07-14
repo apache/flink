@@ -31,27 +31,23 @@ import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 
 /**
- * Object for storing serializable records in batch (single records are
- * represented batches with one element) used for sending records between task
- * objects in Apache Flink stream processing. The elements of the batch are
- * Tuples.
+ * Object for wrapping a tuple with ID used for sending records between task
+ * objects in Apache Flink stream processing.
  */
 public class StreamRecord implements IOReadableWritable, Serializable {
 	private static final long serialVersionUID = 1L;
 
 	protected UID uid;
-	protected int batchSize;
-	public int hashPartition;
 	private Tuple tuple;
 
 	protected SerializationDelegate<Tuple> serializationDelegate;
 	protected DeserializationDelegate<Tuple> deserializationDelegate;
 	protected TupleSerializer<Tuple> tupleSerializer;
 
-	public StreamRecord(){
-		
+	public StreamRecord() {
+
 	}
-	
+
 	public void setSeralizationDelegate(SerializationDelegate<Tuple> serializationDelegate) {
 		this.serializationDelegate = serializationDelegate;
 	}
@@ -60,13 +56,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			TupleSerializer<Tuple> tupleSerializer) {
 		this.deserializationDelegate = deserializationDelegate;
 		this.tupleSerializer = tupleSerializer;
-	}
-
-	/**
-	 * @return Number of tuples in the batch
-	 */
-	public int getBatchSize() {
-		return batchSize;
 	}
 
 	/**
@@ -88,20 +77,16 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		return this;
 	}
 
-	public void setPartition(int hashPartition) {
-		this.hashPartition = hashPartition;
-	}
-
 	/**
 	 * 
-	 * @return Chosen tuple
+	 * @return The tuple contained
 	 */
 	public Tuple getTuple() {
 		return tuple;
 	}
 
 	/**
-	 * Sets a tuple at the given position in the batch with the given tuple
+	 * Sets the tuple stored
 	 * 
 	 * @param tuple
 	 *            Value to set
