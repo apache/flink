@@ -19,6 +19,9 @@ import java.io.IOException;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
@@ -41,7 +44,8 @@ import eu.stratosphere.types.Key;
 import eu.stratosphere.types.StringValue;
 
 public final class StreamComponentHelper<T extends AbstractInvokable> {
-	
+	private static final Log log = LogFactory.getLog(StreamComponentHelper.class);
+
 	public void setAckListener(FaultToleranceBuffer recordBuffer,
 			String sourceInstanceID, List<RecordWriter<StreamRecord>> outputs) {
 		EventListener eventListener = new AckEventListener(sourceInstanceID,
@@ -73,14 +77,16 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				inputs.add(new RecordReader<StreamRecord>((StreamSink) taskBase,
 						StreamRecord.class));
 			} else {
-				throw new StreamComponentException("Nonsupported object passed to setConfigInputs");
+				throw new StreamComponentException(
+						"Nonsupported object passed to setConfigInputs");
 			}
 		}
 	}
 
 	public void setConfigOutputs(T taskBase, Configuration taskConfiguration,
 			List<RecordWriter<StreamRecord>> outputs,
-			List<ChannelSelector<StreamRecord>> partitioners) throws StreamComponentException {
+			List<ChannelSelector<StreamRecord>> partitioners)
+			throws StreamComponentException {
 		int numberOfOutputs = taskConfiguration.getInteger("numberOfOutputs", 0);
 		for (int i = 1; i <= numberOfOutputs; i++) {
 			setPartitioner(taskConfiguration, i, partitioners);
@@ -93,7 +99,8 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				outputs.add(new RecordWriter<StreamRecord>((StreamSource) taskBase,
 						StreamRecord.class, outputPartitioner));
 			} else {
-				throw new StreamComponentException("Nonsupported object passed to setConfigOutputs");
+				throw new StreamComponentException(
+						"Nonsupported object passed to setConfigOutputs");
 			}
 		}
 	}
@@ -108,13 +115,15 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		try {
 			userFunction = userFunctionClass.newInstance();
 		} catch (Exception e) {
-
+			log.error("Cannot instanciate user function: "
+					+ userFunctionClass.getSimpleName());
 		}
 		return userFunction;
 	}
 
-	public StreamInvokableComponent getUserFunction(Configuration taskConfiguration,
-			List<RecordWriter<StreamRecord>> outputs, String instanceID,
+	public StreamInvokableComponent getUserFunction(
+			Configuration taskConfiguration,
+			List<RecordWriter<StreamRecord>> outputs, String instanceID, String name,
 			FaultToleranceBuffer recordBuffer) {
 
 		// Default value is a TaskInvokable even if it was called from a source
@@ -125,9 +134,13 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 		try {
 			userFunction = userFunctionClass.newInstance();
-			userFunction.declareOutputs(outputs, instanceID, recordBuffer);
+			userFunction.declareOutputs(outputs, instanceID, name, recordBuffer);
+		} catch (InstantiationException e) {
+			log.error("Cannot instanciate user function: "
+					+ userFunctionClass.getSimpleName());
 		} catch (Exception e) {
-
+			log.error("Cannot use user function: "
+					+ userFunctionClass.getSimpleName());
 		}
 		return userFunction;
 	}
@@ -143,7 +156,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				input.publishEvent(event);
 				concurrentModificationOccured = true;
 			} catch (ConcurrentModificationException exeption) {
-				System.out.println("waiting...");
+				log.trace("Waiting to publish " + event.getClass());
 			}
 		}
 	}
@@ -167,9 +180,12 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			} else {
 				partitioners.add(partitioner.newInstance());
 			}
+			log.debug("Partitioner set: " + partitioner.getSimpleName() + " with "
+					+ nrOutput + " outputs");
 		} catch (Exception e) {
-			System.out.println("partitioner error" + " " + "partitioner_" + nrOutput);
-			System.out.println(e);
+			log.error(
+					"Error while setting partitioner: " + partitioner.getSimpleName()
+							+ " with " + nrOutput + " outputs", e);
 		}
 	}
 

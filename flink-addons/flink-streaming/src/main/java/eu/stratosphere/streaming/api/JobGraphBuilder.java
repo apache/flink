@@ -18,6 +18,9 @@ package eu.stratosphere.streaming.api;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.channels.ChannelType;
@@ -46,7 +49,8 @@ import eu.stratosphere.types.Key;
  * 
  */
 public class JobGraphBuilder {
-
+	
+	private static final Log log = LogFactory.getLog(JobGraphBuilder.class);
 	private final JobGraph jobGraph;
 	private Map<String, AbstractJobVertex> components;
 	private Map<String, Integer> numberOfInstances;
@@ -59,12 +63,11 @@ public class JobGraphBuilder {
 	 *          Name of the JobGraph
 	 */
 	public JobGraphBuilder(String jobGraphName) {
-
 		jobGraph = new JobGraph(jobGraphName);
 		components = new HashMap<String, AbstractJobVertex>();
 		numberOfInstances = new HashMap<String, Integer>();
 		numberOfOutputChannels = new HashMap<String, Integer>();
-
+		log.debug("JobGraph created");
 	}
 
 	/**
@@ -84,8 +87,10 @@ public class JobGraphBuilder {
 		Configuration config = new TaskConfig(source.getConfiguration())
 				.getConfiguration();
 		config.setClass("userfunction", InvokableClass);
+		config.setString("componentName", sourceName);
 		components.put(sourceName, source);
 		numberOfInstances.put(sourceName, 1);
+		log.debug("Source set: " + sourceName);
 	}
 
 	/**
@@ -107,8 +112,10 @@ public class JobGraphBuilder {
 		Configuration config = new TaskConfig(task.getConfiguration())
 				.getConfiguration();
 		config.setClass("userfunction", InvokableClass);
+		config.setString("componentName", taskName);
 		components.put(taskName, task);
 		numberOfInstances.put(taskName, parallelism);
+		log.debug("Task set: " + taskName);
 	}
 
 	/**
@@ -127,8 +134,10 @@ public class JobGraphBuilder {
 		Configuration config = new TaskConfig(sink.getConfiguration())
 				.getConfiguration();
 		config.setClass("userfunction", InvokableClass);
+		config.setString("componentName", sinkName);
 		components.put(sinkName, sink);
 		numberOfInstances.put(sinkName, 1);
+		log.debug("Sink set: " + sinkName);
 	}
 
 	/**
@@ -161,9 +170,9 @@ public class JobGraphBuilder {
 					"partitionerClass_"
 							+ upStreamComponent.getNumberOfForwardConnections(),
 					PartitionerClass);
-
+			log.debug("Components connected with " + PartitionerClass.getSimpleName() + ": " + upStreamComponentName + " to " + downStreamComponentName);
 		} catch (JobGraphDefinitionException e) {
-			e.printStackTrace();
+			log.error("Cannot connect components with " + PartitionerClass.getSimpleName() + " : " + upStreamComponentName + " to " + downStreamComponentName, e);
 		}
 	}
 
@@ -193,7 +202,7 @@ public class JobGraphBuilder {
 			numberOfOutputChannels.put(upStreamComponentName,
 					numberOfInstances.get(downStreamComponentName));
 		}
-
+		//log.debug("Components connected with broadcast: " + upStreamComponentName + " to " + downStreamComponentName);
 	}
 
 	/**
@@ -240,9 +249,9 @@ public class JobGraphBuilder {
 							+ upStreamComponent.getNumberOfForwardConnections(), keyPosition);
 
 			addOutputChannels(upStreamComponentName);
-
+			log.debug("Components connected by field: " + upStreamComponentName + " to " + downStreamComponentName + " by key position " + keyPosition);
 		} catch (JobGraphDefinitionException e) {
-			e.printStackTrace();
+			log.error("Cannot connect components by field: " + upStreamComponentName + " to " + downStreamComponentName, e);
 		}
 	}
 
