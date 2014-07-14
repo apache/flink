@@ -39,7 +39,7 @@ public class FaultToleranceUtil {
 	private final int componentID;
 
 	private int numberOfChannels;
-
+	
 	private FaultToleranceBuffer buffer;
 	public FaultToleranceType type;
 	public PerformanceTracker tracker;
@@ -58,22 +58,20 @@ public class FaultToleranceUtil {
 	 */
 	// TODO:update logs for channel
 	// acks and fails
-	public FaultToleranceUtil(FaultToleranceType type, List<RecordWriter<StreamRecord>> outputs,
-			int sourceInstanceID, int[] numberOfChannels) {
+	public FaultToleranceUtil(FaultToleranceType type, List<RecordWriter<StreamRecord>> outputs, int sourceInstanceID,
+			int[] numberOfChannels) {
 		this.outputs = outputs;
 
 		this.componentID = sourceInstanceID;
-
+		
 		this.type = type;
-
+		
 		switch (type) {
 		case EXACTLY_ONCE:
 			this.buffer = new ExactlyOnceFaultToleranceBuffer(numberOfChannels, sourceInstanceID);
 			break;
-		case AT_LEAST_ONCE:
-		case NONE:
-		default:
-			this.buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, sourceInstanceID);
+		case AT_LEAST_ONCE: case NONE: default:
+			this.buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, sourceInstanceID);		
 		}
 
 		tracker = new PerformanceTracker("pc", 1000, 1000, 30000,
@@ -192,14 +190,9 @@ public class FaultToleranceUtil {
 		for (RecordWriter<StreamRecord> output : outputs) {
 			try {
 				output.emit(record);
-
-				if (log.isWarnEnabled()) {
-					log.warn("RE-EMITTED: " + record.getId());
-				}
+				log.warn("RE-EMITTED: " + record.getId());
 			} catch (Exception e) {
-				if (log.isErrorEnabled()) {
-					log.error("RE-EMIT FAILED, avoiding record: " + record.getId());
-				}
+				log.error("RE-EMIT FAILED, avoiding record: " + record.getId());
 			}
 		}
 
@@ -217,13 +210,9 @@ public class FaultToleranceUtil {
 		{
 			try {
 				outputs.get(outputChannel).emit(record);
-				if (log.isWarnEnabled()) {
-					log.warn("RE-EMITTED: " + record.getId() + " " + outputChannel);
-				}
+				log.warn("RE-EMITTED: " + record.getId() + " " + outputChannel);
 			} catch (Exception e) {
-				if (log.isErrorEnabled()) {
-					log.error("RE-EMIT FAILED, avoiding record: " + record.getId());
-				}
+				log.error("RE-EMIT FAILED, avoiding record: " + record.getId());
 			}
 		}
 

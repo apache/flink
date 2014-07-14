@@ -48,7 +48,7 @@ public class WordCountSourceSplitter extends UserSourceInvokable {
 					outRecord.setString(0, word);
 					System.out.println("word=" + word);
 					emit(outRecord);
-					performanceCounter.count();
+					//performanceCounter.count();
 				}
 			}
 		}
