@@ -258,6 +258,47 @@ public class StreamRecordTest {
 			fail();
 		} catch (NoSuchFieldException e) {
 		}
+		
+		try {
+			a.getBoolean(0);
+			fail();
+		} catch (FieldTypeMismatchException e) {}
+		
+		try {
+			a.getByte(0);
+			fail();
+		} catch (FieldTypeMismatchException e) {}
+		try {
+			a.getCharacter(0);
+			fail();
+		} catch (FieldTypeMismatchException e) {}
+		try {
+			a.getDouble(0);
+			fail();
+		} catch (FieldTypeMismatchException e) {}
+		try {
+			a.getFloat(0);
+			fail();
+		} catch (FieldTypeMismatchException e) {}
+		try {
+			a.getInteger(0);
+			fail();
+		} catch (FieldTypeMismatchException e) {}
+		try {
+			a.getLong(0);
+			fail();
+		} catch (FieldTypeMismatchException e) {}
+		try {
+			a.getShort(0);
+			fail();
+		} catch (FieldTypeMismatchException e) {}
+		
+		StreamRecord c = new StreamRecord(new Tuple1<Integer>(1));
+		try {
+			c.getString(0);
+			fail();
+		} catch (FieldTypeMismatchException e) {}
+	
 	}
 
 	@Test

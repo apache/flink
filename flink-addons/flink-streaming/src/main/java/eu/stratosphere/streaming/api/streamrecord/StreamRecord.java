@@ -291,11 +291,15 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	// TODO: add exception for cast for all getters
 	public Boolean getBoolean(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Boolean) getField(tupleNumber, fieldNumber);
+		try {
+			return (Boolean) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
-	 * Get a Byte from the given field of the first Tuple of the batch
+	 * Get a Byte from thne given field of the first Tuple of the batch
 	 * 
 	 * @param fieldNumber
 	 *            Position of the field in the tuple
@@ -320,7 +324,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Byte getByte(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Byte) getField(tupleNumber, fieldNumber);
+		try {
+			return (Byte) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -350,7 +358,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Character getCharacter(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Character) getField(tupleNumber, fieldNumber);
+		try {
+			return (Character) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -379,7 +391,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Double getDouble(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Double) getField(tupleNumber, fieldNumber);
+		try {
+			return (Double) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -408,7 +424,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Float getFloat(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Float) getField(tupleNumber, fieldNumber);
+		try {
+			return (Float) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -437,7 +457,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Integer getInteger(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Integer) getField(tupleNumber, fieldNumber);
+		try {
+			return (Integer) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -466,7 +490,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Long getLong(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Long) getField(tupleNumber, fieldNumber);
+		try {
+			return (Long) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -495,7 +523,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Short getShort(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Short) getField(tupleNumber, fieldNumber);
+		try {
+			return (Short) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -522,7 +554,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public String getString(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (String) getField(tupleNumber, fieldNumber);
+		try {
+			return (String) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -551,7 +587,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @throws NoSuchFieldException
 	 *             the Tuple does not have this many fields
 	 */
-	// TODO: consider no such tuple exception and interaction with batch size
+	// TODO: consider interaction with batch size
 	public void setField(int tupleNumber, int fieldNumber, Object o) throws NoSuchFieldException {
 		try {
 			tupleBatch.get(tupleNumber).setField(o, fieldNumber);

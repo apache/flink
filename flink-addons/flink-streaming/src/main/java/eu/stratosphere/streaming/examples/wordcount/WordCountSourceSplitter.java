@@ -23,22 +23,27 @@ import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class WordCountSourceSplitter extends UserSourceInvokable {
-
+	private static final long serialVersionUID = 1L;
+	
 	private BufferedReader br = null;
 	private String line = new String();
 	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
+	private String fileName;
+
+	public WordCountSourceSplitter(String fileName) {
+		this.fileName = fileName;
+	}
 
 	@Override
 	public void invoke() throws Exception {
-		br = new BufferedReader(new FileReader(
-				"src/test/resources/testdata/hamlet.txt"));
+		br = new BufferedReader(new FileReader(fileName));
 		while (true) {
 			line = br.readLine();
 			if (line == null) {
 				break;
 			}
 			if (line != "") {
-				line=line.replaceAll("[\\-\\+\\.\\^:,]", "");
+				line = line.replaceAll("[\\-\\+\\.\\^:,]", "");
 				for (String word : line.split(" ")) {
 					outRecord.setString(0, word);
 					System.out.println("word=" + word);

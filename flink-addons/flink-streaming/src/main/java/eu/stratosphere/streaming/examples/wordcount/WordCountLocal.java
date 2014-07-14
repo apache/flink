@@ -28,9 +28,9 @@ public class WordCountLocal {
 	public static JobGraph getJobGraph() {
 
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
-		graphBuilder.setSource("WordCountSourceSplitter", WordCountSourceSplitter.class);
-		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 1, 1);
-		graphBuilder.setSink("WordCountSink", WordCountSink.class);
+		graphBuilder.setSource("WordCountSourceSplitter", new WordCountSourceSplitter("src/test/resources/testdata/hamlet.txt"));
+		graphBuilder.setTask("WordCountCounter", new WordCountCounter());
+		graphBuilder.setSink("WordCountSink", new WordCountSink());
 
 		graphBuilder.fieldsConnect("WordCountSourceSplitter", "WordCountCounter", 0);
 		graphBuilder.shuffleConnect("WordCountCounter", "WordCountSink");
@@ -51,7 +51,6 @@ public class WordCountLocal {
 
 		} else if (args[0].equals("cluster")) {
 			ClusterUtil.runOnLocalCluster(getJobGraph(), "hadoop02.ilab.sztaki.hu", 6123);
-
 		}
 
 	}
