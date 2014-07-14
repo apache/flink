@@ -19,8 +19,6 @@
 
 package org.apache.flink.streaming.api.collector;
 
-import org.apache.flink.streaming.api.streamcomponent.AbstractCollector;
-
 import org.apache.flink.api.java.tuple.Tuple;
 
 public class PartitionedCollector<T extends Tuple> implements AbstractCollector<T> {

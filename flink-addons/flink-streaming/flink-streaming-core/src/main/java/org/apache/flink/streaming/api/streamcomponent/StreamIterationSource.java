@@ -93,7 +93,7 @@ public class StreamIterationSource extends AbstractStreamComponent {
 			nextRecord.setSeralizationDelegate(this.outSerializationDelegate);
 			for (RecordWriter<StreamRecord> output : outputs) {
 				output.emit(nextRecord);
-				output.flush();
+				//output.flush();
 			}
 		}
 		
