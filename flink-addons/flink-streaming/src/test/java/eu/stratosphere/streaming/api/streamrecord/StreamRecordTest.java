@@ -162,5 +162,18 @@ public class StreamRecordTest {
 		}
 
 	}
+	@Test
+	public void tupleCopyTest(){
+		Tuple2<String, Integer> t1 = new Tuple2<String, Integer>("a",1);
+		Tuple2<String, Integer> t2 = (Tuple2<String, Integer>) StreamRecord.copyTuple(t1);
+		
+		assertEquals("a", t2.getField(0));
+		assertEquals(1, t2.getField(1));
+		
+		t1.setField(2, 1);
+		assertEquals(1, t2.getField(1));
+		assertEquals(2, t1.getField(1));
+
+	}
 
 }
