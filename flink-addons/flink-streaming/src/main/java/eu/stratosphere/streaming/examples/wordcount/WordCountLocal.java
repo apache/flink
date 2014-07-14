@@ -28,16 +28,11 @@ import eu.stratosphere.streaming.util.LogUtils;
 
 public class WordCountLocal {
 
-	private static JobGraph getJobGraph(int sourceSubtasks, int sourceSubtasksPerInstance,
-			int counterSubtasks, int counterSubtasksPerInstance, int sinkSubtasks,
-			int sinkSubtasksPerInstance) throws Exception {
+	public static JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSourceSplitter", WordCountSourceSplitter.class,
-				sourceSubtasks, sourceSubtasksPerInstance);
-		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, counterSubtasks,
-				counterSubtasksPerInstance);
-		graphBuilder.setSink("WordCountSink", WordCountSink.class, sinkSubtasks,
-				sinkSubtasksPerInstance);
+		graphBuilder.setSource("WordCountSourceSplitter", WordCountSourceSplitter.class);
+		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 1, 1);
+		graphBuilder.setSink("WordCountSink", WordCountSink.class);
 
 		graphBuilder.fieldsConnect("WordCountSourceSplitter", "WordCountCounter", 0);
 		graphBuilder.shuffleConnect("WordCountCounter", "WordCountSink");
@@ -45,71 +40,44 @@ public class WordCountLocal {
 		return graphBuilder.getJobGraph();
 	}
 
-	private static void wrongArgs() {
-		System.out
-				.println("USAGE:\n"
-						+ "run <local/cluster> <SOURCE num of subtasks> <SOURCE subtasks per instance> <SPLITTER num of subtasks> <SPLITTER subtasks per instance> <COUNTER num of subtasks> <COUNTER subtasks per instance> <SINK num of subtasks> <SINK subtasks per instance>");
-	}
-
-	// TODO: arguments check
 	public static void main(String[] args) {
 
-		if (args.length != 7) {
-			wrongArgs();
-		} else {
-			LogUtils.initializeDefaultConsoleLogger(Level.ERROR, Level.INFO);
+		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
-			int sourceSubtasks = 1;
-			int sourceSubtasksPerInstance = 1;
-			int counterSubtasks = 1;
-			int counterSubtasksPerInstance = 1;
-			int sinkSubtasks = 1;
-			int sinkSubtasksPerInstance = 1;
+		try {
 
-			try {
-				sourceSubtasks = Integer.parseInt(args[1]);
-				sourceSubtasksPerInstance = Integer.parseInt(args[2]);
-				counterSubtasks = Integer.parseInt(args[3]);
-				counterSubtasksPerInstance = Integer.parseInt(args[4]);
-				sinkSubtasks = Integer.parseInt(args[5]);
-				sinkSubtasksPerInstance = Integer.parseInt(args[6]);
-			} catch (Exception e) {
-				wrongArgs();
+			JobGraph jG = getJobGraph();
+			Configuration configuration = jG.getJobConfiguration();
+
+			if (args.length == 0) {
+				args = new String[] { "local" };
 			}
 
-			try {
-				JobGraph jG = getJobGraph(sourceSubtasks, sourceSubtasksPerInstance,
-						counterSubtasks, counterSubtasksPerInstance, sinkSubtasks,
-						sinkSubtasksPerInstance);
-				Configuration configuration = jG.getJobConfiguration();
+			if (args[0].equals("local")) {
+				System.out.println("Running in Local mode");
+				NepheleMiniCluster exec = new NepheleMiniCluster();
 
-				if (args.length == 0) {
-					args = new String[] { "local" };
-				}
+				exec.start();
 
-				if (args[0].equals("local")) {
-					System.out.println("Running in Local mode");
-					NepheleMiniCluster exec = new NepheleMiniCluster();
+				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
 
-					exec.start();
+				client.run(jG, true);
 
-					Client client = new Client(new InetSocketAddress("localhost", 6498),
-							configuration);
+				exec.stop();
 
-					client.run(jG, true);
+			} else if (args[0].equals("cluster")) {
+				System.out.println("Running in Cluster2 mode");
 
-					exec.stop();
-				} else if (args[0].equals("cluster")) {
-					System.out.println("Running in Cluster mode");
+				Client client = new Client(new InetSocketAddress("hadoop02.ilab.sztaki.hu", 6123),
+						configuration);
 
-					Client client = new Client(new InetSocketAddress("dell150", 6123),
-							configuration);
-					client.run(jG, true);
-				}
+				client.run(jG, true);
 
-			} catch (Exception e) {
-				System.out.println(e);
 			}
+
+		} catch (Exception e) {
+			System.out.println(e);
 		}
+
 	}
 }

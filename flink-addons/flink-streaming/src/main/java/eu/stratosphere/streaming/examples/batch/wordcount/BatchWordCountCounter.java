@@ -15,38 +15,45 @@
 
 package eu.stratosphere.streaming.examples.batch.wordcount;
 
-import java.util.HashMap;
-import java.util.Map;
-
+import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.state.MutableTableState;
+import eu.stratosphere.streaming.state.MutableTableStateIterator;
 
 public class BatchWordCountCounter extends UserTaskInvokable {
 
-	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
+	private MutableTableState<String, Integer> wordCounts = new MutableTableState<String, Integer>();
 	private String word = "";
 	private Integer count = 0;
 	private Long timestamp = 0L;
-	private StreamRecord outRecord = new StreamRecord(new Tuple3<String, Integer, Long>());
+	private StreamRecord outRecord = new StreamRecord(3);
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		word = record.getString(0);
-		timestamp = record.getLong(1);
-
-		if (wordCounts.containsKey(word)) {
-			count = wordCounts.get(word) + 1;
-			wordCounts.put(word, count);
-		} else {
-			count = 1;
-			wordCounts.put(word, 1);
+		int numTuple = record.getNumOfTuples();
+		for (int i = 0; i < numTuple; ++i) {
+			word = record.getString(i, 0);
+			count = record.getInteger(i, 1);
+			timestamp = record.getLong(i, 2);
+			if (wordCounts.containsKey(word)) {
+				count = wordCounts.get(word) + 1;
+				wordCounts.put(word, count);
+			} else {
+				count = 1;
+				wordCounts.put(word, 1);
+			}
 		}
 
-		outRecord.setString(0, word);
-		outRecord.setInteger(1, count);
-		outRecord.setLong(2, timestamp);
-		
+		MutableTableStateIterator<String, Integer> iterator = wordCounts
+				.getIterator();
+		while (iterator.hasNext()) {
+			Tuple2<String, Integer> tuple = iterator.next();
+			Tuple3<String, Integer, Long> outputTuple = new Tuple3<String, Integer, Long>(
+					(String) tuple.getField(0), (Integer) tuple.getField(1), timestamp);
+			outRecord.addTuple(outputTuple);
+		}
 		emit(outRecord);
 	}
 }

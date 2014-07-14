@@ -15,16 +15,14 @@
 
 package eu.stratosphere.streaming.examples.wordcount;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.state.MutableTableState;
 
 public class WordCountCounter extends UserTaskInvokable {
 
-	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
+	private MutableTableState<String, Integer> wordCounts = new MutableTableState<String, Integer>();
 	private String word = "";
 	private Integer count = 0;
 
