@@ -22,7 +22,7 @@ public abstract class UserSinkInvokable {
 	public abstract void invoke(StreamRecord record) throws Exception;
 
 	public String getResult() {
-		return "Override setResult() to pass your own results";
+		return "Override getResult() to pass your own results";
 	}
 
 }
