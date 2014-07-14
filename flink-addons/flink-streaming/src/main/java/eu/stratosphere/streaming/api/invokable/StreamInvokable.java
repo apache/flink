@@ -3,7 +3,7 @@ package eu.stratosphere.streaming.api.invokable;
 import java.util.List;
 
 import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.streaming.api.StreamRecordProvider;
+import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.types.Record;
 
 public abstract class StreamInvokable {
@@ -17,9 +17,8 @@ public abstract class StreamInvokable {
   public final void emit(Record record) {
     for (RecordWriter<Record> output : outputs) {
       try {
-      	//TODO: use this id for acking
-        Long uuid = StreamRecordProvider.addUUID(record);
-      	output.emit(record);
+      	StreamRecord streamRecord = new StreamRecord(record).addId();
+        output.emit(record);
       } catch (Exception e) {
         System.out.println("Emit error");
       }
