@@ -15,9 +15,6 @@
 
 package eu.stratosphere.streaming.api;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import org.junit.Test;
 
 import eu.stratosphere.api.java.functions.FlatMapFunction;
@@ -25,7 +22,9 @@ import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.util.Collector;
 
-public class PrintTest {
+public class IterateTest {
+
+	private static final long MEMORYSIZE = 32;
 
 	public static final class MyFlatMap extends
 			FlatMapFunction<Tuple2<Integer, String>, Tuple2<Integer, String>> {
@@ -41,8 +40,6 @@ public class PrintTest {
 		}
 
 	}
-
-	private static final long MEMORYSIZE = 32;
 
 	public static final class Increment extends
 			FlatMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
@@ -80,12 +77,16 @@ public class PrintTest {
 		LocalStreamEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(1);
 
-		env.fromElements(2, 3, 4).print();
-		env.generateSequence(1, 10).print();
-		Set<Integer> a = new HashSet<Integer>();
-		a.add(-2);
-		a.add(-100);
-		env.fromCollection(a).print();
+		// Only works if jobgraph.acyclic check is disabled in JobManager
+
+		DataStream<Tuple1<Integer>> source = env.fromElements(1);
+
+		IterativeDataStream<Tuple1<Integer>> i = source.iterate();
+
+		DataStream<Tuple1<Integer>> j = source.flatMap(new Increment())
+				.flatMap(new Forward());
+
+		i.closeWith(j).print();
 		env.executeTest(MEMORYSIZE);
 	}
 
