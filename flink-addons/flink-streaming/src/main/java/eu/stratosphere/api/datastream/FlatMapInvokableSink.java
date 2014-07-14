@@ -3,14 +3,14 @@ package eu.stratosphere.api.datastream;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.streaming.api.StreamCollector;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class FlatMapInvokable<T extends Tuple, R extends Tuple> extends UserTaskInvokable<T, R> {
+public class FlatMapInvokableSink<T extends Tuple, R extends Tuple> extends UserSinkInvokable<T, R> {
 	private static final long serialVersionUID = 1L;
 
 	private FlatMapFunction<T, R> flatMapper;
-	public FlatMapInvokable(FlatMapFunction<T, R> flatMapper2) {
+	public FlatMapInvokableSink(FlatMapFunction<T, R> flatMapper2) {
 		this.flatMapper = flatMapper2;
 	}
 	

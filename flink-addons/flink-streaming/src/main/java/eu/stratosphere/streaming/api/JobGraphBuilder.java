@@ -141,8 +141,11 @@ public class JobGraphBuilder {
 	 *            User defined UserSourceInvokable object or other predefined
 	 *            source object
 	 */
-	public void setSource(String sourceName, UserSourceInvokable InvokableObject) {
-		setSource(sourceName, InvokableObject, 1, 1);
+	public void setSource(String sourceName, UserSourceInvokable InvokableObject,
+			byte[] serializedFunction) {
+		Configuration config = setSource(sourceName, InvokableObject, 1, 1);
+		config.setBytes("operator", serializedFunction);
+
 	}
 
 	/**
@@ -159,16 +162,18 @@ public class JobGraphBuilder {
 	 * @param subtasksPerInstance
 	 *            Number of subtasks allocated to a machine
 	 */
-	public void setSource(String sourceName, UserSourceInvokable InvokableObject, int parallelism,
-			int subtasksPerInstance) {
+	public Configuration setSource(String sourceName, UserSourceInvokable InvokableObject,
+			int parallelism, int subtasksPerInstance) {
 		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
 		source.setInputClass(StreamSource.class);
-		setComponent(sourceName, InvokableObject, parallelism, subtasksPerInstance, source);
+		Configuration config = setComponent(sourceName, InvokableObject, parallelism,
+				subtasksPerInstance, source);
 		if (log.isDebugEnabled()) {
 			log.debug("SOURCE: " + sourceName);
 		}
+		return config;
 	}
-	
+
 	/**
 	 * Adds a task component to the JobGraph with no parallelism
 	 * 
@@ -192,24 +197,27 @@ public class JobGraphBuilder {
 	 *            Number of task instances of this type to run in parallel
 	 * @param subtasksPerInstance
 	 *            Number of subtasks allocated to a machine
-	 * @return 
+	 * @return
 	 */
-	public Configuration setTask(String taskName, final Class<? extends UserTaskInvokable> InvokableClass,
-			int parallelism, int subtasksPerInstance) {
+	public Configuration setTask(String taskName,
+			final Class<? extends UserTaskInvokable> InvokableClass, int parallelism,
+			int subtasksPerInstance) {
 		final JobTaskVertex task = new JobTaskVertex(taskName, jobGraph);
 		task.setTaskClass(StreamTask.class);
-		Configuration config = setComponent(taskName, InvokableClass, parallelism, subtasksPerInstance, task);
+		Configuration config = setComponent(taskName, InvokableClass, parallelism,
+				subtasksPerInstance, task);
 		if (log.isDebugEnabled()) {
 			log.debug("TASK: " + taskName);
 		}
 		return config;
 	}
 
-	public void setTask(String taskName, UserTaskInvokable TaskInvokableObject, byte[] serializedFunction) {
+	public void setTask(String taskName, UserTaskInvokable TaskInvokableObject,
+			byte[] serializedFunction) {
 		Configuration config = setTask(taskName, TaskInvokableObject, 1, 1);
 		config.setBytes("operator", serializedFunction);
 	}
-	
+
 	/**
 	 * Adds a task component to the JobGraph with no parallelism
 	 * 
@@ -233,13 +241,14 @@ public class JobGraphBuilder {
 	 *            Number of task instances of this type to run in parallel
 	 * @param subtasksPerInstance
 	 *            Number of subtasks allocated to a machine
-	 * @return 
+	 * @return
 	 */
-	public Configuration setTask(String taskName, UserTaskInvokable TaskInvokableObject, int parallelism,
-			int subtasksPerInstance) {
+	public Configuration setTask(String taskName, UserTaskInvokable TaskInvokableObject,
+			int parallelism, int subtasksPerInstance) {
 		final JobTaskVertex task = new JobTaskVertex(taskName, jobGraph);
 		task.setTaskClass(StreamTask.class);
-		Configuration config = setComponent(taskName, TaskInvokableObject, parallelism, subtasksPerInstance, task);
+		Configuration config = setComponent(taskName, TaskInvokableObject, parallelism,
+				subtasksPerInstance, task);
 		if (log.isDebugEnabled()) {
 			log.debug("TASK: " + taskName);
 		}
@@ -288,8 +297,10 @@ public class JobGraphBuilder {
 	 * @param InvokableObject
 	 *            User defined UserSinkInvokable object
 	 */
-	public void setSink(String sinkName, UserSinkInvokable InvokableObject) {
-		setSink(sinkName, InvokableObject, 1, 1);
+	public void setSink(String sinkName, UserSinkInvokable InvokableObject,
+			byte[] serializedFunction) {
+		Configuration config = setSink(sinkName, InvokableObject, 1, 1);
+		config.setBytes("operator", serializedFunction);
 	}
 
 	/**
@@ -304,14 +315,16 @@ public class JobGraphBuilder {
 	 * @param subtasksPerInstance
 	 *            Number of subtasks allocated to a machine
 	 */
-	public void setSink(String sinkName, UserSinkInvokable InvokableObject, int parallelism,
-			int subtasksPerInstance) {
+	public Configuration setSink(String sinkName, UserSinkInvokable InvokableObject,
+			int parallelism, int subtasksPerInstance) {
 		final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
 		sink.setOutputClass(StreamSink.class);
-		setComponent(sinkName, InvokableObject, parallelism, subtasksPerInstance, sink);
+		Configuration config = setComponent(sinkName, InvokableObject, parallelism,
+				subtasksPerInstance, sink);
 		if (log.isDebugEnabled()) {
 			log.debug("SINK: " + sinkName);
 		}
+		return config;
 	}
 
 	/**
@@ -343,9 +356,9 @@ public class JobGraphBuilder {
 		Configuration config = new TaskConfig(component.getConfiguration()).getConfiguration();
 		config.setClass("userfunction", InvokableClass);
 		config.setString("componentName", componentName);
-		
-		//config.setBytes("operator", getSerializedFunction());
-		
+
+		// config.setBytes("operator", getSerializedFunction());
+
 		config.setInteger("faultToleranceType", faultToleranceType.id);
 
 		components.put(componentName, component);
@@ -354,36 +367,38 @@ public class JobGraphBuilder {
 	}
 
 	private byte[] getSerializedFunction() {
-//		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//		ObjectOutputStream oos = new ObjectOutputStream(baos);
-//		baos
-//		return ;
+		// ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		// ObjectOutputStream oos = new ObjectOutputStream(baos);
+		// baos
+		// return ;
 		return null;
 	}
 
-	private void setComponent(String componentName, UserSourceInvokable InvokableObject,
+	private Configuration setComponent(String componentName, UserSourceInvokable InvokableObject,
 			int parallelism, int subtasksPerInstance, AbstractJobVertex component) {
-		setComponent(componentName, InvokableObject.getClass(), parallelism, subtasksPerInstance,
-				component);
-
-		addSerializedObject(InvokableObject, component);
-	}
-
-	private Configuration setComponent(String componentName, UserTaskInvokable InvokableObject,
-			int parallelism, int subtasksPerInstance, AbstractJobVertex component) {
-		Configuration config =  setComponent(componentName, InvokableObject.getClass(), parallelism, subtasksPerInstance,
-				component);
+		Configuration config = setComponent(componentName, InvokableObject.getClass(), parallelism,
+				subtasksPerInstance, component);
 
 		addSerializedObject(InvokableObject, component);
 		return config;
 	}
 
-	private void setComponent(String componentName, UserSinkInvokable InvokableObject,
+	private Configuration setComponent(String componentName, UserTaskInvokable InvokableObject,
 			int parallelism, int subtasksPerInstance, AbstractJobVertex component) {
-		setComponent(componentName, InvokableObject.getClass(), parallelism, subtasksPerInstance,
-				component);
+		Configuration config = setComponent(componentName, InvokableObject.getClass(), parallelism,
+				subtasksPerInstance, component);
 
 		addSerializedObject(InvokableObject, component);
+		return config;
+	}
+
+	private Configuration setComponent(String componentName, UserSinkInvokable InvokableObject,
+			int parallelism, int subtasksPerInstance, AbstractJobVertex component) {
+		Configuration config = setComponent(componentName, InvokableObject.getClass(), parallelism,
+				subtasksPerInstance, component);
+
+		addSerializedObject(InvokableObject, component);
+		return config;
 	}
 
 	/**

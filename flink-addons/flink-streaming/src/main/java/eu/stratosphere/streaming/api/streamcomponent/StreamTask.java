@@ -22,6 +22,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.nephele.execution.Environment;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.runtime.io.api.AbstractRecordReader;
 import eu.stratosphere.runtime.io.api.ChannelSelector;
@@ -62,6 +63,7 @@ public class StreamTask extends AbstractTask {
 
 	@Override
 	public void registerInputOutput() {
+		Environment env=this.getEnvironment();
 		taskConfiguration = getTaskConfiguration();
 		name = taskConfiguration.getString("componentName", "MISSING_COMPONENT_NAME");
 
