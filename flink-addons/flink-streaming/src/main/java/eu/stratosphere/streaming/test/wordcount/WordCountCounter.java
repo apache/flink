@@ -33,7 +33,7 @@ public class WordCountCounter extends UserTaskInvokable {
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		wordValue = (StringValue) record.getRecord(0).getField(0);
+		wordValue = (StringValue) record.getRecord(0)[0];
 		word = wordValue.getValue();
 
 		if (wordCounts.containsKey(word)) {

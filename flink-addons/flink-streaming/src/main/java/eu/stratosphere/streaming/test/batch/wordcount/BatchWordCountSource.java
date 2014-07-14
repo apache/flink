@@ -15,57 +15,29 @@
 
 package eu.stratosphere.streaming.test.batch.wordcount;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-
 import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
-import eu.stratosphere.types.Value;
 
 public class BatchWordCountSource extends UserSourceInvokable {
-
-	private BufferedReader br = null;
-	private String line = new String();
-	private StringValue lineValue = new StringValue();
-	private LongValue timestampValue = new LongValue();
-	private Value[] values = new Value[2];
-	private final static int BATCH_SIZE = 10;
-
-	private long timestamp = 0;
-
-	public BatchWordCountSource() {
-		try {
-			br = new BufferedReader(new FileReader(
-					"src/test/resources/testdata/hamlet.txt"));
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-	}
+	private final String motto = "Gyuszi Gabor Big Marci Gyuszi";
+	private long timestamp;
+	private StreamRecord mottoRecords = new StreamRecord(2);
 
 	@Override
 	public void invoke() throws Exception {
 		timestamp = 0;
-		StreamRecord mottoRecords = new StreamRecord(2);
-		line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
-
-		while (line != null) {
-			if (line != "") {
-				lineValue.setValue(line);
-				timestampValue.setValue(timestamp);
-				values[0] = lineValue;
-				values[1] = timestampValue;
-				mottoRecords.addRecord(values);
-				timestamp++;
-				if (timestamp % BATCH_SIZE == 0) {
-					emit(mottoRecords);
-					mottoRecords = new StreamRecord(2);
-				}
+		for (int i = 0; i < 100; ++i) {
+			AtomRecord mottoRecord = new AtomRecord(2);
+			mottoRecord.setField(0, new StringValue(motto));
+			mottoRecord.setField(1, new LongValue(timestamp));
+			mottoRecords.addRecord(mottoRecord);
+			++timestamp;
+			if (timestamp % 10 == 0) {
+				emit(mottoRecords);
 			}
-			line = br.readLine();
 		}
 	}
 
