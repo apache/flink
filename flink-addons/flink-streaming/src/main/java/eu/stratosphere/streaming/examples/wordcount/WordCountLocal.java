@@ -33,7 +33,7 @@ public class WordCountLocal {
 			int counterSubtasksPerInstance, int sinkSubtasks, int sinkSubtasksPerInstance)
 			throws Exception {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountDummySource.class, sourceSubtasks,
+		graphBuilder.setSource("WordCountSource", WordCountSource.class, sourceSubtasks,
 				sourceSubtasksPerInstance);
 		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, splitterSubtasks,
 				splitterSubtasksPerInstance);
@@ -45,7 +45,7 @@ public class WordCountLocal {
 		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");
 		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0);
 		graphBuilder.shuffleConnect("WordCountCounter", "WordCountSink");
-
+	
 		return graphBuilder.getJobGraph();
 	}
 
@@ -110,7 +110,7 @@ public class WordCountLocal {
 				} else if (args[0].equals("cluster")) {
 					System.out.println("Running in Cluster mode");
 
-					Client client = new Client(new InetSocketAddress("hadoop01",
+					Client client = new Client(new InetSocketAddress("dell150",
 							6123), configuration);
 					client.run(jG, true);
 				}
