@@ -24,23 +24,20 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
-import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
+import eu.stratosphere.nephele.io.AbstractRecordReader;
+import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.nephele.io.RecordReader;
+import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
-import eu.stratosphere.runtime.io.api.AbstractRecordReader;
-import eu.stratosphere.runtime.io.api.ChannelSelector;
-import eu.stratosphere.runtime.io.api.MutableRecordReader;
-import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
 import eu.stratosphere.streaming.api.invokable.RecordInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.UID;
 import eu.stratosphere.streaming.faulttolerance.AckEvent;
@@ -120,29 +117,11 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			throws StreamComponentException {
 		int numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
 
-		// TODO get deserialization delegates
-		// ObjectInputStream in = new ObjectInputStream(new
-		// ByteArrayInputStream(taskConfiguration.getBytes("operator", null)));
-		//
-		// MyGeneric<?> f = (MyGeneric<?>) in.readObject();
-		//
-		// TypeInformation<Tuple> ts =(TypeInformation<Tuple>)
-		// TypeExtractor.createTypeInfo(MyGeneric.class,
-		// f.getClass(), 0,
-		// null, null);
-		TupleTypeInfo<Tuple> ts = null;
-
-		TupleSerializer<Tuple> tupleSerializer = ts.createSerializer();
-		DeserializationDelegate<Tuple> deserializationDelegate = new DeserializationDelegate<Tuple>(
-				tupleSerializer);
-
 		if (numberOfInputs < 2) {
 			if (taskBase instanceof StreamTask) {
-				return new StreamRecordReader((StreamTask) taskBase, ArrayStreamRecord.class,
-						deserializationDelegate, tupleSerializer);
+				return new RecordReader<StreamRecord>((StreamTask) taskBase, StreamRecord.class);
 			} else if (taskBase instanceof StreamSink) {
-				return new StreamRecordReader((StreamSink) taskBase, ArrayStreamRecord.class,
-						deserializationDelegate, tupleSerializer);
+				return new RecordReader<StreamRecord>((StreamSink) taskBase, StreamRecord.class);
 			} else {
 				throw new StreamComponentException("Nonsupported object passed to setConfigInputs");
 			}
@@ -161,8 +140,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 							"Nonsupported object passed to setConfigInputs");
 				}
 			}
-			return new UnionStreamRecordReader(recordReaders, ArrayStreamRecord.class,
-					deserializationDelegate, tupleSerializer);
+			return new UnionRecordReader<StreamRecord>(recordReaders, StreamRecord.class);
 		}
 	}
 
@@ -176,10 +154,10 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		for (ChannelSelector<StreamRecord> outputPartitioner : partitioners) {
 			if (taskBase instanceof StreamTask) {
 				outputs.add(new RecordWriter<StreamRecord>((StreamTask) taskBase,
-						outputPartitioner));
+						StreamRecord.class, outputPartitioner));
 			} else if (taskBase instanceof StreamSource) {
 				outputs.add(new RecordWriter<StreamRecord>((StreamSource) taskBase,
-						outputPartitioner));
+						StreamRecord.class, outputPartitioner));
 			} else {
 				throw new StreamComponentException("Nonsupported object passed to setConfigOutputs");
 			}
@@ -315,15 +293,17 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 	public void invokeRecords(RecordInvoker invoker, RecordInvokable userFunction,
 			AbstractRecordReader inputs, String name) throws Exception {
-		if (inputs instanceof UnionStreamRecordReader) {
-			UnionStreamRecordReader recordReader = (UnionStreamRecordReader) inputs;
+		if (inputs instanceof UnionRecordReader) {
+			@SuppressWarnings("unchecked")
+			UnionRecordReader<StreamRecord> recordReader = (UnionRecordReader<StreamRecord>) inputs;
 			while (recordReader.hasNext()) {
 				StreamRecord record = recordReader.next();
 				invoker.call(name, userFunction, recordReader, record);
 			}
 
-		} else if (inputs instanceof StreamRecordReader) {
-			StreamRecordReader recordReader = (StreamRecordReader) inputs;
+		} else if (inputs instanceof RecordReader) {
+			@SuppressWarnings("unchecked")
+			RecordReader<StreamRecord> recordReader = (RecordReader<StreamRecord>) inputs;
 
 			while (recordReader.hasNext()) {
 				StreamRecord record = recordReader.next();
