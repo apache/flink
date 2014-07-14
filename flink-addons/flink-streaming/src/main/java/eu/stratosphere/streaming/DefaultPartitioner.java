@@ -10,7 +10,7 @@ public class DefaultPartitioner  implements ChannelSelector<IOReadableWritable> 
 
     int[] returnChannels = new int[numberOfOutputChannels];
     for(int i = 0; i < numberOfOutputChannels;i++) {
-      returnChannels[i]=i+1;
+      returnChannels[i]=i;
     }
     return returnChannels;
   }
