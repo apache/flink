@@ -46,5 +46,7 @@ public class BatchWordCountCounter extends UserTaskInvokable {
 		outRecord.setString(0, word);
 		outRecord.setInteger(1, count);
 		outRecord.setLong(2, timestamp);
+		
+		emit(outRecord);
 	}
 }

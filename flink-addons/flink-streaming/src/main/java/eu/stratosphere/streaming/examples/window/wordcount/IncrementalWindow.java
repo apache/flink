@@ -20,10 +20,13 @@ public class IncrementalWindow {
 	private int currentTupleNum;
 	private int fullTupleNum;
 	private int slideTupleNum;
-	
-	public IncrementalWindow(int batchRange, int windowSize, int slidingStep){}
-	
-	void pushBack(){}
-	
-	void popFront(){}
+
+	public IncrementalWindow(int batchRange, int windowSize, int slidingStep) {
+	}
+
+	void pushBack() {
+	}
+
+	void popFront() {
+	}
 }

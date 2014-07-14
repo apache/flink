@@ -17,24 +17,20 @@ package eu.stratosphere.streaming.examples.window.wordcount;
 
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.LongValue;
-import eu.stratosphere.types.StringValue;
 
 public class WindowWordCountSink extends UserSinkInvokable {
 
-	private StringValue word = new StringValue();
-	private IntValue count = new IntValue();
-	private LongValue timestamp = new LongValue();
+	private String word = "";
+	private Integer count = 0;
+	private Long timestamp = 0L;
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		word = (StringValue) record.getField(0, 0);
-		count = (IntValue) record.getField(0, 1);
-		timestamp = (LongValue) record.getField(0, 2);
+		word = record.getString(0);
+		count = record.getInteger(1);
+		timestamp = record.getLong(2);
 		System.out.println("============================================");
-		System.out.println(word.getValue() + " " + count.getValue() + " "
-				+ timestamp.getValue());
+		System.out.println(word + " " + count + " " + timestamp);
 		System.out.println("============================================");
 
 	}

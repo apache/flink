@@ -19,24 +19,21 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 
+import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.LongValue;
-import eu.stratosphere.types.StringValue;
 
 public class WindowWordCountSource extends UserSourceInvokable {
-	
+
 	private BufferedReader br = null;
 	private String line = new String();
-	private StringValue lineValue = new StringValue();
-	private LongValue timestampValue = new LongValue();
-	
-	private long timestamp;
-	
+	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Long>());
+
+	private Long timestamp;
+
 	public WindowWordCountSource() {
 		try {
-			br = new BufferedReader(new FileReader(
-					"src/test/resources/testdata/hamlet.txt"));
+			br = new BufferedReader(new FileReader("src/test/resources/testdata/hamlet.txt"));
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
@@ -44,13 +41,13 @@ public class WindowWordCountSource extends UserSourceInvokable {
 
 	@Override
 	public void invoke() throws Exception {
-		timestamp = 0;
+		timestamp = 0L;
 		line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
 		while (line != null) {
 			if (line != "") {
-				lineValue.setValue(line);
-				timestampValue.setValue(timestamp);
-				emit(new StreamRecord(lineValue, timestampValue));
+				outRecord.setString(0, line);
+				outRecord.setLong(1, timestamp);
+				emit(outRecord);
 			}
 			line = br.readLine();
 			timestamp++;

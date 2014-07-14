@@ -15,28 +15,28 @@
 
 package eu.stratosphere.streaming.examples.window.wordcount;
 
+import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.LongValue;
-import eu.stratosphere.types.StringValue;
 
 public class WindowWordCountSplitter extends UserTaskInvokable {
 
-	private StringValue sentence = new StringValue();
-	private LongValue timestamp = new LongValue();
-	private String[] words = new String[]{};
-	private StringValue wordValue = new StringValue();
+	private String[] words = new String[] {};
+	private StreamRecord outputRecord = new StreamRecord(new Tuple2<String, Long>());
+
+	private Long timestamp = 0L;
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		sentence=(StringValue) record.getField(0, 0);
-		timestamp=(LongValue) record.getField(0, 1);
-		System.out.println("************sentence=" + sentence.getValue() + ", timestamp="
-				+ timestamp.getValue()+"************");
-		words = sentence.getValue().split(" ");
-		for (CharSequence word : words) {
-			wordValue.setValue(word);
-			emit(new StreamRecord(wordValue, timestamp));
+		words = record.getString(0).split(" ");
+		timestamp = record.getLong(1);
+		System.out.println("************sentence=" + words + ", timestamp=" + timestamp
+				+ "************");
+		for (String word : words) {
+			outputRecord.setString(0, word);
+			outputRecord.setLong(1, timestamp);
+			emit(outputRecord);
 		}
+
 	}
 }

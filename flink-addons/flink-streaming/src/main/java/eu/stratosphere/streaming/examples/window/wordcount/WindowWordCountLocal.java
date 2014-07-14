@@ -32,20 +32,15 @@ public class WindowWordCountLocal {
 
 	public static JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WindowWordCountSource",
-				WindowWordCountSource.class);
-		graphBuilder.setTask("WindowWordCountSplitter",
-				WindowWordCountSplitter.class, 1);
-		graphBuilder.setTask("WindowWordCountCounter",
-				WindowWordCountCounter.class, 1);
+		graphBuilder.setSource("WindowWordCountSource", WindowWordCountSource.class);
+		graphBuilder.setTask("WindowWordCountSplitter", WindowWordCountSplitter.class, 1);
+		graphBuilder.setTask("WindowWordCountCounter", WindowWordCountCounter.class, 1);
 		graphBuilder.setSink("WindowWordCountSink", WindowWordCountSink.class);
 
-		graphBuilder.broadcastConnect("WindowWordCountSource",
-				"WindowWordCountSplitter");
-		graphBuilder.fieldsConnect("WindowWordCountSplitter",
-				"WindowWordCountCounter", 0, StringValue.class);
-		graphBuilder.broadcastConnect("WindowWordCountCounter",
-				"WindowWordCountSink");
+		graphBuilder.broadcastConnect("WindowWordCountSource", "WindowWordCountSplitter");
+		graphBuilder.fieldsConnect("WindowWordCountSplitter", "WindowWordCountCounter", 0,
+				StringValue.class);
+		graphBuilder.broadcastConnect("WindowWordCountCounter", "WindowWordCountSink");
 
 		return graphBuilder.getJobGraph();
 	}
@@ -69,8 +64,7 @@ public class WindowWordCountLocal {
 
 				exec.start();
 
-				Client client = new Client(new InetSocketAddress("localhost",
-						6498), configuration);
+				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
 
 				client.run(jG, true);
 
@@ -79,8 +73,8 @@ public class WindowWordCountLocal {
 			} else if (args[0].equals("cluster")) {
 				System.out.println("Running in Cluster2 mode");
 
-				Client client = new Client(new InetSocketAddress(
-						"hadoop02.ilab.sztaki.hu", 6123), configuration);
+				Client client = new Client(new InetSocketAddress("hadoop02.ilab.sztaki.hu", 6123),
+						configuration);
 
 				client.run(jG, true);
 
