@@ -27,7 +27,7 @@ public class PerformanceTracker {
 	protected List<String> labels;
 
 	protected long dumpInterval = 0;
-	protected long lastDump = System.currentTimeMillis();
+	protected long lastDump = 0;
 	protected String fname;
 
 	protected long startTime;
