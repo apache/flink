@@ -121,15 +121,15 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		int numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
 
 		// TODO get deserialization delegates
-		// ObjectInputStream in = new ObjectInputStream(new
-		// ByteArrayInputStream(taskConfiguration.getBytes("operator", null)));
-		//
-		// MyGeneric<?> f = (MyGeneric<?>) in.readObject();
-		//
-		// TypeInformation<Tuple> ts =(TypeInformation<Tuple>)
-		// TypeExtractor.createTypeInfo(MyGeneric.class,
-		// f.getClass(), 0,
-		// null, null);
+//		 ObjectInputStream in = new ObjectInputStream(new
+//		 ByteArrayInputStream(taskConfiguration.getBytes("operator", null)));
+//		
+//		 MyGeneric<?> f = (MyGeneric<?>) in.readObject();
+//		
+//		 TypeInformation<Tuple> ts =(TypeInformation<Tuple>)
+//		 TypeExtractor.createTypeInfo(MyGeneric.class,
+//		 f.getClass(), 0,
+//		 null, null);
 		TupleTypeInfo<Tuple> ts = null;
 
 		TupleSerializer<Tuple> tupleSerializer = ts.createSerializer();
