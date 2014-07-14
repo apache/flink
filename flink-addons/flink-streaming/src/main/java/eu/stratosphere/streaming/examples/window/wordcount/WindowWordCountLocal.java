@@ -27,7 +27,6 @@ import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.LogUtils;
 
-//TODO: window operator remains unfinished.
 public class WindowWordCountLocal {
 
 	public static JobGraph getJobGraph() {

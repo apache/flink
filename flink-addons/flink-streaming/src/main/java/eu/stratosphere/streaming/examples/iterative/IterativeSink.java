@@ -13,13 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.iterative.kmeans;
+package eu.stratosphere.streaming.examples.iterative;
 
-public class KMeansLocal {
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-	public static void main(String[] args) {
-		// TODO Auto-generated method stub
+public class IterativeSink extends UserSinkInvokable {
 
+	private static final long serialVersionUID = -1989637817643875304L;
+
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
+		System.out.println("received record...");
+		int tupleNum = record.getNumOfTuples();
+		System.out.println("============================================");
+		for (int i = 0; i < tupleNum; ++i) {
+			System.out.println("name=" + record.getField(i, 0) + ", grade="
+					+ record.getField(i, 1) + ", salary="
+					+ record.getField(i, 2));
+		}
+		System.out.println("============================================");
 	}
-
 }
