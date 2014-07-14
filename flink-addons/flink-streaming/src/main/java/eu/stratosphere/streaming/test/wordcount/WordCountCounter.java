@@ -21,7 +21,6 @@ import java.util.Map;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
 
 public class WordCountCounter extends UserTaskInvokable {
