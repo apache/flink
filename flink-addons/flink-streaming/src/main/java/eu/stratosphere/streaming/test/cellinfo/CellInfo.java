@@ -32,7 +32,7 @@ public class CellInfo extends TestBase2 {
     
     graphBuilder.fieldsConnect("infoSource", "cellTask", 0, IntValue.class);
     graphBuilder.fieldsConnect("querySource", "cellTask",0, IntValue.class);
-    graphBuilder.broadcastConnect("cellTask", "sink");
+    graphBuilder.shuffleConnect("cellTask", "sink");
 
     return graphBuilder.getJobGraph();
   }

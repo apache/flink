@@ -25,15 +25,20 @@ public class BatchWordCount extends TestBase2 {
 	@Override
 	public JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("BatchWordCountSource", BatchWordCountSource.class);
-		graphBuilder.setTask("BatchWordCountSplitter", BatchWordCountSplitter.class, 2);
-		graphBuilder.setTask("BatchWordCountCounter", BatchWordCountCounter.class, 2);
+		graphBuilder.setSource("BatchWordCountSource",
+				BatchWordCountSource.class);
+		graphBuilder.setTask("BatchWordCountSplitter",
+				BatchWordCountSplitter.class, 2);
+		graphBuilder.setTask("BatchWordCountCounter",
+				BatchWordCountCounter.class, 2);
 		graphBuilder.setSink("BatchWordCountSink", BatchWordCountSink.class);
 
-		graphBuilder.shuffleConnect("BatchWordCountSource", "BatchWordCountSplitter");
-		graphBuilder.fieldsConnect("BatchWordCountSplitter", "BatchWordCountCounter", 0,
-				StringValue.class);
-		graphBuilder.shuffleConnect("BatchWordCountCounter", "BatchWordCountSink");
+		graphBuilder.shuffleConnect("BatchWordCountSource",
+				"BatchWordCountSplitter");
+		graphBuilder.fieldsConnect("BatchWordCountSplitter",
+				"BatchWordCountCounter", 0, StringValue.class);
+		graphBuilder.shuffleConnect("BatchWordCountCounter",
+				"BatchWordCountSink");
 
 		return graphBuilder.getJobGraph();
 	}
