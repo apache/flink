@@ -29,23 +29,19 @@ import eu.stratosphere.streaming.util.LogUtils;
 public class WordCountLocal {
 
 	private static JobGraph getJobGraph(int sourceSubtasks, int sourceSubtasksPerInstance,
-			int splitterSubtasks, int splitterSubtasksPerInstance, int counterSubtasks,
-			int counterSubtasksPerInstance, int sinkSubtasks, int sinkSubtasksPerInstance)
-			throws Exception {
+			int counterSubtasks, int counterSubtasksPerInstance, int sinkSubtasks,
+			int sinkSubtasksPerInstance) throws Exception {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountSource.class, sourceSubtasks,
-				sourceSubtasksPerInstance);
-		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, splitterSubtasks,
-				splitterSubtasksPerInstance);
+		graphBuilder.setSource("WordCountSourceSplitter", WordCountSourceSplitter.class,
+				sourceSubtasks, sourceSubtasksPerInstance);
 		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, counterSubtasks,
 				counterSubtasksPerInstance);
 		graphBuilder.setSink("WordCountSink", WordCountSink.class, sinkSubtasks,
 				sinkSubtasksPerInstance);
 
-		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");
-		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0);
+		graphBuilder.fieldsConnect("WordCountSourceSplitter", "WordCountCounter", 0);
 		graphBuilder.shuffleConnect("WordCountCounter", "WordCountSink");
-	
+
 		return graphBuilder.getJobGraph();
 	}
 
@@ -58,15 +54,13 @@ public class WordCountLocal {
 	// TODO: arguments check
 	public static void main(String[] args) {
 
-		if (args.length != 9) {
+		if (args.length != 7) {
 			wrongArgs();
 		} else {
 			LogUtils.initializeDefaultConsoleLogger(Level.ERROR, Level.INFO);
 
 			int sourceSubtasks = 1;
 			int sourceSubtasksPerInstance = 1;
-			int splitterSubtasks = 1;
-			int splitterSubtasksPerInstance = 1;
 			int counterSubtasks = 1;
 			int counterSubtasksPerInstance = 1;
 			int sinkSubtasks = 1;
@@ -75,20 +69,18 @@ public class WordCountLocal {
 			try {
 				sourceSubtasks = Integer.parseInt(args[1]);
 				sourceSubtasksPerInstance = Integer.parseInt(args[2]);
-				splitterSubtasks = Integer.parseInt(args[3]);
-				splitterSubtasksPerInstance = Integer.parseInt(args[4]);
-				counterSubtasks = Integer.parseInt(args[5]);
-				counterSubtasksPerInstance = Integer.parseInt(args[6]);
-				sinkSubtasks = Integer.parseInt(args[7]);
-				sinkSubtasksPerInstance = Integer.parseInt(args[8]);
+				counterSubtasks = Integer.parseInt(args[3]);
+				counterSubtasksPerInstance = Integer.parseInt(args[4]);
+				sinkSubtasks = Integer.parseInt(args[5]);
+				sinkSubtasksPerInstance = Integer.parseInt(args[6]);
 			} catch (Exception e) {
 				wrongArgs();
 			}
 
 			try {
 				JobGraph jG = getJobGraph(sourceSubtasks, sourceSubtasksPerInstance,
-						splitterSubtasks, splitterSubtasksPerInstance, counterSubtasks,
-						counterSubtasksPerInstance, sinkSubtasks, sinkSubtasksPerInstance);
+						counterSubtasks, counterSubtasksPerInstance, sinkSubtasks,
+						sinkSubtasksPerInstance);
 				Configuration configuration = jG.getJobConfiguration();
 
 				if (args.length == 0) {
@@ -110,8 +102,8 @@ public class WordCountLocal {
 				} else if (args[0].equals("cluster")) {
 					System.out.println("Running in Cluster mode");
 
-					Client client = new Client(new InetSocketAddress("dell150",
-							6123), configuration);
+					Client client = new Client(new InetSocketAddress("dell150", 6123),
+							configuration);
 					client.run(jG, true);
 				}
 
