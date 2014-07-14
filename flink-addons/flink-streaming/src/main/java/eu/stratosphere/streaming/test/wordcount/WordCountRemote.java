@@ -75,7 +75,7 @@ public class WordCountRemote {
 			Client client = new Client(new InetSocketAddress(
 					"hadoop02.ilab.sztaki.hu", 6123), configuration);
 
-			client.run(null, jG, true);
+			client.run(jG, true);
 			
 
 		} catch (Exception e) {
