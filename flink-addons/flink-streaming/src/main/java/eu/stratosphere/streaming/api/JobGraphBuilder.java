@@ -107,7 +107,7 @@ public class JobGraphBuilder {
     }
   }
 
-  public void BroadcastConnect(String upStreamComponentName,
+  public void broadcastConnect(String upStreamComponentName,
       String downStreamComponentName) {
 
     connect(upStreamComponentName, downStreamComponentName,
@@ -146,7 +146,7 @@ public class JobGraphBuilder {
     }
   }
 
-  public void GlobalConnect(String upStreamComponentName,
+  public void globalConnect(String upStreamComponentName,
       String downStreamComponentName) {
 
     connect(upStreamComponentName, downStreamComponentName,
