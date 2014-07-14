@@ -37,11 +37,20 @@ public class DataStream<T extends Tuple> {
 	List<ConnectionType> ctypes;
 	List<Integer> cparams;
 	List<Integer> batchSizes;
+	
+	/**
+	 * Constructor
+	 */
+	protected DataStream() {
+		// TODO implement
+		environment = new StreamExecutionEnvironment();
+		id = "source";
+		initConnections();
+	}
 
 	/**
-	 * Create a new DataStream in the given environment
-	 * 
-	 * @param environment
+	 * Constructor
+	 * @param context
 	 */
 	protected DataStream(StreamExecutionEnvironment environment) {
 		if (environment == null) {
@@ -56,15 +65,16 @@ public class DataStream<T extends Tuple> {
 	}
 
 	/**
-	 * Create a new DataStream in the given environment with the given id
-	 * 
-	 * @param environment
+	 * Constructor
+	 * @param context
 	 * @param id
 	 */
 	private DataStream(StreamExecutionEnvironment environment, String id) {
 		this(environment);
 		this.id = id;
 	}
+	
+	//TODO: create copy method (or constructor) and copy datastream at every operator
 
 	/**
 	 * Initialize the connections.
@@ -82,42 +92,41 @@ public class DataStream<T extends Tuple> {
 	}
 
 	/**
-	 * Creates an identical DataStream.
-	 * 
-	 * @return The DataStream copy.
+	 * Creates an identical datastream.
+	 * @return
+	 * The identical datastream.
 	 */
 	public DataStream<T> copy() {
 		DataStream<T> copiedStream = new DataStream<T>(environment, getId());
 		copiedStream.type = this.type;
-
+		
 		copiedStream.connectIDs = new ArrayList<String>(this.connectIDs);
-
+		
 		copiedStream.ctypes = new ArrayList<StreamExecutionEnvironment.ConnectionType>(this.ctypes);
 		copiedStream.cparams = new ArrayList<Integer>(this.cparams);
 		copiedStream.batchSizes = new ArrayList<Integer>(this.batchSizes);
 		return copiedStream;
 	}
-
+	
 	/**
-	 * Returns the id of the DataStream.
-	 * 
-	 * @return ID
+	 * Gets the id of the datastream.
+	 * @return
+	 * The id of the datastream.
 	 */
 	public String getId() {
 		return id;
 	}
 
 	/**
-	 * Groups a number of consecutive elements from the DataStream to increase
-	 * network throughput.
-	 * 
+	 * Collects a number of consecutive elements from the datastream.
 	 * @param batchSize
-	 *            The number of elements to group.
-	 * @return The DataStream.
+	 * The number of elements to collect.
+	 * @return
+	 * The collected elements.
 	 */
 	public DataStream<T> batch(int batchSize) {
 		DataStream<T> returnStream = copy();
-
+		
 		if (batchSize < 1) {
 			throw new IllegalArgumentException("Batch size must be positive.");
 		}
@@ -127,33 +136,38 @@ public class DataStream<T extends Tuple> {
 		}
 		return returnStream;
 	}
-
+	
 	/**
-	 * Connecting DataStream outputs with each other. The streams connected
-	 * using this operator will be transformed simultaneously. It creates a
-	 * joint output of the connected streams.
-	 * 
+	 * Connecting streams to each other.
 	 * @param stream
-	 *            The DataStream to connect output with.
-	 * @return The connected DataStream.
+	 * The stream it connects to.
+	 * @return
+	 * The new already connected datastream.
 	 */
-	public DataStream<T> connectWith(DataStream<T> stream) {
+	public DataStream<T> connectWith(DataStream<T>... streams) {
 		DataStream<T> returnStream = copy();
-
+		
+		for(DataStream<T> stream:streams){
+			addConnection(returnStream, stream);
+		}
+		return returnStream;
+	}
+	
+	public DataStream<T> addConnection(DataStream<T> returnStream, DataStream<T> stream){
 		returnStream.connectIDs.addAll(stream.connectIDs);
 		returnStream.ctypes.addAll(stream.ctypes);
 		returnStream.cparams.addAll(stream.cparams);
 		returnStream.batchSizes.addAll(stream.batchSizes);
+		
 		return returnStream;
 	}
 
 	/**
-	 * Send the output tuples of the DataStream to the next vertices partitioned
-	 * by their hashcode.
-	 * 
+	 * Send the elements of the stream to the following vertices according to their hashcode.
 	 * @param keyposition
-	 *            The field used to compute the hashcode.
-	 * @return The DataStream with field partitioning set.
+	 * The field used to compute the hashcode.
+	 * @return
+	 * The original datastream.
 	 */
 	public DataStream<T> partitionBy(int keyposition) {
 		DataStream<T> returnStream = copy();
@@ -166,10 +180,9 @@ public class DataStream<T extends Tuple> {
 	}
 
 	/**
-	 * Broadcast the output tuples to every parallel instance of the next
-	 * component.
-	 * 
-	 * @return The DataStream with broadcast partitioning set.
+	 * Send the elements of the stream to every following vertices of the graph.
+	 * @return
+	 * The datastream.
 	 */
 	public DataStream<T> broadcast() {
 		DataStream<T> returnStream = copy();
@@ -181,106 +194,89 @@ public class DataStream<T extends Tuple> {
 	}
 
 	/**
-	 * Applies a FlatMap transformation on a DataStream. The transformation
-	 * calls a FlatMapFunction for each element of the DataSet. Each
-	 * FlatMapFunction call can return any number of elements including none.
-	 * 
+	 * Sets the given flatmap function.
 	 * @param flatMapper
-	 *            The FlatMapFunction that is called for each element of the
-	 *            DataStream
-	 * @param parallelism
-	 *            The number of threads the function runs on.
-	 * @return The transformed DataStream.
-	 */
-	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper, int parallelism) {
-		return environment.addFunction("flatMap", this.copy(), flatMapper,
-				new FlatMapInvokable<T, R>(flatMapper), parallelism);
-	}
-
-	/**
-	 * Applies a Map transformation on a DataStream. The transformation calls a
-	 * MapFunction for each element of the DataStream. Each MapFunction call
-	 * returns exactly one element.
-	 * 
-	 * @param mapper
-	 *            The MapFunction that is called for each element of the
-	 *            DataStream.
-	 * @param parallelism
-	 *            The number of threads the function runs on.
-	 * @return The transformed DataStream.
-	 */
-	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper, int parallelism) {
-		return environment.addFunction("map", this.copy(), mapper, new MapInvokable<T, R>(mapper),
-				parallelism);
-	}
-
-	/**
-	 * Applies a reduce transformation on preset chunks of the DataStream. The
-	 * transformation calls a GroupReduceFunction for each tuple batch of the
-	 * predefined size. Each GroupReduceFunction call can return any number of
-	 * elements including none.
-	 * 
-	 * 
-	 * @param reducer
-	 *            The GroupReduceFunction that is called for each tuple batch.
-	 * @param batchSize
-	 *            The number of tuples grouped together in the batch.
-	 * @param parallelism
-	 *            The number of threads the function runs on.
-	 * @return The modified datastream.
-	 */
-	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer,
-			int batchSize, int paralelism) {
-		return environment.addFunction("batchReduce", batch(batchSize).copy(), reducer,
-				new BatchReduceInvokable<T, R>(reducer), paralelism);
-	}
-
-	/**
-	 * Applies a Filter transformation on a DataStream. The transformation calls
-	 * a FilterFunction for each element of the DataStream and retains only
-	 * those element for which the function returns true. Elements for which the
-	 * function returns false are filtered.
-	 * 
-	 * @param filter
-	 *            The FilterFunction that is called for each element of the
-	 *            DataSet.
+	 * The object containing the flatmap function.
 	 * @param paralelism
-	 *            The number of threads the function runs on.
-	 * @return The filtered DataStream.
+	 * The number of threads the function runs on.
+	 * @return
+	 * The modified datastream.
+	 */
+	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper, int paralelism) {
+		return environment.addFunction("flatMap", this.copy(), flatMapper, new FlatMapInvokable<T, R>(
+				flatMapper), paralelism);
+	}
+
+	/**
+	 * Sets the given map function.
+	 * @param mapper
+	 * The object containing the map function.
+	 * @param paralelism
+	 * The number of threads the function runs on.
+	 * @return
+	 * The modified datastream.
+	 */
+	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper, int paralelism) {
+		return environment.addFunction("map", this.copy(), mapper, new MapInvokable<T, R>(mapper), paralelism);
+	}
+
+	/**
+	 * Sets the given batchreduce function.
+	 * @param reducer
+	 * The object containing the batchreduce function.
+	 * @param batchSize
+	 * The number of elements proceeded at the same time
+	 * @param paralelism
+	 * The number of threads the function runs on.
+	 * @return
+	 * The modified datastream.
+	 */
+	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer, int batchSize, int paralelism) {
+		return environment.addFunction("batchReduce", batch(batchSize).copy(), reducer, new BatchReduceInvokable<T, R>(
+				reducer), paralelism);
+	}
+
+	/**
+	 * Sets the given filter function.
+	 * @param filter
+	 * The object containing the filter function.
+	 * @param paralelism
+	 * The number of threads the function runs on.
+	 * @return
+	 * The modified datastream.
 	 */
 	public DataStream<T> filter(FilterFunction<T> filter, int paralelism) {
-		return environment.addFunction("filter", this.copy(), filter,
-				new FilterInvokable<T>(filter), paralelism);
+		return environment.addFunction("filter", this.copy(), filter, new FilterInvokable<T>(filter), paralelism);
 	}
 
 	/**
 	 * Sets the given sink function.
-	 * 
 	 * @param sinkFunction
-	 *            The object containing the sink's invoke function.
+	 * The object containing the sink's invoke function.
 	 * @param paralelism
-	 *            The number of threads the function runs on.
-	 * @return The modified datastream.
+	 * The number of threads the function runs on.
+	 * @return
+	 * The modified datastream.
 	 */
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction, int paralelism) {
 		return environment.addSink(this.copy(), sinkFunction, paralelism);
 	}
-
+	
 	/**
 	 * Sets the given sink function.
-	 * 
 	 * @param sinkFunction
-	 *            The object containing the sink's invoke function.
+	 * The object containing the sink's invoke function.
 	 * @return
+	 * The modified datastream.
 	 */
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
 		return environment.addSink(this.copy(), sinkFunction);
 	}
 
 	/**
-	 * Prints the tuples from the DataStream.
-	 * 
+	 * Prints the datastream.
 	 * @return
+	 * The original stream.
 	 */
 	public DataStream<T> print() {
 		return environment.print(this.copy());
@@ -288,9 +284,8 @@ public class DataStream<T extends Tuple> {
 
 	/**
 	 * Set the type parameter.
-	 * 
 	 * @param type
-	 *            The type parameter.
+	 * The type parameter.
 	 */
 	protected void setType(TypeInformation<T> type) {
 		this.type = type;
@@ -298,8 +293,8 @@ public class DataStream<T extends Tuple> {
 
 	/**
 	 * Get the type information.
-	 * 
-	 * @return The type of the generic parameter.
+	 * @return
+	 * The type of the generic parameter.
 	 */
 	public TypeInformation<T> getType() {
 		return this.type;
