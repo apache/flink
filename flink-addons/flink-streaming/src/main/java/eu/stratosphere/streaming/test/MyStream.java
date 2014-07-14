@@ -7,19 +7,21 @@ import eu.stratosphere.streaming.api.JobGraphBuilder.Partitioning;
 import eu.stratosphere.test.util.TestBase2;
 
 public class MyStream extends TestBase2 {
-  
+
   @Override
   public JobGraph getJobGraph() {
     JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-    graphBuilder.setSource("infoSource", TestSourceInvokable.class, Partitioning.BROADCAST);
-    graphBuilder.setSource("querySource", QuerySourceInvokable.class, Partitioning.BROADCAST);
-    graphBuilder.setTask("cellTask", TestTaskInvokable.class, Partitioning.BROADCAST, 2);
+    graphBuilder.setSource("infoSource", TestSourceInvokable.class);
+    graphBuilder.setSource("querySource", QuerySourceInvokable.class);
+    graphBuilder.setTask("cellTask", TestTaskInvokable.class, 2);
     graphBuilder.setSink("sink", TestSinkInvokable.class);
-    
-    
-    graphBuilder.connect("infoSource", "cellTask", Partitioning.BROADCAST, ChannelType.INMEMORY);
-    graphBuilder.connect("querySource", "cellTask", Partitioning.BROADCAST, ChannelType.INMEMORY);
-    graphBuilder.connect("cellTask", "sink", Partitioning.BROADCAST, ChannelType.INMEMORY);
+
+    graphBuilder.connect("infoSource", "cellTask", Partitioning.BROADCAST,
+        ChannelType.INMEMORY);
+    graphBuilder.connect("querySource", "cellTask", Partitioning.BROADCAST,
+        ChannelType.INMEMORY);
+    graphBuilder.connect("cellTask", "sink", Partitioning.BROADCAST,
+        ChannelType.INMEMORY);
 
     return graphBuilder.getJobGraph();
   }

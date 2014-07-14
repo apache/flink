@@ -5,10 +5,7 @@ import eu.stratosphere.types.Record;
 
 public class DefaultTaskInvokable implements UserTaskInvokable {
 
-	@Override
-	public void invoke(Record record, RecordWriter<Record> output)
-			throws Exception {
-		output.emit(record);
-	}
+  @Override
+  public void invoke(Record record, RecordWriter<Record> output) throws Exception {}
 
 }
