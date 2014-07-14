@@ -1,6 +1,5 @@
 package eu.stratosphere.streaming;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -20,9 +19,6 @@ public class StreamTask extends AbstractTask {
 	ChannelSelector<Record> partitioner;
 	private Class<? extends UserTaskInvokable> UserFunction;
 	private UserTaskInvokable userFunction;
-
-	private RecordReader<Record> inputInfo = null;
-	private RecordReader<Record> inputQuery = null;
 
 	public StreamTask() {
 		// TODO: Make configuration file visible and call setClassInputs() here
@@ -51,7 +47,6 @@ public class StreamTask extends AbstractTask {
 		} catch (Exception e) {
 
 		}
-
 	}
 
 	@Override
