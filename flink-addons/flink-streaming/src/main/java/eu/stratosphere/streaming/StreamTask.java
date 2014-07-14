@@ -7,6 +7,7 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.types.Record;
 
 public class StreamTask extends AbstractTask {

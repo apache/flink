@@ -1,4 +1,4 @@
-package eu.stratosphere.streaming;
+package eu.stratosphere.streaming.partitioner;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.types.Record;
