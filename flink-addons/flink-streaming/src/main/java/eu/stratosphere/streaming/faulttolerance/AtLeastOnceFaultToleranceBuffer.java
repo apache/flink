@@ -15,8 +15,8 @@
 
 package eu.stratosphere.streaming.faulttolerance;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.UID;
@@ -27,7 +27,7 @@ public class AtLeastOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 
 	public AtLeastOnceFaultToleranceBuffer(int[] numberOfChannels, int componentInstanceID) {
 		super(numberOfChannels, componentInstanceID);
-		this.ackCounter = new HashMap<UID, Integer>();
+		this.ackCounter = new ConcurrentHashMap<UID, Integer>();
 	}
 	
 

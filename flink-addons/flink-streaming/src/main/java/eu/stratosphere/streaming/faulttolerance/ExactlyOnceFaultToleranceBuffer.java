@@ -16,8 +16,8 @@
 package eu.stratosphere.streaming.faulttolerance;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.UID;
@@ -29,7 +29,7 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 
 	public ExactlyOnceFaultToleranceBuffer(int[] numberOfChannels, int sourceInstanceID) {
 		super(numberOfChannels, sourceInstanceID);
-		this.ackCounter = new HashMap<UID, int[]>();
+		this.ackCounter = new ConcurrentHashMap<UID, int[]>();
 		this.initialAckCounts = new int[numberOfEffectiveChannels.length + 1];
 		for (int i = 0; i < numberOfEffectiveChannels.length; i++) {
 			this.initialAckCounts[i + 1] = numberOfEffectiveChannels[i];
@@ -85,7 +85,7 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 			acks[0]++;
 
 			StreamRecord newRecord = addToChannel(id, channel);
-			
+
 			if (acks[0] == numberOfEffectiveChannels.length) {
 				remove(id);
 			}
