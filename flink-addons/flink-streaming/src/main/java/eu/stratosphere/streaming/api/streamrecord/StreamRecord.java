@@ -28,28 +28,6 @@ import java.util.List;
 import java.util.UUID;
 
 import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.api.java.tuple.Tuple10;
-import eu.stratosphere.api.java.tuple.Tuple11;
-import eu.stratosphere.api.java.tuple.Tuple12;
-import eu.stratosphere.api.java.tuple.Tuple13;
-import eu.stratosphere.api.java.tuple.Tuple14;
-import eu.stratosphere.api.java.tuple.Tuple15;
-import eu.stratosphere.api.java.tuple.Tuple16;
-import eu.stratosphere.api.java.tuple.Tuple17;
-import eu.stratosphere.api.java.tuple.Tuple18;
-import eu.stratosphere.api.java.tuple.Tuple19;
-import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.api.java.tuple.Tuple20;
-import eu.stratosphere.api.java.tuple.Tuple21;
-import eu.stratosphere.api.java.tuple.Tuple22;
-import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.api.java.tuple.Tuple4;
-import eu.stratosphere.api.java.tuple.Tuple5;
-import eu.stratosphere.api.java.tuple.Tuple6;
-import eu.stratosphere.api.java.tuple.Tuple7;
-import eu.stratosphere.api.java.tuple.Tuple8;
-import eu.stratosphere.api.java.tuple.Tuple9;
 import eu.stratosphere.api.java.typeutils.TupleTypeInfo;
 import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
@@ -58,7 +36,6 @@ import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
-import eu.stratosphere.types.Value;
 
 /**
  * Object for storing serializable records in batch (single records are
@@ -73,13 +50,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	private StringValue uid = new StringValue("");
 	private int numOfFields;
 	private int numOfRecords;
-	private Class<? extends Tuple> clazz = null;
-
-	private static final Class<?>[] CLASSES = new Class<?>[] { Tuple1.class, Tuple2.class,
-			Tuple3.class, Tuple4.class, Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class,
-			Tuple9.class, Tuple10.class, Tuple11.class, Tuple12.class, Tuple13.class,
-			Tuple14.class, Tuple15.class, Tuple16.class, Tuple17.class, Tuple18.class,
-			Tuple19.class, Tuple20.class, Tuple21.class, Tuple22.class };
 
 	// TODO implement equals, clone
 	/**
@@ -185,6 +155,87 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchFieldException());
 		}
 	}
+	
+	public String getString(int fieldNumber) {
+		try {
+			return (String) recordBatch.get(0).getField(fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchFieldException());
+		}
+	}
+	
+	public Integer getInteger(int fieldNumber) {
+		try {
+			return (Integer) recordBatch.get(0).getField(fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchFieldException());
+		}
+	}
+	
+	public Long getLong(int fieldNumber) {
+		try {
+			return (Long) recordBatch.get(0).getField(fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchFieldException());
+		}
+	}
+	
+	public Boolean getBoolean(int fieldNumber) {
+		try {
+			return (Boolean) recordBatch.get(0).getField(fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchFieldException());
+		}
+	}
+	
+	public Double getDouble(int fieldNumber) {
+		try {
+			return (Double) recordBatch.get(0).getField(fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchFieldException());
+		}
+	}
+	
+	public String getString(int recordNumber, int fieldNumber) {
+		try {
+			return (String) recordBatch.get(recordNumber).getField(fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchFieldException());
+		}
+	}
+	
+	public Integer getInteger(int recordNumber, int fieldNumber) {
+		try {
+			return (Integer) recordBatch.get(recordNumber).getField(fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchFieldException());
+		}
+	}
+	
+	public Long getLong(int recordNumber, int fieldNumber) {
+		try {
+			return (Long) recordBatch.get(recordNumber).getField(fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchFieldException());
+		}
+	}
+	
+	public Boolean getBoolean(int recordNumber, int fieldNumber) {
+		try {
+			return (Boolean) recordBatch.get(recordNumber).getField(fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchFieldException());
+		}
+	}
+	
+	public Double getDouble(int recordNumber, int fieldNumber) {
+		try {
+			return (Double) recordBatch.get(recordNumber).getField(fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchFieldException());
+		}
+	}
+	
 
 	/**
 	 * Sets a field in the given position of a specific record in the batch
@@ -203,6 +254,87 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw (new NoSuchRecordException());
 		}
 	}
+	
+	public void setString(int recordNumber, int fieldNumber, String o) {
+		try {
+			recordBatch.get(recordNumber).setField(o, fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchRecordException());
+		}
+	}
+	
+	public void setInteger(int recordNumber, int fieldNumber, Integer o) {
+		try {
+			recordBatch.get(recordNumber).setField(o, fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchRecordException());
+		}
+	}
+	
+	public void setLong(int recordNumber, int fieldNumber, Long o) {
+		try {
+			recordBatch.get(recordNumber).setField(o, fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchRecordException());
+		}
+	}
+	
+	public void setDouble(int recordNumber, int fieldNumber, Double o) {
+		try {
+			recordBatch.get(recordNumber).setField(o, fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchRecordException());
+		}
+	}
+	
+	public void setBoolean(int recordNumber, int fieldNumber, Boolean o) {
+		try {
+			recordBatch.get(recordNumber).setField(o, fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchRecordException());
+		}
+	}
+	
+	public void setString(int fieldNumber, String o) {
+		try {
+			recordBatch.get(0).setField(o, fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchRecordException());
+		}
+	}
+	
+	public void setInteger(int fieldNumber, Integer o) {
+		try {
+			recordBatch.get(0).setField(o, fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchRecordException());
+		}
+	}
+	
+	public void setLong(int fieldNumber, Long o) {
+		try {
+			recordBatch.get(0).setField(o, fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchRecordException());
+		}
+	}
+	
+	public void setDouble(int fieldNumber, Double o) {
+		try {
+			recordBatch.get(0).setField(o, fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchRecordException());
+		}
+	}
+	
+	public void setBoolean(int fieldNumber, Boolean o) {
+		try {
+			recordBatch.get(0).setField(o, fieldNumber);
+		} catch (IndexOutOfBoundsException e) {
+			throw (new NoSuchRecordException());
+		}
+	}
+
 
 	/**
 	 * Sets a field in the given position of the first record in the batch
@@ -238,6 +370,23 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Tuple getRecord() {
 		return getRecord(0);
+	}
+	
+	public void getTupleInto(Tuple tuple){
+		
+		if (tuple.getArity() == numOfFields) {
+			try {
+				Tuple source = recordBatch.get(0);
+				for(int i=0;i<numOfFields;i++){
+					tuple.setField(source.getField(i), i);
+				}
+			} catch (IndexOutOfBoundsException e) {
+				throw (new NoSuchRecordException());
+			}
+		} else {
+			throw (new RecordSizeMismatchException());
+		}
+		
 	}
 
 	/**
