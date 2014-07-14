@@ -25,7 +25,7 @@ public class WordCountSplitter extends UserTaskInvokable {
 	private String[] words = new String[0];
 	private StringValue wordValue = new StringValue("");
 	private Record outputRecord = new Record(wordValue);
-	
+
 	@Override
 	public void invoke(Record record) throws Exception {
 		record.getFieldInto(0, sentence);

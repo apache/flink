@@ -13,15 +13,18 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api;
+package eu.stratosphere.streaming.api.streamcomponent;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
-import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
+import eu.stratosphere.streaming.api.AckEvent;
+import eu.stratosphere.streaming.api.FailEvent;
+import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.types.Record;
 
@@ -29,33 +32,20 @@ public class StreamSink extends AbstractOutputTask {
 
 	private List<RecordReader<Record>> inputs;
 	private UserSinkInvokable userFunction;
-	private int numberOfInputs;
+
+	private Random rnd = new Random();
 
 	public StreamSink() {
 		// TODO: Make configuration file visible and call setClassInputs() here
 		inputs = new LinkedList<RecordReader<Record>>();
 		userFunction = null;
-		numberOfInputs = 0;
-	}
-
-	public void setUserFunction(Configuration taskConfiguration) {
-		Class<? extends UserSinkInvokable> userFunctionClass = taskConfiguration
-				.getClass("userfunction", DefaultSinkInvokable.class,
-						UserSinkInvokable.class);
-		try {
-			userFunction = userFunctionClass.newInstance();
-		} catch (Exception e) {
-
-		}
 	}
 
 	@Override
 	public void registerInputOutput() {
 		Configuration taskConfiguration = getTaskConfiguration();
-		// setConfigInputs(taskConfiguration);
-		numberOfInputs = StreamComponentFactory.setConfigInputs(this,
-				taskConfiguration, inputs);
-		setUserFunction(taskConfiguration);
+		StreamComponentFactory.setConfigInputs(this, taskConfiguration, inputs);
+		userFunction = StreamComponentFactory.setUserFunction(taskConfiguration);
 	}
 
 	@Override
@@ -67,12 +57,33 @@ public class StreamSink extends AbstractOutputTask {
 				if (input.hasNext()) {
 					hasInput = true;
 					StreamRecord rec = new StreamRecord(input.next());
-					String id = rec.popId();
-					userFunction.invoke(rec.getRecord());
-					input.publishEvent(new AckEvent(id));
+					String id = rec.getId();
+					try {
+						userFunction.invoke(rec.getRecord());
+						//TODO create concurrent publish method
+						boolean concurrentModificationOccured = false;
+						while (!concurrentModificationOccured) {
+							try {
+								input.publishEvent(new AckEvent(id));
+								concurrentModificationOccured = true;
+							} catch (Exception f) {
+								Thread.sleep(rnd.nextInt(50));
+							}
+						}
+					} catch (Exception e) {
+						boolean concurrentModificationOccured = false;
+						while (!concurrentModificationOccured) {
+							try {
+								input.publishEvent(new FailEvent(id));
+								concurrentModificationOccured = true;
+							} catch (Exception f) {
+								Thread.sleep(rnd.nextInt(50));
+							}
+						}
+					}
 				}
+
 			}
 		}
 	}
-
 }
