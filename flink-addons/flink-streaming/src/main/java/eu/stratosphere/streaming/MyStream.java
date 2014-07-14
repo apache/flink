@@ -1,11 +1,6 @@
 package eu.stratosphere.streaming;
 
-import eu.stratosphere.streaming.cellinfo.WorkerEngineExact;
-
-import java.util.Random;
-
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordReader;
@@ -20,7 +15,10 @@ import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.streaming.cellinfo.WorkerEngineExact;
 import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 
@@ -105,13 +103,22 @@ public class MyStream extends TestBase2 {
 
     @Override
     public void invoke() throws Exception {
-      Random rnd = new Random();
-
       for (int i = 0; i < 5; i++) {
-        // output.emit(new
-        // StringRecord(rnd.nextInt(10)+" "+rnd.nextInt(1000)+" 500"));
-        output.emit(new Record(new StringValue("5 510 100")));
-        output.emit(new Record(new StringValue("4 510 100")));
+      	Record record1 = new Record(3);
+      	record1.setField(0, new IntValue(5));
+      	record1.setField(1, new LongValue(510));
+      	record1.setField(2, new LongValue(100));
+      	
+      	Record record2 = new Record(3);
+      	record2.setField(0, new IntValue(4));
+      	record2.setField(1, new LongValue(510));
+      	record1.setField(2, new LongValue(100));
+      	
+      	output.emit(record1);
+      	output.emit(record2);
+      	
+//        output.emit(new Record(new StringValue("5 510 100")));
+//        output.emit(new Record(new StringValue("4 510 100")));
       }
 
     }
@@ -186,6 +193,16 @@ public class MyStream extends TestBase2 {
 
   }
 
+  private class QuerySourceInvokable implements UserSourceInvokable {
+		@Override
+		public void invoke(RecordWriter<Record> output) throws Exception {
+      for (int i = 0; i < 5; i++) {
+        output.emit(new Record(new StringValue("5 510 100")));
+        output.emit(new Record(new StringValue("4 510 100")));
+      }
+		}
+  }
+  
   @Override
   public JobGraph getJobGraph() {
 
@@ -196,6 +213,7 @@ public class MyStream extends TestBase2 {
     TaskConfig tConfig = new TaskConfig(infoSource.getConfiguration());
     Configuration config = tConfig.getConfiguration();
     config.setClass("partitioner", StreamPartitioner.class);
+    config.setClass("querySourceInvokable", QuerySourceInvokable.class);
     infoSource.setInputClass(InfoSource.class);
 
     final JobInputVertex querySource = new JobInputVertex("MyQuerySource", myJG);
@@ -217,7 +235,7 @@ public class MyStream extends TestBase2 {
       task1.connectTo(sink, ChannelType.INMEMORY);
 
     } catch (JobGraphDefinitionException e) {
-      // TODO Auto-generated catch block
+			// TODO Auto-generated catch block
       e.printStackTrace();
     }
 
