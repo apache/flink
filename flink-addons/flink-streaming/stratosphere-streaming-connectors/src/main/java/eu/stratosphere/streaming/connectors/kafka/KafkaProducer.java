@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.addons.kafka;
+package eu.stratosphere.streaming.connectors.kafka;
 
 import java.io.BufferedReader;
 import java.io.FileReader;

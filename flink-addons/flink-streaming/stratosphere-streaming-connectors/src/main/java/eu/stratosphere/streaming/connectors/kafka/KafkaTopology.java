@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.addons.kafka;
+package eu.stratosphere.streaming.connectors.kafka;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.DataStream;
