@@ -149,7 +149,7 @@ public class StreamRecordTest {
 			Tuple2<Integer, String> tuple = new Tuple2<Integer, String>();
 			StreamRecord<Tuple2<Integer, String>> newRec = new StreamRecord<Tuple2<Integer, String>>(
 					2);
-			Tuple2<Integer, String> tupleOut = (Tuple2<Integer, String>) newRec.readTuple(in, Integer.class, String.class);
+			Tuple2<Integer, String> tupleOut = newRec.read(in);
 
 			assertEquals(tupleOut.getField(0), tuple.getField(0));
 		} catch (IOException e) {
