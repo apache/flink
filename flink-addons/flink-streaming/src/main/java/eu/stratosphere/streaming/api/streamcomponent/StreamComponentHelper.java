@@ -108,7 +108,9 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 	public StreamCollector<Tuple> setCollector(Configuration taskConfiguration, int id,
 			List<RecordWriter<StreamRecord>> outputs) {
 		int batchSize = taskConfiguration.getInteger("batchSize", -1);
-		collector = new StreamCollector<Tuple>(batchSize, id, outSerializationDelegate, outputs);
+		long batchTimeout = taskConfiguration.getLong("batchTimeout", -1);
+		collector = new StreamCollector<Tuple>(batchSize, batchTimeout, id,
+				outSerializationDelegate, outputs);
 		return collector;
 	}
 
@@ -121,7 +123,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		try {
 			ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(operatorBytes));
 			Object function = in.readObject();
-			
+
 			if (operatorName.equals("flatMap")) {
 				setSerializer(function, FlatMapFunction.class);
 			} else if (operatorName.equals("map")) {
@@ -151,21 +153,21 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 		}
 	}
-	
+
 	private void setSerializer(Object function, Class<? extends AbstractFunction> clazz) {
-		inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(clazz,
-				function.getClass(), 0, null, null);
+		inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(clazz, function.getClass(),
+				0, null, null);
 
 		inTupleSerializer = inTupleTypeInfo.createSerializer();
 		inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
 
-		outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(clazz,
-				function.getClass(), 1, null, null);
+		outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(clazz, function.getClass(),
+				1, null, null);
 
 		outTupleSerializer = outTupleTypeInfo.createSerializer();
 		outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
 	}
-	
+
 	public AbstractRecordReader getConfigInputs(T taskBase, Configuration taskConfiguration)
 			throws StreamComponentException {
 		int numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);

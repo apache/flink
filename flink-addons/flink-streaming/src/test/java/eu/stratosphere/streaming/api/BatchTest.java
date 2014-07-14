@@ -47,10 +47,10 @@ public class BatchTest {
 
 		DataStream<Tuple1<String>> dataStream = context
 				.addSource(new MySource())
-				.flatMap(new MyMap()).batch(2)
 				.flatMap(new MyMap()).batch(4)
 				.flatMap(new MyMap()).batch(2)
 				.flatMap(new MyMap()).batch(5)
+				.flatMap(new MyMap()).batch(4)
 				.addSink(new MySink());
 
 		context.execute();

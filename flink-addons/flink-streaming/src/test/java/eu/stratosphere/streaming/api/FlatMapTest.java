@@ -71,12 +71,17 @@ public class FlatMapTest {
 	public void test() throws Exception {
 
 		try {
-			StreamExecutionEnvironment context2 = new StreamExecutionEnvironment(0);
+			StreamExecutionEnvironment context2 = new StreamExecutionEnvironment(0, 1000);
 			fail();
 		} catch (IllegalArgumentException e) {
+			try {
+				StreamExecutionEnvironment context2 = new StreamExecutionEnvironment(1, 0);
+				fail();
+			} catch (IllegalArgumentException e2) {	
+			}
 		}
 		
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment(2);
+		StreamExecutionEnvironment context = new StreamExecutionEnvironment(2, 1000);
 		DataStream<Tuple1<String>> dataStream0 = context.addSource(new MySource());
 
 		DataStream<Tuple1<String>> dataStream1 = context.addDummySource().connectWith(dataStream0)
@@ -96,7 +101,7 @@ public class FlatMapTest {
 
 				FlatMapFunction<Tuple, Tuple> f = (FlatMapFunction<Tuple, Tuple>) in.readObject();
 
-				StreamCollector<Tuple> s = new StreamCollector<Tuple>(1, 1, null);
+				StreamCollector<Tuple> s = new StreamCollector<>(1, 1000, 1, null);
 				Tuple t = new Tuple1<String>("asd");
 
 				f.flatMap(t, s);

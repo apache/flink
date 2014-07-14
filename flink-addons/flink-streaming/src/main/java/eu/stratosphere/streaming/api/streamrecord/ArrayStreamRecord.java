@@ -45,14 +45,19 @@ public class ArrayStreamRecord extends StreamRecord {
 	}
 
 	public ArrayStreamRecord(StreamRecord record) {
-		tupleBatch = new Tuple[record.getBatchSize()];
+		this(record, record.getBatchSize());
+	}
+
+	public ArrayStreamRecord(StreamRecord record, int truncatedSize) {
+		tupleBatch = new Tuple[truncatedSize];
 		this.uid = new UID(Arrays.copyOf(record.getId().getId(), 20));
-		for (int i = 0; i < record.getBatchSize(); ++i) {
+		for (int i = 0; i < truncatedSize; ++i) {
 			this.tupleBatch[i] = copyTuple(record.getTuple(i));
 		}
 		this.batchSize = tupleBatch.length;
 	}
 
+	
 	/**
 	 * Creates a new batch of records containing the given Tuple array as
 	 * elements
