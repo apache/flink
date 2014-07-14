@@ -13,26 +13,22 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.wordcount;
+package eu.stratosphere.streaming.examples.window.sum;
 
-import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WindowWordCountSplitter extends UserTaskInvokable {
-	private String[] words = new String[] {};
+public class WindowSumSink extends UserSinkInvokable {
 
-	private Long timestamp = 0L;
+	private Integer sum = 0;
+	private long timestamp = 0;
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		StreamRecord outputRecord = new StreamRecord(3);
-		words = record.getString(0).split(" ");
+		sum = record.getInteger(0);
 		timestamp = record.getLong(1);
-		for (String word : words) {
-			Tuple3<String, Integer, Long> tuple =new Tuple3<String, Integer, Long>(word, 1, timestamp);
-			outputRecord.addTuple(tuple);
-		}
-		emit(outputRecord);
+		System.out.println("============================================");
+		System.out.println(sum + " " + timestamp);
+		System.out.println("============================================");
 	}
 }

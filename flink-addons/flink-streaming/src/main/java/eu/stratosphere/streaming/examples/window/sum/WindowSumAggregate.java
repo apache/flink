@@ -13,78 +13,59 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.wordcount;
+package eu.stratosphere.streaming.examples.window.sum;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.state.MutableTableState;
-import eu.stratosphere.streaming.state.MutableTableStateIterator;
 import eu.stratosphere.streaming.state.WindowState;
 
-public class WindowWordCountCounter extends UserTaskInvokable {
+public class WindowSumAggregate extends UserTaskInvokable {
 
-	private int windowSize=10;
-	private int slidingStep=2;
-	private int computeGranularity=1;
-	private int windowFieldId=2;
+	private int windowSize = 100;
+	private int slidingStep = 20;
+	private int computeGranularity = 10;
+	private int windowFieldId = 1;
 
 	private StreamRecord tempRecord;
 	private WindowState<Integer> window;
-	private MutableTableState<String, Integer> wordCounts;
-	private long initTimestamp=-1;
-	private long nextTimestamp=-1;
-	private String word = "";
-	private Integer count = 0;
-	private Long timestamp = 0L;
+	private MutableTableState<String, Integer> sum;
+	private long initTimestamp = -1;
+	private long nextTimestamp = -1;
 
-	public WindowWordCountCounter() {
+	private StreamRecord outRecord = new StreamRecord(
+			new Tuple2<Integer, Long>());
+
+	public WindowSumAggregate() {
 		window = new WindowState<Integer>(windowSize, slidingStep,
 				computeGranularity);
-		wordCounts = new MutableTableState<String, Integer>();
+		sum = new MutableTableState<String, Integer>();
+		sum.put("sum", 0);
 	}
 
 	private void incrementCompute(StreamRecord record) {
 		int numTuple = record.getNumOfTuples();
 		for (int i = 0; i < numTuple; ++i) {
-			word = record.getString(i, 0);
-			if (wordCounts.containsKey(word)) {
-				count = wordCounts.get(word) + 1;
-				wordCounts.put(word, count);
-			} else {
-				count = 1;
-				wordCounts.put(word, 1);
-			}
+			int number = record.getInteger(i, 0);
+			sum.put("sum", sum.get("sum") + number);
 		}
 	}
 
 	private void decrementCompute(StreamRecord record) {
 		int numTuple = record.getNumOfTuples();
 		for (int i = 0; i < numTuple; ++i) {
-			word = record.getString(i, 0);
-			count = wordCounts.get(word) - 1;
-			if (count == 0) {
-				wordCounts.delete(word);
-			} else {
-				wordCounts.put(word, count);
-			}
+			int number = record.getInteger(i, 0);
+			sum.put("sum", sum.get("sum") - number);
 		}
-	}
-
-	private void produceRecord(long progress){
-		StreamRecord outRecord = new StreamRecord(3);
-		MutableTableStateIterator<String, Integer> iterator = wordCounts
-				.getIterator();
-		while (iterator.hasNext()) {
-			Tuple2<String, Integer> tuple = iterator.next();
-			Tuple3<String, Integer, Long> outputTuple = new Tuple3<String, Integer, Long>(
-					(String) tuple.getField(0), (Integer) tuple.getField(1), timestamp);
-			outRecord.addTuple(outputTuple);
-		}
-		emit(outRecord);
 	}
 	
+	private void produceRecord(long progress){
+		outRecord.setInteger(0, sum.get("sum"));
+		outRecord.setLong(1, progress);
+		emit(outRecord);
+	}
+
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
 		int numTuple = record.getNumOfTuples();
