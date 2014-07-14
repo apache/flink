@@ -16,14 +16,16 @@
 package eu.stratosphere.streaming.util;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
@@ -68,8 +70,7 @@ public class TestDataUtil {
 				log.info(fileName + " already exists.");
 			}
 			try {
-				checkSumActaul = DigestUtils.md5Hex(FileUtils
-						.readFileToByteArray(file));
+				checkSumActaul = DigestUtils.md5Hex(FileUtils.readFileToByteArray(file));
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -93,20 +94,25 @@ public class TestDataUtil {
 
 	public static void download(String fileName) {
 		System.out.println("downloading " + fileName);
+
 		try {
-			
-			URL website = new URL(testRepoUrl + fileName );
-			ReadableByteChannel rbc = Channels.newChannel(website.openStream());
-			FileOutputStream fos = new FileOutputStream(testDataDir + fileName);
-			fos.getChannel().transferFrom(rbc,0,Long.MAX_VALUE);
-			
-			// String myCommand = "wget -O " + testDataDir + fileName + " " + testRepoUrl + fileName;
-			// System.out.println(myCommand);
-			// Runtime.getRuntime().exec(myCommand);
+			URL website = new URL(testRepoUrl + fileName);
+			BufferedReader bReader = new BufferedReader(new InputStreamReader(website.openStream()));
+			File outFile = new File(testDataDir + fileName);
+			BufferedWriter bWriter = new BufferedWriter(new FileWriter(outFile));
+
+			String line;
+			while ((line = bReader.readLine()) != null) {
+				bWriter.write(line);
+				bWriter.newLine();
+			}
+			bWriter.close();
+		} catch (MalformedURLException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
-
 }
