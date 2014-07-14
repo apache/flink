@@ -17,18 +17,36 @@ package eu.stratosphere.streaming.kafka;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.DataStream;
+import eu.stratosphere.streaming.api.SourceFunction;
 import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.util.Collector;
 
 public class KafkaTopology {
 
+	public static final class MySource extends SourceFunction<Tuple1<String>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void invoke(Collector<Tuple1<String>> collector) throws Exception {
+			// TODO Auto-generated method stub
+			for(int i=0; i<10; i++){
+				collector.collect(new Tuple1<String>(Integer.toString(i)));
+			}
+			
+		}
+	}
+	
 	private static final int SOURCE_PARALELISM = 1;
 
 	public static void main(String[] args) {
-		StreamExecutionEnvironment context = StreamExecutionEnvironment.createLocalEnvironment();
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 		
-		DataStream<Tuple1<String>> stream = context.addSource(new KafkaSource("localhost:2181", "group", "test", 1), SOURCE_PARALELISM)
+		DataStream<Tuple1<String>> stream1 = env.addSource(new KafkaSource("localhost:2181", "group", "test", 1), SOURCE_PARALELISM)
 				.print();
 		
-		context.execute();
+		DataStream<Tuple1<String>> stream2 = env
+				.addSource(new MySource(), 1)
+				.addSink(new KafkaSink("test", "localhost:9092"));
+		env.execute();
 	}
 }

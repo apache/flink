@@ -81,5 +81,6 @@ public class KafkaSource extends SourceFunction<Tuple1<String>> {
 			outTuple.f0 = message;
 			collector.collect(outTuple);
 		}
+		consumer.shutdown();
 	}
 }

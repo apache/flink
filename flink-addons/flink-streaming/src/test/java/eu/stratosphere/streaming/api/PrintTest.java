@@ -43,7 +43,7 @@ public class PrintTest {
 	@Test
 	public void test() throws Exception {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 		env.fromElements(2, 3, 4).print();
 		env.generateSequence(1, 10).print();
 		Set<Integer> a = new HashSet<Integer>();
@@ -53,5 +53,6 @@ public class PrintTest {
 		env.execute();
 
 	}
-
+	
+	
 }

@@ -33,7 +33,7 @@ public class WordCountPerformanceLocal {
 
 	public static void main(String[] args) {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment().setClusterSize(2);
 
 		DataStream<Tuple2<String, Integer>> dataStream = env
 				.readTextStream("/home/strato/stratosphere-distrib/resources/hamlet.txt", 4)

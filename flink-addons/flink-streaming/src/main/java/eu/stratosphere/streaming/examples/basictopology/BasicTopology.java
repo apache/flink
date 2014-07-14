@@ -52,7 +52,7 @@ public class BasicTopology {
 	private static final int SOURCE_PARALELISM = 1;
 
 	public static void main(String[] args) {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
 		DataStream<Tuple1<String>> stream = env.addSource(new BasicSource(), SOURCE_PARALELISM)
 				.map(new BasicMap(), PARALELISM);

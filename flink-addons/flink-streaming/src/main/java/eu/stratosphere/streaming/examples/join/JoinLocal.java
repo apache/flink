@@ -34,7 +34,7 @@ public class JoinLocal {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
 		DataStream<Tuple3<String, String, Integer>> source1 = env.addSource(new JoinSourceOne(),
 				SOURCE_PARALELISM);

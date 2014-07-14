@@ -27,15 +27,15 @@ public class BatchTest {
 
 	private static final int PARALLELISM = 1;
 	private static final int SOURCE_PARALELISM = 1;
-	private static final int SINK_PARALELISM = 3;
+	private static final int SINK_PARALELISM = 5;
 	private static int count = 0;
 	private static boolean partitionCorrect = true;
-
+	
 	private static final class MySource extends SourceFunction<Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
 		private Tuple1<String> outTuple = new Tuple1<String>();
-
+		
 		@Override
 		public void invoke(Collector<Tuple1<String>> collector) throws Exception {
 			for (int i = 0; i < 20; i++) {
@@ -44,7 +44,7 @@ public class BatchTest {
 			}
 		}
 	}
-
+	
 	private static final class MyMap extends FlatMapFunction<Tuple1<String>, Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
@@ -55,7 +55,6 @@ public class BatchTest {
 	}
 
 	private static final class MySink extends SinkFunction<Tuple1<String>> {
-
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -63,29 +62,25 @@ public class BatchTest {
 			count++;
 		}
 	}
-
+	
 	private static final class MyPartitionSink extends SinkFunction<Tuple1<String>> {
-
-		int hash = -1000;
-
 		private static final long serialVersionUID = 1L;
 
+		int hash=-1000;
 		@Override
 		public void invoke(Tuple1<String> tuple) {
-			if (hash == -1000)
-				hash = tuple.f0.hashCode() % SINK_PARALELISM;
-			else {
-				if (hash != tuple.f0.hashCode() % SINK_PARALELISM)
-					partitionCorrect = false;
+			if(hash==-1000) hash=tuple.f0.hashCode() % SINK_PARALELISM;
+			else{
+				if(hash!=tuple.f0.hashCode() % SINK_PARALELISM) partitionCorrect=false;
 			}
 		}
 	}
-
+	
 	@Test
 	public void test() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
-
+		//batchTest
 		DataStream<Tuple1<String>> dataStream1 = env
 				.addSource(new MySource(), SOURCE_PARALELISM)
 				.flatMap(new MyMap(), PARALLELISM).batch(4)
