@@ -190,8 +190,8 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 					StreamRecord record = input.next();
 					UID id = record.getId();
 					userFunction.invoke(record);
-					threadSafePublish(new AckEvent(id), input);
-					log.debug("ACK: " + id + " -- " + name);
+//					threadSafePublish(new AckEvent(id), input);
+//					log.debug("ACK: " + id + " -- " + name);
 				}
 				else if (input.isInputClosed()) {
 					closedInputs.add(input);
