@@ -28,9 +28,9 @@ import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
-import eu.stratosphere.streaming.test.RandIS;
+import eu.stratosphere.streaming.test.DummyIS;
 
-public class StreamSource extends AbstractInputTask<RandIS> {
+public class StreamSource extends AbstractInputTask<DummyIS> {
 
 	private static final Log log = LogFactory.getLog(StreamSource.class);
 
@@ -54,12 +54,12 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 	}
 
 	@Override
-	public RandIS[] computeInputSplits(int requestedMinNumber) throws Exception {
+	public DummyIS[] computeInputSplits(int requestedMinNumber) throws Exception {
 		return null;
 	}
 
 	@Override
-	public Class<RandIS> getInputSplitType() {
+	public Class<DummyIS> getInputSplitType() {
 		return null;
 	}
 
