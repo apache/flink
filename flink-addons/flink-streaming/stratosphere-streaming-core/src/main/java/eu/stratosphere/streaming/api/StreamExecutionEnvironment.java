@@ -439,7 +439,7 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the operator
 	 */
 	protected <T extends Tuple> void setOperatorParallelism(DataStream<T> inputStream) {
-		jobGraphBuilder.setParallelism(inputStream.getId(), inputStream.dop);
+		jobGraphBuilder.setParallelism(inputStream.getId(), inputStream.degreeOfParallelism);
 	}
 
 	/**
