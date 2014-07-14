@@ -15,8 +15,6 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+public interface UserInvokable {
 
-public interface RecordInvokable extends UserInvokable {
-	public void invoke(StreamRecord record) throws Exception;
 }
