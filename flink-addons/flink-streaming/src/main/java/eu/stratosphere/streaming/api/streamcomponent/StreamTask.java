@@ -26,11 +26,8 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.streaming.api.AckEvent;
-import eu.stratosphere.streaming.api.FailEvent;
 import eu.stratosphere.streaming.api.FaultToleranceBuffer;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.api.streamrecord.RecordSizeMismatchException;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class StreamTask extends AbstractTask {
@@ -84,35 +81,11 @@ public class StreamTask extends AbstractTask {
 		streamTaskHelper.setAckListener(recordBuffer, taskInstanceID, outputs);
 		streamTaskHelper.setFailListener(recordBuffer, taskInstanceID, outputs);
 	}
-
-	//TODO: eliminate code repetition (StreamSink)
+	
 	@Override
 	public void invoke() throws Exception {
 		log.debug("TASK " + name + " invoked with instance id " + taskInstanceID);
-
-		boolean hasInput = true;
-		while (hasInput) {
-			hasInput = false;
-			for (RecordReader<StreamRecord> input : inputs) {
-				if (input.hasNext()) {
-					hasInput = true;
-					StreamRecord streamRecord = input.next();
-					String id = streamRecord.getId();
-					try {
-						userFunction.invoke(streamRecord);
-						streamTaskHelper.threadSafePublish(new AckEvent(id), input);
-						log.debug("ACK: " + id + " -- " + name);
-						//TODO: write an exception class to throw forward (set this for Sink too)
-					} catch (RecordSizeMismatchException e) {
-						throw (e);
-					} catch (Exception e) {
-						e.printStackTrace();
-						streamTaskHelper.threadSafePublish(new FailEvent(id), input);
-						log.warn("FAILED: " + id + " -- " + name + " -- due to " + e.getClass().getSimpleName());
-					}
-				}
-			}
-		}
+		streamTaskHelper.invokeRecords(userFunction, inputs, name);
 		log.debug("TASK " + name + " invoke finished with instance id " + taskInstanceID);
 	}
 
