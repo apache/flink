@@ -25,26 +25,55 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
  * compose time based window operator by extending this class by splitting the
  * stream into multiple mini batches.
  */
-public class WindowInternalState<K> implements InternalState<K, StreamRecord> {
+public class WindowState<K> {
+	private int windowSize;
+	private int slidingStep;
+	private int computeGranularity;
+	private int windowFieldId;
+	
+	private int initTimestamp;
+	private int nextTimestamp;
 	private int currentRecordNum;
 	private int fullRecordNum;
 	private int slideRecordNum;
+	
 	CircularFifoBuffer buffer;
+	StreamRecord tempRecord;
 
-	public WindowInternalState(int windowSize, int slidingStep) {
-		currentRecordNum = 0;
-		fullRecordNum = windowSize;
-		slideRecordNum = slidingStep;
-		buffer = new CircularFifoBuffer(windowSize);
+	public WindowState(int windowSize, int slidingStep, int computeGranularity, int windowFieldId) {
+		this.windowSize = windowSize;
+		this.slidingStep = slidingStep;
+		this.computeGranularity = computeGranularity;
+		this.windowFieldId = windowFieldId;
+		
+		this.initTimestamp = -1;
+		this.nextTimestamp = -1;
+		this.currentRecordNum = 0;
+		//here we assume that windowSize and slidingStep is divisible by computeGranularity. 
+		this.fullRecordNum = windowSize / computeGranularity;
+		this.slideRecordNum = slidingStep / computeGranularity;
+		
+		this.buffer = new CircularFifoBuffer(fullRecordNum);
 	}
 
-	public void pushBack(StreamRecord records) {
-		buffer.add(records);
-		currentRecordNum += 1;
+	public void pushBack(StreamRecord record) {
+		if (initTimestamp == -1){
+			initTimestamp = record.getTuple(0).getField(windowFieldId);
+			nextTimestamp = initTimestamp + computeGranularity;
+			tempRecord = new StreamRecord(record.getNumOfFields());
+		}
+		for (int i = 0; i < record.getNumOfTuples(); ++i) {
+			while((Integer) record.getTuple(i).getField(windowFieldId) > nextTimestamp){				
+				buffer.add(tempRecord);
+				currentRecordNum += 1;
+				tempRecord = new StreamRecord(record.getNumOfFields());
+			}
+			tempRecord.addShadowTuple(record.getTuple(i));
+		}
 	}
 
 	public StreamRecord popFront() {
-		StreamRecord frontRecord=(StreamRecord) buffer.get();
+		StreamRecord frontRecord = (StreamRecord) buffer.get();
 		buffer.remove();
 		return frontRecord;
 	}
@@ -59,36 +88,6 @@ public class WindowInternalState<K> implements InternalState<K, StreamRecord> {
 			return true;
 		}
 		return false;
-	}
-
-	@Override
-	public void put(K key, StreamRecord value) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public StreamRecord get(K key) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public void delete(K key) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public boolean containsKey(K key) {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public StateIterator<K, StreamRecord> getIterator() {
-		// TODO Auto-generated method stub
-		return null;
 	}
 
 }

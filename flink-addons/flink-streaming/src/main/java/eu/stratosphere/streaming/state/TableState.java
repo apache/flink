@@ -18,10 +18,12 @@ package eu.stratosphere.streaming.state;
 /**
  * An internal state interface that supports stateful operator.
  */
-public interface InternalState<K, V> {
+public interface TableState<K, V> {
 	public void put(K key, V value);
 	public V get(K key);
 	public void delete(K key);
 	public boolean containsKey(K key);
-	public StateIterator<K, V> getIterator();
+	public String serialize();
+	public void deserialize(String str);
+	public TableStateIterator<K, V> getIterator();
 }

@@ -15,28 +15,55 @@
 
 package eu.stratosphere.streaming.state;
 
-import java.util.Iterator;
-import java.util.Map.Entry;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
-import eu.stratosphere.api.java.tuple.Tuple2;
+/**
+ * The most general internal state that stores data in a mutable map.
+ */
+public class MutableTableState<K, V> implements TableState<K, V> {
 
-public class MutableStateIterator<K, V> implements StateIterator<K, V>{
-
-	private Iterator<Entry<K, V>> iterator;
-	public MutableStateIterator(Iterator<Entry<K, V>> iter){
-		iterator=iter;
-	}
-	
+	private Map<K, V> state=new LinkedHashMap<K, V>();
 	@Override
-	public boolean hasNext() {
+	public void put(K key, V value) {
 		// TODO Auto-generated method stub
-		return iterator.hasNext();
+		state.put(key, value);
 	}
 
 	@Override
-	public Tuple2<K, V> next() {
+	public V get(K key) {
 		// TODO Auto-generated method stub
-		Entry<K, V> entry=iterator.next();
-		return new Tuple2<K, V>(entry.getKey(), entry.getValue());
+		return state.get(key);
 	}
+
+	@Override
+	public void delete(K key) {
+		// TODO Auto-generated method stub
+		state.remove(key);
+	}
+
+	@Override
+	public boolean containsKey(K key) {
+		// TODO Auto-generated method stub
+		return state.containsKey(key);
+	}
+
+	@Override
+	public TableStateIterator<K, V> getIterator() {
+		// TODO Auto-generated method stub
+		return new MutableTableStateIterator<K, V>(state.entrySet().iterator());
+	}
+
+	@Override
+	public String serialize() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void deserialize(String str) {
+		// TODO Auto-generated method stub
+		
+	}
+
 }
