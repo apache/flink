@@ -55,7 +55,6 @@ public class FlatMapTest {
 
 		@Override
 		public void invoke(Tuple1<String> tuple) {
-			// TODO Auto-generated method stub
 			System.out.println(tuple);
 		}
 
