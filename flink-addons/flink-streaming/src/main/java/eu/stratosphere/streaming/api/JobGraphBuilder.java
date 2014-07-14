@@ -306,7 +306,8 @@ public class JobGraphBuilder {
 
 	public void setBatchSize(String componentName, int batchSize) {
 		Configuration config = components.get(componentName).getConfiguration();
-		config.setInteger("batchSize", batchSize);
+		config.setInteger("batchSize_"
+				+ (components.get(componentName).getNumberOfForwardConnections() - 1), batchSize);
 	}
 
 	/**

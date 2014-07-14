@@ -18,6 +18,7 @@ package eu.stratosphere.streaming.api.streamcomponent;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 
@@ -75,6 +76,12 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 	private SerializationDelegate<Tuple> outSerializationDelegate = null;
 
 	public StreamCollector<Tuple> collector;
+	private List<Integer> batchsizes_s = new ArrayList<Integer>();
+	private List<Integer> batchsizes_f = new ArrayList<Integer>();
+	private int keyPosition = 0;
+
+	private List<RecordWriter<StreamRecord>> outputs_s = new ArrayList<RecordWriter<StreamRecord>>();
+	private List<RecordWriter<StreamRecord>> outputs_f = new ArrayList<RecordWriter<StreamRecord>>();
 
 	public static int newComponent() {
 		numComponents++;
@@ -109,6 +116,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			List<RecordWriter<StreamRecord>> outputs) {
 
 		int batchSize = taskConfiguration.getInteger("batchSize", 1);
+
 		long batchTimeout = taskConfiguration.getLong("batchTimeout", 1000);
 		collector = new StreamCollector<Tuple>(batchSize, batchTimeout, id,
 				outSerializationDelegate, outputs);
@@ -208,10 +216,11 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			List<ChannelSelector<StreamRecord>> partitioners) throws StreamComponentException {
 
 		int numberOfOutputs = taskConfiguration.getInteger("numberOfOutputs", 0);
+
 		for (int i = 0; i < numberOfOutputs; i++) {
 			setPartitioner(taskConfiguration, i, partitioners);
-		}
-		for (ChannelSelector<StreamRecord> outputPartitioner : partitioners) {
+			ChannelSelector<StreamRecord> outputPartitioner = partitioners.get(i);
+
 			if (taskBase instanceof StreamTask) {
 				outputs.add(new RecordWriter<StreamRecord>((StreamTask) taskBase,
 						StreamRecord.class, outputPartitioner));
@@ -220,6 +229,11 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 						StreamRecord.class, outputPartitioner));
 			} else {
 				throw new StreamComponentException("Nonsupported object passed to setConfigOutputs");
+			}
+			if (outputs_f.size() < batchsizes_f.size()) {
+				outputs_f.add(outputs.get(i));
+			} else {
+				outputs_s.add(outputs.get(i));
 			}
 		}
 	}
@@ -321,14 +335,18 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		Class<? extends ChannelSelector<StreamRecord>> partitioner = taskConfiguration.getClass(
 				"partitionerClass_" + nrOutput, DefaultPartitioner.class, ChannelSelector.class);
 
+		Integer batchSize = taskConfiguration.getInteger("batchSize_" + nrOutput, 1);
+
 		try {
 			if (partitioner.equals(FieldsPartitioner.class)) {
-				int keyPosition = taskConfiguration
-						.getInteger("partitionerIntParam_" + nrOutput, 1);
+				batchsizes_f.add(batchSize);
+				// TODO:force one partitioning field
+				keyPosition = taskConfiguration.getInteger("partitionerIntParam_" + nrOutput, 1);
 
 				partitioners.add(partitioner.getConstructor(int.class).newInstance(keyPosition));
 
 			} else {
+				batchsizes_s.add(batchSize);
 				partitioners.add(partitioner.newInstance());
 			}
 			if (log.isTraceEnabled()) {
