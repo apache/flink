@@ -39,12 +39,11 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 	protected void addToAckCounter(String id) {
 		ackCounter.put(id, Arrays.copyOf(initialAckCounts, numberOfEffectiveChannels.length + 1));
 	}
-	
-	
+
 	protected void addToAckCounter(String id, int channel) {
-		int[] acks=new int[numberOfEffectiveChannels.length + 1];
-		acks[0]=numberOfEffectiveChannels.length-1;
-		acks[channel+1]=numberOfEffectiveChannels[channel];
+		int[] acks = new int[numberOfEffectiveChannels.length + 1];
+		acks[0] = numberOfEffectiveChannels.length - 1;
+		acks[channel + 1] = numberOfEffectiveChannels[channel];
 		ackCounter.put(id, acks);
 	}
 
@@ -77,19 +76,24 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 
 	@Override
 	protected StreamRecord failChannel(String id, int channel) {
-		
-		if(notAcked(id, channel)){
+
+		if (notAcked(id, channel)) {
 			int[] acks = ackCounter.get(id);
 			acks[channel + 1] = 0;
 			acks[0]++;
-			return addToChannel(id, channel);
-		} else{
+
+			StreamRecord newRecord = addToChannel(id, channel);
 			
+			if (acks[0] == numberOfEffectiveChannels.length) {
+				remove(id);
+			}
+			return newRecord;
+		} else {
 			return null;
 		}
-		
+
 	}
-	
+
 	protected StreamRecord addToChannel(String id, int channel) {
 
 		StreamRecord record = recordBuffer.get(id).copy().setId(componentInstanceID);
@@ -98,20 +102,20 @@ public class ExactlyOnceFaultToleranceBuffer extends FaultToleranceBuffer {
 		recordBuffer.put(new_id, record);
 		addTimestamp(new_id);
 
-		addToAckCounter(new_id,channel);
+		addToAckCounter(new_id, channel);
 		return record;
 	}
 
 	protected boolean notAcked(String id, int channel) {
 		int[] acks = ackCounter.get(id);
 		if (acks != null) {
-			if(acks[channel+1]>0){
+			if (acks[channel + 1] > 0) {
 				return true;
-			}	
-		} 
-		
+			}
+		}
+
 		return false;
-	
+
 	}
 
 }
