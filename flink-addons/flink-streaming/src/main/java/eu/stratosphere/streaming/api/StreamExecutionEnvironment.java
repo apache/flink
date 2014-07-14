@@ -91,8 +91,6 @@ public class StreamExecutionEnvironment {
 			}
 
 		}
-		this.setBatchSize(inputStream);
-
 	}
 
 	public <T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName,
