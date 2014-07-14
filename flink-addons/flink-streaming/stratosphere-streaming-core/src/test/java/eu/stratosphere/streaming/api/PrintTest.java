@@ -80,13 +80,15 @@ public class PrintTest {
 		LocalStreamEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(1);
 
-		env.fromElements(2, 3, 4).print();
-		env.generateSequence(1, 10).print();
-		Set<Integer> a = new HashSet<Integer>();
-		a.add(-2);
-		a.add(-100);
-		env.fromCollection(a).print();
+		env.fromElements(2, 3, 4).flatMapSource(new Increment()).flatMapSink(new Forward()).print();
+//		env.generateSequence(1, 10).print();
+//		Set<Integer> a = new HashSet<Integer>();
+//		a.add(-2);
+//		a.add(-100);
+//		env.fromCollection(a).print();
 		env.executeTest(MEMORYSIZE);
+		
+		
 	}
 
 }

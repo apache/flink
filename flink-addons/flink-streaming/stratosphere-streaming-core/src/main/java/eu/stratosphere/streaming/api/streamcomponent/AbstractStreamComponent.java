@@ -54,13 +54,13 @@ import eu.stratosphere.util.Collector;
 public abstract class AbstractStreamComponent extends AbstractInvokable {
 	private final Log log = LogFactory.getLog(AbstractStreamComponent.class);
 
-	private TupleTypeInfo<Tuple> inTupleTypeInfo = null;
-	private TupleSerializer<Tuple> inTupleSerializer = null;
-	private DeserializationDelegate<Tuple> inDeserializationDelegate = null;
+	protected TupleTypeInfo<Tuple> inTupleTypeInfo = null;
+	protected TupleSerializer<Tuple> inTupleSerializer = null;
+	protected DeserializationDelegate<Tuple> inDeserializationDelegate = null;
 
-	private TupleTypeInfo<Tuple> outTupleTypeInfo = null;
-	private TupleSerializer<Tuple> outTupleSerializer = null;
-	private SerializationDelegate<Tuple> outSerializationDelegate = null;
+	protected TupleTypeInfo<Tuple> outTupleTypeInfo = null;
+	protected TupleSerializer<Tuple> outTupleSerializer = null;
+	protected SerializationDelegate<Tuple> outSerializationDelegate = null;
 
 	private List<Integer> batchSizesNotPartitioned = new ArrayList<Integer>();
 	private List<Integer> batchSizesPartitioned = new ArrayList<Integer>();

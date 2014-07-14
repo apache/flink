@@ -282,6 +282,26 @@ public class DataStream<T extends Tuple> {
 		return environment.addFunction("flatMap", this.copy(), flatMapper,
 				new FlatMapInvokable<T, R>(flatMapper));
 	}
+	
+	public <R extends Tuple> DataStream<R> flatMapSource(FlatMapFunction<T, R> flatMapper){
+		DataStream<R> rS = environment.addFunction("flatMap", this.copy(), flatMapper,
+				new FlatMapInvokable<T, R>(flatMapper));
+		
+		environment.addIterationSource("flatMap", this.copy(), flatMapper,
+				new FlatMapInvokable<T, R>(flatMapper), rS.getId());
+		
+		return rS;
+	}
+	
+	public <R extends Tuple> DataStream<R> flatMapSink(FlatMapFunction<T, R> flatMapper){
+		DataStream<R> rS = environment.addFunction("flatMap", this.copy(), flatMapper,
+				new FlatMapInvokable<T, R>(flatMapper));
+		
+		environment.addIterationSink("flatMap", this.copy(), flatMapper,
+				new FlatMapInvokable<T, R>(flatMapper), rS.getId());
+		
+		return rS;
+	}
 
 	/**
 	 * Applies a Filter transformation on a {@link DataStream}. The
