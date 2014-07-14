@@ -18,12 +18,12 @@ package eu.stratosphere.streaming.examples.wordcount;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.util.PerformanceCounter;
 
 public class WordCountDummySource2 extends UserSourceInvokable {
 
 	StreamRecord record = new StreamRecord(new Tuple1<String>());
-	private long time;
-	private long prevTime = System.currentTimeMillis();
+	PerformanceCounter perf = new PerformanceCounter("SourceEmitCounter", 1000, 10000);
 
 	public WordCountDummySource2() {
 	}
@@ -31,19 +31,21 @@ public class WordCountDummySource2 extends UserSourceInvokable {
 	@Override
 	public void invoke() throws Exception {
 
-		for (int i = 0; i < 100000; i++) {
-			if (i % 50000 == 0) {
-				time = System.currentTimeMillis();
-				System.out.println("Source:\t\t" + i + "\t\tTime: " + (time - prevTime));
-				prevTime = time;
-			}
+		for (int i = 0; i < 1000000; i++) {
 
 			if (i % 2 == 0) {
-				record.setString(0, "Gyula Marci");
+				record.setString(0, "Gyula Bela");
 			} else {
 				record.setString(0, "Gabor Frank");
 			}
 			emit(record);
+			perf.count();
 		}
+	}
+
+	@Override
+	public String getResult() {
+		perf.writeCSV("C:/temp/strato/Source"+channelID+".csv");
+		return "";
 	}
 }

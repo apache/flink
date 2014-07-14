@@ -17,26 +17,21 @@ package eu.stratosphere.streaming.examples.wordcount;
 
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.util.PerformanceCounter;
 
 public class WordCountSink extends UserSinkInvokable {
 
-	int nrOfRecords = 0;
-	private long time;
-	private long prevTime = System.currentTimeMillis();
+	PerformanceCounter perf = new PerformanceCounter("SinkEmitCounter", 1000, 10000);
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		nrOfRecords++;
-		if (nrOfRecords % 50000 == 0) {
-			time = System.currentTimeMillis();
-			System.out.println("Sink:\t" + nrOfRecords + "\t----Time: " + (time - prevTime));
-			prevTime = time;
-		}
+		perf.count();
 	}
 
 	@Override
 	public String getResult() {
-		return String.valueOf(nrOfRecords);
+		perf.writeCSV("C:/temp/strato/Sink.csv");
+		return "";
 	}
 
 }
