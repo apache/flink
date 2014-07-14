@@ -19,6 +19,7 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
+import eu.stratosphere.client.program.JobWithJars;
 import eu.stratosphere.configuration.ConfigConstants;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobClient;
@@ -45,7 +46,7 @@ public class WordCountCluster {
 
 	private static JobGraph getJobGraph() throws Exception {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountSource.class);
+		graphBuilder.setSource("WordCountSource", WordCountDummySource.class);
 		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
 		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
 		graphBuilder.setSink("WordCountSink", WordCountSink.class);
@@ -68,12 +69,17 @@ public class WordCountCluster {
 			Configuration configuration = jG.getJobConfiguration();
 			configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "hadoop02.ilab.sztaki.hu");
 			configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRpcPort);
-			configuration.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 6122);
-		//	configuration.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, 7501);
+			
 			
 			JobClient client= new JobClient(jG, configuration);
 			
+			
+			//JobClient client = exec.getJobClient(jG);
 
+			ClassLoader userClassLoader;
+			
+			
+			
 			client.submitJobAndWait();
 
 		} catch (Exception e) {

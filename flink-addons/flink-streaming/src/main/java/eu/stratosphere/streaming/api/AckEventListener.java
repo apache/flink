@@ -41,8 +41,7 @@ public class AckEventListener implements EventListener {
 	 * @param recordBuffer
 	 *            The fault tolerance buffer associated with this task
 	 */
-	public AckEventListener(String taskInstanceID,
-			FaultToleranceBuffer recordBuffer) {
+	public AckEventListener(String taskInstanceID, FaultToleranceBuffer recordBuffer) {
 		this.taskInstanceID = taskInstanceID;
 		this.recordBuffer = recordBuffer;
 	}
@@ -57,20 +56,12 @@ public class AckEventListener implements EventListener {
 		AckEvent ackEvent = (AckEvent) event;
 		String recordId = ackEvent.getRecordId();
 		String ackCID = recordId.split("-", 2)[0];
-		if (ackCID.equals(taskInstanceID)) {
 
+		if (ackCID.equals(taskInstanceID)) {
 			Long nt = System.nanoTime();
 			recordBuffer.ackRecord(ackEvent.getRecordId());
 
-			if (log.isDebugEnabled()) {
-				log.debug("Ack recieved " + ackEvent.getRecordId()
-						+ "\nAck exec. time(ns): " + (System.nanoTime() - nt));
-			}
-
-			// System.out.println("Ack recieved " + ackEvent.getRecordId()
-			// + "\nAck exec. time(ns): " + (System.nanoTime() - nt));
-			// System.out.println("--------------");
+			log.debug("Ack recieved " + ackEvent.getRecordId() + "\nAck exec. time(ns): " + (System.nanoTime() - nt));
 		}
-
 	}
 }

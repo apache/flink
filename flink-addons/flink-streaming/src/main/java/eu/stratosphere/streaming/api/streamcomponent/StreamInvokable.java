@@ -17,11 +17,17 @@ package eu.stratosphere.streaming.api.streamcomponent;
 
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.streaming.api.FailEvent;
 import eu.stratosphere.streaming.api.FaultToleranceBuffer;
 import eu.stratosphere.streaming.api.StreamRecord;
 
 public abstract class StreamInvokable {
+
+	private static final Log log = LogFactory.getLog(StreamInvokable.class);
 
 	private List<RecordWriter<StreamRecord>> outputs;
 
@@ -41,17 +47,11 @@ public abstract class StreamInvokable {
 		emittedRecords.addRecord(record);
 		try {
 			for (RecordWriter<StreamRecord> output : outputs) {
-
 				output.emit(record);
-
-				// System.out.println(this.getClass().getName());
-				// System.out.println("Emitted " + record.getId() + "-"
-				// + record.toString());
-				// System.out.println("---------------------");
-
+				log.debug("Record emitted: " + record.getId());
 			}
 		} catch (Exception e) {
-			System.out.println("Emit error: " + e.getMessage());
+			log.warn("Emit error: " + e.getMessage());
 			emittedRecords.failRecord(record.getId());
 		}
 	}
