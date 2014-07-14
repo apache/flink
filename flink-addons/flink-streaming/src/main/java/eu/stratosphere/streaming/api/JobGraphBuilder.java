@@ -34,6 +34,7 @@ import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamcomponent.StreamSink;
 import eu.stratosphere.streaming.api.streamcomponent.StreamSource;
 import eu.stratosphere.streaming.api.streamcomponent.StreamTask;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.partitioner.BroadcastPartitioner;
 import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
 import eu.stratosphere.streaming.partitioner.GlobalPartitioner;

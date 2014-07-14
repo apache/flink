@@ -15,7 +15,7 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
-import eu.stratosphere.streaming.api.StreamRecord;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.types.StringValue;
 
 public class DefaultSinkInvokable implements UserSinkInvokable {

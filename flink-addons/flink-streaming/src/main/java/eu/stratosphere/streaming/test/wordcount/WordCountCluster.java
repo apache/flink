@@ -69,12 +69,11 @@ public class WordCountCluster {
 			Configuration configuration = jG.getJobConfiguration();
 			configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "hadoop02.ilab.sztaki.hu");
 			configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRpcPort);
-			
+			configuration.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 6122);
+		//	configuration.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, 7501);
 			
 			JobClient client= new JobClient(jG, configuration);
 			
-			
-			//JobClient client = exec.getJobClient(jG);
 
 			ClassLoader userClassLoader;
 			

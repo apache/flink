@@ -18,8 +18,8 @@ package eu.stratosphere.streaming.test.window.wordcount;
 import java.util.HashMap;
 import java.util.Map;
 
-import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;

@@ -15,8 +15,8 @@
 
 package eu.stratosphere.streaming.test.cellinfo;
 
-import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.types.IntValue;
 
 public class CellSinkInvokable implements UserSinkInvokable {

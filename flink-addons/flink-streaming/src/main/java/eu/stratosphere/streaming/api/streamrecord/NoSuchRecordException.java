@@ -13,10 +13,10 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api;
+package eu.stratosphere.streaming.api.streamrecord;
 
-public class NoSuchFieldException extends StreamRecordException {
+public class NoSuchRecordException extends StreamRecordException {
 
-	private static final long serialVersionUID = 3604681465275112784L;
+	private static final long serialVersionUID = 4935457355434561574L;
 
 }
