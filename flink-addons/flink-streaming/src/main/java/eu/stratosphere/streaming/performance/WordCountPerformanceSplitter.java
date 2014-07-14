@@ -28,25 +28,16 @@ public class WordCountPerformanceSplitter extends FlatMapFunction<Tuple1<String>
 
 	 PerformanceCounter pCounter = new
 	 PerformanceCounter("SplitterEmitCounter", 1000, 1000, 30000,
-	 "/home/judit/strato/perf/broadcast4.csv");
+	 "/home/mbalassi/strato-perf.csv");
 
 	@Override
 	public void flatMap(Tuple1<String> inTuple, Collector<Tuple1<String>> out) throws Exception {
 
 		for (String word : inTuple.f0.split(" ")) {
 			outTuple.f0 = word;
-			// pTimer.startTimer();
 			out.collect(outTuple);
-			// pTimer.stopTimer();
 			pCounter.count();
 		}
 	}
-
-	// @Override
-	// public String getResult() {
-	// pCounter.writeCSV();
-	// pTimer.writeCSV();
-	// return "";
-	// }
 
 }
