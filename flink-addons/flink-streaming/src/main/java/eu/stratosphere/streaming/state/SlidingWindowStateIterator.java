@@ -21,10 +21,12 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 public class SlidingWindowStateIterator<K>{
 
 	public boolean hasNext() {
+		// TODO Auto-generated method stub
 		return false;
 	}
 
 	public Tuple2<K, StreamRecord> next() {
+		// TODO Auto-generated method stub
 		return null;
 	}
 

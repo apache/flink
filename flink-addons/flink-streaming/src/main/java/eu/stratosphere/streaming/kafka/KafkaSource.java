@@ -29,8 +29,9 @@ import eu.stratosphere.streaming.api.SourceFunction;
 import eu.stratosphere.util.Collector;
 
 /**
- * Source for reading messages from a Kafka queue. 
- * The source currently only support string messages.
+ * Source for reading messages from a Kafka queue. The source currently only
+ * support string messages. Other types will be added soon.
+ * 
  */
 public class KafkaSource extends SourceFunction<Tuple1<String>> {
 	private static final long serialVersionUID = 1L;

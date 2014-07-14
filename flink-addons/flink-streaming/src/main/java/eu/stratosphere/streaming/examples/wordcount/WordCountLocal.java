@@ -22,16 +22,16 @@ import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
 public class WordCountLocal {
 
 	public static void main(String[] args) {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple2<String, Integer>> dataStream = context
+		DataStream<Tuple2<String, Integer>> dataStream = env
 				.readTextFile("src/test/resources/testdata/hamlet.txt")
 				.flatMap(new WordCountSplitter())
 				.partitionBy(0)
 				.map(new WordCountCounter())
 				.addSink(new WordCountSink());
 		
-		context.execute();
+		env.execute();
 	}
 }

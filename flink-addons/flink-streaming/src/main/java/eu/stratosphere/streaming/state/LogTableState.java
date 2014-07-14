@@ -15,43 +15,60 @@
 
 package eu.stratosphere.streaming.state;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.HashMap;
+
+import eu.stratosphere.streaming.index.IndexPair;
 
 /**
- * The most general internal state that stores data in a mutable map.
+ * The log-structured key value store thats accept any modification operation by
+ * appending the value to the end of the state.
  */
-public class MutableTableState<K, V> implements TableState<K, V> {
+public class LogTableState<K, V> implements TableState<K, V> {
 
-	private Map<K, V> state=new LinkedHashMap<K, V>();
+	private HashMap<K, IndexPair> hashMap = new HashMap<K, IndexPair>();
+	private HashMap<Integer, ArrayList<V>> blockList = new HashMap<Integer, ArrayList<V>>();
+	private final int perBlockEntryCount = 1000;
+	private IndexPair nextInsertPos = new IndexPair(-1, -1);
+
+	public LogTableState() {
+		blockList.put(0, new ArrayList<V>());
+		nextInsertPos.setIndexPair(0, 0);
+	}
+
 	@Override
 	public void put(K key, V value) {
 		// TODO Auto-generated method stub
-		state.put(key, value);
+		if (nextInsertPos.entryId == perBlockEntryCount) {
+			blockList.put(nextInsertPos.blockId + 1, new ArrayList<V>());
+			nextInsertPos.IncrementBlock();
+		}
+		blockList.get(nextInsertPos.blockId).add(value);
+		hashMap.put(key, new IndexPair(nextInsertPos));
+		nextInsertPos.entryId += 1;
 	}
 
 	@Override
 	public V get(K key) {
 		// TODO Auto-generated method stub
-		return state.get(key);
+		IndexPair index = hashMap.get(key);
+		if (index == null) {
+			return null;
+		} else {
+			return blockList.get(index.blockId).get(index.entryId);
+		}
 	}
 
 	@Override
 	public void delete(K key) {
 		// TODO Auto-generated method stub
-		state.remove(key);
+		hashMap.remove(key);
 	}
 
 	@Override
 	public boolean containsKey(K key) {
 		// TODO Auto-generated method stub
-		return state.containsKey(key);
-	}
-
-	@Override
-	public MutableTableStateIterator<K, V> getIterator() {
-		// TODO Auto-generated method stub
-		return new MutableTableStateIterator<K, V>(state.entrySet().iterator());
+		return hashMap.containsKey(key);
 	}
 
 	@Override
@@ -63,7 +80,13 @@ public class MutableTableState<K, V> implements TableState<K, V> {
 	@Override
 	public void deserialize(String str) {
 		// TODO Auto-generated method stub
-		
+
+	}
+
+	@Override
+	public TableStateIterator<K, V> getIterator() {
+		// TODO Auto-generated method stub
+		return new LogTableStateIterator<K, V>(hashMap.entrySet().iterator(), blockList);
 	}
 
 }
