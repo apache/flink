@@ -130,7 +130,7 @@ public class FaultTolerancyBuffer {
 				ackCounter.put(recordID, ackCount);
 			}
 		}
-		timeoutRecords(System.currentTimeMillis());
+		//timeoutRecords(System.currentTimeMillis());
 	}
 
 	public void failRecord(String recordID) {

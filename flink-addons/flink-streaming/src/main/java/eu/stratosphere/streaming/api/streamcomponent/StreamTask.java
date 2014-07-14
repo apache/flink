@@ -87,6 +87,7 @@ public class StreamTask extends AbstractTask {
 						streamTaskHelper.threadSafePublish(new AckEvent(id), input);
 					} catch (Exception e) {
 						streamTaskHelper.threadSafePublish(new FailEvent(id), input);
+						e.printStackTrace();
 					}
 				}
 			}

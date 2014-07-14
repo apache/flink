@@ -30,13 +30,13 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		this.numOfFields = length;
 		recordBatch = new ArrayList<Value[]>();
 	}
-	
-	public StreamRecord(AtomRecord record){
-		Value[] fields=record.getFields();
+
+	public StreamRecord(AtomRecord record) {
+		Value[] fields = record.getFields();
 		numOfFields = fields.length;
 		recordBatch = new ArrayList<Value[]>();
 		recordBatch.add(fields);
-		numOfRecords=recordBatch.size();
+		numOfRecords = recordBatch.size();
 	}
 
 	public int getNumOfFields() {
@@ -60,8 +60,8 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	public Value getField(int recordNumber, int fieldNumber) {
 		return recordBatch.get(recordNumber)[fieldNumber];
 	}
-	
-	public AtomRecord getRecord(int recordNumber){
+
+	public AtomRecord getRecord(int recordNumber) {
 		return new AtomRecord(recordBatch.get(recordNumber));
 	}
 
@@ -132,10 +132,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		}
 	}
 
-	public StreamRecord newInstance() {
-		return new StreamRecord(0);
-	}
-
 	// TODO: fix this method to work properly for non StringValue types
 	public String toString() {
 		StringBuilder outputString = new StringBuilder();
@@ -146,9 +142,8 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 					output = (StringValue) recordBatch.get(k)[i];
 					outputString.append(output.getValue() + "*");
 				} catch (ClassCastException e) {
-					outputString.append("PRINT_ERROR*");
+					outputString.append("NON-STRING*");
 				}
-
 			}
 		}
 		return outputString.toString();
