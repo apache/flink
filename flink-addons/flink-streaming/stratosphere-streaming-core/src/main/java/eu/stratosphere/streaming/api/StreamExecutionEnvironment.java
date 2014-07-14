@@ -22,6 +22,7 @@ import java.util.Collection;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.java.ExecutionEnvironment;
+import eu.stratosphere.api.java.LocalEnvironment;
 import eu.stratosphere.api.java.RemoteEnvironment;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
@@ -302,24 +303,6 @@ public abstract class StreamExecutionEnvironment {
 		return returnStream;
 	}
 
-	protected <T extends Tuple, R extends Tuple> void addIterationSource(DataStream<T> inputStream) {
-		DataStream<R> returnStream = new DataStream<R>(this, "iterationHead");
-
-		jobGraphBuilder.setIterationSource(returnStream.getId(), inputStream.getId(),
-				degreeOfParallelism);
-
-		jobGraphBuilder.shuffleConnect(returnStream.getId(), inputStream.getId());
-	}
-
-	protected <T extends Tuple, R extends Tuple> void addIterationSink(DataStream<T> inputStream) {
-		DataStream<R> returnStream = new DataStream<R>(this, "iterationTail");
-
-		jobGraphBuilder.setIterationSink(returnStream.getId(), inputStream.getId(),
-				degreeOfParallelism);
-
-		jobGraphBuilder.shuffleConnect(inputStream.getId(), returnStream.getId());
-	}
-
 	/**
 	 * Adds the given sink to this environment. Only streams with sinks added
 	 * will be executed once the {@link #execute()} method is called.
@@ -362,17 +345,6 @@ public abstract class StreamExecutionEnvironment {
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 
 		return returnStream;
-	}
-
-	// TODO iterative datastream
-	protected void iterate() {
-		jobGraphBuilder.iterationStart = true;
-	}
-
-	protected <T extends Tuple> DataStream<T> closeIteration(DataStream<T> inputStream) {
-		connectGraph(inputStream, jobGraphBuilder.iterationStartPoints.pop());
-
-		return inputStream;
 	}
 
 	/**
@@ -602,5 +574,4 @@ public abstract class StreamExecutionEnvironment {
 	public JobGraphBuilder jobGB() {
 		return jobGraphBuilder;
 	}
-
 }
