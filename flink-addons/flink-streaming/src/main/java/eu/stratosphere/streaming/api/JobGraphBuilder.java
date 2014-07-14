@@ -97,6 +97,7 @@ public class JobGraphBuilder {
 	 * @param defaultBatchSize
 	 *            Default number of records to send at one emit
 	 * @param defaultBatchTimeoutMillis
+	 *            defaultBatchTimeoutMillis
 	 */
 
 	public JobGraphBuilder(String jobGraphName, FaultToleranceType faultToleranceType,
@@ -287,7 +288,9 @@ public class JobGraphBuilder {
 	 * Sets udf operator from one component to another, used with some sinks.
 	 * 
 	 * @param from
+	 *            from
 	 * @param to
+	 *            to
 	 */
 	public void setBytesFrom(String from, String to) {
 		Configuration fromConfig = components.get(from).getConfiguration();
@@ -340,6 +343,7 @@ public class JobGraphBuilder {
 	 * @param component1
 	 *            Share will be called on this component
 	 * @param component2
+	 *            Share will be called to this component
 	 */
 	public void setInstanceSharing(String component1, String component2) {
 		AbstractJobVertex c1 = components.get(component1);
@@ -476,7 +480,9 @@ public class JobGraphBuilder {
 	 * tolerance purposes
 	 * 
 	 * @param upStreamComponentName
+	 *            upStreamComponentName
 	 * @param numOfInstances
+	 *            numOfInstances
 	 */
 	private void addOutputChannels(String upStreamComponentName, int numOfInstances) {
 		if (numberOfOutputChannels.containsKey(upStreamComponentName)) {

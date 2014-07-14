@@ -15,7 +15,8 @@
 
 package eu.stratosphere.streaming.api;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -26,12 +27,12 @@ import org.junit.Test;
 
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.util.Collector;
 
 public class MapTest {
 
 	public static final class MySource extends SourceFunction<Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
@@ -42,6 +43,7 @@ public class MapTest {
 	}
 	
 	public static final class MySource1 extends SourceFunction<Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
@@ -53,6 +55,7 @@ public class MapTest {
 	}
 	
 	public static final class MySource2 extends SourceFunction<Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
@@ -64,6 +67,7 @@ public class MapTest {
 	}
 	
 	public static final class MySource3 extends SourceFunction<Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
@@ -75,6 +79,7 @@ public class MapTest {
 	}
 
 	public static final class MyMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
@@ -84,6 +89,7 @@ public class MapTest {
 	}
 	
 	public static final class MySingleJoinMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
@@ -93,6 +99,7 @@ public class MapTest {
 	}
 	
 	public static final class MyMultipleJoinMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
@@ -102,6 +109,7 @@ public class MapTest {
 	}
 
 	public static final class MyFieldsMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		private int counter = 0;
 
@@ -115,6 +123,7 @@ public class MapTest {
 	}
 	
 	public static final class MyDiffFieldsMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		private int counter = 0;
 
@@ -128,6 +137,7 @@ public class MapTest {
 	}
 
 	public static final class MySink extends SinkFunction<Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void invoke(Tuple1<Integer> tuple) {
@@ -136,6 +146,7 @@ public class MapTest {
 	}
 
 	public static final class MyBroadcastSink extends SinkFunction<Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void invoke(Tuple1<Integer> tuple) {
@@ -144,6 +155,7 @@ public class MapTest {
 	}
 
 	public static final class MyShufflesSink extends SinkFunction<Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void invoke(Tuple1<Integer> tuple) {
@@ -152,6 +164,7 @@ public class MapTest {
 	}
 
 	public static final class MyFieldsSink extends SinkFunction<Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void invoke(Tuple1<Integer> tuple) {
@@ -160,6 +173,7 @@ public class MapTest {
 	}
 	
 	public static final class MyDiffFieldsSink extends SinkFunction<Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void invoke(Tuple1<Integer> tuple) {
@@ -168,6 +182,7 @@ public class MapTest {
 	}
 	
 	public static final class MyGraphSink extends SinkFunction<Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void invoke(Tuple1<Integer> tuple) {
@@ -176,6 +191,7 @@ public class MapTest {
 	}
 	
 	public static final class JoinSink extends SinkFunction<Tuple1<Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void invoke(Tuple1<Integer> tuple) {

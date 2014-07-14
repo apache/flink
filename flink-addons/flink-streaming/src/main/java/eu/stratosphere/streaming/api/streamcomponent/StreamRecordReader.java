@@ -61,13 +61,17 @@ public class StreamRecordReader extends AbstractSingleGateRecordReader<StreamRec
 	 *            The application that instantiated the record reader.
 	 * @param recordType
 	 *            The class of records that can be read from the record reader.
+	 * @param deserializationDelegate
+	 *            Deserialization delegate
+	 * @param tupleSerializer
+	 *            Tuple serializer
 	 */
-	public StreamRecordReader(AbstractTask taskBase,
-			Class<? extends StreamRecord> recordType,
+	public StreamRecordReader(AbstractTask taskBase, Class<? extends StreamRecord> recordType,
 			DeserializationDelegate<Tuple> deserializationDelegate,
 			TupleSerializer<Tuple> tupleSerializer) {
-		// super(taskBase, MutableRecordDeserializerFactory.<StreamRecord> get(), 0);
-		super(taskBase,MutableRecordDeserializerFactory.<StreamRecord>get(), 0);
+		// super(taskBase, MutableRecordDeserializerFactory.<StreamRecord>
+		// get(), 0);
+		super(taskBase, MutableRecordDeserializerFactory.<StreamRecord> get(), 0);
 		this.recordType = recordType;
 		this.deserializationDelegate = deserializationDelegate;
 		this.tupleSerializer = tupleSerializer;
@@ -81,13 +85,18 @@ public class StreamRecordReader extends AbstractSingleGateRecordReader<StreamRec
 	 *            The application that instantiated the record reader.
 	 * @param recordType
 	 *            The class of records that can be read from the record reader.
+	 * @param deserializationDelegate
+	 *            Deserialization delegate
+	 * @param tupleSerializer
+	 *            Tuple serializer
 	 */
-	public StreamRecordReader(AbstractOutputTask outputBase, 
+	public StreamRecordReader(AbstractOutputTask outputBase,
 			Class<? extends StreamRecord> recordType,
 			DeserializationDelegate<Tuple> deserializationDelegate,
 			TupleSerializer<Tuple> tupleSerializer) {
-		// super(outputBase, MutableRecordDeserializerFactory.<StreamRecord> get(), 0);
-		super(outputBase,MutableRecordDeserializerFactory.<StreamRecord>get(), 0);
+		// super(outputBase, MutableRecordDeserializerFactory.<StreamRecord>
+		// get(), 0);
+		super(outputBase, MutableRecordDeserializerFactory.<StreamRecord> get(), 0);
 		this.recordType = recordType;
 		this.deserializationDelegate = deserializationDelegate;
 		this.tupleSerializer = tupleSerializer;
