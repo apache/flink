@@ -1,21 +1,24 @@
 package eu.stratosphere.streaming;
 
 
-import eu.stratosphere.core.io.IOReadableWritable;
-import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.Record;
-import eu.stratosphere.types.StringValue;
-import eu.stratosphere.types.Value;
 
 public class TestSourceInvokable implements UserSourceInvokable {
 
   @Override
   public void invoke(RecordWriter<Record> output) throws Exception {
     for (int i = 0; i < 10; i++) {
-      // output.emit(new StringRecord(rnd.nextInt(10)+" "+rnd.nextInt(1000)));
-    	output.emit(new Record(new StringValue("5 500")));//new StringRecord("5 500"));
-    	output.emit(new Record(new StringValue("4 500")));
+    	Record record1 = new Record(2);
+    	record1.setField(0, new IntValue(5));
+    	record1.setField(1, new LongValue(500));
+    	Record record2 = new Record(2);
+    	record2.setField(0, new IntValue(4));
+    	record2.setField(1, new LongValue(500));
+    	output.emit(record1);
+    	output.emit(record2);
     }
   }
 
