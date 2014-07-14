@@ -33,11 +33,11 @@ import eu.stratosphere.util.Collector;
 public class StreamExecutionEnvironment {
 	JobGraphBuilder jobGraphBuilder;
 	
-	public StreamExecutionEnvironment(int batchSize) {
-		if (batchSize < 1) {
+	public StreamExecutionEnvironment(int defaultBatchSize) {
+		if (defaultBatchSize < 1) {
 			throw new IllegalArgumentException("Batch size must be positive.");
 		}
-		jobGraphBuilder = new JobGraphBuilder("jobGraph", FaultToleranceType.NONE, batchSize);
+		jobGraphBuilder = new JobGraphBuilder("jobGraph", FaultToleranceType.NONE, defaultBatchSize);
 	}
 
 	public StreamExecutionEnvironment() {
@@ -79,6 +79,14 @@ public class StreamExecutionEnvironment {
 			}
 
 		}
+	}
+	
+	public <T extends Tuple> DataStream<T> setBatchSize(DataStream<T> stream, int batchSize) {
+		if (batchSize < 1) {
+			throw new IllegalArgumentException("Batch size must be positive.");
+		}
+		jobGraphBuilder.setComponentBatchSize(stream.getId(), batchSize);
+		return stream;
 	}
 	
 	public <T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName, DataStream<T> inputStream, final AbstractFunction function, UserTaskInvokable<T, R> functionInvokable) {

@@ -247,7 +247,6 @@ public class JobGraphBuilder {
 	 * @param component
 	 *            AbstractJobVertex associated with the component
 	 */
-
 	private Configuration setComponent(String componentName,
 			final Class<? extends StreamComponent> InvokableClass, int parallelism,
 			int subtasksPerInstance, AbstractJobVertex component) {
@@ -302,6 +301,11 @@ public class JobGraphBuilder {
 		return config;
 	}
 
+	public void setComponentBatchSize(String componentName, int batchSize) {
+		Configuration config = components.get(componentName).getConfiguration();
+		config.setInteger("batchSize", batchSize);
+	}
+	
 	/**
 	 * Adds serialized invokable object to the JobVertex configuration
 	 * 
