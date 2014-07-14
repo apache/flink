@@ -3,6 +3,8 @@ package eu.stratosphere.streaming;
 import java.util.HashMap;
 import java.util.Map;
 
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.channels.ChannelType;
 import eu.stratosphere.nephele.jobgraph.AbstractJobVertex;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
@@ -13,12 +15,27 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.pact.runtime.task.util.TaskConfig;
+import eu.stratosphere.types.Record;
 
 public class JobGraphBuilder {
 
 	private final JobGraph jobGraph;
 	private Map<String, AbstractJobVertex> components;
-
+	
+	public enum Partitioning {
+	   BROADCAST
+	}
+	
+	private Class<? extends ChannelSelector<Record>> getPartitioningClass(Partitioning partitioning) {
+	  switch(partitioning) {
+	  case BROADCAST:
+	    return DefaultPartitioner.class;
+	  default:
+	    return DefaultPartitioner.class;
+	  }
+	}
+	
 	public JobGraphBuilder(String jobGraphName) {
 
 		jobGraph = new JobGraph(jobGraphName);
@@ -34,6 +51,20 @@ public class JobGraphBuilder {
 		components.put(sourceName, source);
 
 	}
+	
+	
+	
+	public void setSource(String sourceName,
+      final Class<? extends UserSourceInvokable> InvokableClass, Partitioning partitionType) {
+
+    final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
+    source.setInputClass(StreamSource.class);
+    Configuration config = new TaskConfig(source.getConfiguration()).getConfiguration();
+    config.setClass("partitioner", getPartitioningClass(partitionType));
+    config.setClass("userfunction", InvokableClass);
+    components.put(sourceName, source);
+
+  }
 
 	public void setTask(String taskName,
 			final Class<? extends AbstractTask> taskClass, int parallelism) {

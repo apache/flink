@@ -11,6 +11,7 @@ import eu.stratosphere.types.Record;
 
 public class StreamTask extends AbstractTask {
 
+  //TODO: Refactor names
 	private RecordWriter<Record> output;
 	private Class<? extends ChannelSelector<Record>> Partitioner;
 	ChannelSelector<Record> partitioner;
@@ -21,12 +22,16 @@ public class StreamTask extends AbstractTask {
 	private RecordReader<Record> inputQuery = null;
 
 	public StreamTask() {
+	   //TODO: Make configuration file visible and call setClassInputs() here
 		Partitioner = null;
 		UserFunction = null;
 		partitioner = null;
 		userFunction = null;
 	}
 
+	//TODO:Refactor key names,
+  //TODO:Add output/input number to config and store class instances in list
+  //TODO:Change default classes when done with JobGraphBuilder
 	private void setClassInputs() {
 		Partitioner = getTaskConfiguration().getClass("partitioner",
 				DefaultPartitioner.class, ChannelSelector.class);
@@ -45,6 +50,7 @@ public class StreamTask extends AbstractTask {
 
 	}
 
+	//TODO: Store inputs and outputs in List
 	@Override
 	public void registerInputOutput() {
 		setClassInputs();
