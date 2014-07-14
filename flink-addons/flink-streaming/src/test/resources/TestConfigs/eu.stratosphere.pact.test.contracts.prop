@@ -1,5 +1,0 @@
-CoGroupITCase=local1TM,local4TM
-CrossITCase=local1TM
-MapITCase=local1TM,local4TM
-MatchITCase=local1TM
-ReduceITCase=local1TM
