@@ -113,7 +113,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @return The StreamRecord object
 	 */
 	public StreamRecord setId(String channelID) {
-		uid.setValue(channelID + "-" + rnd.nextInt(1000));
+		uid.setValue(channelID + "-" + rnd.nextInt(1000000));
 		return this;
 	}
 

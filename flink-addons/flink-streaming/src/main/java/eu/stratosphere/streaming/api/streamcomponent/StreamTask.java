@@ -79,7 +79,6 @@ public class StreamTask extends AbstractTask {
 		streamTaskHelper.setFailListener(recordBuffer, taskInstanceID, outputs);
 	}
 
-	// TODO: log userfunction name
 	@Override
 	public void invoke() throws Exception {
 		log.debug("Task " + name + " invoked with instance id " + taskInstanceID);
@@ -96,10 +95,10 @@ public class StreamTask extends AbstractTask {
 					try {
 						userFunction.invoke(streamRecord);
 						streamTaskHelper.threadSafePublish(new AckEvent(id), input);
-						log.debug("Ack sent from " + name + ": " + id);
+						log.debug("ACK: " + id + " -- " + name);
 					} catch (Exception e) {
 						streamTaskHelper.threadSafePublish(new FailEvent(id), input);
-						log.warn("Invoking record " + id + " failed due to " + e.getMessage());
+						log.warn("INVOKE FAILED: " + id + " -- " + name + " -- due to " + e.getMessage());
 					}
 				}
 			}

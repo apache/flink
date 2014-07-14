@@ -31,7 +31,7 @@ public class WordCountDummySource extends UserSourceInvokable {
 	@Override
 	public void invoke() throws Exception {
 
-		for (int i = 0; i < 10000000; i++) {
+		for (int i = 0; i < 1000; i++) {
 			if (i % 2 == 0) {
 				lineValue.setValue("Gyula Marci");
 			} else {

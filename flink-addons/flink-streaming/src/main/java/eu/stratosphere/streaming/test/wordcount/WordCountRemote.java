@@ -15,20 +15,41 @@
 
 package eu.stratosphere.streaming.test.wordcount;
 
+import java.io.File;
+import java.net.InetSocketAddress;
+
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 
+import eu.stratosphere.client.program.Client;
+import eu.stratosphere.client.program.JobWithJars;
+import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.StringValue;
 
-public class WordCount extends TestBase2 {
+public class WordCountRemote {
 
-	@Override
-	public JobGraph getJobGraph() {
+
+	private static JobGraph getJobGraph() throws Exception {
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
+		graphBuilder.setSource("WordCountSource", WordCountDummySource2.class);
+		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 4);
+		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 1);
+		graphBuilder.setSink("WordCountSink", WordCountSink.class);
+
+		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");
+		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0,
+				StringValue.class);
+		graphBuilder.shuffleConnect("WordCountCounter", "WordCountSink");
+
+		return graphBuilder.getJobGraph();
+	}
+
+	public static void main(String[] args) {
 
 		Logger root = Logger.getRootLogger();
 		root.removeAllAppenders();
@@ -38,17 +59,28 @@ public class WordCount extends TestBase2 {
 		root.addAppender(appender);
 		root.setLevel(Level.DEBUG);
 
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountDummySource.class);
-		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
-		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
-		graphBuilder.setSink("WordCountSink", WordCountSink.class);
+		
+		try {
 
-		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");
-		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0,
-				StringValue.class);
-		graphBuilder.shuffleConnect("WordCountCounter", "WordCountSink");
+			File file = new File(
+					"target/stratosphere-streaming-0.5-SNAPSHOT.jar");
+			JobWithJars.checkJarFile(file);
 
-		return graphBuilder.getJobGraph();
+			JobGraph jG = getJobGraph();
+
+			jG.addJar(new Path(file.getAbsolutePath()));
+
+			Configuration configuration = jG.getJobConfiguration();
+
+			Client client = new Client(new InetSocketAddress(
+					"hadoop02.ilab.sztaki.hu", 6123), configuration);
+
+			client.run(null, jG, true);
+			
+
+		} catch (Exception e) {
+			System.out.println(e);
+		}
+
 	}
 }

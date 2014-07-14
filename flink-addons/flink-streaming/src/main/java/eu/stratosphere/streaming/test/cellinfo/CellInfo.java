@@ -48,12 +48,16 @@ public class CellInfo {
   public static JobGraph getJobGraph() {
     JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
     graphBuilder.setSource("infoSource", InfoSourceInvokable.class);
+//    graphBuilder.setSource("infoSource2", InfoSourceInvokable.class);
     graphBuilder.setSource("querySource", QuerySourceInvokable.class);
-    graphBuilder.setTask("cellTask", CellTaskInvokable.class, 2);
+//    graphBuilder.setSource("querySource2", QuerySourceInvokable.class);
+    graphBuilder.setTask("cellTask", CellTaskInvokable.class, 3);
     graphBuilder.setSink("sink", CellSinkInvokable.class);
     
     graphBuilder.fieldsConnect("infoSource", "cellTask", 0, IntValue.class);
     graphBuilder.fieldsConnect("querySource", "cellTask",0, IntValue.class);
+//    graphBuilder.fieldsConnect("infoSource2", "cellTask", 0, IntValue.class);
+//    graphBuilder.fieldsConnect("querySource2", "cellTask",0, IntValue.class);
     graphBuilder.shuffleConnect("cellTask", "sink");
 
     return graphBuilder.getJobGraph();
