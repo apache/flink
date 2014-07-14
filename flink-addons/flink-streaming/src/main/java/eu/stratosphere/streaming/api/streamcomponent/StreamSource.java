@@ -82,8 +82,8 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 
 	@Override
 	public void invoke() throws Exception {
-		userFunction.invoke();
 		log.debug("Invoking source: " + sourceInstanceID);
+		userFunction.invoke();
 	}
 
 }
