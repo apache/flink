@@ -32,15 +32,6 @@
 	<developers>
 	</developers>
 
-	<repositories>
-		<repository>
-			<id>dms-repo</id>
-			<url>https://dms.sztaki.hu/maven-public</url>
-			<releases><enabled>true</enabled></releases>
-			<snapshots><enabled>true</enabled></snapshots>
-		</repository>
-	</repositories>
-
 	<modules>
 		<module>flink-streaming-core</module>
 		<module>flink-streaming-examples</module>
@@ -52,6 +43,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
+	
 	<repositories>
 		<repository>
 			<id>dms-repo</id>
@@ -60,6 +52,7 @@
 			<snapshots><enabled>true</enabled></snapshots>
 		</repository>
 	</repositories>
+	
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
