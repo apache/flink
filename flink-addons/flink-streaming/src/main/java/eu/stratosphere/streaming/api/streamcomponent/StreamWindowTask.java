@@ -15,6 +15,7 @@
 
 package eu.stratosphere.streaming.api.streamcomponent;
 
+import eu.stratosphere.streaming.api.StreamCollector;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
@@ -48,7 +49,7 @@ public class StreamWindowTask extends UserTaskInvokable {
 	private void produceRecord(long progress){}
 
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
+	public void invoke(StreamRecord record, StreamCollector collector) throws Exception {
 		int numTuple = record.getBatchSize();
 		int tupleIndex = 0;
 		for (int i = 0; i < numTuple; ++i) {
@@ -80,6 +81,6 @@ public class StreamWindowTask extends UserTaskInvokable {
 				}
 				tempRecord.setTuple(tupleIndex++, record.getTuple(i));
 			}
-		}
+		}		
 	}
 }

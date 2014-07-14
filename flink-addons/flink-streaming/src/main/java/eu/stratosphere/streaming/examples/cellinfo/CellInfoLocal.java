@@ -15,69 +15,105 @@
 
 package eu.stratosphere.streaming.examples.cellinfo;
 
-import java.net.InetSocketAddress;
+import java.util.Random;
 
-import org.apache.log4j.Level;
-
-import eu.stratosphere.client.minicluster.NepheleMiniCluster;
-import eu.stratosphere.client.program.Client;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
-import eu.stratosphere.streaming.util.LogUtils;
+import eu.stratosphere.api.java.functions.FlatMapFunction;
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.api.java.tuple.Tuple4;
+import eu.stratosphere.streaming.api.DataStream;
+import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.util.Collector;
 
 public class CellInfoLocal {
 
-	public static JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
-		graphBuilder.setSource("infoSource", InfoSource.class);
-		graphBuilder.setSource("querySource", QuerySource.class);
-		graphBuilder.setTask("cellTask", CellTask.class, 3, 1);
-		graphBuilder.setSink("sink", CellSink.class);
+	private static Random rand = new Random();
+	private final static int CELL_COUNT = 10;
+	private final static int LAST_MILLIS = 1000;
 
-		graphBuilder.fieldsConnect("infoSource", "cellTask", 0);
-		graphBuilder.fieldsConnect("querySource", "cellTask", 0);
-		graphBuilder.shuffleConnect("cellTask", "sink");
+	private final static class QuerySource extends
+			SourceFunction<Tuple4<Boolean, Integer, Long, Integer>> {
+		private static final long serialVersionUID = 1L;
 
-		return graphBuilder.getJobGraph();
+		Tuple4<Boolean, Integer, Long, Integer> tuple = new Tuple4<Boolean, Integer, Long, Integer>(
+				true, 0, 0L, LAST_MILLIS);
+
+		@Override
+		public void invoke(Collector<Tuple4<Boolean, Integer, Long, Integer>> collector)
+				throws Exception {
+			for (int i = 0; i < 100; i++) {
+				Thread.sleep(1000);
+				tuple.f1 = rand.nextInt(CELL_COUNT);
+				tuple.f2 = System.currentTimeMillis();
+				collector.collect(tuple);
+			}
+		}
 	}
 
-	// TODO: arguments check
-	public static void main(String[] args) {
+	private final static class InfoSource extends
+			SourceFunction<Tuple4<Boolean, Integer, Long, Integer>> {
+		private static final long serialVersionUID = 1L;
 
-		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
+		private Tuple4<Boolean, Integer, Long, Integer> tuple = new Tuple4<Boolean, Integer, Long, Integer>(
+				false, 0, 0L, 0);
 
-		try {
-			JobGraph jG = getJobGraph();
-			Configuration configuration = jG.getJobConfiguration();
+		@Override
+		public void invoke(Collector<Tuple4<Boolean, Integer, Long, Integer>> collector)
+				throws Exception {
+			for (int i = 0; i < 1000; i++) {
+				Thread.sleep(100);
 
-			if (args.length == 0) {
-				args = new String[] { "local" };
+				tuple.f1 = rand.nextInt(CELL_COUNT);
+				tuple.f2 = System.currentTimeMillis();
+
+				collector.collect(tuple);
 			}
-
-			if (args[0].equals("local")) {
-				System.out.println("Running in Local mode");
-				NepheleMiniCluster exec = new NepheleMiniCluster();
-
-				exec.start();
-
-				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
-
-				client.run(jG, true);
-
-				exec.stop();
-			} else if (args[0].equals("cluster")) {
-				System.out.println("Running in Cluster2 mode");
-
-				Client client = new Client(new InetSocketAddress("hadoop02.ilab.sztaki.hu", 6123),
-						configuration);
-				client.run(jG, true);
-			}
-
-		} catch (Exception e) {
-			System.out.println(e);
 		}
+	}
 
+	private final static class CellTask extends
+			FlatMapFunction<Tuple4<Boolean, Integer, Long, Integer>, Tuple1<String>> {
+		private static final long serialVersionUID = 1L;
+
+		private WorkerEngineExact engine = new WorkerEngineExact(10, 500,
+				System.currentTimeMillis());
+		Integer cellID;
+		Long timeStamp;
+		Integer lastMillis;
+
+		Tuple1<String> outTuple = new Tuple1<String>();
+
+		@Override
+		public void flatMap(Tuple4<Boolean, Integer, Long, Integer> value,
+				Collector<Tuple1<String>> out) throws Exception {
+			cellID = value.f1;
+			timeStamp = value.f2;
+
+			// QUERY
+			if (value.f0) {
+				lastMillis = value.f3;
+				outTuple.f0 = "QUERY:\t"+cellID+ ": " + engine.get(timeStamp, lastMillis, cellID);
+				out.collect(outTuple);
+			}
+			// INFO
+			else {
+				engine.put(cellID, timeStamp);
+				outTuple.f0 = "INFO:\t" + cellID + " @ " + timeStamp;
+				out.collect(outTuple);
+			}
+		}
+	}
+
+	// TODO add arguments
+	public static void main(String[] args) {
+		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
+
+		DataStream<Tuple4<Boolean, Integer, Long, Integer>> querySource = context
+				.addSource(new QuerySource());
+
+		DataStream<Tuple1<String>> stream = context.addSource(new InfoSource())
+				.connectWith(querySource).partitionBy(1).flatMap(new CellTask()).addDummySink();
+
+		context.execute();
 	}
 }
