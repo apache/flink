@@ -45,17 +45,17 @@ public class StreamRecordTest {
 		record.setField(1, "Big Data");
 		assertEquals("Big Data", record.getString(1));
 
-		record.setRecord(new Tuple2<String, Long>("Big Data looks tiny from here.", 2L));
+		record.setTuple(new Tuple2<String, Long>("Big Data looks tiny from here.", 2L));
 		assertEquals(2, record.getNumOfFields());
 		assertEquals(1, record.getNumOfTuples());
 		assertEquals((Long) 2L, record.getLong(1));
 
-		record.setRecord(new Tuple2<String, Boolean>("Big Data looks tiny from here.", true));
+		record.setTuple(new Tuple2<String, Boolean>("Big Data looks tiny from here.", true));
 		assertEquals(2, record.getNumOfFields());
 		assertEquals(1, record.getNumOfTuples());
 		assertEquals(true, record.getBoolean(1));
 
-		record.setRecord(new Tuple2<String, Double>("Big Data looks tiny from here.", 2.5));
+		record.setTuple(new Tuple2<String, Double>("Big Data looks tiny from here.", 2.5));
 		assertEquals(2, record.getNumOfFields());
 		assertEquals(1, record.getNumOfTuples());
 		assertEquals((Double) 2.5, record.getDouble(1));
@@ -76,9 +76,9 @@ public class StreamRecordTest {
 	@Test
 	public void batchRecordSetGetTest() {
 		StreamRecord record = new StreamRecord(new Tuple2<Integer, Integer>(1, 2));
-		record.addRecord(new Tuple2<Integer, Integer>(2, 2));
+		record.addTuple(new Tuple2<Integer, Integer>(2, 2));
 		try {
-			record.addRecord(new Tuple1<String>("4"));
+			record.addTuple(new Tuple1<String>("4"));
 			fail();
 		} catch (TupleSizeMismatchException e) {
 		}
@@ -88,7 +88,7 @@ public class StreamRecordTest {
 		assertEquals((Integer) 1, record.getInteger(0, 0));
 		assertEquals((Integer) 2, record.getInteger(1, 1));
 
-		record.setRecord(1, new Tuple2<Integer, Integer>(-1, -3));
+		record.setTuple(1, new Tuple2<Integer, Integer>(-1, -3));
 		assertEquals(-1, record.getField(1, 0));
 
 		assertEquals(2, record.getNumOfFields());
@@ -103,7 +103,7 @@ public class StreamRecordTest {
 		assertTrue(a.getField(0).equals(b.getField(0)));
 		assertTrue(a.getId().equals(b.getId()));
 		b.setId("2");
-		b.setRecord(new Tuple1<String>("Data"));
+		b.setTuple(new Tuple1<String>("Data"));
 		assertFalse(a.getId().equals(b.getId()));
 		assertFalse(a.getField(0).equals(b.getField(0)));
 
@@ -113,20 +113,20 @@ public class StreamRecordTest {
 	public void exceptionTest() {
 		StreamRecord a = new StreamRecord(new Tuple1<String>("Big"));
 		try {
-			a.setRecord(4, new Tuple1<String>("Data"));
+			a.setTuple(4, new Tuple1<String>("Data"));
 			fail();
 		} catch (NoSuchTupleException e) {
 		}
 
 		try {
-			a.setRecord(new Tuple2<String, String>("Data", "Stratosphere"));
+			a.setTuple(new Tuple2<String, String>("Data", "Stratosphere"));
 			fail();
 		} catch (TupleSizeMismatchException e) {
 		}
 
 		StreamRecord b = new StreamRecord();
 		try {
-			b.addRecord(new Tuple2<String, String>("Data", "Stratosphere"));
+			b.addTuple(new Tuple2<String, String>("Data", "Stratosphere"));
 			fail();
 		} catch (TupleSizeMismatchException e) {
 		}
@@ -153,6 +153,7 @@ public class StreamRecordTest {
 
 			StreamRecord newRec = new StreamRecord();
 			newRec.read(in);
+			@SuppressWarnings("unchecked")
 			Tuple2<Integer, String> tupleOut = (Tuple2<Integer, String>) newRec.getTuple(0);
 
 			assertEquals(tupleOut.getField(0), 42);
@@ -165,7 +166,9 @@ public class StreamRecordTest {
 	@Test
 	public void tupleCopyTest(){
 		Tuple2<String, Integer> t1 = new Tuple2<String, Integer>("a",1);
-		Tuple2<String, Integer> t2 = (Tuple2<String, Integer>) StreamRecord.copyTuple(t1);
+		@SuppressWarnings("unchecked")
+		Tuple2<String, Integer> t2 = (Tuple2<String, Integer>) StreamRecord
+				.copyTuple(t1);
 		
 		assertEquals("a", t2.getField(0));
 		assertEquals(1, t2.getField(1));

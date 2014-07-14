@@ -51,7 +51,7 @@ public class BatchWordCountSource extends UserSourceInvokable {
 		while (line != null) {
 			if (line != "") {
 
-				outRecord.addRecord(new Tuple2<String, Long>(line, timestamp));
+				outRecord.addTuple(new Tuple2<String, Long>(line, timestamp));
 				timestamp++;
 				if (timestamp % BATCH_SIZE == 0) {
 					emit(outRecord);
