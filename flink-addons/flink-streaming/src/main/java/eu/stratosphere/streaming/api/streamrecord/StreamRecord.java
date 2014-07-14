@@ -160,6 +160,19 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
+	 * Returns the value of a field in the given position of the first tuple in
+	 * the batch as an object, cast needed to obtain a typed version
+	 * 
+	 * @param fieldNumber
+	 *            Position of the field in the tuple
+	 * @return value of the field
+	 * @throws NoSuchTupleException
+	 */
+	public Object getField(int fieldNumber) throws NoSuchTupleException {
+		return getField(0, fieldNumber);
+	}
+
+	/**
 	 * Returns the value of a field in the given position of a specific tuple in
 	 * the batch as an object, cast needed to obtain a typed version
 	 * 
@@ -168,28 +181,14 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @param fieldNumber
 	 *            Position of the field in the tuple
 	 * @return value of the field
+	 * @throws NoSuchTupleException
 	 */
-	public Object getField(int tupleNumber, int fieldNumber) {
+	public Object getField(int tupleNumber, int fieldNumber)
+			throws NoSuchTupleException {
 		try {
 			return tupleBatch.get(tupleNumber).getField(fieldNumber);
 		} catch (IndexOutOfBoundsException e) {
 			throw (new NoSuchTupleException());
-		}
-	}
-
-	/**
-	 * Returns the value of a field in the given position of the first tuple in
-	 * the batch as an object, cast needed to obtain a typed version
-	 * 
-	 * @param fieldNumber
-	 *            Position of the field in the tuple
-	 * @return value of the field
-	 */
-	public Object getField(int fieldNumber) {
-		try {
-			return tupleBatch.get(0).getField(fieldNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchFieldException());
 		}
 	}
 
@@ -583,12 +582,31 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		return getTuple(0);
 	}
 
-	//TODO: doc from here on
+	/**
+	 * Gets the fields of the first tuple of the batch into the parameter tuple
+	 * 
+	 * @param tuple
+	 *            Target tuple
+	 */
 	public void getTupleInto(Tuple tuple) {
+		getTupleInto(0, tuple);
+	}
+
+	/**
+	 * Gets the fields of the specified tuple of the batch into the parameter
+	 * tuple
+	 * 
+	 * @param tupleNumber
+	 *            Position of the tuple to be written out
+	 * 
+	 * @param tuple
+	 *            Target tuple
+	 */
+	public void getTupleInto(int tupleNumber, Tuple tuple) {
 
 		if (tuple.getArity() == numOfFields) {
 			try {
-				Tuple source = tupleBatch.get(0);
+				Tuple source = tupleBatch.get(tupleNumber);
 				for (int i = 0; i < numOfFields; i++) {
 					tuple.setField(source.getField(i), i);
 				}
@@ -602,32 +620,13 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
-	 * Sets a record at the given position in the batch
-	 * 
-	 * @param recordNumber
-	 *            Position of record in the batch
-	 * @param tuple
-	 *            Value to set
-	 */
-	public void setRecord(int recordNumber, Tuple tuple) {
-		if (tuple.getArity() == numOfFields) {
-			try {
-				tupleBatch.set(recordNumber, tuple);
-			} catch (IndexOutOfBoundsException e) {
-				throw (new NoSuchTupleException());
-			}
-		} else {
-			throw (new TupleSizeMismatchException());
-		}
-	}
-
-	/**
-	 * Sets the first record in the batch
+	 * Sets the first tuple in the batch
 	 * 
 	 * @param tuple
-	 *            Value to set
+	 *            Tuple to set
 	 */
-	public void setRecord(Tuple tuple) {
+	// TODO: refactor this functionality - why new list?
+	public void setTuple(Tuple tuple) {
 		if (tuple.getArity() == numOfFields) {
 			if (numOfTuples != 1) {
 				tupleBatch = new ArrayList<Tuple>(1);
@@ -641,13 +640,33 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
+	 * Sets a tuple at the given position in the batch
+	 * 
+	 * @param tupleNumber
+	 *            Position of tuple in the batch
+	 * @param tuple
+	 *            Value to set
+	 */
+	public void setTuple(int tupleNumber, Tuple tuple) {
+		if (tuple.getArity() == numOfFields) {
+			try {
+				tupleBatch.set(tupleNumber, tuple);
+			} catch (IndexOutOfBoundsException e) {
+				throw (new NoSuchTupleException());
+			}
+		} else {
+			throw (new TupleSizeMismatchException());
+		}
+	}
+
+	/**
 	 * Checks if the number of fields are equal to the batch field size then
-	 * adds the Value array to the end of the batch
+	 * adds the Tuple to the end of the batch
 	 * 
 	 * @param tuple
-	 *            Value array to be added as the next record of the batch
+	 *            Tuple to be added as the next record of the batch
 	 */
-	public void addRecord(Tuple tuple) {
+	public void addTuple(Tuple tuple) {
 		if (tuple.getArity() == numOfFields) {
 			tupleBatch.add(tuple);
 			numOfTuples++;
@@ -657,7 +676,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
-	 * Creates a copy of the StreamRecord
+	 * Creates a deep copy of the StreamRecord
 	 * 
 	 * @return Copy of the StreamRecord
 	 * 
@@ -695,8 +714,17 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		return newTuple;
 	}
 
+	/**
+	 * Writes tuple to the specified DataOutput
+	 * 
+	 * @param tuple
+	 *            Tuple to be written
+	 * @param out
+	 *            Output chosen
+	 */
 	private void writeTuple(Tuple tuple, DataOutput out) {
 
+		@SuppressWarnings("rawtypes")
 		Class[] basicTypes = new Class[tuple.getArity()];
 		StringBuilder basicTypeNames = new StringBuilder();
 
@@ -725,12 +753,21 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		}
 	}
 
+	/**
+	 * Reads a tuple from the specified DataInput
+	 * 
+	 * @param in
+	 *            Input chosen
+	 * @return Tuple read
+	 * @throws IOException
+	 */
 	private Tuple readTuple(DataInput in) throws IOException {
 
 		StringValue typeVal = new StringValue();
 		typeVal.read(in);
-		// TODO: use Tokenizer
+		// TODO: use StringTokenizer
 		String[] types = typeVal.getValue().split(",");
+		@SuppressWarnings("rawtypes")
 		Class[] basicTypes = new Class[types.length];
 		for (int i = 0; i < types.length; i++) {
 			try {
@@ -743,6 +780,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 
 		TypeInformation<? extends Tuple> typeInfo = TupleTypeInfo
 				.getBasicTupleTypeInfo(basicTypes);
+		@SuppressWarnings("unchecked")
 		TupleSerializer<Tuple> tupleSerializer = (TupleSerializer<Tuple>) typeInfo
 				.createSerializer();
 
@@ -753,6 +791,9 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		return dd.getInstance();
 	}
 
+	/**
+	 * Write method definition for the IOReadableWritable interface
+	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
 		uid.write(out);
@@ -768,6 +809,9 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		}
 	}
 
+	/**
+	 * Read method definition for the IOReadableWritable interface
+	 */
 	@Override
 	public void read(DataInput in) throws IOException {
 		uid.read(in);
@@ -790,6 +834,9 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		}
 	}
 
+	/**
+	 * Creates a String representation as a list of tuples
+	 */
 	public String toString() {
 		StringBuilder outputString = new StringBuilder("[");
 

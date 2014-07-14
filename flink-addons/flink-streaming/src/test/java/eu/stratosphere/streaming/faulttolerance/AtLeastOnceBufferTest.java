@@ -116,7 +116,7 @@ public class AtLeastOnceBufferTest {
 
 		System.out.println("ADD - " + " exec. time (ns): " + (System.nanoTime() - nt));
 
-		record1.setRecord(new Tuple1<String>("R2"));
+		record1.setTuple(new Tuple1<String>("R2"));
 		record1.setId("1");
 		String id2 = record1.getId();
 
@@ -192,7 +192,7 @@ public class AtLeastOnceBufferTest {
 		String id1 = record1.getId();
 		buffer.add(record1);
 
-		record1.setRecord(new Tuple1<String>("R2"));
+		record1.setTuple(new Tuple1<String>("R2"));
 		record1.setId("1");
 		String id2 = record1.getId();
 		buffer.add(record1);
