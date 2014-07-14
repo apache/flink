@@ -7,7 +7,7 @@ import eu.stratosphere.types.StringValue;
 
 //TODO: refactor access modifiers
 
-public class StreamRecord {
+public final class StreamRecord {
 	private Record record;
 	private StringValue uid = new StringValue("");
 	private String channelID = "";
@@ -17,16 +17,15 @@ public class StreamRecord {
 	}
 
 	public StreamRecord(Record record, String channelID) {
-		// TODO:get rid of copy
-		this.record = record.createCopy();
+		this(record);
+		record.addField(uid);
 		this.channelID = channelID;
 	}
-
-	public StreamRecord addId() {
-		// uid.setValue(channelID+"-"+UUID.randomUUID().toString());
+	
+	public StreamRecord setId() {
 		Random rnd = new Random();
 		uid.setValue(channelID + "-" + rnd.nextInt(1000));
-		record.addField(uid);
+		record.setField(record.getNumFields() - 1, uid);
 		return this;
 	}
 
@@ -48,7 +47,6 @@ public class StreamRecord {
 	// TODO:write proper toString
 	@Override
 	public String toString() {
-
 		StringBuilder outputString = new StringBuilder();
 		StringValue output = new StringValue("");
 

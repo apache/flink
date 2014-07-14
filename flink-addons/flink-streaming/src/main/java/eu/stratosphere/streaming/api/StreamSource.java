@@ -128,7 +128,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 	public void setAckListener() {
 		EventListener eventListener = new AckEventListener(sourceInstanceID,
 				recordBuffer);
-		for (RecordWriter output : outputs) {
+		for (RecordWriter<Record> output : outputs) {
 			// TODO: separate outputs
 			output.subscribeToEvent(eventListener, AckEvent.class);
 		}

@@ -28,7 +28,6 @@ public class WordCountCounter extends UserTaskInvokable {
 	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
 	private StringValue wordValue = new StringValue("");
 	private IntValue countValue = new IntValue(1);
-	private Record outputRecord = new Record(wordValue, countValue);
 	private String word = "";
 	private int count = 1;
 
@@ -41,18 +40,14 @@ public class WordCountCounter extends UserTaskInvokable {
 		if (wordCounts.containsKey(word)) {
 			count = wordCounts.get(word) + 1;
 			wordCounts.put(word, count);
-			outputRecord.setField(0, wordValue);
 			countValue.setValue(count);
-			outputRecord.setField(1, countValue);
-
+			Record outputRecord = new Record(wordValue, countValue);
 			emit(outputRecord);
 		} else {
 
 			wordCounts.put(word, 1);
 			countValue.setValue(1);
-			outputRecord.setField(0, wordValue);
-			outputRecord.setField(1, countValue);
-
+			Record outputRecord = new Record(wordValue, countValue);
 			emit(outputRecord);
 
 		}

@@ -21,16 +21,18 @@ public abstract class StreamInvokable {
 		this.emittedRecords = emittedRecords;
 	}
 
-	public final void emit(Record record) {
+	public final void emit(Record record) {		
+		StreamRecord streamRecord = new StreamRecord(record, channelID).setId();
 		for (RecordWriter<Record> output : outputs) {
 			try {
-				StreamRecord streamRecord = new StreamRecord(record, channelID).addId();
 				output.emit(streamRecord.getRecord());
 				emittedRecords.put(streamRecord.getId(), streamRecord);
+				
 				System.out.println(this.getClass().getName());
 				System.out.println("Emitted " + streamRecord.getId() + "-"
 						+ streamRecord.toString());
 				System.out.println("---------------------");
+				
 			} catch (Exception e) {
 				System.out.println("Emit error");
 			}
