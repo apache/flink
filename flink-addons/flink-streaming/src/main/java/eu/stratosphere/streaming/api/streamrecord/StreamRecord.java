@@ -86,16 +86,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	public StreamRecord() {
 	}
 
-	public StreamRecord(StreamRecord record) {
-		this.numOfFields = record.getNumOfFields();
-		this.numOfTuples = 0;
-		tupleBatch = new ArrayList<Tuple>();
-		this.uid = new UID(Arrays.copyOf(record.getId().getId(), 20));
-		for (int i = 0; i < record.getNumOfTuples(); ++i) {
-			this.tupleBatch.add(copyTuple(record.getTuple(i)));
-		}
-	}
-	
 	/**
 	 * Creates empty StreamRecord with number of fields set
 	 * 
@@ -105,8 +95,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	public StreamRecord(int numOfFields) {
 		this.numOfFields = numOfFields;
 		this.numOfTuples = 0;
-		this.batchSize = 1;
-		tupleBatch = new ArrayList<Tuple>(batchSize);
+		tupleBatch = new ArrayList<Tuple>();
 	}
 
 	/**
@@ -124,6 +113,16 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		tupleBatch = new ArrayList<Tuple>(batchSize);
 	}
 
+	public StreamRecord(StreamRecord record) {
+		this.numOfFields = record.getNumOfFields();
+		this.numOfTuples = 0;
+		tupleBatch = new ArrayList<Tuple>();
+		this.uid = new UID(Arrays.copyOf(record.getId().getId(), 20));
+		for (int i = 0; i < record.getNumOfTuples(); ++i) {
+			this.tupleBatch.add(copyTuple(record.getTuple(i)));
+		}
+	}
+
 	/**
 	 * Creates a new batch of records containing only the given Tuple as element
 	 * and sets desired batch size.
@@ -139,7 +138,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		this.batchSize = batchSize;
 		tupleBatch = new ArrayList<Tuple>(batchSize);
 		tupleBatch.add(tuple);
-		System.out.println("here, the tuple batch size is"+tupleBatch.size());
 	}
 
 	/**
@@ -149,6 +147,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @param tupleList
 	 *            Tuples to bes stored in the StreamRecord
 	 */
+
 	public StreamRecord(List<Tuple> tupleList) {
 		numOfFields = tupleList.get(0).getArity();
 		numOfTuples = tupleList.size();
@@ -167,59 +166,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		this(tuple, 1);
 	}
 
-	/**
-	 * Checks if the number of fields are equal to the batch field size then
-	 * adds the Tuple to the end of the batch
-	 * 
-	 * @param tuple
-	 *            Tuple to be added as the next record of the batch
-	 * @throws TupleSizeMismatchException
-	 *             Tuple specified has illegal size
-	 */
-	public void addTuple(Tuple tuple) throws TupleSizeMismatchException {
-		addTuple(numOfTuples, tuple);
-	}
-
-	/**
-	 * Checks if the number of fields are equal to the batch field size then
-	 * inserts the Tuple to the given position into the recordbatch
-	 * 
-	 * @param index
-	 *            Position of the added tuple
-	 * @param tuple
-	 *            Tuple to be added as the next record of the batch
-	 * @throws TupleSizeMismatchException
-	 *             Tuple specified has illegal size
-	 */
-	public void addTuple(int index, Tuple tuple) throws TupleSizeMismatchException {
-		if (tuple.getArity() == numOfFields) {
-			tupleBatch.add(index, tuple);
-			numOfTuples++;
-		} else {
-			throw new TupleSizeMismatchException();
-		}
-	}
-
-	/**
-	 * Removes the tuple at the given position from the batch and returns it
-	 * 
-	 * @param index
-	 *            Index of tuple to remove
-	 * @return Removed tuple
-	 * @throws TupleSizeMismatchException
-	 *             Tuple specified has illegal size
-	 */
-	public Tuple removeTuple(int index) throws TupleSizeMismatchException {
-		if (index < numOfTuples) {
-			numOfTuples--;
-			return tupleBatch.remove(index);
-		} else {
-			throw new TupleSizeMismatchException();
-		}
-	}
-
-	
-	
 	public boolean isEmpty() {
 		return (this.numOfTuples == 0);
 	}
@@ -992,6 +938,57 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			}
 		} else {
 			throw (new TupleSizeMismatchException());
+		}
+	}
+
+	/**
+	 * Checks if the number of fields are equal to the batch field size then
+	 * adds the Tuple to the end of the batch
+	 * 
+	 * @param tuple
+	 *            Tuple to be added as the next record of the batch
+	 * @throws TupleSizeMismatchException
+	 *             Tuple specified has illegal size
+	 */
+	public void addTuple(Tuple tuple) throws TupleSizeMismatchException {
+		addTuple(numOfTuples, tuple);
+	}
+
+	/**
+	 * Checks if the number of fields are equal to the batch field size then
+	 * inserts the Tuple to the given position into the recordbatch
+	 * 
+	 * @param index
+	 *            Position of the added tuple
+	 * @param tuple
+	 *            Tuple to be added as the next record of the batch
+	 * @throws TupleSizeMismatchException
+	 *             Tuple specified has illegal size
+	 */
+	public void addTuple(int index, Tuple tuple) throws TupleSizeMismatchException {
+		if (tuple.getArity() == numOfFields) {
+			tupleBatch.add(index, tuple);
+			numOfTuples++;
+		} else {
+			throw new TupleSizeMismatchException();
+		}
+	}
+
+	/**
+	 * Removes the tuple at the given position from the batch and returns it
+	 * 
+	 * @param index
+	 *            Index of tuple to remove
+	 * @return Removed tuple
+	 * @throws TupleSizeMismatchException
+	 *             Tuple specified has illegal size
+	 */
+	public Tuple removeTuple(int index) throws TupleSizeMismatchException {
+		if (index < numOfTuples) {
+			numOfTuples--;
+			return tupleBatch.remove(index);
+		} else {
+			throw new TupleSizeMismatchException();
 		}
 	}
 
