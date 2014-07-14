@@ -30,12 +30,18 @@
 			<version>${project.version}</version>
 		</dependency>
 
-        <dependency>
+	        <dependency>
 			<groupId>com.rabbitmq</groupId>
 			<artifactId>amqp-client</artifactId>
 			<version>3.3.1</version>
 		</dependency>
 
+	        <dependency>
+			<groupId>org.zeromq</groupId>
+			<artifactId>jzmq</artifactId>
+			<version>3.0.1</version>
+		</dependency>
+		
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka_2.10</artifactId>
