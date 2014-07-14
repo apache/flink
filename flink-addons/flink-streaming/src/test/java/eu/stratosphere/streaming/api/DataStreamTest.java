@@ -38,6 +38,7 @@ public class DataStreamTest {
 
 		DataStream<Tuple1<String>> dataStream = context.setDummySource().flatMap(new MyFlatMap());
 
+		JobGraphBuilder jgb = context.jobGB();
 		
 		context.execute(dataStream.getId());
 //				
