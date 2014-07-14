@@ -94,7 +94,7 @@ public class DataStream<T extends Tuple> {
 	public DataStream<T> batch(int batchSize) {
 		return context.setBatchSize(this, batchSize);
 	}
-	
+
 	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper) {
 		return context.addFunction("flatMap", this, flatMapper, new FlatMapInvokable<T, R>(
 				flatMapper));

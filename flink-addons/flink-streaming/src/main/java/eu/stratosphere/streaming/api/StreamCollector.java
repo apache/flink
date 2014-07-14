@@ -28,37 +28,54 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 
 	protected StreamRecord streamRecord;
 	protected int batchSize;
+	protected long batchTimeout;
 	protected int counter = 0;
 	protected int channelID;
+	private long timeOfLastRecordEmitted = System.currentTimeMillis();;
 	private List<RecordWriter<StreamRecord>> outputs;
 
-	public StreamCollector(int batchSize, int channelID,
+	public StreamCollector(int batchSize, long batchTimeout, int channelID,
 			SerializationDelegate<Tuple> serializationDelegate,
 			List<RecordWriter<StreamRecord>> outputs) {
 		this.batchSize = batchSize;
+		this.batchTimeout = batchTimeout;
 		this.streamRecord = new ArrayStreamRecord(batchSize);
 		this.streamRecord.setSeralizationDelegate(serializationDelegate);
 		this.channelID = channelID;
 		this.outputs = outputs;
 	}
 
-	public StreamCollector(int batchSize, int channelID,
+	public StreamCollector(int batchSize, long batchTimeout, int channelID,
 			SerializationDelegate<Tuple> serializationDelegate) {
-		this(batchSize, channelID, serializationDelegate, null);
+		this(batchSize, batchTimeout, channelID, serializationDelegate, null);
 	}
 
+	// TODO reconsider emitting mechanism at timeout (find a place to timeout)
 	@Override
 	public void collect(T tuple) {
 		streamRecord.setTuple(counter, StreamRecord.copyTuple(tuple));
 		counter++;
+		
 		if (counter >= batchSize) {
-			counter = 0;
-			streamRecord.setId(channelID);
 			emit(streamRecord);
+			timeOfLastRecordEmitted = System.currentTimeMillis();
+		} else {
+			timeout();
 		}
 	}
 
+	public void timeout() {
+		if (timeOfLastRecordEmitted + batchTimeout < System.currentTimeMillis()) {
+			StreamRecord truncatedRecord = new ArrayStreamRecord(streamRecord, counter);
+			emit(truncatedRecord);
+			timeOfLastRecordEmitted = System.currentTimeMillis();
+		}
+	}
+	
 	private void emit(StreamRecord streamRecord) {
+		counter = 0;
+		streamRecord.setId(channelID);
+		
 		if (outputs == null) {
 			System.out.println(streamRecord);
 		} else {
