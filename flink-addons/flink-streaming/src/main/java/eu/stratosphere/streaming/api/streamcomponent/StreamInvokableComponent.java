@@ -21,8 +21,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.streaming.api.FaultToleranceBuffer;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 
 public abstract class StreamInvokableComponent {
 
@@ -33,10 +33,10 @@ public abstract class StreamInvokableComponent {
 
 	protected String channelID;
 	protected String name;
-	private FaultToleranceBuffer emittedRecords;
+	private FaultToleranceUtil emittedRecords;
 
 	public final void declareOutputs(List<RecordWriter<StreamRecord>> outputs,
-			String channelID, String name, FaultToleranceBuffer emittedRecords) {
+			String channelID, String name, FaultToleranceUtil emittedRecords) {
 		this.outputs = outputs;
 		this.channelID = channelID;
 		this.emittedRecords = emittedRecords;

@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api;
+package eu.stratosphere.streaming.faulttolerance;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -30,7 +30,7 @@ public class FailEventListener implements EventListener {
 	private static final Log log = LogFactory.getLog(FailEventListener.class);
 
 	private String taskInstanceID;
-	private FaultToleranceBuffer recordBuffer;
+	private FaultToleranceUtil recordBuffer;
 
 	/**
 	 * Creates a FailEventListener that monitors FailEvents sent to task with
@@ -41,7 +41,7 @@ public class FailEventListener implements EventListener {
 	 * @param recordBuffer
 	 *            The fault tolerance buffer associated with this task
 	 */
-	public FailEventListener(String taskInstanceID, FaultToleranceBuffer recordBuffer) {
+	public FailEventListener(String taskInstanceID, FaultToleranceUtil recordBuffer) {
 		this.taskInstanceID = taskInstanceID;
 		this.recordBuffer = recordBuffer;
 	}

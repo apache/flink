@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api;
+package eu.stratosphere.streaming.faulttolerance;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,10 +35,10 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
  * works as a buffer to hold StreamRecords for a task for re-emitting failed, or
  * timed out records.
  */
-public class FaultToleranceBuffer {
+public class FaultToleranceUtil {
 
 	private static final Log log = LogFactory
-			.getLog(FaultToleranceBuffer.class);
+			.getLog(FaultToleranceUtil.class);
 	private long timeout = 10000;
 	private Long timeOfLastUpdate;
 	private Map<String, StreamRecord> recordBuffer;
@@ -65,7 +65,7 @@ public class FaultToleranceBuffer {
 	 * @param numberOfChannels
 	 *            Number of output channels for the output components
 	 */
-	public FaultToleranceBuffer(List<RecordWriter<StreamRecord>> outputs,
+	public FaultToleranceUtil(List<RecordWriter<StreamRecord>> outputs,
 			String channelID, int[] numberOfChannels) {
 		this.timeOfLastUpdate = System.currentTimeMillis();
 		this.outputs = outputs;
@@ -115,7 +115,7 @@ public class FaultToleranceBuffer {
 	 *            time.
 	 * @return Returns the list of the records that have timed out.
 	 */
-	List<String> timeoutRecords(Long currentTime) {
+	public List<String> timeoutRecords(Long currentTime) {
 		if (timeOfLastUpdate + timeout < currentTime) {
 			log.trace("Updating record buffer");
 			List<String> timedOutRecords = new LinkedList<String>();
@@ -241,11 +241,12 @@ public class FaultToleranceBuffer {
 	 * @param recordID
 	 *            ID of the record that has been failed
 	 */
-	public void failRecord(String recordID) {
+	public String failRecord(String recordID) {
 		// Create new id to avoid double counting acks
 		StreamRecord newRecord = removeRecord(recordID).setId(channelID);
 		addRecord(newRecord);
 		reEmit(newRecord);
+		return newRecord.getId();
 	}
 
 	/**

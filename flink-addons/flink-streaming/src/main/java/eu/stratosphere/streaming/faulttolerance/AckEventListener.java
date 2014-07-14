@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api;
+package eu.stratosphere.streaming.faulttolerance;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -30,7 +30,7 @@ public class AckEventListener implements EventListener {
 	private static final Log log = LogFactory.getLog(AckEventListener.class);
 
 	private String taskInstanceID;
-	private FaultToleranceBuffer recordBuffer;
+	private FaultToleranceUtil recordBuffer;
 
 	/**
 	 * Creates an AckEventListener that monitors AckEvents sent to task with the
@@ -41,7 +41,7 @@ public class AckEventListener implements EventListener {
 	 * @param recordBuffer
 	 *            The fault tolerance buffer associated with this task
 	 */
-	public AckEventListener(String taskInstanceID, FaultToleranceBuffer recordBuffer) {
+	public AckEventListener(String taskInstanceID, FaultToleranceUtil recordBuffer) {
 		this.taskInstanceID = taskInstanceID;
 		this.recordBuffer = recordBuffer;
 	}

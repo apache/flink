@@ -77,6 +77,7 @@ public class StreamRecordTest {
 
 	@Test
 	public void copyTest() {
+		//TODO:test ID copy
 		StreamRecord a = new StreamRecord(new StringValue("Big"));
 		StreamRecord b = a.copy();
 		assertTrue(((StringValue) a.getField(0)).getValue().equals(((StringValue) b.getField(0)).getValue()));

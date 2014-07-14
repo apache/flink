@@ -29,17 +29,16 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.streaming.api.AckEvent;
-import eu.stratosphere.streaming.api.AckEventListener;
-import eu.stratosphere.streaming.api.FailEvent;
-import eu.stratosphere.streaming.api.FailEventListener;
-import eu.stratosphere.streaming.api.FaultToleranceBuffer;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
 import eu.stratosphere.streaming.api.invokable.RecordInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.RecordSizeMismatchException;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.faulttolerance.AckEvent;
+import eu.stratosphere.streaming.faulttolerance.FailEvent;
+import eu.stratosphere.streaming.faulttolerance.FailEventListener;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
 import eu.stratosphere.types.Key;
@@ -54,9 +53,9 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		return numComponents;
 	}
 
-	public void setAckListener(FaultToleranceBuffer recordBuffer,
+	public void setAckListener(FaultToleranceUtil recordBuffer,
 			String sourceInstanceID, List<RecordWriter<StreamRecord>> outputs) {
-		EventListener eventListener = new AckEventListener(sourceInstanceID,
+		EventListener eventListener = new eu.stratosphere.streaming.faulttolerance.AckEventListener(sourceInstanceID,
 				recordBuffer);
 		for (RecordWriter<StreamRecord> output : outputs) {
 			// TODO: separate outputs
@@ -64,7 +63,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		}
 	}
 
-	public void setFailListener(FaultToleranceBuffer recordBuffer,
+	public void setFailListener(FaultToleranceUtil recordBuffer,
 			String sourceInstanceID, List<RecordWriter<StreamRecord>> outputs) {
 		EventListener eventListener = new FailEventListener(sourceInstanceID,
 				recordBuffer);
@@ -133,7 +132,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 	public StreamInvokableComponent getUserFunction(
 			Configuration taskConfiguration,
 			List<RecordWriter<StreamRecord>> outputs, String instanceID, String name,
-			FaultToleranceBuffer recordBuffer) {
+			FaultToleranceUtil recordBuffer) {
 
 		// Default value is a TaskInvokable even if it was called from a source
 		Class<? extends StreamInvokableComponent> userFunctionClass = taskConfiguration
