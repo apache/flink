@@ -24,7 +24,7 @@ import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.util.Collector;
 
-public class StreamCollector2<T extends Tuple> implements Collector<T> {
+public class StreamCollectorManager<T extends Tuple> implements Collector<T> {
 
 	ArrayList<StreamCollector<Tuple>> notPartitionedCollectors;
 	ArrayList<StreamCollector<Tuple>[]> partitionedCollectors;
@@ -33,7 +33,7 @@ public class StreamCollector2<T extends Tuple> implements Collector<T> {
 	int keyPostition;
 
 	// TODO consider channelID
-	public StreamCollector2(List<Integer> batchSizesOfNotPartitioned, List<Integer> batchSizesOfPartitioned,
+	public StreamCollectorManager(List<Integer> batchSizesOfNotPartitioned, List<Integer> batchSizesOfPartitioned,
 			List<Integer> parallelismOfOutput, int keyPosition, long batchTimeout, int channelID,
 			SerializationDelegate<Tuple> serializationDelegate,
 			List<RecordWriter<StreamRecord>> partitionedOutputs,
