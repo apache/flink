@@ -18,22 +18,22 @@ package eu.stratosphere.streaming.examples.wordcount;
 import java.util.HashMap;
 import java.util.Map;
 
+import eu.stratosphere.api.java.functions.MapFunction;
+import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WordCountCounter extends UserTaskInvokable {
+public class WordCountCounter extends MapFunction<Tuple1<String>, Tuple2<String, Integer>> {
 	private static final long serialVersionUID = 1L;
 
 	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
 	private String word = "";
 	private Integer count = 0;
 
-	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Integer>());
-
+	private Tuple2<String, Integer> outTuple = new Tuple2<String, Integer>();
+	
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
-		word = record.getString(0);
+	public Tuple2<String, Integer> map(Tuple1<String> inTuple) throws Exception {
+		word = inTuple.f0;
 
 		if (wordCounts.containsKey(word)) {
 			count = wordCounts.get(word) + 1;
@@ -43,10 +43,10 @@ public class WordCountCounter extends UserTaskInvokable {
 			wordCounts.put(word, 1);
 		}
 
-		outRecord.setString(0, word);
-		outRecord.setInteger(1, count);
+		outTuple.f0 = word;
+		outTuple.f1 = count;
 
-		emit(outRecord);
+		return outTuple;
 		// performanceCounter.count();
 
 	}
