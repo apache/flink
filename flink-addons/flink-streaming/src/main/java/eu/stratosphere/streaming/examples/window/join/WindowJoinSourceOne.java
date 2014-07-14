@@ -18,30 +18,28 @@ package eu.stratosphere.streaming.examples.window.join;
 import java.util.Random;
 
 import eu.stratosphere.api.java.tuple.Tuple4;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.util.Collector;
 
-public class WindowJoinSourceOne extends UserSourceInvokable {
+public class WindowJoinSourceOne extends SourceFunction<Tuple4<String, String, Integer, Long>> {
 
 	private static final long serialVersionUID = 6670933703432267728L;
 
-	private String[] names = { "tom", "jerry", "alice", "bob", "john", "grace",
-			"sasa", "lawrance", "andrew", "jean", "richard", "smith", "gorge",
-			"black", "peter" };
+	private String[] names = { "tom", "jerry", "alice", "bob", "john", "grace", "sasa", "lawrance",
+			"andrew", "jean", "richard", "smith", "gorge", "black", "peter" };
 	private Random rand = new Random();
-	private StreamRecord outRecord = new StreamRecord(
-			new Tuple4<String, String, Integer, Long>());
-	private long progress = 0L;
+	private Tuple4<String, String, Integer, Long> outRecord = new Tuple4<String, String, Integer, Long>();
+	private Long progress = 0L;
 
 	@Override
-	public void invoke() throws Exception {
+	public void invoke(Collector<Tuple4<String, String, Integer, Long>> collector) throws Exception {
 		while (true) {
-			outRecord.setString(0, "salary");
-			outRecord.setString(1, names[rand.nextInt(names.length)]);
-			outRecord.setInteger(2, rand.nextInt(10000));
-			outRecord.setLong(3, progress);
-			emit(outRecord);
-			progress+=1;
+			outRecord.f0 = "salary";
+			outRecord.f1 = names[rand.nextInt(names.length)];
+			outRecord.f2 = rand.nextInt(10000);
+			outRecord.f3 = progress;
+			collector.collect(outRecord);
+			progress += 1;
 		}
 	}
 }
