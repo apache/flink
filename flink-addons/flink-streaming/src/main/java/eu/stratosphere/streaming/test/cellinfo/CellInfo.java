@@ -18,7 +18,7 @@ package eu.stratosphere.streaming.test.cellinfo;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.test.util.TestBase2;
-import eu.stratosphere.types.StringValue;
+import eu.stratosphere.types.IntValue;
 
 public class CellInfo extends TestBase2 {
 
@@ -30,8 +30,8 @@ public class CellInfo extends TestBase2 {
     graphBuilder.setTask("cellTask", CellTaskInvokable.class, 2);
     graphBuilder.setSink("sink", CellSinkInvokable.class);
     
-    graphBuilder.fieldsConnect("infoSource", "cellTask", 0, StringValue.class);
-    graphBuilder.fieldsConnect("querySource", "cellTask",0, StringValue.class);
+    graphBuilder.fieldsConnect("infoSource", "cellTask", 0, IntValue.class);
+    graphBuilder.fieldsConnect("querySource", "cellTask",0, IntValue.class);
     graphBuilder.broadcastConnect("cellTask", "sink");
 
     return graphBuilder.getJobGraph();

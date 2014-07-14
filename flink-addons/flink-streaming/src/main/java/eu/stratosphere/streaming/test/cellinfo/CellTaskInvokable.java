@@ -24,6 +24,8 @@ import eu.stratosphere.types.StringValue;
 public class CellTaskInvokable extends UserTaskInvokable {
 
 	private WorkerEngineExact engine = new WorkerEngineExact(10, 1000, 0);
+	private StringValue infoValue = new StringValue();
+	private StringValue queryValue = new StringValue();
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
@@ -33,13 +35,15 @@ public class CellTaskInvokable extends UserTaskInvokable {
 		// INFO
 		if (record.getNumOfFields() == 2) {
 			engine.put(value1.getValue(), value2.getValue());
-			emit(new StreamRecord(new StringValue(value1 + " " + value2)));
+			infoValue.setValue(value1.toString() + " " + value2.toString());
+			emit(new StreamRecord(infoValue));
 		}
 		// QUERY
 		else if (record.getNumOfFields() == 3) {
 			LongValue value3 = (LongValue) record.getField(0, 2);
-			emit(new StreamRecord(new StringValue(String.valueOf(engine.get(
-					value2.getValue(), value3.getValue(), value1.getValue())))));
+			queryValue.setValue(String.valueOf(engine.get(value2.getValue(),
+					value3.getValue(), value1.getValue())));
+			emit(new StreamRecord(queryValue));
 		}
 	}
 }
