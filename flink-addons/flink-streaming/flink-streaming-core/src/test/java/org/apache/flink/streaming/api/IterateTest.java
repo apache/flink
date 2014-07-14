@@ -90,7 +90,7 @@ public class IterateTest {
 		
 		DataStream<Tuple1<Integer>> increment = source.flatMap(new Increment());
 		
-		source.closeWith(increment).addSink(new MySink());
+		source.closeWith(increment).print();
 
 		env.executeTest(MEMORYSIZE);
 		
