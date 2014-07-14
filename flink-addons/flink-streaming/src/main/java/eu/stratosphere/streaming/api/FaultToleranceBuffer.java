@@ -43,6 +43,7 @@ public class FaultToleranceBuffer {
 	private Long timeOfLastUpdate;
 	private Map<String, StreamRecord> recordBuffer;
 	private Map<String, Integer> ackCounter;
+	private Map<String, int[]> ackMap;
 	private SortedMap<Long, Set<String>> recordsByTime;
 	private Map<String, Long> recordTimestamps;
 
@@ -50,6 +51,7 @@ public class FaultToleranceBuffer {
 	private final String channelID;
 
 	private int numberOfOutputs;
+	private int[] numberOfOutputChannels;
 
 	/**
 	 * Creates fault tolerance buffer object for the given output channels and
@@ -60,16 +62,24 @@ public class FaultToleranceBuffer {
 	 * @param channelID
 	 *            ID of the task object that uses this buffer
 	 * @param numberOfChannels
-	 *            Number of output channels for the component
+	 *            Number of output channels for the output components
 	 */
-
+	
 	public FaultToleranceBuffer(List<RecordWriter<StreamRecord>> outputs,
-			String channelID, int numberOfChannels) {
+			String channelID, int[] numberOfChannels) {
 		this.timeOfLastUpdate = System.currentTimeMillis();
 		this.outputs = outputs;
 		this.recordBuffer = new HashMap<String, StreamRecord>();
 		this.ackCounter = new HashMap<String, Integer>();
-		this.numberOfOutputs = numberOfChannels;
+		this.ackMap = new HashMap<String, int[]>();
+		this.numberOfOutputChannels=numberOfChannels;
+		
+		int totalChannels = 0;
+
+		for (int i : numberOfChannels)
+			totalChannels += i;
+		
+		this.numberOfOutputs = totalChannels;
 		this.channelID = channelID;
 		this.recordsByTime = new TreeMap<Long, Set<String>>();
 		this.recordTimestamps = new HashMap<String, Long>();
@@ -84,6 +94,9 @@ public class FaultToleranceBuffer {
 		String id = streamRecord.getId();
 		recordBuffer.put(id, streamRecord.copy());
 		ackCounter.put(id, numberOfOutputs);
+		
+		ackMap.put(id,numberOfOutputChannels.clone());
+		
 		addTimestamp(id);
 		log.trace("Record added to buffer: " + id);
 	}
@@ -177,14 +190,51 @@ public class FaultToleranceBuffer {
 	// TODO: find a place to call timeoutRecords
 	public void ackRecord(String recordID) {
 		if (ackCounter.containsKey(recordID)) {
-			Integer ackCount = ackCounter.get(recordID) - 1;
-
+			Integer ackCount = ackCounter.get(recordID)-1;
 			if (ackCount == 0) {
 				removeRecord(recordID);
 			} else {
 				ackCounter.put(recordID, ackCount);
 			}
 		}
+	}
+
+	/**
+	 * Acknowledges the record of the given ID from one output, if all the
+	 * outputs have sent acknowledgments, removes it from the buffer
+	 * 
+	 * @param recordID
+	 *            ID of the record that has been acknowledged
+	 * 
+	 * @param outputChannel
+	 *            Number of the output channel that sent the ack
+	 */
+	public void ackRecord(String recordID, int outputChannel) {
+
+		if (ackMap.containsKey(recordID)) {
+			int[] acks = ackMap.get(recordID);
+			acks[outputChannel]--;
+
+			if (allZero(acks)) {
+				removeRecord(recordID);
+			}
+
+		}
+	}
+
+	/**
+	 * Checks whether an int array contains only zeros.
+	 * @param values
+	 * The array to check
+	 * @return
+	 * true only if the array contains only zeros
+	 */
+	private static boolean allZero(int[] values) {
+		for (int value : values) {
+			if (value!=0)
+				return false;
+		}
+		return true;
 	}
 
 	/**
@@ -202,6 +252,19 @@ public class FaultToleranceBuffer {
 	}
 
 	/**
+	 * Re-emits the failed record for the given ID to a specific output with a
+	 * new id
+	 * 
+	 * @param recordID
+	 *            ID of the record that has been failed
+	 * @param outputChannel
+	 *            Number of the output channel
+	 */
+	public void failRecord(String recordID, int outputChannel) {
+		// TODO: Implement functionality
+	}
+
+	/**
 	 * Emit give record to all output channels
 	 * 
 	 * @param record
@@ -211,6 +274,26 @@ public class FaultToleranceBuffer {
 		for (RecordWriter<StreamRecord> output : outputs) {
 			try {
 				output.emit(record);
+				log.warn("RE-EMITTED: " + record.getId());
+			} catch (Exception e) {
+				log.error("RE-EMIT FAILED, avoiding record: " + record.getId());
+			}
+		}
+
+	}
+
+	/**
+	 * Emit give record to a specific output, added for exactly once processing
+	 * 
+	 * @param record
+	 *            Record to be re-emitted
+	 * @param outputChannel
+	 *            Number of the output channel
+	 */
+	public void reEmit(StreamRecord record, int outputChannel) {
+		{
+			try {
+				outputs.get(outputChannel).emit(record);
 				log.warn("RE-EMITTED: " + record.getId());
 			} catch (Exception e) {
 				log.error("RE-EMIT FAILED, avoiding record: " + record.getId());

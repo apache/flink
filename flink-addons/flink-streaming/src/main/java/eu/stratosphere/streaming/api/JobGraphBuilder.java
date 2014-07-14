@@ -15,7 +15,9 @@
 
 package eu.stratosphere.streaming.api;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.logging.Log;
@@ -54,7 +56,8 @@ public class JobGraphBuilder {
 	private final JobGraph jobGraph;
 	private Map<String, AbstractJobVertex> components;
 	private Map<String, Integer> numberOfInstances;
-	private Map<String, Integer> numberOfOutputChannels;
+	private Map<String, List<Integer>> numberOfOutputChannels;
+
 
 	/**
 	 * Creates a new JobGraph with the given name
@@ -66,7 +69,7 @@ public class JobGraphBuilder {
 		jobGraph = new JobGraph(jobGraphName);
 		components = new HashMap<String, AbstractJobVertex>();
 		numberOfInstances = new HashMap<String, Integer>();
-		numberOfOutputChannels = new HashMap<String, Integer>();
+		numberOfOutputChannels=new HashMap<String, List<Integer>>();
 		log.debug("JobGraph created");
 
 	}
@@ -245,7 +248,7 @@ public class JobGraphBuilder {
 					upStreamComponent.getConfiguration()).getConfiguration();
 			config.setClass(
 					"partitionerClass_"
-							+ upStreamComponent.getNumberOfForwardConnections(),
+							+ (upStreamComponent.getNumberOfForwardConnections()-1),
 					PartitionerClass);
 			log.debug("CONNECTED: "
 					+ PartitionerClass.getSimpleName() + " - "
@@ -277,14 +280,8 @@ public class JobGraphBuilder {
 		connect(upStreamComponentName, downStreamComponentName,
 				BroadcastPartitioner.class, ChannelType.INMEMORY);
 
-		if (numberOfOutputChannels.containsKey(upStreamComponentName)) {
-			numberOfOutputChannels.put(upStreamComponentName,
-					numberOfOutputChannels.get(upStreamComponentName)
-							+ numberOfInstances.get(downStreamComponentName));
-		} else {
-			numberOfOutputChannels.put(upStreamComponentName,
-					numberOfInstances.get(downStreamComponentName));
-		}
+		addOutputChannels(upStreamComponentName,numberOfInstances.get(downStreamComponentName));
+		
 		// log.debug("Components connected with broadcast: " +
 		// upStreamComponentName + " to " + downStreamComponentName);
 	}
@@ -324,20 +321,20 @@ public class JobGraphBuilder {
 
 			config.setClass(
 					"partitionerClass_"
-							+ upStreamComponent.getNumberOfForwardConnections(),
+							+ (upStreamComponent.getNumberOfForwardConnections()-1),
 					FieldsPartitioner.class);
 
 			config.setClass(
 					"partitionerClassParam_"
-							+ upStreamComponent.getNumberOfForwardConnections(),
+							+ (upStreamComponent.getNumberOfForwardConnections()-1),
 					keyClass);
 
 			config.setInteger(
 					"partitionerIntParam_"
-							+ upStreamComponent.getNumberOfForwardConnections(),
+							+ (upStreamComponent.getNumberOfForwardConnections()-1),
 					keyPosition);
 
-			addOutputChannels(upStreamComponentName);
+			addOutputChannels(upStreamComponentName,1);
 			log.debug("CONNECTED: FIELD PARTITIONING - " + upStreamComponentName
 					+ " -> " + downStreamComponentName + ", KEY: "
 					+ keyPosition);
@@ -366,7 +363,7 @@ public class JobGraphBuilder {
 		connect(upStreamComponentName, downStreamComponentName,
 				GlobalPartitioner.class, ChannelType.INMEMORY);
 
-		addOutputChannels(upStreamComponentName);
+		addOutputChannels(upStreamComponentName,1);
 
 	}
 
@@ -388,15 +385,15 @@ public class JobGraphBuilder {
 		connect(upStreamComponentName, downStreamComponentName,
 				ShufflePartitioner.class, ChannelType.INMEMORY);
 
-		addOutputChannels(upStreamComponentName);
+		addOutputChannels(upStreamComponentName,1);
 	}
 
-	private void addOutputChannels(String upStreamComponentName) {
+	private void addOutputChannels(String upStreamComponentName, int numOfInstances) {
 		if (numberOfOutputChannels.containsKey(upStreamComponentName)) {
-			numberOfOutputChannels.put(upStreamComponentName,
-					numberOfOutputChannels.get(upStreamComponentName) + 1);
+			numberOfOutputChannels.get(upStreamComponentName).add(numOfInstances);
 		} else {
-			numberOfOutputChannels.put(upStreamComponentName, 1);
+			numberOfOutputChannels.put(upStreamComponentName, new ArrayList<Integer>());
+			numberOfOutputChannels.get(upStreamComponentName).add(numOfInstances);
 		}
 	}
 
@@ -412,12 +409,16 @@ public class JobGraphBuilder {
 			component.getConfiguration().setInteger("numberOfOutputs",
 					component.getNumberOfForwardConnections());
 		}
+		
 		for (String component : numberOfOutputChannels.keySet()) {
-			components
-					.get(component)
-					.getConfiguration()
-					.setInteger("numberOfOutputChannels",
-							numberOfOutputChannels.get(component));
+			Configuration config = components.get(component).getConfiguration();
+			
+			List<Integer> channelNumList=numberOfOutputChannels.get(component);
+			
+			for(int i=0;i<channelNumList.size();i++){
+				config.setInteger("channels_"+i,channelNumList.get(i));
+			}
+		
 		}
 	}
 

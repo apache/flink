@@ -71,10 +71,15 @@ public class StreamTask extends AbstractTask {
 			log.error("Cannot register inputs/outputs for " + getClass().getSimpleName(), e);
 		}
 
-		recordBuffer = new FaultToleranceBuffer(outputs, taskInstanceID, taskConfiguration.getInteger(
-				"numberOfOutputChannels", -1));
+		int[] numberOfOutputChannels= new int[outputs.size()];
+		for(int i=0; i<numberOfOutputChannels.length;i++ ){
+			numberOfOutputChannels[i]=taskConfiguration.getInteger("channels_"+i, 0);
+		}
+		
+		recordBuffer = new FaultToleranceBuffer(outputs, taskInstanceID, numberOfOutputChannels);
 		userFunction = (UserTaskInvokable) streamTaskHelper.getUserFunction(taskConfiguration, outputs, taskInstanceID, name,
 				recordBuffer);
+			
 		streamTaskHelper.setAckListener(recordBuffer, taskInstanceID, outputs);
 		streamTaskHelper.setFailListener(recordBuffer, taskInstanceID, outputs);
 	}

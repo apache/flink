@@ -17,17 +17,16 @@ package eu.stratosphere.streaming.api.streamcomponent;
 import static org.junit.Assert.assertEquals;
 
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.log4j.Appender;
+import junit.framework.Assert;
+
 import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Layout;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.log4j.spi.ErrorHandler;
-import org.apache.log4j.spi.Filter;
-import org.apache.log4j.spi.LoggingEvent;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
@@ -39,11 +38,15 @@ import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
 import eu.stratosphere.types.IntValue;
 
 public class StreamComponentTest {
 	
 	private static Map<Integer, Integer> data = new HashMap<Integer, Integer>();
+	private static FieldsPartitioner fP= new FieldsPartitioner(0, IntValue.class);
+	private static boolean fPTest = true;
+	
 	
 	public static class MySource extends UserSourceInvokable {
 		public MySource() {
@@ -63,8 +66,19 @@ public class StreamComponentTest {
 		public MyTask() {
 		}
 		
+		int[] lastChannels=null;
+		
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
+			
+			if(lastChannels!=null){
+				if(!Arrays.equals(lastChannels, fP.selectChannels(record, 2))){
+					fPTest=false;
+				}
+			}
+			
+			lastChannels=fP.selectChannels(record, 2);
+			
 			IntValue val = (IntValue) record.getField(0);
 			Integer i = val.getValue();
 			emit(new StreamRecord(new IntValue(i), new IntValue(i+1)));
@@ -88,8 +102,8 @@ public class StreamComponentTest {
 		}
 	}
 	
-	@Test
-	public void test() {
+	@BeforeClass
+	public static void runStream(){
 		Logger root = Logger.getRootLogger();
 		root.removeAllAppenders();
 		root.addAppender(new ConsoleAppender());
@@ -97,10 +111,10 @@ public class StreamComponentTest {
 		
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
 		graphBuilder.setSource("MySource", StreamComponentTest.MySource.class);
-		graphBuilder.setTask("MyTask", MyTask.class, 1);
+		graphBuilder.setTask("MyTask", MyTask.class, 2);
 		graphBuilder.setSink("MySink", MySink.class);
 
-		graphBuilder.shuffleConnect("MySource", "MyTask");
+		graphBuilder.fieldsConnect("MySource", "MyTask",0,IntValue.class);
 		graphBuilder.shuffleConnect("MyTask", "MySink");
 		
 		JobGraph jG = graphBuilder.getJobGraph();
@@ -112,12 +126,19 @@ public class StreamComponentTest {
 			Client client = new Client(new InetSocketAddress("localhost",
 					6498), configuration);
 
-			client.run(jG, true);
+			client.run(null, jG, true);
 
 			exec.stop();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		
+	}
+	
+	@Test
+	public void test() {
+		
+		Assert.assertTrue(fPTest);
 		
 		assertEquals(1000, data.keySet().size());
 		

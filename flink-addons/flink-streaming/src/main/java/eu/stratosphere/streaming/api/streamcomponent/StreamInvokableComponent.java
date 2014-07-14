@@ -26,7 +26,8 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public abstract class StreamInvokableComponent {
 
-	private static final Log log = LogFactory.getLog(StreamInvokableComponent.class);
+	private static final Log log = LogFactory
+			.getLog(StreamInvokableComponent.class);
 
 	private List<RecordWriter<StreamRecord>> outputs;
 
@@ -39,7 +40,7 @@ public abstract class StreamInvokableComponent {
 		this.outputs = outputs;
 		this.channelID = channelID;
 		this.emittedRecords = emittedRecords;
-		this.name =name;
+		this.name = name;
 	}
 
 	public final void emit(StreamRecord record) {
@@ -56,4 +57,20 @@ public abstract class StreamInvokableComponent {
 			emittedRecords.failRecord(record.getId());
 		}
 	}
+	
+	//TODO:Add fault tolreance
+	public final void emit(StreamRecord record, int outputChannel) {
+		record.setId(channelID);
+		try {
+			
+			outputs.get(outputChannel).emit(record);
+			
+		} catch (Exception e) {
+			
+			log.warn("EMIT ERROR: " + e.getMessage() + " -- " + name);
+			
+		}
+
+	}
+
 }
