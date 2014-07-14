@@ -29,7 +29,6 @@ public class StreamSink extends AbstractOutputTask {
 
 	private List<RecordReader<Record>> inputs;
 	private UserSinkInvokable userFunction;
-
 	private int numberOfInputs;
 
 	public StreamSink() {

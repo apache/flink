@@ -29,6 +29,7 @@ import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
+import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
 import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
@@ -40,13 +41,11 @@ public class StreamTask extends AbstractTask {
 	private List<RecordWriter<Record>> outputs;
 	private List<ChannelSelector<Record>> partitioners;
 	private UserTaskInvokable userFunction;
-
 	private int numberOfInputs;
 	private int numberOfOutputs;
-
+	
 	private static int numTasks = 0;
 	private String taskInstanceID = "";
-
 	private Map<String, StreamRecord> recordBuffer;
 
 	public StreamTask() {
@@ -115,9 +114,7 @@ public class StreamTask extends AbstractTask {
 						ChannelSelector.class);
 
 		try {
-			// TODO: Fix class comparison
-			if (partitioner.getName().equals(
-					"eu.stratosphere.streaming.partitioner.FieldsPartitioner")) {
+			if (partitioner.equals(FieldsPartitioner.class)) {
 				int keyPosition = taskConfiguration.getInteger("partitionerIntParam_"
 						+ nrOutput, 1);
 				Class<? extends Key> keyClass = taskConfiguration.getClass(

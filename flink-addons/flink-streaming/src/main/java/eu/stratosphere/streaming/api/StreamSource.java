@@ -28,6 +28,7 @@ import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.streaming.api.invokable.DefaultSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
+import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
 import eu.stratosphere.streaming.test.RandIS;
 import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
@@ -38,12 +39,10 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 	private List<RecordWriter<Record>> outputs;
 	private List<ChannelSelector<Record>> partitioners;
 	private UserSourceInvokable userFunction;
-
+	private int numberOfOutputs;
+	
 	private static int numSources = 0;
 	private String sourceInstanceID;
-
-	private int numberOfOutputs;
-
 	private Map<String, StreamRecord> recordBuffer;
 
 	public StreamSource() {
@@ -54,9 +53,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 		numberOfOutputs = 0;
 		numSources++;
 		sourceInstanceID = Integer.toString(numSources);
-
 		recordBuffer = new TreeMap<String, StreamRecord>();
-
 	}
 
 	@Override
@@ -109,9 +106,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 						ChannelSelector.class);
 
 		try {
-			// TODO: Fix class comparison
-			if (partitioner.getName().equals(
-					"eu.stratosphere.streaming.partitioner.FieldsPartitioner")) {
+			if (partitioner.equals(FieldsPartitioner.class)) {
 				int keyPosition = taskConfiguration.getInteger("partitionerIntParam_"
 						+ nrOutput, 1);
 				Class<? extends Key> keyClass = taskConfiguration.getClass(
