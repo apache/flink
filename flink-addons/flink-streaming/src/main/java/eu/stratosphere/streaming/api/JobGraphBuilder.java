@@ -171,6 +171,8 @@ public class JobGraphBuilder {
 			final Class<? extends UserInvokable> InvokableClass,
 			int parallelism, AbstractJobVertex component) {
 		component.setNumberOfSubtasks(parallelism);
+		component.setNumberOfSubtasksPerInstance(parallelism);
+
 		Configuration config = new TaskConfig(component.getConfiguration())
 				.getConfiguration();
 		config.setClass("userfunction", InvokableClass);
