@@ -193,17 +193,17 @@ public class StreamExecutionEnvironment {
 	 * Creates a new DataStream that contains a sequence of numbers.
 	 * 
 	 * @param from
-	 *            The number to start at (inclusive).
+	 *            First number in the sequence
 	 * @param to
-	 *            The number to stop at (inclusive)
-	 * @return A DataStrean, containing all number in the [from, to] interval.
+	 *            Last element in the sequence
+	 * @return the data stream constructed
 	 */
 	public DataStream<Tuple1<Long>> generateSequence(long from, long to) {
 		return addSource(new SequenceSource(from, to), 1);
 	}
 
 	/**
-	 * Source Function used to generate the number sequence
+	 * Source Function used to generate sequence
 	 * 
 	 */
 	private static final class SequenceSource extends SourceFunction<Tuple1<Long>> {
@@ -230,15 +230,12 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a new DataStream that contains the given elements. The elements
-	 * must all be of the same type, for example, all of the String or Integer.
-	 * The sequence of elements must not be empty. Furthermore, the elements
-	 * must be serializable (as defined in java.io.Serializable), because the
-	 * execution environment may ship the elements into the cluster.
+	 * Creates a new DataStream by iterating through the given data. The
+	 * elements are inserted into a Tuple1.
 	 * 
 	 * @param data
-	 *            The collection of elements to create the DataStream from.
-	 * @return The DataStream representing the elements.
+	 * 
+	 * @return
 	 */
 	public <X> DataStream<Tuple1<X>> fromElements(X... data) {
 		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this);
@@ -250,14 +247,12 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a DataStream from the given non-empty collection. The type of the
-	 * DataStream is that of the elements in the collection. The elements need
-	 * to be serializable (as defined by java.io.Serializable), because the
-	 * framework may move the elements into the cluster if needed.
+	 * Creates a new DataStream by iterating through the given data collection.
+	 * The elements are inserted into a Tuple1.
 	 * 
 	 * @param data
-	 *            The collection of elements to create the DataStream from.
-	 * @return The DataStream representing the elements.
+	 * 
+	 * @return
 	 */
 	public <X> DataStream<Tuple1<X>> fromCollection(Collection<X> data) {
 		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this);
@@ -315,9 +310,10 @@ public class StreamExecutionEnvironment {
 		return addSink(inputStream, sinkFunction, 1);
 	}
 
+	// TODO: link to SinkFunction
 	/**
 	 * Dummy implementation of the SinkFunction writing every tuple to the
-	 * standard output. Used for print.
+	 * standard output.
 	 * 
 	 * @param <IN>
 	 *            Input tuple type
@@ -377,31 +373,27 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a DataStream that represents the Strings produced by reading the
-	 * given file line wise. The file will be read with the system's default
-	 * character set.
+	 * Read a text file from the given path and emits the lines as
+	 * Tuple1<Strings>-s
 	 * 
-	 * @param filePath
-	 *            The path of the file, as a URI (e.g.,
-	 *            "file:///some/local/file" or "hdfs://host:port/file/path").
-	 * @return The DataStream representing the text file.
+	 * @param path
+	 *            Input file
+	 * @return the data stream constructed
 	 */
-	public DataStream<Tuple1<String>> readTextFile(String filePath) {
-		return addSource(new FileSourceFunction(filePath), 1);
+	public DataStream<Tuple1<String>> readTextFile(String path) {
+		return addSource(new FileSourceFunction(path), 1);
 	}
 
 	/**
-	 * Creates a DataStream that represents the Strings produced by reading the
-	 * given file line wise multiple times(infinite). The file will be read with
-	 * the system's default character set.
+	 * Streams a text file from the given path by reading through it multiple
+	 * times.
 	 * 
-	 * @param filePath
-	 *            The path of the file, as a URI (e.g.,
-	 *            "file:///some/local/file" or "hdfs://host:port/file/path").
-	 * @return The DataStream representing the text file.
+	 * @param path
+	 *            Input file
+	 * @return the data stream constructed
 	 */
-	public DataStream<Tuple1<String>> readTextStream(String filePath) {
-		return addSource(new FileStreamFunction(filePath), 1);
+	public DataStream<Tuple1<String>> readTextStream(String path) {
+		return addSource(new FileStreamFunction(path), 1);
 	}
 
 	/**
