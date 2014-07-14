@@ -140,7 +140,16 @@ public class StreamRecordTest {
 		assertEquals((Long) 2L, record.getLong(1, 2));
 		assertEquals(true, record.getBoolean(1, 3));
 		assertEquals((Double) 3.5, record.getDouble(1, 4));
+		
+		record.removeTuple(1);
+		
+		assertEquals(1, record.getNumOfTuples());
 
+		assertEquals("", record.getString(0, 0));
+		assertEquals((Integer) 0, record.getInteger(0, 1));
+		assertEquals((Long) 0L, record.getLong(0, 2));
+		assertEquals(false, record.getBoolean(0, 3));
+		assertEquals((Double) 0., record.getDouble(0, 4));
 	}
 
 	@Test
