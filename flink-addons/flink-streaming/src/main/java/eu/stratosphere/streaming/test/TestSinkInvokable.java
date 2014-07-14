@@ -13,22 +13,18 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test.batch;
+package eu.stratosphere.streaming.test;
 
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.streaming.api.StreamRecord;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.types.StringValue;
 
-public class BatchForward extends TestBase2{
+public class TestSinkInvokable implements UserSinkInvokable {
 
-	@Override
-	public JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("StreamSource", BatchForwardSource.class);
-		graphBuilder.setSink("StreamSink", BachForwardSink.class);
+  @Override
+  public void invoke(StreamRecord record) throws Exception {  	
+  	StringValue value = (StringValue) record.getField(0, 0);
+    System.out.println(value.getValue());
+  }
 
-		graphBuilder.broadcastConnect("StreamSource", "StreamSink");
-
-		return graphBuilder.getJobGraph();
-	}
 }

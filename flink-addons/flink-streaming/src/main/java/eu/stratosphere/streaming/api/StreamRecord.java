@@ -13,6 +13,13 @@ import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 
+/**
+ * Object for storing serializable records in batch(single records are
+ * represented batches with one element) used for sending records between task
+ * objects in Stratosphere stream processing. The elements of the batch are
+ * Value arrays.
+ * 
+ */
 public class StreamRecord implements IOReadableWritable, Serializable {
 	private static final long serialVersionUID = 1L;
 
@@ -21,16 +28,31 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	private int numOfFields;
 	private int numOfRecords;
 
+	/**
+	 * Creates a new empty batch of records and sets the field number to one
+	 */
 	public StreamRecord() {
 		this.numOfFields = 1;
 		recordBatch = new ArrayList<Value[]>();
 	}
 
+	/**
+	 * Creates a new empty batch of records and sets the field number to the given
+	 * number
+	 * 
+	 * @param length
+	 *          Number of fields in the records
+	 */
 	public StreamRecord(int length) {
 		this.numOfFields = length;
 		recordBatch = new ArrayList<Value[]>();
 	}
 
+	/**
+	 * Create a new batch of records with one element from an AtomRecord, sets
+	 * number of fields accordingly
+	 * 
+	 */
 	public StreamRecord(AtomRecord record) {
 		Value[] fields = record.getFields();
 		numOfFields = fields.length;
@@ -38,39 +60,105 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		recordBatch.add(fields);
 		numOfRecords = recordBatch.size();
 	}
-	
-	public StreamRecord(Value... values){
-		this(new AtomRecord(values));
+
+	/**
+	 * Given an array of Values, creates a new a record batch containing the array
+	 * as its first element
+	 * 
+	 * @param values
+	 *          Array containing the Values for the first record in the batch
+	 */
+	public StreamRecord(Value... values) {
+		numOfFields = values.length;
+		recordBatch = new ArrayList<Value[]>();
+		recordBatch.add(values);
+		numOfRecords = recordBatch.size();
 	}
 
+	/**
+	 * 
+	 * @return Number of fields in the records
+	 */
 	public int getNumOfFields() {
 		return numOfFields;
 	}
 
+	/**
+	 * 
+	 * @return Number of records in the batch
+	 */
 	public int getNumOfRecords() {
 		return numOfRecords;
 	}
 
+	/**
+	 * Set the ID of the StreamRecord object
+	 * 
+	 * @param channelID
+	 *          ID of the emitting task
+	 * @return The StreamRecord object
+	 */
 	public StreamRecord setId(String channelID) {
 		Random rnd = new Random();
 		uid.setValue(channelID + "-" + rnd.nextInt(1000));
 		return this;
 	}
 
+	/**
+	 * 
+	 * @return The ID of the object
+	 */
 	public String getId() {
 		return uid.getValue();
 	}
 
+	/**
+	 * Returns the Value of a field in the given position of a specific record in
+	 * the batch
+	 * 
+	 * @param recordNumber
+	 *          Position of the record in the batch
+	 * @param fieldNumber
+	 *          Position of the field in the record
+	 * @return Value of the field
+	 */
 	public Value getField(int recordNumber, int fieldNumber) {
 		return recordBatch.get(recordNumber)[fieldNumber];
 	}
 
+	/**
+	 * 
+	 * @param recordNumber
+	 *          Position of the record in the batch
+	 * @return AtomRecord object containing the fields of the record
+	 */
 	public AtomRecord getRecord(int recordNumber) {
 		return new AtomRecord(recordBatch.get(recordNumber));
 	}
 
+	/**
+	 * Checks if the number of fields are equal to the batch field size then adds
+	 * the AtomRecord to the end of the batch
+	 * 
+	 * @param record
+	 *          Record to be added
+	 */
 	public void addRecord(AtomRecord record) {
 		Value[] fields = record.getFields();
+		if (fields.length == numOfFields) {
+			recordBatch.add(fields);
+			numOfRecords = recordBatch.size();
+		}
+	}
+
+	/**
+	 * Checks if the number of fields are equal to the batch field size then adds
+	 * the Value Arrray to the end of the batch
+	 * 
+	 * @param record
+	 *          Value array to be added as the next record of the batch
+	 */
+	public void addRecord(Value[] fields) {
 		if (fields.length == numOfFields) {
 			recordBatch.add(fields);
 			numOfRecords = recordBatch.size();
