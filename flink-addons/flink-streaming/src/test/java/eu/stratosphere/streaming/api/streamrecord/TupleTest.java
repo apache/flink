@@ -19,11 +19,25 @@ import eu.stratosphere.api.java.typeutils.TypeInformation;
 import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
+import eu.stratosphere.types.StringValue;
 
 public class TupleTest {
 
-	public Tuple readTuple(DataInput in, Class... basicTypes)
-			throws IOException {
+	public Tuple readTuple(DataInput in) throws IOException {
+
+		StringValue typeVal = new StringValue();
+		typeVal.read(in);
+		// TODO: use Tokenizer
+		String[] types = typeVal.getValue().split(",");
+		Class[] basicTypes = new Class[types.length];
+		for (int i = 0; i < types.length; i++) {
+			try {
+				basicTypes[i] = Class.forName(types[i]);
+			} catch (ClassNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 
 		TypeInformation<? extends Tuple> typeInfo = TupleTypeInfo
 				.getBasicTupleTypeInfo(basicTypes);
@@ -39,11 +53,16 @@ public class TupleTest {
 
 	private void writeTuple(Tuple tuple, DataOutput out) {
 		Class[] basicTypes = new Class[tuple.getArity()];
+		StringBuilder basicTypeNames = new StringBuilder();
+
 		for (int i = 0; i < basicTypes.length; i++) {
 			basicTypes[i] = tuple.getField(i).getClass();
+			basicTypeNames.append(basicTypes[i].getName() + ",");
 		}
 		TypeInformation<? extends Tuple> typeInfo = TupleTypeInfo
 				.getBasicTupleTypeInfo(basicTypes);
+
+		StringValue typeVal = new StringValue(basicTypeNames.toString());
 
 		@SuppressWarnings("unchecked")
 		TupleSerializer<Tuple> tupleSerializer = (TupleSerializer<Tuple>) typeInfo
@@ -52,6 +71,7 @@ public class TupleTest {
 				tupleSerializer);
 		serializationDelegate.setInstance(tuple);
 		try {
+			typeVal.write(out);
 			serializationDelegate.write(out);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -76,7 +96,7 @@ public class TupleTest {
 					buff.toByteArray()));
 
 			Tuple2<Integer, String> tupleOut = (Tuple2<Integer, String>) readTuple(
-					in, Integer.class, String.class);
+					in);
 			assertEquals(tupleOut.getField(0), 42);
 		} catch (IOException e) {
 			fail();
