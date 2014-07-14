@@ -13,7 +13,7 @@ public final class StreamRecord {
 	private String channelID = "";
 
 	public StreamRecord(Record record) {
-		this.record = record;
+		this.record = record.createCopy();
 	}
 
 	public StreamRecord(Record record, String channelID) {
@@ -40,7 +40,13 @@ public final class StreamRecord {
 	}
 
 	public Record getRecord() {
-		return record;
+		Record newRecord=this.record.createCopy();
+		newRecord.removeField(newRecord.getNumFields() - 1);
+		return newRecord;
+	}
+	
+	public Record getRecordWithId() {
+		return this.record;
 	}
 
 	// TODO:write proper toString
