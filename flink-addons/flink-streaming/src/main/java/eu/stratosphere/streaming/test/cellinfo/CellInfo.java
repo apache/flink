@@ -87,7 +87,7 @@ public class CellInfo {
 			Client client = new Client(new InetSocketAddress(
 					"hadoop02.ilab.sztaki.hu", 6123), configuration);
 			exec.start();
-			client.run(jG, true);
+			client.run(null, jG, true);
 			exec.stop();
 		} catch (Exception e) {
 			System.out.println(e);

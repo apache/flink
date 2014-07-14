@@ -33,15 +33,17 @@ public class WordCountCounter extends UserTaskInvokable {
 	private int i = 0;
 	private long time;
 	private long prevTime = System.currentTimeMillis();
+
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
 		wordValue = (StringValue) record.getRecord(0)[0];
 		word = wordValue.getValue();
 		i++;
 		if (i % 50000 == 0) {
-			time= System.currentTimeMillis();
-			System.out.println("Counter:\t" + i + "\t----Time: "+(time-prevTime));
-			prevTime=time;
+			time = System.currentTimeMillis();
+			System.out.println("Counter:\t" + i + "\t----Time: "
+					+ (time - prevTime));
+			prevTime = time;
 		}
 		if (wordCounts.containsKey(word)) {
 			count = wordCounts.get(word) + 1;

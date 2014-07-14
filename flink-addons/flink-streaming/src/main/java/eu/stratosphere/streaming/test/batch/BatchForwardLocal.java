@@ -13,9 +13,8 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test.wordcount;
+package eu.stratosphere.streaming.test.batch;
 
-import java.io.File;
 import java.net.InetSocketAddress;
 
 import org.apache.log4j.ConsoleAppender;
@@ -23,27 +22,20 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 
+import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.client.program.Client;
-import eu.stratosphere.client.program.JobWithJars;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.types.StringValue;
 
-public class WordCountRemote {
+public class BatchForwardLocal {
 
-	private static JobGraph getJobGraph() throws Exception {
+	public static JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountDummySource2.class);
-		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 4);
-		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 1);
-		graphBuilder.setSink("WordCountSink", WordCountSink.class);
+		graphBuilder.setSource("StreamSource", BatchForwardSource.class);
+		graphBuilder.setSink("StreamSink", BatchForwardSink.class);
 
-		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");
-		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0,
-				StringValue.class);
-		graphBuilder.shuffleConnect("WordCountCounter", "WordCountSink");
+		graphBuilder.shuffleConnect("StreamSource", "StreamSink");
 
 		return graphBuilder.getJobGraph();
 	}
@@ -60,24 +52,40 @@ public class WordCountRemote {
 
 		try {
 
-			File file = new File(
-					"target/stratosphere-streaming-0.5-SNAPSHOT.jar");
-			JobWithJars.checkJarFile(file);
-
 			JobGraph jG = getJobGraph();
-
-			jG.addJar(new Path(file.getAbsolutePath()));
-
 			Configuration configuration = jG.getJobConfiguration();
 
-			Client client = new Client(new InetSocketAddress(
-					"hadoop02.ilab.sztaki.hu", 6123), configuration);
+			if (args.length == 0) {
+				args = new String[] { "local" };
+			}
 
-			client.run(null, jG, true);
+			if (args[0].equals("local")) {
+				System.out.println("Running in Local mode");
+				NepheleMiniCluster exec = new NepheleMiniCluster();
+
+				exec.start();
+
+				Client client = new Client(new InetSocketAddress("localhost",
+						6498), configuration);
+
+				client.run(null, jG, true);
+
+				exec.stop();
+
+			} else if (args[0].equals("cluster")) {
+				System.out.println("Running in Cluster2 mode");
+
+				Client client = new Client(new InetSocketAddress(
+						"hadoop02.ilab.sztaki.hu", 6123), configuration);
+
+				client.run(null, jG, true);
+
+			}
 
 		} catch (Exception e) {
 			System.out.println(e);
 		}
 
 	}
+
 }
