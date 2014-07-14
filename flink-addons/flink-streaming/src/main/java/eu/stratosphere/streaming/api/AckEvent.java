@@ -7,11 +7,11 @@ import java.io.IOException;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 
 public class AckEvent extends AbstractTaskEvent {
-	private Long recordId;
+	private String recordId;
 	
-	public AckEvent(Long recordId) {
+	public AckEvent(String recordId) {
 		setRecordId(recordId);
-		System.out.println("created " + recordId);
+		//System.out.println("created " + recordId);
 	}
 	
 	@Override
@@ -20,10 +20,10 @@ public class AckEvent extends AbstractTaskEvent {
 	@Override
 	public void read(DataInput in) throws IOException {}
 	
-	public void setRecordId(Long recordId) {
+	public void setRecordId(String recordId) {
 		this.recordId = recordId;
 	}
-	public Long getRecordId() {
+	public String getRecordId() {
 		return this.recordId;
 	}
 }

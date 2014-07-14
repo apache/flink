@@ -18,7 +18,7 @@ public abstract class StreamInvokable {
     for (RecordWriter<Record> output : outputs) {
       try {
       	StreamRecord streamRecord = new StreamRecord(record).addId();
-        output.emit(record);
+        output.emit(streamRecord.getRecord());
       } catch (Exception e) {
         System.out.println("Emit error");
       }
