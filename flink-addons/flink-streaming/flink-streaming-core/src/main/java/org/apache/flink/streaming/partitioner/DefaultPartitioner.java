@@ -25,9 +25,11 @@ import org.apache.flink.runtime.io.network.api.ChannelSelector;
 
 public class DefaultPartitioner implements ChannelSelector<StreamRecord> {
 
+	ChannelSelector<StreamRecord> selector = new ShufflePartitioner();
+	
 	@Override
 	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
-		return new ShufflePartitioner().selectChannels(record,
+		return selector.selectChannels(record,
 				numberOfOutputChannels);
 	}
 }

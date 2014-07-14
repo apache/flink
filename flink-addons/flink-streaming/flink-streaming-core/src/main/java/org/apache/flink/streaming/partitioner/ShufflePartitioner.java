@@ -29,9 +29,17 @@ import org.apache.flink.runtime.io.network.api.ChannelSelector;
 public class ShufflePartitioner implements ChannelSelector<StreamRecord> {
 
 	private Random random = new Random();
+	
+	private int[] returnArray;
+	
+	public ShufflePartitioner(){
+		this.random = new Random();
+		this.returnArray = new int[1];
+	}
 
 	@Override
 	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
-		return new int[] { random.nextInt(numberOfOutputChannels) };
+		returnArray[0] = random.nextInt(numberOfOutputChannels);
+		return returnArray;
 	}
 }

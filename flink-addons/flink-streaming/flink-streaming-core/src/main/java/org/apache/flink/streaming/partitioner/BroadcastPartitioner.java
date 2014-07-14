@@ -25,12 +25,20 @@ import org.apache.flink.runtime.io.network.api.ChannelSelector;
 
 public class BroadcastPartitioner implements ChannelSelector<StreamRecord> {
 
+	int[] returnArray;
+	boolean set;
+
 	@Override
 	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
-		int[] returnChannels = new int[numberOfOutputChannels];
-		for (int i = 0; i < numberOfOutputChannels; i++) {
-			returnChannels[i] = i;
+		if (set) {
+			return returnArray;
+		} else {
+			this.returnArray = new int[numberOfOutputChannels];
+			for (int i = 0; i < numberOfOutputChannels; i++) {
+				returnArray[i] = i;
+			}
+			set = true;
+			return returnArray;
 		}
-		return returnChannels;
 	}
 }

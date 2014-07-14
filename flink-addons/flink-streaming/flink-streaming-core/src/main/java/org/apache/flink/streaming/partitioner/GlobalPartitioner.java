@@ -22,8 +22,14 @@ import org.apache.flink.runtime.io.network.api.ChannelSelector;
 //Group to the partitioner with the lowest id
 public class GlobalPartitioner implements ChannelSelector<StreamRecord> {
 
+	private int[] returnArray;
+
+	public GlobalPartitioner() {
+		this.returnArray = new int[]{0};
+	}
+
 	@Override
 	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
-		return new int[] { 0 };
+		return returnArray;
 	}
 }
