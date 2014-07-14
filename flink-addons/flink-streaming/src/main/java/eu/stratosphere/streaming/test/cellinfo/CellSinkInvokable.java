@@ -18,7 +18,7 @@ package eu.stratosphere.streaming.test.cellinfo;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class CellSinkInvokable implements UserSinkInvokable {
+public class CellSinkInvokable extends UserSinkInvokable {
 
 	int c=0;
   @Override

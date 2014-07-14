@@ -17,22 +17,18 @@ package eu.stratosphere.streaming.test.wordcount;
 
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.StringValue;
 
-public class WordCountSink implements UserSinkInvokable {
+public class WordCountSink extends UserSinkInvokable {
 
-	private StringValue word = new StringValue();
-	private IntValue count = new IntValue();
-
+	int nrOfRecords=0;
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-
-		word = (StringValue) record.getField(0, 0);
-		count = (IntValue) record.getField(0, 1);
-
-		
-		System.out.println(word.getValue() + " " + count.getValue());
-
+		nrOfRecords++;
 	}
+	
+	@Override
+	public String getResult(){
+		return String.valueOf(nrOfRecords);
+	}
+	
 }
