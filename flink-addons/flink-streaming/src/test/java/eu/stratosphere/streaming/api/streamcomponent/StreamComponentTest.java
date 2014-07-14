@@ -126,7 +126,7 @@ public class StreamComponentTest {
 			Client client = new Client(new InetSocketAddress("localhost",
 					6498), configuration);
 
-			client.run(null, jG, true);
+			client.run(jG, true);
 
 			exec.stop();
 		} catch (Exception e) {
