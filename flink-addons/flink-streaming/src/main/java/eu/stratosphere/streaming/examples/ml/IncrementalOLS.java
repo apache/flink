@@ -109,8 +109,8 @@ public class IncrementalOLS {
 			for (int i = 0; i < numOfTuples; i++) {
 
 				Tuple t = record.getTuple(i);
-				Double[] x_i = t.getField(1);
-				y[i] = t.getField(0);
+				Double[] x_i = (Double[]) t.getField(1);
+				y[i] = (Double) t.getField(0);
 				for (int j = 0; j < numOfFeatures; j++) {
 					x[i][j] = x_i[j];
 				}

@@ -36,6 +36,7 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 	private String word = "";
 	private Integer count = 0;
 	private Long timestamp = 0L;
+	private StreamRecord outRecord = new StreamRecord(3);
 
 	public WindowWordCountCounter() {
 		windowSize = 100;
@@ -76,7 +77,6 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		StreamRecord outRecord = new StreamRecord(3);
 		if (window.isFull()) {
 			StreamRecord expiredRecord = window.popFront();
 			incrementCompute(record);
