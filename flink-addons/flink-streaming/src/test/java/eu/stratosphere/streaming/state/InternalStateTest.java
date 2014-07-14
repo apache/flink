@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api.state;
+package eu.stratosphere.streaming.state;
 
 import org.junit.Test;
 
