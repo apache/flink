@@ -15,20 +15,74 @@
 
 package eu.stratosphere.streaming.connectors.rabbitmq;
 
+import java.util.HashSet;
+import java.util.Set;
+
+import org.apache.commons.lang.SerializationUtils;
+
+import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.DataStream;
 import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
 
 public class RMQTopology {
+	
+	public static final class MyRMQSink extends RMQSink<Tuple1<String>> {
+		public MyRMQSink(String HOST_NAME, String QUEUE_NAME) {
+			super(HOST_NAME, QUEUE_NAME);
+			// TODO Auto-generated constructor stub
+		}
 
-	private static final int SOURCE_PARALELISM = 1;
+		private static final long serialVersionUID = 1L;
 
-	public static void main(String[] args) {
-		StreamExecutionEnvironment context = StreamExecutionEnvironment.createLocalEnvironment();
+		@Override
+		public byte[] serialize(Tuple t) {
+			// TODO Auto-generated method stub
+			if(t.getField(0).equals("q")) close();
+			return SerializationUtils.serialize((String)t.getField(0));
+		}
 
-		DataStream<Tuple1<String>> stream = context.addSource(new RMQSource("localhost", "hello"),
-				SOURCE_PARALELISM).print();
+		
+	}
+	
+	public static final class MyRMQSource extends RMQSource<Tuple1<String>> {
+		
 
-		context.execute();
+		public MyRMQSource(String HOST_NAME, String QUEUE_NAME) {
+			super(HOST_NAME, QUEUE_NAME);
+			// TODO Auto-generated constructor stub
+		}
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple1<String> deserialize(byte[] t) {
+			String s = (String) SerializationUtils.deserialize(t);
+			Tuple1<String> out=new Tuple1<String>();
+			out.f0=s;
+			if(s.equals("q")){
+				close();
+			}
+			return out;
+		}
+		
+	}
+	
+	private static Set<String> result = new HashSet<String>();
+	
+	public static void main(String[] args) throws Exception {
+		
+		
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+
+		DataStream<Tuple1<String>> dataStream1 = env
+				.addSource(new MyRMQSource("localhost", "hello"))
+				.print();
+		
+		DataStream<Tuple1<String>> dataStream2 = env
+				.fromElements("one", "two", "three", "four", "five", "q")
+				.addSink(new MyRMQSink("localhost", "hello"));
+
+		env.execute();
 	}
 }
