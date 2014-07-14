@@ -16,7 +16,7 @@
 package eu.stratosphere.streaming.examples.window.sum;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.streaming.api.function.SourceFunction;
 import eu.stratosphere.util.Collector;
 
 public class WindowSumSource extends SourceFunction<Tuple2<Integer, Long>> {

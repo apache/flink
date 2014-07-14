@@ -21,6 +21,9 @@ import eu.stratosphere.util.Collector;
 
 public abstract class StreamRecordInvokable<IN extends Tuple, OUT extends Tuple> extends
 		StreamComponentInvokable {
+
+	private static final long serialVersionUID = 1L;
+
 	public abstract void invoke(StreamRecord record, Collector<OUT> collector)
 			throws Exception;
 }

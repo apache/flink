@@ -18,7 +18,7 @@ package eu.stratosphere.streaming.addons.rabbitmq;
 import java.io.IOException;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.streaming.api.SinkFunction;
+import eu.stratosphere.streaming.api.function.SinkFunction;
 
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Connection;

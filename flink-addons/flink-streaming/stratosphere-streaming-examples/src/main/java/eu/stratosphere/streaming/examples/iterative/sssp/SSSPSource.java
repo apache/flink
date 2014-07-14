@@ -19,7 +19,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 
 import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.streaming.api.function.SourceFunction;
 import eu.stratosphere.util.Collector;
 
 public class SSSPSource extends SourceFunction<Tuple3<Integer, Integer, Long>> {

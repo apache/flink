@@ -13,34 +13,13 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api;
+package eu.stratosphere.streaming.api.function;
 
-import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.util.Collector;
+import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 
-/**
- * Source Function used to generate the number sequence
- * 
- */
-public class SequenceSource extends SourceFunction<Tuple1<Long>> {
+public abstract class SourceFunction<OUT extends Tuple> extends UserSourceInvokable<OUT> {
 
 	private static final long serialVersionUID = 1L;
-
-	long from;
-	long to;
-	Tuple1<Long> outTuple = new Tuple1<Long>();
-
-	public SequenceSource(long from, long to) {
-		this.from = from;
-		this.to = to;
-	}
-
-	@Override
-	public void invoke(Collector<Tuple1<Long>> collector) throws Exception {
-		for (long i = from; i <= to; i++) {
-			outTuple.f0 = i;
-			collector.collect(outTuple);
-		}
-	}
 
 }

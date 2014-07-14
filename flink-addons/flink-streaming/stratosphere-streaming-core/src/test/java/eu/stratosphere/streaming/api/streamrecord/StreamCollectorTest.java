@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api;
+package eu.stratosphere.streaming.api.streamrecord;
 
 import static org.junit.Assert.assertEquals;
 
@@ -21,6 +21,7 @@ import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.streamcomponent.MockRecordWriter;
+import eu.stratosphere.streaming.api.streamrecord.StreamCollector;
 import eu.stratosphere.streaming.util.MockRecordWriterFactory;
 
 public class StreamCollectorTest {

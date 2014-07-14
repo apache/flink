@@ -12,28 +12,27 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.streaming.api.invokable;
 
-package eu.stratosphere.streaming.api.streamcomponent;
+import java.util.Iterator;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import eu.stratosphere.api.java.functions.GroupReduceFunction;
+import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.util.Collector;
 
-import eu.stratosphere.core.io.InputSplit;
-
-public class DummyIS implements InputSplit {
-
-  @Override
-  public void write(DataOutput out) throws IOException {
-  }
-
-  @Override
-  public void read(DataInput in) throws IOException {
-  }
-
-  @Override
-  public int getSplitNumber() {
-    return 0;
-  }
-  
+public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends UserTaskInvokable<IN, OUT> {
+	private static final long serialVersionUID = 1L;
+	
+	private GroupReduceFunction<IN, OUT> reducer;
+	public BatchReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction) {
+		this.reducer = reduceFunction; 
+	}
+	
+	@Override
+	public void invoke(StreamRecord record, Collector<OUT> collector) throws Exception {
+		@SuppressWarnings("unchecked")
+		Iterator<IN> iterator = (Iterator<IN>) record.getBatchIterable().iterator();
+		reducer.reduce(iterator, collector);
+	}
 }

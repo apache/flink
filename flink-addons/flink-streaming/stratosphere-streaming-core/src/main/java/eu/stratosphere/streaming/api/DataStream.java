@@ -24,6 +24,11 @@ import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.streaming.api.StreamExecutionEnvironment.ConnectionType;
+import eu.stratosphere.streaming.api.function.SinkFunction;
+import eu.stratosphere.streaming.api.invokable.BatchReduceInvokable;
+import eu.stratosphere.streaming.api.invokable.FilterInvokable;
+import eu.stratosphere.streaming.api.invokable.FlatMapInvokable;
+import eu.stratosphere.streaming.api.invokable.MapInvokable;
 import eu.stratosphere.types.TypeInformation;
 
 public class DataStream<T extends Tuple> {
@@ -194,6 +199,29 @@ public class DataStream<T extends Tuple> {
 	}
 
 	/**
+	 * Applies a Map transformation on a DataStream. The transformation calls a
+	 * MapFunction for each element of the DataStream. Each MapFunction call
+	 * returns exactly one element.
+	 * 
+	 * @param mapper
+	 *            The MapFunction that is called for each element of the
+	 *            DataStream.
+	 * @param parallelism
+	 *            The number of threads the function runs on.
+	 * @param <R>
+	 *            output type
+	 * @return The transformed DataStream.
+	 */
+	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper, int parallelism) {
+		return environment.addFunction("map", this.copy(), mapper, new MapInvokable<T, R>(mapper),
+				parallelism);
+	}
+
+	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper) {
+		return map(mapper, 1);
+	}
+
+	/**
 	 * Applies a FlatMap transformation on a DataStream. The transformation
 	 * calls a FlatMapFunction for each element of the DataSet. Each
 	 * FlatMapFunction call can return any number of elements including none.
@@ -218,26 +246,25 @@ public class DataStream<T extends Tuple> {
 	}
 
 	/**
-	 * Applies a Map transformation on a DataStream. The transformation calls a
-	 * MapFunction for each element of the DataStream. Each MapFunction call
-	 * returns exactly one element.
+	 * Applies a Filter transformation on a DataStream. The transformation calls
+	 * a FilterFunction for each element of the DataStream and retains only
+	 * those element for which the function returns true. Elements for which the
+	 * function returns false are filtered.
 	 * 
-	 * @param mapper
-	 *            The MapFunction that is called for each element of the
-	 *            DataStream.
+	 * @param filter
+	 *            The FilterFunction that is called for each element of the
+	 *            DataSet.
 	 * @param parallelism
 	 *            The number of threads the function runs on.
-	 * @param <R>
-	 *            output type
-	 * @return The transformed DataStream.
+	 * @return The filtered DataStream.
 	 */
-	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper, int parallelism) {
-		return environment.addFunction("map", this.copy(), mapper, new MapInvokable<T, R>(mapper),
-				parallelism);
+	public DataStream<T> filter(FilterFunction<T> filter, int parallelism) {
+		return environment.addFunction("filter", this.copy(), filter,
+				new FilterInvokable<T>(filter), parallelism);
 	}
 
-	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper) {
-		return map(mapper, 1);
+	public DataStream<T> filter(FilterFunction<T> filter) {
+		return filter(filter, 1);
 	}
 
 	/**
@@ -266,28 +293,6 @@ public class DataStream<T extends Tuple> {
 	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer,
 			int batchSize) {
 		return batchReduce(reducer, batchSize, 1);
-	}
-
-	/**
-	 * Applies a Filter transformation on a DataStream. The transformation calls
-	 * a FilterFunction for each element of the DataStream and retains only
-	 * those element for which the function returns true. Elements for which the
-	 * function returns false are filtered.
-	 * 
-	 * @param filter
-	 *            The FilterFunction that is called for each element of the
-	 *            DataSet.
-	 * @param parallelism
-	 *            The number of threads the function runs on.
-	 * @return The filtered DataStream.
-	 */
-	public DataStream<T> filter(FilterFunction<T> filter, int parallelism) {
-		return environment.addFunction("filter", this.copy(), filter,
-				new FilterInvokable<T>(filter), parallelism);
-	}
-
-	public DataStream<T> filter(FilterFunction<T> filter) {
-		return filter(filter, 1);
 	}
 
 	/**

@@ -28,9 +28,9 @@ import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.DataStream;
 import eu.stratosphere.streaming.api.LocalStreamEnvironment;
-import eu.stratosphere.streaming.api.SinkFunction;
-import eu.stratosphere.streaming.api.SourceFunction;
 import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.streaming.api.function.SinkFunction;
+import eu.stratosphere.streaming.api.function.SourceFunction;
 import eu.stratosphere.util.Collector;
 
 public class StreamComponentTest {

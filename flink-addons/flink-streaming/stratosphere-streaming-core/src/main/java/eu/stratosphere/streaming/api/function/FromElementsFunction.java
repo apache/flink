@@ -13,13 +13,34 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api;
+package eu.stratosphere.streaming.api.function;
 
-import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import java.util.Arrays;
+import java.util.Collection;
 
-public abstract class SourceFunction<OUT extends Tuple> extends UserSourceInvokable<OUT> {
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.util.Collector;
 
+public class FromElementsFunction<T> extends SourceFunction<Tuple1<T>> {
 	private static final long serialVersionUID = 1L;
+
+	Iterable<T> iterable;
+	Tuple1<T> outTuple = new Tuple1<T>();
+
+	public FromElementsFunction(T... elements) {
+		this.iterable = (Iterable<T>) Arrays.asList(elements);
+	}
+
+	public FromElementsFunction(Collection<T> elements) {
+		this.iterable = (Iterable<T>) elements;
+	}
+
+	@Override
+	public void invoke(Collector<Tuple1<T>> collector) throws Exception {
+		for (T element : iterable) {
+			outTuple.f0 = element;
+			collector.collect(outTuple);
+		}
+	}
 
 }

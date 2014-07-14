@@ -24,6 +24,8 @@ import org.junit.Test;
 
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.streaming.api.function.SinkFunction;
+import eu.stratosphere.streaming.api.function.SourceFunction;
 import eu.stratosphere.util.Collector;
 
 public class BatchReduceTest {

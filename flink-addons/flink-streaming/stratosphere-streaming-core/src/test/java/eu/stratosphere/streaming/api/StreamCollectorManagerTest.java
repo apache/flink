@@ -26,6 +26,7 @@ import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.streaming.api.streamcomponent.MockRecordWriter;
+import eu.stratosphere.streaming.api.streamrecord.StreamCollectorManager;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.util.MockRecordWriterFactory;
 

@@ -16,7 +16,7 @@
 package eu.stratosphere.streaming.examples.iterative.sssp;
 
 import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.streaming.api.SinkFunction;
+import eu.stratosphere.streaming.api.function.SinkFunction;
 
 public class SSSPSink extends SinkFunction<Tuple3<Integer, Integer, Long>> {
 	private static final long serialVersionUID = 1L;

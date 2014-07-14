@@ -17,8 +17,8 @@ package eu.stratosphere.streaming.addons.performance;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.DataStream;
-import eu.stratosphere.streaming.api.SinkFunction;
 import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.streaming.api.function.SinkFunction;
 import eu.stratosphere.streaming.examples.wordcount.WordCountCounter;
 
 public class WordCountPerformanceLocal {
