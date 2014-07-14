@@ -15,12 +15,6 @@
 
 package eu.stratosphere.streaming.faulttolerance;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -29,8 +23,6 @@ import org.junit.Test;
 
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
-import eu.stratosphere.types.StringValue;
 
 public class FaultToleranceUtilTest {
 

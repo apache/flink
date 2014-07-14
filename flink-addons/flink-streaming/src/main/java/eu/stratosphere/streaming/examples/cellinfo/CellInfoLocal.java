@@ -25,7 +25,6 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.streaming.util.LogUtils;
-import eu.stratosphere.types.IntValue;
 
 public class CellInfoLocal {
 
@@ -36,9 +35,8 @@ public class CellInfoLocal {
 		graphBuilder.setTask("cellTask", CellTask.class, 3);
 		graphBuilder.setSink("sink", CellSink.class);
 
-		graphBuilder.fieldsConnect("infoSource", "cellTask", 0, IntValue.class);
-		graphBuilder
-				.fieldsConnect("querySource", "cellTask", 0, IntValue.class);
+		graphBuilder.fieldsConnect("infoSource", "cellTask", 0);
+		graphBuilder.fieldsConnect("querySource", "cellTask", 0);
 		graphBuilder.shuffleConnect("cellTask", "sink");
 
 		return graphBuilder.getJobGraph();
@@ -63,8 +61,7 @@ public class CellInfoLocal {
 
 				exec.start();
 
-				Client client = new Client(new InetSocketAddress("localhost",
-						6498), configuration);
+				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
 
 				client.run(jG, true);
 
@@ -72,8 +69,8 @@ public class CellInfoLocal {
 			} else if (args[0].equals("cluster")) {
 				System.out.println("Running in Cluster2 mode");
 
-				Client client = new Client(new InetSocketAddress(
-						"hadoop02.ilab.sztaki.hu", 6123), configuration);
+				Client client = new Client(new InetSocketAddress("hadoop02.ilab.sztaki.hu", 6123),
+						configuration);
 				client.run(jG, true);
 			}
 

@@ -25,7 +25,6 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.streaming.util.LogUtils;
-import eu.stratosphere.types.StringValue;
 
 public class BatchWordCountLocal {
 
@@ -37,8 +36,7 @@ public class BatchWordCountLocal {
 		graphBuilder.setSink("BatchWordCountSink", BatchWordCountSink.class);
 
 		graphBuilder.shuffleConnect("BatchWordCountSource", "BatchWordCountSplitter");
-		graphBuilder.fieldsConnect("BatchWordCountSplitter", "BatchWordCountCounter", 0,
-				StringValue.class);
+		graphBuilder.fieldsConnect("BatchWordCountSplitter", "BatchWordCountCounter", 0);
 		graphBuilder.shuffleConnect("BatchWordCountCounter", "BatchWordCountSink");
 
 		return graphBuilder.getJobGraph();

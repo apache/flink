@@ -15,14 +15,16 @@
 
 package eu.stratosphere.streaming.faulttolerance;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.StringValue;
 
 public class AtLeastOnceBufferTest {
 
