@@ -16,6 +16,7 @@ public class MyStream extends TestBase2 {
     graphBuilder.setTask("cellTask", TestTaskInvokable.class, Partitioning.BROADCAST, 2);
     graphBuilder.setSink("sink", TestSinkInvokable.class);
     
+    
     graphBuilder.connect("infoSource", "cellTask", Partitioning.BROADCAST, ChannelType.INMEMORY);
     graphBuilder.connect("querySource", "cellTask", Partitioning.BROADCAST, ChannelType.INMEMORY);
     graphBuilder.connect("cellTask", "sink", Partitioning.BROADCAST, ChannelType.INMEMORY);

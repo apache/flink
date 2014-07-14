@@ -1,4 +1,4 @@
-package eu.stratosphere.streaming.cellinfo;
+package eu.stratosphere.streaming.test.cellinfo;
 
 public interface IWorkerEngine {
 	public int get(long timeStamp, long lastMillis, int cellId);
