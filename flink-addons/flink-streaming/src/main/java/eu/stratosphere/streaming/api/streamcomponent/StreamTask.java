@@ -64,7 +64,7 @@ public class StreamTask extends AbstractTask {
 			e.printStackTrace();
 		}
 
-		recordBuffer = new FaultToleranceBuffer(outputs, taskInstanceID);
+		recordBuffer = new FaultToleranceBuffer(outputs, taskInstanceID,taskConfiguration.getInteger("numberOfOutputChannels", -1));
 		userFunction = (UserTaskInvokable) streamTaskHelper.getUserFunction(
 				taskConfiguration, outputs, taskInstanceID, recordBuffer);
 		streamTaskHelper.setAckListener(recordBuffer, taskInstanceID, outputs);

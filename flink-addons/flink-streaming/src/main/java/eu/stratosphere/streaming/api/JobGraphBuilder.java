@@ -48,6 +48,8 @@ public class JobGraphBuilder {
 
 	private final JobGraph jobGraph;
 	private Map<String, AbstractJobVertex> components;
+	private Map<String, Integer> numberOfInstances;
+	private Map<String, Integer> numberOfOutputChannels;
 
 	/**
 	 * Creates a new JobGraph with the given name
@@ -59,6 +61,9 @@ public class JobGraphBuilder {
 
 		jobGraph = new JobGraph(jobGraphName);
 		components = new HashMap<String, AbstractJobVertex>();
+		numberOfInstances = new HashMap<String, Integer>();
+		numberOfOutputChannels = new HashMap<String, Integer>();
+
 	}
 
 	/**
@@ -79,6 +84,7 @@ public class JobGraphBuilder {
 				.getConfiguration();
 		config.setClass("userfunction", InvokableClass);
 		components.put(sourceName, source);
+		numberOfInstances.put(sourceName, 1);
 	}
 
 	/**
@@ -101,6 +107,7 @@ public class JobGraphBuilder {
 				.getConfiguration();
 		config.setClass("userfunction", InvokableClass);
 		components.put(taskName, task);
+		numberOfInstances.put(taskName, parallelism);
 	}
 
 	/**
@@ -120,6 +127,7 @@ public class JobGraphBuilder {
 				.getConfiguration();
 		config.setClass("userfunction", InvokableClass);
 		components.put(sinkName, sink);
+		numberOfInstances.put(sinkName, 1);
 	}
 
 	/**
@@ -174,6 +182,17 @@ public class JobGraphBuilder {
 
 		connect(upStreamComponentName, downStreamComponentName,
 				BroadcastPartitioner.class, ChannelType.INMEMORY);
+
+		if (numberOfOutputChannels.containsKey(upStreamComponentName)) {
+			numberOfOutputChannels.put(
+					upStreamComponentName,
+					numberOfOutputChannels.get(upStreamComponentName)
+							+ numberOfInstances.get(downStreamComponentName));
+		} else {
+			numberOfOutputChannels.put(upStreamComponentName,
+					numberOfInstances.get(downStreamComponentName));
+		}
+
 	}
 
 	/**
@@ -219,6 +238,8 @@ public class JobGraphBuilder {
 					"partitionerIntParam_"
 							+ upStreamComponent.getNumberOfForwardConnections(), keyPosition);
 
+			addOutputChannels(upStreamComponentName);
+
 		} catch (JobGraphDefinitionException e) {
 			e.printStackTrace();
 		}
@@ -240,6 +261,9 @@ public class JobGraphBuilder {
 
 		connect(upStreamComponentName, downStreamComponentName,
 				GlobalPartitioner.class, ChannelType.INMEMORY);
+
+		addOutputChannels(upStreamComponentName);
+
 	}
 
 	/**
@@ -258,6 +282,17 @@ public class JobGraphBuilder {
 
 		connect(upStreamComponentName, downStreamComponentName,
 				ShufflePartitioner.class, ChannelType.INMEMORY);
+
+		addOutputChannels(upStreamComponentName);
+	}
+
+	private void addOutputChannels(String upStreamComponentName) {
+		if (numberOfOutputChannels.containsKey(upStreamComponentName)) {
+			numberOfOutputChannels.put(upStreamComponentName,
+					numberOfOutputChannels.get(upStreamComponentName) + 1);
+		} else {
+			numberOfOutputChannels.put(upStreamComponentName, 1);
+		}
 	}
 
 	private void setNumberOfJobInputs() {
@@ -271,6 +306,13 @@ public class JobGraphBuilder {
 		for (AbstractJobVertex component : components.values()) {
 			component.getConfiguration().setInteger("numberOfOutputs",
 					component.getNumberOfForwardConnections());
+		}
+		for (String component : numberOfOutputChannels.keySet()) {
+			components
+					.get(component)
+					.getConfiguration()
+					.setInteger("numberOfOutputChannels",
+							numberOfOutputChannels.get(component));
 		}
 	}
 
