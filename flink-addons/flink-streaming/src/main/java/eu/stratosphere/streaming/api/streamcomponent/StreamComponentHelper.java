@@ -159,6 +159,11 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 				outTupleSerializer = outTupleTypeInfo.createSerializer();
 				outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
+			} else if (operatorName.equals("elements")) {
+				outTupleTypeInfo = new TupleTypeInfo<Tuple>(TypeExtractor.getForObject(function));
+
+				outTupleSerializer = outTupleTypeInfo.createSerializer();
+				outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
 			} else {
 				throw new Exception("Wrong operator name!");
 			}

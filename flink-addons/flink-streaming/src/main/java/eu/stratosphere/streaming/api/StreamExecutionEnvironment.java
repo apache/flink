@@ -18,6 +18,8 @@ package eu.stratosphere.streaming.api;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.util.Arrays;
+import java.util.Collection;
 
 import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
@@ -25,6 +27,7 @@ import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.ClusterUtil;
+import eu.stratosphere.util.Collector;
 
 //TODO:add link to ExecutionEnvironment
 /**
@@ -34,7 +37,7 @@ import eu.stratosphere.streaming.util.ClusterUtil;
  */
 public class StreamExecutionEnvironment {
 	JobGraphBuilder jobGraphBuilder;
-	
+
 	private float clusterSize = 1;
 
 	/**
@@ -64,6 +67,13 @@ public class StreamExecutionEnvironment {
 		this(1, 1000);
 	}
 
+	/**
+	 * Set the number of machines in the executing cluster. Used for setting
+	 * task parallelism.
+	 * 
+	 * @param clusterSize
+	 * @return
+	 */
 	public StreamExecutionEnvironment setClusterSize(int clusterSize) {
 		this.clusterSize = clusterSize;
 		return this;
@@ -77,7 +87,8 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Sets the batch size of the data stream in which the tuple are transmitted.
+	 * Sets the batch size of the data stream in which the tuple are
+	 * transmitted.
 	 * 
 	 * @param inputStream
 	 *            input data stream
@@ -145,17 +156,9 @@ public class StreamExecutionEnvironment {
 			UserTaskInvokable<T, R> functionInvokable, int parallelism) {
 		DataStream<R> returnStream = new DataStream<R>(this);
 
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos;
-		try {
-			oos = new ObjectOutputStream(baos);
-			oos.writeObject(function);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
 		jobGraphBuilder.setTask(returnStream.getId(), functionInvokable, functionName,
-				baos.toByteArray(), parallelism,(int) Math.ceil(parallelism/clusterSize));
+				serializeToByteArray(function), parallelism,
+				(int) Math.ceil(parallelism / clusterSize));
 
 		connectGraph(inputStream, returnStream.getId());
 
@@ -177,22 +180,75 @@ public class StreamExecutionEnvironment {
 			SinkFunction<T> sinkFunction, int parallelism) {
 		DataStream<T> returnStream = new DataStream<T>(this);
 
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos;
-		try {
-			oos = new ObjectOutputStream(baos);
-			oos.writeObject(sinkFunction);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
 		jobGraphBuilder.setSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction), "sink",
-				baos.toByteArray(), parallelism, (int) Math.ceil(parallelism/clusterSize));
+				serializeToByteArray(sinkFunction), parallelism,
+				(int) Math.ceil(parallelism / clusterSize));
 
 		connectGraph(inputStream, returnStream.getId());
 
 		return returnStream;
+	}
+
+	/**
+	 * Creates a new DataStream by iterating through the given data. The
+	 * elements are inserted into a Tuple1.
+	 * 
+	 * @param data
+	 * 
+	 * @return
+	 */
+	public <X> DataStream<Tuple1<X>> fromElements(X... data) {
+		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this);
+
+		jobGraphBuilder.setSource(returnStream.getId(), new FromElementsSource<X>(data),
+				"elements", serializeToByteArray(data[0]), 1, 1);
+
+		return returnStream.copy();
+	}
+
+	/**
+	 * Creates a new DataStream by iterating through the given data collection.
+	 * The elements are inserted into a Tuple1.
+	 * 
+	 * @param data
+	 * 
+	 * @return
+	 */
+	public <X> DataStream<Tuple1<X>> fromCollection(Collection<X> data) {
+		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this);
+
+		jobGraphBuilder.setSource(returnStream.getId(), new FromElementsSource<X>(data),
+				"elements", serializeToByteArray(data.toArray()[0]), 1, 1);
+
+		return returnStream.copy();
+	}
+
+	/**
+	 * SourceFunction created to use with fromElements and fromCollection
+	 * 
+	 * @param <T>
+	 */
+	private static class FromElementsSource<T> extends SourceFunction<Tuple1<T>> {
+
+		private static final long serialVersionUID = 1L;
+
+		Iterable<T> iterable;
+
+		public FromElementsSource(T... elements) {
+			this.iterable = (Iterable<T>) Arrays.asList(elements);
+		}
+
+		public FromElementsSource(Collection<T> elements) {
+			this.iterable = (Iterable<T>) elements;
+		}
+
+		@Override
+		public void invoke(Collector<Tuple1<T>> collector) throws Exception {
+			for (T element : iterable) {
+				collector.collect(new Tuple1<T>(element));
+			}
+		}
+
 	}
 
 	/**
@@ -267,34 +323,61 @@ public class StreamExecutionEnvironment {
 			int parallelism) {
 		DataStream<T> returnStream = new DataStream<T>(this);
 
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos;
-		try {
-			oos = new ObjectOutputStream(baos);
-			oos.writeObject(sourceFunction);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
 		jobGraphBuilder.setSource(returnStream.getId(), sourceFunction, "source",
-				baos.toByteArray(), parallelism, (int) Math.ceil(parallelism/clusterSize));
+				serializeToByteArray(sourceFunction), parallelism,
+				(int) Math.ceil(parallelism / clusterSize));
 
 		return returnStream.copy();
 	}
 
-	//TODO: understand difference
+	/**
+	 * Read a text file from the given path and emits the lines as
+	 * Tuple1<Strings>-s
+	 * 
+	 * @param path
+	 *            Input file
+	 * @return the data stream constructed
+	 */
 	public DataStream<Tuple1<String>> readTextFile(String path) {
 		return addSource(new FileSourceFunction(path), 1);
 	}
 
+	/**
+	 * Streams a text file from the given path by reading through it multiple
+	 * times.
+	 * 
+	 * @param path
+	 *            Input file
+	 * @return the data stream constructed
+	 */
 	public DataStream<Tuple1<String>> readTextStream(String path) {
 		return addSource(new FileStreamFunction(path), 1);
 	}
 
-	//TODO: Add link to JobGraphBuilder
+	/**
+	 * Converts object to byte array using default java serialization
+	 * 
+	 * @param object
+	 *            Object to be serialized
+	 * @return Serialized object
+	 */
+	private byte[] serializeToByteArray(Object object) {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ObjectOutputStream oos;
+		try {
+			oos = new ObjectOutputStream(baos);
+			oos.writeObject(object);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return baos.toByteArray();
+	}
+
+	// TODO: Add link to JobGraphBuilder
 	/**
 	 * Getter of the JobGraphBuilder of the streaming job.
+	 * 
 	 * @return
 	 */
 	public JobGraphBuilder jobGB() {
