@@ -15,12 +15,28 @@
 
 package eu.stratosphere.streaming.state;
 
+import java.util.Iterator;
+import java.util.Map.Entry;
+
 import eu.stratosphere.api.java.tuple.Tuple2;
 
-/**
- * the iterator for internal states.
- */
-public interface StateIterator<K, V>{
-	public boolean hasNext();
-	public Tuple2<K, V> next();
+public class MutableTableStateIterator<K, V> implements TableStateIterator<K, V>{
+
+	private Iterator<Entry<K, V>> iterator;
+	public MutableTableStateIterator(Iterator<Entry<K, V>> iter){
+		iterator=iter;
+	}
+	
+	@Override
+	public boolean hasNext() {
+		// TODO Auto-generated method stub
+		return iterator.hasNext();
+	}
+
+	@Override
+	public Tuple2<K, V> next() {
+		// TODO Auto-generated method stub
+		Entry<K, V> entry=iterator.next();
+		return new Tuple2<K, V>(entry.getKey(), entry.getValue());
+	}
 }

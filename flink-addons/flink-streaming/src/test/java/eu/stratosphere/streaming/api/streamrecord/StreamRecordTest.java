@@ -241,7 +241,7 @@ public class StreamRecordTest {
 
 		t = System.nanoTime();
 		for (int i = 0; i < ITERATION; i++) {
-			record.getFieldFast(0, i % 4);
+			record.getField(0, i % 4);
 		}
 		t2 = System.nanoTime() - t;
 		System.out.println("getFieldFast:\t" + t2 + " ns");
@@ -262,7 +262,7 @@ public class StreamRecordTest {
 
 		t = System.nanoTime();
 		for (int i = 0; i < ITERATION; i++) {
-			record20.getFieldFast(0, i % 20);
+			record20.getField(0, i % 20);
 		}
 		t2 = System.nanoTime() - t;
 		System.out.println("getFieldFast:\t" + t2 + " ns");
