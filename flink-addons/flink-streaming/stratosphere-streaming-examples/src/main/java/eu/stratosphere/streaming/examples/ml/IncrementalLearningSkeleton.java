@@ -119,22 +119,22 @@ public class IncrementalLearningSkeleton {
 
 	}
 
-	private static final int PARALELISM = 1;
-	private static final int SOURCE_PARALELISM = 1;
+	private static final int PARALLELISM = 1;
+	private static final int SOURCE_PARALLELISM = 1;
 
 	public static void main(String[] args) {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
 
 		DataStream<Tuple1<Integer>> model = 
-				env.addSource(new TrainingDataSource(), SOURCE_PARALELISM)
-					.map(new PartialModelBuilder(), PARALELISM)
+				env.addSource(new TrainingDataSource(), SOURCE_PARALLELISM)
+					.map(new PartialModelBuilder())
 					.broadcast();
 		
 		DataStream<Tuple1<Integer>> prediction =
-				env.addSource(new NewDataSource(), SOURCE_PARALELISM)
+				env.addSource(new NewDataSource(), SOURCE_PARALLELISM)
 					.connectWith(model)
-					.map(new Predictor(), PARALELISM);
+					.map(new Predictor());
 	
 		prediction.print();
 		

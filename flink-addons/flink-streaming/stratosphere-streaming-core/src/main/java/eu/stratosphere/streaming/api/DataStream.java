@@ -32,9 +32,9 @@ import eu.stratosphere.streaming.api.invokable.MapInvokable;
 import eu.stratosphere.types.TypeInformation;
 
 /**
- * A DataStream represents a stream of elements of the same type.<br/>
- * A DataStream can be transformed into another DataStream by applying a
- * transformation as for example
+ * A DataStream represents a stream of elements of the same type. A DataStream
+ * can be transformed into another DataStream by applying a transformation as
+ * for example
  * <ul>
  * <li>{@link DataStream#map},</li>
  * <li>{@link DataStream#filter}, or</li>
@@ -151,7 +151,7 @@ public class DataStream<T extends Tuple> {
 
 		environment.setOperatorParallelism(this);
 
-		return this;
+		return this.copy();
 
 	}
 
@@ -255,19 +255,13 @@ public class DataStream<T extends Tuple> {
 	 * @param mapper
 	 *            The MapFunction that is called for each element of the
 	 *            DataStream.
-	 * @param parallelism
-	 *            The number of threads the function runs on.
 	 * @param <R>
 	 *            output type
 	 * @return The transformed DataStream.
 	 */
-	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper, int parallelism) {
-		return environment.addFunction("map", this.copy(), mapper, new MapInvokable<T, R>(mapper),
-				parallelism);
-	}
-
 	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper) {
-		return map(mapper, 1);
+		return environment.addFunction("map", this.copy(), mapper, new MapInvokable<T, R>(mapper));
+
 	}
 
 	/**
@@ -286,13 +280,9 @@ public class DataStream<T extends Tuple> {
 	 *            output type
 	 * @return The transformed DataStream.
 	 */
-	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper, int parallelism) {
-		return environment.addFunction("flatMap", this.copy(), flatMapper,
-				new FlatMapInvokable<T, R>(flatMapper), parallelism);
-	}
-
 	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper) {
-		return flatMap(flatMapper, 1);
+		return environment.addFunction("flatMap", this.copy(), flatMapper,
+				new FlatMapInvokable<T, R>(flatMapper));
 	}
 
 	/**
@@ -308,13 +298,9 @@ public class DataStream<T extends Tuple> {
 	 *            The number of threads the function runs on.
 	 * @return The filtered DataStream.
 	 */
-	public DataStream<T> filter(FilterFunction<T> filter, int parallelism) {
-		return environment.addFunction("filter", this.copy(), filter,
-				new FilterInvokable<T>(filter), parallelism);
-	}
-
 	public DataStream<T> filter(FilterFunction<T> filter) {
-		return filter(filter, 1);
+		return environment.addFunction("filter", this.copy(), filter,
+				new FilterInvokable<T>(filter));
 	}
 
 	/**
@@ -335,20 +321,15 @@ public class DataStream<T extends Tuple> {
 	 * @return The modified DataStream.
 	 */
 	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer,
-			int batchSize, int parallelism) {
-		return environment.addFunction("batchReduce", batch(batchSize).copy(), reducer,
-				new BatchReduceInvokable<T, R>(reducer), parallelism);
-	}
-
-	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer,
 			int batchSize) {
-		return batchReduce(reducer, batchSize, 1);
+		return environment.addFunction("batchReduce", batch(batchSize).copy(), reducer,
+				new BatchReduceInvokable<T, R>(reducer));
 	}
 
 	/**
-	 * Adds the given sink to this environment with parallelism set in
-	 * parameter. Only streams with sinks added will be executed once the
-	 * {@link StreamExecutionEnvironment#execute()} method is called.
+	 * Adds the given sink to this environment. Only streams with sinks added
+	 * will be executed once the {@link StreamExecutionEnvironment#execute()}
+	 * method is called.
 	 * 
 	 * @param sinkFunction
 	 *            The object containing the sink's invoke function.
@@ -356,21 +337,8 @@ public class DataStream<T extends Tuple> {
 	 *            The number of threads the function runs on.
 	 * @return The modified DataStream.
 	 */
-	public DataStream<T> addSink(SinkFunction<T> sinkFunction, int parallelism) {
-		return environment.addSink(this.copy(), sinkFunction, parallelism);
-	}
-
-	/**
-	 * Adds the given sink to this environment without parallelism. Only streams
-	 * with sinks added will be executed once the
-	 * {@link StreamExecutionEnvironment#execute()} method is called.
-	 * 
-	 * @param sinkFunction
-	 *            The object containing the sink's invoke function.
-	 * @return The closed DataStream.
-	 */
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
-		return environment.addSink(this.copy(), sinkFunction, 1);
+		return environment.addSink(this.copy(), sinkFunction);
 	}
 
 	/**

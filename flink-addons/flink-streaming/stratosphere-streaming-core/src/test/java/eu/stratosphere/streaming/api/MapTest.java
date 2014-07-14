@@ -208,7 +208,7 @@ public class MapTest {
 	private static int diffFieldsResult = 0;
 	private static int graphResult = 0;
 	private static int map = 0;
-	private static final int PARALELISM = 1;
+	private static final int PARALLELISM = 1;
 	private static final long MEMORYSIZE = 32;
 	private static final int MAXSOURCE = 10;
 	private static boolean allInOne = false;
@@ -269,12 +269,12 @@ public class MapTest {
 	public void mapTest() throws Exception {
 		
 		//mapTest
-		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(3);
 
 		fillFromCollectionSet();
 		
 		DataStream<Tuple1<Integer>> dataStream = env.fromCollection(fromCollectionSet)
-				.map(new MyMap(), PARALELISM).addSink(new MySink());
+				.map(new MyMap()).addSink(new MySink());
 
 
 		fillExpectedList();
@@ -286,7 +286,7 @@ public class MapTest {
 		DataStream<Tuple1<Integer>> dataStream1 = env
 				.fromCollection(fromCollectionSet)
 				.broadcast()
-				.map(new MyMap(), 3)
+				.map(new MyMap())
 				.addSink(new MyBroadcastSink());
 		
 
@@ -295,7 +295,7 @@ public class MapTest {
 		
 		DataStream<Tuple1<Integer>> dataStream2 = env
 				.fromCollection(fromCollectionSet)
-				.map(new MyMap(), 3)
+				.map(new MyMap()).setParallelism(3)
 				.addSink(new MyShufflesSink());
 
 		
@@ -305,7 +305,7 @@ public class MapTest {
 		DataStream<Tuple1<Integer>> dataStream3 = env
 				.fromCollection(fromCollectionFields)
 				.partitionBy(0)
-				.map(new MyFieldsMap(), 3)
+				.map(new MyFieldsMap())
 				.addSink(new MyFieldsSink());
 
 		
@@ -315,7 +315,7 @@ public class MapTest {
 		DataStream<Tuple1<Integer>> dataStream4 = env
 				.fromCollection(fromCollectionDiffFieldsSet)
 				.partitionBy(0)
-				.map(new MyDiffFieldsMap(), 3)
+				.map(new MyDiffFieldsMap())
 				.addSink(new MyDiffFieldsSink());
 	
 		
@@ -327,7 +327,7 @@ public class MapTest {
 				.addSource(new MySource2(), 1)
 				.connectWith(source1)
 				.partitionBy(0)
-				.map(new MySingleJoinMap(), 1)
+				.map(new MySingleJoinMap()).setParallelism(1)
 				.addSink(new JoinSink());
 
 		
@@ -344,10 +344,9 @@ public class MapTest {
 				.addSource(new MySource3(), 1)
 				.connectWith(source3, source4)
 				.partitionBy(0)
-				.map(new MyMultipleJoinMap(), 1)
+				.map(new MyMultipleJoinMap()).setParallelism(1)
 				.addSink(new JoinSink());
 
-		env.setDegreeOfParallelism(3);
 		env.executeTest(MEMORYSIZE);		
 		
 		fillMultipleJoinSet();

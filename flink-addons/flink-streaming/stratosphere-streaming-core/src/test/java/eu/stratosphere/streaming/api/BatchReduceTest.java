@@ -32,9 +32,8 @@ public class BatchReduceTest {
 
 	private static ArrayList<Double> avgs = new ArrayList<Double>();
 	private static final int BATCH_SIZE = 5;
-	private static final int PARALELISM = 1;
+	private static final int PARALlELISM = 1;
 	private static final long MEMORYSIZE = 32;
-
 
 	public static final class MyBatchReduce extends
 			GroupReduceFunction<Tuple1<Double>, Tuple1<Double>> {
@@ -78,12 +77,12 @@ public class BatchReduceTest {
 
 	@Test
 	public void test() throws Exception {
-		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
-		DataStream<Tuple1<Double>> dataStream0 = env.addSource(new MySource(),1)
-				.batchReduce(new MyBatchReduce(), BATCH_SIZE, PARALELISM).addSink(new MySink());
+		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALlELISM);
 
-		env.setDegreeOfParallelism(PARALELISM);
-		env.executeTest(MEMORYSIZE);		
+		DataStream<Tuple1<Double>> dataStream0 = env.addSource(new MySource())
+				.batchReduce(new MyBatchReduce(), BATCH_SIZE).addSink(new MySink());
+
+		env.executeTest(MEMORYSIZE);
 
 		for (int i = 0; i < avgs.size(); i++) {
 			assertEquals(3.0 + i * BATCH_SIZE, avgs.get(i), 0);
