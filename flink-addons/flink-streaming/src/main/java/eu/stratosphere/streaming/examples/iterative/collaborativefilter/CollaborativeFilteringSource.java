@@ -15,17 +15,40 @@
 
 package eu.stratosphere.streaming.examples.iterative.collaborativefilter;
 
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import java.io.BufferedReader;
+import java.io.FileReader;
+
+import eu.stratosphere.api.java.tuple.Tuple3;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class CFTask extends UserTaskInvokable {
-
+public class CollaborativeFilteringSource extends UserSourceInvokable {
 	private static final long serialVersionUID = 1L;
-
+	
+	private BufferedReader br = null;
+	private String line = new String();
+	private StreamRecord outRecord = new StreamRecord(new Tuple3<Integer, Integer, Integer>());
+	
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
+	public void invoke() throws Exception {
 		// TODO Auto-generated method stub
-		
+		br = new BufferedReader(new FileReader(
+				"src/test/resources/testdata/MovieLens100k.data"));
+		while (true) {
+			line = br.readLine();
+			if (line == null) {
+				break;
+			}
+			if (line != "") {
+				String[] items=line.split("\t");
+				outRecord.setInteger(0, Integer.valueOf(items[0]));
+				outRecord.setInteger(1, Integer.valueOf(items[1]));
+				outRecord.setInteger(2, Integer.valueOf(items[2]));
+				emit(outRecord);
+				performanceCounter.count();
+			}
+			line = br.readLine();
+		}		
 	}
 
 }

@@ -13,13 +13,20 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.iterative.pagerank;
+package eu.stratosphere.streaming.examples.iterative.kmeans;
 
-public class PagerankLocal {
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-	public static void main(String[] args) {
+public class KMeansSink extends UserSinkInvokable {
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
 		// TODO Auto-generated method stub
-
+		//int tupleNum = record.getNumOfTuples();
+		System.out.println("============================================");
+		System.out.println("record=" + record.getString(0, 0));
+		System.out.println("============================================");		
 	}
-
 }

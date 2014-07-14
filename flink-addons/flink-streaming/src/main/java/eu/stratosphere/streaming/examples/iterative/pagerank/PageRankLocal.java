@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.join;
+package eu.stratosphere.streaming.examples.iterative.pagerank;
 
 import org.apache.log4j.Level;
 
@@ -23,18 +23,16 @@ import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.ClusterUtil;
 import eu.stratosphere.streaming.util.LogUtils;
 
-public class JoinLocal {
-
+public class PageRankLocal {
+	
 	public static JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
-		graphBuilder.setSource("JoinSourceOne", JoinSourceOne.class);
-		graphBuilder.setSource("JoinSourceTwo", JoinSourceTwo.class);
-		graphBuilder.setTask("JoinTask", JoinTask.class, 1, 1);
-		graphBuilder.setSink("JoinSink", JoinSink.class);
+		graphBuilder.setSource("Source", new PageRankSource());
+		graphBuilder.setTask("Task", new PageRankTask(), 1, 1);
+		graphBuilder.setSink("Sink", new PageRankSink());
 
-		graphBuilder.fieldsConnect("JoinSourceOne", "JoinTask", 1);
-		graphBuilder.fieldsConnect("JoinSourceTwo", "JoinTask", 1);
-		graphBuilder.shuffleConnect("JoinTask", "JoinSink");
+		graphBuilder.fieldsConnect("Source", "Task", 0);
+		graphBuilder.shuffleConnect("Task", "Sink");
 
 		return graphBuilder.getJobGraph();
 	}

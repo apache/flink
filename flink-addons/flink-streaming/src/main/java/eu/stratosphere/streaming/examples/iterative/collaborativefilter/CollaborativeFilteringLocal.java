@@ -15,11 +15,32 @@
 
 package eu.stratosphere.streaming.examples.iterative.collaborativefilter;
 
+import org.apache.log4j.Level;
+
+import eu.stratosphere.nephele.jobgraph.JobGraph;
+import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
+import eu.stratosphere.streaming.util.ClusterUtil;
+import eu.stratosphere.streaming.util.LogUtils;
+
 public class CollaborativeFilteringLocal {
+	
+	public static JobGraph getJobGraph() {
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
+		graphBuilder.setSource("Source", new CollaborativeFilteringSource());
+		graphBuilder.setTask("Task", new CollaborativeFilteringTask(), 1, 1);
+		graphBuilder.setSink("Sink", new CollaborativeFilteringSink());
 
-	public static void main(String[] args) {
-		// TODO Auto-generated method stub
+		graphBuilder.fieldsConnect("Source", "Task", 0);
+		graphBuilder.shuffleConnect("Task", "Sink");
 
+		return graphBuilder.getJobGraph();
 	}
 
+	public static void main(String[] args) {
+
+		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
+		ClusterUtil.runOnMiniCluster(getJobGraph());
+
+	}
 }
