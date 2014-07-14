@@ -39,7 +39,7 @@ public class FaultToleranceBufferTest {
 		record.addRecord(new StringValue("V1"));
 		faultTolerancyBuffer.addRecord(record);
 		assertEquals((Integer) 3, faultTolerancyBuffer.getAckCounter().get(record.getId()));
-		assertEquals(record,faultTolerancyBuffer.getRecordBuffer().get(record.getId()));
+		assertArrayEquals(record.getRecord(0),faultTolerancyBuffer.getRecordBuffer().get(record.getId()).getRecord(0));
 	}
 
 	@Test
@@ -88,7 +88,7 @@ public class FaultToleranceBufferTest {
 		record1.addRecord(new StringValue("V1"));
 		faultTolerancyBuffer.addRecord(record1);
 		
-		assertEquals(record1, faultTolerancyBuffer.popRecord(record1.getId()));
+		assertArrayEquals(record1.getRecord(0), faultTolerancyBuffer.popRecord(record1.getId()).getRecord(0));
 		System.out.println("---------");
 	}
 	
