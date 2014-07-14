@@ -52,7 +52,7 @@ public class PrintTest {
 		@Override
 		public void flatMap(Tuple1<Integer> value,
 				Collector<Tuple1<Integer>> out) throws Exception {
-			if (value.f0 < 20) {
+			if (value.f0 < 5) {
 				out.collect(new Tuple1<Integer>(value.f0 + 1));
 			}
 
@@ -80,7 +80,7 @@ public class PrintTest {
 		LocalStreamEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(1);
 
-		env.fromElements(2, 3, 4).flatMapSource(new Increment()).flatMapSink(new Forward()).print();
+		env.fromElements(1).flatMap(new Increment()).addIterationSource().flatMap(new Forward()).addIterationSink().print();
 //		env.generateSequence(1, 10).print();
 //		Set<Integer> a = new HashSet<Integer>();
 //		a.add(-2);

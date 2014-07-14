@@ -57,6 +57,8 @@ public abstract class StreamRecord implements IOReadableWritable, Serializable {
 
 	protected UID uid = new UID();
 	protected int batchSize;
+	
+	public int iterationFlag=1;
 
 	protected SerializationDelegate<Tuple> serializationDelegate;
 	protected DeserializationDelegate<Tuple> deserializationDelegate;

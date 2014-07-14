@@ -19,6 +19,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -79,7 +80,10 @@ public class StreamIterationSource extends AbstractStreamComponent {
 		}
 
 		while (true) {
-			StreamRecord nextRecord = dataChannel.take();
+			StreamRecord nextRecord = dataChannel.poll(5, TimeUnit.SECONDS);
+			if(nextRecord == null){
+				break;
+			}
 			nextRecord.setSeralizationDelegate(this.outSerializationDelegate);
 			for (RecordWriter<StreamRecord> output : outputs) {
 				output.emit(nextRecord);

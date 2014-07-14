@@ -282,26 +282,6 @@ public class DataStream<T extends Tuple> {
 		return environment.addFunction("flatMap", this.copy(), flatMapper,
 				new FlatMapInvokable<T, R>(flatMapper));
 	}
-	
-	public <R extends Tuple> DataStream<R> flatMapSource(FlatMapFunction<T, R> flatMapper){
-		DataStream<R> rS = environment.addFunction("flatMap", this.copy(), flatMapper,
-				new FlatMapInvokable<T, R>(flatMapper));
-		
-		environment.addIterationSource("flatMap", this.copy(), flatMapper,
-				new FlatMapInvokable<T, R>(flatMapper), rS.getId());
-		
-		return rS;
-	}
-	
-	public <R extends Tuple> DataStream<R> flatMapSink(FlatMapFunction<T, R> flatMapper){
-		DataStream<R> rS = environment.addFunction("flatMap", this.copy(), flatMapper,
-				new FlatMapInvokable<T, R>(flatMapper));
-		
-		environment.addIterationSink("flatMap", this.copy(), flatMapper,
-				new FlatMapInvokable<T, R>(flatMapper), rS.getId());
-		
-		return rS;
-	}
 
 	/**
 	 * Applies a Filter transformation on a {@link DataStream}. The
@@ -354,21 +334,31 @@ public class DataStream<T extends Tuple> {
 	}
 
 	/**
-	 * Writes a DataStream to the standard output stream (stdout).
-	 * For each element of the DataStream the result of
-	 * {@link Object#toString()} is written.
-	 *
+	 * Writes a DataStream to the standard output stream (stdout). For each
+	 * element of the DataStream the result of {@link Object#toString()} is
+	 * written.
+	 * 
 	 * @return The closed DataStream.
 	 */
 	public DataStream<T> print() {
 		return environment.print(this.copy());
 	}
-	
-	public IterativeDataStream<T> iterate(){
+
+	public DataStream<T> addIterationSource() {
+		environment.addIterationSource(this);
+		return this.copy();
+	}
+
+	public DataStream<T> addIterationSink() {
+		environment.addIterationSink(this);
+		return this;
+	}
+
+	public IterativeDataStream<T> iterate() {
 		environment.iterate();
 		return new IterativeDataStream<T>(environment);
 	}
-	
+
 	/**
 	 * Set the type parameter.
 	 * 
