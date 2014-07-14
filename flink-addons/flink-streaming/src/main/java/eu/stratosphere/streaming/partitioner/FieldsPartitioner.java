@@ -42,6 +42,6 @@ public class FieldsPartitioner implements ChannelSelector<Record> {
 			e.printStackTrace();
 		}
 		record.getFieldInto(keyPosition, key);
-		return new int[] { key.hashCode() % numberOfOutputChannels };
+		return new int[] { Math.abs(key.hashCode()) % numberOfOutputChannels };
 	}
 }
