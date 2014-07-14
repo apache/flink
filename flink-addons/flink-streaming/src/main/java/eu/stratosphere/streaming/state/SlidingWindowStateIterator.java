@@ -15,15 +15,17 @@
 
 package eu.stratosphere.streaming.state;
 
-/**
- * An internal state interface that supports stateful operator.
- */
-public interface TableState<K, V>{
-	public void put(K key, V value);
-	public V get(K key);
-	public void delete(K key);
-	public boolean containsKey(K key);
-	public String serialize();
-	public void deserialize(String str);
-	public TableStateIterator<K, V> getIterator();
+import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+
+public class SlidingWindowStateIterator<K>{
+
+	public boolean hasNext() {
+		return false;
+	}
+
+	public Tuple2<K, StreamRecord> next() {
+		return null;
+	}
+
 }
