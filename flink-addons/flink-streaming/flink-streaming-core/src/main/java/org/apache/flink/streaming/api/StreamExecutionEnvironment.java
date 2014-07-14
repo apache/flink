@@ -135,14 +135,6 @@ public abstract class StreamExecutionEnvironment {
 		this.executionParallelism = degreeOfParallelism;
 	}
 
-	public void setDefaultBatchSize(int batchSize) {
-		if (batchSize < 1) {
-			throw new IllegalArgumentException("Batch size must be positive.");
-		} else {
-			jobGraphBuilder.setDefaultBatchSize(batchSize);
-		}
-	}
-
 	public void setBatchTimeout(int timeout) {
 		if (timeout < 1) {
 			throw new IllegalArgumentException("Batch timeout must be positive.");
@@ -313,7 +305,6 @@ public abstract class StreamExecutionEnvironment {
 
 		jobGraphBuilder.setIterationSource(returnStream.getId(), inputStream.getId(),
 				degreeOfParallelism);
-		
 
 		jobGraphBuilder.shuffleConnect(returnStream.getId(), inputStream.getId());
 	}
@@ -324,7 +315,12 @@ public abstract class StreamExecutionEnvironment {
 		jobGraphBuilder.setIterationSink(returnStream.getId(), inputStream.getId(),
 				degreeOfParallelism);
 
-		jobGraphBuilder.shuffleConnect(inputStream.getId(), returnStream.getId());
+		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
+			String input = inputStream.connectIDs.get(i);
+			jobGraphBuilder.shuffleConnect(input, returnStream.getId());
+
+		}
+		setBatchSize(inputStream);
 	}
 
 	/**
@@ -354,7 +350,7 @@ public abstract class StreamExecutionEnvironment {
 	<T extends Tuple> void addDirectedEmit(String id, OutputSelector<T> outputSelector) {
 		jobGraphBuilder.setOutputSelector(id, serializeToByteArray(outputSelector));
 	}
-	
+
 	/**
 	 * Writes a DataStream to the standard output stream (stdout). For each
 	 * element of the DataStream the result of {@link Object#toString()} is
@@ -408,7 +404,7 @@ public abstract class StreamExecutionEnvironment {
 			}
 
 		}
-		this.setBatchSize(inputStream);
+		setBatchSize(inputStream);
 
 	}
 
@@ -432,7 +428,7 @@ public abstract class StreamExecutionEnvironment {
 	protected <T extends Tuple> void setName(DataStream<T> stream, String name) {
 		jobGraphBuilder.setUserDefinedName(stream.getId(), name);
 	}
-	
+
 	/**
 	 * Sets the proper parallelism for the given operator in the JobGraph
 	 * 

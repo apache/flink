@@ -20,11 +20,11 @@
 package org.apache.flink.streaming.api.streamcomponent;
 
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-
 import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
 
 public class StreamIterationSink extends AbstractStreamComponent {
@@ -89,7 +89,7 @@ public class StreamIterationSink extends AbstractStreamComponent {
 
 	private void pushToQueue(StreamRecord record) {
 		try {
-			dataChannel.put(record);
+			dataChannel.offer(record, 5, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}

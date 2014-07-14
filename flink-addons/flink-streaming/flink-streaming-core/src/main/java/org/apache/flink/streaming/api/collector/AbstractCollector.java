@@ -17,7 +17,7 @@
  *
  **********************************************************************************************************************/
 
-package org.apache.flink.streaming.api.streamcomponent;
+package org.apache.flink.streaming.api.collector;
 
 import org.apache.flink.api.java.tuple.Tuple;
 
