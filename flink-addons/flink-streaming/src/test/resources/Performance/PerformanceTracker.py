@@ -9,8 +9,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 
+
 linestyles = ['_', '-', '--', ':']
-markers=['x','o','^','+']
+markers=['D','s', '|', '', 'x', '_', '^', ' ', 'd', 'h', '+', '*', ',', 'o', '.', '1', 'p', 'H', 'v', '>'];
+colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 def readFiles(csv_dir):
     dataframes=[]
     
@@ -36,9 +38,9 @@ def plotCounter(csv_dir, smooth=5):
     plt.title('Counter')
     
     for dataframe in dataframes:
-        if len(markers)>dataframe[1]:
-            m=markers[dataframe[1]]            
-        else: m='*'  
+        
+        m=markers[dataframe[1]%len(markers)]    
+          
         dataframe[2].ix[:,0].plot(marker=m,markevery=10,markersize=10)
     plt.legend([x[0] for x in dataframes])
     
@@ -46,9 +48,9 @@ def plotCounter(csv_dir, smooth=5):
     plt.title('dC/dT')
 
     for dataframe in dataframes:
-        if len(markers)>dataframe[1]:
-            m=markers[dataframe[1]]            
-        else: m='*'  
+        
+        m=markers[dataframe[1]%len(markers)]            
+        
         pd.rolling_mean(dataframe[2].speed,smooth).plot(marker=m,markevery=10,markersize=10)
     plt.legend([x[0] for x in dataframes])
         
@@ -61,9 +63,9 @@ def plotTimer(csv_dir,smooth=5,std=50):
     plt.title('Timer')
     
     for dataframe in dataframes:
-        if len(markers)>dataframe[1]:
-            m=markers[dataframe[1]]            
-        else: m='*'  
+        
+        m=markers[dataframe[1]%len(markers)]  
+          
         pd.rolling_mean(dataframe[2].ix[:,0],smooth).plot(marker=m,markevery=10,markersize=10)
     plt.legend([x[0] for x in dataframes])
     
@@ -71,8 +73,8 @@ def plotTimer(csv_dir,smooth=5,std=50):
     plt.title('Standard deviance')
 
     for dataframe in dataframes:
-        if len(markers)>dataframe[1]:
-            m=markers[dataframe[1]]            
-        else: m='*' 
+        
+        m=markers[dataframe[1]%len(markers)]   
+         
         pd.rolling_std(dataframe[2].ix[:,0],std).plot(marker=m,markevery=10,markersize=10)
     plt.legend([x[0] for x in dataframes])
