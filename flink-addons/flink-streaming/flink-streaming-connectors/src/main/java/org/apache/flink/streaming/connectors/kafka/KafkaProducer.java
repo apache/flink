@@ -1,4 +1,4 @@
-/***********************************************************************************************************************
+/**
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- **********************************************************************************************************************/
+ */
 
 package org.apache.flink.streaming.connectors.kafka;
 
@@ -35,7 +35,7 @@ import kafka.producer.ProducerConfig;
  * config/server.properties Run the following script to start the producer: java
  * -cp kafka-0.8/libs/*:yourJarFile.jar
  * org.apache.flink.streaming.kafka.KafkaProducer yourTopicID kafkaServerIp As
- * an example: java -cp kafka-0.8/libs/*:stratosphere-streaming.jar
+ * an example: java -cp kafka-0.8/libs/*:flink-streaming.jar
  * org.apache.flink.streaming.kafka.KafkaProducer test localhost:9092
  */
 public class KafkaProducer {
