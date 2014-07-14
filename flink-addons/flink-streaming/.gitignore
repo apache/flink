@@ -15,3 +15,4 @@ bin
 *.swp
 *.jar
 .DS_Store
+src/test/resources/testdata/*

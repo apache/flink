@@ -18,11 +18,14 @@ package eu.stratosphere.streaming.examples.wordcount;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.DataStream;
 import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.streaming.util.TestDataUtil;
 
 public class WordCountLocal {
 
 	public static void main(String[] args) {
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		
+		TestDataUtil.downloadIfNotExists("hamlet.txt");
 
 		@SuppressWarnings("unused")
 		DataStream<Tuple2<String, Integer>> dataStream = env
