@@ -72,7 +72,8 @@ public class StreamExecutionEnvironment {
 	 * task parallelism.
 	 * 
 	 * @param clusterSize
-	 * @return
+	 *            cluster size
+	 * @return environment
 	 */
 	public StreamExecutionEnvironment setClusterSize(int clusterSize) {
 		this.clusterSize = clusterSize;
@@ -92,6 +93,8 @@ public class StreamExecutionEnvironment {
 	 * 
 	 * @param inputStream
 	 *            input data stream
+	 * @param <T>
+	 *            type of the input stream
 	 */
 	public <T extends Tuple> void setBatchSize(DataStream<T> inputStream) {
 
@@ -109,6 +112,8 @@ public class StreamExecutionEnvironment {
 	 *            input data stream
 	 * @param outputID
 	 *            ID of the output
+	 * @param <T>
+	 *            type of the input stream
 	 */
 	private <T extends Tuple> void connectGraph(DataStream<T> inputStream, String outputID) {
 
@@ -149,6 +154,10 @@ public class StreamExecutionEnvironment {
 	 *            the wrapping JobVertex instance
 	 * @param parallelism
 	 *            number of parallel instances of the function
+	 * @param <T>
+	 *            type of the input stream
+	 * @param <R>
+	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
 	<T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName,
@@ -174,6 +183,8 @@ public class StreamExecutionEnvironment {
 	 *            the user defined function
 	 * @param parallelism
 	 *            number of parallel instances of the function
+	 * @param <T>
+	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
 	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
@@ -238,6 +249,8 @@ public class StreamExecutionEnvironment {
 	 * 
 	 * @param data
 	 *            The collection of elements to create the DataStream from.
+	 * @param <X>
+	 *            type of the returned stream
 	 * @return The DataStream representing the elements.
 	 */
 	public <X> DataStream<Tuple1<X>> fromElements(X... data) {
@@ -257,6 +270,8 @@ public class StreamExecutionEnvironment {
 	 * 
 	 * @param data
 	 *            The collection of elements to create the DataStream from.
+	 * @param <X>
+	 *            type of the returned stream
 	 * @return The DataStream representing the elements.
 	 */
 	public <X> DataStream<Tuple1<X>> fromCollection(Collection<X> data) {
@@ -272,6 +287,7 @@ public class StreamExecutionEnvironment {
 	 * SourceFunction created to use with fromElements and fromCollection
 	 * 
 	 * @param <T>
+	 *            type of the returned stream
 	 */
 	private static class FromElementsSource<T> extends SourceFunction<Tuple1<T>> {
 
@@ -306,8 +322,8 @@ public class StreamExecutionEnvironment {
 	 *            input data stream
 	 * @param sinkFunction
 	 *            the user defined function
-	 * @param parallelism
-	 *            number of parallel instances of the function
+	 * @param <T>
+	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
 	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
@@ -337,6 +353,9 @@ public class StreamExecutionEnvironment {
 	 * 
 	 * @param inputStream
 	 *            the input data stream
+	 * 
+	 * @param <T>
+	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
 	public <T extends Tuple> DataStream<T> print(DataStream<T> inputStream) {
@@ -367,6 +386,8 @@ public class StreamExecutionEnvironment {
 	 *            the user defined function
 	 * @param parallelism
 	 *            number of parallel instances of the function
+	 * @param <T>
+	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
 	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction,
@@ -440,7 +461,7 @@ public class StreamExecutionEnvironment {
 	/**
 	 * Getter of the JobGraphBuilder of the streaming job.
 	 * 
-	 * @return
+	 * @return jobgraph
 	 */
 	public JobGraphBuilder jobGB() {
 		return jobGraphBuilder;
