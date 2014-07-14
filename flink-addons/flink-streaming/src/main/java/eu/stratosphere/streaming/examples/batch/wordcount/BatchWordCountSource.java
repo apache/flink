@@ -28,6 +28,9 @@ public class BatchWordCountSource extends UserSourceInvokable {
 	private BufferedReader br = null;
 	private String line = "";
 	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Long>());
+
+	private final static int BATCH_SIZE = 20;
+
 	private Long timestamp = 0L;
 
 	public BatchWordCountSource() {
@@ -36,24 +39,29 @@ public class BatchWordCountSource extends UserSourceInvokable {
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-		timestamp = 0L;
 	}
 
 	@Override
 	public void invoke() throws Exception {
-		for(int i=0; i<100; ++i) {
-			line = br.readLine();
-			if(line==null){
-				break;
-			}
+		timestamp = 0L;
+		outRecord = new StreamRecord(2);
+
+		line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
+
+		while (line != null) {
 			if (line != "") {
-				line=line.replaceAll("[\\-\\+\\.\\^:,]", "");
-				System.out.println("line="+line);
-				outRecord.setString(0, line);
-				outRecord.setLong(1, timestamp);
+
+				outRecord.addTuple(new Tuple2<String, Long>(line, timestamp));
 				timestamp++;
-				emit(outRecord);
+				if (timestamp % BATCH_SIZE == 0) {
+					emit(outRecord);
+					outRecord = new StreamRecord(2);
+				}
 			}
+
+			line = br.readLine();
+
 		}
 	}
+
 }

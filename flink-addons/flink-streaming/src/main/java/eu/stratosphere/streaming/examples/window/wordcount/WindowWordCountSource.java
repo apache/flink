@@ -26,9 +26,10 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 public class WindowWordCountSource extends UserSourceInvokable {
 
 	private BufferedReader br = null;
-	private String line = "";
+	private String line = new String();
 	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Long>());
-	private Long timestamp = 0L;
+
+	private Long timestamp;
 
 	public WindowWordCountSource() {
 		try {
@@ -36,24 +37,20 @@ public class WindowWordCountSource extends UserSourceInvokable {
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-		timestamp = 0L;
 	}
 
 	@Override
 	public void invoke() throws Exception {
-		for(int i=0; i<10; ++i) {
-			line = br.readLine();
-			if(line==null){
-				break;
-			}
+		timestamp = 0L;
+		line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
+		while (line != null) {
 			if (line != "") {
-				line=line.replaceAll("[\\-\\+\\.\\^:,]", "");
-				System.out.println("line="+line);
 				outRecord.setString(0, line);
 				outRecord.setLong(1, timestamp);
-				timestamp++;
 				emit(outRecord);
 			}
+			line = br.readLine();
+			timestamp++;
 		}
 	}
 }

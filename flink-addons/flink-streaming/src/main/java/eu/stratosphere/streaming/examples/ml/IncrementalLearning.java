@@ -49,42 +49,75 @@ public class IncrementalLearning {
 		}
 
 		private Tuple getNewData() throws InterruptedException {
-			Thread.sleep(1000);
 			return new Tuple1<Integer>(1);
 		}
 	}
 
-	public static class OldDataSource extends UserSourceInvokable {
+	public static class TrainingDataSource extends UserSourceInvokable {
 
 		private final int BATCH_SIZE = 1000;
 
-		StreamRecord record = new StreamRecord(2, BATCH_SIZE);
+		StreamRecord record = new StreamRecord(1, BATCH_SIZE);
 
 		@Override
 		public void invoke() throws Exception {
 
 			record.initRecords();
 
-			while (true) {
+			for (int j = 0; j < 10; j++) {
 				for (int i = 0; i < BATCH_SIZE; i++) {
-					record.setTuple(getOldData());
+					record.setTuple(i, getTrainingData());
 				}
 				emit(record);
 			}
 
 		}
 
-		private Tuple getOldData() throws InterruptedException {
-			Thread.sleep(1000);
+		private Tuple getTrainingData() throws InterruptedException {
 			return new Tuple1<Integer>(1);
+
 		}
 	}
 
-	public static class WindowPredictor extends UserTaskInvokable {
+	public static class PartialModelBuilder extends UserTaskInvokable {
 
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
-			//build predictor on record
+			emit(buildPartialModel(record));
+		}
+
+		protected StreamRecord buildPartialModel(StreamRecord record) {
+			return new StreamRecord(new Tuple1<Integer>(1));
+		}
+
+	}
+
+	public static class Predictor extends UserTaskInvokable {
+
+		StreamRecord batchModel = null;
+		StreamRecord partialModel = null;
+
+		@Override
+		public void invoke(StreamRecord record) throws Exception {
+			if (isModel(record)) {
+				partialModel = record;
+				batchModel = getBatchModel();
+			} else {
+				emit(predict(record));
+			}
+
+		}
+
+		protected StreamRecord getBatchModel() {
+			return new StreamRecord(new Tuple1<Integer>(1));
+		}
+
+		protected boolean isModel(StreamRecord record) {
+			return true;
+		}
+
+		protected StreamRecord predict(StreamRecord record) {
+			return new StreamRecord(new Tuple1<Integer>(0));
 		}
 
 	}
@@ -100,13 +133,24 @@ public class IncrementalLearning {
 	private static JobGraph getJobGraph() throws Exception {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("IncrementalLearning");
 
+		graphBuilder.setSource("NewData", NewDataSource.class, 1, 1);
+		graphBuilder.setSource("TrainingData", TrainingDataSource.class, 1, 1);
+		graphBuilder.setTask("PartialModelBuilder", PartialModelBuilder.class, 1, 1);
+		graphBuilder.setTask("Predictor", Predictor.class, 1, 1);
+		graphBuilder.setSink("Sink", Sink.class, 1, 1);
+
+		graphBuilder.shuffleConnect("TrainingData", "PartialModelBuilder");
+		graphBuilder.shuffleConnect("NewData", "Predictor");
+		graphBuilder.broadcastConnect("PartialModelBuilder", "Predictor");
+		graphBuilder.shuffleConnect("Predictor", "Sink");
+
 		return graphBuilder.getJobGraph();
 	}
 
 	public static void main(String[] args) {
 
 		// set logging parameters for local run
-		LogUtils.initializeDefaultConsoleLogger(Level.ERROR, Level.INFO);
+		LogUtils.initializeDefaultConsoleLogger(Level.INFO, Level.INFO);
 
 		try {
 
