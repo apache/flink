@@ -520,8 +520,8 @@ public class JobGraphBuilder {
 					config.setInteger("numOfOutputs_" + i,
 							numberOfInstances.get(edgeList.get(componentName).get(i)));
 				}
+				i++;
 			}
-			i++;
 		}
 	}
 

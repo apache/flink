@@ -11,8 +11,8 @@
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>stratosphere-streaming-addons</artifactId>
-	<name>stratosphere-streaming-addons</name>
+	<artifactId>stratosphere-streaming-connectors</artifactId>
+	<name>stratosphere-streaming-connectors</name>
 
 	<packaging>jar</packaging>
 
