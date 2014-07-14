@@ -29,6 +29,8 @@ public class PrintTest {
 	public static final class MyFlatMap extends
 			FlatMapFunction<Tuple2<Integer, String>, Tuple2<Integer, String>> {
 
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public void flatMap(Tuple2<Integer, String> value, Collector<Tuple2<Integer, String>> out)
 				throws Exception {
