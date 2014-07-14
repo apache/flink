@@ -26,7 +26,6 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.streaming.util.LogUtils;
 
-//TODO: window operator remains unfinished.
 public class WindowSumLocal {
 
 	public static JobGraph getJobGraph() {

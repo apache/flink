@@ -13,13 +13,22 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.iterative.kmeans;
+package eu.stratosphere.streaming.examples.iterative;
 
-public class KMeansLocal {
 
-	public static void main(String[] args) {
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+
+public class IterativeStateHolder extends UserTaskInvokable {
+
+	private static final long serialVersionUID = -3042489460184024483L;
+
+	public IterativeStateHolder() {
+	}
+
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
 		// TODO Auto-generated method stub
 
 	}
-
 }
