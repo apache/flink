@@ -162,7 +162,7 @@ public class StreamExecutionEnvironment {
 		return returnStream;
 	}
 
-	public DataStream<Tuple1<String>> addFileSource(String path) {
+	public DataStream<Tuple1<String>> readTextFile(String path) {
 		return addSource(new FileSourceFunction(path));
 	} 
 	
