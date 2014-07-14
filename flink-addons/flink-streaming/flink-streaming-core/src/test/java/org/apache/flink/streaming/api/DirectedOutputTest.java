@@ -93,40 +93,7 @@ public class DirectedOutputTest {
 		}
 	}
 	
-	@SuppressWarnings("unused")
-	@Test
-	public void namingTest() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
-		DataStream<Tuple1<Long>> s1 = env.generateSequence(1, 10);
-
-		DataStream<Tuple1<Long>> ds1 = s1.map(new PlusTwo()).name("ds1");
-		DataStream<Tuple1<Long>> ds2 = s1.map(new PlusTwo());
-		DataStream<Tuple1<Long>> ds3 = s1.map(new PlusTwo()).name("ds3");
-
-		Configuration configS1 = env.jobGraphBuilder.components.get(s1.getId()).getConfiguration();
-
-		assertEquals("ds1", configS1.getString("outputName_0", ""));
-		assertEquals("", configS1.getString("outputName_1", ""));
-		assertEquals("ds3", configS1.getString("outputName_2", ""));
-
-		ds2.name("ds2");
-		assertEquals("ds2", configS1.getString("outputName_1", ""));
-
-		DataStream<Tuple1<Long>> s2 = env.generateSequence(11, 20);
-		Configuration configS2 = env.jobGraphBuilder.components.get(s2.getId()).getConfiguration();
-
-		DataStream<Tuple1<Long>> ds4 = s1.connectWith(s2).map(new PlusTwo());
-		DataStream<Tuple1<Long>> ds5 = s1.connectWith(s2).map(new PlusTwo()).name("ds5");
-		;
-
-		assertEquals("", configS2.getString("outputName_0", ""));
-		assertEquals("ds5", configS2.getString("outputName_1", ""));
-
-		ds4.name("ds4");
-		assertEquals("ds4", configS2.getString("outputName_0", ""));
-	}
-	
 	@SuppressWarnings("unused")
 	@Test
 	public void directOutputTest() {

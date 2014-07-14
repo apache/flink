@@ -85,12 +85,12 @@ public class IterateTest {
 		LocalStreamEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(1);
 
-		IterativeDataStream<Tuple1<Integer>> source = env.fromElements(1,2).flatMap(new Forward()).
+		IterativeDataStream<Tuple1<Integer>> source = env.fromElements(1).flatMap(new Forward()).
 				iterate();
 		
 		DataStream<Tuple1<Integer>> increment = source.flatMap(new Increment());
 		
-		source.closeWith(increment).print();
+		source.closeWith(increment).addSink(new MySink());
 
 		env.executeTest(MEMORYSIZE);
 		
