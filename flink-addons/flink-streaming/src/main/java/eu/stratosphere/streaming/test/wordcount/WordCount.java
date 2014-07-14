@@ -25,7 +25,7 @@ public class WordCount extends TestBase2 {
 	@Override
 	public JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountSource.class);
+		graphBuilder.setSource("WordCountSource", WordCountDummySource.class);
 		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
 		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
 		graphBuilder.setSink("WordCountSink", WordCountSink.class);
