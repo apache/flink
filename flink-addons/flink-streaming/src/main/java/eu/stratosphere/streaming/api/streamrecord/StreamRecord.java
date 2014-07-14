@@ -137,7 +137,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		this.batchSize = batchSize;
 		tupleBatch = new ArrayList<Tuple>(batchSize);
 		tupleBatch.add(tuple);
-
 	}
 
 	/**
@@ -939,35 +938,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throw new TupleSizeMismatchException();
 		}
 	}
-	
-	/**
-	 * Checks if the number of fields are equal to the batch field size then
-	 * adds the shadow copy of Tuple to the end of the batch
-	 * 
-	 * @param tuple
-	 *            Tuple to be added as the next record of the batch
-	 */
-	public void addShadowTuple(Tuple tuple) throws TupleSizeMismatchException {
-		addShadowTuple(numOfTuples, tuple);
-	}
-
-	/**
-	 * Checks if the number of fields are equal to the batch field size then
-	 * inserts the shadow copy of Tuple to the given position into the recordbatch
-	 * 
-	 * @param index
-	 *            Position of the added tuple
-	 * @param tuple
-	 *            Tuple to be added as the next record of the batch
-	 */
-	public void addShadowTuple(int index, Tuple tuple) throws TupleSizeMismatchException {
-		if (tuple.getArity() == numOfFields) {
-			tupleBatch.add(index, tuple);
-			numOfTuples++;
-		} else {
-			throw new TupleSizeMismatchException();
-		}
-	}	
 
 	/**
 	 * Creates a copy of the StreamRecord object by Serializing and

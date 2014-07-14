@@ -49,7 +49,7 @@ public class MutableTableState<K, V> implements TableState<K, V> {
 	}
 
 	@Override
-	public TableStateIterator<K, V> getIterator() {
+	public MutableTableStateIterator<K, V> getIterator() {
 		// TODO Auto-generated method stub
 		return new MutableTableStateIterator<K, V>(state.entrySet().iterator());
 	}
