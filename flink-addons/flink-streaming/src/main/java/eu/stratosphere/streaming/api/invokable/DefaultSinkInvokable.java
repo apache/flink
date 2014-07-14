@@ -22,7 +22,7 @@ public class DefaultSinkInvokable implements UserSinkInvokable {
 
   @Override
   public void invoke(StreamRecord record) throws Exception {
-    StringValue value = (StringValue) record.getField(0);
+    StringValue value = (StringValue) record.getField(0, 0);
     System.out.println(value.getValue());
   }
 

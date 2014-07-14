@@ -13,37 +13,45 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test;
+package eu.stratosphere.streaming.test.batch.wordcount;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.test.cellinfo.WorkerEngineExact;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
 
-public class TestTaskInvokable extends UserTaskInvokable {
-
-	private WorkerEngineExact engine = new WorkerEngineExact(10, 1000, 0);
+public class BatchWordCountCounter extends UserTaskInvokable {
+	
+	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
+	private StringValue wordValue = new StringValue("");
+	private IntValue countValue = new IntValue(1);
+	private LongValue timestamp = new LongValue(0);
+	private String word = "";
+	private AtomRecord outputRecord = new AtomRecord(3);
+	private int count = 1;
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		IntValue value1 = (IntValue) record.getField(0, 0);
-		LongValue value2 = (LongValue) record.getField(0, 1);
+		wordValue=(StringValue) record.getField(0, 0);
+		timestamp=(LongValue) record.getField(0, 1);
 
-		// INFO
-		if (record.getNumOfFields() == 2) {
-			engine.put(value1.getValue(), value2.getValue());
-			emit(new StreamRecord(new AtomRecord(new StringValue(value1 + " "
-					+ value2))));
+		if (wordCounts.containsKey(word)) {
+			count = wordCounts.get(word) + 1;
+			wordCounts.put(word, count);
+			countValue.setValue(count);
+		} else {
+			wordCounts.put(word, 1);
+			countValue.setValue(1);
 		}
-		// QUERY
-		else if (record.getNumOfFields() == 3) {
-			LongValue value3 = (LongValue) record.getField(0, 2);
-			emit(new StreamRecord(new AtomRecord(new StringValue(
-					String.valueOf(engine.get(value2.getValue(),
-							value3.getValue(), value1.getValue()))))));
-		}
+		outputRecord.setField(0, wordValue);
+		outputRecord.setField(1, countValue);
+		outputRecord.setField(2, timestamp);
+		emit(new StreamRecord(outputRecord));
+
 	}
 }

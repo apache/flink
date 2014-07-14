@@ -13,22 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api.invokable;
+package eu.stratosphere.streaming.test.batch;
 
 import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.types.StringValue;
 
-public class DefaultSourceInvokable extends UserSourceInvokable {
-
-  private String motto = "Stratosphere -- Big Data looks tiny from here";
-  private String[] mottoArray = motto.split(" ");
-
-  @Override
-  public void invoke() throws Exception {
-    for (CharSequence word : mottoArray) {
-      emit(new StreamRecord(new AtomRecord(new StringValue(word))));
-    }
-  }
-
+public class StreamSource  extends UserSourceInvokable {
+//	private final String motto = "Stratosphere Big Data looks tiny from here";
+	private final String motto = "Gyuszi Gabor Big Marci Gyuszi";
+	private final AtomRecord record=new AtomRecord();
+	private final StreamRecord mottoRecord=new StreamRecord();
+	
+	@Override
+	public void invoke() throws Exception {
+		record.setField(0, new StringValue(motto));
+		mottoRecord.addRecord(record);
+		for (int i = 0; i < 100; i++) {
+			emit(mottoRecord);
+		}
+	}
 }

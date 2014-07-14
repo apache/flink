@@ -13,22 +13,29 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api.invokable;
+package eu.stratosphere.streaming.test.window.wordcount;
 
-import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
 
-public class DefaultSourceInvokable extends UserSourceInvokable {
+public class WindowWordCountSink implements UserSinkInvokable {
 
-  private String motto = "Stratosphere -- Big Data looks tiny from here";
-  private String[] mottoArray = motto.split(" ");
+	private StringValue word = new StringValue("");
+	private IntValue count = new IntValue(1);
+	private LongValue timestamp = new LongValue(0);
 
-  @Override
-  public void invoke() throws Exception {
-    for (CharSequence word : mottoArray) {
-      emit(new StreamRecord(new AtomRecord(new StringValue(word))));
-    }
-  }
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
+		word=(StringValue) record.getField(0, 0);
+		count=(IntValue) record.getField(0, 1);
+		timestamp=(LongValue) record.getField(0, 2);
+		System.out.println("============================================");
+		System.out.println(word.getValue() + " " + count.getValue() + " "
+				+ timestamp.getValue());
+		System.out.println("============================================");
 
+	}
 }

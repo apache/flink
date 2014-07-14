@@ -15,6 +15,7 @@
 
 package eu.stratosphere.streaming.test;
 
+import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.types.IntValue;
@@ -22,18 +23,22 @@ import eu.stratosphere.types.LongValue;
 
 public class TestSourceInvokable extends UserSourceInvokable {
 
-  @Override
-  public void invoke() throws Exception {
-    for (int i = 0; i < 10; i++) {
-    	StreamRecord record1 = new StreamRecord(2);
-      record1.setField(0, new IntValue(5));
-      record1.setField(1, new LongValue(500));
-      StreamRecord record2 = new StreamRecord(2);
-      record2.setField(0, new IntValue(4));
-      record2.setField(1, new LongValue(500));
-      emit(record1);
-      emit(record2);
-    }
-  }
+	@Override
+	public void invoke() throws Exception {
+		for (int i = 0; i < 10; i++) {
+			StreamRecord batch1 = new StreamRecord(2);
+			AtomRecord record1 = new AtomRecord(2);
+			record1.setField(0, new IntValue(5));
+			record1.setField(1, new LongValue(500));
+			
+			StreamRecord batch2 = new StreamRecord(2);
+			AtomRecord record2 = new AtomRecord(2);
+			record2.setField(0, new IntValue(4));
+			record2.setField(1, new LongValue(500));
+			
+			emit(batch1);
+			emit(batch2);
+		}
+	}
 
 }

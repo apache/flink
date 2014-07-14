@@ -13,22 +13,35 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api.invokable;
+package eu.stratosphere.streaming.test.batch.wordcount;
 
 import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
 
-public class DefaultSourceInvokable extends UserSourceInvokable {
+public class BatchWordCountSplitter extends UserTaskInvokable {
 
-  private String motto = "Stratosphere -- Big Data looks tiny from here";
-  private String[] mottoArray = motto.split(" ");
+	private StringValue sentence = new StringValue("");
+	private LongValue timestamp = new LongValue(0);
+	private String[] words = new String[0];
+	private StringValue wordValue = new StringValue("");
+	private AtomRecord outputRecord = new AtomRecord(2);
 
-  @Override
-  public void invoke() throws Exception {
-    for (CharSequence word : mottoArray) {
-      emit(new StreamRecord(new AtomRecord(new StringValue(word))));
-    }
-  }
-
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
+		int numberOfRecords = record.getNumOfRecords();
+		for(int i=0; i<numberOfRecords; ++i){
+			sentence = (StringValue) record.getField(i, 0);
+			timestamp = (LongValue) record.getField(i, 1);
+			words = sentence.getValue().split(" ");
+			for (CharSequence word : words) {
+				wordValue.setValue(word);
+				outputRecord.setField(0, wordValue);
+				outputRecord.setField(1, timestamp);
+				emit(new StreamRecord(outputRecord));
+			}
+		}
+	}
 }
