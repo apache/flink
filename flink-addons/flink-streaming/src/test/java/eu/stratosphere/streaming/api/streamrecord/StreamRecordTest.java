@@ -249,7 +249,7 @@ public class StreamRecordTest {
 		t2 = System.nanoTime() - t;
 		System.out.println("getFieldFast:\t" + t2 + " ns");
 
-		StreamRecord record25 = new StreamRecord(
+		StreamRecord record20 = new StreamRecord(
 				new Tuple20<Integer, Long, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String>(
 						0, 42L, "Stratosphere", "Streaming", "Stratosphere",
 						"Stratosphere", "Streaming", "Stratosphere",
@@ -260,7 +260,7 @@ public class StreamRecordTest {
 
 		t = System.nanoTime();
 		for (int i = 0; i < ITERATION; i++) {
-			record25.getField(0, i % 20);
+			record20.getField(0, i % 20);
 		}
 		t2 = System.nanoTime() - t;
 		System.out.println("Tuple20");
@@ -268,7 +268,7 @@ public class StreamRecordTest {
 
 		t = System.nanoTime();
 		for (int i = 0; i < ITERATION; i++) {
-			record25.getFieldFast(0, i % 20);
+			record20.getFieldFast(0, i % 20);
 		}
 		t2 = System.nanoTime() - t;
 		System.out.println("getFieldFast:\t" + t2 + " ns");
