@@ -121,7 +121,7 @@ public abstract class StreamExecutionEnvironment {
 	 * executed in {@link LocalStreamEnvironment}.
 	 * 
 	 * @param degreeOfParallelism
-	 *            The degree of parallelismenvironment
+	 *            The degree of parallelism
 	 */
 	public void setExecutionParallelism(int degreeOfParallelism) {
 		if (degreeOfParallelism < 1)
@@ -430,10 +430,6 @@ public abstract class StreamExecutionEnvironment {
 		}
 	}
 
-	protected <T extends Tuple> void setName(DataStream<T> stream, String name) {
-		jobGraphBuilder.setUserDefinedName(stream.getId(), name);
-	}
-	
 	/**
 	 * Sets the proper parallelism for the given operator in the JobGraph
 	 * 
