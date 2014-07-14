@@ -37,7 +37,8 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
  */
 public class FaultToleranceBuffer {
 
-	private static final Log log = LogFactory.getLog(FaultToleranceBuffer.class);
+	private static final Log log = LogFactory
+			.getLog(FaultToleranceBuffer.class);
 	private long TIMEOUT = 10000;
 	private Long timeOfLastUpdate;
 	private Map<String, StreamRecord> recordBuffer;
@@ -55,11 +56,11 @@ public class FaultToleranceBuffer {
 	 * channel ID
 	 * 
 	 * @param outputs
-	 *          List of outputs
+	 *            List of outputs
 	 * @param channelID
-	 *          ID of the task object that uses this buffer
+	 *            ID of the task object that uses this buffer
 	 * @param numberOfChannels
-	 *          Number of output channels for the component
+	 *            Number of output channels for the component
 	 */
 
 	public FaultToleranceBuffer(List<RecordWriter<StreamRecord>> outputs,
@@ -88,18 +89,20 @@ public class FaultToleranceBuffer {
 	}
 
 	/**
-	 * Checks for records that have timed out since the last check and fails them.
+	 * Checks for records that have timed out since the last check and fails
+	 * them.
 	 * 
 	 * @param currentTime
-	 *          Time when the check should be made, usually current system time.
+	 *            Time when the check should be made, usually current system
+	 *            time.
 	 * @return Returns the list of the records that have timed out.
 	 */
 	List<String> timeoutRecords(Long currentTime) {
 		if (timeOfLastUpdate + TIMEOUT < currentTime) {
 			log.trace("Updating record buffer");
 			List<String> timedOutRecords = new LinkedList<String>();
-			Map<Long, Set<String>> timedOut = recordsByTime.subMap(0L, currentTime
-					- TIMEOUT);
+			Map<Long, Set<String>> timedOut = recordsByTime.subMap(0L,
+					currentTime - TIMEOUT);
 
 			for (Set<String> recordSet : timedOut.values()) {
 				if (!recordSet.isEmpty()) {
@@ -109,10 +112,11 @@ public class FaultToleranceBuffer {
 				}
 			}
 
-			recordsByTime.keySet().removeAll(timedOut.keySet());
 			for (String recordID : timedOutRecords) {
 				failRecord(recordID);
 			}
+
+			timedOut.clear();
 
 			timeOfLastUpdate = currentTime;
 			return timedOutRecords;
@@ -122,13 +126,13 @@ public class FaultToleranceBuffer {
 
 	/**
 	 * Stores time stamp for a record by recordID and also adds the record to a
-	 * map which maps a time stamp to the IDs of records that were emitted at that
-	 * time.
+	 * map which maps a time stamp to the IDs of records that were emitted at
+	 * that time.
 	 * <p>
 	 * Later used for timeouts.
 	 * 
 	 * @param recordID
-	 *          ID of the record
+	 *            ID of the record
 	 */
 	public void addTimestamp(String recordID) {
 		Long currentTime = System.currentTimeMillis();
@@ -146,37 +150,21 @@ public class FaultToleranceBuffer {
 	}
 
 	/**
-	 * Returns a StreamRecord after removing it from the buffer
+	 * Removes a StreamRecord by ID from the fault tolerance buffer, further
+	 * acks will have no effects for this record.
 	 * 
 	 * @param recordID
-	 *          The ID of the record that will be popped
-	 */
-	public StreamRecord popRecord(String recordID) {
-		//System.out.println("Pop ID: " + recordID);
-		return removeRecord(recordID);
-	}
-
-	/**
-	 * Removes a StreamRecord by ID from the fault tolerance buffer, further acks
-	 * will have no effects for this record.
-	 * 
-	 * @param recordID
-	 *          The ID of the record that will be removed
+	 *            The ID of the record that will be removed
 	 * 
 	 */
-	StreamRecord removeRecord(String recordID) {
-		StreamRecord recordToRemove = null;
+	public StreamRecord removeRecord(String recordID) {
 		ackCounter.remove(recordID);
-		try {
-			recordsByTime.get(recordTimestamps.remove(recordID)).remove(recordID);
-			recordToRemove = recordBuffer.remove(recordID);
-			log.trace("Record removed from buffer: " + recordID);
-		} catch (NullPointerException e) {
 
-		} catch (Exception e) {
-			log.error("Cannot remove record from buffer: " + recordID, e);
-		}
-		return recordToRemove;
+		recordsByTime.get(recordTimestamps.remove(recordID)).remove(recordID);
+
+		log.trace("Record removed from buffer: " + recordID);
+
+		return recordBuffer.remove(recordID);
 	}
 
 	/**
@@ -184,7 +172,7 @@ public class FaultToleranceBuffer {
 	 * acknowledgments, removes it from the buffer
 	 * 
 	 * @param recordID
-	 *          ID of the record that has been acknowledged
+	 *            ID of the record that has been acknowledged
 	 */
 	// TODO: find a place to call timeoutRecords
 	public void ackRecord(String recordID) {
@@ -204,12 +192,12 @@ public class FaultToleranceBuffer {
 	 * stores it with a new ID.
 	 * 
 	 * @param recordID
-	 *          ID of the record that has been failed
+	 *            ID of the record that has been failed
 	 */
 	public void failRecord(String recordID) {
 		// Create new id to avoid double counting acks
 		log.warn("Fail ID: " + recordID);
-		StreamRecord newRecord = popRecord(recordID).setId(channelID);
+		StreamRecord newRecord = removeRecord(recordID).setId(channelID);
 		addRecord(newRecord);
 		reEmit(newRecord);
 	}
@@ -218,7 +206,7 @@ public class FaultToleranceBuffer {
 	 * Emit give record to all output channels
 	 * 
 	 * @param record
-	 *          Record to be re-emitted
+	 *            Record to be re-emitted
 	 */
 	public void reEmit(StreamRecord record) {
 		for (RecordWriter<StreamRecord> output : outputs) {

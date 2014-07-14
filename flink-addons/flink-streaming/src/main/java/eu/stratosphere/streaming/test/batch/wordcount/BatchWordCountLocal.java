@@ -15,15 +15,23 @@
 
 package eu.stratosphere.streaming.test.batch.wordcount;
 
+import java.net.InetSocketAddress;
+
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
+
+import eu.stratosphere.client.minicluster.NepheleMiniCluster;
+import eu.stratosphere.client.program.Client;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.test.util.TestBase2;
 import eu.stratosphere.types.StringValue;
 
-public class BatchWordCount extends TestBase2 {
+public class BatchWordCountLocal {
 
-	@Override
-	public JobGraph getJobGraph() {
+	public static JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
 		graphBuilder.setSource("BatchWordCountSource",
 				BatchWordCountSource.class);
@@ -41,5 +49,53 @@ public class BatchWordCount extends TestBase2 {
 				"BatchWordCountSink");
 
 		return graphBuilder.getJobGraph();
+	}
+
+	public static void main(String[] args) {
+
+		Logger root = Logger.getRootLogger();
+		root.removeAllAppenders();
+		PatternLayout layout = new PatternLayout(
+				"%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
+		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
+		root.addAppender(appender);
+		root.setLevel(Level.DEBUG);
+
+		try {
+
+			JobGraph jG = getJobGraph();
+			Configuration configuration = jG.getJobConfiguration();
+
+			if (args.length == 0) {
+				args = new String[] { "local" };
+			}
+
+			if (args[0].equals("local")) {
+				System.out.println("Running in Local mode");
+				NepheleMiniCluster exec = new NepheleMiniCluster();
+
+				exec.start();
+
+				Client client = new Client(new InetSocketAddress("localhost",
+						6498), configuration);
+
+				client.run(null, jG, true);
+
+				exec.stop();
+
+			} else if (args[0].equals("cluster")) {
+				System.out.println("Running in Cluster2 mode");
+
+				Client client = new Client(new InetSocketAddress(
+						"hadoop02.ilab.sztaki.hu", 6123), configuration);
+
+				client.run(null, jG, true);
+
+			}
+
+		} catch (Exception e) {
+			System.out.println(e);
+		}
+
 	}
 }
