@@ -64,7 +64,7 @@ public class JobGraphBuilder {
 	protected String maxParallelismVertexName;
 	protected int maxParallelism;
 	protected FaultToleranceType faultToleranceType;
-	private int batchSize;
+
 	/**
 	 * Creates a new JobGraph with the given name
 	 * 
@@ -84,7 +84,6 @@ public class JobGraphBuilder {
 			log.debug("JobGraph created");
 		}
 		this.faultToleranceType = faultToleranceType;
-		batchSize = 1;
 	}
 
 	/**
@@ -96,11 +95,6 @@ public class JobGraphBuilder {
 	 */
 	public JobGraphBuilder(String jobGraphName) {
 		this(jobGraphName, FaultToleranceType.NONE);
-	}
-
-	public JobGraphBuilder(String jobGraphName, FaultToleranceType faultToleranceType, int batchSize) {
-		this(jobGraphName,faultToleranceType);
-		this.batchSize = batchSize;
 	}
 
 	/**
@@ -117,6 +111,7 @@ public class JobGraphBuilder {
 		Configuration config = setSource(sourceName, InvokableObject, 1, 1);
 		config.setBytes("operator", serializedFunction);
 		config.setString("operatorName", operatorName);
+
 	}
 
 	/**
@@ -255,7 +250,7 @@ public class JobGraphBuilder {
 		Configuration config = new TaskConfig(component.getConfiguration()).getConfiguration();
 		config.setClass("userfunction", InvokableClass);
 		config.setString("componentName", componentName);
-		config.setInteger("batchSize", batchSize);
+
 		// config.setBytes("operator", getSerializedFunction());
 
 		config.setInteger("faultToleranceType", faultToleranceType.id);
