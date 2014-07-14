@@ -20,6 +20,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+import eu.stratosphere.types.StringValue;
 
 /**
  * TaskEvent for sending record fails to the input's fault tolerance buffer
@@ -42,10 +43,15 @@ public class FailEvent extends AbstractTaskEvent {
 
 	@Override
 	public void write(DataOutput out) throws IOException {
+		StringValue recordIdValue = new StringValue(recordId);
+		recordIdValue.write(out);
 	}
 
 	@Override
 	public void read(DataInput in) throws IOException {
+		StringValue recordIdValue = new StringValue("");
+		recordIdValue.read(in);
+		setRecordId(recordIdValue.getValue());
 	}
 
 	public void setRecordId(String recordId) {
