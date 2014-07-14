@@ -16,6 +16,7 @@ public class FaultTolerancyBuffer {
 	private int numberOfOutputs;
 
 	public FaultTolerancyBuffer(List<RecordWriter<Record>> outputs) {
+		this.outputs=outputs;
 		this.recordBuffer = new HashMap<String, StreamRecord>();
 		this.ackCounter = new HashMap<String, Integer>();
 		this.numberOfOutputs = outputs.size();

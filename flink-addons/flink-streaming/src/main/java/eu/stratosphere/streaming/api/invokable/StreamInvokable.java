@@ -39,6 +39,7 @@ public abstract class StreamInvokable {
 
 			} catch (Exception e) {
 				System.out.println("Emit error");
+				emittedRecords.failRecord(streamRecord.getId());
 			}
 		}
 	}
