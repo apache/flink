@@ -22,13 +22,12 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.StringValue;
 
 //Currently implemented as a ShufflePartitioner
 public class DefaultPartitionerTest {
 
 	private DefaultPartitioner defaultPartitioner;
-	private StreamRecord streamRecord = new StreamRecord(new StringValue());
+	private StreamRecord streamRecord = new StreamRecord();
 
 	@Before
 	public void setPartitioner() {
@@ -37,9 +36,12 @@ public class DefaultPartitionerTest {
 
 	@Test
 	public void testSelectChannelsLength() {
-		assertEquals(1, defaultPartitioner.selectChannels(streamRecord, 1).length);
-		assertEquals(1, defaultPartitioner.selectChannels(streamRecord, 2).length);
-		assertEquals(1, defaultPartitioner.selectChannels(streamRecord, 1024).length);
+		assertEquals(1,
+				defaultPartitioner.selectChannels(streamRecord, 1).length);
+		assertEquals(1,
+				defaultPartitioner.selectChannels(streamRecord, 2).length);
+		assertEquals(1,
+				defaultPartitioner.selectChannels(streamRecord, 1024).length);
 	}
 
 	@Test
