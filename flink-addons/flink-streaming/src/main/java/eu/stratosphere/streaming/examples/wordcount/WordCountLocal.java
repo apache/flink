@@ -26,7 +26,7 @@ public class WordCountLocal {
 
 		@SuppressWarnings("unused")
 		DataStream<Tuple2<String, Integer>> dataStream = context
-				.addFileSource("src/test/resources/testdata/hamlet.txt")
+				.readTextFile("src/test/resources/testdata/hamlet.txt")
 				.flatMap(new WordCountSplitter())
 				.partitionBy(0)
 				.map(new WordCountCounter())

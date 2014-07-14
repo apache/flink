@@ -65,6 +65,7 @@ public class JobGraphBuilder {
 	protected int maxParallelism;
 	protected FaultToleranceType faultToleranceType;
 	private int batchSize;
+
 	/**
 	 * Creates a new JobGraph with the given name
 	 * 
@@ -99,24 +100,30 @@ public class JobGraphBuilder {
 	}
 
 	public JobGraphBuilder(String jobGraphName, FaultToleranceType faultToleranceType, int batchSize) {
-		this(jobGraphName,faultToleranceType);
+		this(jobGraphName, faultToleranceType);
 		this.batchSize = batchSize;
 	}
 
 	/**
-	 * Adds source to the JobGraph by user defined object with no parallelism
+	 * Adds source to the JobGraph by user defined object and serialized
+	 * operator
 	 * 
 	 * @param sourceName
-	 *            Name of the source component
 	 * @param InvokableObject
-	 *            User defined UserSourceInvokable object or other predefined
-	 *            source object
+	 * @param operatorName
+	 * @param serializedFunction
 	 */
 	public void setSource(String sourceName, UserSourceInvokable<? extends Tuple> InvokableObject,
-			String operatorName, byte[] serializedFunction) {
-		Configuration config = setSource(sourceName, InvokableObject, 1, 1);
+			String operatorName, byte[] serializedFunction, int parallelism, int subtasksPerInstance) {
+		Configuration config = setSource(sourceName, InvokableObject, parallelism,
+				subtasksPerInstance);
 		config.setBytes("operator", serializedFunction);
 		config.setString("operatorName", operatorName);
+	}
+
+	public void setSource(String sourceName, UserSourceInvokable<? extends Tuple> InvokableObject,
+			String operatorName, byte[] serializedFunction) {
+		setSource(sourceName, InvokableObject, operatorName, serializedFunction, 1, 1);
 	}
 
 	/**
@@ -148,23 +155,17 @@ public class JobGraphBuilder {
 
 	public void setTask(String taskName,
 			UserTaskInvokable<? extends Tuple, ? extends Tuple> TaskInvokableObject,
-			String operatorName, byte[] serializedFunction) {
-		Configuration config = setTask(taskName, TaskInvokableObject, 1, 1);
+			String operatorName, byte[] serializedFunction, int parallelism, int subtasksPerInstance) {
+		Configuration config = setTask(taskName, TaskInvokableObject, parallelism,
+				subtasksPerInstance);
 		config.setBytes("operator", serializedFunction);
 		config.setString("operatorName", operatorName);
 	}
 
-	/**
-	 * Adds a task component to the JobGraph with no parallelism
-	 * 
-	 * @param taskName
-	 *            Name of the task component
-	 * @param TaskInvokableObject
-	 *            User defined UserTaskInvokable object
-	 */
 	public void setTask(String taskName,
-			UserTaskInvokable<? extends Tuple, ? extends Tuple> TaskInvokableObject) {
-		setTask(taskName, TaskInvokableObject, 1, 1);
+			UserTaskInvokable<? extends Tuple, ? extends Tuple> TaskInvokableObject,
+			String operatorName, byte[] serializedFunction) {
+		setTask(taskName, TaskInvokableObject, operatorName, serializedFunction, 1, 1);
 	}
 
 	/**
@@ -194,10 +195,16 @@ public class JobGraphBuilder {
 	}
 
 	public void setSink(String sinkName, UserSinkInvokable<? extends Tuple> InvokableObject,
-			String operatorName, byte[] serializedFunction) {
-		Configuration config = setSink(sinkName, InvokableObject, 1, 1);
+			String operatorName, byte[] serializedFunction, int parallelism, int subtasksPerInstance) {
+		Configuration config = setSink(sinkName, InvokableObject, parallelism, subtasksPerInstance);
 		config.setBytes("operator", serializedFunction);
 		config.setString("operatorName", operatorName);
+
+	}
+
+	public void setSink(String sinkName, UserSinkInvokable<? extends Tuple> InvokableObject,
+			String operatorName, byte[] serializedFunction) {
+		setSink(sinkName, InvokableObject, operatorName, serializedFunction, 1, 1);
 
 	}
 
