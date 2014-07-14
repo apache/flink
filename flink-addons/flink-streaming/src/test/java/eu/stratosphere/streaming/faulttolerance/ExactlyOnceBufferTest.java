@@ -25,6 +25,7 @@ import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.api.streamrecord.UID;
 
 public class ExactlyOnceBufferTest {
 
@@ -34,21 +35,21 @@ public class ExactlyOnceBufferTest {
 	@Before
 	public void setUp() throws Exception {
 		numberOfChannels = new int[] { 1, 2, 2 };
-		buffer = new ExactlyOnceFaultToleranceBuffer(numberOfChannels, "1");
+		buffer = new ExactlyOnceFaultToleranceBuffer(numberOfChannels, 1);
 	}
 
 	@Test
 	public void testAddToAckCounter() {
-		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId(1);
 		buffer.addToAckCounter(record1.getId());
 		assertArrayEquals(new int[] { 0, 1, 2, 2 }, buffer.ackCounter.get(record1.getId()));
 
-		StreamRecord record2 = new StreamRecord(new Tuple1<String>("R2")).setId("1");
+		StreamRecord record2 = new StreamRecord(new Tuple1<String>("R2")).setId(1);
 		buffer.addToAckCounter(record2.getId(), 1);
 		int[] acks = buffer.ackCounter.get(record2.getId());
 		assertArrayEquals(new int[] { 2, 0, 2, 0 }, acks);
 
-		StreamRecord record3 = new StreamRecord(new Tuple1<String>("R3")).setId("1");
+		StreamRecord record3 = new StreamRecord(new Tuple1<String>("R3")).setId(1);
 		buffer.addToAckCounter(record3.getId(), 0);
 		acks = buffer.ackCounter.get(record3.getId());
 		assertArrayEquals(new int[] { 2, 1, 0, 0 }, acks);
@@ -56,8 +57,8 @@ public class ExactlyOnceBufferTest {
 
 	@Test
 	public void testRemoveFromAckCounter() {
-		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
-		StreamRecord record2 = new StreamRecord(new Tuple1<String>("R2")).setId("1");
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId(1);
+		StreamRecord record2 = new StreamRecord(new Tuple1<String>("R2")).setId(1);
 
 		buffer.addToAckCounter(record1.getId());
 		buffer.addToAckCounter(record2.getId());
@@ -69,8 +70,8 @@ public class ExactlyOnceBufferTest {
 		assertArrayEquals(new int[] { 0, 1, 2, 2 }, buffer.ackCounter.get(record1.getId()));
 		assertFalse(buffer.ackCounter.containsKey(record2.getId()));
 
-		StreamRecord record3 = new StreamRecord(new Tuple1<String>("R3")).setId("1");
-		StreamRecord record4 = new StreamRecord(new Tuple1<String>("R4")).setId("1");
+		StreamRecord record3 = new StreamRecord(new Tuple1<String>("R3")).setId(1);
+		StreamRecord record4 = new StreamRecord(new Tuple1<String>("R4")).setId(1);
 
 		buffer.addToAckCounter(record3.getId(), 0);
 		buffer.addToAckCounter(record4.getId(), 2);
@@ -84,8 +85,8 @@ public class ExactlyOnceBufferTest {
 
 	@Test
 	public void testAck() {
-		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
-		String id = record1.getId();
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId(1);
+		UID id = record1.getId();
 		buffer.add(record1);
 		
 		assertArrayEquals(new int[] { 0, 1, 2, 2 }, buffer.ackCounter.get(id));
@@ -102,8 +103,8 @@ public class ExactlyOnceBufferTest {
 
 	@Test
 	public void testFailChannel() {
-		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
-		String id = record1.getId();
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId(1);
+		UID id = record1.getId();
 		buffer.add(record1);
 		
 		assertArrayEquals(new int[] { 0, 1, 2, 2 }, buffer.ackCounter.get(id));

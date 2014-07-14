@@ -30,11 +30,11 @@ public abstract class StreamInvokableComponent {
 
 	private List<RecordWriter<StreamRecord>> outputs;
 
-	protected String channelID;
+	protected int channelID;
 	protected String name;
 	private FaultToleranceUtil emittedRecords;
 
-	public final void declareOutputs(List<RecordWriter<StreamRecord>> outputs, String channelID, String name,
+	public final void declareOutputs(List<RecordWriter<StreamRecord>> outputs, int channelID, String name,
 			FaultToleranceUtil emittedRecords) {
 		this.outputs = outputs;
 		this.channelID = channelID;

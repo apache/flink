@@ -20,6 +20,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
+import eu.stratosphere.streaming.api.streamrecord.UID;
 
 /**
  * EventListener for record acknowledgement events. When an AckEvent occurs,
@@ -29,7 +30,7 @@ public class AckEventListener implements EventListener {
 
 	private static final Log log = LogFactory.getLog(AckEventListener.class);
 
-	private String taskInstanceID;
+	private int taskInstanceID;
 	private FaultToleranceUtil recordBuffer;
 	private int output;
 
@@ -37,15 +38,15 @@ public class AckEventListener implements EventListener {
 	 * Creates an AckEventListener that monitors AckEvents sent to task with the
 	 * given ID.
 	 * 
-	 * @param taskInstanceID
+	 * @param sourceInstanceID
 	 *            ID of the task that creates the listener
 	 * @param recordBuffer
 	 *            The fault tolerance buffer associated with this task
 	 * @param output
 	 *            output channel
 	 */
-	public AckEventListener(String taskInstanceID, FaultToleranceUtil recordBuffer, int output) {
-		this.taskInstanceID = taskInstanceID;
+	public AckEventListener(int sourceInstanceID, FaultToleranceUtil recordBuffer, int output) {
+		this.taskInstanceID = sourceInstanceID;
 		this.recordBuffer = recordBuffer;
 		this.output = output;
 	}
@@ -56,10 +57,10 @@ public class AckEventListener implements EventListener {
 	 */
 	public void eventOccurred(AbstractTaskEvent event) {
 		AckEvent ackEvent = (AckEvent) event;
-		String recordId = ackEvent.getRecordId();
-		String ackChannelId = recordId.split("-", 2)[0];
+		UID recordId = ackEvent.getRecordId();
+		int ackChannelId = recordId.getChannelId();
 
-		if (ackChannelId.equals(taskInstanceID)) {
+		if (ackChannelId == taskInstanceID) {
 			Long nt = System.nanoTime();
 			recordBuffer.ackRecord(ackEvent.getRecordId(), output);
 

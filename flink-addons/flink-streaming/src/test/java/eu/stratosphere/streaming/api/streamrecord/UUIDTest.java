@@ -12,26 +12,36 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.streaming.api.streamrecord;
 
-package eu.stratosphere.streaming.examples.wordcount;
+import static org.junit.Assert.*;
 
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.util.PerformanceCounter;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 
-public class WordCountSink extends UserSinkInvokable {
+import org.junit.Test;
 
-	PerformanceCounter perf = new PerformanceCounter("SinkEmitCounter", 1000, 10000);
+public class UUIDTest {
 
-	@Override
-	public void invoke(StreamRecord record) throws Exception {
-		perf.count();
-	}
+	@Test
+	public void test() throws IOException {
+		ByteArrayOutputStream buff = new ByteArrayOutputStream();
+		DataOutputStream out = new DataOutputStream(buff);
+		
+		UID id = new UID(3);
+		id.write(out);
+		
+		DataInputStream in = new DataInputStream(new ByteArrayInputStream(buff.toByteArray()));
+		
+		UID id2 = new UID();
+		id2.read(in);
 
-	@Override
-	public String getResult() {
-		perf.writeCSV("/home/strato/strato-dist/log/counter/Sink");
-		return "";
+		assertEquals(id.getChannelId(), id2.getChannelId());
+		assertArrayEquals(id.getGeneratedId(), id2.getGeneratedId());
+		assertArrayEquals(id.getId(), id2.getId());
 	}
 
 }

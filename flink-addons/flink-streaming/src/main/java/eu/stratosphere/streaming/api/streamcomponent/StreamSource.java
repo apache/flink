@@ -38,7 +38,7 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 	private List<ChannelSelector<StreamRecord>> partitioners;
 	private UserSourceInvokable userFunction;
 	private static int numSources;
-	private String sourceInstanceID;
+	private int sourceInstanceID;
 	private String name;
 	private FaultToleranceUtil recordBuffer;
 	StreamComponentHelper<StreamSource> streamSourceHelper;
@@ -50,7 +50,7 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 		userFunction = null;
 		streamSourceHelper = new StreamComponentHelper<StreamSource>();
 		numSources=StreamComponentHelper.newComponent();
-		sourceInstanceID = Integer.toString(numSources);
+		sourceInstanceID = numSources;
 	}
 
 	@Override

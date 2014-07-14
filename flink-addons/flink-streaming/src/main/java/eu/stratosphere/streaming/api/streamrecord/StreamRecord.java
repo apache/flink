@@ -24,8 +24,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
@@ -57,7 +57,6 @@ import eu.stratosphere.core.io.IOReadableWritable;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.StringValue;
 
 /**
  * Object for storing serializable records in batch (single records are
@@ -70,7 +69,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private List<Tuple> tupleBatch;
-	private StringValue uid = new StringValue();
+	private UID uid = new UID();
 	private int numOfFields;
 	private int numOfTuples;
 
@@ -145,8 +144,8 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	/**
 	 * @return The ID of the object
 	 */
-	public String getId() {
-		return uid.getValue();
+	public UID getId() {
+		return uid;
 	}
 
 	/**
@@ -156,10 +155,8 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            ID of the emitting task
 	 * @return The StreamRecord object
 	 */
-	// TODO: consider sequential ids
-	public StreamRecord setId(String channelID) {
-		UUID uuid = UUID.randomUUID();
-		uid.setValue(channelID + "-" + uuid.toString());
+	public StreamRecord setId(int channelID) {
+		uid = new UID(channelID);
 		return this;
 	}
 
@@ -929,7 +926,8 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public StreamRecord copy() {
 		StreamRecord newRecord = new StreamRecord(numOfFields, numOfTuples);
-		newRecord.uid = new StringValue(uid.getValue());
+
+		newRecord.uid = new UID(Arrays.copyOf(uid.getId(), 20));
 
 		for (Tuple tuple : tupleBatch) {
 			newRecord.tupleBatch.add(copyTuple(tuple));
@@ -1141,7 +1139,8 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	/**
 	 * Converts tuple field types from String
 	 * 
-	 * @param String representation of types
+	 * @param String
+	 *            representation of types
 	 * @param numberOfFields
 	 * @return array of field types
 	 */
@@ -1238,6 +1237,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	@Override
 	public void read(DataInput in) throws IOException {
+		uid = new UID();
 		uid.read(in);
 
 		// Get the number of fields
