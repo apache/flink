@@ -1,4 +1,4 @@
-package eu.stratosphere.streaming;
+package eu.stratosphere.streaming.api;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -7,7 +7,9 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
+import eu.stratosphere.streaming.test.TestTaskInvokable;
 import eu.stratosphere.types.Record;
 
 public class StreamTask extends AbstractTask {
