@@ -13,27 +13,23 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.wordcount;
+package eu.stratosphere.streaming.index;
 
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import org.junit.Test;
 
-public class WindowWordCountSink extends UserSinkInvokable {
+import eu.stratosphere.streaming.index.BTreeIndex;
+import eu.stratosphere.streaming.index.IndexPair;
 
-	private String word = "";
-	private Integer count = 0;
-	private Long timestamp = 0L;
-
-	@Override
-	public void invoke(StreamRecord record) throws Exception {
-		int numTuple = record.getNumOfTuples();
-		for (int i = 0; i < numTuple; ++i) {
-			word = record.getString(i, 0);
-			count = record.getInteger(i, 1);
-			timestamp = record.getLong(i, 2);
-			System.out.println("============================================");
-			System.out.println(word + " " + count + " " + timestamp);
-			System.out.println("============================================");
-		}
+public class BTreeIndexTest {
+	
+	@Test
+	public void bTreeIndexOperationTest(){
+		BTreeIndex<String, IndexPair> btree=new BTreeIndex<String, IndexPair>();
+		btree.put("abc", new IndexPair(7, 3));
+		btree.put("abc", new IndexPair(1, 2));
+		btree.put("def", new IndexPair(6, 3));
+		btree.put("ghi", new IndexPair(3, 6));
+		btree.put("jkl", new IndexPair(4, 7));
+		System.out.println(btree.get("abc").blockId+", "+btree.get("abc").entryId);
 	}
 }
