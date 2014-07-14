@@ -70,6 +70,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			List<RecordReader<StreamRecord>> inputs) throws StreamComponentException {
 		int numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
 		for (int i = 0; i < numberOfInputs; i++) {
+						
 			if (taskBase instanceof StreamTask) {
 				inputs.add(new RecordReader<StreamRecord>((StreamTask) taskBase,
 						StreamRecord.class));
@@ -88,7 +89,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			List<ChannelSelector<StreamRecord>> partitioners)
 			throws StreamComponentException {
 		int numberOfOutputs = taskConfiguration.getInteger("numberOfOutputs", 0);
-		for (int i = 1; i <= numberOfOutputs; i++) {
+		for (int i = 0; i < numberOfOutputs; i++) {
 			setPartitioner(taskConfiguration, i, partitioners);
 		}
 		for (ChannelSelector<StreamRecord> outputPartitioner : partitioners) {

@@ -75,7 +75,12 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 			log.error("Cannot register outputs", e);
 		}
 		
-		recordBuffer = new FaultToleranceBuffer(outputs, sourceInstanceID, taskConfiguration.getInteger("numberOfOutputChannels", -1));
+		int[] numberOfOutputChannels= new int[outputs.size()];
+		for(int i=0; i<numberOfOutputChannels.length;i++ ){
+			numberOfOutputChannels[i]=taskConfiguration.getInteger("channels_"+i, 0);
+		}
+		
+		recordBuffer = new FaultToleranceBuffer(outputs, sourceInstanceID, numberOfOutputChannels);
 		userFunction = (UserSourceInvokable) streamSourceHelper.getUserFunction(
 				taskConfiguration, outputs, sourceInstanceID, name, recordBuffer);
 		streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID, outputs);

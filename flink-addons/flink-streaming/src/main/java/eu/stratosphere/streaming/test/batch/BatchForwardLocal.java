@@ -73,7 +73,7 @@ public class BatchForwardLocal {
 				Client client = new Client(new InetSocketAddress(
 						"hadoop02.ilab.sztaki.hu", 6123), configuration);
 
-				client.run( jG, true);
+				client.run(null,  jG, true);
 
 			}
 
