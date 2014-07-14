@@ -21,7 +21,7 @@ import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.state.LogTableState;
 import eu.stratosphere.streaming.state.MutableTableState;
 import eu.stratosphere.streaming.state.TableStateIterator;
-import eu.stratosphere.streaming.state.WindowState;
+import eu.stratosphere.streaming.state.SlidingWindowState;
 
 public class InternalStateTest {
 	
@@ -83,7 +83,7 @@ public class InternalStateTest {
 	
 	@Test
 	public void WindowStateTest(){
-		WindowState<String> state=new WindowState<String>(100, 20, 10);
+		SlidingWindowState<String> state=new SlidingWindowState<String>(100, 20, 10);
 		
 	}
 }

@@ -20,7 +20,8 @@ import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class WindowSumMultiple extends UserTaskInvokable {
-
+	private static final long serialVersionUID = 1L;
+	
 	private StreamRecord outputRecord = new StreamRecord(new Tuple2<Integer, Long>());
 	
 	@Override

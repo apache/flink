@@ -24,7 +24,8 @@ import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class BatchWordCountSource extends UserSourceInvokable {
-
+	private static final long serialVersionUID = 1L;
+	
 	private BufferedReader br = null;
 	private String line = "";
 	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Long>());

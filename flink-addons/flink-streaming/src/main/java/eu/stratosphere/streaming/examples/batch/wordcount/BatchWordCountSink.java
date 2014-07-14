@@ -19,7 +19,8 @@ import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class BatchWordCountSink extends UserSinkInvokable {
-
+	private static final long serialVersionUID = 1L;
+	
 	private String word = "";
 	private Integer count = 0;
 	private Long timestamp = 0L;

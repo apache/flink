@@ -35,7 +35,8 @@ public class IncrementalLearningSkeleton {
 
 	// Source for feeding new data for prediction
 	public static class NewDataSource extends UserSourceInvokable {
-
+		private static final long serialVersionUID = 1L;
+		
 		StreamRecord record = new StreamRecord(new Tuple1<Integer>(1));
 
 		@Override
@@ -56,7 +57,8 @@ public class IncrementalLearningSkeleton {
 
 	// Source for feeding new training data for partial model building
 	public static class TrainingDataSource extends UserSourceInvokable {
-
+		private static final long serialVersionUID = 1L;
+		
 		// Number of tuples grouped for building partial model
 		private final int BATCH_SIZE = 1000;
 
@@ -87,7 +89,8 @@ public class IncrementalLearningSkeleton {
 
 	// Task for building up-to-date partial models on new training data
 	public static class PartialModelBuilder extends UserTaskInvokable {
-
+		private static final long serialVersionUID = 1L;
+		
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
 			emit(buildPartialModel(record));
@@ -103,7 +106,8 @@ public class IncrementalLearningSkeleton {
 	// Task for performing prediction using the model produced in
 	// batch-processing and the up-to-date partial model
 	public static class Predictor extends UserTaskInvokable {
-
+		private static final long serialVersionUID = 1L;
+		
 		StreamRecord batchModel = null;
 		StreamRecord partialModel = null;
 
@@ -136,7 +140,8 @@ public class IncrementalLearningSkeleton {
 	}
 
 	public static class Sink extends UserSinkInvokable {
-
+		private static final long serialVersionUID = 1L;
+		
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
 			// do nothing

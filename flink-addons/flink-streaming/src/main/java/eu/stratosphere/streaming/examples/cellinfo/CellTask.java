@@ -20,7 +20,8 @@ import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class CellTask extends UserTaskInvokable {
-
+	private static final long serialVersionUID = 1L;
+	
 	private WorkerEngineExact engine = new WorkerEngineExact(10, 500,
 			System.currentTimeMillis());
 	Integer cellID;
