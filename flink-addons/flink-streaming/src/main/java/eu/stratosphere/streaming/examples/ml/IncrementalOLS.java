@@ -18,73 +18,57 @@ import java.util.Random;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.math.stat.regression.OLSMultipleLinearRegression;
-import org.apache.log4j.Level;
 
+import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
-import eu.stratosphere.streaming.util.ClusterUtil;
-import eu.stratosphere.streaming.util.LogUtils;
+import eu.stratosphere.streaming.api.DataStream;
+import eu.stratosphere.streaming.api.SinkFunction;
+import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.util.Collector;
 
 public class IncrementalOLS {
 
-	public static class NewDataSource extends UserSourceInvokable {
+	public static class NewDataSource extends SourceFunction<Tuple2<Boolean, Double[]>> {
 
 		private static final long serialVersionUID = 1L;
-
-		StreamRecord record = new StreamRecord(2, 1);
-
 		Random rnd = new Random();
 
 		@Override
-		public void invoke() throws Exception {
-			record.initRecords();
+		public void invoke(Collector<Tuple2<Boolean, Double[]>> collector) throws Exception {
 			while (true) {
 				// pull new record from data source
-				record.setTuple(getNewData());
-				emit(record);
+				collector.collect(getNewData());
 			}
 
 		}
 
-		private Tuple getNewData() throws InterruptedException {
+		private Tuple2<Boolean, Double[]> getNewData() throws InterruptedException {
 
 			return new Tuple2<Boolean, Double[]>(false, new Double[] { rnd.nextDouble() * 3,
 					rnd.nextDouble() * 5 });
 		}
 	}
 
-	public static class TrainingDataSource extends UserSourceInvokable {
+	public static class TrainingDataSource extends SourceFunction<Tuple2<Double, Double[]>> {
 		private static final long serialVersionUID = 1L;
 
+		// TODO: batch training data
 		private final int BATCH_SIZE = 1000;
-
-		StreamRecord record = new StreamRecord(2, BATCH_SIZE);
-
 		Random rnd = new Random();
 
 		@Override
-		public void invoke() throws Exception {
-
-			record.initRecords();
+		public void invoke(Collector<Tuple2<Double, Double[]>> collector) throws Exception {
 
 			while (true) {
-				for (int i = 0; i < BATCH_SIZE; i++) {
-					record.setTuple(i, getTrainingData());
-				}
-				emit(record);
+				collector.collect(getTrainingData());
 			}
 
 		}
 
-		private Tuple getTrainingData() throws InterruptedException {
+		private Tuple2<Double, Double[]> getTrainingData() throws InterruptedException {
 
 			return new Tuple2<Double, Double[]>(rnd.nextDouble() * 10, new Double[] {
 					rnd.nextDouble() * 3, rnd.nextDouble() * 5 });
@@ -92,25 +76,29 @@ public class IncrementalOLS {
 		}
 	}
 
-	public static class PartialModelBuilder extends UserTaskInvokable {
+	public static class PartialModelBuilder extends
+			MapFunction<Tuple2<Double, Double[]>, Tuple2<Boolean, Double[]>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(StreamRecord record) throws Exception {
-			emit(buildPartialModel(record));
+		public Tuple2<Boolean, Double[]> map(Tuple2<Double, Double[]> inTuple) throws Exception {
+			return buildPartialModel(inTuple);
 		}
 
-		protected StreamRecord buildPartialModel(StreamRecord record) {
+		// TODO: deal with batchsize
+		protected Tuple2<Boolean, Double[]> buildPartialModel(Tuple2<Double, Double[]> inTuple) {
 
-			Integer numOfTuples = record.getNumOfTuples();
-			Integer numOfFeatures = ((Double[]) record.getField(1)).length;
+			// Integer numOfTuples = record.getNumOfTuples();
+			Integer numOfTuples = 1;
+			Integer numOfFeatures = ((Double[]) inTuple.getField(1)).length;
 
 			double[][] x = new double[numOfTuples][numOfFeatures];
 			double[] y = new double[numOfTuples];
 
 			for (int i = 0; i < numOfTuples; i++) {
 
-				Tuple t = record.getTuple(i);
+				// Tuple t = record.getTuple(i);
+				Tuple t = inTuple;
 				Double[] x_i = (Double[]) t.getField(1);
 				y[i] = (Double) t.getField(0);
 				for (int j = 0; j < numOfFeatures; j++) {
@@ -121,90 +109,69 @@ public class IncrementalOLS {
 			OLSMultipleLinearRegression ols = new OLSMultipleLinearRegression();
 			ols.newSampleData(y, x);
 
-			return new StreamRecord(new Tuple2<Boolean, Double[]>(true,
-					(Double[]) ArrayUtils.toObject(ols.estimateRegressionParameters())));
+			return new Tuple2<Boolean, Double[]>(true, (Double[]) ArrayUtils.toObject(ols
+					.estimateRegressionParameters()));
 		}
 	}
 
-	public static class Predictor extends UserTaskInvokable {
+	// TODO: How do I know the x for which I have predicted y?
+	public static class Predictor extends MapFunction<Tuple2<Boolean, Double[]>, Tuple1<Double>> {
 		private static final long serialVersionUID = 1L;
 
 		// StreamRecord batchModel = null;
 		Double[] partialModel = new Double[] { 0.0, 0.0 };
 
 		@Override
-		public void invoke(StreamRecord record) throws Exception {
-			if (isModel(record)) {
-				partialModel = (Double[]) record.getField(1);
+		public Tuple1<Double> map(Tuple2<Boolean, Double[]> inTuple) throws Exception {
+			if (isModel(inTuple)) {
+				partialModel = inTuple.f1;
 				// batchModel = getBatchModel();
+				return null; //TODO: fix
 			} else {
-				emit(predict(record));
+				return predict(inTuple);
 			}
 
 		}
 
-		// protected StreamRecord getBatchModel() {
-		// return new StreamRecord(new Tuple1<Integer>(1));
-		// }
-
-		protected boolean isModel(StreamRecord record) {
-			return record.getBoolean(0);
+		protected boolean isModel(Tuple2<Boolean, Double[]> inTuple) {
+			return inTuple.f0;
 		}
 
-		protected StreamRecord predict(StreamRecord record) {
-			Double[] x = (Double[]) record.getField(1);
+		protected Tuple1<Double> predict(Tuple2<Boolean, Double[]> inTuple) {
+			Double[] x = inTuple.f1;
 
 			Double prediction = 0.0;
 			for (int i = 0; i < x.length; i++) {
 				prediction = prediction + x[i] * partialModel[i];
 			}
 
-			return new StreamRecord(new Tuple1<Double>(prediction));
+			return new Tuple1<Double>(prediction);
 		}
 
 	}
 
-	public static class Sink extends UserSinkInvokable {
+	public static class IncOLSSink extends SinkFunction<Tuple1<Double>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(StreamRecord record) throws Exception {
+		public void invoke(Tuple1<Double> inTuple) {
+			System.out.println(inTuple);
 		}
-	}
-
-	private static JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("IncrementalOLS",
-				FaultToleranceType.NONE);
-
-		graphBuilder.setSource("NewData", new NewDataSource(), 1, 1);
-		graphBuilder.setSource("TrainingData",new TrainingDataSource(), 1, 1);
-		graphBuilder.setTask("PartialModelBuilder",new PartialModelBuilder(), 1, 1);
-		graphBuilder.setTask("Predictor",new Predictor(), 1, 1);
-		graphBuilder.setSink("Sink",new Sink(), 1, 1);
-
-		graphBuilder.shuffleConnect("TrainingData", "PartialModelBuilder");
-		graphBuilder.shuffleConnect("NewData", "Predictor");
-		graphBuilder.broadcastConnect("PartialModelBuilder", "Predictor");
-		graphBuilder.shuffleConnect("Predictor", "Sink");
-
-		return graphBuilder.getJobGraph();
 	}
 
 	public static void main(String[] args) {
 
-		// set logging parameters for local run
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+
+		DataStream<Tuple2<Boolean, Double[]>> model = 
+				env.addSource(new TrainingDataSource())
+					.map(new PartialModelBuilder())
+					.broadcast();
 		
-		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
-
-		if (args.length == 0) {
-			args = new String[] { "local" };
-		}
-
-		if (args[0].equals("local")) {
-			ClusterUtil.runOnMiniCluster(getJobGraph());
-
-		} else if (args[0].equals("cluster")) {
-			ClusterUtil.runOnLocalCluster(getJobGraph(), "hadoop02.ilab.sztaki.hu", 6123);
-		}
+		DataStream<Tuple1<Double>> prediction =
+				env.addSource(new NewDataSource())
+					.connectWith(model)
+					.map(new Predictor())
+					.addSink(new IncOLSSink());
 	}
 }

@@ -13,35 +13,22 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.join;
+package eu.stratosphere.streaming.examples.iterative;
 
-import java.util.Random;
 
-import eu.stratosphere.api.java.tuple.Tuple4;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WindowJoinSourceOne extends UserSourceInvokable {
+public class IterativeStateHolder extends UserTaskInvokable {
 
-	private static final long serialVersionUID = 6670933703432267728L;
+	private static final long serialVersionUID = -3042489460184024483L;
 
-	private String[] names = { "tom", "jerry", "alice", "bob", "john", "grace",
-			"sasa", "lawrance", "andrew", "jean", "richard", "smith", "gorge",
-			"black", "peter" };
-	private Random rand = new Random();
-	private StreamRecord outRecord = new StreamRecord(
-			new Tuple4<String, String, Integer, Long>());
-	private long progress = 0L;
+	public IterativeStateHolder() {
+	}
 
 	@Override
-	public void invoke() throws Exception {
-		while (true) {
-			outRecord.setString(0, "salary");
-			outRecord.setString(1, names[rand.nextInt(names.length)]);
-			outRecord.setInteger(2, rand.nextInt(10000));
-			outRecord.setLong(3, progress);
-			emit(outRecord);
-			progress+=1;
-		}
+	public void invoke(StreamRecord record) throws Exception {
+		// TODO Auto-generated method stub
+
 	}
 }

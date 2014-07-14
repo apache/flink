@@ -15,33 +15,22 @@
 
 package eu.stratosphere.streaming.examples.window.join;
 
-import java.util.Random;
-
-import eu.stratosphere.api.java.tuple.Tuple4;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WindowJoinSourceTwo extends UserSourceInvokable {
-
-	private static final long serialVersionUID = -5897483980082089771L;
-
-	private String[] names = { "tom", "jerry", "alice", "bob", "john", "grace",
-			"sasa", "lawrance", "andrew", "jean", "richard", "smith", "gorge",
-			"black", "peter" };
-	private Random rand = new Random();
-	private StreamRecord outRecord = new StreamRecord(
-			new Tuple4<String, String, String, Long>());
-	private long progress = 0L;
+public class WindowJoinSink extends UserSinkInvokable {
+	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void invoke() throws Exception {
-		while (true) {
-			outRecord.setString(0, "grade");
-			outRecord.setString(1, names[rand.nextInt(names.length)]);
-			outRecord.setString(2, String.valueOf((char)(rand.nextInt(26)+'A')));
-			outRecord.setLong(3, progress);
-			emit(outRecord);
-			progress+=1;
+	public void invoke(StreamRecord record) throws Exception {
+		System.out.println("received record...");
+		int tupleNum = record.getNumOfTuples();
+		System.out.println("============================================");
+		for (int i = 0; i < tupleNum; ++i) {
+			System.out.println("name=" + record.getField(i, 0) + ", grade="
+					+ record.getField(i, 1) + ", salary="
+					+ record.getField(i, 2));
 		}
+		System.out.println("============================================");
 	}
 }
