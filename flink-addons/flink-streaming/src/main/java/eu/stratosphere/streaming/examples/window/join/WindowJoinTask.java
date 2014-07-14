@@ -19,38 +19,37 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.api.java.tuple.Tuple4;
-import eu.stratosphere.util.Collector;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WindowJoinTask extends
-		FlatMapFunction<Tuple4<String, String, Integer, Long>, Tuple3<String, Integer, Integer>> {
+public class WindowJoinTask extends UserTaskInvokable {
 
 	class SalaryProgress {
-		public SalaryProgress(Integer salary, Long progress) {
+		public SalaryProgress(int salary, long progress) {
 			this.salary = salary;
 			this.progress = progress;
 		}
 
-		Integer salary;
-		Long progress;
+		int salary;
+		long progress;
 	}
 
 	class GradeProgress {
-		public GradeProgress(Integer grade, Long progress) {
+		public GradeProgress(String grade, long progress) {
 			this.grade = grade;
 			this.progress = progress;
 		}
 
-		Integer grade;
-		Long progress;
+		String grade;
+		long progress;
 	}
 
 	private static final long serialVersionUID = 749913336259789039L;
 	private int windowSize = 100;
 	private HashMap<String, LinkedList<GradeProgress>> gradeHashmap;
 	private HashMap<String, LinkedList<SalaryProgress>> salaryHashmap;
+	private StreamRecord outRecord = new StreamRecord(3);
 
 	public WindowJoinTask() {
 		gradeHashmap = new HashMap<String, LinkedList<GradeProgress>>();
@@ -58,49 +57,59 @@ public class WindowJoinTask extends
 	}
 
 	@Override
-	public void flatMap(Tuple4<String, String, Integer, Long> value,
-			Collector<Tuple3<String, Integer, Integer>> out) throws Exception {
-		String streamId = value.f0;
-		String name = value.f1;
-		Long progress = value.f3;
+	public void invoke(StreamRecord record) throws Exception {
+		// TODO Auto-generated method stub
+		String streamId = record.getString(0);
+		String name = record.getString(1);
+		long progress = record.getLong(3);
 		if (streamId.equals("grade")) {
 			if (salaryHashmap.containsKey(name)) {
-				Iterator<SalaryProgress> iterator = salaryHashmap.get(name).iterator();
+				Iterator<SalaryProgress> iterator = salaryHashmap.get(name)
+						.iterator();
 				while (iterator.hasNext()) {
 					SalaryProgress entry = iterator.next();
 					if (progress - entry.progress > windowSize) {
 						iterator.remove();
 					} else {
-						Tuple3<String, Integer, Integer> outputTuple = new Tuple3<String, Integer, Integer>(
-								name, value.f2, entry.salary);
-						out.collect(outputTuple);
+						Tuple3<String, String, Integer> outputTuple = new Tuple3<String, String, Integer>(
+								name, record.getString(2), entry.salary);
+						outRecord.addTuple(outputTuple);
 					}
 				}
-				if (!gradeHashmap.containsKey(name)) {
-					gradeHashmap.put(name, new LinkedList<GradeProgress>());
+				if (outRecord.getNumOfTuples() != 0) {
+					emit(outRecord);
 				}
-				gradeHashmap.get(name).add(new GradeProgress(value.f2, progress));
-			} else {
-				if (gradeHashmap.containsKey(name)) {
-					Iterator<GradeProgress> iterator = gradeHashmap.get(name).iterator();
-					while (iterator.hasNext()) {
-						GradeProgress entry = iterator.next();
-						if (progress - entry.progress > windowSize) {
-							iterator.remove();
-						} else {
-							Tuple3<String, Integer, Integer> outputTuple = new Tuple3<String, Integer, Integer>(
-									name, entry.grade, value.f2);
-							out.collect(outputTuple);
-
-						}
-					}
-				}
-				if (!salaryHashmap.containsKey(name)) {
-					salaryHashmap.put(name, new LinkedList<SalaryProgress>());
-				}
-				salaryHashmap.get(name).add(new SalaryProgress(value.f2, progress));
+				outRecord.Clear();
 			}
-
+			if (!gradeHashmap.containsKey(name)) {
+				gradeHashmap.put(name, new LinkedList<GradeProgress>());
+			}
+			gradeHashmap.get(name).add(
+					new GradeProgress(record.getString(2), progress));
+		} else {
+			if (gradeHashmap.containsKey(name)) {
+				Iterator<GradeProgress> iterator = gradeHashmap.get(name)
+						.iterator();
+				while (iterator.hasNext()) {
+					GradeProgress entry = iterator.next();
+					if (progress - entry.progress > windowSize) {
+						iterator.remove();
+					} else {
+						Tuple3<String, String, Integer> outputTuple = new Tuple3<String, String, Integer>(
+								name, entry.grade, record.getInteger(2));
+						outRecord.addTuple(outputTuple);
+					}
+				}
+				if (outRecord.getNumOfTuples() != 0) {
+					emit(outRecord);
+				}
+				outRecord.Clear();
+			}
+			if (!salaryHashmap.containsKey(name)) {
+				salaryHashmap.put(name, new LinkedList<SalaryProgress>());
+			}
+			salaryHashmap.get(name).add(
+					new SalaryProgress(record.getInteger(2), progress));
 		}
 	}
 }

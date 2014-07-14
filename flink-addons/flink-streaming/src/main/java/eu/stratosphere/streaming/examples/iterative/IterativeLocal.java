@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.join;
+package eu.stratosphere.streaming.examples.iterative;
 
 import java.net.InetSocketAddress;
 
@@ -27,19 +27,19 @@ import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.LogUtils;
 
-public class WindowJoinLocal {
+public class IterativeLocal {
 
 	public static JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
-		graphBuilder.setSource("WindowJoinSourceOne", WindowJoinSourceOne.class);
-		graphBuilder.setSource("WindowJoinSourceTwo", WindowJoinSourceTwo.class);
-		graphBuilder.setTask("WindowJoinTask", WindowJoinTask.class, 1, 1);
-		graphBuilder.setSink("WindowJoinSink", WindowJoinSink.class);
+		graphBuilder.setSource("IterativeSource", IterativeSource.class);
+		graphBuilder.setTask("IterativeParallel", IterativeParallel.class, 1, 1);
+		graphBuilder.setTask("IterativeStateHolder", IterativeStateHolder.class);
+		graphBuilder.setSink("IterativeSink", IterativeSink.class);
 
-		graphBuilder.fieldsConnect("WindowJoinSourceOne", "WindowJoinTask", 1);
-		graphBuilder.fieldsConnect("WindowJoinSourceTwo", "WindowJoinTask", 1);
-		graphBuilder.shuffleConnect("WindowJoinTask", "WindowJoinSink");
-
+		graphBuilder.fieldsConnect("IterativeSource", "IterativeParallel", 1);
+		graphBuilder.fieldsConnect("IterativeParallel", "IterativeStateHolder", 1);
+		graphBuilder.globalConnect("IterativeStateHolder", "IterativeSink");
+		
 		return graphBuilder.getJobGraph();
 	}
 
