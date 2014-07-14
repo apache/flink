@@ -46,7 +46,6 @@ public class MapTest {
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
 			for (int i = 0; i < 5; i++) {
-				System.out.println("s1: "+i);
 				collector.collect(new Tuple1<Integer>(i));
 			}
 		}
@@ -57,7 +56,6 @@ public class MapTest {
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
 			for (int i = 5; i < 10; i++) {
-				System.out.println("s2: "+i);
 				collector.collect(new Tuple1<Integer>(i));
 			}
 		}
@@ -68,7 +66,6 @@ public class MapTest {
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
 			for (int i = 10; i < 15; i++) {
-				System.out.println("s3: "+i);
 				collector.collect(new Tuple1<Integer>(i));
 			}
 		}
@@ -88,7 +85,6 @@ public class MapTest {
 		@Override
 		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
 			joinSetResult.add(value.f0);
-			System.out.println(value.f0);
 			return new Tuple1<Integer>(value.f0);
 		}
 	}
@@ -171,7 +167,6 @@ public class MapTest {
 
 		@Override
 		public void invoke(Tuple1<Integer> tuple) {
-			System.out.println("doing nothing");
 		}
 	}
 

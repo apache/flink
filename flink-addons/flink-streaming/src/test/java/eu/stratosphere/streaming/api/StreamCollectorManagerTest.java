@@ -29,9 +29,9 @@ import eu.stratosphere.streaming.api.streamcomponent.MockRecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.util.MockRecordWriterFactory;
 
-public class StreamCollector2Test {
+public class StreamCollectorManagerTest {
 
-	StreamCollector2<Tuple> collector;
+	StreamCollectorManager<Tuple> collector;
 	
 	@Test
 	public void testCollect() {
@@ -54,10 +54,8 @@ public class StreamCollector2Test {
 		fOut.add(rw1);
 		fOut.add(rw2);
 		
-		collector = new StreamCollector2<Tuple>(batchSizesOfNotPartitioned, batchSizesOfPartitioned, parallelismOfOutput, keyPosition, batchTimeout, channelID, null, fOut,fOut);
-	
+		collector = new StreamCollectorManager<Tuple>(batchSizesOfNotPartitioned, batchSizesOfPartitioned, parallelismOfOutput, keyPosition, batchTimeout, channelID, null, fOut,fOut);
 		Tuple1<Integer> t = new Tuple1<Integer>();
-		StreamCollector<Tuple> sc1 = new StreamCollector<Tuple>(1, batchTimeout, channelID, null);
 		
 		t.f0 = 0;
 		collector.collect(t);
