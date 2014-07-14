@@ -33,7 +33,7 @@ public class FaultToleranceUtilTest {
 	public void setFaultTolerancyBuffer() {
 		outputs = new LinkedList<RecordWriter<StreamRecord>>();
 		int[] numOfOutputchannels = { 1, 2 };
-		faultTolerancyBuffer = new FaultToleranceUtil(outputs, "1", numOfOutputchannels);
+		faultTolerancyBuffer = new FaultToleranceUtil(outputs, 1, numOfOutputchannels);
 	}
 
 	@Test
