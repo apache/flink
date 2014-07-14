@@ -4,12 +4,13 @@
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>eu.stratosphere</groupId>
+	<groupId>org.apache.flink</groupId>
 	<version>0.3-SNAPSHOT</version>
-	<artifactId>stratosphere-streaming</artifactId>
+	<artifactId>flink-streaming-parent</artifactId>
 
-	<name>stratosphere-streaming</name>
+	<name>flink-streaming</name>
 	<packaging>pom</packaging>
+	<!-- TODO update url -->
 	<url>http://github.com/stratosphere/stratosphere-streaming</url>
 	<inceptionYear>2014</inceptionYear>
 
@@ -17,12 +18,13 @@
 		<license>
 			<name>The Apache Software License, Version 2.0</name>
 			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-			<distribution>stratosphere</distribution>
+			<distribution>Apache Flink</distribution>
 		</license>
 	</licenses>
 
 	<scm>
-		<url>https://github.com/stratosphere/stratosphere-streaming</url>
+		<!-- TODO update scm -->
+		<url>http://github.com/stratosphere/stratosphere-streaming</url>
 		<connection>scm:git:git@github.com:stratosphere/stratosphere-streaming.git</connection>
 		<developerConnection>scm:git:git@github.com:stratosphere/stratosphere-streaming.git</developerConnection>
 	</scm>
@@ -31,13 +33,13 @@
 	</developers>
 
 	<modules>
-		<module>stratosphere-streaming-core</module>
-		<module>stratosphere-streaming-examples</module>
-		<module>stratosphere-streaming-connectors</module>
+		<module>flink-streaming-core</module>
+		<module>flink-streaming-examples</module>
+		<module>flink-streaming-connectors</module>
 	</modules>
 
 	<properties>
-		<stratosphere.version>0.6-SNAPSHOT</stratosphere.version>
+		<flink.version>0.6-SNAPSHOT</flink.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
@@ -51,39 +53,39 @@
 	</repositories>
 	<dependencies>
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-core</artifactId>
-            		<version>${stratosphere.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+            		<version>${flink.version}</version>
 			<type>jar</type>
 		</dependency>
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-tests</artifactId>
-			<version>${stratosphere.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-tests</artifactId>
+			<version>${flink.version}</version>
 			<type>jar</type>
 		</dependency>
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-compiler</artifactId>
-			<version>${stratosphere.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-compiler</artifactId>
+			<version>${flink.version}</version>
 			<type>jar</type>
 		</dependency>
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-runtime</artifactId>
-			<version>${stratosphere.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime</artifactId>
+			<version>${flink.version}</version>
 			<type>jar</type>
 		</dependency>
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-clients</artifactId>
-			<version>${stratosphere.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients</artifactId>
+			<version>${flink.version}</version>
 			<type>jar</type>
 		</dependency>
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-java</artifactId>
-			<version>${stratosphere.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-java</artifactId>
+			<version>${flink.version}</version>
 			<type>jar</type>
 		</dependency>
 		<dependency>
@@ -240,7 +242,7 @@
 							<!-- Resource files which have values. -->
 							<exclude>**/resources/**</exclude>
 							<!-- Configuration Files. -->
-							<exclude>**/stratosphere-bin/conf/slaves</exclude>
+							<exclude>**/Apache Flink-bin/conf/slaves</exclude>
 							<!-- Administrative files in the main trunk. -->
 							<exclude>README.md</exclude>
 							<exclude>CHANGELOG</exclude>
@@ -262,26 +264,26 @@
 					</descriptorRefs>
 				</configuration>
 			</plugin>
- <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <version>2.8</version>
-        <executions>
-          <execution>
-            <id>copy-dependencies</id>
-            <phase>package</phase>
-            <goals>
-              <goal>copy-dependencies</goal>
-            </goals>
-            <configuration>
-              <outputDirectory>${project.build.directory}/alternateLocation</outputDirectory>
-              <overWriteReleases>false</overWriteReleases>
-              <overWriteSnapshots>false</overWriteSnapshots>
-              <overWriteIfNewer>true</overWriteIfNewer>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
+ 			<plugin>
+        			<groupId>org.apache.maven.plugins</groupId>
+        			<artifactId>maven-dependency-plugin</artifactId>
+        			<version>2.8</version>
+        			<executions>
+          				<execution>
+            					<id>copy-dependencies</id>
+            					<phase>package</phase>
+            					<goals>
+              						<goal>copy-dependencies</goal>
+            					</goals>
+            					<configuration>
+              						<outputDirectory>${project.build.directory}/alternateLocation</outputDirectory>
+              						<overWriteReleases>false</overWriteReleases>
+              						<overWriteSnapshots>false</overWriteSnapshots>
+             						<overWriteIfNewer>true</overWriteIfNewer>
+            					</configuration>
+          				</execution>
+        			</executions>
+      			</plugin>
 		</plugins>
 	</build>
 </project>

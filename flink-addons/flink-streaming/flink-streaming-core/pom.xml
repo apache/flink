@@ -5,14 +5,14 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>eu.stratosphere</groupId>
-		<artifactId>stratosphere-streaming</artifactId>
+		<groupId>org.apache.flink</groupId>
+		<artifactId>flink-streaming-parent</artifactId>
 		<version>0.3-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>stratosphere-streaming-core</artifactId>
-	<name>stratosphere-streaming-core</name>
+	<artifactId>flink-streaming-core</artifactId>
+	<name>flink-streaming-core</name>
 
 	<packaging>jar</packaging>
 
