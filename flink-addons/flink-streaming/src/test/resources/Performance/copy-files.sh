@@ -1,10 +1,11 @@
 #!/bin/bash
 toDir=$1
-
+echo COPYING:
 if [ -d "${toDir}" ] ; then
 	ssh strato@dell150.ilab.sztaki.hu '
 	for j in {101..142} 144 145;
 	do
+		echo -n $j,
 		for i in $(ssh dell$j "ls stratosphere-distrib/log/counter/");
 			do scp strato@dell$j:stratosphere-distrib/log/counter/$i stratosphere-distrib/log/all_tests/counter/$i-$j.csv;
 		done
@@ -19,6 +20,7 @@ if [ -d "${toDir}" ] ; then
 		done
 	done
 	'
+	echo 150
 	scp strato@dell150.ilab.sztaki.hu:stratosphere-distrib/log/all_tests/counter/* $toDir/counter/
 	scp strato@dell150.ilab.sztaki.hu:stratosphere-distrib/log/all_tests/timer/* $toDir/timer/
 else

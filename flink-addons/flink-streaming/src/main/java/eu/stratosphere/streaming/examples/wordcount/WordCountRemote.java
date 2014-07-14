@@ -42,7 +42,7 @@ public class WordCountRemote {
 
 	public static class WordCountDebugSource extends UserSourceInvokable {
 
-		private PerformanceCounter perf = new PerformanceCounter("SourceEmitCounter", 1000, 10000);
+		private PerformanceCounter perf = new PerformanceCounter("SourceEmitCounter", 1000, 10000, "");
 
 		StreamRecord record = new StreamRecord(new Tuple1<String>());
 
@@ -70,7 +70,7 @@ public class WordCountRemote {
 
 	public static class WordCountDebugSplitter extends UserTaskInvokable {
 
-		private PerformanceCounter perf = new PerformanceCounter("SplitterEmitCounter", 1000, 10000);
+		private PerformanceCounter perf = new PerformanceCounter("SplitterEmitCounter", 1000, 10000, "");
 
 		private String[] words = new String[] {};
 		private StreamRecord outputRecord = new StreamRecord(new Tuple1<String>());
@@ -93,7 +93,7 @@ public class WordCountRemote {
 	}
 
 	public static class WordCountDebugCounter extends UserTaskInvokable {
-		private PerformanceCounter perf = new PerformanceCounter("CounterEmitCounter", 1000, 10000);
+		private PerformanceCounter perf = new PerformanceCounter("CounterEmitCounter", 1000, 10000, "");
 
 		private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
 		private String word = "";
@@ -127,7 +127,7 @@ public class WordCountRemote {
 	}
 
 	public static class WordCountDebugSink extends UserSinkInvokable {
-		private PerformanceCounter perf = new PerformanceCounter("SinkEmitCounter", 1000, 10000);
+		private PerformanceCounter perf = new PerformanceCounter("SinkEmitCounter", 1000, 10000, "");
 
 		@Override
 		public void invoke(StreamRecord record) throws Exception {

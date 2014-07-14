@@ -26,28 +26,40 @@ public class PerformanceTracker {
 	protected List<Long> values;
 	protected List<String> labels;
 
+	protected long dumpInterval = 0;
+	protected long lastDump = System.currentTimeMillis();
+	protected String fname;
+
 	protected int interval;
 	protected int intervalCounter;
 	protected String name;
 
 	protected long buffer;
 
-	public PerformanceTracker(String name) {
+	public PerformanceTracker(String name, String fname) {
 		timeStamps = new ArrayList<Long>();
 		values = new ArrayList<Long>();
 		labels = new ArrayList<String>();
 		this.interval = 1;
 		this.name = name;
+		this.fname = fname;
 		buffer = 0;
 	}
 
-	public PerformanceTracker(String name, int capacity, int interval) {
+	public PerformanceTracker(String name, int capacity, int interval, String fname) {
+		this(name, capacity, interval, 0, fname);
+	}
+
+	public PerformanceTracker(String name, int capacity, int interval, long dumpInterval,
+			String fname) {
 		timeStamps = new ArrayList<Long>(capacity);
 		values = new ArrayList<Long>(capacity);
 		labels = new ArrayList<String>(capacity);
 		this.interval = interval;
 		this.name = name;
 		buffer = 0;
+		this.dumpInterval = dumpInterval;
+		this.fname = fname;
 	}
 
 	public void track(Long value, String label) {
@@ -56,12 +68,25 @@ public class PerformanceTracker {
 
 		if (intervalCounter % interval == 0) {
 
-			timeStamps.add(System.currentTimeMillis());
-			values.add(buffer);
-			labels.add(label);
+			add(buffer, label);
 			buffer = 0;
 			intervalCounter = 0;
 		}
+	}
+
+	public void add(Long value, String label) {
+		long ctime = System.currentTimeMillis();
+		values.add(value);
+		labels.add(label);
+		timeStamps.add(ctime);
+
+		if (dumpInterval > 0) {
+			if (ctime - lastDump > dumpInterval) {
+				writeCSV();
+				lastDump = ctime;
+			}
+		}
+
 	}
 
 	public void track(Long value) {
@@ -93,6 +118,19 @@ public class PerformanceTracker {
 		return csv.toString();
 	}
 
+	public void writeCSV() {
+
+		try {
+			PrintWriter out = new PrintWriter(fname);
+			out.print(toString());
+			out.close();
+
+		} catch (FileNotFoundException e) {
+			System.out.println("CSV output file not found");
+		}
+
+	}
+	
 	public void writeCSV(String fname) {
 
 		try {

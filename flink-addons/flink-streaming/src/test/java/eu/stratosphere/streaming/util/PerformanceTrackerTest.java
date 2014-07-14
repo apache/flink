@@ -34,7 +34,7 @@ public class PerformanceTrackerTest {
 
 	@Test
 	public void testTrack() {
-		PerformanceTracker pT = new PerformanceTracker("tracker");
+		PerformanceTracker pT = new PerformanceTracker("tracker", "");
 		pT.track();
 		pT.track(3);
 		pT.track(1);
@@ -46,7 +46,7 @@ public class PerformanceTrackerTest {
 		assertEquals(Long.valueOf(3), pT.values.get(1));
 		assertEquals(Long.valueOf(1), pT.values.get(2));
 
-		PerformanceTracker pT2 = new PerformanceTracker("tracker", 10, 2);
+		PerformanceTracker pT2 = new PerformanceTracker("tracker", 10, 2, "");
 		pT2.track(1);
 		pT2.track(3);
 		pT2.track(1);
@@ -65,7 +65,7 @@ public class PerformanceTrackerTest {
 
 	@Test
 	public void testCount() {
-		PerformanceCounter pC = new PerformanceCounter("counter");
+		PerformanceCounter pC = new PerformanceCounter("counter", "");
 		pC.count();
 		pC.count(10);
 		pC.count();
@@ -80,7 +80,7 @@ public class PerformanceTrackerTest {
 		System.out.println(pC);
 		System.out.println("--------------");
 
-		PerformanceCounter pT2 = new PerformanceCounter("counter", 1000, 10000);
+		PerformanceCounter pT2 = new PerformanceCounter("counter", 1000, 10000, "");
 
 		for (int i = 0; i < 10000000; i++) {
 			pT2.count("test");
@@ -94,16 +94,17 @@ public class PerformanceTrackerTest {
 
 	@Test
 	public void testTimer() throws InterruptedException {
-		PerformanceTimer pT = new PerformanceTimer("timer",true);
+		PerformanceTimer pT = new PerformanceTimer("timer", true, "");
 
 		pT.startTimer();
 		Thread.sleep(100);
 		pT.stopTimer();
+		System.out.println(pT.values.get(0));
 
 		assertEquals(1, pT.timeStamps.size());
 		assertEquals(1, pT.values.size());
 
-		assertTrue(pT.values.get(0) < 105);
+		assertTrue(pT.values.get(0) < 200);
 		System.out.println(pT);
 
 	}

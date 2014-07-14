@@ -30,8 +30,8 @@ public class WordCountCounter extends UserTaskInvokable {
 	private String word = "";
 	private Integer count = 0;
 
-	PerformanceCounter pCounter = new PerformanceCounter("CounterEmitCounter", 1000, 1000);
-	PerformanceTimer pTimer = new PerformanceTimer("CounterEmitTimer", 1000, 1000, true);
+	PerformanceCounter pCounter = new PerformanceCounter("CounterEmitCounter", 1000, 1000, "");
+	PerformanceTimer pTimer = new PerformanceTimer("CounterEmitTimer", 1000, 1000, true, "");
 
 	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Integer>());
 
@@ -59,8 +59,8 @@ public class WordCountCounter extends UserTaskInvokable {
 
 	@Override
 	public String getResult() {
-		pCounter.writeCSV("/home/strato/stratosphere-distrib/log/counter/Counter" + channelID);
-		pTimer.writeCSV("/home/strato/stratosphere-distrib/log/timer/Counter" + channelID);
+		pCounter.writeCSV("/home/strato/stratosphere-distrib/log/counter/Counter" + channelID + "-1.csv");
+		pTimer.writeCSV("/home/strato/stratosphere-distrib/log/timer/Counter" + channelID + "-1.csv");
 		return "";
 	}
 }

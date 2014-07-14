@@ -21,7 +21,7 @@ import eu.stratosphere.streaming.util.PerformanceCounter;
 
 public class WordCountSink extends UserSinkInvokable {
 
-	PerformanceCounter perf = new PerformanceCounter("SinkEmitCounter", 1000, 1000);
+	PerformanceCounter perf = new PerformanceCounter("SinkEmitCounter", 1000, 1000, "");
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
@@ -30,7 +30,7 @@ public class WordCountSink extends UserSinkInvokable {
 
 	@Override
 	public String getResult() {
-		perf.writeCSV("/home/strato/stratosphere-distrib/log/counter/Sink");
+		perf.writeCSV("/home/strato/stratosphere-distrib/log/counter/Sink" + "-1.csv");
 		return "";
 	}
 

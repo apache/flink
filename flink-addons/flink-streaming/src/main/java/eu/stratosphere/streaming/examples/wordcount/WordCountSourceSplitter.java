@@ -31,16 +31,15 @@ public class WordCountSourceSplitter extends UserSourceInvokable {
 	private String line = new String();
 	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
 
-	PerformanceCounter pCounter = new PerformanceCounter("SourceEmitCounter", 1000, 1000);
-	PerformanceTimer pTimer = new PerformanceTimer("SourceEmitTimer", 1000, 1000, true);
+	PerformanceCounter pCounter = new PerformanceCounter("SourceEmitCounter", 1000, 1000, "");
+	PerformanceTimer pTimer = new PerformanceTimer("SourceEmitTimer", 1000, 1000, true, "");
 
 	@Override
 	public void invoke() throws Exception {
 
 		for (int i = 0; i < 10; i++) {
 			try {
-				br = new BufferedReader(new FileReader(
-						"/home/strato/stratosphere-distrib/resources/hamlet.txt"));
+				br = new BufferedReader(new FileReader("/home/strato/stratosphere-distrib/resources/hamlet.txt"));
 
 				line = br.readLine().replaceAll("[\\-\\+\\.\\^:,]", "");
 				while (line != null) {
@@ -65,8 +64,8 @@ public class WordCountSourceSplitter extends UserSourceInvokable {
 
 	@Override
 	public String getResult() {
-		pCounter.writeCSV("/home/strato/stratosphere-distrib/log/counter/Source" + channelID);
-		pTimer.writeCSV("/home/strato/stratosphere-distrib/log/timer/Source" + channelID);
+		pCounter.writeCSV("/home/strato/stratosphere-distrib/log/counter/Source" + channelID + "-1.csv");
+		pTimer.writeCSV("/home/strato/stratosphere-distrib/log/timer/Source" + channelID + "-1.csv");
 
 		return "";
 	}
