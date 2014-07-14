@@ -12,7 +12,6 @@ import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
-import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
@@ -22,79 +21,66 @@ import eu.stratosphere.types.Record;
 
 public class JobGraphBuilder {
 
-	private final JobGraph jobGraph;
-	private Map<String, AbstractJobVertex> components;
-	
-	public enum Partitioning {
-		BROADCAST
-	}
+  private final JobGraph jobGraph;
+  private Map<String, AbstractJobVertex> components;
 
-	private Class<? extends ChannelSelector<Record>> getPartitioningClass(
-			Partitioning partitioning) {
-		switch (partitioning) {
-		case BROADCAST:
-			return DefaultPartitioner.class;
-		default:
-			return DefaultPartitioner.class;
-		}
-	}
+  public enum Partitioning {
+    BROADCAST
+  }
 
-	public JobGraphBuilder(String jobGraphName) {
+  private Class<? extends ChannelSelector<Record>> getPartitioningClass(
+      Partitioning partitioning) {
+    switch (partitioning) {
+    case BROADCAST:
+      return DefaultPartitioner.class;
+    default:
+      return DefaultPartitioner.class;
+    }
+  }
 
-		jobGraph = new JobGraph(jobGraphName);
-		components = new HashMap<String, AbstractJobVertex>();
-	}
+  public JobGraphBuilder(String jobGraphName) {
 
-	// TODO: Add source parallelism
-	public void setSource(String sourceName,
-			final Class<? extends AbstractInputTask<?>> sourceClass) {
+    jobGraph = new JobGraph(jobGraphName);
+    components = new HashMap<String, AbstractJobVertex>();
+  }
 
-		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
-		source.setInputClass(sourceClass);
-		components.put(sourceName, source);
-	}
+  // TODO: Add source parallelism
+  public void setSource(String sourceName,
+      final Class<? extends UserSourceInvokable> InvokableClass) {
 
-	public void setSource(String sourceName,
-			final Class<? extends UserSourceInvokable> InvokableClass,
-			Partitioning partitionType) {
+    final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
+    source.setInputClass(StreamSource.class);
+    Configuration config = new TaskConfig(source.getConfiguration())
+        .getConfiguration();
+    config.setClass("userfunction", InvokableClass);
+    components.put(sourceName, source);
+  }
 
-		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
-		source.setInputClass(StreamSource.class);
-		Configuration config = new TaskConfig(source.getConfiguration())
-				.getConfiguration();
-		config.setClass("partitioner", getPartitioningClass(partitionType));
-		config.setClass("userfunction", InvokableClass);
-		components.put(sourceName, source);
-	}
+  public void setTask(String taskName,
+      final Class<? extends UserTaskInvokable> InvokableClass, int parallelism) {
 
-	public void setTask(String taskName,
-			final Class<? extends UserTaskInvokable> InvokableClass,
-			Partitioning partitionType, int parallelism) {
+    final JobTaskVertex task = new JobTaskVertex(taskName, jobGraph);
+    task.setTaskClass(StreamTask.class);
+    task.setNumberOfSubtasks(parallelism);
+    Configuration config = new TaskConfig(task.getConfiguration())
+        .getConfiguration();
+    config.setClass("userfunction", InvokableClass);
+    components.put(taskName, task);
+  }
 
-		final JobTaskVertex task = new JobTaskVertex(taskName, jobGraph);
-		task.setTaskClass(StreamTask.class);
-		task.setNumberOfSubtasks(parallelism);
-		Configuration config = new TaskConfig(task.getConfiguration())
-				.getConfiguration();
-		config.setClass("partitioner", getPartitioningClass(partitionType));
-		config.setClass("userfunction", InvokableClass);
-		components.put(taskName, task);
-	}
+  public void setSink(String sinkName,
+      final Class<? extends UserSinkInvokable> InvokableClass) {
 
-	public void setSink(String sinkName,
-			final Class<? extends UserSinkInvokable> InvokableClass) {
+    final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
+    sink.setOutputClass(StreamSink.class);
+    Configuration config = new TaskConfig(sink.getConfiguration())
+        .getConfiguration();
+    config.setClass("userfunction", InvokableClass);
+    components.put(sinkName, sink);
+  }
 
-		final JobOutputVertex sink = new JobOutputVertex(sinkName, jobGraph);
-		sink.setOutputClass(StreamSink.class);
-		Configuration config = new TaskConfig(sink.getConfiguration())
-				.getConfiguration();
-		config.setClass("userfunction", InvokableClass);
-		components.put(sinkName, sink);
-	}
-
-	//TODO refactor connects
-	public void connect(String upStreamComponentName,
-      String downStreamComponentName,
+  public void connect(String upStreamComponentName,
+      String downStreamComponentName, Partitioning partitionType,
       ChannelType channelType) {
 
     AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
@@ -102,49 +88,37 @@ public class JobGraphBuilder {
         .get(downStreamComponentName);
 
     try {
-      upStreamComponent.connectTo(downStreamComponent, channelType);  
+      upStreamComponent.connectTo(downStreamComponent, channelType);
+      Configuration config = new TaskConfig(
+          upStreamComponent.getConfiguration()).getConfiguration();
+      config.setClass(
+          "partitioner_" + upStreamComponent.getNumberOfForwardConnections(),
+          getPartitioningClass(partitionType));
+      // System.out.println(upStreamComponentName + " " + "partitioner_"
+      // + upStreamComponent.getNumberOfForwardConnections());
     } catch (JobGraphDefinitionException e) {
       e.printStackTrace();
     }
   }
-	
-	public void connect(String upStreamComponentName,
-			String downStreamComponentName,
-      Partitioning partitionType,
-      ChannelType channelType) {
 
-		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
-		AbstractJobVertex downStreamComponent = components
-				.get(downStreamComponentName);
+  private void setNumberOfJobInputs() {
+    for (AbstractJobVertex component : components.values()) {
+      component.getConfiguration().setInteger("numberOfInputs",
+          component.getNumberOfBackwardConnections());
+    }
+  }
 
-		try {
-			upStreamComponent.connectTo(downStreamComponent, channelType);
-			Configuration config = new TaskConfig(upStreamComponent.getConfiguration())
-      .getConfiguration();
-			config.setClass("partitioner_"+upStreamComponent.getNumberOfForwardConnections(), getPartitioningClass(partitionType));	
-		} catch (JobGraphDefinitionException e) {
-			e.printStackTrace();
-		}
-	}
-
-	private void setNumberOfJobInputs() {
-		for (AbstractJobVertex component : components.values()) {
-			component.getConfiguration().setInteger("numberOfInputs",
-					component.getNumberOfBackwardConnections());
-		}
-	}
-	
-	private void setNumberOfJobOutputs() {
+  private void setNumberOfJobOutputs() {
     for (AbstractJobVertex component : components.values()) {
       component.getConfiguration().setInteger("numberOfOutputs",
           component.getNumberOfForwardConnections());
     }
   }
 
-	public JobGraph getJobGraph() {
-		setNumberOfJobInputs();
-		setNumberOfJobOutputs();
-		return jobGraph;
-	}
+  public JobGraph getJobGraph() {
+    setNumberOfJobInputs();
+    setNumberOfJobOutputs();
+    return jobGraph;
+  }
 
 }

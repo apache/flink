@@ -1,4 +1,4 @@
-package eu.stratosphere.streaming.test.cellinfo;
+package eu.stratosphere.streaming.cellinfo;
 
 import java.util.Iterator;
 import java.util.Map;
