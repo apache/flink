@@ -23,9 +23,9 @@ import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.LongValue;
 
 public class InfoSourceInvokable extends UserSourceInvokable {
-	
-	Random _rand= new Random();
-	int _cellNumber=10;
+
+	Random rand = new Random();
+	int cellNumber = 10;
 
 	private IntValue cellId = new IntValue(5);
 	private LongValue timeStamp = new LongValue(500);
@@ -34,11 +34,11 @@ public class InfoSourceInvokable extends UserSourceInvokable {
 	@Override
 	public void invoke() throws Exception {
 		for (int i = 0; i < 500000; i++) {
-			cellId.setValue(_rand.nextInt(_cellNumber));
+			cellId.setValue(rand.nextInt(cellNumber));
 			timeStamp.setValue(System.currentTimeMillis());
-			
-			record.setRecord(cellId,timeStamp);
-		
+
+			record.setRecord(cellId, timeStamp);
+
 			emit(record);
 		}
 	}

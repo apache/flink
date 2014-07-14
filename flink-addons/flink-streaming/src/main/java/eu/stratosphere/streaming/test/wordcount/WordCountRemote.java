@@ -39,8 +39,7 @@ public class WordCountRemote {
 		graphBuilder.setSink("WordCountSink", WordCountSink.class);
 
 		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");
-		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0,
-				StringValue.class);
+		graphBuilder.fieldsConnect("WordCountSplitter", "WordCountCounter", 0, StringValue.class);
 		graphBuilder.shuffleConnect("WordCountCounter", "WordCountSink");
 
 		return graphBuilder.getJobGraph();
@@ -50,9 +49,7 @@ public class WordCountRemote {
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
 		try {
-
-			File file = new File(
-					"target/stratosphere-streaming-0.5-SNAPSHOT.jar");
+			File file = new File("target/stratosphere-streaming-0.5-SNAPSHOT.jar");
 			JobWithJars.checkJarFile(file);
 
 			JobGraph jG = getJobGraph();
@@ -60,12 +57,8 @@ public class WordCountRemote {
 			jG.addJar(new Path(file.getAbsolutePath()));
 
 			Configuration configuration = jG.getJobConfiguration();
-
-			Client client = new Client(new InetSocketAddress(
-					"hadoop02.ilab.sztaki.hu", 6123), configuration);
-
+			Client client = new Client(new InetSocketAddress("hadoop02.ilab.sztaki.hu", 6123), configuration);
 			client.run(jG, true);
-
 		} catch (Exception e) {
 			System.out.println(e);
 		}

@@ -33,8 +33,7 @@ public class WordCountSource extends UserSourceInvokable {
 
 	public WordCountSource() {
 		try {
-			br = new BufferedReader(new FileReader(
-					"src/test/resources/testdata/hamlet.txt"));
+			br = new BufferedReader(new FileReader("src/test/resources/testdata/hamlet.txt"));
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}

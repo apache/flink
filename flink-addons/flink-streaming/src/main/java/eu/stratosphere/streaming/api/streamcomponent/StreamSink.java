@@ -58,6 +58,7 @@ public class StreamSink extends AbstractOutputTask {
 		userFunction = streamSinkHelper.getUserFunction(taskConfiguration);
 	}
 
+	//TODO: eliminate code repetition (StreamTask)
 	@Override
 	public void invoke() throws Exception {
 		log.debug("SINK " + name + " invoked");

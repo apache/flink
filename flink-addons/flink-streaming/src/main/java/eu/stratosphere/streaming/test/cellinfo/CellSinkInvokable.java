@@ -20,16 +20,16 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class CellSinkInvokable extends UserSinkInvokable {
 
-	int c=0;
-  @Override
-  public void invoke(StreamRecord record) throws Exception {  	
+	int counter = 0;
 
-	  c++;
-  }
-  
-  @Override
-  public String getResult(){
-	  return String.valueOf(c);
-  }
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
+		counter++;
+	}
+
+	@Override
+	public String getResult() {
+		return String.valueOf(counter);
+	}
 
 }

@@ -24,13 +24,13 @@ import eu.stratosphere.types.LongValue;
 
 public class QuerySourceInvokable extends UserSourceInvokable {
 
-	Random _rand= new Random();
-	int _cellNumber=10;
+	Random _rand = new Random();
+	int _cellNumber = 10;
 
 	private IntValue cellId = new IntValue(5);
 	private LongValue timeStamp = new LongValue(500);
 	private IntValue lastMillis = new IntValue(100);
-	private StreamRecord record = new StreamRecord(cellId, timeStamp,lastMillis);
+	private StreamRecord record = new StreamRecord(cellId, timeStamp, lastMillis);
 
 	@Override
 	public void invoke() throws Exception {
@@ -38,12 +38,11 @@ public class QuerySourceInvokable extends UserSourceInvokable {
 			Thread.sleep(1);
 			cellId.setValue(_rand.nextInt(_cellNumber));
 			timeStamp.setValue(System.currentTimeMillis());
-			
-			record.setRecord(cellId,timeStamp,lastMillis);
-		
+
+			record.setRecord(cellId, timeStamp, lastMillis);
+
 			emit(record);
 		}
 	}
-
 
 }
