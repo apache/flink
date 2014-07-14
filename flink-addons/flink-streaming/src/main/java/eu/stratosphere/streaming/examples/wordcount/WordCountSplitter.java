@@ -22,6 +22,7 @@ import eu.stratosphere.streaming.util.PerformanceCounter;
 import eu.stratosphere.streaming.util.PerformanceTimer;
 
 public class WordCountSplitter extends UserTaskInvokable {
+	private static final long serialVersionUID = 1L;
 
 	private String[] words = new String[] {};
 	private StreamRecord outputRecord = new StreamRecord(new Tuple1<String>());

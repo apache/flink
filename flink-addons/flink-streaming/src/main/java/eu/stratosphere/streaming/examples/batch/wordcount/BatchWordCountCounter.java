@@ -23,7 +23,8 @@ import eu.stratosphere.streaming.state.MutableTableState;
 import eu.stratosphere.streaming.state.MutableTableStateIterator;
 
 public class BatchWordCountCounter extends UserTaskInvokable {
-
+	private static final long serialVersionUID = 1L;
+	
 	private MutableTableState<String, Integer> wordCounts = new MutableTableState<String, Integer>();
 	private String word = "";
 	private Integer count = 0;

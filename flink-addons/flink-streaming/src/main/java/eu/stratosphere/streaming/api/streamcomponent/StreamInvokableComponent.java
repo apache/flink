@@ -15,6 +15,7 @@
 
 package eu.stratosphere.streaming.api.streamcomponent;
 
+import java.io.Serializable;
 import java.util.List;
 
 import org.apache.commons.logging.Log;
@@ -22,10 +23,13 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 import eu.stratosphere.streaming.util.PerformanceCounter;
 
-public abstract class StreamInvokableComponent {
+public abstract class StreamInvokableComponent implements Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	private static final Log log = LogFactory.getLog(StreamInvokableComponent.class);
 
@@ -35,36 +39,52 @@ public abstract class StreamInvokableComponent {
 	protected String name;
 	private FaultToleranceUtil emittedRecords;
 	protected PerformanceCounter performanceCounter;
+	private boolean useFaultTolerance;
 
 	public final void declareOutputs(List<RecordWriter<StreamRecord>> outputs, int channelID,
-			String name, FaultToleranceUtil emittedRecords) {
+			String name, FaultToleranceUtil emittedRecords, FaultToleranceType faultToleranceType) {
 		this.outputs = outputs;
 		this.channelID = channelID;
 		this.emittedRecords = emittedRecords;
 		this.name = name;
 		this.performanceCounter = new PerformanceCounter("pc", 1000, 1000, 30000,
 				"/home/strato/stratosphere-distrib/log/counter/" + name + channelID);
+		this.useFaultTolerance = faultToleranceType != FaultToleranceType.NONE;
+	}
+
+	public final void setPerfCounterDir(String dir) {
+		performanceCounter.setFname(dir + "/" + name + channelID);
 	}
 
 	public final void emit(StreamRecord record) {
 		record.setId(channelID);
-		// emittedRecords.addRecord(record);
+
+		if (useFaultTolerance) {
+			emittedRecords.addRecord(record);
+		}
+
 		try {
 			for (RecordWriter<StreamRecord> output : outputs) {
 				output.emit(record);
+				output.flush();
 				log.info("EMITTED: " + record.getId() + " -- " + name);
 			}
 		} catch (Exception e) {
-			emittedRecords.failRecord(record.getId());
+			if (useFaultTolerance) {
+				emittedRecords.failRecord(record.getId());
+			}
+
 			log.warn("FAILED: " + record.getId() + " -- " + name + " -- due to "
 					+ e.getClass().getSimpleName());
 		}
 	}
 
-	// TODO: Add fault tolerance
+	// TODO: Should we fail record at exception catch?
 	public final void emit(StreamRecord record, int outputChannel) {
 		record.setId(channelID);
-		// emittedRecords.addRecord(record, outputChannel);
+		if (useFaultTolerance) {
+			emittedRecords.addRecord(record, outputChannel);
+		}
 		try {
 			outputs.get(outputChannel).emit(record);
 		} catch (Exception e) {

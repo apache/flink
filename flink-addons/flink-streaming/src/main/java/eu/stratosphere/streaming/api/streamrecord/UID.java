@@ -17,6 +17,7 @@ package eu.stratosphere.streaming.api.streamrecord;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -65,6 +66,18 @@ public class UID implements IOReadableWritable, Serializable {
 	public void write(DataOutput out) throws IOException {
 		out.write(uid.array());
 	}
+	
+	
+	private void writeObject(ObjectOutputStream stream)
+	            throws IOException {
+	        stream.write(uid.array());
+	    }
+	 private void readObject(java.io.ObjectInputStream stream)
+	            throws IOException, ClassNotFoundException {
+		 	byte[] uidA = new byte[20];
+	        stream.read(uidA);
+	        uid = ByteBuffer.allocate(20).put(uidA);
+	    }
 
 	@Override
 	public void read(DataInput in) throws IOException {

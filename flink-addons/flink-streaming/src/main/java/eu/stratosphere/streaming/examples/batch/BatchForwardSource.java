@@ -20,6 +20,8 @@ import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class BatchForwardSource extends UserSourceInvokable {
+	private static final long serialVersionUID = 1L;
+	
 	private final StreamRecord mottoRecord = new StreamRecord(
 			new Tuple1<String>("Stratosphere Big Data looks tiny from here"));
 

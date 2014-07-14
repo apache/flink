@@ -86,16 +86,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	public StreamRecord() {
 	}
 
-	public StreamRecord(StreamRecord record) {
-		this.numOfFields = record.getNumOfFields();
-		this.numOfTuples = 0;
-		tupleBatch = new ArrayList<Tuple>();
-		this.uid = new UID(Arrays.copyOf(record.getId().getId(), 20));
-		for (int i = 0; i < record.getNumOfTuples(); ++i) {
-			this.tupleBatch.add(copyTuple(record.getTuple(i)));
-		}
-	}
-	
 	/**
 	 * Creates empty StreamRecord with number of fields set
 	 * 
@@ -122,6 +112,16 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		this.numOfTuples = 0;
 		this.batchSize = batchSize;
 		tupleBatch = new ArrayList<Tuple>(batchSize);
+	}
+
+	public StreamRecord(StreamRecord record) {
+		this.numOfFields = record.getNumOfFields();
+		this.numOfTuples = 0;
+		tupleBatch = new ArrayList<Tuple>();
+		this.uid = new UID(Arrays.copyOf(record.getId().getId(), 20));
+		for (int i = 0; i < record.getNumOfTuples(); ++i) {
+			this.tupleBatch.add(copyTuple(record.getTuple(i)));
+		}
 	}
 
 	/**
@@ -167,68 +167,20 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
-	 * Remove all the contents inside StreamRecord.
-	 */
-	public void Clear(){
-		this.numOfTuples = 0;
-		tupleBatch.clear();
-	}
-	
-	/**
-	 * Checks if the number of fields are equal to the batch field size then
-	 * adds the Tuple to the end of the batch
+	 * Checks whether the record batch is empty
 	 * 
-	 * @param tuple
-	 *            Tuple to be added as the next record of the batch
-	 * @throws TupleSizeMismatchException
-	 *             Tuple specified has illegal size
+	 * @return true if the batch is empty, false if it contains Tuples
 	 */
-	public void addTuple(Tuple tuple) throws TupleSizeMismatchException {
-		addTuple(numOfTuples, tuple);
-	}
-
-	/**
-	 * Checks if the number of fields are equal to the batch field size then
-	 * inserts the Tuple to the given position into the recordbatch
-	 * 
-	 * @param index
-	 *            Position of the added tuple
-	 * @param tuple
-	 *            Tuple to be added as the next record of the batch
-	 * @throws TupleSizeMismatchException
-	 *             Tuple specified has illegal size
-	 */
-	public void addTuple(int index, Tuple tuple) throws TupleSizeMismatchException {
-		if (tuple.getArity() == numOfFields) {
-			tupleBatch.add(index, tuple);
-			numOfTuples++;
-		} else {
-			throw new TupleSizeMismatchException();
-		}
-	}
-
-	/**
-	 * Removes the tuple at the given position from the batch and returns it
-	 * 
-	 * @param index
-	 *            Index of tuple to remove
-	 * @return Removed tuple
-	 * @throws TupleSizeMismatchException
-	 *             Tuple specified has illegal size
-	 */
-	public Tuple removeTuple(int index) throws TupleSizeMismatchException {
-		if (index < numOfTuples) {
-			numOfTuples--;
-			return tupleBatch.remove(index);
-		} else {
-			throw new TupleSizeMismatchException();
-		}
-	}
-
-	
-	
 	public boolean isEmpty() {
 		return (this.numOfTuples == 0);
+	}
+
+	/**
+	 * Remove all the contents inside StreamRecord.
+	 */
+	public void Clear() {
+		this.numOfTuples = 0;
+		tupleBatch.clear();
 	}
 
 	/**
@@ -352,11 +304,15 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	// TODO: add exception for cast for all getters
 	public Boolean getBoolean(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Boolean) getField(tupleNumber, fieldNumber);
+		try {
+			return (Boolean) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
-	 * Get a Byte from the given field of the first Tuple of the batch
+	 * Get a Byte from thne given field of the first Tuple of the batch
 	 * 
 	 * @param fieldNumber
 	 *            Position of the field in the tuple
@@ -381,7 +337,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Byte getByte(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Byte) getField(tupleNumber, fieldNumber);
+		try {
+			return (Byte) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -411,7 +371,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Character getCharacter(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Character) getField(tupleNumber, fieldNumber);
+		try {
+			return (Character) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -440,7 +404,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Double getDouble(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Double) getField(tupleNumber, fieldNumber);
+		try {
+			return (Double) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -469,7 +437,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Float getFloat(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Float) getField(tupleNumber, fieldNumber);
+		try {
+			return (Float) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -498,7 +470,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Integer getInteger(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Integer) getField(tupleNumber, fieldNumber);
+		try {
+			return (Integer) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -527,7 +503,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Long getLong(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Long) getField(tupleNumber, fieldNumber);
+		try {
+			return (Long) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -556,7 +536,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public Short getShort(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (Short) getField(tupleNumber, fieldNumber);
+		try {
+			return (Short) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -583,7 +567,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public String getString(int tupleNumber, int fieldNumber) throws NoSuchTupleException,
 			NoSuchFieldException {
-		return (String) getField(tupleNumber, fieldNumber);
+		try {
+			return (String) getField(tupleNumber, fieldNumber);
+		} catch (ClassCastException e) {
+			throw new FieldTypeMismatchException();
+		}
 	}
 
 	/**
@@ -612,7 +600,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @throws NoSuchFieldException
 	 *             the Tuple does not have this many fields
 	 */
-	// TODO: consider no such tuple exception and interaction with batch size
+	// TODO: consider interaction with batch size
 	public void setField(int tupleNumber, int fieldNumber, Object o) throws NoSuchFieldException {
 		try {
 			tupleBatch.get(tupleNumber).setField(o, fieldNumber);
@@ -1003,6 +991,57 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
+	 * Checks if the number of fields are equal to the batch field size then
+	 * adds the Tuple to the end of the batch
+	 * 
+	 * @param tuple
+	 *            Tuple to be added as the next record of the batch
+	 * @throws TupleSizeMismatchException
+	 *             Tuple specified has illegal size
+	 */
+	public void addTuple(Tuple tuple) throws TupleSizeMismatchException {
+		addTuple(numOfTuples, tuple);
+	}
+
+	/**
+	 * Checks if the number of fields are equal to the batch field size then
+	 * inserts the Tuple to the given position into the recordbatch
+	 * 
+	 * @param index
+	 *            Position of the added tuple
+	 * @param tuple
+	 *            Tuple to be added as the next record of the batch
+	 * @throws TupleSizeMismatchException
+	 *             Tuple specified has illegal size
+	 */
+	public void addTuple(int index, Tuple tuple) throws TupleSizeMismatchException {
+		if (tuple.getArity() == numOfFields) {
+			tupleBatch.add(index, tuple);
+			numOfTuples++;
+		} else {
+			throw new TupleSizeMismatchException();
+		}
+	}
+
+	/**
+	 * Removes the tuple at the given position from the batch and returns it
+	 * 
+	 * @param index
+	 *            Index of tuple to remove
+	 * @return Removed tuple
+	 * @throws TupleSizeMismatchException
+	 *             Tuple specified has illegal size
+	 */
+	public Tuple removeTuple(int index) throws TupleSizeMismatchException {
+		if (index < numOfTuples) {
+			numOfTuples--;
+			return tupleBatch.remove(index);
+		} else {
+			throw new TupleSizeMismatchException();
+		}
+	}
+
+	/**
 	 * Creates a copy of the StreamRecord object by Serializing and
 	 * deserializing it
 	 * 
@@ -1298,8 +1337,12 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	public String toString() {
 		StringBuilder outputString = new StringBuilder("[");
 
+		String prefix = "";
+
 		for (Tuple tuple : tupleBatch) {
-			outputString.append(tuple + ",");
+			outputString.append(prefix);
+			prefix = ",";
+			outputString.append(tuple.toString());
 		}
 		outputString.append("]");
 		return outputString.toString();

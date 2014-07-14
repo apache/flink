@@ -28,6 +28,7 @@ import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.examples.DummyIS;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 
 public class StreamSource extends AbstractInputTask<DummyIS> {
@@ -41,6 +42,7 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 	private int sourceInstanceID;
 	private String name;
 	private FaultToleranceUtil recordBuffer;
+	private FaultToleranceType faultToleranceType;
 	StreamComponentHelper<StreamSource> streamSourceHelper;
 
 	public StreamSource() {
@@ -49,7 +51,7 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
 		userFunction = null;
 		streamSourceHelper = new StreamComponentHelper<StreamSource>();
-		numSources=StreamComponentHelper.newComponent();
+		numSources = StreamComponentHelper.newComponent();
 		sourceInstanceID = numSources;
 	}
 
@@ -69,20 +71,21 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 		name = taskConfiguration.getString("componentName", "MISSING_COMPONENT_NAME");
 
 		try {
-			streamSourceHelper.setConfigOutputs(this, taskConfiguration, outputs,
-					partitioners);
+			streamSourceHelper.setConfigOutputs(this, taskConfiguration, outputs, partitioners);
 		} catch (StreamComponentException e) {
 			log.error("Cannot register outputs", e);
 		}
-		
-		int[] numberOfOutputChannels= new int[outputs.size()];
-		for(int i=0; i<numberOfOutputChannels.length;i++ ){
-			numberOfOutputChannels[i]=taskConfiguration.getInteger("channels_"+i, 0);
+
+		int[] numberOfOutputChannels = new int[outputs.size()];
+		for (int i = 0; i < numberOfOutputChannels.length; i++) {
+			numberOfOutputChannels[i] = taskConfiguration.getInteger("channels_" + i, 0);
 		}
-		
-		recordBuffer = new FaultToleranceUtil(outputs, sourceInstanceID,name, numberOfOutputChannels);
-		userFunction = (UserSourceInvokable) streamSourceHelper.getUserFunction(
-				taskConfiguration, outputs, sourceInstanceID, name, recordBuffer);
+
+		streamSourceHelper.setFaultTolerance(recordBuffer, faultToleranceType,
+				taskConfiguration, outputs, sourceInstanceID, name, numberOfOutputChannels);
+
+		userFunction = (UserSourceInvokable) streamSourceHelper.getUserFunction(taskConfiguration,
+				outputs, sourceInstanceID, name, recordBuffer);
 		streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID, outputs);
 		streamSourceHelper.setFailListener(recordBuffer, sourceInstanceID, outputs);
 	}
@@ -93,7 +96,7 @@ public class StreamSource extends AbstractInputTask<DummyIS> {
 		userFunction.invoke();
 		// TODO print to file
 		System.out.println(userFunction.getResult());
-		
+
 	}
 
 }

@@ -22,7 +22,8 @@ import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class InfoSource extends UserSourceInvokable {
-
+	private static final long serialVersionUID = 1L;
+	
 	Random rand = new Random();
 	private final static int CELL_COUNT = 10;
 

@@ -23,6 +23,7 @@ import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class WordCountSource extends UserSourceInvokable {
+	private static final long serialVersionUID = 1L;
 
 	private BufferedReader br = null;
 	private String line = new String();

@@ -19,7 +19,8 @@ import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class BatchForwardSink extends UserSinkInvokable {
-
+	private static final long serialVersionUID = 1L;
+	
 	private String word = new String();
 
 	@Override
