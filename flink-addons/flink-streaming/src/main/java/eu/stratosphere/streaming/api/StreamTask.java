@@ -15,14 +15,12 @@
 
 package eu.stratosphere.streaming.api;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordReader;
@@ -35,128 +33,133 @@ import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
 import eu.stratosphere.types.StringValue;
 
+//TODO: Refactor, create common ancestor with StreamSource
 public class StreamTask extends AbstractTask {
 
-  private List<RecordReader<Record>> inputs;
-  private List<RecordWriter<Record>> outputs;
-  private List<ChannelSelector<Record>> partitioners;
-  private UserTaskInvokable userFunction;
+	private List<RecordReader<Record>> inputs;
+	private List<RecordWriter<Record>> outputs;
+	private List<ChannelSelector<Record>> partitioners;
+	private UserTaskInvokable userFunction;
 
-  private int numberOfInputs;
-  private int numberOfOutputs;
+	private int numberOfInputs;
+	private int numberOfOutputs;
 
-  public StreamTask() {
-    // TODO: Make configuration file visible and call setClassInputs() here
-    inputs = new LinkedList<RecordReader<Record>>();
-    outputs = new LinkedList<RecordWriter<Record>>();
-    partitioners = new LinkedList<ChannelSelector<Record>>();
-    userFunction = null;
-    numberOfInputs = 0;
-    numberOfOutputs = 0;
-  }
+	private static int numTasks = 0;
+	private String taskInstanceID = "";
 
-  private void setConfigInputs() {
+	private Map<String, StreamRecord> recordBuffer;
 
-    Configuration taskConfiguration = getTaskConfiguration();
+	public StreamTask() {
+		// TODO: Make configuration file visible and call setClassInputs() here
+		inputs = new LinkedList<RecordReader<Record>>();
+		outputs = new LinkedList<RecordWriter<Record>>();
+		partitioners = new LinkedList<ChannelSelector<Record>>();
+		userFunction = null;
+		numberOfInputs = 0;
+		numberOfOutputs = 0;
+		numTasks++;
+		taskInstanceID = Integer.toString(numTasks);
+		recordBuffer = new TreeMap<String, StreamRecord>();
+	}
 
-    numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
-    for (int i = 0; i < numberOfInputs; i++) {
-      inputs.add(new RecordReader<Record>(this, Record.class));
-    }
+	private void setConfigInputs() {
 
-    numberOfOutputs = taskConfiguration.getInteger("numberOfOutputs", 0);
+		Configuration taskConfiguration = getTaskConfiguration();
 
-    for (int i = 1; i <= numberOfOutputs; i++) {
-      setPartitioner(taskConfiguration, i);
-    }
+		numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
+		for (int i = 0; i < numberOfInputs; i++) {
+			inputs.add(new RecordReader<Record>(this, Record.class));
+		}
 
-    for (ChannelSelector<Record> outputPartitioner : partitioners) {
-      outputs.add(new RecordWriter<Record>(this, Record.class,
-          outputPartitioner));
-    }
+		numberOfOutputs = taskConfiguration.getInteger("numberOfOutputs", 0);
 
-    setUserFunction(taskConfiguration);
-    setAckListener();
-  }
+		for (int i = 1; i <= numberOfOutputs; i++) {
+			setPartitioner(taskConfiguration, i);
+		}
 
-  public void setAckListener() {
-    EventListener eventListener = new EventListener() {
-			@Override
-			public void eventOccurred(AbstractTaskEvent event) {
-				AckEvent ackEvent = (AckEvent) event;
-				String recordId = ackEvent.getRecordId();
-				//System.out.println("acked " + recordId);
-				//TODO: resend record with the given id
-			}
-		};
+		for (ChannelSelector<Record> outputPartitioner : partitioners) {
+			outputs.add(new RecordWriter<Record>(this, Record.class,
+					outputPartitioner));
+		}
+
+		setUserFunction(taskConfiguration);
+		setAckListener();
+	}
+
+	public void setAckListener() {
+		EventListener eventListener = new AckEventListener(taskInstanceID,
+				recordBuffer);
 		for (RecordWriter output : outputs) {
-			//TODO: separate outputs
+			// TODO: separate outputs
 			output.subscribeToEvent(eventListener, AckEvent.class);
 		}
-  }
-  
-  public void setUserFunction(Configuration taskConfiguration) {
+	}
 
-    Class<? extends UserTaskInvokable> userFunctionClass = taskConfiguration
-        .getClass("userfunction", DefaultTaskInvokable.class,
-            UserTaskInvokable.class);
-    try {
-      userFunction = userFunctionClass.newInstance();
-      userFunction.declareOutputs(outputs);
-    } catch (Exception e) {
+	public void setUserFunction(Configuration taskConfiguration) {
 
-    }
+		Class<? extends UserTaskInvokable> userFunctionClass = taskConfiguration
+				.getClass("userfunction", DefaultTaskInvokable.class,
+						UserTaskInvokable.class);
+		try {
+			userFunction = userFunctionClass.newInstance();
+			userFunction.declareOutputs(outputs, taskInstanceID, recordBuffer);
+		} catch (Exception e) {
 
-  }
+		}
 
-  private void setPartitioner(Configuration taskConfiguration, int nrOutput) {
-    Class<? extends ChannelSelector<Record>> partitioner = taskConfiguration
-        .getClass("partitionerClass_" + nrOutput, DefaultPartitioner.class,
-            ChannelSelector.class);
+	}
 
-    try {
-      // TODO: Fix class comparison
-      if (partitioner.getName().equals(
-          "eu.stratosphere.streaming.partitioner.FieldsPartitioner")) {
-        int keyPosition = taskConfiguration.getInteger("partitionerIntParam_"
-            + nrOutput, 1);
-        Class<? extends Key> keyClass = taskConfiguration.getClass(
-            "partitionerClassParam_" + nrOutput, StringValue.class, Key.class);
+	private void setPartitioner(Configuration taskConfiguration, int nrOutput) {
+		Class<? extends ChannelSelector<Record>> partitioner = taskConfiguration
+				.getClass("partitionerClass_" + nrOutput, DefaultPartitioner.class,
+						ChannelSelector.class);
 
-        partitioners.add(partitioner.getConstructor(int.class, Class.class)
-            .newInstance(keyPosition, keyClass));
+		try {
+			// TODO: Fix class comparison
+			if (partitioner.getName().equals(
+					"eu.stratosphere.streaming.partitioner.FieldsPartitioner")) {
+				int keyPosition = taskConfiguration.getInteger("partitionerIntParam_"
+						+ nrOutput, 1);
+				Class<? extends Key> keyClass = taskConfiguration.getClass(
+						"partitionerClassParam_" + nrOutput, StringValue.class, Key.class);
 
-      } else {
-        partitioners.add(partitioner.newInstance());
-      }
-    } catch (Exception e) {
-      System.out.println("partitioner error" + " " + "partitioner_" + nrOutput);
-      System.out.println(e);
-    }
+				partitioners.add(partitioner.getConstructor(int.class, Class.class)
+						.newInstance(keyPosition, keyClass));
 
-  }
+			} else {
+				partitioners.add(partitioner.newInstance());
+			}
+		} catch (Exception e) {
+			System.out.println("partitioner error" + " " + "partitioner_" + nrOutput);
+			System.out.println(e);
+		}
 
-  @Override
-  public void registerInputOutput() {
-    setConfigInputs();
-  }
+	}
 
-  @Override
-  public void invoke() throws Exception {
-    boolean hasInput = true;
-    while (hasInput) {
-      hasInput = false;
-      for (RecordReader<Record> input : inputs) {
-        if (input.hasNext()) {
-          hasInput = true;
-          StreamRecord streamRecord = new StreamRecord(input.next());
-          String id = streamRecord.popId();
-          userFunction.invoke(streamRecord.getRecord());
-          input.publishEvent(new AckEvent(id));
-          //TODO: ack here
-        }
-      }
-    }
-  }
+	@Override
+	public void registerInputOutput() {
+		setConfigInputs();
+	}
+
+	@Override
+	public void invoke() throws Exception {
+		boolean hasInput = true;
+		while (hasInput) {
+			hasInput = false;
+			for (RecordReader<Record> input : inputs) {
+				if (input.hasNext()) {
+					hasInput = true;
+					StreamRecord streamRecord = new StreamRecord(input.next());
+					String id = streamRecord.popId();
+					//TODO: Enclose invoke in try-catch to properly fail records
+					userFunction.invoke(streamRecord.getRecord());
+					System.out.println(this.getClass().getName() + "-" + taskInstanceID);
+					System.out.println(recordBuffer.toString());
+					System.out.println("---------------------");
+					input.publishEvent(new AckEvent(id));
+				}
+			}
+		}
+	}
 
 }
