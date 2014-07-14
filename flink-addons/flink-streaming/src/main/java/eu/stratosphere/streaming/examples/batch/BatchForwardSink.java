@@ -17,16 +17,15 @@ package eu.stratosphere.streaming.examples.batch;
 
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.StringValue;
 
 public class BatchForwardSink extends UserSinkInvokable {
 
-	private StringValue word = new StringValue("");
+	private String word = new String();
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		word = (StringValue) record.getField(0, 0);
-		System.out.println("========" + word.getValue() + "=========");
+		word = record.getString(0, 0);
+		System.out.println("========" + word + "=========");
 
 	}
 }
