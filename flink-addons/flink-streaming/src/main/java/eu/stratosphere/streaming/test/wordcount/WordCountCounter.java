@@ -29,7 +29,7 @@ public class WordCountCounter extends UserTaskInvokable {
 	private StringValue wordValue = new StringValue();
 	private IntValue countValue = new IntValue();
 	private String word = new String();
-	private StreamRecord streamRecord = new StreamRecord(2);
+	// private StreamRecord streamRecord = new StreamRecord(2);
 	private int count = 1;
 	private int i = 0;
 	private long time;
@@ -55,8 +55,8 @@ public class WordCountCounter extends UserTaskInvokable {
 			countValue.setValue(1);
 		}
 		// TODO: object reuse
-		//streamRecord.setRecord(wordValue, countValue);
-		//emit(streamRecord);
+		// streamRecord.setRecord(wordValue, countValue);
+		// emit(streamRecord);
 		emit(new StreamRecord(wordValue, countValue));
 	}
 }
