@@ -18,7 +18,9 @@ package eu.stratosphere.streaming.api;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.Test;
 
@@ -33,27 +35,6 @@ public class MapTest {
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
 			for (int i = 0; i < 10; i++) {
-				System.out.println("source "+i);
-				collector.collect(new Tuple1<Integer>(i));
-			}
-		}
-	}
-
-	public static final class MyFieldsSource extends SourceFunction<Tuple1<Integer>> {
-
-		@Override
-		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
-			for (int i = 0; i < MAXSOURCE; i++) {
-				collector.collect(new Tuple1<Integer>(5));
-			}
-		}
-	}
-	
-	public static final class MyDiffFieldsSource extends SourceFunction<Tuple1<Integer>> {
-
-		@Override
-		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
-			for (int i = 0; i < 9; i++) {
 				collector.collect(new Tuple1<Integer>(i));
 			}
 		}
@@ -63,7 +44,6 @@ public class MapTest {
 
 		@Override
 		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
-			System.out.println("mymap "+map);
 			map++;
 			return new Tuple1<Integer>(value.f0 * value.f0);
 		}
@@ -76,7 +56,6 @@ public class MapTest {
 		@Override
 		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
 			counter++;
-
 			if (counter == MAXSOURCE)
 				allInOne = true;
 			return new Tuple1<Integer>(value.f0 * value.f0);
@@ -140,13 +119,12 @@ public class MapTest {
 
 		@Override
 		public void invoke(Tuple1<Integer> tuple) {
-			System.out.println("sink "+graphResult);
 			graphResult++;
 		}
 	}
 
-	private static List<Integer> expected = new ArrayList<Integer>();
-	private static List<Integer> result = new ArrayList<Integer>();
+	private static Set<Integer> expected = new HashSet<Integer>();
+	private static Set<Integer> result = new HashSet<Integer>();
 	private static int broadcastResult = 0;
 	private static int shuffleResult = 0;
 	private static int fieldsResult = 0;
@@ -157,10 +135,38 @@ public class MapTest {
 	private static final int MAXSOURCE = 10;
 	private static boolean allInOne = false;
 	private static boolean threeInAll = true;
+	private static Set<Integer> fromCollectionSet = new HashSet<Integer>();
+	private static List<Integer> fromCollectionFields = new ArrayList<Integer>();
+	private static Set<Integer> fromCollectionDiffFieldsSet = new HashSet<Integer>();
 
 	private static void fillExpectedList() {
 		for (int i = 0; i < 10; i++) {
 			expected.add(i * i);
+		}
+	}
+	
+	private static void fillFromCollectionSet() {
+		if(fromCollectionSet.isEmpty()){
+			for (int i = 0; i < 10; i++) {
+				fromCollectionSet.add(i);
+			}
+		}
+	}
+	
+	private static void fillFromCollectionFieldsSet() {
+		if(fromCollectionFields.isEmpty()){
+			for (int i = 0; i < MAXSOURCE; i++) {
+				
+				fromCollectionFields.add(5);
+			}
+		}
+	}
+	
+	private static void fillFromCollectionDiffFieldsSet() {
+		if(fromCollectionDiffFieldsSet.isEmpty()){
+			for (int i = 0; i < 9; i++) {
+				fromCollectionDiffFieldsSet.add(i);
+			}
 		}
 	}
 
@@ -169,7 +175,9 @@ public class MapTest {
 
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
-		DataStream<Tuple1<Integer>> dataStream = env.addSource(new MySource(), 1)
+		fillFromCollectionSet();
+		
+		DataStream<Tuple1<Integer>> dataStream = env.fromCollection(fromCollectionSet)
 				.map(new MyMap(), PARALELISM).addSink(new MySink());
 
 		env.execute();
@@ -182,8 +190,11 @@ public class MapTest {
 	@Test
 	public void broadcastSinkTest() throws Exception {
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		
+		fillFromCollectionSet();
+		
 		DataStream<Tuple1<Integer>> dataStream = env
-				.addSource(new MySource(), 1)
+				.fromCollection(fromCollectionSet)
 				.broadcast()
 				.map(new MyMap(), 3)
 				.addSink(new MyBroadcastSink());
@@ -196,8 +207,11 @@ public class MapTest {
 	@Test
 	public void shuffleSinkTest() throws Exception {
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		
+		fillFromCollectionSet();
+		
 		DataStream<Tuple1<Integer>> dataStream = env
-				.addSource(new MySource(), 1)
+				.fromCollection(fromCollectionSet)
 				.map(new MyMap(), 3)
 				.addSink(new MyShufflesSink());
 		env.execute();
@@ -222,8 +236,11 @@ public class MapTest {
 	@Test
 	public void fieldsMapTest() throws Exception {
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		
+		fillFromCollectionFieldsSet();
+		
 		DataStream<Tuple1<Integer>> dataStream = env
-				.addSource(new MyFieldsSource(), 1)
+				.fromCollection(fromCollectionFields)
 				.partitionBy(0)
 				.map(new MyFieldsMap(), 3)
 				.addSink(new MyFieldsSink());
@@ -236,8 +253,11 @@ public class MapTest {
 	@Test
 	public void diffFieldsMapTest() throws Exception {
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		
+		fillFromCollectionDiffFieldsSet();
+		
 		DataStream<Tuple1<Integer>> dataStream = env
-				.addSource(new MyDiffFieldsSource(), 1)
+				.fromCollection(fromCollectionDiffFieldsSet)
 				.partitionBy(0)
 				.map(new MyDiffFieldsMap(), 3)
 				.addSink(new MyDiffFieldsSink());
