@@ -14,26 +14,27 @@
  **********************************************************************************************************************/
 package eu.stratosphere.streaming.examples.ml;
 
+import java.net.InetSocketAddress;
+
 import org.apache.log4j.Level;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.client.minicluster.NepheleMiniCluster;
+import eu.stratosphere.client.program.Client;
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
-import eu.stratosphere.streaming.util.ClusterUtil;
 import eu.stratosphere.streaming.util.LogUtils;
 
 public class IncrementalLearningSkeleton {
 
 	// Source for feeding new data for prediction
 	public static class NewDataSource extends UserSourceInvokable {
-
-		private static final long serialVersionUID = 1L;
 
 		StreamRecord record = new StreamRecord(new Tuple1<Integer>(1));
 
@@ -55,8 +56,6 @@ public class IncrementalLearningSkeleton {
 
 	// Source for feeding new training data for partial model building
 	public static class TrainingDataSource extends UserSourceInvokable {
-
-		private static final long serialVersionUID = 1L;
 
 		// Number of tuples grouped for building partial model
 		private final int BATCH_SIZE = 1000;
@@ -89,8 +88,6 @@ public class IncrementalLearningSkeleton {
 	// Task for building up-to-date partial models on new training data
 	public static class PartialModelBuilder extends UserTaskInvokable {
 
-		private static final long serialVersionUID = 1L;
-
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
 			emit(buildPartialModel(record));
@@ -106,8 +103,6 @@ public class IncrementalLearningSkeleton {
 	// Task for performing prediction using the model produced in
 	// batch-processing and the up-to-date partial model
 	public static class Predictor extends UserTaskInvokable {
-
-		private static final long serialVersionUID = 1L;
 
 		StreamRecord batchModel = null;
 		StreamRecord partialModel = null;
@@ -142,23 +137,20 @@ public class IncrementalLearningSkeleton {
 
 	public static class Sink extends UserSinkInvokable {
 
-		private static final long serialVersionUID = 1L;
-
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
 			// do nothing
 		}
 	}
 
-	private static JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("IncrementalLearning",
-				FaultToleranceType.NONE);
+	private static JobGraph getJobGraph() throws Exception {
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("IncrementalLearning");
 
-		graphBuilder.setSource("NewData", new NewDataSource(), 1, 1);
-		graphBuilder.setSource("TrainingData",new TrainingDataSource(), 1, 1);
-		graphBuilder.setTask("PartialModelBuilder",new PartialModelBuilder(), 1, 1);
-		graphBuilder.setTask("Predictor",new Predictor(), 1, 1);
-		graphBuilder.setSink("Sink",new Sink(), 1, 1);
+		graphBuilder.setSource("NewData", NewDataSource.class, 1, 1);
+		graphBuilder.setSource("TrainingData", TrainingDataSource.class, 1, 1);
+		graphBuilder.setTask("PartialModelBuilder", PartialModelBuilder.class, 1, 1);
+		graphBuilder.setTask("Predictor", Predictor.class, 1, 1);
+		graphBuilder.setSink("Sink", Sink.class, 1, 1);
 
 		graphBuilder.shuffleConnect("TrainingData", "PartialModelBuilder");
 		graphBuilder.shuffleConnect("NewData", "Predictor");
@@ -173,16 +165,32 @@ public class IncrementalLearningSkeleton {
 		// set logging parameters for local run
 		LogUtils.initializeDefaultConsoleLogger(Level.INFO, Level.INFO);
 
-		if (args.length == 0) {
-			args = new String[] { "local" };
-		}
+		try {
 
-		if (args[0].equals("local")) {
-			ClusterUtil.runOnMiniCluster(getJobGraph());
+			// generate JobGraph
+			JobGraph jG = getJobGraph();
+			Configuration configuration = jG.getJobConfiguration();
 
-		} else if (args[0].equals("cluster")) {
-			ClusterUtil.runOnLocalCluster(getJobGraph(), "hadoop02.ilab.sztaki.hu", 6123);
+			if (args.length == 0 || args[0].equals("local")) {
+				System.out.println("Running in Local mode");
+				// start local cluster and submit JobGraph
+				NepheleMiniCluster exec = new NepheleMiniCluster();
+				exec.start();
 
+				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
+
+				client.run(jG, true);
+
+				exec.stop();
+			} else if (args[0].equals("cluster")) {
+				System.out.println("Running in Cluster mode");
+				// submit JobGraph to the running cluster
+				Client client = new Client(new InetSocketAddress("dell150", 6123), configuration);
+				client.run(jG, true);
+			}
+
+		} catch (Exception e) {
+			System.out.println(e);
 		}
 	}
 }
