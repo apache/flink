@@ -21,7 +21,7 @@ public class JobGraphBuilder {
 
 	private final JobGraph jobGraph;
 	private Map<String, AbstractJobVertex> components;
-
+	
 	public enum Partitioning {
 		BROADCAST
 	}
@@ -49,7 +49,6 @@ public class JobGraphBuilder {
 		final JobInputVertex source = new JobInputVertex(sourceName, jobGraph);
 		source.setInputClass(sourceClass);
 		components.put(sourceName, source);
-
 	}
 
 	public void setSource(String sourceName,
@@ -63,7 +62,6 @@ public class JobGraphBuilder {
 		config.setClass("partitioner", getPartitioningClass(partitionType));
 		config.setClass("userfunction", InvokableClass);
 		components.put(sourceName, source);
-
 	}
 
 	public void setTask(String taskName,
@@ -92,7 +90,24 @@ public class JobGraphBuilder {
 	}
 
 	public void connect(String upStreamComponentName,
-			String downStreamComponentName, ChannelType channelType) {
+      String downStreamComponentName,
+      ChannelType channelType) {
+
+    AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
+    AbstractJobVertex downStreamComponent = components
+        .get(downStreamComponentName);
+
+    try {
+      upStreamComponent.connectTo(downStreamComponent, channelType);  
+    } catch (JobGraphDefinitionException e) {
+      e.printStackTrace();
+    }
+  }
+	
+	public void connect(String upStreamComponentName,
+			String downStreamComponentName,
+      Partitioning partitionType,
+      ChannelType channelType) {
 
 		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
 		AbstractJobVertex downStreamComponent = components
@@ -100,6 +115,9 @@ public class JobGraphBuilder {
 
 		try {
 			upStreamComponent.connectTo(downStreamComponent, channelType);
+			Configuration config = new TaskConfig(upStreamComponent.getConfiguration())
+      .getConfiguration();
+			config.setClass("partitioner_"+upStreamComponent.getNumberOfForwardConnections(), getPartitioningClass(partitionType));	
 		} catch (JobGraphDefinitionException e) {
 			e.printStackTrace();
 		}
@@ -111,9 +129,17 @@ public class JobGraphBuilder {
 					component.getNumberOfBackwardConnections());
 		}
 	}
+	
+	private void setNumberOfJobOutputs() {
+    for (AbstractJobVertex component : components.values()) {
+      component.getConfiguration().setInteger("numberOfOutputs",
+          component.getNumberOfForwardConnections());
+    }
+  }
 
 	public JobGraph getJobGraph() {
 		setNumberOfJobInputs();
+		setNumberOfJobOutputs();
 		return jobGraph;
 	}
 
