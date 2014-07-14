@@ -28,17 +28,17 @@ public class JoinSourceOne extends SourceFunction<Tuple3<String, String, Integer
 	private String[] names = { "tom", "jerry", "alice", "bob", "john", "grace", "sasa", "lawrance",
 			"andrew", "jean", "richard", "smith", "gorge", "black", "peter" };
 	private Random rand = new Random();
-	private Tuple3<String, String, Integer> outRecord = new Tuple3<String, String, Integer>();
+	private Tuple3<String, String, Integer> outTuple = new Tuple3<String, String, Integer>();
 
 	@Override
-	public void invoke(Collector<Tuple3<String, String, Integer>> collector) throws Exception {
+	public void invoke(Collector<Tuple3<String, String, Integer>> out) throws Exception {
 		// Continuously emit tuples with random names and integers (salaries).
 		while (true) {
 
-			outRecord.f0 = "salary";
-			outRecord.f1 = names[rand.nextInt(names.length)];
-			outRecord.f2 = rand.nextInt(10000);
-			collector.collect(outRecord);
+			outTuple.f0 = "salary";
+			outTuple.f1 = names[rand.nextInt(names.length)];
+			outTuple.f2 = rand.nextInt(10000);
+			out.collect(outTuple);
 		}
 	}
 }

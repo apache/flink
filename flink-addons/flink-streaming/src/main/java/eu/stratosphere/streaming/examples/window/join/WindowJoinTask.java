@@ -63,6 +63,10 @@ public class WindowJoinTask extends
 		String streamId = value.f0;
 		String name = value.f1;
 		Long progress = value.f3;
+		
+		// Joins the input value with the already known values on a given interval. If it is a grade
+		// then with the salaries, if it is a salary then with the grades. Also
+		// stores the new element.
 		if (streamId.equals("grade")) {
 			if (salaryHashmap.containsKey(name)) {
 				Iterator<SalaryProgress> iterator = salaryHashmap.get(name).iterator();

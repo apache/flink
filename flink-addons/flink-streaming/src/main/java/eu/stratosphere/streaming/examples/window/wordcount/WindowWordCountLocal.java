@@ -24,6 +24,8 @@ public class WindowWordCountLocal {
 	private static final int PARALELISM = 1;
 	private static final int SOURCE_PARALELISM = 1;
 
+	// This example will count the occurrence of each word in the input file with a sliding window.
+	
 	public static void main(String[] args) {
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 		

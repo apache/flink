@@ -51,6 +51,8 @@ public class PrintTest {
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 		DataStream<Tuple2<Integer, String>> source = env.addSource(new MySource(), 1);
 		DataStream<Tuple2<Integer, String>> map = source.flatMap(new MyFlatMap(), 1).print();
+		DataStream<Tuple2<Integer, String>> map2 = source.flatMap(new MyFlatMap(), 1).print();
+
 		source.print();
 		env.execute();
 

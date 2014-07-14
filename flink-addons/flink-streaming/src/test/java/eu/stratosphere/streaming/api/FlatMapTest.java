@@ -21,7 +21,9 @@ import static org.junit.Assert.fail;
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.Test;
 
@@ -83,8 +85,8 @@ public class FlatMapTest {
 	}
 
 	private static final int PARALELISM = 1;
-	private static List<Integer> expected = new ArrayList<Integer>();
-	private static List<Integer> result = new ArrayList<Integer>();
+	private static Set<Integer> expected = new HashSet<Integer>();
+	private static Set<Integer> result = new HashSet<Integer>();
 
 	@Test
 	public void test() throws Exception {
