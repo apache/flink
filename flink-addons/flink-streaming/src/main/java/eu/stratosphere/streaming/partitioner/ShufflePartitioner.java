@@ -15,31 +15,17 @@
 
 package eu.stratosphere.streaming.partitioner;
 
+import java.util.Random;
+
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.types.Key;
 import eu.stratosphere.types.Record;
 
+//Randomly group, to distribute equally
 public class ShufflePartitioner implements ChannelSelector<Record> {
-
-	private int keyPosition;
-	private Class<? extends Key> keyClass;
-	
-	//TODO: make sure it is actually a key
-	public ShufflePartitioner(int keyPosition, Class<? extends Key> keyClass){
-		this.keyPosition = keyPosition;
-	}
 	
 	@Override
 	public int[] selectChannels(Record record, int numberOfOutputChannels) {
-		Key key = null;
-		try {
-			key = keyClass.newInstance();
-		} catch (InstantiationException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		}
-		record.getFieldInto(keyPosition, key);
-		return new int[]{key.hashCode() % numberOfOutputChannels};
+		Random random = new Random();
+		return new int[]{random.nextInt(numberOfOutputChannels)};
 	}
 }
