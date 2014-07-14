@@ -13,41 +13,29 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test.wordcount;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+package eu.stratosphere.streaming.test.window.wordcount;
 
 import eu.stratosphere.streaming.api.StreamRecord;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
 
-public class WordCountCounter extends UserTaskInvokable {
+public class WindowWordCountSink implements UserSinkInvokable {
 
-	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
-	private StringValue wordValue = new StringValue("");
-	private IntValue countValue = new IntValue(1);
-	private String word = "";
-	private StreamRecord outputRecord = new StreamRecord(2);
-	private int count = 1;
+	private StringValue word = new StringValue("");
+	private IntValue count = new IntValue(1);
+	private LongValue timestamp = new LongValue(0);
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		wordValue = (StringValue) record.getField(0);
-		word = wordValue.getValue();
-		
-		if (wordCounts.containsKey(word)) {
-			count = wordCounts.get(word) + 1;
-			wordCounts.put(word, count);
-			countValue.setValue(count);
-		} else {
-			wordCounts.put(word, 1);
-			countValue.setValue(1);
-		}
-		outputRecord.setField(0, wordValue);
-		outputRecord.setField(1, countValue);
-		emit(outputRecord);
+		word=(StringValue) record.getField(0);
+		count=(IntValue) record.getField(1);
+		timestamp=(LongValue) record.getField(2);
+		System.out.println("============================================");
+		System.out.println(word.getValue() + " " + count.getValue() + " "
+				+ timestamp.getValue());
+		System.out.println("============================================");
+
 	}
 }

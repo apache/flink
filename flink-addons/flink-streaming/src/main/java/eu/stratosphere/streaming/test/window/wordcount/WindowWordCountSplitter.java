@@ -13,41 +13,33 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test.wordcount;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+package eu.stratosphere.streaming.test.window.wordcount;
 
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
 
-public class WordCountCounter extends UserTaskInvokable {
+public class WindowWordCountSplitter extends UserTaskInvokable {
 
-	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
+	private StringValue sentence = new StringValue("");
+	private LongValue timestamp = new LongValue(0);
+	private String[] words = new String[0];
 	private StringValue wordValue = new StringValue("");
-	private IntValue countValue = new IntValue(1);
-	private String word = "";
 	private StreamRecord outputRecord = new StreamRecord(2);
-	private int count = 1;
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		wordValue = (StringValue) record.getField(0);
-		word = wordValue.getValue();
-		
-		if (wordCounts.containsKey(word)) {
-			count = wordCounts.get(word) + 1;
-			wordCounts.put(word, count);
-			countValue.setValue(count);
-		} else {
-			wordCounts.put(word, 1);
-			countValue.setValue(1);
+		sentence=(StringValue) record.getField(0);
+		timestamp=(LongValue) record.getField(1);
+		System.out.println("************sentence=" + sentence.getValue() + ", timestamp="
+				+ timestamp.getValue()+"************");
+		words = sentence.getValue().split(" ");
+		for (CharSequence word : words) {
+			wordValue.setValue(word);
+			outputRecord.setField(0, wordValue);
+			outputRecord.setField(1, timestamp);
+			emit(outputRecord);
 		}
-		outputRecord.setField(0, wordValue);
-		outputRecord.setField(1, countValue);
-		emit(outputRecord);
 	}
 }
