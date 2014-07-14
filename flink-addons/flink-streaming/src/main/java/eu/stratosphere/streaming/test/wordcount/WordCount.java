@@ -39,7 +39,7 @@ public class WordCount extends TestBase2 {
 		root.setLevel(Level.DEBUG);
 
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountDummySource.class);
+		graphBuilder.setSource("WordCountSource", WordCountSource.class);
 		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
 		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
 		graphBuilder.setSink("WordCountSink", WordCountSink.class);

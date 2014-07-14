@@ -25,6 +25,8 @@ public class WordCountSplitter extends UserTaskInvokable {
 	private String[] words = new String[] {};
 	private StringValue wordValue = new StringValue();
 
+	// private StreamRecord outputRecord = new StreamRecord(1);
+
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
 		sentence = (StringValue) record.getRecord(0)[0];
@@ -32,6 +34,8 @@ public class WordCountSplitter extends UserTaskInvokable {
 		words = sentence.getValue().split(" ");
 		for (CharSequence word : words) {
 			wordValue.setValue(word);
+			// outputRecord.setRecord(wordValue);
+			// emit(outputRecord);
 			emit(new StreamRecord(wordValue));
 		}
 	}
