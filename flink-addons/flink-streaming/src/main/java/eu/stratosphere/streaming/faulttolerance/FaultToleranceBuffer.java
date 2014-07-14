@@ -17,6 +17,8 @@ package eu.stratosphere.streaming.faulttolerance;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -40,6 +42,8 @@ public abstract class FaultToleranceBuffer {
 	protected Long timeOfLastUpdate;
 	protected String componentInstanceID;
 
+	long timeout = 30000;
+
 	public FaultToleranceBuffer(int[] numberOfChannels, String componentInstanceID) {
 		this.numberOfEffectiveChannels = numberOfChannels;
 		totalNumberOfEffectiveChannels = 0;
@@ -55,15 +59,16 @@ public abstract class FaultToleranceBuffer {
 		this.recordTimestamps = new HashMap<String, Long>();
 	}
 
-	public void add(StreamRecord streamRecord) {
+	public synchronized void add(StreamRecord streamRecord) {
 
 		StreamRecord record = streamRecord.copy();
-
 		String id = record.getId();
+		
 		recordBuffer.put(id, record);
-		addTimestamp(id);
 
+		addTimestamp(id);
 		addToAckCounter(id);
+
 
 		log.trace("Record added to buffer: " + id);
 	}
@@ -74,19 +79,24 @@ public abstract class FaultToleranceBuffer {
 
 	protected abstract void ack(String id, int channel);
 
-	//TODO:count fails
+	// TODO:count fails
 	protected StreamRecord fail(String id) {
-		StreamRecord newRecord = remove(id).setId(componentInstanceID);
-		add(newRecord);
-		return newRecord;
+		if (recordBuffer.containsKey(id)) {
+			StreamRecord newRecord = remove(id).setId(componentInstanceID);
+			add(newRecord);
+			return newRecord;
+		} else {
+			return null;
+		}
 	}
 
 	protected abstract StreamRecord failChannel(String id, int channel);
 
 	protected void addTimestamp(String id) {
 		Long currentTime = System.currentTimeMillis();
-		recordTimestamps.put(id, currentTime);
 
+		recordTimestamps.put(id, currentTime);
+		
 		Set<String> recordSet = recordsByTime.get(currentTime);
 
 		if (recordSet == null) {
@@ -95,12 +105,15 @@ public abstract class FaultToleranceBuffer {
 		}
 
 		recordSet.add(id);
+
 	}
 
-	public StreamRecord remove(String id) {
+	public synchronized StreamRecord remove(String id) {
 
 		if (removeFromAckCounter(id)) {
+			
 			recordsByTime.get(recordTimestamps.remove(id)).remove(id);
+			
 			log.trace("Record removed from buffer: " + id);
 			return recordBuffer.remove(id);
 		} else {
@@ -108,6 +121,33 @@ public abstract class FaultToleranceBuffer {
 			return null;
 		}
 
+	}
+
+	// TODO:test this
+	public List<String> timeoutRecords(Long currentTime) {
+		if (timeOfLastUpdate + timeout < currentTime) {
+			log.trace("Updating record buffer");
+			List<String> timedOutRecords = new LinkedList<String>();
+			Map<Long, Set<String>> timedOut = recordsByTime.subMap(0L, currentTime - timeout);
+
+			for (Set<String> recordSet : timedOut.values()) {
+				if (!recordSet.isEmpty()) {
+					for (String recordID : recordSet) {
+						timedOutRecords.add(recordID);
+					}
+				}
+			}
+
+			for (String recordID : timedOutRecords) {
+				fail(recordID);
+			}
+
+			timedOut.clear();
+
+			timeOfLastUpdate = currentTime;
+			return timedOutRecords;
+		}
+		return null;
 	}
 
 }

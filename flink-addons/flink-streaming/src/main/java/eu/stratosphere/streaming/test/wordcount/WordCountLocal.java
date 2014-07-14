@@ -45,7 +45,7 @@ public class WordCountLocal {
 
 	//TODO: arguments check
 	public static void main(String[] args) {
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN, Level.INFO);
+		LogUtils.initializeDefaultConsoleLogger(Level.ERROR, Level.INFO);
 
 		try {
 			JobGraph jG = getJobGraph();
@@ -62,6 +62,7 @@ public class WordCountLocal {
 				exec.start();
 
 				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
+				
 				client.run(jG, true);
 
 				exec.stop();

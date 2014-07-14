@@ -21,13 +21,14 @@ import java.util.Map;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class AtLeastOnceFaultToleranceBuffer extends FaultToleranceBuffer {
-
+	
 	protected Map<String, Integer> ackCounter;
 
 	public AtLeastOnceFaultToleranceBuffer(int[] numberOfChannels, String componentInstanceID) {
 		super(numberOfChannels, componentInstanceID);
 		this.ackCounter = new HashMap<String, Integer>();
 	}
+	
 
 	@Override
 	protected void addToAckCounter(String id) {

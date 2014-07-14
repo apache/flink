@@ -57,7 +57,7 @@ public class AckEventListener implements EventListener {
 
 		if (ackChannelId.equals(taskInstanceID)) {
 			Long nt = System.nanoTime();
-			recordBuffer.ackRecord(ackEvent.getRecordId());
+			recordBuffer.ackRecord(ackEvent.getRecordId(),0);
 
 			log.debug("ACK PROCESSED: " + ackEvent.getRecordId() + " exec. time (ns): " + (System.nanoTime() - nt));
 		}
