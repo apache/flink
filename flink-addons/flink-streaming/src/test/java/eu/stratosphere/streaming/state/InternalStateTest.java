@@ -18,7 +18,7 @@ package eu.stratosphere.streaming.state;
 import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.state.MutableTableState;
+import eu.stratosphere.streaming.state.TableState;
 import eu.stratosphere.streaming.state.TableStateIterator;
 import eu.stratosphere.streaming.state.SlidingWindowState;
 
@@ -26,7 +26,7 @@ public class InternalStateTest {
 	
 	@Test
 	public void MutableTableStateTest(){
-		MutableTableState<String, String> state=new MutableTableState<String, String>();
+		TableState<String, String> state=new TableState<String, String>();
 		state.put("abc", "hello");
 		state.put("test", "world");
 		state.put("state", "mutable");

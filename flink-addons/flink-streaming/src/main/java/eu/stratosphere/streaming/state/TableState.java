@@ -15,15 +15,34 @@
 
 package eu.stratosphere.streaming.state;
 
+import java.io.Serializable;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
- * An internal state interface that supports stateful operator.
+ * The most general internal state that stores data in a mutable map.
  */
-public interface TableState<K, V>{
-	public void put(K key, V value);
-	public V get(K key);
-	public void delete(K key);
-	public boolean containsKey(K key);
-	public String serialize();
-	public void deserialize(String str);
-	public TableStateIterator<K, V> getIterator();
+public class TableState<K, V> implements Serializable {
+
+	private Map<K, V> state=new LinkedHashMap<K, V>();
+
+	public void put(K key, V value) {
+		state.put(key, value);
+	}
+
+	public V get(K key) {
+		return state.get(key);
+	}
+
+	public void delete(K key) {
+		state.remove(key);
+	}
+
+	public boolean containsKey(K key) {
+		return state.containsKey(key);
+	}
+
+	public TableStateIterator<K, V> getIterator() {
+		return new TableStateIterator<K, V>(state.entrySet().iterator());
+	}
 }

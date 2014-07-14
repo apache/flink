@@ -19,15 +19,12 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.template.AbstractInvokable;
-import eu.stratosphere.pact.runtime.task.DataSinkTask;
-import eu.stratosphere.runtime.io.api.AbstractRecordReader;
-import eu.stratosphere.runtime.io.api.RecordWriter;
+import eu.stratosphere.nephele.io.AbstractRecordReader;
+import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 
-public class StreamSink extends AbstractInvokable {
+public class StreamSink extends AbstractOutputTask {
 
 	private static final Log log = LogFactory.getLog(StreamSink.class);
 
@@ -68,7 +65,6 @@ public class StreamSink extends AbstractInvokable {
 		if (log.isDebugEnabled()) {
 			log.debug("SINK " + name + " invoked");
 		}
-
 		streamSinkHelper.invokeRecords(userFunction, inputs);
 		if (log.isDebugEnabled()) {
 			log.debug("SINK " + name + " invoke finished");
