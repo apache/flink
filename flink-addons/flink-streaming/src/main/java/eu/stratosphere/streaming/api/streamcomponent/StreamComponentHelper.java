@@ -117,9 +117,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 		try {
 			ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(operatorBytes));
-
 			if (operatorName.equals("flatMap")) {
-
 				FlatMapFunction<Tuple, Tuple> f = (FlatMapFunction<Tuple, Tuple>) in.readObject();
 
 				inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
@@ -152,16 +150,17 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 			} else if (operatorName.equals("batchReduce")) {
 
-				GroupReduceFunction<Tuple, Tuple> f = (GroupReduceFunction<Tuple, Tuple>) in.readObject();
+				GroupReduceFunction<Tuple, Tuple> f = (GroupReduceFunction<Tuple, Tuple>) in
+						.readObject();
 
-				inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(GroupReduceFunction.class,
-						f.getClass(), 0, null, null);
+				inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
+						GroupReduceFunction.class, f.getClass(), 0, null, null);
 
 				inTupleSerializer = inTupleTypeInfo.createSerializer();
 				inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
 
-				outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(GroupReduceFunction.class,
-						f.getClass(), 1, null, null);
+				outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
+						GroupReduceFunction.class, f.getClass(), 1, null, null);
 
 				outTupleSerializer = outTupleTypeInfo.createSerializer();
 				outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
@@ -170,8 +169,8 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 				SinkFunction<Tuple> f = (SinkFunction<Tuple>) in.readObject();
 
-				inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
-						SinkFunction.class, f.getClass(), 0, null, null);
+				inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(SinkFunction.class,
+						f.getClass(), 0, null, null);
 
 				inTupleSerializer = inTupleTypeInfo.createSerializer();
 				inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
@@ -195,7 +194,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 		}
 	}
-
+	
 	public AbstractRecordReader getConfigInputs(T taskBase, Configuration taskConfiguration)
 			throws StreamComponentException {
 		int numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);

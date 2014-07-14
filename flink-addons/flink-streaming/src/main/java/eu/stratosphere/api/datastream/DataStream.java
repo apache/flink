@@ -94,7 +94,7 @@ public class DataStream<T extends Tuple> {
 		return context.addMapFunction(this, mapper);
 	}
 
-	public <R extends Tuple> DataStream<R> flatMap(GroupReduceFunction<T, R> reducer) {
+	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer) {
 		return context.addBatchReduceFunction(this, reducer);
 	}
 	
