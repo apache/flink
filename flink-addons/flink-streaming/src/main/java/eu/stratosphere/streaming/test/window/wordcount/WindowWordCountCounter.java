@@ -30,10 +30,10 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 	private int slidingStep = 20;
 
 	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
-	private StringValue wordValue = new StringValue("");
-	private IntValue countValue = new IntValue(1);
-	private LongValue timestamp = new LongValue(0);
-	private String word = "";
+	private StringValue wordValue = new StringValue();
+	private IntValue countValue = new IntValue();
+	private LongValue timestamp = new LongValue();
+	private String word = new String();
 	private int count = 1;
 
 	@Override
