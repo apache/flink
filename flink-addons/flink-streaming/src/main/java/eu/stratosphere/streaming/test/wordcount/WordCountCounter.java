@@ -42,12 +42,16 @@ public class WordCountCounter extends UserTaskInvokable {
 			count = wordCounts.get(word) + 1;
 			wordCounts.put(word, count);
 			countValue.setValue(count);
+			outputRecord.setField(0, wordValue);
+			outputRecord.setField(1, countValue);
+			emit(outputRecord);
 		} else {
 			wordCounts.put(word, 1);
 			countValue.setValue(1);
+			outputRecord.setField(0, wordValue);
+			outputRecord.setField(1, countValue);
+			emit(outputRecord);
 		}
-		outputRecord.setField(0, wordValue);
-		outputRecord.setField(1, countValue);
-		emit(outputRecord);
+
 	}
 }
