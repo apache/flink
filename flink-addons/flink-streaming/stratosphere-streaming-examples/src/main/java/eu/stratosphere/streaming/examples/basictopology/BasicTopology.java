@@ -30,7 +30,7 @@ public class BasicTopology {
 
 		@Override
 		public void invoke(Collector<Tuple1<String>> out) throws Exception {
-			// continuously emit a tuple
+			//  continuously emit a tuple
 			while (true) {
 				out.collect(tuple);
 			}
@@ -48,16 +48,15 @@ public class BasicTopology {
 
 	}
 
-	private static final int PARALLELISM = 1;
-	private static final int SOURCE_PARALLELISM = 1;
+	private static final int PARALELISM = 1;
+	private static final int SOURCE_PARALELISM = 1;
 
 	public static void main(String[] args) {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(PARALLELISM);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
-		DataStream<Tuple1<String>> stream = env.addSource(new BasicSource(), SOURCE_PARALLELISM)
-				.map(new BasicMap());
-
+		DataStream<Tuple1<String>> stream = env.addSource(new BasicSource(), SOURCE_PARALELISM)
+				.map(new BasicMap(), PARALELISM);
+		
 		stream.print();
 
 		env.execute();

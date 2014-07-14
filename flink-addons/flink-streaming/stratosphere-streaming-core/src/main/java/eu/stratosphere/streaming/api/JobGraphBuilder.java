@@ -59,8 +59,7 @@ public class JobGraphBuilder {
 	private final JobGraph jobGraph;
 	protected Map<String, AbstractJobVertex> components;
 	protected Map<String, Integer> numberOfInstances;
-	protected Map<String, List<String>> edgeList;
-	protected Map<String, List<Class<? extends ChannelSelector<StreamRecord>>>> connectionTypes;
+	protected Map<String, List<Integer>> numberOfOutputChannels;
 	protected String maxParallelismVertexName;
 	protected int maxParallelism;
 	protected FaultToleranceType faultToleranceType;
@@ -79,8 +78,7 @@ public class JobGraphBuilder {
 		jobGraph = new JobGraph(jobGraphName);
 		components = new HashMap<String, AbstractJobVertex>();
 		numberOfInstances = new HashMap<String, Integer>();
-		edgeList = new HashMap<String, List<String>>();
-		connectionTypes = new HashMap<String, List<Class<? extends ChannelSelector<StreamRecord>>>>();
+		numberOfOutputChannels = new HashMap<String, List<Integer>>();
 		maxParallelismVertexName = "";
 		maxParallelism = 0;
 		if (log.isDebugEnabled()) {
@@ -298,6 +296,7 @@ public class JobGraphBuilder {
 	 */
 	public void broadcastConnect(String upStreamComponentName, String downStreamComponentName) {
 		connect(upStreamComponentName, downStreamComponentName, BroadcastPartitioner.class);
+		addOutputChannels(upStreamComponentName, numberOfInstances.get(downStreamComponentName));
 		log.info("Broadcastconnected: " + upStreamComponentName + " to " + downStreamComponentName);
 	}
 
@@ -322,8 +321,6 @@ public class JobGraphBuilder {
 		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
 		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
 
-		addToEdges(upStreamComponentName, downStreamComponentName, FieldsPartitioner.class);
-
 		try {
 			upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK);
 
@@ -338,6 +335,11 @@ public class JobGraphBuilder {
 					"partitionerIntParam_"
 							+ (upStreamComponent.getNumberOfForwardConnections() - 1), keyPosition);
 
+			config.setInteger("numOfOutputs_"
+					+ (upStreamComponent.getNumberOfForwardConnections() - 1),
+					numberOfInstances.get(downStreamComponentName));
+
+			addOutputChannels(upStreamComponentName, 1);
 			if (log.isDebugEnabled()) {
 				log.debug("CONNECTED: FIELD PARTITIONING - " + upStreamComponentName + " -> "
 						+ downStreamComponentName + ", KEY: " + keyPosition);
@@ -353,21 +355,6 @@ public class JobGraphBuilder {
 
 	}
 
-	private void addToEdges(String upStreamComponentName, String downStreamComponentName,
-			Class<?> ctype) {
-		if (edgeList.containsKey(upStreamComponentName)) {
-			connectionTypes.get(upStreamComponentName).add(FieldsPartitioner.class);
-			edgeList.get(upStreamComponentName).add(downStreamComponentName);
-		} else {
-			connectionTypes.put(upStreamComponentName,
-					new ArrayList<Class<? extends ChannelSelector<StreamRecord>>>());
-			connectionTypes.get(upStreamComponentName).add(FieldsPartitioner.class);
-
-			edgeList.put(upStreamComponentName, new ArrayList<String>());
-			edgeList.get(upStreamComponentName).add(downStreamComponentName);
-		}
-	}
-
 	/**
 	 * Connects two components with the given names by global partitioning.
 	 * <p>
@@ -381,6 +368,7 @@ public class JobGraphBuilder {
 	 */
 	public void globalConnect(String upStreamComponentName, String downStreamComponentName) {
 		connect(upStreamComponentName, downStreamComponentName, GlobalPartitioner.class);
+		addOutputChannels(upStreamComponentName, 1);
 		log.info("Globalconnected: " + upStreamComponentName + " to " + downStreamComponentName);
 
 	}
@@ -398,6 +386,7 @@ public class JobGraphBuilder {
 	 */
 	public void shuffleConnect(String upStreamComponentName, String downStreamComponentName) {
 		connect(upStreamComponentName, downStreamComponentName, ShufflePartitioner.class);
+		addOutputChannels(upStreamComponentName, 1);
 		log.info("Shuffleconnected: " + upStreamComponentName + " to " + downStreamComponentName);
 	}
 
@@ -417,8 +406,6 @@ public class JobGraphBuilder {
 
 		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
 		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
-
-		addToEdges(upStreamComponentName, downStreamComponentName, PartitionerClass);
 
 		try {
 			upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK);
@@ -487,6 +474,24 @@ public class JobGraphBuilder {
 	}
 
 	/**
+	 * Sets the number of instances for a given component, used for fault
+	 * tolerance purposes
+	 * 
+	 * @param upStreamComponentName
+	 *            upStreamComponentName
+	 * @param numOfInstances
+	 *            numOfInstances
+	 */
+	private void addOutputChannels(String upStreamComponentName, int numOfInstances) {
+		if (numberOfOutputChannels.containsKey(upStreamComponentName)) {
+			numberOfOutputChannels.get(upStreamComponentName).add(numOfInstances);
+		} else {
+			numberOfOutputChannels.put(upStreamComponentName, new ArrayList<Integer>());
+			numberOfOutputChannels.get(upStreamComponentName).add(numOfInstances);
+		}
+	}
+
+	/**
 	 * Writes number of inputs into each JobVertex's config
 	 */
 	private void setNumberOfJobInputs() {
@@ -505,23 +510,13 @@ public class JobGraphBuilder {
 			component.getConfiguration().setInteger("numberOfOutputs",
 					component.getNumberOfForwardConnections());
 		}
-	}
 
-	/**
-	 * Sets partitioner parameters which can only be set when the full graph is
-	 * built
-	 */
-	private void setPartitionerParameters() {
-		for (String componentName : connectionTypes.keySet()) {
-			int i = 0;
-			for (Class<?> ctype : connectionTypes.get(componentName)) {
-				if (ctype.equals(FieldsPartitioner.class)) {
-					Configuration config = components.get(componentName).getConfiguration();
-					config.setInteger("numOfOutputs_" + i,
-							numberOfInstances.get(edgeList.get(componentName).get(i)));
-				}
+		for (String component : numberOfOutputChannels.keySet()) {
+			Configuration config = components.get(component).getConfiguration();
+			List<Integer> channelNumList = numberOfOutputChannels.get(component);
+			for (int i = 0; i < channelNumList.size(); i++) {
+				config.setInteger("channels_" + i, channelNumList.get(i));
 			}
-			i++;
 		}
 	}
 
@@ -534,7 +529,6 @@ public class JobGraphBuilder {
 		setAutomaticInstanceSharing();
 		setNumberOfJobInputs();
 		setNumberOfJobOutputs();
-		setPartitionerParameters();
 		return jobGraph;
 	}
 

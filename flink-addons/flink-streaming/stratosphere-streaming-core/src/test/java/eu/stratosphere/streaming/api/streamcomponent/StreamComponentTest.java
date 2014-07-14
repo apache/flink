@@ -35,9 +35,10 @@ import eu.stratosphere.util.Collector;
 
 public class StreamComponentTest {
 
-	private static final int PARALLELISM = 1;
+	private static final int PARALELISM = 1;
 	private static final int SOURCE_PARALELISM = 1;
 	private static final long MEMORYSIZE = 32;
+
 
 	public static Map<Integer, Integer> data = new HashMap<Integer, Integer>();
 
@@ -91,12 +92,13 @@ public class StreamComponentTest {
 
 	@BeforeClass
 	public static void runStream() {
-		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(SOURCE_PARALELISM);
+		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
 		DataStream<Tuple2<Integer, Integer>> oneTask = env
-				.addSource(new MySource(), SOURCE_PARALELISM).map(new MyTask())
+				.addSource(new MySource(), SOURCE_PARALELISM).map(new MyTask(), PARALELISM)
 				.addSink(new MySink());
 
+		env.setDegreeOfParallelism(PARALELISM);
 		env.executeTest(MEMORYSIZE);
 	}
 

@@ -24,8 +24,8 @@ import eu.stratosphere.streaming.util.LogUtils;
 
 public class JoinLocal {
 
-	private static final int PARALLELISM = 1;
-	private static final int SOURCE_PARALLELISM = 1;
+	private static final int PARALELISM = 1;
+	private static final int SOURCE_PARALELISM = 1;
 
 	// This example will join two streams. One which emits people's grades and
 	// one which emits people's salaries.
@@ -34,17 +34,17 @@ public class JoinLocal {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
 		DataStream<Tuple3<String, String, Integer>> source1 = env.addSource(new JoinSourceOne(),
-				SOURCE_PARALLELISM);
+				SOURCE_PARALELISM);
 
 		@SuppressWarnings("unused")
 		DataStream<Tuple3<String, Integer, Integer>> source2 = env
-				.addSource(new JoinSourceTwo(), SOURCE_PARALLELISM)
+				.addSource(new JoinSourceTwo(), SOURCE_PARALELISM)
 				.connectWith(source1)
 				.partitionBy(1)
-				.flatMap(new JoinTask())
+				.flatMap(new JoinTask(), PARALELISM)
 				.addSink(new JoinSink());
 
 		env.execute();

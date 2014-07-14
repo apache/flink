@@ -20,10 +20,11 @@ import java.util.Map.Entry;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
 
-public class MutableTableStateIterator<K, V> implements TableStateIterator<K, V>{
+public class MutableTableStateIterator<K, V> extends TableStateIterator<K, V>{
 
 	private Iterator<Entry<K, V>> iterator;
 	public MutableTableStateIterator(Iterator<Entry<K, V>> iter){
+		super(iter);
 		iterator=iter;
 	}
 	

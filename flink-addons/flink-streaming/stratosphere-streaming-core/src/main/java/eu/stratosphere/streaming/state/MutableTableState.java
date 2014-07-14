@@ -22,9 +22,11 @@ import java.util.Map;
 /**
  * The most general internal state that stores data in a mutable map.
  */
-public class MutableTableState<K, V> implements TableState<K, V>, Serializable {
+public class MutableTableState<K, V> extends TableState<K, V> implements
+		Serializable {
 
-	private Map<K, V> state=new LinkedHashMap<K, V>();
+	private Map<K, V> state = new LinkedHashMap<K, V>();
+
 	@Override
 	public void put(K key, V value) {
 		state.put(key, value);
@@ -48,15 +50,6 @@ public class MutableTableState<K, V> implements TableState<K, V>, Serializable {
 	@Override
 	public MutableTableStateIterator<K, V> getIterator() {
 		return new MutableTableStateIterator<K, V>(state.entrySet().iterator());
-	}
-
-	@Override
-	public String serialize() {
-		return null;
-	}
-
-	@Override
-	public void deserialize(String str) {
 	}
 
 }
