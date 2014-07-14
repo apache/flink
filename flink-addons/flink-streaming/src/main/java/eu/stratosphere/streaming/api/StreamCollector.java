@@ -47,10 +47,6 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 		this(batchSize, channelID, serializationDelegate, null);
 	}
 
-	public void setOutputs(List<RecordWriter<StreamRecord>> outputs) {
-
-	}
-
 	@Override
 	public void collect(T tuple) {
 		streamRecord.setTuple(counter, StreamRecord.copyTuple(tuple));
