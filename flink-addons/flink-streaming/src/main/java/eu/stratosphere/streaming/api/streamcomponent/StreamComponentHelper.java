@@ -17,6 +17,7 @@ package eu.stratosphere.streaming.api.streamcomponent;
 
 import java.io.IOException;
 import java.util.ConcurrentModificationException;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.logging.Log;
@@ -26,7 +27,6 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
@@ -75,15 +75,15 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 	}
 
-	public void setConfigInputs(T taskBase, Configuration taskConfiguration, List<RecordReader<StreamRecord>> inputs)
+	public void setConfigInputs(T taskBase, Configuration taskConfiguration, List<StreamRecordReader<StreamRecord>> inputs)
 			throws StreamComponentException {
 		int numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
 		for (int i = 0; i < numberOfInputs; i++) {
 
 			if (taskBase instanceof StreamTask) {
-				inputs.add(new RecordReader<StreamRecord>((StreamTask) taskBase, StreamRecord.class));
+				inputs.add(new StreamRecordReader<StreamRecord>((StreamTask) taskBase, StreamRecord.class));
 			} else if (taskBase instanceof StreamSink) {
-				inputs.add(new RecordReader<StreamRecord>((StreamSink) taskBase, StreamRecord.class));
+				inputs.add(new StreamRecordReader<StreamRecord>((StreamSink) taskBase, StreamRecord.class));
 			} else {
 				throw new StreamComponentException("Nonsupported object passed to setConfigInputs");
 			}
@@ -142,7 +142,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 	}
 
 	// TODO find a better solution for this
-	public void threadSafePublish(AbstractTaskEvent event, RecordReader<StreamRecord> input)
+	public void threadSafePublish(AbstractTaskEvent event, StreamRecordReader<StreamRecord> input)
 			throws InterruptedException, IOException {
 
 		boolean concurrentModificationOccured = false;
@@ -177,12 +177,13 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		}
 	}
 
-	public void invokeRecords(RecordInvokable userFunction, List<RecordReader<StreamRecord>> inputs, String name) throws Exception
-			{
+	public void invokeRecords(RecordInvokable userFunction, List<StreamRecordReader<StreamRecord>> inputs, String name)
+			throws Exception {
+		List<StreamRecordReader<StreamRecord>> closedInputs = new LinkedList<StreamRecordReader<StreamRecord>>();
 		boolean hasInput = true;
 		while (hasInput) {
 			hasInput = false;
-			for (RecordReader<StreamRecord> input : inputs) {
+			for (StreamRecordReader<StreamRecord> input : inputs) {
 				if (input.hasNext()) {
 					hasInput = true;
 					StreamRecord record = input.next();
@@ -191,7 +192,11 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 					threadSafePublish(new AckEvent(id), input);
 					log.debug("ACK: " + id + " -- " + name);
 				}
+				else if (input.isInputClosed()) {
+					closedInputs.add(input);
+				}
 			}
+			inputs.removeAll(closedInputs);
 		}
 	}
 
