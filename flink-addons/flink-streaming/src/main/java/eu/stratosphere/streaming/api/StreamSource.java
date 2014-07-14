@@ -38,7 +38,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 
 	private static int numSources = 0;
 	private String sourceInstanceID;
-	private Map<String, StreamRecord> recordBuffer;
+	private FaultTolerancyBuffer recordBuffer;
 
 	public StreamSource() {
 		// TODO: Make configuration file visible and call setClassInputs() here
@@ -48,7 +48,6 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 		numberOfOutputs = 0;
 		numSources++;
 		sourceInstanceID = Integer.toString(numSources);
-		recordBuffer = new TreeMap<String, StreamRecord>();
 
 	}
 
@@ -80,6 +79,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 		Configuration taskConfiguration = getTaskConfiguration();
 		numberOfOutputs = StreamComponentFactory.setConfigOutputs(this,
 				taskConfiguration, outputs, partitioners);
+		recordBuffer=new FaultTolerancyBuffer(outputs);
 		setUserFunction(taskConfiguration);
 		StreamComponentFactory.setAckListener(recordBuffer, sourceInstanceID,
 				outputs);
@@ -91,7 +91,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 
 		userFunction.invoke();
 		System.out.println(this.getClass().getName() + "-" + sourceInstanceID);
-		System.out.println(recordBuffer.toString());
+		System.out.println(recordBuffer.getRecordBuffer());
 		System.out.println("---------------------");
 
 	}
