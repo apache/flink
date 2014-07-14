@@ -27,15 +27,20 @@ public class WindowWordCount extends TestBase2 {
 	@Override
 	public JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WindowWordCountSource", WindowWordCountSource.class);
-		graphBuilder.setTask("WindowWordCountSplitter", WindowWordCountSplitter.class, 1);
-		graphBuilder.setTask("WindowWordCountCounter", WindowWordCountCounter.class, 1);
+		graphBuilder.setSource("WindowWordCountSource",
+				WindowWordCountSource.class);
+		graphBuilder.setTask("WindowWordCountSplitter",
+				WindowWordCountSplitter.class, 1);
+		graphBuilder.setTask("WindowWordCountCounter",
+				WindowWordCountCounter.class, 1);
 		graphBuilder.setSink("WindowWordCountSink", WindowWordCountSink.class);
 
-		graphBuilder.broadcastConnect("WindowWordCountSource", "WindowWordCountSplitter");
-		graphBuilder.fieldsConnect("WindowWordCountSplitter", "WindowWordCountCounter", 0,
-				StringValue.class);
-		graphBuilder.broadcastConnect("WindowWordCountCounter", "WindowWordCountSink");
+		graphBuilder.broadcastConnect("WindowWordCountSource",
+				"WindowWordCountSplitter");
+		graphBuilder.fieldsConnect("WindowWordCountSplitter",
+				"WindowWordCountCounter", 0, StringValue.class);
+		graphBuilder.broadcastConnect("WindowWordCountCounter",
+				"WindowWordCountSink");
 
 		return graphBuilder.getJobGraph();
 	}

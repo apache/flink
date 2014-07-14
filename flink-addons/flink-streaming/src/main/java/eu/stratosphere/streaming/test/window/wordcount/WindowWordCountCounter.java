@@ -26,10 +26,10 @@ import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
 
 public class WindowWordCountCounter extends UserTaskInvokable {
-	
+
 	private int windowSize = 100;
 	private int slidingStep = 20;
-	
+
 	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
 	private StringValue wordValue = new StringValue("");
 	private IntValue countValue = new IntValue(1);
@@ -40,8 +40,8 @@ public class WindowWordCountCounter extends UserTaskInvokable {
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		wordValue=(StringValue) record.getField(0, 0);
-		timestamp=(LongValue) record.getField(0, 1);
+		wordValue = (StringValue) record.getField(0, 0);
+		timestamp = (LongValue) record.getField(0, 1);
 
 		if (wordCounts.containsKey(word)) {
 			count = wordCounts.get(word) + 1;
