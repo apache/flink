@@ -98,7 +98,6 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 		Assert.assertEquals(4, aggr_values[1]);
 		Assert.assertEquals(5, aggr_values[2]);
 		Assert.assertEquals(6, aggr_values[3]);
-		Assert.assertEquals(6, aggr_values[4]);
 	}
 
 

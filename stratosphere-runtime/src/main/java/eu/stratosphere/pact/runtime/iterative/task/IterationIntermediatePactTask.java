@@ -21,6 +21,8 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.runtime.io.api.BufferWriter;
 import eu.stratosphere.pact.runtime.iterative.concurrent.BlockingBackChannel;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrierBroker;
 import eu.stratosphere.runtime.io.channels.EndOfSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.io.WorksetUpdateOutputCollector;
@@ -94,17 +96,25 @@ public class IterationIntermediatePactTask<S extends Function, OT> extends Abstr
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
 			}
+			
+			SuperstepBarrier superstepBarrier = SuperstepBarrierBroker.instance().get(brokerKey());
+			superstepBarrier.registerWaiter();
 
 			if (!terminationRequested()) {
 				if (isWorksetUpdate) {
 					// notify iteration head if responsible for workset update
 					worksetBackChannel.notifyOfEndOfSuperstep();
 				}
-
+				
 				// send the end-of-superstep
 				sendEndOfSuperstep();
 
 				incrementIterationCounter();
+			}
+			
+			superstepBarrier.waitForHead();
+			if(superstepBarrier.terminationSignaled()) {
+				this.requestTermination();
 			}
 		}
 	}

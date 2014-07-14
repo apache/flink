@@ -39,8 +39,11 @@ import eu.stratosphere.pact.runtime.iterative.concurrent.IterationAccumulatorBro
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetBroker;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetUpdateBarrier;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetUpdateBarrierBroker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrierBroker;
 import eu.stratosphere.pact.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import eu.stratosphere.pact.runtime.iterative.event.AllWorkersDoneEvent;
+import eu.stratosphere.pact.runtime.iterative.event.NextSuperstepEvent;
 import eu.stratosphere.pact.runtime.iterative.event.TerminationEvent;
 import eu.stratosphere.pact.runtime.iterative.event.WorkerDoneEvent;
 import eu.stratosphere.pact.runtime.iterative.io.SerializedUpdateBuffer;
@@ -258,6 +261,10 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 				worksetAccumulator = new LongCounter();
 				getIterationAccumulators().addAccumulator(WorksetEmptyConvergenceCriterion.ACCUMULATOR_NAME, worksetAccumulator);
 			}
+			
+			// hand in superstep barrier
+			SuperstepBarrier superstepBarrier = new SuperstepBarrier();
+			SuperstepBarrierBroker.instance().handIn(brokerKey, superstepBarrier);
 
 			DataInputView superstepResult = null;
 
@@ -289,7 +296,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 				if (log.isInfoEnabled()) {
 					log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
 				}
-
+				
 				// Report end of superstep to JobManager
 				TaskConfig taskConfig = new TaskConfig(getTaskConfiguration());
 				synchronized (getEnvironment().getIterationReportProtocolProxy()) {
@@ -302,7 +309,6 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 						throw new RuntimeException("Communication with JobManager is broken. Could not send end of superstep. Often this exception is the result of a missing default constructor for an accumulator.", e);
 					}
 				}
-				
 				
 				if (log.isInfoEnabled()) {
 					log.info(formatLogString("waiting for other workers in iteration [" + currentIteration() + "]"));
@@ -329,6 +335,8 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 					requestTermination();
 					
+					superstepBarrier.eventOccurred(TerminationEvent.INSTANCE);
+					
 				} else if(this.instructionSynchronizer.get() == NEXT_SUPERSTEP_REQUEST) {
 					if(lastGlobalState == null) {
 						throw new RuntimeException("This should not happen. AllWorkersDoneEvent must be received to continue with the next superstep");
@@ -337,10 +345,17 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 					incrementIterationCounter();
 					accumulatorRegistry.updateGlobalAccumulatorsAndReset(lastGlobalState.getAccumulators());
 					lastGlobalState = null;
+					
+					superstepBarrier.eventOccurred(NextSuperstepEvent.INSTANCE);
 				}
 				
 				// reset instructionSynchronizer
 				this.instructionSynchronizer.set(AWAITING_REQUEST);
+				
+				// make sure that all involved tasks have woken up
+				while(superstepBarrier.getWaitCount() != 0) {}
+				superstepBarrier.setup();
+				
 			}
 
 			if (log.isInfoEnabled()) {

@@ -19,6 +19,8 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.api.common.functions.Function;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetUpdateBarrier;
 import eu.stratosphere.pact.runtime.iterative.concurrent.SolutionSetUpdateBarrierBroker;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrier;
+import eu.stratosphere.pact.runtime.iterative.concurrent.SuperstepBarrierBroker;
 import eu.stratosphere.pact.runtime.iterative.io.WorksetUpdateOutputCollector;
 import eu.stratosphere.pact.runtime.task.PactTaskContext;
 import eu.stratosphere.util.Collector;
@@ -91,6 +93,9 @@ public class IterationTailPactTask<S extends Function, OT> extends AbstractItera
 
 	@Override
 	public void run() throws Exception {
+		
+		SuperstepBarrier superstepBarrier = SuperstepBarrierBroker.instance().get(brokerKey());
+		
 		while (this.running && !terminationRequested()) {
 
 			if (log.isInfoEnabled()) {
@@ -113,6 +118,8 @@ public class IterationTailPactTask<S extends Function, OT> extends AbstractItera
 				log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
 			}
 
+			superstepBarrier.registerWaiter();
+			
 			if (!terminationRequested()) {
 				if (isWorksetUpdate) {
 					// notify iteration head if responsible for workset update
@@ -123,6 +130,11 @@ public class IterationTailPactTask<S extends Function, OT> extends AbstractItera
 				}
 
 				incrementIterationCounter();
+			}
+			
+			superstepBarrier.waitForHead();
+			if(superstepBarrier.terminationSignaled()) {
+				this.requestTermination();
 			}
 		}
 	}

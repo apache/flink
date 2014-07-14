@@ -250,12 +250,6 @@ public class KMeansBroadcast implements Program, ProgramDescription {
 		 */
 		@Override
 		public void reduce(Iterator<Record> points, Collector<Record> out) {
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 			Record sum = sumPointsAndCount(points);
 			sum.setField(1, sum.getField(1, Point.class).div(sum.getField(2, IntValue.class).getValue()));
 			out.collect(sum);
