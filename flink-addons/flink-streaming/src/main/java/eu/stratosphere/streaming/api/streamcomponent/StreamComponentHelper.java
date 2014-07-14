@@ -3,7 +3,6 @@ package eu.stratosphere.streaming.api.streamcomponent;
 import java.io.IOException;
 import java.util.ConcurrentModificationException;
 import java.util.List;
-import java.util.Random;
 
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
@@ -28,8 +27,7 @@ import eu.stratosphere.types.Key;
 import eu.stratosphere.types.StringValue;
 
 public final class StreamComponentHelper<T extends AbstractInvokable> {
-	private Random random = new Random();
-
+	
 	public void setAckListener(FaultTolerancyBuffer recordBuffer,
 			String sourceInstanceID, List<RecordWriter<StreamRecord>> outputs) {
 		EventListener eventListener = new AckEventListener(sourceInstanceID,

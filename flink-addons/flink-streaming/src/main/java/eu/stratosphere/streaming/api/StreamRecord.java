@@ -18,26 +18,17 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 
 	private List<Value[]> recordBatch;
 	private StringValue uid = new StringValue("");
-	// it seems that we never use this variable.
-	private String channelID = "";
 	private int numOfFields;
 	private int numOfRecords;
 
 	public StreamRecord() {
 		this.numOfFields = 1;
 		recordBatch = new ArrayList<Value[]>();
-		// setId();
 	}
 
 	public StreamRecord(int length) {
 		this.numOfFields = length;
 		recordBatch = new ArrayList<Value[]>();
-		// setId();
-	}
-
-	public StreamRecord(int length, String channelID) {
-		this(length);
-		setChannelId(channelID);
 	}
 	
 	public StreamRecord(AtomRecord record){
@@ -121,7 +112,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 
 		for (int k = 0; k < numOfRecords; ++k) {
 			Value[] record = new Value[numOfFields];
-			// recordBatch=new Value[numOfFields];
 			// Read the fields
 			for (int i = 0; i < numOfFields; i++) {
 				StringValue stringValue = new StringValue("");
@@ -146,15 +136,10 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		return new StreamRecord(0);
 	}
 
-	public StreamRecord setChannelId(String channelID) {
-		this.channelID = channelID;
-		return this;
-	}
-
 	// TODO: fix this method to work properly for non StringValue types
 	public String toString() {
 		StringBuilder outputString = new StringBuilder();
-		StringValue output; // = new StringValue("");
+		StringValue output;
 		for (int k = 0; k < numOfRecords; ++k) {
 			for (int i = 0; i < numOfFields; i++) {
 				try {
