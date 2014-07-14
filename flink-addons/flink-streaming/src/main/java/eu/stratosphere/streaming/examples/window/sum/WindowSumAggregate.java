@@ -15,90 +15,87 @@
 
 package eu.stratosphere.streaming.examples.window.sum;
 
+import java.util.ArrayList;
+
+import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.state.MutableTableState;
 import eu.stratosphere.streaming.state.SlidingWindowState;
+import eu.stratosphere.util.Collector;
 
-public class WindowSumAggregate extends UserTaskInvokable {
+public class WindowSumAggregate extends
+		FlatMapFunction<Tuple2<Integer, Long>, Tuple2<Integer, Long>> {
 	private static final long serialVersionUID = 1L;
-	
+
 	private int windowSize = 100;
 	private int slidingStep = 20;
 	private int computeGranularity = 10;
-	private int windowFieldId = 1;
 
-	private StreamRecord tempRecord;
-	private SlidingWindowState<Integer> window;
+	private ArrayList<Tuple2<Integer, Long>> tempTupleArray = null;
+	private Tuple2<Integer, Long> outTuple = new Tuple2<Integer, Long>();
+	private SlidingWindowState window;
 	private MutableTableState<String, Integer> sum;
 	private long initTimestamp = -1;
 	private long nextTimestamp = -1;
 
-	private StreamRecord outRecord = new StreamRecord(
-			new Tuple2<Integer, Long>());
-
 	public WindowSumAggregate() {
-		window = new SlidingWindowState<Integer>(windowSize, slidingStep,
+		window = new SlidingWindowState(windowSize, slidingStep,
 				computeGranularity);
 		sum = new MutableTableState<String, Integer>();
 		sum.put("sum", 0);
 	}
 
-	private void incrementCompute(StreamRecord record) {
-		int numTuple = record.getNumOfTuples();
-		for (int i = 0; i < numTuple; ++i) {
-			int number = record.getInteger(i, 0);
+	private void incrementCompute(ArrayList<Tuple2<Integer, Long>> tupleArray) {
+		for (int i = 0; i < tupleArray.size(); ++i) {
+			int number = tupleArray.get(i).f0;
 			sum.put("sum", sum.get("sum") + number);
 		}
 	}
 
-	private void decrementCompute(StreamRecord record) {
-		int numTuple = record.getNumOfTuples();
-		for (int i = 0; i < numTuple; ++i) {
-			int number = record.getInteger(i, 0);
+	private void decrementCompute(ArrayList<Tuple2<Integer, Long>> tupleArray) {
+		for (int i = 0; i < tupleArray.size(); ++i) {
+			int number = tupleArray.get(i).f0;
 			sum.put("sum", sum.get("sum") - number);
 		}
 	}
-	
-	private void produceRecord(long progress){
-		outRecord.setInteger(0, sum.get("sum"));
-		outRecord.setLong(1, progress);
-		emit(outRecord);
-	}
 
+	private void produceOutput(long progress, Collector<Tuple2<Integer, Long>> out){
+		outTuple.f0 = sum.get("sum");
+		outTuple.f1 = progress;
+		out.collect(outTuple);
+	}
+	
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
-		int numTuple = record.getNumOfTuples();
-		for (int i = 0; i < numTuple; ++i) {
-			long progress = record.getLong(i, windowFieldId);
-			if (initTimestamp == -1) {
-				initTimestamp = progress;
-				nextTimestamp = initTimestamp + computeGranularity;
-				tempRecord = new StreamRecord(record.getNumOfFields());
-			} else {
-				if (progress >= nextTimestamp) {
-					if (window.isFull()) {
-						StreamRecord expiredRecord = window.popFront();
-						incrementCompute(tempRecord);
-						decrementCompute(expiredRecord);
-						window.pushBack(tempRecord);
-						if (window.isEmittable()) {
-							produceRecord(progress);
-						}
-					} else {
-						incrementCompute(tempRecord);
-						window.pushBack(tempRecord);
-						if (window.isFull()) {
-							produceRecord(progress);
-						}
+	public void flatMap(Tuple2<Integer, Long> value,
+			Collector<Tuple2<Integer, Long>> out) throws Exception {
+		// TODO Auto-generated method stub
+		long progress = value.f1;
+		if (initTimestamp == -1) {
+			initTimestamp = progress;
+			nextTimestamp = initTimestamp + computeGranularity;
+			tempTupleArray = new ArrayList<Tuple2<Integer, Long>>();
+		} else {
+			if (progress >= nextTimestamp) {
+				if (window.isFull()) {
+					ArrayList<Tuple2<Integer, Long>> expiredTupleArray = window.popFront();
+					incrementCompute(tempTupleArray);
+					decrementCompute(expiredTupleArray);
+					window.pushBack(tempTupleArray);
+					if (window.isEmittable()) {
+						produceOutput(progress, out);
 					}
-					initTimestamp = nextTimestamp;
-					nextTimestamp = initTimestamp + computeGranularity;
-					tempRecord = new StreamRecord(record.getNumOfFields());
+				} else {
+					incrementCompute(tempTupleArray);
+					window.pushBack(tempTupleArray);
+					if (window.isFull()) {
+						produceOutput(progress, out);
+					}
 				}
+				initTimestamp = nextTimestamp;
+				nextTimestamp = initTimestamp + computeGranularity;
+				tempTupleArray = new ArrayList<Tuple2<Integer, Long>>();
 			}
-			tempRecord.addTuple(record.getTuple(i));
 		}
+		tempTupleArray.add(value);
 	}
 }

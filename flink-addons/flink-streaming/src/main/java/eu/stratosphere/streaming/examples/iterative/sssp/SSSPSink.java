@@ -13,22 +13,25 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.iterative;
+package eu.stratosphere.streaming.examples.iterative.sssp;
 
-
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class IterativeParallel extends UserTaskInvokable {
-
-	private static final long serialVersionUID = -3042489460184024483L;
-
-	public IterativeParallel() {
-	}
+public class SSSPSink extends UserSinkInvokable {
+	private static final long serialVersionUID = 1L;
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
 		// TODO Auto-generated method stub
-
+		System.out.println("received record...");
+		int tupleNum = record.getNumOfTuples();
+		System.out.println("============================================");
+		for (int i = 0; i < tupleNum; ++i) {
+			System.out.println("name=" + record.getField(i, 0) + ", grade="
+					+ record.getField(i, 1) + ", salary="
+					+ record.getField(i, 2));
+		}
+		System.out.println("============================================");		
 	}
 }

@@ -97,4 +97,17 @@ public class ArrayStreamRecordTest {
 
 	}
 
+	@Test
+	public void truncatedSizeTest() {
+		StreamRecord record = new ArrayStreamRecord(4);
+		record.setTuple(0, new Tuple1<Integer>(0));
+		record.setTuple(1, new Tuple1<Integer>(1));
+		record.setTuple(2, new Tuple1<Integer>(2));
+		record.setTuple(3, new Tuple1<Integer>(3));
+		
+		StreamRecord truncatedRecord = new ArrayStreamRecord(record, 2);
+		assertEquals(2, truncatedRecord.batchSize);
+		assertEquals(0, truncatedRecord.getTuple(0).getField(0));
+		assertEquals(1, truncatedRecord.getTuple(1).getField(0));
+	}
 }

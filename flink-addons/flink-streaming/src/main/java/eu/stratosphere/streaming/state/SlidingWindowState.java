@@ -15,9 +15,10 @@
 
 package eu.stratosphere.streaming.state;
 
-import org.apache.commons.collections.buffer.CircularFifoBuffer;
+import java.io.Serializable;
+import java.util.ArrayList;
 
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import org.apache.commons.collections.buffer.CircularFifoBuffer;
 
 /**
  * The window state for window operator. To be general enough, this class
@@ -25,7 +26,8 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
  * compose time based window operator by extending this class by splitting the
  * stream into multiple mini batches.
  */
-public class SlidingWindowState<K> {
+public class SlidingWindowState implements Serializable{
+	private static final long serialVersionUID = -2376149970115888901L;
 	private int currentRecordCount;
 	private int fullRecordCount;
 	private int slideRecordCount;
@@ -41,13 +43,13 @@ public class SlidingWindowState<K> {
 		this.buffer = new CircularFifoBuffer(fullRecordCount);
 	}
 
-	public void pushBack(StreamRecord record) {
-		buffer.add(record);
+	public void pushBack(ArrayList tupleArray) {
+		buffer.add(tupleArray);
 		currentRecordCount += 1;
 	}
 
-	public StreamRecord popFront() {
-		StreamRecord frontRecord = (StreamRecord) buffer.get();
+	public ArrayList popFront() {
+		ArrayList frontRecord = (ArrayList) buffer.get();
 		buffer.remove();
 		return frontRecord;
 	}

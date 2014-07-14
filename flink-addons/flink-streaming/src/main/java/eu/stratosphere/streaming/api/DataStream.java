@@ -36,6 +36,7 @@ public class DataStream<T extends Tuple> {
 	List<String> connectIDs;
 	List<ConnectionType> ctypes;
 	List<Integer> cparams;
+	List<Integer> batchSizes;
 
 	protected DataStream() {
 		// TODO implement
@@ -63,16 +64,33 @@ public class DataStream<T extends Tuple> {
 		ctypes.add(ConnectionType.SHUFFLE);
 		cparams = new ArrayList<Integer>();
 		cparams.add(0);
+		batchSizes = new ArrayList<Integer>();
+		batchSizes.add(1);
+
 	}
 
 	public String getId() {
 		return id;
 	}
 
+	public DataStream<T> batch(int batchSize) {
+
+		if (batchSize < 1) {
+			throw new IllegalArgumentException("Batch size must be positive.");
+		}
+
+		for (int i = 0; i < batchSizes.size(); i++) {
+			batchSizes.set(i, batchSize);
+		}
+		context.setBatchSize(this);
+		return this;
+	}
+
 	public DataStream<T> connectWith(DataStream<T> stream) {
 		connectIDs.addAll(stream.connectIDs);
 		ctypes.addAll(stream.ctypes);
 		cparams.addAll(stream.cparams);
+		batchSizes.addAll(stream.batchSizes);
 		return this;
 	}
 

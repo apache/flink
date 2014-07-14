@@ -15,20 +15,21 @@
 
 package eu.stratosphere.streaming.api.streamcomponent;
 
-import eu.stratosphere.streaming.api.StreamCollector;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import java.util.ArrayList;
+
+import eu.stratosphere.api.java.functions.FlatMapFunction;
+import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.streaming.state.MutableTableState;
 import eu.stratosphere.streaming.state.SlidingWindowState;
+import eu.stratosphere.util.Collector;
 
-public class StreamWindowTask extends UserTaskInvokable {
+public class StreamWindowTask extends FlatMapFunction<Tuple, Tuple> {
 	private static final long serialVersionUID = 1L;
-	
+
 	private int computeGranularity;
 	private int windowFieldId = 1;
 
-	private StreamRecord tempRecord;
+	private ArrayList tempArrayList;
 	private SlidingWindowState<Integer> window;
 	private MutableTableState<String, Integer> sum;
 	private long initTimestamp = -1;
@@ -44,43 +45,42 @@ public class StreamWindowTask extends UserTaskInvokable {
 		sum.put("sum", 0);
 	}
 
-	private void incrementCompute(StreamRecord record){}
-	private void decrementCompute(StreamRecord record){}
-	private void produceRecord(long progress){}
+	private void incrementCompute(ArrayList tupleArray) {}
+
+	private void decrementCompute(ArrayList tupleArray) {}
+
+	private void produceOutput(long progress, Collector out) {}
 
 	@Override
-	public void invoke(StreamRecord record, StreamCollector collector) throws Exception {
-		int numTuple = record.getBatchSize();
-		int tupleIndex = 0;
-		for (int i = 0; i < numTuple; ++i) {
-			long progress = record.getTuple(i).getField(windowFieldId);
-			if (initTimestamp == -1) {
-				initTimestamp = progress;
-				nextTimestamp = initTimestamp + computeGranularity;
-				tempRecord = new ArrayStreamRecord(record.getBatchSize());
-			} else {
-				if (progress > nextTimestamp) {
-					if (window.isFull()) {
-						StreamRecord expiredRecord = window.popFront();
-						incrementCompute(tempRecord);
-						decrementCompute(expiredRecord);
-						window.pushBack(tempRecord);
-						if (window.isEmittable()) {
-							produceRecord(progress);
-						}
-					} else {
-						incrementCompute(tempRecord);
-						window.pushBack(tempRecord);
-						if (window.isFull()) {
-							produceRecord(progress);
-						}
+	public void flatMap(Tuple value, Collector<Tuple> out) throws Exception {
+		// TODO Auto-generated method stub
+		long progress = value.getField(windowFieldId);
+		if (initTimestamp == -1) {
+			initTimestamp = progress;
+			nextTimestamp = initTimestamp + computeGranularity;
+			tempArrayList = new ArrayList();
+		} else {
+			if (progress > nextTimestamp) {
+				if (window.isFull()) {
+					ArrayList expiredArrayList = window.popFront();
+					incrementCompute(tempArrayList);
+					decrementCompute(expiredArrayList);
+					window.pushBack(tempArrayList);
+					if (window.isEmittable()) {
+						produceOutput(progress, out);
 					}
-					initTimestamp = nextTimestamp;
-					nextTimestamp = initTimestamp + computeGranularity;
-					tempRecord = new ArrayStreamRecord(record.getBatchSize());
+				} else {
+					incrementCompute(tempArrayList);
+					window.pushBack(tempArrayList);
+					if (window.isFull()) {
+						produceOutput(progress, out);
+					}
 				}
-				tempRecord.setTuple(tupleIndex++, record.getTuple(i));
+				initTimestamp = nextTimestamp;
+				nextTimestamp = initTimestamp + computeGranularity;
+				tempArrayList = new ArrayList();
 			}
-		}		
+			tempArrayList.add(value);
+		}
 	}
 }

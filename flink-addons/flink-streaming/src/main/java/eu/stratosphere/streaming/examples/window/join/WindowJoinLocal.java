@@ -15,72 +15,32 @@
 
 package eu.stratosphere.streaming.examples.window.join;
 
-import java.net.InetSocketAddress;
-
 import org.apache.log4j.Level;
 
-import eu.stratosphere.client.minicluster.NepheleMiniCluster;
-import eu.stratosphere.client.program.Client;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
+import eu.stratosphere.api.java.tuple.Tuple3;
+import eu.stratosphere.api.java.tuple.Tuple4;
+import eu.stratosphere.streaming.api.DataStream;
+import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.streaming.examples.join.JoinSink;
 import eu.stratosphere.streaming.util.LogUtils;
 
 public class WindowJoinLocal {
-
-	public static JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
-		graphBuilder.setSource("WindowJoinSourceOne", WindowJoinSourceOne.class);
-		graphBuilder.setSource("WindowJoinSourceTwo", WindowJoinSourceTwo.class);
-		graphBuilder.setTask("WindowJoinTask", WindowJoinTask.class, 1, 1);
-		graphBuilder.setSink("WindowJoinSink", WindowJoinSink.class);
-
-		graphBuilder.fieldsConnect("WindowJoinSourceOne", "WindowJoinTask", 1);
-		graphBuilder.fieldsConnect("WindowJoinSourceTwo", "WindowJoinTask", 1);
-		graphBuilder.shuffleConnect("WindowJoinTask", "WindowJoinSink");
-
-		return graphBuilder.getJobGraph();
-	}
 
 	public static void main(String[] args) {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
-		try {
+		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 
-			JobGraph jG = getJobGraph();
-			Configuration configuration = jG.getJobConfiguration();
+		DataStream<Tuple4<String, String, Integer, Long>> source1 = context
+				.addSource(new WindowJoinSourceOne());
 
-			if (args.length == 0) {
-				args = new String[] { "local" };
-			}
+		@SuppressWarnings("unused")
+		DataStream<Tuple3<String, Integer, Integer>> source2 = context
+				.addSource(new WindowJoinSourceTwo()).connectWith(source1).partitionBy(1)
+				.flatMap(new WindowJoinTask()).addSink(new JoinSink());
 
-			if (args[0].equals("local")) {
-				System.out.println("Running in Local mode");
-				NepheleMiniCluster exec = new NepheleMiniCluster();
-
-				exec.start();
-
-				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
-
-				client.run(jG, true);
-
-				exec.stop();
-
-			} else if (args[0].equals("cluster")) {
-				System.out.println("Running in Cluster2 mode");
-
-				Client client = new Client(new InetSocketAddress("hadoop02.ilab.sztaki.hu", 6123),
-						configuration);
-
-				client.run(jG, true);
-
-			}
-
-		} catch (Exception e) {
-			System.out.println(e);
-		}
+		context.execute();
 
 	}
 }
