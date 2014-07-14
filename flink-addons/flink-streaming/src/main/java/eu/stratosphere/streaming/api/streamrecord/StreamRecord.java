@@ -80,10 +80,12 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			Tuple14.class, Tuple15.class, Tuple16.class, Tuple17.class, Tuple18.class,
 			Tuple19.class, Tuple20.class, Tuple21.class, Tuple22.class };
 
+	// TODO implement equals, clone
 	/**
 	 * Creates a new empty instance for read
 	 */
-	public StreamRecord() {}
+	public StreamRecord() {
+	}
 
 	/**
 	 * Creates empty StreamRecord with number of fields set
@@ -95,6 +97,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		this.numOfFields = numOfFields;
 		this.numOfTuples = 0;
 		tupleBatch = new ArrayList<Tuple>();
+
 	}
 
 	/**
@@ -110,16 +113,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		this.numOfTuples = 0;
 		this.batchSize = batchSize;
 		tupleBatch = new ArrayList<Tuple>(batchSize);
-	}
-	
-	public StreamRecord(StreamRecord record) {
-		this.numOfFields = record.getNumOfFields();
-		this.numOfTuples = 0;
-		tupleBatch = new ArrayList<Tuple>();
-		this.uid = new UID(Arrays.copyOf(record.getId().getId(), 20));
-		for (int i = 0; i < record.getNumOfTuples(); ++i) {
-			this.tupleBatch.add(copyTuple(record.getTuple(i)));
-		}
+
 	}
 
 	/**
@@ -137,6 +131,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		this.batchSize = batchSize;
 		tupleBatch = new ArrayList<Tuple>(batchSize);
 		tupleBatch.add(tuple);
+
 	}
 
 	/**
@@ -150,10 +145,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		this(tuple, 1);
 	}
 
-	public boolean isEmpty(){
-		return (this.numOfTuples==0);
-	}
-	
 	/**
 	 * @return Number of fields in the tuples
 	 */
@@ -1037,17 +1028,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 		return newTuple;
 	}
 
-	/**
-	 * copy tuples from the given record and append them to the end.
-	 * 
-	 * @param record
-	 */
-	public void appendRecord(StreamRecord record){
-		for(int i=0; i<record.getNumOfTuples(); ++i){
-			this.addTuple(record.getTuple(i));
-		}
-	}
-	
 	/**
 	 * Converts tuple field types to a byte array
 	 * 
