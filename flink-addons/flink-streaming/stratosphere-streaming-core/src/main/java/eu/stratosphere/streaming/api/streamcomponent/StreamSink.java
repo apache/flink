@@ -19,35 +19,31 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.runtime.io.api.AbstractRecordReader;
+import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
+import eu.stratosphere.streaming.api.invokable.StreamRecordInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 
-public class StreamSink extends AbstractInvokable {
+public class StreamSink extends AbstractStreamComponent {
 
 	private static final Log log = LogFactory.getLog(StreamSink.class);
 
 	private AbstractRecordReader inputs;
-	private UserSinkInvokable<Tuple> userFunction;
-	private StreamComponentHelper streamSinkHelper;
-	private String name;
+	private StreamRecordInvokable<Tuple, Tuple> userFunction;
 
 	public StreamSink() {
 		// TODO: Make configuration file visible and call setClassInputs() here
 		userFunction = null;
-		streamSinkHelper = new StreamComponentHelper();
 	}
 
 	@Override
 	public void registerInputOutput() {
-		Configuration taskConfiguration = getTaskConfiguration();
-		name = taskConfiguration.getString("componentName", "MISSING_COMPONENT_NAME");
-
+		initialize();
+		
 		try {
-			streamSinkHelper.setSerializers(taskConfiguration);
-			streamSinkHelper.setSinkSerializer();
-			inputs = streamSinkHelper.getConfigInputs(this, taskConfiguration);
+			setSerializers();
+			setSinkSerializer();
+			inputs = getConfigInputs();
 		} catch (Exception e) {
 			if (log.isErrorEnabled()) {
 				log.error("Cannot register inputs", e);
@@ -58,7 +54,15 @@ public class StreamSink extends AbstractInvokable {
 		// FaultToleranceType.from(taskConfiguration
 		// .getInteger("faultToleranceType", 0));
 
-		userFunction = streamSinkHelper.getSinkInvokable(taskConfiguration);
+		setInvokable();
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Override
+	protected void setInvokable() {
+		Class<? extends UserSinkInvokable> userFunctionClass = configuration.getClass(
+				"userfunction", DefaultSinkInvokable.class, UserSinkInvokable.class);
+		userFunction = (UserSinkInvokable<Tuple>) getInvokable(userFunctionClass);
 	}
 
 	@Override
@@ -67,9 +71,11 @@ public class StreamSink extends AbstractInvokable {
 			log.debug("SINK " + name + " invoked");
 		}
 
-		streamSinkHelper.invokeRecords(userFunction, inputs);
+		invokeRecords(userFunction, inputs);
+
 		if (log.isDebugEnabled()) {
 			log.debug("SINK " + name + " invoke finished");
 		}
 	}
+
 }

@@ -17,7 +17,7 @@ package eu.stratosphere.streaming.api.invokable;
 
 import java.io.Serializable;
 
-public abstract class StreamComponent implements Serializable {
+public abstract class StreamComponentInvokable implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 

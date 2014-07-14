@@ -22,14 +22,13 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.runtime.io.api.ChannelSelector;
 import eu.stratosphere.runtime.io.api.RecordWriter;
+import eu.stratosphere.streaming.api.invokable.DefaultSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class StreamSource extends AbstractInvokable {
+public class StreamSource extends AbstractStreamComponent {
 
 	private static final Log log = LogFactory.getLog(StreamSource.class);
 
@@ -37,57 +36,70 @@ public class StreamSource extends AbstractInvokable {
 	private List<ChannelSelector<StreamRecord>> partitioners;
 	private UserSourceInvokable<Tuple> userFunction;
 	private static int numSources;
-	private int sourceInstanceID;
-	private String name;
+	private int[] numberOfOutputChannels;
 	// private FaultToleranceUtil recordBuffer;
 	// private FaultToleranceType faultToleranceType;
-	StreamComponentHelper streamSourceHelper;
 
 	public StreamSource() {
+
+		
 		outputs = new LinkedList<RecordWriter<StreamRecord>>();
 		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
 		userFunction = null;
-		streamSourceHelper = new StreamComponentHelper();
-		numSources = StreamComponentHelper.newComponent();
-		sourceInstanceID = numSources;
+		numSources = newComponent();
+		instanceID = numSources;
 	}
 
 	@Override
 	public void registerInputOutput() {
-		Configuration taskConfiguration = getTaskConfiguration();
-		name = taskConfiguration.getString("componentName", "MISSING_COMPONENT_NAME");
-
+		initialize();
+		
 		try {
-			streamSourceHelper.setSerializers(taskConfiguration);
-			streamSourceHelper.setConfigOutputs(this, taskConfiguration, outputs, partitioners);
-			streamSourceHelper.setCollector(taskConfiguration, sourceInstanceID, outputs);
+			setSerializers();
+			setConfigOutputs(outputs, partitioners);
+			setCollector(outputs);
 		} catch (StreamComponentException e) {
 			if (log.isErrorEnabled()) {
 				log.error("Cannot register outputs", e);
 			}
 		}
 
-		int[] numberOfOutputChannels = new int[outputs.size()];
+		numberOfOutputChannels = new int[outputs.size()];
 		for (int i = 0; i < numberOfOutputChannels.length; i++) {
-			numberOfOutputChannels[i] = taskConfiguration.getInteger("channels_" + i, 0);
+			numberOfOutputChannels[i] = configuration.getInteger("channels_" + i, 0);
 		}
 
-		userFunction = (UserSourceInvokable<Tuple>) streamSourceHelper
-				.getSourceInvokable(taskConfiguration);
-//		streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID, outputs);
-//		streamSourceHelper.setFailListener(recordBuffer, sourceInstanceID, outputs);
+		setInvokable();
+		// streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID,
+		// outputs);
+		// streamSourceHelper.setFailListener(recordBuffer, sourceInstanceID,
+		// outputs);
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Override
+	protected void setInvokable() {
+		// Default value is a TaskInvokable even if it was called from a source
+		Class<? extends UserSourceInvokable> userFunctionClass = configuration.getClass(
+				"userfunction", DefaultSourceInvokable.class, UserSourceInvokable.class);
+		userFunction = (UserSourceInvokable<Tuple>) getInvokable(userFunctionClass);
 	}
 
 	@Override
 	public void invoke() throws Exception {
 		if (log.isDebugEnabled()) {
-			log.debug("SOURCE " + name + " invoked with instance id " + sourceInstanceID);
+			log.debug("SOURCE " + name + " invoked with instance id " + instanceID);
 		}
 
 		for (RecordWriter<StreamRecord> output : outputs) {
 			output.initializeSerializers();
 		}
-		userFunction.invoke(streamSourceHelper.collector);
+		
+		userFunction.invoke(collector);
+		
+		if (log.isDebugEnabled()) {
+			log.debug("SOURCE " + name + " invoke finished with instance id " + instanceID);
+		}
 	}
 
 }

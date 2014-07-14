@@ -22,83 +22,87 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.runtime.io.api.AbstractRecordReader;
 import eu.stratosphere.runtime.io.api.ChannelSelector;
 import eu.stratosphere.runtime.io.api.RecordWriter;
+import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
+import eu.stratosphere.streaming.api.invokable.StreamRecordInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class StreamTask extends AbstractInvokable {
+public class StreamTask extends AbstractStreamComponent {
 
 	private static final Log log = LogFactory.getLog(StreamTask.class);
 
 	private AbstractRecordReader inputs;
 	private List<RecordWriter<StreamRecord>> outputs;
 	private List<ChannelSelector<StreamRecord>> partitioners;
-	private UserTaskInvokable<Tuple, Tuple> userFunction;
+	private StreamRecordInvokable<Tuple, Tuple> userFunction;
+	private int[] numberOfOutputChannels;
 	private static int numTasks;
-	private int taskInstanceID;
-	private String name;
-	private StreamComponentHelper streamTaskHelper;
-//	private FaultToleranceType faultToleranceType;
-	Configuration taskConfiguration;
-
-//	private FaultToleranceUtil recordBuffer;
 
 	public StreamTask() {
+		
 		// TODO: Make configuration file visible and call setClassInputs() here
 		outputs = new LinkedList<RecordWriter<StreamRecord>>();
 		partitioners = new LinkedList<ChannelSelector<StreamRecord>>();
 		userFunction = null;
-		numTasks = StreamComponentHelper.newComponent();
-		taskInstanceID = numTasks;
-		streamTaskHelper = new StreamComponentHelper();
+		numTasks = newComponent();
+		instanceID = numTasks;
 	}
 
 	@Override
 	public void registerInputOutput() {
-		taskConfiguration = getTaskConfiguration();
-		name = taskConfiguration.getString("componentName", "MISSING_COMPONENT_NAME");
+		initialize();
 
 		try {
-			streamTaskHelper.setSerializers(taskConfiguration);
-			inputs = streamTaskHelper.getConfigInputs(this, taskConfiguration);
-			streamTaskHelper.setConfigOutputs(this, taskConfiguration, outputs, partitioners);
-			streamTaskHelper.setCollector(taskConfiguration, taskInstanceID, outputs);
+			setSerializers();
+			inputs = getConfigInputs();
+			setConfigOutputs(outputs, partitioners);
+			setCollector(outputs);
 		} catch (StreamComponentException e) {
 			if (log.isErrorEnabled()) {
 				log.error("Cannot register inputs/outputs for " + getClass().getSimpleName(), e);
 			}
 		}
 
-		int[] numberOfOutputChannels = new int[outputs.size()];
+		numberOfOutputChannels = new int[outputs.size()];
 		for (int i = 0; i < numberOfOutputChannels.length; i++) {
-			numberOfOutputChannels[i] = taskConfiguration.getInteger("channels_" + i, 0);
+			numberOfOutputChannels[i] = configuration.getInteger("channels_" + i, 0);
 		}
 
-		userFunction = (UserTaskInvokable<Tuple, Tuple>) streamTaskHelper
-				.getTaskInvokable(taskConfiguration);
+		setInvokable();
 
-//		streamTaskHelper.setAckListener(recordBuffer, taskInstanceID, outputs);
-//		streamTaskHelper.setFailListener(recordBuffer, taskInstanceID, outputs);
+		// streamTaskHelper.setAckListener(recordBuffer, taskInstanceID,
+		// outputs);
+		// streamTaskHelper.setFailListener(recordBuffer, taskInstanceID,
+		// outputs);
+	}
+
+	// TODO consider logging stack trace!
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Override
+	protected void setInvokable() {
+		// Default value is a TaskInvokable even if it was called from a source
+		Class<? extends UserTaskInvokable> userFunctionClass = configuration.getClass(
+				"userfunction", DefaultTaskInvokable.class, UserTaskInvokable.class);
+		userFunction = (UserTaskInvokable<Tuple, Tuple>) getInvokable(userFunctionClass);
 	}
 
 	@Override
 	public void invoke() throws Exception {
 		if (log.isDebugEnabled()) {
-			log.debug("TASK " + name + " invoked with instance id " + taskInstanceID);
+			log.debug("TASK " + name + " invoked with instance id " + instanceID);
 		}
 
 		for (RecordWriter<StreamRecord> output : outputs) {
 			output.initializeSerializers();
 		}
 
-		streamTaskHelper.invokeRecords(userFunction, inputs);
+		invokeRecords(userFunction, inputs);
 
 		if (log.isDebugEnabled()) {
-			log.debug("TASK " + name + " invoke finished with instance id " + taskInstanceID);
+			log.debug("TASK " + name + " invoke finished with instance id " + instanceID);
 		}
 	}
 }
