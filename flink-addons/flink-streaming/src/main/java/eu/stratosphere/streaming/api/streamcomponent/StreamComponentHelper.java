@@ -180,7 +180,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			} else {
 				partitioners.add(partitioner.newInstance());
 			}
-			log.debug("Partitioner set: " + partitioner.getSimpleName() + " with "
+			log.trace("Partitioner set: " + partitioner.getSimpleName() + " with "
 					+ nrOutput + " outputs");
 		} catch (Exception e) {
 			log.error(

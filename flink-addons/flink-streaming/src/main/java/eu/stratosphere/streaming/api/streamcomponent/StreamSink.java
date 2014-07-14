@@ -60,7 +60,7 @@ public class StreamSink extends AbstractOutputTask {
 
 	@Override
 	public void invoke() throws Exception {
-		log.debug("Sink " + name + " invoked");
+		log.debug("SINK " + name + " invoked");
 		boolean hasInput = true;
 		while (hasInput) {
 			hasInput = false;
@@ -82,6 +82,6 @@ public class StreamSink extends AbstractOutputTask {
 			}
 		}
 		System.out.println("Result: "+userFunction.getResult());
-		log.debug("Sink " + name + " invoke finished");
+		log.debug("SINK " + name + " invoke finished");
 	}
 }
