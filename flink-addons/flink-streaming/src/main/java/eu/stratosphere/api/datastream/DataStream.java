@@ -15,8 +15,11 @@
 
 package eu.stratosphere.api.datastream;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
+import eu.stratosphere.api.datastream.StreamExecutionEnvironment.ConnectionType;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
@@ -28,11 +31,16 @@ public class DataStream<T extends Tuple> {
 	private TypeInformation<T> type;
 	private final Random random = new Random();
 	private final String id;
+	List<String> connectIDs;
+	ConnectionType ctype = ConnectionType.SHUFFLE;
+	int cparam = 0;
 
 	protected DataStream() {
 		// TODO implement
 		context = new StreamExecutionEnvironment();
 		id = "source";
+		connectIDs = new ArrayList<String>();
+		connectIDs.add(getId());
 	}
 
 	protected DataStream(StreamExecutionEnvironment context) {
@@ -40,13 +48,31 @@ public class DataStream<T extends Tuple> {
 			throw new NullPointerException("context is null");
 		}
 
-		//TODO add name based on component number an preferable sequential id
+		// TODO add name based on component number an preferable sequential id
 		this.id = Long.toHexString(random.nextLong()) + Long.toHexString(random.nextLong());
 		this.context = context;
+		connectIDs = new ArrayList<String>();
+		connectIDs.add(getId());
 	}
 
 	public String getId() {
 		return id;
+	}
+
+	public DataStream<T> connectWith(DataStream<T> stream) {
+		connectIDs.add(stream.getId());
+		return this;
+	}
+
+	public DataStream<T> partitionBy(int keyposition) {
+		ctype = ConnectionType.FIELD;
+		cparam = keyposition;
+		return this;
+	}
+
+	public DataStream<T> broadcast() {
+		ctype = ConnectionType.BROADCAST;
+		return this;
 	}
 
 	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper) {
@@ -56,7 +82,7 @@ public class DataStream<T extends Tuple> {
 	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper) {
 		return context.addMapFunction(this, mapper);
 	}
-	
+
 	public <R extends Tuple> DataStream<R> addDummySink() {
 		return context.addDummySink(this);
 	}
