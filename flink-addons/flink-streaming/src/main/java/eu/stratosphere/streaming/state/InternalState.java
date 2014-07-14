@@ -13,20 +13,15 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.wordcount;
+package eu.stratosphere.streaming.state;
 
-public class IncrementalWindow {
-
-	private int currentTupleNum;
-	private int fullTupleNum;
-	private int slideTupleNum;
-
-	public IncrementalWindow(int batchRange, int windowSize, int slidingStep) {
-	}
-
-	void pushBack() {
-	}
-
-	void popFront() {
-	}
+/**
+ * An internal state interface that supports stateful operator.
+ */
+public interface InternalState<K, V> {
+	public void put(K key, V value);
+	public V get(K key);
+	public void delete(K key);
+	public boolean containsKey(K key);
+	public StateIterator<K, V> getIterator();
 }
