@@ -26,6 +26,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -287,7 +289,7 @@ public class StreamRecordTest {
 			assertEquals(tupleOut1.getField(0), 42);
 			assertEquals(str, tupleOut1.getField(1));
 			assertArrayEquals(intArray, (Integer[]) tupleOut1.getField(2));
-			
+
 			@SuppressWarnings("unchecked")
 			Tuple3<Integer, String, Integer[]> tupleOut2 = (Tuple3<Integer, String, Integer[]>) newRec
 					.getTuple(1);
@@ -422,6 +424,23 @@ public class StreamRecordTest {
 			TupleTypeInfo<Tuple> typeInfo = (TupleTypeInfo<Tuple>) TypeExtractor.getForObject(t);
 		}
 		System.out.println("Write with extract:\t\t" + (System.nanoTime() - start) + " ns");
+	}
+
+	@Test
+	public void batchIteratorTest() {
+
+		List<Tuple> tupleList = new LinkedList<Tuple>();
+		tupleList.add(new Tuple1<String>("Big"));
+		tupleList.add(new Tuple1<String>("Data"));
+
+		StreamRecord a = new StreamRecord(tupleList);
+
+		assertEquals(2, a.getNumOfTuples());
+		assertEquals(1, a.getNumOfFields());
+
+		for (Tuple t : a.getBatchIterable()) {
+			System.out.println(t);
+		}
 	}
 
 }

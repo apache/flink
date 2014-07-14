@@ -141,6 +141,21 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
+	 * Creates a new batch of records containing the given Tuple list as
+	 * elements
+	 * 
+	 * @param tupleList
+	 *            Tuples to bes stored in the StreamRecord
+	 */
+
+	public StreamRecord(List<Tuple> tupleList) {
+		numOfFields = tupleList.get(0).getArity();
+		numOfTuples = tupleList.size();
+		this.batchSize = numOfTuples;
+		tupleBatch = new ArrayList<Tuple>(tupleList);
+	}
+
+	/**
 	 * Given a Tuple, creates a new a record batch containing the Tuple as its
 	 * only element
 	 * 
@@ -197,6 +212,15 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			tupleBatch.add(null);
 		}
 		numOfTuples = batchSize;
+	}
+
+	/**
+	 * Returns an iterable over the tuplebatch
+	 * 
+	 * @return batch iterable
+	 */
+	public Iterable<Tuple> getBatchIterable() {
+		return (Iterable<Tuple>) tupleBatch;
 	}
 
 	/**
