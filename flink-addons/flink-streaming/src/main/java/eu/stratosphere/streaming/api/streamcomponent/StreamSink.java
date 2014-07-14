@@ -36,9 +36,7 @@ public class StreamSink extends AbstractOutputTask {
 	private RecordInvoker invoker;
 
 	public StreamSink() {
-		// TODO: Make configuration file visible and call setClassInputs() here
-		//	inputs = new UnionRecordReader<StreamRecord>()
-		
+		// TODO: Make configuration file visible and call setClassInputs() here		
 		userFunction = null;
 		streamSinkHelper = new StreamComponentHelper<StreamSink>();
 	}
@@ -49,7 +47,7 @@ public class StreamSink extends AbstractOutputTask {
 		name = taskConfiguration.getString("componentName", "MISSING_COMPONENT_NAME");
 
 		try {
-			inputs = streamSinkHelper.getConfigInputs(this, taskConfiguration, inputs);
+			inputs = streamSinkHelper.getConfigInputs(this, taskConfiguration);
 		} catch (Exception e) {
 			log.error("Cannot register inputs", e);
 		}

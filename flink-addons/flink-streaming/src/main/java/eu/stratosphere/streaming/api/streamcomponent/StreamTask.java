@@ -66,7 +66,7 @@ public class StreamTask extends AbstractTask {
 		name = taskConfiguration.getString("componentName", "MISSING_COMPONENT_NAME");
 
 		try {
-			inputs = streamTaskHelper.getConfigInputs(this, taskConfiguration, inputs);
+			inputs = streamTaskHelper.getConfigInputs(this, taskConfiguration);
 			streamTaskHelper.setConfigOutputs(this, taskConfiguration, outputs, partitioners);
 		} catch (StreamComponentException e) {
 			log.error("Cannot register inputs/outputs for " + getClass().getSimpleName(), e);
