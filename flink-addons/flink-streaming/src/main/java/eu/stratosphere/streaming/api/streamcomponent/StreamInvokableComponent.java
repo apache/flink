@@ -49,7 +49,7 @@ public abstract class StreamInvokableComponent {
 		try {
 			for (RecordWriter<StreamRecord> output : outputs) {
 				output.emit(record);
-				log.debug("EMITTED: " + record.getId() + " -- " + name);
+				log.info("EMITTED: " + record.getId() + " -- " + name);
 			}
 		} catch (Exception e) {
 			log.warn("EMIT ERROR: " + e.getMessage() + " -- " + name);
