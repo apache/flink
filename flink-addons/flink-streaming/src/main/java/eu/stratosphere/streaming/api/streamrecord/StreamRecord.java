@@ -318,9 +318,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	private void writeTuple(Tuple tuple, DataOutput out) {
+		
 		Class[] basicTypes = new Class[tuple.getArity()];
 		StringBuilder basicTypeNames = new StringBuilder();
 
+		//TODO: exception for empty record - no getField!
 		for (int i = 0; i < basicTypes.length; i++) {
 			basicTypes[i] = tuple.getField(i).getClass();
 			basicTypeNames.append(basicTypes[i].getName() + ",");

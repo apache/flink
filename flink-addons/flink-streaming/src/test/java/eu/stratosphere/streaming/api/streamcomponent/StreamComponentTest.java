@@ -47,7 +47,6 @@ import eu.stratosphere.types.IntValue;
 public class StreamComponentTest {
 
 	private static Map<Integer, Integer> data = new HashMap<Integer, Integer>();
-	private static FieldsPartitioner fP = new FieldsPartitioner(0, IntValue.class);
 	private static boolean fPTest = true;
 
 	public static class MySource extends UserSourceInvokable {
@@ -58,7 +57,7 @@ public class StreamComponentTest {
 		public void invoke() throws Exception {
 			StreamRecord record = new StreamRecord(new Tuple1<Integer>(-1));
 			for (int i = 0; i < 1000; i++) {
-				record.setField(0, new IntValue(i));
+				record.setField(0, i);
 				emit(record);
 			}
 		}
