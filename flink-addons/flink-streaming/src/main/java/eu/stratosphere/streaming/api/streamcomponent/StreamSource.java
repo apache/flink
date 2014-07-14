@@ -64,7 +64,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 		try {
 			streamSourceHelper.setConfigOutputs(this, taskConfiguration, outputs,
 					partitioners);
-		} catch (Exception e) {
+		} catch (StreamComponentException e) {
 			e.printStackTrace();
 		}
 

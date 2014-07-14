@@ -60,7 +60,7 @@ public class StreamTask extends AbstractTask {
 			streamTaskHelper.setConfigInputs(this, taskConfiguration, inputs);
 			streamTaskHelper.setConfigOutputs(this, taskConfiguration, outputs,
 					partitioners);
-		} catch (Exception e) {
+		} catch (StreamComponentException e) {
 			e.printStackTrace();
 		}
 
