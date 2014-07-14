@@ -30,10 +30,10 @@ public class BatchWordCount extends TestBase2 {
 		graphBuilder.setTask("BatchWordCountCounter", BatchWordCountCounter.class, 2);
 		graphBuilder.setSink("BatchWordCountSink", BatchWordCountSink.class);
 
-		graphBuilder.broadcastConnect("BatchWordCountSource", "BatchWordCountSplitter");
+		graphBuilder.shuffleConnect("BatchWordCountSource", "BatchWordCountSplitter");
 		graphBuilder.fieldsConnect("BatchWordCountSplitter", "BatchWordCountCounter", 0,
 				StringValue.class);
-		graphBuilder.broadcastConnect("BatchWordCountCounter", "BatchWordCountSink");
+		graphBuilder.shuffleConnect("BatchWordCountCounter", "BatchWordCountSink");
 
 		return graphBuilder.getJobGraph();
 	}

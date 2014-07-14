@@ -26,19 +26,18 @@ import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
 
 public class BatchWordCountCounter extends UserTaskInvokable {
-	
+
 	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
 	private StringValue wordValue = new StringValue("");
 	private IntValue countValue = new IntValue(1);
 	private LongValue timestamp = new LongValue(0);
 	private String word = "";
-	private AtomRecord outputRecord = new AtomRecord(3);
 	private int count = 1;
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		wordValue=(StringValue) record.getField(0, 0);
-		timestamp=(LongValue) record.getField(0, 1);
+		wordValue = (StringValue) record.getField(0, 0);
+		timestamp = (LongValue) record.getField(0, 1);
 
 		if (wordCounts.containsKey(word)) {
 			count = wordCounts.get(word) + 1;
@@ -48,10 +47,7 @@ public class BatchWordCountCounter extends UserTaskInvokable {
 			wordCounts.put(word, 1);
 			countValue.setValue(1);
 		}
-		outputRecord.setField(0, wordValue);
-		outputRecord.setField(1, countValue);
-		outputRecord.setField(2, timestamp);
-		emit(new StreamRecord(outputRecord));
+		emit(new StreamRecord(wordValue, countValue, timestamp));
 
 	}
 }
