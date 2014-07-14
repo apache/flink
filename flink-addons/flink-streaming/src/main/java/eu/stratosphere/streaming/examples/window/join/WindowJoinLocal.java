@@ -30,17 +30,17 @@ public class WindowJoinLocal {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
-		DataStream<Tuple4<String, String, Integer, Long>> source1 = context
+		DataStream<Tuple4<String, String, Integer, Long>> source1 = env
 				.addSource(new WindowJoinSourceOne());
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple3<String, Integer, Integer>> source2 = context
+		DataStream<Tuple3<String, Integer, Integer>> source2 = env
 				.addSource(new WindowJoinSourceTwo()).connectWith(source1).partitionBy(1)
 				.flatMap(new WindowJoinTask()).addSink(new JoinSink());
 
-		context.execute();
+		env.execute();
 
 	}
 }

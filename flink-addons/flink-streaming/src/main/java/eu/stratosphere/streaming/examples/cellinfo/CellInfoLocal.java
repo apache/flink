@@ -106,14 +106,14 @@ public class CellInfoLocal {
 
 	// TODO add arguments
 	public static void main(String[] args) {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
-		DataStream<Tuple4<Boolean, Integer, Long, Integer>> querySource = context
+		DataStream<Tuple4<Boolean, Integer, Long, Integer>> querySource = env
 				.addSource(new QuerySource());
 
-		DataStream<Tuple1<String>> stream = context.addSource(new InfoSource())
+		DataStream<Tuple1<String>> stream = env.addSource(new InfoSource())
 				.connectWith(querySource).partitionBy(1).flatMap(new CellTask()).addDummySink();
 
-		context.execute();
+		env.execute();
 	}
 }

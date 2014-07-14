@@ -49,10 +49,10 @@ public class BasicTopology {
 	}
 
 	public static void main(String[] args) {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 		
-		DataStream<Tuple1<String>> stream = context.addSource(new BasicSource()).map(new BasicMap()).addDummySink();
+		DataStream<Tuple1<String>> stream = env.addSource(new BasicSource()).map(new BasicMap()).addDummySink();
 		
-		context.execute();
+		env.execute();
 	}
 }

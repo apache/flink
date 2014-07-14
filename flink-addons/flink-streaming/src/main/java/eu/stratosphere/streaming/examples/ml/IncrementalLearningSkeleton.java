@@ -143,5 +143,7 @@ public class IncrementalLearningSkeleton {
 					.connectWith(model)
 					.map(new Predictor())
 					.addSink(new IMLSink());
+		
+		env.execute();
 	}
 }

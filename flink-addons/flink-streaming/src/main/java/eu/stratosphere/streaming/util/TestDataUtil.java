@@ -13,6 +13,8 @@ import org.apache.commons.logging.LogFactory;
 
 public class TestDataUtil {
 
+	//TODO: Exception handling
+	//TODO: check checksum after download
 	private static final Log log = LogFactory.getLog(TestDataUtil.class);
 	public static final String testDataDir = "src/test/resources/testdata/";
 	public static final String testRepoUrl = "info.ilab.sztaki.hu/~mbalassi/flink-streaming/testdata/";
@@ -24,6 +26,9 @@ public class TestDataUtil {
 		File checkFile = new File(testChekSumDir + fileName + ".md5");
 		String checkSumDesired = new String();
 		String checkSumActaul = new String();
+		
+		File testDataDirectory = new File(testDataDir);
+		testDataDirectory.mkdirs();
 
 		try {
 			FileReader fileReader = new FileReader(checkFile);
