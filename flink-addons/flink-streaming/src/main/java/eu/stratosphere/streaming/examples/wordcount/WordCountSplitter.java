@@ -24,30 +24,13 @@ public class WordCountSplitter extends FlatMapFunction<Tuple1<String>, Tuple1<St
 
 	private Tuple1<String> outTuple = new Tuple1<String>();
 
-	//TODO move the performance tracked version to a separate package and clean this
-	// PerformanceCounter pCounter = new
-	// PerformanceCounter("SplitterEmitCounter", 1000, 1000,
-	// "/home/strato/stratosphere-distrib/log/counter/Splitter" + channelID);
-	// PerformanceTimer pTimer = new PerformanceTimer("SplitterEmitTimer", 1000,
-	// 1000, true,
-	// "/home/strato/stratosphere-distrib/log/timer/Splitter" + channelID);
-
+	// Splits the lines according on spaces
 	@Override
 	public void flatMap(Tuple1<String> inTuple, Collector<Tuple1<String>> out) throws Exception {
-
+		
 		for (String word : inTuple.f0.split(" ")) {
 			outTuple.f0 = word;
-			// pTimer.startTimer();
 			out.collect(outTuple);
-			// pTimer.stopTimer();
-			// pCounter.count();
 		}
 	}
-
-	// @Override
-	// public String getResult() {
-	// pCounter.writeCSV();
-	// pTimer.writeCSV();
-	// return "";
-	// }
 }

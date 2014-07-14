@@ -31,6 +31,7 @@ public class WordCountCounter extends MapFunction<Tuple1<String>, Tuple2<String,
 
 	private Tuple2<String, Integer> outTuple = new Tuple2<String, Integer>();
 	
+	// Increments the counter of the occurrence of the input word
 	@Override
 	public Tuple2<String, Integer> map(Tuple1<String> inTuple) throws Exception {
 		word = inTuple.f0;
@@ -47,8 +48,6 @@ public class WordCountCounter extends MapFunction<Tuple1<String>, Tuple2<String,
 		outTuple.f1 = count;
 
 		return outTuple;
-		// performanceCounter.count();
-
 	}
 
 }

@@ -28,17 +28,18 @@ public class WindowJoinSourceOne extends SourceFunction<Tuple4<String, String, I
 	private String[] names = { "tom", "jerry", "alice", "bob", "john", "grace", "sasa", "lawrance",
 			"andrew", "jean", "richard", "smith", "gorge", "black", "peter" };
 	private Random rand = new Random();
-	private Tuple4<String, String, Integer, Long> outRecord = new Tuple4<String, String, Integer, Long>();
+	private Tuple4<String, String, Integer, Long> outTuple = new Tuple4<String, String, Integer, Long>();
 	private Long progress = 0L;
 
 	@Override
-	public void invoke(Collector<Tuple4<String, String, Integer, Long>> collector) throws Exception {
+	public void invoke(Collector<Tuple4<String, String, Integer, Long>> out) throws Exception {
+		// Continuously emit tuples with random names and integers (salaries).
 		while (true) {
-			outRecord.f0 = "salary";
-			outRecord.f1 = names[rand.nextInt(names.length)];
-			outRecord.f2 = rand.nextInt(10000);
-			outRecord.f3 = progress;
-			collector.collect(outRecord);
+			outTuple.f0 = "salary";
+			outTuple.f1 = names[rand.nextInt(names.length)];
+			outTuple.f2 = rand.nextInt(10000);
+			outTuple.f3 = progress;
+			out.collect(outTuple);
 			progress += 1;
 		}
 	}
