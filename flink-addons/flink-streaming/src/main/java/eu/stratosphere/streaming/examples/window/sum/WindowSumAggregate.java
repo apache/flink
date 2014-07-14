@@ -76,7 +76,7 @@ public class WindowSumAggregate extends UserTaskInvokable {
 				nextTimestamp = initTimestamp + computeGranularity;
 				tempRecord = new StreamRecord(record.getNumOfFields());
 			} else {
-				if (progress > nextTimestamp) {
+				if (progress >= nextTimestamp) {
 					if (window.isFull()) {
 						StreamRecord expiredRecord = window.popFront();
 						incrementCompute(tempRecord);
@@ -96,8 +96,8 @@ public class WindowSumAggregate extends UserTaskInvokable {
 					nextTimestamp = initTimestamp + computeGranularity;
 					tempRecord = new StreamRecord(record.getNumOfFields());
 				}
-				tempRecord.addTuple(record.getTuple(i));
 			}
+			tempRecord.addTuple(record.getTuple(i));
 		}
 	}
 }
