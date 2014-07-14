@@ -45,8 +45,7 @@ import eu.stratosphere.nephele.template.AbstractInvokable;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
 import eu.stratosphere.streaming.api.SinkFunction;
-import eu.stratosphere.streaming.api.StreamCollector;
-import eu.stratosphere.streaming.api.StreamCollector2;
+import eu.stratosphere.streaming.api.StreamCollectorManager;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
@@ -124,7 +123,7 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		// collector = new StreamCollector<Tuple>(batchSize, batchTimeout, id,
 		// outSerializationDelegate, outputs);
 
-		collector = new StreamCollector2<Tuple>(batchsizes_s, batchsizes_f, numOfOutputs_f,
+		collector = new StreamCollectorManager<Tuple>(batchsizes_s, batchsizes_f, numOfOutputs_f,
 				keyPosition, batchTimeout, id, outSerializationDelegate, outputs_f, outputs_s);
 		return collector;
 	}
