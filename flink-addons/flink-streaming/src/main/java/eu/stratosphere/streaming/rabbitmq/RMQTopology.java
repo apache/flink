@@ -32,7 +32,7 @@ public class RMQTopology {
 
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
-			System.out.println(record.getString(0));
+			System.out.println(record.getTuple(0).getField(0));
 		}
 	}
 

@@ -15,33 +15,11 @@
 
 package eu.stratosphere.streaming.examples.iterative.pagerank;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+public class PagerankLocal {
 
-public class Graph {
-	public Map<Integer, Set<Integer>> _vertices = null;
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
 
-	public Graph() {
-		_vertices = new HashMap<Integer, Set<Integer>>();
 	}
 
-	public void insertDirectedEdge(int sourceNode, int targetNode) {
-		if (!_vertices.containsKey(sourceNode)) {
-			_vertices.put(sourceNode, new HashSet<Integer>());
-		}
-		_vertices.get(sourceNode).add(targetNode);
-	}
-	
-	public void insertUndirectedEdge(int sourceNode, int targetNode){
-		if(!_vertices.containsKey(sourceNode)){
-			_vertices.put(sourceNode, new HashSet<Integer>());
-		}
-		if(!_vertices.containsKey(targetNode)){
-			_vertices.put(targetNode, new HashSet<Integer>());
-		}
-		_vertices.get(sourceNode).add(targetNode);
-		_vertices.get(targetNode).add(sourceNode);
-	}
 }

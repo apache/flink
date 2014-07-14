@@ -24,13 +24,14 @@ import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
-import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 /**
- * Source for reading messages from a Kafka queue. 
- * The source currently only support string messages.
+ * Source for reading messages from a Kafka queue. The source currently only
+ * support string messages. Other types will be added soon.
+ * 
  */
 public class KafkaSource extends UserSourceInvokable {
 	private static final long serialVersionUID = 1L;
@@ -41,7 +42,7 @@ public class KafkaSource extends UserSourceInvokable {
 	private final int numThreads;
 	private ConsumerConnector consumer;
 
-	StreamRecord record = new StreamRecord(new Tuple1<String>());
+	StreamRecord record = new ArrayStreamRecord(1);
 
 	public KafkaSource(String zkQuorum, String groupId, String topicId,
 			int numThreads) {
@@ -78,7 +79,7 @@ public class KafkaSource extends UserSourceInvokable {
 			if (message.equals("q")) {
 				break;
 			}
-			record.setString(0, message);
+			record.getTuple(0).setField(message, 0);
 			emit(record);
 		}
 
