@@ -27,6 +27,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.types.StringValue;
 
 public class FaultToleranceBufferTest {

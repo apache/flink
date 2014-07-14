@@ -26,8 +26,8 @@ import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.streaming.api.AckEvent;
 import eu.stratosphere.streaming.api.FailEvent;
 import eu.stratosphere.streaming.api.FaultToleranceBuffer;
-import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class StreamTask extends AbstractTask {
 

@@ -15,8 +15,8 @@
 
 package eu.stratosphere.streaming.test.wordcount;
 
-import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 

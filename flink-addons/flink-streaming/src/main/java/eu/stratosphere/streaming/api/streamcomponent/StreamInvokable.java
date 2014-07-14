@@ -23,7 +23,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.streaming.api.FailEvent;
 import eu.stratosphere.streaming.api.FaultToleranceBuffer;
-import eu.stratosphere.streaming.api.StreamRecord;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public abstract class StreamInvokable {
 

@@ -18,7 +18,7 @@ package eu.stratosphere.streaming.partitioner;
 import java.util.Random;
 
 import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.streaming.api.StreamRecord;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 //Randomly group, to distribute equally
 public class ShufflePartitioner implements ChannelSelector<StreamRecord> {

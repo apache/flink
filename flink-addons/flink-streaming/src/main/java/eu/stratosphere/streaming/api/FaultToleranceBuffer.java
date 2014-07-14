@@ -28,6 +28,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 /**
  * An object to provide fault tolerance for Stratosphere stream processing. It
