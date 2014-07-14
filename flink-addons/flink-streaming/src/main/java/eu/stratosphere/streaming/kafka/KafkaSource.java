@@ -24,16 +24,16 @@ import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.util.Collector;
 
 /**
  * Source for reading messages from a Kafka queue. The source currently only
  * support string messages. Other types will be added soon.
  * 
  */
-public class KafkaSource extends UserSourceInvokable {
+public class KafkaSource extends SourceFunction<Tuple1<String>> {
 	private static final long serialVersionUID = 1L;
 
 	private final String zkQuorum;
@@ -42,7 +42,7 @@ public class KafkaSource extends UserSourceInvokable {
 	private final int numThreads;
 	private ConsumerConnector consumer;
 
-	StreamRecord record = new ArrayStreamRecord(1);
+	Tuple1<String> outTuple = new Tuple1<String>();
 
 	public KafkaSource(String zkQuorum, String groupId, String topicId,
 			int numThreads) {
@@ -64,7 +64,7 @@ public class KafkaSource extends UserSourceInvokable {
 	}
 
 	@Override
-	public void invoke() {
+	public void invoke(Collector<Tuple1<String>> collector) throws Exception {
 		initializeConnection();
 
 		Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
@@ -79,9 +79,8 @@ public class KafkaSource extends UserSourceInvokable {
 			if (message.equals("q")) {
 				break;
 			}
-			record.getTuple(0).setField(message, 0);
-			emit(record);
+			outTuple.f0 = message;
+			collector.collect(outTuple);
 		}
-
 	}
 }
