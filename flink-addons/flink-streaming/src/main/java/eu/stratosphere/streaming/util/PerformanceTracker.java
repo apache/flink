@@ -148,8 +148,4 @@ public class PerformanceTracker {
 
 	}
 
-	public void setFname(String fname) {
-		this.fname = fname;
-	}
-
 }

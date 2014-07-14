@@ -83,7 +83,7 @@ public class InternalStateTest {
 	
 	@Test
 	public void WindowStateTest(){
-		WindowState<String> state=new WindowState<String>(100, 20, 10, 2);
+		WindowState<String> state=new WindowState<String>(100, 20, 10);
 		
 	}
 }

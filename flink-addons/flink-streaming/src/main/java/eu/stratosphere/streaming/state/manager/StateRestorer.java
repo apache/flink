@@ -13,10 +13,8 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api.invokable;
+package eu.stratosphere.streaming.state.manager;
 
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+public class StateRestorer {
 
-public interface RecordInvokable extends UserInvokable {
-	public void invoke(StreamRecord record) throws Exception;
 }

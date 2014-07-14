@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.wordcount;
+package eu.stratosphere.streaming.examples.window.sum;
 
 import java.net.InetSocketAddress;
 
@@ -26,16 +26,19 @@ import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.streaming.util.LogUtils;
 
-public class WordCountLocal {
+//TODO: window operator remains unfinished.
+public class WindowSumLocal {
 
 	public static JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSourceSplitter", WordCountSourceSplitter.class);
-		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 1, 1);
-		graphBuilder.setSink("WordCountSink", WordCountSink.class);
+		graphBuilder.setSource("WindowSumSource", WindowSumSource.class);
+		graphBuilder.setTask("WindowSumMultiple", WindowSumMultiple.class, 1, 1);
+		graphBuilder.setTask("WindowSumAggregate", WindowSumAggregate.class, 1, 1);
+		graphBuilder.setSink("WindowSumSink", WindowSumSink.class);
 
-		graphBuilder.fieldsConnect("WordCountSourceSplitter", "WordCountCounter", 0);
-		graphBuilder.shuffleConnect("WordCountCounter", "WordCountSink");
+		graphBuilder.shuffleConnect("WindowSumSource", "WindowSumMultiple");
+		graphBuilder.shuffleConnect("WindowSumMultiple", "WindowSumAggregate");
+		graphBuilder.shuffleConnect("WindowSumAggregate", "WindowSumSink");
 
 		return graphBuilder.getJobGraph();
 	}

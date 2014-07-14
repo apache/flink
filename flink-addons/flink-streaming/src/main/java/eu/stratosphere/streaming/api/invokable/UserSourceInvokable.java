@@ -15,13 +15,7 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
-import java.io.Serializable;
-
 import eu.stratosphere.streaming.api.streamcomponent.StreamInvokableComponent;
 
-public abstract class UserSourceInvokable extends StreamInvokableComponent implements Invokable,
-		Serializable {
-
-	private static final long serialVersionUID = 1L;
-
+public abstract class UserSourceInvokable extends StreamInvokableComponent implements Invokable {
 }
