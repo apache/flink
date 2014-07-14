@@ -15,6 +15,78 @@
 
 package eu.stratosphere.streaming.state;
 
-public class LogTableState {
+import java.util.ArrayList;
+import java.util.HashMap;
+
+import eu.stratosphere.streaming.index.IndexPair;
+
+/**
+ * The log-structured key value store thats accept any modification operation by
+ * appending the value to the end of the state.
+ */
+public class LogTableState<K, V> implements TableState<K, V> {
+
+	private HashMap<K, IndexPair> hashMap = new HashMap<K, IndexPair>();
+	private HashMap<Integer, ArrayList<V>> blockList = new HashMap<Integer, ArrayList<V>>();
+	private final int perBlockEntryCount = 1000;
+	private IndexPair nextInsertPos = new IndexPair(-1, -1);
+
+	public LogTableState() {
+		blockList.put(0, new ArrayList<V>());
+		nextInsertPos.setIndexPair(0, 0);
+	}
+
+	@Override
+	public void put(K key, V value) {
+		// TODO Auto-generated method stub
+		if (nextInsertPos.entryId == perBlockEntryCount) {
+			blockList.put(nextInsertPos.blockId + 1, new ArrayList<V>());
+			nextInsertPos.IncrementBlock();
+		}
+		blockList.get(nextInsertPos.blockId).add(value);
+		hashMap.put(key, new IndexPair(nextInsertPos));
+		nextInsertPos.entryId += 1;
+	}
+
+	@Override
+	public V get(K key) {
+		// TODO Auto-generated method stub
+		IndexPair index = hashMap.get(key);
+		if (index == null) {
+			return null;
+		} else {
+			return blockList.get(index.blockId).get(index.entryId);
+		}
+	}
+
+	@Override
+	public void delete(K key) {
+		// TODO Auto-generated method stub
+		hashMap.remove(key);
+	}
+
+	@Override
+	public boolean containsKey(K key) {
+		// TODO Auto-generated method stub
+		return hashMap.containsKey(key);
+	}
+
+	@Override
+	public String serialize() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void deserialize(String str) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public TableStateIterator<K, V> getIterator() {
+		// TODO Auto-generated method stub
+		return new LogTableStateIterator<K, V>(hashMap.entrySet().iterator(), blockList);
+	}
 
 }

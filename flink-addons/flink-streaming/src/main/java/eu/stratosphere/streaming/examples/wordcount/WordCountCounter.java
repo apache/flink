@@ -15,19 +15,20 @@
 
 package eu.stratosphere.streaming.examples.wordcount;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.state.MutableTableState;
+import eu.stratosphere.streaming.util.PerformanceCounter;
 
 public class WordCountCounter extends UserTaskInvokable {
 
-	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
+	private MutableTableState<String, Integer> wordCounts = new MutableTableState<String, Integer>();
 	private String word = "";
 	private Integer count = 0;
 
+	PerformanceCounter perf = new PerformanceCounter("CounterEmitCounter" + this.name, 1000, 1000,
+			"");
 
 	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Integer>());
 
@@ -47,11 +48,6 @@ public class WordCountCounter extends UserTaskInvokable {
 		outRecord.setInteger(1, count);
 
 		emit(outRecord);
-
-	}
-
-	@Override
-	public String getResult() {
-		return "";
+		perf.count();
 	}
 }
