@@ -24,14 +24,13 @@ import com.rabbitmq.client.ConsumerCancelledException;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.ShutdownSignalException;
 
+import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 /**
- * Source for reading messages from a RabbitMQ queue. The source currently only
- * support string messages. Other types will be added soon.
- * 
+ * Source for reading messages from a RabbitMQ queue. The source currently only support string messages. Other types will be added soon.
+ *
  */
 public class RMQSource extends UserSourceInvokable {
 	private static final long serialVersionUID = 1L;
@@ -47,7 +46,7 @@ public class RMQSource extends UserSourceInvokable {
 
 	private transient String message;
 
-	StreamRecord record = new ArrayStreamRecord(1);
+	StreamRecord record = new StreamRecord(new Tuple1<String>());
 
 	public RMQSource(String HOST_NAME, String QUEUE_NAME) {
 		this.HOST_NAME = HOST_NAME;
@@ -92,7 +91,7 @@ public class RMQSource extends UserSourceInvokable {
 				break;
 			}
 
-			record.getTuple(0).setField(message, 0);
+			record.setString(0, message);
 			emit(record);
 		}
 

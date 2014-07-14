@@ -16,7 +16,7 @@
 package eu.stratosphere.streaming.api.invokable;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
+import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class DefaultSourceInvokable extends UserSourceInvokable {
 
@@ -28,7 +28,7 @@ public class DefaultSourceInvokable extends UserSourceInvokable {
 	@Override
 	public void invoke() throws Exception {
 		for (String word : mottoArray) {
-			emit((new ArrayStreamRecord(1)).setTuple(0, new Tuple1<String>(word)));
+			emit(new StreamRecord(new Tuple1<String>(word)));
 		}
 	}
 

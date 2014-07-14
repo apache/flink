@@ -21,14 +21,13 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 //Currently implemented as a ShufflePartitioner
 public class DefaultPartitionerTest {
 
 	private DefaultPartitioner defaultPartitioner;
-	private StreamRecord streamRecord = new ArrayStreamRecord();
+	private StreamRecord streamRecord = new StreamRecord();
 
 	@Before
 	public void setPartitioner() {

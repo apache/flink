@@ -13,20 +13,17 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.partitioner;
+package eu.stratosphere.streaming.examples.iterative.collaborativefilter;
 
-import java.util.Random;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 
-import eu.stratosphere.nephele.io.ChannelSelector;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-
-//Randomly group, to distribute equally
-public class ShufflePartitioner implements ChannelSelector<StreamRecord> {
-
-	private Random random = new Random();
+public class CFSource extends UserSourceInvokable {
+	private static final long serialVersionUID = 1L;
 
 	@Override
-	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
-		return new int[] { random.nextInt(numberOfOutputChannels) };
+	public void invoke() throws Exception {
+		// TODO Auto-generated method stub
+		
 	}
+
 }
