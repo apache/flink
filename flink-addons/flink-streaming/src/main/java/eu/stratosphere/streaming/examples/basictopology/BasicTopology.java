@@ -26,7 +26,7 @@ public class BasicTopology {
 	public static class BasicSource extends SourceFunction<Tuple1<String>> {
 
 		private static final long serialVersionUID = 1L;
-		Tuple1<String> tuple =  new Tuple1<String>("streaming");
+		Tuple1<String> tuple = new Tuple1<String>("streaming");
 
 		@Override
 		public void invoke(Collector<Tuple1<String>> collector) throws Exception {
@@ -53,9 +53,12 @@ public class BasicTopology {
 
 	public static void main(String[] args) {
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+
+		DataStream<Tuple1<String>> stream = env.addSource(new BasicSource(), SOURCE_PARALELISM)
+				.map(new BasicMap(), PARALELISM);
 		
-		DataStream<Tuple1<String>> stream = env.addSource(new BasicSource(), SOURCE_PARALELISM).map(new BasicMap(), PARALELISM).addDummySink();
-		
+		stream.print();
+
 		env.execute();
 	}
 }

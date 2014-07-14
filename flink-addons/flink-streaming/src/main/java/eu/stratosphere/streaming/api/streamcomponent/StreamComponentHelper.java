@@ -121,8 +121,8 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		int batchSize = taskConfiguration.getInteger("batchSize", 1);
 
 		long batchTimeout = taskConfiguration.getLong("batchTimeout", 1000);
-//		collector = new StreamCollector<Tuple>(batchSize, batchTimeout, id,
-//				outSerializationDelegate, outputs);
+		// collector = new StreamCollector<Tuple>(batchSize, batchTimeout, id,
+		// outSerializationDelegate, outputs);
 
 		collector = new StreamCollector2<Tuple>(batchsizes_s, batchsizes_f, numOfOutputs_f,
 				keyPosition, batchTimeout, id, outSerializationDelegate, outputs_f, outputs_s);
@@ -365,6 +365,15 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				log.error("Error while setting partitioner: " + partitioner.getSimpleName()
 						+ " with " + nrOutput + " outputs", e);
 			}
+		}
+	}
+
+	public void setSinkSerializer() {
+		if (outSerializationDelegate != null) {
+			inTupleTypeInfo = outTupleTypeInfo;
+
+			inTupleSerializer = inTupleTypeInfo.createSerializer();
+			inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
 		}
 	}
 
