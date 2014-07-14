@@ -24,6 +24,8 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.api.common.functions.AbstractFunction;
+import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
@@ -111,88 +113,57 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 	}
 
 	// TODO add type parameters to avoid redundant code
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public void setSerializers(Configuration taskConfiguration) {
 		byte[] operatorBytes = taskConfiguration.getBytes("operator", null);
 		String operatorName = taskConfiguration.getString("operatorName", "");
 
 		try {
 			ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(operatorBytes));
+			Object function = in.readObject();
+			
 			if (operatorName.equals("flatMap")) {
-				FlatMapFunction<Tuple, Tuple> f = (FlatMapFunction<Tuple, Tuple>) in.readObject();
-
-				inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
-						FlatMapFunction.class, f.getClass(), 0, null, null);
-
-				inTupleSerializer = inTupleTypeInfo.createSerializer();
-				inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
-
-				outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
-						FlatMapFunction.class, f.getClass(), 1, null, null);
-
-				outTupleSerializer = outTupleTypeInfo.createSerializer();
-				outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
-
+				setSerializer(function, FlatMapFunction.class);
 			} else if (operatorName.equals("map")) {
-
-				MapFunction<Tuple, Tuple> f = (MapFunction<Tuple, Tuple>) in.readObject();
-
-				inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(MapFunction.class,
-						f.getClass(), 0, null, null);
-
-				inTupleSerializer = inTupleTypeInfo.createSerializer();
-				inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
-
-				outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(MapFunction.class,
-						f.getClass(), 1, null, null);
-
-				outTupleSerializer = outTupleTypeInfo.createSerializer();
-				outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
-
+				setSerializer(function, MapFunction.class);
 			} else if (operatorName.equals("batchReduce")) {
-
-				GroupReduceFunction<Tuple, Tuple> f = (GroupReduceFunction<Tuple, Tuple>) in
-						.readObject();
-
-				inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
-						GroupReduceFunction.class, f.getClass(), 0, null, null);
-
-				inTupleSerializer = inTupleTypeInfo.createSerializer();
-				inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
-
-				outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
-						GroupReduceFunction.class, f.getClass(), 1, null, null);
-
-				outTupleSerializer = outTupleTypeInfo.createSerializer();
-				outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
-
+				setSerializer(function, GroupReduceFunction.class);
+			} else if (operatorName.equals("filter")) {
+				setSerializer(function, FilterFunction.class);
 			} else if (operatorName.equals("sink")) {
-
-				SinkFunction<Tuple> f = (SinkFunction<Tuple>) in.readObject();
-
 				inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(SinkFunction.class,
-						f.getClass(), 0, null, null);
+						function.getClass(), 0, null, null);
 
 				inTupleSerializer = inTupleTypeInfo.createSerializer();
 				inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
 			} else if (operatorName.equals("source")) {
-
-				UserSourceInvokable<Tuple> f = (UserSourceInvokable<Tuple>) in.readObject();
-
 				outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(
-						UserSourceInvokable.class, f.getClass(), 0, null, null);
+						UserSourceInvokable.class, function.getClass(), 0, null, null);
 
 				outTupleSerializer = outTupleTypeInfo.createSerializer();
 				outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
-
 			} else {
-
-				throw new Exception();
+				throw new Exception("Wrong operator name!");
 			}
 
 		} catch (Exception e) {
 			throw new StreamComponentException("Nonsupported object passed as operator");
 
 		}
+	}
+	
+	private void setSerializer(Object function, Class<? extends AbstractFunction> clazz) {
+		inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(clazz,
+				function.getClass(), 0, null, null);
+
+		inTupleSerializer = inTupleTypeInfo.createSerializer();
+		inDeserializationDelegate = new DeserializationDelegate<Tuple>(inTupleSerializer);
+
+		outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(clazz,
+				function.getClass(), 1, null, null);
+
+		outTupleSerializer = outTupleTypeInfo.createSerializer();
+		outSerializationDelegate = new SerializationDelegate<Tuple>(outTupleSerializer);
 	}
 	
 	public AbstractRecordReader getConfigInputs(T taskBase, Configuration taskConfiguration)

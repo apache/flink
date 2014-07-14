@@ -15,7 +15,6 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
-import java.io.IOException;
 import java.io.Serializable;
 
 import eu.stratosphere.api.java.tuple.Tuple;

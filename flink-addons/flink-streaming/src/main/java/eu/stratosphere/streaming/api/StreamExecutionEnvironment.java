@@ -19,12 +19,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 
-import eu.stratosphere.api.java.functions.FlatMapFunction;
-import eu.stratosphere.api.java.functions.GroupReduceFunction;
-import eu.stratosphere.api.java.functions.MapFunction;
+import eu.stratosphere.api.common.functions.AbstractFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.ClusterUtil;
 import eu.stratosphere.util.Collector;
@@ -33,7 +32,7 @@ import eu.stratosphere.util.Collector;
 //TODO: figure out generic dummysink
 public class StreamExecutionEnvironment {
 	JobGraphBuilder jobGraphBuilder;
-
+	
 	public StreamExecutionEnvironment(int batchSize) {
 		if (batchSize < 1) {
 			throw new IllegalArgumentException("Batch size must be positive.");
@@ -81,71 +80,27 @@ public class StreamExecutionEnvironment {
 
 		}
 	}
-
-	public <T extends Tuple, R extends Tuple> DataStream<R> addFlatMapFunction(
-			DataStream<T> inputStream, final FlatMapFunction<T, R> flatMapper) {
+	
+	public <T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName, DataStream<T> inputStream, final AbstractFunction function, UserTaskInvokable<T, R> functionInvokable) {
 		DataStream<R> returnStream = new DataStream<R>(this);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		ObjectOutputStream oos;
 		try {
 			oos = new ObjectOutputStream(baos);
-			oos.writeObject(flatMapper);
+			oos.writeObject(function);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
-		jobGraphBuilder.setTask(returnStream.getId(), new FlatMapInvokable<T, R>(flatMapper),
-				"flatMap", baos.toByteArray());
+		jobGraphBuilder.setTask(returnStream.getId(), functionInvokable,
+				functionName, baos.toByteArray());
 
 		connectGraph(inputStream, returnStream.getId());
 
 		return returnStream;
 	}
-
-	public <T extends Tuple, R extends Tuple> DataStream<R> addMapFunction(
-			DataStream<T> inputStream, final MapFunction<T, R> mapper) {
-		DataStream<R> returnStream = new DataStream<R>(this);
-
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos;
-		try {
-			oos = new ObjectOutputStream(baos);
-			oos.writeObject(mapper);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		jobGraphBuilder.setTask(returnStream.getId(), new MapInvokable<T, R>(mapper), "map",
-				baos.toByteArray());
-
-		connectGraph(inputStream, returnStream.getId());
-
-		return returnStream;
-	}
-
-	public <T extends Tuple, R extends Tuple> DataStream<R> addBatchReduceFunction(
-			DataStream<T> inputStream, final GroupReduceFunction<T, R> reducer) {
-		DataStream<R> returnStream = new DataStream<R>(this);
-
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos;
-		try {
-			oos = new ObjectOutputStream(baos);
-			oos.writeObject(reducer);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		jobGraphBuilder.setTask(returnStream.getId(), new BatchReduceInvokable<T, R>(reducer),
-				"batchReduce", baos.toByteArray());
-
-		connectGraph(inputStream, returnStream.getId());
-
-		return returnStream;
-	}
+	
 
 	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
 			SinkFunction<T> sinkFunction) {

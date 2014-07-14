@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import eu.stratosphere.api.java.functions.FilterFunction;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
@@ -87,15 +88,19 @@ public class DataStream<T extends Tuple> {
 	}
 
 	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper) {
-		return context.addFlatMapFunction(this, flatMapper);
+		return context.addFunction("flatMap", this, flatMapper, new FlatMapInvokable<T, R>(flatMapper));
 	}
 
 	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper) {
-		return context.addMapFunction(this, mapper);
+		return context.addFunction("map", this, mapper, new MapInvokable<T, R>(mapper));
 	}
 
 	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer) {
-		return context.addBatchReduceFunction(this, reducer);
+		return context.addFunction("batchReduce", this, reducer, new BatchReduceInvokable<T, R>(reducer));
+	}
+	
+	public DataStream<T> filter(FilterFunction<T> filter) {
+		return context.addFunction("filter", this, filter, new FilterInvokable<T>(filter));
 	}
 	
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
