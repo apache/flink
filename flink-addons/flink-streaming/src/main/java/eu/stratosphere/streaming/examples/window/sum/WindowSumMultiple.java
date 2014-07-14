@@ -13,46 +13,22 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.examples.window.wordcount;
-
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+package eu.stratosphere.streaming.examples.window.sum;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-public class WindowWordCountSource extends UserSourceInvokable {
+public class WindowSumMultiple extends UserTaskInvokable {
 
-	private BufferedReader br = null;
-	private String line = "";
-	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Long>());
-	private Long timestamp = 0L;
-
-	public WindowWordCountSource() {
-		try {
-			br = new BufferedReader(new FileReader("src/test/resources/testdata/hamlet.txt"));
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-		timestamp = 0L;
-	}
-
+	private StreamRecord outputRecord = new StreamRecord(new Tuple2<Integer, Long>());
+	
 	@Override
-	public void invoke() throws Exception {
-		while(true){
-			line = br.readLine();
-			if(line==null){
-				break;
-			}
-			if (line != "") {
-				line=line.replaceAll("[\\-\\+\\.\\^:,]", "");
-				outRecord.setString(0, line);
-				outRecord.setLong(1, timestamp);
-				timestamp++;
-				emit(outRecord);
-			}
-		}
+	public void invoke(StreamRecord record) throws Exception {
+		Integer number = record.getInteger(0);
+		Long timestamp = record.getLong(1);
+		outputRecord.setInteger(0, number+1);
+		outputRecord.setLong(1, timestamp);
+		emit(outputRecord);
 	}
 }
