@@ -20,7 +20,7 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.UID;
 import eu.stratosphere.streaming.util.PerformanceCounter;
@@ -45,19 +45,6 @@ public class FaultToleranceUtil {
 	public PerformanceTracker tracker;
 	public PerformanceCounter counter;
 
-	/**
-	 * Creates fault tolerance buffer object for the given output channels and
-	 * channel ID
-	 * 
-	 * @param outputs
-	 *            List of outputs
-	 * @param sourceInstanceID
-	 *            ID of the task object that uses this buffer
-	 * @param numberOfChannels
-	 *            Number of output channels for the output components
-	 */
-	// TODO:update logs for channel
-	// acks and fails
 	public FaultToleranceUtil(FaultToleranceType type, List<RecordWriter<StreamRecord>> outputs,
 			int sourceInstanceID, int[] numberOfChannels) {
 		this.outputs = outputs;
