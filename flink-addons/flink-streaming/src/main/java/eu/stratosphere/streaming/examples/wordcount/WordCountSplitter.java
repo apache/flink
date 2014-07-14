@@ -32,9 +32,11 @@ public class WordCountSplitter extends FlatMapFunction<Tuple1<String>, Tuple1<St
 	// 1000, true,
 	// "/home/strato/stratosphere-distrib/log/timer/Splitter" + channelID);
 
+	
+	// Splits the lines according to the spaces.
 	@Override
 	public void flatMap(Tuple1<String> inTuple, Collector<Tuple1<String>> out) throws Exception {
-
+		
 		for (String word : inTuple.f0.split(" ")) {
 			outTuple.f0 = word;
 			// pTimer.startTimer();

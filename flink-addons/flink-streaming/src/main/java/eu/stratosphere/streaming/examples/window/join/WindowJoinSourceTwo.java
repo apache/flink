@@ -33,6 +33,7 @@ public class WindowJoinSourceTwo extends SourceFunction<Tuple4<String, String, I
 
 	@Override
 	public void invoke(Collector<Tuple4<String, String, Integer, Long>> collector) throws Exception {
+		// Continuously emit tuples with random names and integers (grades).
 		while (true) {
 			outRecord.f0 = "grade";
 			outRecord.f1 = names[rand.nextInt(names.length)];

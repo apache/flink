@@ -26,6 +26,7 @@ public class WindowWordCountSplitter extends FlatMapFunction<Tuple2<String, Long
 	private Long timestamp = 0L;
 	private Tuple2<String, Long> outTuple = new Tuple2<String, Long>();
 
+	// Splits the lines according to the spaces. And adds the line's timestamp to them.
 	@Override
 	public void flatMap(Tuple2<String, Long> inTuple, Collector<Tuple2<String, Long>> out) throws Exception {
 

@@ -33,6 +33,7 @@ public class MapTest {
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
 			for (int i = 0; i < 10; i++) {
+				System.out.println("source "+i);
 				collector.collect(new Tuple1<Integer>(i));
 			}
 		}
@@ -62,6 +63,8 @@ public class MapTest {
 
 		@Override
 		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
+			System.out.println("mymap "+map);
+			map++;
 			return new Tuple1<Integer>(value.f0 * value.f0);
 		}
 	}
@@ -87,7 +90,6 @@ public class MapTest {
 		@Override
 		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
 			counter++;
-			System.out.println(counter);
 			if (counter > 3)
 				threeInAll = false;
 			return new Tuple1<Integer>(value.f0 * value.f0);
@@ -138,6 +140,7 @@ public class MapTest {
 
 		@Override
 		public void invoke(Tuple1<Integer> tuple) {
+			System.out.println("sink "+graphResult);
 			graphResult++;
 		}
 	}
@@ -149,6 +152,7 @@ public class MapTest {
 	private static int fieldsResult = 0;
 	private static int diffFieldsResult = 0;
 	private static int graphResult = 0;
+	private static int map = 0;
 	private static final int PARALELISM = 1;
 	private static final int MAXSOURCE = 10;
 	private static boolean allInOne = false;
@@ -244,19 +248,24 @@ public class MapTest {
 
 	}
 
-	
 //	@Test
 //	public void graphTest() throws Exception {
-//		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-//		DataStream<Tuple1<Integer>> dataStream = env
-//				.addSource(new MySource(), 2)
-//				.partitionBy(0)
-//				.map(new MyMap(), 3)
-//				.broadcast()
-//				.addSink(new MyGraphSink(),2);
-//
-//		env.execute();
-//		assertEquals(40, graphResult);
+//		for(int i=0; i<1000; i++){
+//			System.out.println(i);
+//			StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+//			DataStream<Tuple1<Integer>> dataStream = env
+//					.addSource(new MySource(), 2)
+//					.partitionBy(0)
+//					.map(new MyMap(), 3)
+//					.broadcast()
+//					.addSink(new MyGraphSink(),2);
+//	
+//			env.execute();
+//			assertEquals(40, graphResult);
+//			graphResult=0;
+//			map=0;
+//		}
 //		
 //	}
+
 }
