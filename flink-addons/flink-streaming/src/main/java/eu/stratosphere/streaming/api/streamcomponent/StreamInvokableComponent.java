@@ -28,7 +28,7 @@ import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 import eu.stratosphere.streaming.util.PerformanceCounter;
 
-public abstract class StreamInvokableComponent<IN, OUT extends Tuple> implements Serializable {
+public abstract class StreamInvokableComponent<OUT extends Tuple> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
