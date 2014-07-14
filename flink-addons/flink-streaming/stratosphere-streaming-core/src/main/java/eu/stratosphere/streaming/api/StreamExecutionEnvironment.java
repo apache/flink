@@ -303,26 +303,22 @@ public abstract class StreamExecutionEnvironment {
 		return returnStream;
 	}
 
-	protected <T extends Tuple, R extends Tuple> void addIterationSource(String functionName,
-			DataStream<T> inputStream, final AbstractFunction function,
-			UserTaskInvokable<T, R> functionInvokable, String cID) {
-		DataStream<R> returnStream = new DataStream<R>(this, functionName);
+	protected <T extends Tuple, R extends Tuple> void addIterationSource(DataStream<T> inputStream) {
+		DataStream<R> returnStream = new DataStream<R>(this, "");
 
-		jobGraphBuilder.setIterationSource(returnStream.getId(), functionInvokable, functionName,
-				serializeToByteArray(function), degreeOfParallelism);
+		jobGraphBuilder.setIterationSource(returnStream.getId(), inputStream.getId(),
+				degreeOfParallelism);
 
-		jobGraphBuilder.shuffleConnect(returnStream.getId(), cID);
+		jobGraphBuilder.shuffleConnect(returnStream.getId(), inputStream.getId());
 	}
 
-	protected <T extends Tuple, R extends Tuple> void addIterationSink(String functionName,
-			DataStream<T> inputStream, final AbstractFunction function,
-			UserTaskInvokable<T, R> functionInvokable, String cID) {
-		DataStream<R> returnStream = new DataStream<R>(this, functionName);
+	protected <T extends Tuple, R extends Tuple> void addIterationSink(DataStream<T> inputStream) {
+		DataStream<R> returnStream = new DataStream<R>(this, "");
 
-		jobGraphBuilder.setIterationSink(returnStream.getId(), functionInvokable, functionName,
-				serializeToByteArray(function), degreeOfParallelism);
+		jobGraphBuilder.setIterationSink(returnStream.getId(), inputStream.getId(),
+				degreeOfParallelism);
 
-		jobGraphBuilder.shuffleConnect(cID, returnStream.getId());
+		jobGraphBuilder.shuffleConnect(inputStream.getId(), returnStream.getId());
 	}
 
 	/**
