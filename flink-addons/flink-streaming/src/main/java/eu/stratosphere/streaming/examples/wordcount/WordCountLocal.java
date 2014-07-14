@@ -22,8 +22,6 @@ import eu.stratosphere.streaming.util.TestDataUtil;
 
 public class WordCountLocal {
 
-	// This example will count the occurrence of each word in the input file.
-	
 	public static void main(String[] args) {
 
 		TestDataUtil.downloadIfNotExists("hamlet.txt");
