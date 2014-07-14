@@ -15,9 +15,6 @@
 
 package eu.stratosphere.streaming.api;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
 
@@ -27,19 +24,17 @@ import eu.stratosphere.nephele.event.task.EventListener;
  */
 public class FailEventListener implements EventListener {
 
-	private static final Log log = LogFactory.getLog(FailEventListener.class);
-
 	private String taskInstanceID;
 	private FaultToleranceBuffer recordBuffer;
 
 	/**
-	 * Creates a FailEventListener that monitors FailEvents sent to task with
-	 * the given ID.
+	 * Creates a FailEventListener that monitors FailEvents sent to task with the
+	 * given ID.
 	 * 
 	 * @param taskInstanceID
-	 *            ID of the task that creates the listener
+	 *          ID of the task that creates the listener
 	 * @param recordBuffer
-	 *            The fault tolerance buffer associated with this task
+	 *          The fault tolerance buffer associated with this task
 	 */
 	public FailEventListener(String taskInstanceID,
 			FaultToleranceBuffer recordBuffer) {
@@ -57,14 +52,11 @@ public class FailEventListener implements EventListener {
 		String recordId = failEvent.getRecordId();
 		String failCID = recordId.split("-", 2)[0];
 		if (failCID.equals(taskInstanceID)) {
+			System.out.println("Fail recieved " + recordId);
 			recordBuffer.failRecord(recordId);
-			if (log.isDebugEnabled()) {
-				log.debug("Fail recieved " + recordId + " conaining: "
-						+ recordBuffer.getRecordBuffer());
-			}
-			// System.out.println("Fail recieved " + recordId);
-			// System.out.println(recordBuffer.getRecordBuffer());
-			// System.out.println("---------------------");
+			System.out.println(recordBuffer.getRecordBuffer());
+			System.out.println("---------------------");
+
 		}
 
 	}

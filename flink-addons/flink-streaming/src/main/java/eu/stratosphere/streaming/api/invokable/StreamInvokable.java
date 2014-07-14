@@ -24,10 +24,9 @@ public abstract class StreamInvokable {
 
 		record.setId(channelID);
 		emittedRecords.addRecord(record);
-
+	
 		for (RecordWriter<StreamRecord> output : outputs) {
 			try {
-
 				output.emit(record);
 
 				System.out.println(this.getClass().getName());
