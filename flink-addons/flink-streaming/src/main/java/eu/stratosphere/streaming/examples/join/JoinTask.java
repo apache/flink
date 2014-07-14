@@ -18,55 +18,52 @@ package eu.stratosphere.streaming.examples.join;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.util.Collector;
 
-public class JoinTask extends UserTaskInvokable {
+public class JoinTask extends
+		FlatMapFunction<Tuple3<String, String, Integer>, Tuple3<String, Integer, Integer>> {
 	private static final long serialVersionUID = 749913336259789039L;
 
-	private HashMap<String, ArrayList<String>> gradeHashmap;
+	private HashMap<String, ArrayList<Integer>> gradeHashmap;
 	private HashMap<String, ArrayList<Integer>> salaryHashmap;
-	private StreamRecord outRecord = new StreamRecord(3);
 
 	public JoinTask() {
-		gradeHashmap = new HashMap<String, ArrayList<String>>();
+		gradeHashmap = new HashMap<String, ArrayList<Integer>>();
 		salaryHashmap = new HashMap<String, ArrayList<Integer>>();
 	}
 
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
-		// TODO Auto-generated method stub
-		String streamId = record.getString(0);
-		String name = record.getString(1);
+	public void flatMap(Tuple3<String, String, Integer> value,
+			Collector<Tuple3<String, Integer, Integer>> out) throws Exception {
+		String streamId = value.f0;
+		String name = value.f1;
+		;
 		if (streamId.equals("grade")) {
 			if (salaryHashmap.containsKey(name)) {
 				for (Integer salary : salaryHashmap.get(name)) {
-					Tuple3<String, String, Integer> outputTuple = new Tuple3<String, String, Integer>(
-							name, record.getString(2), salary);
-					outRecord.addTuple(outputTuple);
+					Tuple3<String, Integer, Integer> outputTuple = new Tuple3<String, Integer, Integer>(
+							name, value.f2, salary);
+					out.collect(outputTuple);
 				}
-				emit(outRecord);
-				outRecord.Clear();
 			}
 			if (!gradeHashmap.containsKey(name)) {
-				gradeHashmap.put(name, new ArrayList<String>());
+				gradeHashmap.put(name, new ArrayList<Integer>());
 			}
-			gradeHashmap.get(name).add(record.getString(2));
+			gradeHashmap.get(name).add(value.f2);
 		} else {
 			if (gradeHashmap.containsKey(name)) {
-				for (String grade : gradeHashmap.get(name)) {
-					Tuple3<String, String, Integer> outputTuple = new Tuple3<String, String, Integer>(
-							name, grade, record.getInteger(2));
-					outRecord.addTuple(outputTuple);
+				for (Integer grade : gradeHashmap.get(name)) {
+					Tuple3<String, Integer, Integer> outputTuple = new Tuple3<String, Integer, Integer>(
+							name, grade, value.f2);
+					out.collect(outputTuple);
 				}
-				emit(outRecord);
-				outRecord.Clear();
 			}
 			if (!salaryHashmap.containsKey(name)) {
 				salaryHashmap.put(name, new ArrayList<Integer>());
 			}
-			salaryHashmap.get(name).add(record.getInteger(2));
+			salaryHashmap.get(name).add(value.f2);
 		}
 	}
 }

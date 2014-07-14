@@ -15,22 +15,19 @@
 
 package eu.stratosphere.streaming.examples.join;
 
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.api.java.tuple.Tuple3;
+import eu.stratosphere.streaming.api.SinkFunction;
 
-public class JoinSink extends UserSinkInvokable {
+public class JoinSink extends SinkFunction<Tuple3<String, Integer, Integer>> {
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
+	public void invoke(Tuple3<String, Integer, Integer> tuple) {
 		System.out.println("received record...");
-		int tupleNum = record.getNumOfTuples();
 		System.out.println("============================================");
-		for (int i = 0; i < tupleNum; ++i) {
-			System.out.println("name=" + record.getField(i, 0) + ", grade="
-					+ record.getField(i, 1) + ", salary="
-					+ record.getField(i, 2));
-		}
+
+		System.out.println("name=" + tuple.f0 + ", grade=" + tuple.f1 + ", salary=" + tuple.f2);
+
 		System.out.println("============================================");
 	}
 }

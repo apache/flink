@@ -18,27 +18,26 @@ package eu.stratosphere.streaming.examples.join;
 import java.util.Random;
 
 import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.util.Collector;
 
-public class JoinSourceTwo extends UserSourceInvokable {
+public class JoinSourceTwo extends SourceFunction<Tuple3<String, String, Integer>> {
 
 	private static final long serialVersionUID = -5897483980082089771L;
 
-	private String[] names = { "tom", "jerry", "alice", "bob", "john", "grace",
-			"sasa", "lawrance", "andrew", "jean", "richard", "smith", "gorge",
-			"black", "peter" };
+	private String[] names = { "tom", "jerry", "alice", "bob", "john", "grace", "sasa", "lawrance",
+			"andrew", "jean", "richard", "smith", "gorge", "black", "peter" };
 	private Random rand = new Random();
-	private StreamRecord outRecord = new StreamRecord(
-			new Tuple3<String, String, String>());
+	private Tuple3<String, String, Integer> outRecord = new Tuple3<String, String, Integer>();
 
 	@Override
-	public void invoke() throws Exception {
+	public void invoke(Collector<Tuple3<String, String, Integer>> collector) throws Exception {
 		while (true) {
-			outRecord.setString(0, "grade");
-			outRecord.setString(1, names[rand.nextInt(names.length)]);
-			outRecord.setString(2, String.valueOf((char)(rand.nextInt(26)+'A')));
-			emit(outRecord);
+			outRecord.f0 = "grade";
+			outRecord.f1 = names[rand.nextInt(names.length)];
+			outRecord.f2 = rand.nextInt(5) + 1;
+
+			collector.collect(outRecord);
 		}
 	}
 }

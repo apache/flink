@@ -15,72 +15,31 @@
 
 package eu.stratosphere.streaming.examples.join;
 
-import java.net.InetSocketAddress;
-
 import org.apache.log4j.Level;
 
-import eu.stratosphere.client.minicluster.NepheleMiniCluster;
-import eu.stratosphere.client.program.Client;
-import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
+import eu.stratosphere.api.java.tuple.Tuple3;
+import eu.stratosphere.streaming.api.DataStream;
+import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
 import eu.stratosphere.streaming.util.LogUtils;
 
 public class JoinLocal {
-
-	public static JobGraph getJobGraph() {
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
-		graphBuilder.setSource("JoinSourceOne", JoinSourceOne.class);
-		graphBuilder.setSource("JoinSourceTwo", JoinSourceTwo.class);
-		graphBuilder.setTask("JoinTask", JoinTask.class, 1, 1);
-		graphBuilder.setSink("JoinSink", JoinSink.class);
-
-		graphBuilder.fieldsConnect("JoinSourceOne", "JoinTask", 1);
-		graphBuilder.fieldsConnect("JoinSourceTwo", "JoinTask", 1);
-		graphBuilder.shuffleConnect("JoinTask", "JoinSink");
-
-		return graphBuilder.getJobGraph();
-	}
 
 	public static void main(String[] args) {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
-		try {
+		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 
-			JobGraph jG = getJobGraph();
-			Configuration configuration = jG.getJobConfiguration();
+		DataStream<Tuple3<String, String, Integer>> source1 = context
+				.addSource(new JoinSourceOne()).partitionBy(1);
 
-			if (args.length == 0) {
-				args = new String[] { "local" };
-			}
+		@SuppressWarnings("unused")
+		DataStream<Tuple3<String, Integer, Integer>> source2 = context
+				.addSource(new JoinSourceTwo()).partitionBy(1).connectWith(source1)
+				.flatMap(new JoinTask()).addSink(new JoinSink());
 
-			if (args[0].equals("local")) {
-				System.out.println("Running in Local mode");
-				NepheleMiniCluster exec = new NepheleMiniCluster();
-
-				exec.start();
-
-				Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
-
-				client.run(jG, true);
-
-				exec.stop();
-
-			} else if (args[0].equals("cluster")) {
-				System.out.println("Running in Cluster2 mode");
-
-				Client client = new Client(new InetSocketAddress("hadoop02.ilab.sztaki.hu", 6123),
-						configuration);
-
-				client.run(jG, true);
-
-			}
-
-		} catch (Exception e) {
-			System.out.println(e);
-		}
+		context.execute();
 
 	}
+
 }
