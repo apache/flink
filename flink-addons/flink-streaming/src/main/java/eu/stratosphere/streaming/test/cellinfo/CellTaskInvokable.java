@@ -13,20 +13,33 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test.batch;
+package eu.stratosphere.streaming.test.cellinfo;
 
 import eu.stratosphere.streaming.api.StreamRecord;
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
+import eu.stratosphere.types.IntValue;
+import eu.stratosphere.types.LongValue;
 import eu.stratosphere.types.StringValue;
 
-public class MyBatchStreamSink implements UserSinkInvokable {
+public class CellTaskInvokable extends UserTaskInvokable {
 
-	private StringValue word = new StringValue("");
+	private WorkerEngineExact engine = new WorkerEngineExact(10, 1000, 0);
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		word = (StringValue) record.getField(0, 0);
-		System.out.println("========" + word.getValue() + "=========");
+		IntValue value1 = (IntValue) record.getField(0, 0);
+		LongValue value2 = (LongValue) record.getField(0, 1);
 
+		// INFO
+		if (record.getNumOfFields() == 2) {
+			engine.put(value1.getValue(), value2.getValue());
+			emit(new StreamRecord(new StringValue(value1 + " " + value2)));
+		}
+		// QUERY
+		else if (record.getNumOfFields() == 3) {
+			LongValue value3 = (LongValue) record.getField(0, 2);
+			emit(new StreamRecord(new StringValue(String.valueOf(engine.get(
+					value2.getValue(), value3.getValue(), value1.getValue())))));
+		}
 	}
 }

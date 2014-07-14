@@ -22,7 +22,7 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
-import eu.stratosphere.streaming.api.FaultTolerancyBuffer;
+import eu.stratosphere.streaming.api.FaultToleranceBuffer;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.test.RandIS;
@@ -34,7 +34,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 	private UserSourceInvokable userFunction;
 	private static int numSources = 0;
 	private String sourceInstanceID;
-	private FaultTolerancyBuffer recordBuffer;
+	private FaultToleranceBuffer recordBuffer;
 
 	public StreamSource() {
 		// TODO: Make configuration file visible and call setClassInputs() here
@@ -68,7 +68,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 			e.printStackTrace();
 		}
 
-		recordBuffer = new FaultTolerancyBuffer(outputs, sourceInstanceID);
+		recordBuffer = new FaultToleranceBuffer(outputs, sourceInstanceID);
 		userFunction = (UserSourceInvokable) streamSourceHelper.getUserFunction(
 				taskConfiguration, outputs, sourceInstanceID, recordBuffer);
 		streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID, outputs);

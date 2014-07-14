@@ -15,23 +15,18 @@
 
 package eu.stratosphere.streaming.test.batch;
 
-import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.types.StringValue;
 
-public class MyBatchStreamSource  extends UserSourceInvokable {
-//	private final String motto = "Stratosphere Big Data looks tiny from here";
-	private final String motto = "Gyuszi Gabor Big Marci Gyuszi";
-	private final AtomRecord record=new AtomRecord();
-	private final StreamRecord mottoRecord=new StreamRecord();
-	
+public class BachForwardSink implements UserSinkInvokable {
+
+	private StringValue word = new StringValue("");
+
 	@Override
-	public void invoke() throws Exception {
-		record.setField(0, new StringValue(motto));
-		mottoRecord.addRecord(record);
-		for (int i = 0; i < 100; i++) {
-			emit(mottoRecord);
-		}
+	public void invoke(StreamRecord record) throws Exception {
+		word = (StringValue) record.getField(0, 0);
+		System.out.println("========" + word.getValue() + "=========");
+
 	}
 }

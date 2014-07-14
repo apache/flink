@@ -13,36 +13,18 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.test;
+package eu.stratosphere.streaming.test.cellinfo;
 
-import eu.stratosphere.streaming.api.AtomRecord;
 import eu.stratosphere.streaming.api.StreamRecord;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.LongValue;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.types.StringValue;
 
-public class QuerySourceInvokable extends UserSourceInvokable {
+public class CellSinkInvokable implements UserSinkInvokable {
 
-	@Override
-	public void invoke() throws Exception {
-		for (int i = 0; i < 5; i++) {
-			StreamRecord batch1 = new StreamRecord(3);
-			AtomRecord record1 = new AtomRecord(3);
-			record1.setField(0, new IntValue(5));
-			record1.setField(1, new LongValue(510));
-			record1.setField(2, new LongValue(100));
-			batch1.addRecord(record1);
-			
-			StreamRecord batch2 = new StreamRecord(3);
-			AtomRecord record2=new AtomRecord(3);
-			record2.setField(0, new IntValue(4));
-			record2.setField(1, new LongValue(510));
-			record2.setField(2, new LongValue(100));
-			batch2.addRecord(record2);
-			
-			emit(batch1);
-			emit(batch2);
-		}
-	}
+  @Override
+  public void invoke(StreamRecord record) throws Exception {  	
+  	StringValue value = (StringValue) record.getField(0, 0);
+    System.out.println(value.getValue());
+  }
 
 }
