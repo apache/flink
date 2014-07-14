@@ -213,6 +213,10 @@ public class DataStream<T extends Tuple> {
 				new FlatMapInvokable<T, R>(flatMapper), parallelism);
 	}
 
+	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper) {
+		return flatMap(flatMapper, 1);
+	}
+
 	/**
 	 * Applies a Map transformation on a DataStream. The transformation calls a
 	 * MapFunction for each element of the DataStream. Each MapFunction call
@@ -230,6 +234,10 @@ public class DataStream<T extends Tuple> {
 	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper, int parallelism) {
 		return environment.addFunction("map", this.copy(), mapper, new MapInvokable<T, R>(mapper),
 				parallelism);
+	}
+
+	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper) {
+		return map(mapper, 1);
 	}
 
 	/**
@@ -255,6 +263,11 @@ public class DataStream<T extends Tuple> {
 				new BatchReduceInvokable<T, R>(reducer), parallelism);
 	}
 
+	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer,
+			int batchSize) {
+		return batchReduce(reducer, batchSize, 1);
+	}
+
 	/**
 	 * Applies a Filter transformation on a DataStream. The transformation calls
 	 * a FilterFunction for each element of the DataStream and retains only
@@ -271,6 +284,10 @@ public class DataStream<T extends Tuple> {
 	public DataStream<T> filter(FilterFunction<T> filter, int parallelism) {
 		return environment.addFunction("filter", this.copy(), filter,
 				new FilterInvokable<T>(filter), parallelism);
+	}
+
+	public DataStream<T> filter(FilterFunction<T> filter) {
+		return filter(filter, 1);
 	}
 
 	/**
