@@ -1,7 +1,6 @@
 package eu.stratosphere.streaming;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import eu.stratosphere.configuration.Configuration;
@@ -22,7 +21,6 @@ public class JobGraphBuilder {
 
 	private final JobGraph jobGraph;
 	private Map<String, AbstractJobVertex> components;
-	private Map<String, Integer> numberOfInputs;
 
 	public enum Partitioning {
 		BROADCAST
@@ -93,20 +91,11 @@ public class JobGraphBuilder {
 		components.put(sinkName, sink);
 	}
 
-	// TODO: Refactor component replacing (remove/put), this assumes the ability
-	// of connecting, may use getNumberOfBackwardConnections()
 	public void connect(String upStreamComponentName,
 			String downStreamComponentName, ChannelType channelType) {
 
 		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
 		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
-
-		Configuration config = new TaskConfig(
-				downStreamComponent.getConfiguration()).getConfiguration();
-		config.setInteger("numberOfInputs",
-				config.getInteger("numberOfInputs", 0) + 1);
-		components.remove(downStreamComponentName);
-		components.put(downStreamComponentName, downStreamComponent);
 
 		try {
 			upStreamComponent.connectTo(downStreamComponent, channelType);
@@ -115,7 +104,20 @@ public class JobGraphBuilder {
 		}
 	}
 
+	private void setNumberOfJobInputs()
+	{
+		for (Map.Entry<String, AbstractJobVertex> entry : components.entrySet())
+		{
+			AbstractJobVertex component = entry.getValue();
+			Configuration config = new TaskConfig(
+					component.getConfiguration()).getConfiguration();
+			config.setInteger("numberOfInputs", component.getNumberOfBackwardConnections());
+			components.put(entry.getKey(), component);
+		}		
+	}
+	
 	public JobGraph getJobGraph() {
+		setNumberOfJobInputs();
 		return jobGraph;
 	}
 
