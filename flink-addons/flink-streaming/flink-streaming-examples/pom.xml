@@ -5,47 +5,35 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>eu.stratosphere</groupId>
-		<artifactId>stratosphere-streaming</artifactId>
+		<groupId>org.apache.flink</groupId>
+		<artifactId>flink-streaming-parent</artifactId>
 		<version>0.3-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>stratosphere-streaming-connectors</artifactId>
-	<name>stratosphere-streaming-connectors</name>
+	<artifactId>flink-streaming-examples</artifactId>
+	<name>flink-streaming-examples</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
 
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-streaming-core</artifactId>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>eu.stratosphere</groupId>
-			<artifactId>stratosphere-streaming-examples</artifactId>
-			<version>${project.version}</version>
+			<groupId>org.jblas</groupId>
+			<artifactId>jblas</artifactId>
+			<version>1.2.3</version>
 		</dependency>
 
-	        <dependency>
-			<groupId>com.rabbitmq</groupId>
-			<artifactId>amqp-client</artifactId>
-			<version>3.3.1</version>
-		</dependency>
-
-	        <dependency>
-			<groupId>org.zeromq</groupId>
-			<artifactId>jzmq</artifactId>
-			<version>3.0.1</version>
-		</dependency>
-		
 		<dependency>
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka_2.10</artifactId>
-			<version>0.8.0</version>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>3.1</version>
 		</dependency>
 	</dependencies>
 
