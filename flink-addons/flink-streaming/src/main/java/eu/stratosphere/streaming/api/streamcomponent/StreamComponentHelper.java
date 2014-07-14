@@ -178,14 +178,20 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 						userFunctionSerialized));
 				userFunction = (UserSinkInvokable) ois.readObject();
 			} catch (Exception e) {
-				log.error("Cannot instanciate user function: " + userFunctionClass.getSimpleName());
+				if (log.isErrorEnabled()) {
+					log.error("Cannot instanciate user function: "
+							+ userFunctionClass.getSimpleName());
+				}
 			}
 		} else {
 
 			try {
 				userFunction = userFunctionClass.newInstance();
 			} catch (Exception e) {
-				log.error("Cannot instanciate user function: " + userFunctionClass.getSimpleName());
+				if (log.isErrorEnabled()) {
+					log.error("Cannot instanciate user function: "
+							+ userFunctionClass.getSimpleName());
+				}
 			}
 		}
 
@@ -214,7 +220,11 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				userFunction.declareOutputs(outputs, instanceID, name, recordBuffer,
 						faultToleranceType);
 			} catch (Exception e) {
-				log.error("Cannot instanciate user function: " + userFunctionClass.getSimpleName());
+				if (log.isErrorEnabled()) {
+
+					log.error("Cannot instanciate user function: "
+							+ userFunctionClass.getSimpleName());
+				}
 			}
 		} else {
 
@@ -223,9 +233,14 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				userFunction.declareOutputs(outputs, instanceID, name, recordBuffer,
 						faultToleranceType);
 			} catch (InstantiationException e) {
-				log.error("Cannot instanciate user function: " + userFunctionClass.getSimpleName());
+				if (log.isErrorEnabled()) {
+					log.error("Cannot instanciate user function: "
+							+ userFunctionClass.getSimpleName());
+				}
 			} catch (Exception e) {
-				log.error("Cannot use user function: " + userFunctionClass.getSimpleName());
+				if (log.isErrorEnabled()) {
+					log.error("Cannot use user function: " + userFunctionClass.getSimpleName());
+				}
 			}
 
 		}
@@ -242,7 +257,9 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				inputs.publishEvent(event);
 				concurrentModificationOccured = true;
 			} catch (ConcurrentModificationException exeption) {
-				log.trace("Waiting to publish " + event.getClass());
+				if (log.isTraceEnabled()) {
+					log.trace("Waiting to publish " + event.getClass());
+				}
 			}
 		}
 	}
@@ -262,11 +279,15 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			} else {
 				partitioners.add(partitioner.newInstance());
 			}
-			log.trace("Partitioner set: " + partitioner.getSimpleName() + " with " + nrOutput
-					+ " outputs");
+			if (log.isTraceEnabled()) {
+				log.trace("Partitioner set: " + partitioner.getSimpleName() + " with " + nrOutput
+						+ " outputs");
+			}
 		} catch (Exception e) {
-			log.error("Error while setting partitioner: " + partitioner.getSimpleName() + " with "
-					+ nrOutput + " outputs", e);
+			if (log.isErrorEnabled()) {
+				log.error("Error while setting partitioner: " + partitioner.getSimpleName()
+						+ " with " + nrOutput + " outputs", e);
+			}
 		}
 	}
 
@@ -304,7 +325,9 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			UID id = record.getId();
 			userFunction.invoke(record);
 			threadSafePublish(new AckEvent(id), inputs);
-			log.debug("ACK: " + id + " -- " + name);
+			if (log.isDebugEnabled()) {
+				log.debug("ACK: " + id + " -- " + name);
+			}
 		}
 	}
 
@@ -315,6 +338,5 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			userFunction.invoke(record);
 		}
 	}
-
 
 }

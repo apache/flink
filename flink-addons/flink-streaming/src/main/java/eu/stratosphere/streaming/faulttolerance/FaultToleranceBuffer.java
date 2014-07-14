@@ -70,7 +70,9 @@ public abstract class FaultToleranceBuffer {
 		addTimestamp(id);
 		addToAckCounter(id);
 
-		log.trace("Record added to buffer: " + id);
+		if (log.isTraceEnabled()) {
+			log.trace("Record added to buffer: " + id);
+		}
 	}
 
 	public void add(StreamRecord streamRecord, int channel) {
@@ -83,7 +85,9 @@ public abstract class FaultToleranceBuffer {
 
 		addToAckCounter(id, channel);
 
-		log.trace("Record added to buffer: " + id);
+		if (log.isTraceEnabled()) {
+			log.trace("Record added to buffer: " + id);
+		}
 	}
 
 	protected abstract void addToAckCounter(UID id);
@@ -131,10 +135,14 @@ public abstract class FaultToleranceBuffer {
 
 			recordsByTime.get(recordTimestamps.remove(uid)).remove(uid);
 
-			log.trace("Record removed from buffer: " + uid);
+			if (log.isTraceEnabled()) {
+				log.trace("Record removed from buffer: " + uid);
+			}
 			return recordBuffer.remove(uid);
 		} else {
-			log.warn("Record ALREADY REMOVED from buffer: " + uid);
+			if (log.isWarnEnabled()) {
+				log.warn("Record ALREADY REMOVED from buffer: " + uid);
+			}
 			return null;
 		}
 
@@ -143,7 +151,9 @@ public abstract class FaultToleranceBuffer {
 	// TODO:test this
 	public List<UID> timeoutRecords(Long currentTime) {
 		if (timeOfLastUpdate + timeout < currentTime) {
-			log.trace("Updating record buffer");
+			if (log.isTraceEnabled()) {
+				log.trace("Updating record buffer");
+			}
 			List<UID> timedOutRecords = new LinkedList<UID>();
 			Map<Long, Set<UID>> timedOut = recordsByTime.subMap(0L, currentTime - timeout);
 
