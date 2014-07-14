@@ -345,18 +345,19 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 
 	// TODO: fix this method to work properly for non StringValue types
 	public String toString() {
-		StringBuilder outputString = new StringBuilder();
+		StringBuilder outputString = new StringBuilder("(");
 		StringValue output;
 		for (int k = 0; k < numOfRecords; ++k) {
 			for (int i = 0; i < numOfFields; i++) {
 				try {
 					output = (StringValue) recordBatch.get(k)[i];
-					outputString.append(output.getValue() + "*");
+					outputString.append(output.getValue() + ",");
 				} catch (ClassCastException e) {
-					outputString.append("NON-STRING*");
+					outputString.append("NON-STRING,");
 				}
 			}
 		}
+		outputString.append(")");
 		return outputString.toString();
 	}
 

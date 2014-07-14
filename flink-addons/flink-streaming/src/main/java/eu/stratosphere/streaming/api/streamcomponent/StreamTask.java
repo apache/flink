@@ -96,7 +96,6 @@ public class StreamTask extends AbstractTask {
 					hasInput = true;
 					StreamRecord streamRecord = input.next();
 					String id = streamRecord.getId();
-					// TODO create method for concurrent publishing
 					try {
 						userFunction.invoke(streamRecord);
 						streamTaskHelper.threadSafePublish(new AckEvent(id), input);
@@ -108,7 +107,7 @@ public class StreamTask extends AbstractTask {
 				}
 			}
 		}
-		log.debug("TASK " + name + "invoke finished with instance id " + taskInstanceID);
+		log.debug("TASK " + name + " invoke finished with instance id " + taskInstanceID);
 	}
 
 }
