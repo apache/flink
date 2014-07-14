@@ -235,6 +235,7 @@ public class JobGraphBuilder {
 	 * @param keyClass
 	 *            Class of the key Value stored in the record
 	 */
+	//TODO: remove unused third parameter
 	public void fieldsConnect(String upStreamComponentName, String downStreamComponentName, int keyPosition,
 			Class<? extends Key> keyClass) {
 
