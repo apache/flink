@@ -23,7 +23,9 @@ import org.junit.Test;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.streaming.api.streamcomponent.MockRecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.util.MockRecordWriterFactory;
 
 public class StreamCollector2Test {
 
@@ -44,8 +46,11 @@ public class StreamCollector2Test {
 		
 		List<RecordWriter<StreamRecord>> fOut = new ArrayList<RecordWriter<StreamRecord>>();
 		
-		fOut.add(null);
-		fOut.add(null);
+		MockRecordWriter rw1 = MockRecordWriterFactory.create();
+		MockRecordWriter rw2 = MockRecordWriterFactory.create();
+		
+		fOut.add(rw1);
+		fOut.add(rw2);
 		
 		collector = new StreamCollector2<Tuple>(batchSizesOfNotPartitioned, batchSizesOfPartitioned, parallelismOfOutput, keyPosition, batchTimeout, channelID, null, fOut,fOut);
 	
@@ -55,15 +60,17 @@ public class StreamCollector2Test {
 		t.f0 = 0;
 		collector.collect(t);
 		t.f0 = 1;
-		collector.collect(t);
+		collector.collect(t);		
 		t.f0 = 0;
 		collector.collect(t);
+		
+		System.out.println(rw1.emittedRecords);
+		System.out.println(rw2.emittedRecords);
+		
 		t.f0 = 1;
 		collector.collect(t);
-	}
-	
-	@Test
-	public void testClose() {
-	}
+		
 
+
+	}
 }
