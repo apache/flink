@@ -18,7 +18,9 @@ package eu.stratosphere.streaming.api;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.Test;
 
@@ -145,8 +147,8 @@ public class MapTest {
 		}
 	}
 
-	private static List<Integer> expected = new ArrayList<Integer>();
-	private static List<Integer> result = new ArrayList<Integer>();
+	private static Set<Integer> expected = new HashSet<Integer>();
+	private static Set<Integer> result = new HashSet<Integer>();
 	private static int broadcastResult = 0;
 	private static int shuffleResult = 0;
 	private static int fieldsResult = 0;
