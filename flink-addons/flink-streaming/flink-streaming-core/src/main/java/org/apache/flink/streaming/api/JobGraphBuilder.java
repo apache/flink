@@ -216,6 +216,8 @@ public class JobGraphBuilder {
 		setComponent(componentName, StreamIterationSink.class, null, null, null, parallelism);
 
 		setBytesFrom(iterationTail, componentName);
+		
+		setUserDefinedName(componentName, "iterate");
 
 		if (log.isDebugEnabled()) {
 			log.debug("Iteration tail sink: " + componentName);
