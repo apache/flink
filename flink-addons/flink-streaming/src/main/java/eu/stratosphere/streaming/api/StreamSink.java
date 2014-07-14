@@ -18,6 +18,7 @@ package eu.stratosphere.streaming.api;
 import java.util.LinkedList;
 import java.util.List;
 
+import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
@@ -40,13 +41,20 @@ public class StreamSink extends AbstractOutputTask {
 
   private void setConfigInputs() {
 
-    numberOfInputs = getTaskConfiguration().getInteger("numberOfInputs", 0);
+    Configuration taskConfiguration = getTaskConfiguration();
+
+    numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
     for (int i = 0; i < numberOfInputs; i++) {
       inputs.add(new RecordReader<Record>(this, Record.class));
     }
 
+    setUserFunction(taskConfiguration);
+  }
+
+  public void setUserFunction(Configuration taskConfiguration) {
+
     Class<? extends UserSinkInvokable> userFunctionClass;
-    userFunctionClass = getTaskConfiguration().getClass("userfunction",
+    userFunctionClass = taskConfiguration.getClass("userfunction",
         DefaultSinkInvokable.class, UserSinkInvokable.class);
     try {
       userFunction = userFunctionClass.newInstance();
@@ -69,7 +77,7 @@ public class StreamSink extends AbstractOutputTask {
         if (input.hasNext()) {
           hasInput = true;
           Record rec = input.next();
-          rec.removeField(rec.getNumFields()-1);
+          rec.removeField(rec.getNumFields() - 1);
           userFunction.invoke(rec);
         }
       }
