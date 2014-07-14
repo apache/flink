@@ -15,13 +15,12 @@
 
 package org.apache.flink.streaming.faulttolerance;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 
-import org.apache.flink.streaming.api.streamrecord.UID;
-
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.task.AbstractTaskEvent;
+import org.apache.flink.streaming.api.streamrecord.UID;
 
 /**
  * TaskEvent for sending record fails to the input's fault tolerance buffer
@@ -47,12 +46,12 @@ public class FailEvent extends AbstractTaskEvent {
 	}
 
 	@Override
-	public void write(DataOutput out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		recordId.write(out);
 	}
 
 	@Override
-	public void read(DataInput in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		recordId = new UID();
 		recordId.read(in);
 	}
