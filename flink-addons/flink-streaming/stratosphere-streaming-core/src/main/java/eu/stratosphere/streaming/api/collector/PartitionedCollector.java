@@ -12,32 +12,24 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
-package eu.stratosphere.streaming.api.streamrecord;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+package eu.stratosphere.streaming.api.collector;
 
 import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.streaming.api.streamcomponent.AbstractCollector;
 
-public abstract class OutputSelector<T extends Tuple> implements Serializable {
-	private static final long serialVersionUID = 1L;
+public class PartitionedCollector<T extends Tuple> implements AbstractCollector<T> {
 
-	private Collection<String> outputs;
-	
-	public OutputSelector() {
-		outputs = new ArrayList<String>();
+	private StreamCollector<Tuple>[] collectors;
+	private int keyPosition;
+
+	public PartitionedCollector(StreamCollector<Tuple>[] collector, int keyPosition) {
+		this.collectors = collector;
+		this.keyPosition = keyPosition;
 	}
-	
-	void clearList() {
-		outputs.clear();
+
+	@Override
+	public void collect(Tuple tuple) {
+		int partitionHash = Math.abs(tuple.getField(keyPosition).hashCode());
+		collectors[partitionHash % collectors.length].collect(tuple);
 	}
-	
-	Collection<String> getOutputs(T tuple) {
-		select(tuple, outputs);
-		return outputs;
-	}
-	
-	public abstract void select(T tuple, Collection<String> outputs);
 }

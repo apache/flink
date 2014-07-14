@@ -12,26 +12,20 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.streaming.api.collector;
 
-package eu.stratosphere.streaming.partitioner;
+import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.streaming.api.streamcomponent.AbstractCollector;
 
-import eu.stratosphere.runtime.io.api.ChannelSelector;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-
-//Grouping by a key
-public class FieldsPartitioner implements ChannelSelector<StreamRecord> {
-
-	private int keyPosition;
-	private int[] returnArray;
-
-	public FieldsPartitioner(int keyPosition) {
-		this.keyPosition = keyPosition;
-		this.returnArray = new int[1];
+public class NotPartitionedCollector<T extends Tuple> implements AbstractCollector<T> {
+	StreamCollector<Tuple> collector;
+	
+	public NotPartitionedCollector(StreamCollector<Tuple> collector) {
+		this.collector = collector;
 	}
-
+	
 	@Override
-	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
-		returnArray[0] = record.hashPartition;
-		return returnArray;
+	public void collect(T tuple) {
+		collector.collect(tuple);
 	}
 }

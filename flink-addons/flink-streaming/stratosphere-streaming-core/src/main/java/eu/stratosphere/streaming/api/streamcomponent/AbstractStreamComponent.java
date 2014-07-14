@@ -18,7 +18,6 @@ package eu.stratosphere.streaming.api.streamcomponent;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.logging.Log;
@@ -41,14 +40,14 @@ import eu.stratosphere.runtime.io.api.AbstractRecordReader;
 import eu.stratosphere.runtime.io.api.ChannelSelector;
 import eu.stratosphere.runtime.io.api.MutableRecordReader;
 import eu.stratosphere.runtime.io.api.RecordWriter;
+import eu.stratosphere.streaming.api.collector.DirectedStreamCollectorManager;
+import eu.stratosphere.streaming.api.collector.OutputSelector;
+import eu.stratosphere.streaming.api.collector.StreamCollectorManager;
 import eu.stratosphere.streaming.api.function.SinkFunction;
 import eu.stratosphere.streaming.api.invokable.StreamComponentInvokable;
 import eu.stratosphere.streaming.api.invokable.StreamRecordInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
-import eu.stratosphere.streaming.api.streamrecord.DirectedStreamCollectorManager;
-import eu.stratosphere.streaming.api.streamrecord.OutputSelector;
-import eu.stratosphere.streaming.api.streamrecord.StreamCollectorManager;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
@@ -65,16 +64,8 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 	protected TupleSerializer<Tuple> outTupleSerializer = null;
 	protected SerializationDelegate<Tuple> outSerializationDelegate = null;
 
-	private List<Integer> batchSizesNotPartitioned = new ArrayList<Integer>();
-	private List<Integer> batchSizesPartitioned = new ArrayList<Integer>();
-	private List<Integer> numOfOutputsPartitioned = new ArrayList<Integer>();
-	private int keyPosition = 0;
-
-	private List<RecordWriter<StreamRecord>> outputsNotPartitioned = new ArrayList<RecordWriter<StreamRecord>>();
-	private List<RecordWriter<StreamRecord>> outputsPartitioned = new ArrayList<RecordWriter<StreamRecord>>();
-
 	protected Configuration configuration;
-	protected Collector<Tuple> collector;
+	protected StreamCollectorManager<Tuple> collectorManager;
 	protected int instanceID;
 	protected String name;
 	private static int numComponents = 0;
@@ -89,7 +80,8 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 		name = configuration.getString("componentName", "MISSING_COMPONENT_NAME");
 	}
 
-	protected Collector<Tuple> setCollector(List<RecordWriter<StreamRecord>> outputs) {
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	protected Collector<Tuple> setCollector() {
 		long batchTimeout = configuration.getLong("batchTimeout", 1000);
 
 		if (configuration.getBoolean("directedEmit", false)) {
@@ -103,30 +95,13 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 				}
 			}
 
-			int numberOfOutputs = configuration.getInteger("numberOfOutputs", 0);
-			List<String> partitionedOutputNames = new ArrayList<String>();
-			List<String> notPartitionedOutputNames = new ArrayList<String>();
-
-			for (int i = 0; i < numberOfOutputs; i++) {
-				String outputName = configuration.getString("outputName_" + i, "");
-				if (configuration.getBoolean("isPartitionedOutput_" + i, false)) {
-					partitionedOutputNames.add(outputName);
-				} else {
-					notPartitionedOutputNames.add(outputName);
-				}
-			}
-
-			collector = new DirectedStreamCollectorManager<Tuple>(batchSizesNotPartitioned,
-					batchSizesPartitioned, numOfOutputsPartitioned, keyPosition, batchTimeout,
-					instanceID, outSerializationDelegate, outputsPartitioned,
-					outputsNotPartitioned, outputSelector, partitionedOutputNames,
-					notPartitionedOutputNames);
+			collectorManager = new DirectedStreamCollectorManager<Tuple>(outSerializationDelegate,
+					instanceID, batchTimeout, outputSelector);
 		} else {
-			collector = new StreamCollectorManager<Tuple>(batchSizesNotPartitioned,
-					batchSizesPartitioned, numOfOutputsPartitioned, keyPosition, batchTimeout,
-					instanceID, outSerializationDelegate, outputsPartitioned, outputsNotPartitioned);
+			collectorManager = new StreamCollectorManager<Tuple>(outSerializationDelegate, instanceID,
+					batchTimeout);
 		}
-		return collector;
+		return collectorManager;
 	}
 
 	protected void setSerializers() {
@@ -210,9 +185,7 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 			MutableRecordReader<StreamRecord>[] recordReaders = (MutableRecordReader<StreamRecord>[]) new MutableRecordReader<?>[numberOfInputs];
 
 			for (int i = 0; i < numberOfInputs; i++) {
-
 				recordReaders[i] = new MutableRecordReader<StreamRecord>(this);
-
 			}
 			return new UnionStreamRecordReader(recordReaders, ArrayStreamRecord.class,
 					inDeserializationDelegate, inTupleSerializer);
@@ -225,21 +198,13 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 		int numberOfOutputs = configuration.getInteger("numberOfOutputs", 0);
 
 		for (int i = 0; i < numberOfOutputs; i++) {
-			setPartitioner(i, partitioners);
-			ChannelSelector<StreamRecord> outputPartitioner = partitioners.get(i);
-
-			outputs.add(new RecordWriter<StreamRecord>(this, outputPartitioner));
-
-			if (outputsPartitioned.size() < batchSizesPartitioned.size()) {
-				outputsPartitioned.add(outputs.get(i));
-			} else {
-				outputsNotPartitioned.add(outputs.get(i));
-			}
+			setPartitioner(i, partitioners, outputs);
 		}
 	}
 
 	private void setPartitioner(int numberOfOutputs,
-			List<ChannelSelector<StreamRecord>> partitioners) {
+			List<ChannelSelector<StreamRecord>> partitioners,
+			List<RecordWriter<StreamRecord>> outputs) {
 
 		Class<? extends ChannelSelector<StreamRecord>> partitioner = configuration.getClass(
 				"partitionerClass_" + numberOfOutputs, DefaultPartitioner.class,
@@ -249,17 +214,29 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 
 		try {
 			if (partitioner.equals(FieldsPartitioner.class)) {
-				batchSizesPartitioned.add(batchSize);
-				numOfOutputsPartitioned.add(configuration.getInteger("numOfOutputs_"
-						+ numberOfOutputs, -1));
-				// TODO:force one partitioning field
-				keyPosition = configuration.getInteger("partitionerIntParam_" + numberOfOutputs, 1);
 
-				partitioners.add(partitioner.getConstructor(int.class).newInstance(keyPosition));
+				int parallelism = configuration.getInteger("numOfOutputs_" + numberOfOutputs, -1);
+				// TODO:force one partitioning field
+				int keyPosition = configuration.getInteger(
+						"partitionerIntParam_" + numberOfOutputs, 1);
+				ChannelSelector<StreamRecord> outputPartitioner = partitioner.getConstructor(
+						int.class).newInstance(keyPosition);
+				RecordWriter<StreamRecord> output = new RecordWriter<StreamRecord>(this,
+						outputPartitioner);
+				outputs.add(output);
+				partitioners.add(outputPartitioner);
+				String outputName = configuration.getString("outputName_" + numberOfOutputs, null);
+				collectorManager.addPartitionedCollector(output, parallelism, keyPosition, batchSize,
+						outputName);
 
 			} else {
-				batchSizesNotPartitioned.add(batchSize);
-				partitioners.add(partitioner.newInstance());
+				ChannelSelector<StreamRecord> outputPartitioner = partitioner.newInstance();
+				partitioners.add(outputPartitioner);
+				RecordWriter<StreamRecord> output = new RecordWriter<StreamRecord>(this,
+						outputPartitioner);
+				outputs.add(output);
+				String outputName = configuration.getString("outputName_" + numberOfOutputs, null);
+				collectorManager.addNotPartitionedCollector(output, batchSize, outputName);
 			}
 			if (log.isTraceEnabled()) {
 				log.trace("Partitioner set: " + partitioner.getSimpleName() + " with "
@@ -279,7 +256,7 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 			UnionStreamRecordReader recordReader = (UnionStreamRecordReader) inputs;
 			while (recordReader.hasNext()) {
 				StreamRecord record = recordReader.next();
-				userFunction.invoke(record, collector);
+				userFunction.invoke(record, collectorManager);
 			}
 
 		} else if (inputs instanceof StreamRecordReader) {
@@ -287,7 +264,7 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 
 			while (recordReader.hasNext()) {
 				StreamRecord record = recordReader.next();
-				userFunction.invoke(record, collector);
+				userFunction.invoke(record, collectorManager);
 			}
 		}
 	}

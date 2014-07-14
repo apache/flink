@@ -12,26 +12,32 @@
  * specific language governing permissions and limitations under the License.
  *
  **********************************************************************************************************************/
+package eu.stratosphere.streaming.api.collector;
 
-package eu.stratosphere.streaming.partitioner;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
-import eu.stratosphere.runtime.io.api.ChannelSelector;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.api.java.tuple.Tuple;
 
-//Grouping by a key
-public class FieldsPartitioner implements ChannelSelector<StreamRecord> {
+public abstract class OutputSelector<T extends Tuple> implements Serializable {
+	private static final long serialVersionUID = 1L;
 
-	private int keyPosition;
-	private int[] returnArray;
-
-	public FieldsPartitioner(int keyPosition) {
-		this.keyPosition = keyPosition;
-		this.returnArray = new int[1];
+	private Collection<String> outputs;
+	
+	public OutputSelector() {
+		outputs = new ArrayList<String>();
 	}
-
-	@Override
-	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
-		returnArray[0] = record.hashPartition;
-		return returnArray;
+	
+	void clearList() {
+		outputs.clear();
 	}
+	
+	Collection<String> getOutputs(T tuple) {
+		select(tuple, outputs);
+		return outputs;
+	}
+	
+	public abstract void select(T tuple, Collection<String> outputs);
 }
