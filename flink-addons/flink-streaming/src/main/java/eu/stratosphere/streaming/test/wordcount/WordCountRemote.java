@@ -33,6 +33,7 @@ import eu.stratosphere.types.StringValue;
 
 public class WordCountRemote {
 
+
 	private static JobGraph getJobGraph() throws Exception {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
 		graphBuilder.setSource("WordCountSource", WordCountDummySource2.class);
@@ -58,6 +59,7 @@ public class WordCountRemote {
 		root.addAppender(appender);
 		root.setLevel(Level.DEBUG);
 
+		
 		try {
 
 			File file = new File(
@@ -73,7 +75,8 @@ public class WordCountRemote {
 			Client client = new Client(new InetSocketAddress(
 					"hadoop02.ilab.sztaki.hu", 6123), configuration);
 
-			client.run(null, jG, true);
+			client.run(jG, true);
+			
 
 		} catch (Exception e) {
 			System.out.println(e);
