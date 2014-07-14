@@ -13,7 +13,7 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api;
+package eu.stratosphere.streaming.faulttolerance;
 
 import java.io.DataInput;
 import java.io.DataOutput;

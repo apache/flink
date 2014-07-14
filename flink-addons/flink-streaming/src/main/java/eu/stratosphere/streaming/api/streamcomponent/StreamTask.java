@@ -26,9 +26,9 @@ import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
-import eu.stratosphere.streaming.api.FaultToleranceBuffer;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 
 public class StreamTask extends AbstractTask {
 
@@ -44,7 +44,7 @@ public class StreamTask extends AbstractTask {
 	StreamComponentHelper<StreamTask> streamTaskHelper;
 	Configuration taskConfiguration;
 
-	private FaultToleranceBuffer recordBuffer;
+	private FaultToleranceUtil recordBuffer;
 
 	public StreamTask() {
 		// TODO: Make configuration file visible and call setClassInputs() here
@@ -74,7 +74,7 @@ public class StreamTask extends AbstractTask {
 			numberOfOutputChannels[i]=taskConfiguration.getInteger("channels_"+i, 0);
 		}
 		
-		recordBuffer = new FaultToleranceBuffer(outputs, taskInstanceID, numberOfOutputChannels);
+		recordBuffer = new FaultToleranceUtil(outputs, taskInstanceID, numberOfOutputChannels);
 		userFunction = (UserTaskInvokable) streamTaskHelper.getUserFunction(taskConfiguration, outputs, taskInstanceID, name,
 				recordBuffer);
 			

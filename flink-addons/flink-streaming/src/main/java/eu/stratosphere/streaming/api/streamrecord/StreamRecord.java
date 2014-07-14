@@ -15,13 +15,16 @@
 
 package eu.stratosphere.streaming.api.streamrecord;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
+import java.io.DataInputStream;
 import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
 
 import eu.stratosphere.core.io.IOReadableWritable;
@@ -274,14 +277,28 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * Creates a copy of the StreamRecord
 	 * 
 	 * @return Copy of the StreamRecord
+	 * @throws IOException 
 	 */
 	public StreamRecord copy() {
 		StreamRecord copiedRecord = new StreamRecord(this.numOfFields, this.numOfRecords);
-		copiedRecord.uid = this.uid;
-
-		for (Value[] record : recordBatch) {
-			copiedRecord.recordBatch.add(record);
+		
+		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+		
+		DataOutputStream out = new DataOutputStream(byteStream);
+		
+		try {
+			this.write(out);
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
+		DataInputStream in = new DataInputStream(new ByteArrayInputStream(byteStream.toByteArray()));
+		
+		try {
+			copiedRecord.read(in);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
 		return copiedRecord;
 	}
 
