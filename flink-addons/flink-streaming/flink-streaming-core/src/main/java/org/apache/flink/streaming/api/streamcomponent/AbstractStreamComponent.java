@@ -26,18 +26,6 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.streaming.api.collector.DirectedStreamCollectorManager;
-import org.apache.flink.streaming.api.collector.OutputSelector;
-import org.apache.flink.streaming.api.collector.StreamCollectorManager;
-import org.apache.flink.streaming.api.function.SinkFunction;
-import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
-import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
-import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
-import org.apache.flink.streaming.api.streamrecord.ArrayStreamRecord;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.partitioner.DefaultPartitioner;
-import org.apache.flink.streaming.partitioner.FieldsPartitioner;
-
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.java.functions.FilterFunction;
 import org.apache.flink.api.java.functions.FlatMapFunction;
@@ -48,13 +36,23 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
 import org.apache.flink.runtime.io.network.api.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.streaming.api.collector.DirectedStreamCollector;
+import org.apache.flink.streaming.api.collector.OutputSelector;
+import org.apache.flink.streaming.api.collector.StreamCollector;
+import org.apache.flink.streaming.api.function.SinkFunction;
+import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
+import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
+import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.streaming.partitioner.DefaultPartitioner;
+import org.apache.flink.streaming.partitioner.FieldsPartitioner;
 import org.apache.flink.util.Collector;
 
 public abstract class AbstractStreamComponent extends AbstractInvokable {
@@ -69,7 +67,7 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 	protected SerializationDelegate<Tuple> outSerializationDelegate = null;
 
 	protected Configuration configuration;
-	protected StreamCollectorManager<Tuple> collectorManager;
+	protected StreamCollector collectorManager;
 	protected int instanceID;
 	protected String name;
 	private static int numComponents = 0;
@@ -84,10 +82,8 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 		name = configuration.getString("componentName", "MISSING_COMPONENT_NAME");
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@SuppressWarnings({ "rawtypes" })
 	protected Collector<Tuple> setCollector() {
-		long batchTimeout = configuration.getLong("batchTimeout", 1000);
-
 		if (configuration.getBoolean("directedEmit", false)) {
 			OutputSelector outputSelector = null;
 			try {
@@ -99,11 +95,10 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 				}
 			}
 
-			collectorManager = new DirectedStreamCollectorManager<Tuple>(outSerializationDelegate,
-					instanceID, batchTimeout, outputSelector);
+			collectorManager = new DirectedStreamCollector(instanceID, outSerializationDelegate,
+					outputSelector);
 		} else {
-			collectorManager = new StreamCollectorManager<Tuple>(outSerializationDelegate,
-					instanceID, batchTimeout);
+			collectorManager = new StreamCollector(instanceID, outSerializationDelegate);
 		}
 		return collectorManager;
 	}
@@ -181,7 +176,7 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 
 		if (numberOfInputs < 2) {
 
-			return new StreamRecordReader(this, ArrayStreamRecord.class, inDeserializationDelegate,
+			return new StreamRecordReader(this, StreamRecord.class, inDeserializationDelegate,
 					inTupleSerializer);
 
 		} else {
@@ -191,7 +186,7 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 			for (int i = 0; i < numberOfInputs; i++) {
 				recordReaders[i] = new MutableRecordReader<StreamRecord>(this);
 			}
-			return new UnionStreamRecordReader(recordReaders, ArrayStreamRecord.class,
+			return new UnionStreamRecordReader(recordReaders, StreamRecord.class,
 					inDeserializationDelegate, inTupleSerializer);
 		}
 	}
@@ -214,13 +209,9 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 				"partitionerClass_" + numberOfOutputs, DefaultPartitioner.class,
 				ChannelSelector.class);
 
-		Integer batchSize = configuration.getInteger("batchSize_" + numberOfOutputs, 1);
-
 		try {
 			if (partitioner.equals(FieldsPartitioner.class)) {
 
-				int parallelism = configuration.getInteger("numOfOutputs_" + numberOfOutputs, -1);
-				// TODO:force one partitioning field
 				int keyPosition = configuration.getInteger(
 						"partitionerIntParam_" + numberOfOutputs, 1);
 				ChannelSelector<StreamRecord> outputPartitioner = partitioner.getConstructor(
@@ -231,8 +222,7 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 				partitioners.add(outputPartitioner);
 				String outputName = configuration.getString("outputName_" + numberOfOutputs, null);
 				if (collectorManager != null) {
-					collectorManager.addPartitionedCollector(output, parallelism, keyPosition,
-							batchSize, outputName);
+					collectorManager.addOutput(output, outputName);
 				}
 
 			} else {
@@ -243,7 +233,7 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 				outputs.add(output);
 				String outputName = configuration.getString("outputName_" + numberOfOutputs, null);
 				if (collectorManager != null) {
-					collectorManager.addNotPartitionedCollector(output, batchSize, outputName);
+					collectorManager.addOutput(output, outputName);
 				}
 			}
 			if (log.isTraceEnabled()) {

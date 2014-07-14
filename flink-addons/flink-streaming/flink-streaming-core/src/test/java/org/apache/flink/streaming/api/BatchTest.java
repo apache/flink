@@ -99,14 +99,14 @@ public class BatchTest {
 		@SuppressWarnings("unused")
 		DataStream<Tuple1<String>> dataStream1 = env
 				.addSource(new MySource(), SOURCE_PARALLELISM)
-				.flatMap(new MyMap()).setParallelism(1).batch(2)
-				.flatMap(new MyMap()).setParallelism(1).batch(5)
+				.flatMap(new MyMap()).setParallelism(1)
+				.flatMap(new MyMap()).setParallelism(1)
 				.addSink(new MySink()).setParallelism(1);
 
 		// partitionTest
 		@SuppressWarnings("unused")
 		DataStream<Tuple1<String>> dataStream2 = env.addSource(new MySource(), SOURCE_PARALLELISM)
-				.flatMap(new MyMap()).setParallelism(1).batch(4).partitionBy(0)
+				.flatMap(new MyMap()).setParallelism(1).partitionBy(0)
 				.addSink(new MyPartitionSink()).setParallelism(SINK_PARALLELISM);
 
 		env.executeTest(MEMORYSIZE);

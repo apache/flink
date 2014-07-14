@@ -36,11 +36,8 @@ public class SinkInvokable<IN extends Tuple> extends UserSinkInvokable<IN> {
 
 	@Override
 	public void invoke(StreamRecord record, Collector<Tuple> collector) throws Exception {
-		int batchSize = record.getBatchSize();
-		for (int i = 0; i < batchSize; i++) {
-			@SuppressWarnings("unchecked")
-			IN tuple = (IN) record.getTuple(i);
-			sinkFunction.invoke(tuple);
-		}
+
+		IN tuple = (IN) record.getTuple();
+		sinkFunction.invoke(tuple);
 	}
 }

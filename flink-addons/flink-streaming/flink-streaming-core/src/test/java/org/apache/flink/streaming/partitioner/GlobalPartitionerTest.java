@@ -21,16 +21,14 @@ package org.apache.flink.streaming.partitioner;
 
 import static org.junit.Assert.assertArrayEquals;
 
-import org.apache.flink.streaming.api.streamrecord.ArrayStreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.partitioner.GlobalPartitioner;
 import org.junit.Before;
 import org.junit.Test;
 
 public class GlobalPartitionerTest {
 
 	private GlobalPartitioner globalPartitioner;
-	private StreamRecord streamRecord = new ArrayStreamRecord();
+	private StreamRecord streamRecord = new StreamRecord();
 
 	@Before
 	public void setPartitioner() {

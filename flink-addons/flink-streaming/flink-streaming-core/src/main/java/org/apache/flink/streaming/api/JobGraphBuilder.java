@@ -51,7 +51,6 @@ import org.apache.flink.streaming.api.streamcomponent.StreamSink;
 import org.apache.flink.streaming.api.streamcomponent.StreamSource;
 import org.apache.flink.streaming.api.streamcomponent.StreamTask;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.faulttolerance.FaultToleranceType;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.partitioner.FieldsPartitioner;
 import org.apache.flink.streaming.partitioner.GlobalPartitioner;
@@ -77,12 +76,9 @@ public class JobGraphBuilder {
 	private Map<String, byte[]> serializedFunctions;
 	private Map<String, byte[]> outputSelectors;
 	private Map<String, Class<? extends AbstractInvokable>> componentClasses;
-	private Map<String, List<Integer>> batchSizes;
 
 	private String maxParallelismVertexName;
 	private int maxParallelism;
-	private FaultToleranceType faultToleranceType;
-	private long batchTimeout = 1000;
 
 	/**
 	 * Creates a new JobGraph with the given name
@@ -92,7 +88,7 @@ public class JobGraphBuilder {
 	 * @param faultToleranceType
 	 *            Fault tolerance type
 	 */
-	public JobGraphBuilder(String jobGraphName, FaultToleranceType faultToleranceType) {
+	public JobGraphBuilder(String jobGraphName) {
 
 		jobGraph = new JobGraph(jobGraphName);
 
@@ -107,19 +103,14 @@ public class JobGraphBuilder {
 		serializedFunctions = new HashMap<String, byte[]>();
 		outputSelectors = new HashMap<String, byte[]>();
 		componentClasses = new HashMap<String, Class<? extends AbstractInvokable>>();
-		batchSizes = new HashMap<String, List<Integer>>();
 
 		maxParallelismVertexName = "";
 		maxParallelism = 0;
 		if (log.isDebugEnabled()) {
 			log.debug("JobGraph created");
 		}
-		this.faultToleranceType = faultToleranceType;
 	}
 
-	public void setBatchTimeout(int timeout) {
-		this.batchTimeout = timeout;
-	}
 
 	/**
 	 * Adds source to the JobGraph with the given parameters
@@ -156,7 +147,6 @@ public class JobGraphBuilder {
 		if (log.isDebugEnabled()) {
 			log.debug("Iteration head source: " + componentName);
 		}
-		setBatchSize(componentName, 1);
 	}
 
 	/**
@@ -216,7 +206,7 @@ public class JobGraphBuilder {
 		setComponent(componentName, StreamIterationSink.class, null, null, null, parallelism);
 
 		setBytesFrom(iterationTail, componentName);
-		
+
 		setUserDefinedName(componentName, "iterate");
 
 		if (log.isDebugEnabled()) {
@@ -251,7 +241,6 @@ public class JobGraphBuilder {
 		invokableObjects.put(componentName, InvokableObject);
 		operatorNames.put(componentName, operatorName);
 		serializedFunctions.put(componentName, serializedFunction);
-		batchSizes.put(componentName, new ArrayList<Integer>());
 		edgeList.put(componentName, new ArrayList<String>());
 		connectionTypes.put(componentName,
 				new ArrayList<Class<? extends ChannelSelector<StreamRecord>>>());
@@ -292,8 +281,6 @@ public class JobGraphBuilder {
 			addSerializedObject(invokableObject, config);
 		}
 		config.setString("componentName", componentName);
-		config.setLong("batchTimeout", this.batchTimeout);
-		config.setInteger("faultToleranceType", this.faultToleranceType.id);
 		if (serializedFunction != null) {
 			config.setBytes("operator", serializedFunction);
 			config.setString("operatorName", operatorName);
@@ -347,18 +334,6 @@ public class JobGraphBuilder {
 			System.out.println("Serialization error " + InvokableObject.getClass());
 		}
 
-	}
-
-	/**
-	 * Sets the number of tuples batched together for higher throughput
-	 * 
-	 * @param componentName
-	 *            Name of the component
-	 * @param batchSize
-	 *            Number of tuples batched together
-	 */
-	public void setBatchSize(String componentName, int batchSize) {
-		batchSizes.get(componentName).add(batchSize);
 	}
 
 	public void setUserDefinedName(String componentName, String userDefinedName) {
@@ -513,12 +488,6 @@ public class JobGraphBuilder {
 
 		config.setInteger("numOfOutputs_" + outputIndex,
 				componentParallelism.get(downStreamComponentName));
-
-		if (batchSizes.get(upStreamComponentName).get(outputIndex) != null) {
-			config.setInteger("batchSize_" + outputIndex, batchSizes.get(upStreamComponentName)
-					.get(outputIndex));
-
-		}
 
 	}
 

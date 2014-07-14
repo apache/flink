@@ -29,17 +29,15 @@ public class FlatMapInvokable<T extends Tuple, R extends Tuple> extends UserTask
 	private static final long serialVersionUID = 1L;
 
 	private FlatMapFunction<T, R> flatMapper;
+
 	public FlatMapInvokable(FlatMapFunction<T, R> flatMapper) {
 		this.flatMapper = flatMapper;
 	}
-	
+
 	@Override
 	public void invoke(StreamRecord record, Collector<R> collector) throws Exception {
-		int batchSize = record.getBatchSize();
-		for (int i = 0; i < batchSize; i++) {
-			@SuppressWarnings("unchecked")
-			T tuple = (T) record.getTuple(i);
-			flatMapper.flatMap(tuple, collector);
-		}
-	}		
+
+		T tuple = (T) record.getTuple();
+		flatMapper.flatMap(tuple, collector);
+	}
 }

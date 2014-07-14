@@ -30,56 +30,19 @@ import org.apache.flink.api.java.tuple.Tuple1;
 
 public class StreamCollectorTest {
 
-	@Test
-	public void testStreamCollector() {
-		MockRecordWriter recWriter = MockRecordWriterFactory.create();
 
-		StreamCollector<Tuple1<Integer>> collector = new StreamCollector<Tuple1<Integer>>(10, 1000,
-				0, null, recWriter,0);
-		assertEquals(10, collector.batchSize);
-	}
 
 	@Test
 	public void testCollect() {
 		MockRecordWriter recWriter = MockRecordWriterFactory.create();
 
-		StreamCollector<Tuple1<Integer>> collector = new StreamCollector<Tuple1<Integer>>(2, 1000,
-				0, null, recWriter,0);
+		StreamCollector collector = new StreamCollector(2, null);
+		collector.addOutput(recWriter, null);
 		collector.collect(new Tuple1<Integer>(3));
 		collector.collect(new Tuple1<Integer>(4));
 		collector.collect(new Tuple1<Integer>(5));
 		collector.collect(new Tuple1<Integer>(6));
 
-	}
-
-	@Test
-	public void testBatchSize() throws InterruptedException {
-		MockRecordWriter recWriter = MockRecordWriterFactory.create();
-
-		StreamCollector<Tuple1<Integer>> collector = new StreamCollector<Tuple1<Integer>>(3, 100,
-				0, null, recWriter,0);
-		collector.collect(new Tuple1<Integer>(0));
-		collector.collect(new Tuple1<Integer>(0));
-		collector.collect(new Tuple1<Integer>(0));
-
-		Thread.sleep(200);
-		collector.collect(new Tuple1<Integer>(2));
-		collector.collect(new Tuple1<Integer>(3));
-	}
-
-	@Test
-	public void recordWriter() {
-		MockRecordWriter recWriter = MockRecordWriterFactory.create();
-
-		StreamCollector<Tuple1<Integer>> collector = new StreamCollector<Tuple1<Integer>>(2, 1000,
-				0, null, recWriter,0);
-		collector.collect(new Tuple1<Integer>(3));
-		collector.collect(new Tuple1<Integer>(4));
-		collector.collect(new Tuple1<Integer>(5));
-		collector.collect(new Tuple1<Integer>(6));
-
-		assertEquals((Integer) 3, recWriter.emittedRecords.get(0).getTuple(0).getField(0));
-		assertEquals((Integer) 6, recWriter.emittedRecords.get(1).getTuple(1).getField(0));
 	}
 
 	@Test

@@ -63,9 +63,7 @@ public class DataStream<T extends Tuple> {
 	protected List<String> connectIDs;
 	protected List<ConnectionType> ctypes;
 	protected List<Integer> cparams;
-	protected List<Integer> batchSizes;
 
-	
 	/**
 	 * Create a new {@link DataStream} in the given execution environment
 	 * 
@@ -113,8 +111,7 @@ public class DataStream<T extends Tuple> {
 		ctypes.add(ConnectionType.SHUFFLE);
 		cparams = new ArrayList<Integer>();
 		cparams.add(0);
-		batchSizes = new ArrayList<Integer>();
-		batchSizes.add(1);
+
 
 	}
 
@@ -131,11 +128,10 @@ public class DataStream<T extends Tuple> {
 
 		copiedStream.ctypes = new ArrayList<StreamExecutionEnvironment.ConnectionType>(this.ctypes);
 		copiedStream.cparams = new ArrayList<Integer>(this.cparams);
-		copiedStream.batchSizes = new ArrayList<Integer>(this.batchSizes);
 		copiedStream.degreeOfParallelism = this.degreeOfParallelism;
 		return copiedStream;
 	}
-	
+
 	/**
 	 * Returns the ID of the {@link DataStream}.
 	 * 
@@ -174,27 +170,6 @@ public class DataStream<T extends Tuple> {
 		return this.degreeOfParallelism;
 	}
 
-	/**
-	 * Groups a number of consecutive elements from the {@link DataStream} to
-	 * increase network throughput. It has no effect on the operators applied to
-	 * the DataStream.
-	 * 
-	 * @param batchSize
-	 *            The number of elements to group.
-	 * @return The DataStream with batching set.
-	 */
-	public DataStream<T> batch(int batchSize) {
-		DataStream<T> returnStream = copy();
-
-		if (batchSize < 1) {
-			throw new IllegalArgumentException("Batch size must be positive.");
-		}
-
-		for (int i = 0; i < returnStream.batchSizes.size(); i++) {
-			returnStream.batchSizes.set(i, batchSize);
-		}
-		return returnStream;
-	}
 
 	/**
 	 * Gives the data transformation a user defined name in order to use at
@@ -209,7 +184,7 @@ public class DataStream<T extends Tuple> {
 		if (name == "") {
 			throw new IllegalArgumentException("User defined name must not be empty string");
 		}
-		
+
 		userDefinedName = name;
 		environment.setName(this, name);
 		return this;
@@ -238,18 +213,16 @@ public class DataStream<T extends Tuple> {
 		returnStream.connectIDs.addAll(stream.connectIDs);
 		returnStream.ctypes.addAll(stream.ctypes);
 		returnStream.cparams.addAll(stream.cparams);
-		returnStream.batchSizes.addAll(stream.batchSizes);
 
 		return returnStream;
 	}
 
-	
 	public DataStream<T> directTo(OutputSelector<T> outputSelector) {
 		this.outputSelector = outputSelector;
 		environment.addDirectedEmit(id, outputSelector);
 		return this;
 	}
-	
+
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
 	 * are partitioned by their hashcode and are sent to only one component.
@@ -352,8 +325,8 @@ public class DataStream<T extends Tuple> {
 	 */
 	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer,
 			int batchSize) {
-		return environment.addFunction("batchReduce", batch(batchSize).copy(), reducer,
-				new BatchReduceInvokable<T, R>(reducer));
+		return environment.addFunction("batchReduce", this.copy(), reducer,
+				new BatchReduceInvokable<T, R>(reducer, batchSize));
 	}
 
 	/**
