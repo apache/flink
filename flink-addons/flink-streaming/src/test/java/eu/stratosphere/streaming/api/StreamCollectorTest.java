@@ -65,11 +65,8 @@ public class StreamCollectorTest {
 	@Test
 	public void recordWriter() {
 		MockRecordWriter recWriter = MockRecordWriterFactory.create();
-		
-		ArrayList<RecordWriter<StreamRecord>> rwList = new ArrayList<RecordWriter<StreamRecord>>();
-		rwList.add(recWriter);
 
-		StreamCollector collector = new StreamCollector(2, 1000, 0, null, rwList);
+		StreamCollector collector = new StreamCollector(2, 1000, 0, null, recWriter);
 		collector.collect(new Tuple1<Integer>(3));
 		collector.collect(new Tuple1<Integer>(4));
 		collector.collect(new Tuple1<Integer>(5));
