@@ -15,6 +15,6 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
-public interface Invokable extends UserInvokable {
+public interface Invokable {
 	public void invoke() throws Exception;
 }
