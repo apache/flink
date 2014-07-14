@@ -29,6 +29,7 @@ public class WordCountCounter extends UserTaskInvokable {
 	private StringValue wordValue = new StringValue("");
 	private IntValue countValue = new IntValue(1);
 	private String word = "";
+	private Record outputRecord = new Record(wordValue, countValue);
 	private int count = 1;
 
 	@Override
@@ -41,7 +42,8 @@ public class WordCountCounter extends UserTaskInvokable {
 			count = wordCounts.get(word) + 1;
 			wordCounts.put(word, count);
 			countValue.setValue(count);
-			Record outputRecord = new Record(wordValue, countValue);
+			outputRecord.setField(0, wordValue);
+			outputRecord.setField(1, countValue);
 			emit(outputRecord);
 		} else {
 
