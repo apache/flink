@@ -30,7 +30,7 @@ public class WordCountSink extends UserSinkInvokable {
 
 	@Override
 	public String getResult() {
-		perf.writeCSV("/home/strato/stratosphere-distrib/log/counter/Sink" + "-1.csv");
+		perf.writeCSV("/home/strato/stratosphere-distrib/log/counter/Sink");
 		return "";
 	}
 

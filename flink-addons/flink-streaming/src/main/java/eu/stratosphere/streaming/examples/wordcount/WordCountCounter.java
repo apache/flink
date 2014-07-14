@@ -59,8 +59,8 @@ public class WordCountCounter extends UserTaskInvokable {
 
 	@Override
 	public String getResult() {
-		pCounter.writeCSV("/home/strato/stratosphere-distrib/log/counter/Counter" + channelID + "-1.csv");
-		pTimer.writeCSV("/home/strato/stratosphere-distrib/log/timer/Counter" + channelID + "-1.csv");
+		pCounter.writeCSV("/home/strato/stratosphere-distrib/log/counter/Counter" + channelID);
+		pTimer.writeCSV("/home/strato/stratosphere-distrib/log/timer/Counter" + channelID);
 		return "";
 	}
 }
