@@ -17,27 +17,27 @@
  *
  **********************************************************************************************************************/
 
-package org.apache.flink.streaming.api.invokable;
+package org.apache.flink.streaming.api.invokable.operator;
 
+import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.util.Collector;
 
-public class MapInvokable<T extends Tuple, R extends Tuple> extends UserTaskInvokable<T, R> {
+public class FlatMapInvokable<T extends Tuple, R extends Tuple> extends UserTaskInvokable<T, R> {
 	private static final long serialVersionUID = 1L;
 
-	private MapFunction<T, R> mapper;
+	private FlatMapFunction<T, R> flatMapper;
 
-	public MapInvokable(MapFunction<T, R> mapper) {
-		this.mapper = mapper;
+	public FlatMapInvokable(FlatMapFunction<T, R> flatMapper) {
+		this.flatMapper = flatMapper;
 	}
 
 	@Override
 	public void invoke(StreamRecord record, Collector<R> collector) throws Exception {
 
 		T tuple = (T) record.getTuple();
-		collector.collect(mapper.map(tuple));
+		flatMapper.flatMap(tuple, collector);
 	}
 }

@@ -25,11 +25,10 @@ import java.util.List;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment.ConnectionType;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.function.SinkFunction;
-import org.apache.flink.streaming.api.invokable.BatchReduceInvokable;
-import org.apache.flink.streaming.api.invokable.FilterInvokable;
-import org.apache.flink.streaming.api.invokable.FlatMapInvokable;
-import org.apache.flink.streaming.api.invokable.MapInvokable;
-
+import org.apache.flink.streaming.api.invokable.operator.BatchReduceInvokable;
+import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
+import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
+import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
 import org.apache.flink.api.java.functions.FilterFunction;
 import org.apache.flink.api.java.functions.FlatMapFunction;
 import org.apache.flink.api.java.functions.GroupReduceFunction;
