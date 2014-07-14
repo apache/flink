@@ -22,8 +22,6 @@ import java.io.FileReader;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.util.PerformanceCounter;
-import eu.stratosphere.streaming.util.PerformanceTimer;
 
 public class WordCountSourceSplitter extends UserSourceInvokable {
 
@@ -31,13 +29,11 @@ public class WordCountSourceSplitter extends UserSourceInvokable {
 	private String line = new String();
 	private StreamRecord outRecord = new StreamRecord(new Tuple1<String>());
 
-	PerformanceCounter pCounter = new PerformanceCounter("SourceEmitCounter", 1000, 1000, "");
-	PerformanceTimer pTimer = new PerformanceTimer("SourceEmitTimer", 1000, 1000, true, "");
 
 	@Override
 	public void invoke() throws Exception {
 
-		for (int i = 0; i < 10; i++) {
+		while (true) {
 			try {
 				br = new BufferedReader(new FileReader("/home/strato/stratosphere-distrib/resources/hamlet.txt"));
 
@@ -46,10 +42,7 @@ public class WordCountSourceSplitter extends UserSourceInvokable {
 					if (line != "") {
 						for (String word : line.split(" ")) {
 							outRecord.setString(0, word);
-							pTimer.startTimer();
 							emit(outRecord);
-							pTimer.stopTimer();
-							pCounter.count();
 						}
 					}
 					line = br.readLine();
@@ -58,20 +51,16 @@ public class WordCountSourceSplitter extends UserSourceInvokable {
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
 			}
+			
+//			Thread.sleep(1);
 		}
 		
-		Thread.sleep(15000);
-		emit(outRecord);
-		Thread.sleep(15000);
-		emit(outRecord);
 
 	}
 
 	@Override
 	public String getResult() {
-		pCounter.writeCSV("/home/strato/stratosphere-distrib/log/counter/Source" + channelID);
-		pTimer.writeCSV("/home/strato/stratosphere-distrib/log/timer/Source" + channelID);
-
+		
 		return "";
 	}
 }
