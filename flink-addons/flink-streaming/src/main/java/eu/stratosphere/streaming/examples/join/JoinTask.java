@@ -39,7 +39,9 @@ public class JoinTask extends
 			Collector<Tuple3<String, Integer, Integer>> out) throws Exception {
 		String streamId = value.f0;
 		String name = value.f1;
-		;
+
+		// From the input value that only contains the grade or the salary of a
+		// person generates a tuple that contains both the name and the salary
 		if (streamId.equals("grade")) {
 			if (salaryHashmap.containsKey(name)) {
 				for (Integer salary : salaryHashmap.get(name)) {

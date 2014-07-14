@@ -28,26 +28,11 @@ import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.util.ClusterUtil;
 import eu.stratosphere.util.Collector;
 
-//TODO:add link to ExecutionEnvironment
-/**
- * ExecutionEnvironment for streaming jobs. An instance of it is necessary to
- * construct streaming topologies.
- * 
- */
-// TODO: add file, elements, rmq source
-// TODO: figure out generic dummysink
+//TODO: add file, elements, rmq source
+//TODO: figure out generic dummysink
 public class StreamExecutionEnvironment {
 	JobGraphBuilder jobGraphBuilder;
 
-	/**
-	 * General constructor specifying the batch size in which the tuples are
-	 * transmitted and their timeout boundary.
-	 * 
-	 * @param defaultBatchSize
-	 *            number of tuples in a batch
-	 * @param defaultBatchTimeoutMillis
-	 *            timeout boundary in milliseconds
-	 */
 	public StreamExecutionEnvironment(int defaultBatchSize, long defaultBatchTimeoutMillis) {
 		if (defaultBatchSize < 1) {
 			throw new IllegalArgumentException("Batch size must be positive.");
@@ -59,9 +44,6 @@ public class StreamExecutionEnvironment {
 				defaultBatchSize, defaultBatchTimeoutMillis);
 	}
 
-	/**
-	 * Constructor for transmitting tuples individually with a 1 second timeout.
-	 */
 	public StreamExecutionEnvironment() {
 		this(1, 1000);
 	}
@@ -77,19 +59,10 @@ public class StreamExecutionEnvironment {
 		}
 	}
 
-	/**
-	 * Partitioning strategy on the stream.
-	 */
 	public static enum ConnectionType {
 		SHUFFLE, BROADCAST, FIELD
 	}
 
-	/**
-	 * Sets the batch size of the datastream in which the tuple are transmitted.
-	 * 
-	 * @param inputStream
-	 *            input datastream
-	 */
 	public <T extends Tuple> void setBatchSize(DataStream<T> inputStream) {
 
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
@@ -98,15 +71,6 @@ public class StreamExecutionEnvironment {
 		}
 	}
 
-	// TODO: Link to JobGraph & JobGraphBuilder
-	/**
-	 * Internal function for assembling the underlying JobGraph of the job.
-	 * 
-	 * @param inputStream
-	 *            input datastream
-	 * @param outputID
-	 *            ID of the output
-	 */
 	private <T extends Tuple> void connectGraph(DataStream<T> inputStream, String outputID) {
 
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
@@ -131,26 +95,9 @@ public class StreamExecutionEnvironment {
 
 	}
 
-	// TODO: link to JobGraph, JobVertex, user-defined spellcheck
-	/**
-	 * Internal function for passing the user defined functions to the JobGraph
-	 * of the job.
-	 * 
-	 * @param functionName
-	 *            name of the function
-	 * @param inputStream
-	 *            input data stream
-	 * @param function
-	 *            the user defined function
-	 * @param functionInvokable
-	 *            the wrapping JobVertex instance
-	 * @param parallelism
-	 *            number of parallel instances of the function
-	 * @return the data stream constructed
-	 */
-	<T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName,
+	public <T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName,
 			DataStream<T> inputStream, final AbstractFunction function,
-			UserTaskInvokable<T, R> functionInvokable, int parallelism) {
+			UserTaskInvokable<T, R> functionInvokable, int paralelism) {
 		DataStream<R> returnStream = new DataStream<R>(this);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -163,15 +110,21 @@ public class StreamExecutionEnvironment {
 		}
 
 		jobGraphBuilder.setTask(returnStream.getId(), functionInvokable, functionName,
-				baos.toByteArray(), parallelism, parallelism);
+				baos.toByteArray(),paralelism,paralelism);
 
 		connectGraph(inputStream, returnStream.getId());
 
 		return returnStream;
 	}
 
+	public <T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName,
+			DataStream<T> inputStream, final AbstractFunction function,
+			UserTaskInvokable<T, R> functionInvokable) {
+		return addFunction(functionName, inputStream, function, functionInvokable, 1);
+	}
+	
 	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
-			SinkFunction<T> sinkFunction, int parallelism) {
+			SinkFunction<T> sinkFunction, int paralelism) {
 		DataStream<T> returnStream = new DataStream<T>(this);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -184,43 +137,39 @@ public class StreamExecutionEnvironment {
 			e.printStackTrace();
 		}
 
-		jobGraphBuilder.setSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction), "sink",
-				baos.toByteArray(), parallelism, parallelism);
+		jobGraphBuilder.setSink("sink", new SinkInvokable<T>(sinkFunction), "sink",
+				baos.toByteArray(),paralelism,paralelism);
 
-		connectGraph(inputStream, returnStream.getId());
+		connectGraph(inputStream, "sink");
 
 		return returnStream;
 	}
-
+	
 	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
 			SinkFunction<T> sinkFunction) {
 		return addSink(inputStream, sinkFunction, 1);
 	}
 
-	public static final class DummySink<IN extends Tuple> extends SinkFunction<IN> {
+	public static final class DummySink extends SinkFunction<Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(IN tuple) {
+		public void invoke(Tuple1<String> tuple) {
 			System.out.println(tuple);
 		}
 
 	}
 
-	public <T extends Tuple> DataStream<T> print(DataStream<T> inputStream) {
-		DataStream<T> returnStream = addSink(inputStream, new DummySink<T>());
+	public <T extends Tuple> DataStream<T> addDummySink(DataStream<T> inputStream) {
 
-		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
-
-		return returnStream;
+		return addSink(inputStream, (SinkFunction<T>) new DummySink());
 	}
 
 	public void execute() {
 		ClusterUtil.runOnMiniCluster(jobGraphBuilder.getJobGraph());
 	}
 
-	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction,
-			int parallelism) {
+	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction, int parallelism) {
 		DataStream<T> returnStream = new DataStream<T>(this);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -234,13 +183,17 @@ public class StreamExecutionEnvironment {
 		}
 
 		jobGraphBuilder.setSource(returnStream.getId(), sourceFunction, "source",
-				baos.toByteArray(), parallelism, parallelism);
+				baos.toByteArray(),parallelism,parallelism);
 
-		return returnStream.copy();
+		return returnStream;
 	}
 
 	public DataStream<Tuple1<String>> readTextFile(String path) {
-		return addSource(new FileSourceFunction(path), 1);
+		return addSource(new FileSourceFunction(path),1);
+	}
+	
+	public DataStream<Tuple1<String>> readTextStream(String path) {
+		return addSource(new FileStreamFunction(path),1);
 	}
 
 	public DataStream<Tuple1<String>> addDummySource() {
@@ -257,7 +210,7 @@ public class StreamExecutionEnvironment {
 		}
 
 		jobGraphBuilder.setSource(returnStream.getId(), new DummySource(), "source",
-				baos.toByteArray(), 1, 1);
+				baos.toByteArray(),1,1);
 		return returnStream;
 	}
 

@@ -29,19 +29,25 @@ public class WindowJoinLocal {
 	private static final int PARALELISM = 1;
 	private static final int SOURCE_PARALELISM = 1;
 
+	// This example will join two streams with a sliding window. One which emits
+	// people's grades and one which emits people's salaries.
+
 	public static void main(String[] args) {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
 		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
-		DataStream<Tuple4<String, String, Integer, Long>> source1 = env
-				.addSource(new WindowJoinSourceOne(), SOURCE_PARALELISM);
+		DataStream<Tuple4<String, String, Integer, Long>> source1 = env.addSource(
+				new WindowJoinSourceOne(), SOURCE_PARALELISM);
 
 		@SuppressWarnings("unused")
 		DataStream<Tuple3<String, Integer, Integer>> source2 = env
-				.addSource(new WindowJoinSourceTwo(), SOURCE_PARALELISM).connectWith(source1).partitionBy(1)
-				.flatMap(new WindowJoinTask(), PARALELISM).addSink(new JoinSink());
+				.addSource(new WindowJoinSourceTwo(), SOURCE_PARALELISM)
+				.connectWith(source1)
+				.partitionBy(1)
+				.flatMap(new WindowJoinTask(), PARALELISM)
+				.addSink(new JoinSink());
 
 		env.execute();
 
