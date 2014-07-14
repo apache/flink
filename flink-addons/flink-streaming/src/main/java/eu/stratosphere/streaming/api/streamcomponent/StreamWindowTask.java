@@ -18,7 +18,7 @@ package eu.stratosphere.streaming.api.streamcomponent;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.state.MutableTableState;
-import eu.stratosphere.streaming.state.SlidingWindowState;
+import eu.stratosphere.streaming.state.WindowState;
 
 public class StreamWindowTask extends UserTaskInvokable {
 	private static final long serialVersionUID = 1L;
@@ -27,7 +27,7 @@ public class StreamWindowTask extends UserTaskInvokable {
 	private int windowFieldId = 1;
 
 	private StreamRecord tempRecord;
-	private SlidingWindowState<Integer> window;
+	private WindowState<Integer> window;
 	private MutableTableState<String, Integer> sum;
 	private long initTimestamp = -1;
 	private long nextTimestamp = -1;
@@ -36,7 +36,7 @@ public class StreamWindowTask extends UserTaskInvokable {
 			int computeGranularity, int windowFieldId) {
 		this.computeGranularity = computeGranularity;
 		this.windowFieldId = windowFieldId;
-		window = new SlidingWindowState<Integer>(windowSize, slidingStep,
+		window = new WindowState<Integer>(windowSize, slidingStep,
 				computeGranularity);
 		sum = new MutableTableState<String, Integer>();
 		sum.put("sum", 0);
