@@ -93,7 +93,6 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 
 	@Override
 	public void close() {
-		// TODO Auto-generated method stub
 
 	}
 

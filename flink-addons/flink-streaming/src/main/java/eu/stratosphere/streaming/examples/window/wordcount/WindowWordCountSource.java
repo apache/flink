@@ -16,32 +16,22 @@
 package eu.stratosphere.streaming.examples.window.wordcount;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.util.Collector;
 
-public class WindowWordCountSource extends UserSourceInvokable {
+public class WindowWordCountSource extends SourceFunction<Tuple2<String, Long>> {
 	private static final long serialVersionUID = 1L;
 	
-	private BufferedReader br = null;
 	private String line = "";
-	private StreamRecord outRecord = new StreamRecord(new Tuple2<String, Long>());
+	private Tuple2<String, Long> outRecord = new Tuple2<String, Long>();
 	private Long timestamp = 0L;
 
-	public WindowWordCountSource() {
-		try {
-			br = new BufferedReader(new FileReader("src/test/resources/testdata/hamlet.txt"));
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-		timestamp = 0L;
-	}
-
 	@Override
-	public void invoke() throws Exception {
+	public void invoke(Collector<Tuple2<String, Long>> collector) throws Exception {
+		BufferedReader br = new BufferedReader(new FileReader("src/test/resources/testdata/hamlet.txt"));
 		while(true){
 			line = br.readLine();
 			if(line==null){
@@ -49,11 +39,11 @@ public class WindowWordCountSource extends UserSourceInvokable {
 			}
 			if (line != "") {
 				line=line.replaceAll("[\\-\\+\\.\\^:,]", "");
-				outRecord.setString(0, line);
-				outRecord.setLong(1, timestamp);
+				outRecord.f0 = line;
+				outRecord.f1 = timestamp;
+				collector.collect(outRecord);
 				timestamp++;
-				emit(outRecord);
 			}
-		}
+		}		
 	}
 }

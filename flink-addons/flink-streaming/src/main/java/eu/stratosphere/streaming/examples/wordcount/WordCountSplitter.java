@@ -22,6 +22,7 @@ import eu.stratosphere.util.Collector;
 public class WordCountSplitter extends FlatMapFunction<Tuple1<String>, Tuple1<String>> {
 	private static final long serialVersionUID = 1L;
 
+	private String[] words = new String[] {};
 	private Tuple1<String> outTuple = new Tuple1<String>();
 
 	//TODO move the performance tracked version to a separate package and clean this
@@ -35,7 +36,8 @@ public class WordCountSplitter extends FlatMapFunction<Tuple1<String>, Tuple1<St
 	@Override
 	public void flatMap(Tuple1<String> inTuple, Collector<Tuple1<String>> out) throws Exception {
 
-		for (String word : inTuple.f0.split(" ")) {
+		words = inTuple.f0.split(" ");
+		for (String word : words) {
 			outTuple.f0 = word;
 			// pTimer.startTimer();
 			out.collect(outTuple);
