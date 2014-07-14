@@ -190,6 +190,46 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Creates a new DataStream that contains a sequence of numbers.
+	 * 
+	 * @param from
+	 *            First number in the sequence
+	 * @param to
+	 *            Last element in the sequence
+	 * @return the data stream constructed
+	 */
+	public DataStream<Tuple1<Long>> generateSequence(long from, long to) {
+		return addSource(new SequenceSource(from, to), 1);
+	}
+
+	/**
+	 * Source Function used to generate sequence
+	 * 
+	 */
+	private static final class SequenceSource extends SourceFunction<Tuple1<Long>> {
+
+		private static final long serialVersionUID = 1L;
+
+		long from;
+		long to;
+		Tuple1<Long> outTuple = new Tuple1<Long>();
+
+		public SequenceSource(long from, long to) {
+			this.from = from;
+			this.to = to;
+		}
+
+		@Override
+		public void invoke(Collector<Tuple1<Long>> collector) throws Exception {
+			for (long i = from; i <= to; i++) {
+				outTuple.f0 = i;
+				collector.collect(outTuple);
+			}
+		}
+
+	}
+
+	/**
 	 * Creates a new DataStream by iterating through the given data. The
 	 * elements are inserted into a Tuple1.
 	 * 
@@ -233,6 +273,7 @@ public class StreamExecutionEnvironment {
 		private static final long serialVersionUID = 1L;
 
 		Iterable<T> iterable;
+		Tuple1<T> outTuple = new Tuple1<T>();
 
 		public FromElementsSource(T... elements) {
 			this.iterable = (Iterable<T>) Arrays.asList(elements);
@@ -245,7 +286,8 @@ public class StreamExecutionEnvironment {
 		@Override
 		public void invoke(Collector<Tuple1<T>> collector) throws Exception {
 			for (T element : iterable) {
-				collector.collect(new Tuple1<T>(element));
+				outTuple.f0 = element;
+				collector.collect(outTuple);
 			}
 		}
 
