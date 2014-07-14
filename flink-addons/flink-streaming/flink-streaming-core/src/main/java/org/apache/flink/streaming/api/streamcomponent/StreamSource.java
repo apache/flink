@@ -104,10 +104,6 @@ public class StreamSource extends AbstractStreamComponent {
 		if (log.isDebugEnabled()) {
 			log.debug("SOURCE " + name + " invoke finished with instance id " + instanceID);
 		}
-		
-//		for (RecordWriter<StreamRecord> output : outputs){
-//			output.flush();
-//		}
 	}
 
 }
