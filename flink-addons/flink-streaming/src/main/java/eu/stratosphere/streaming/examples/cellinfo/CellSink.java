@@ -15,32 +15,21 @@
 
 package eu.stratosphere.streaming.examples.cellinfo;
 
-import java.util.Random;
-
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
+import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.LongValue;
 
-public class InfoSourceInvokable extends UserSourceInvokable {
+public class CellSink extends UserSinkInvokable {
 
-	Random rand = new Random();
-	int cellNumber = 10;
-
-	private IntValue cellId = new IntValue(5);
-	private LongValue timeStamp = new LongValue(500);
-	private StreamRecord record = new StreamRecord(cellId, timeStamp);
+	int counter = 0;
 
 	@Override
-	public void invoke() throws Exception {
-		for (int i = 0; i < 500000; i++) {
-			cellId.setValue(rand.nextInt(cellNumber));
-			timeStamp.setValue(System.currentTimeMillis());
+	public void invoke(StreamRecord record) throws Exception {
+		counter++;
+	}
 
-			record.setRecord(cellId, timeStamp);
-
-			emit(record);
-		}
+	@Override
+	public String getResult() {
+		return String.valueOf(counter);
 	}
 
 }

@@ -15,48 +15,43 @@
 
 package eu.stratosphere.streaming.examples.cellinfo;
 
+import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.IntValue;
-import eu.stratosphere.types.LongValue;
-import eu.stratosphere.types.StringValue;
 
-public class CellTaskInvokable extends UserTaskInvokable {
+public class CellTask extends UserTaskInvokable {
 
-	private WorkerEngineExact engine = new WorkerEngineExact(10, 500, System.currentTimeMillis());
-	private StringValue outValue = new StringValue();
-	IntValue cellID = new IntValue(0);
-	LongValue timeStamp =new LongValue(0);
-	IntValue lastMillis= new IntValue(0);
-	
-	StreamRecord outputRecord = new StreamRecord(outValue);
-	
+	private WorkerEngineExact engine = new WorkerEngineExact(10, 500,
+			System.currentTimeMillis());
+	Integer cellID;
+	Long timeStamp;
+	Integer lastMillis;
+
+	StreamRecord outputRecord = new StreamRecord(new Tuple1<String>());
+
 	int numOfFields;
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		
-		cellID = (IntValue) record.getField(0);
-		timeStamp = (LongValue) record.getField(1);
 
-		numOfFields=record.getNumOfFields();
-		
-		//TODO: consider adding source to StreamRecord as a workaround
+		cellID = record.getInteger(0);
+		timeStamp = record.getLong(1);
+		numOfFields = record.getNumOfFields();
+
+		// TODO: consider adding source to StreamRecord as a workaround
 		// INFO
 		if (numOfFields == 2) {
-			engine.put(cellID.getValue(), timeStamp.getValue());
-			outValue.setValue(cellID.toString() + " " + timeStamp.toString());
-			outputRecord.setRecord(outValue);
+			engine.put(cellID, timeStamp);
+			outputRecord.setString(0, cellID + " " + timeStamp);
 			emit(outputRecord);
 		}
 		// QUERY
 		else if (numOfFields == 3) {
-			lastMillis = (IntValue) record.getField(2);
-			outValue.setValue(String.valueOf(engine.get(timeStamp.getValue(),
-					lastMillis.getValue(), cellID.getValue())));
-			outputRecord.setRecord(outValue);
+			lastMillis = record.getInteger(2);
+			outputRecord.setString(0,
+					String.valueOf(engine.get(timeStamp, lastMillis, cellID)));
 			emit(outputRecord);
-		
+
 		}
 	}
 }

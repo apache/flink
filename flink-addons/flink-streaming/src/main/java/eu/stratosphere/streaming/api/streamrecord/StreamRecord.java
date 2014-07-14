@@ -43,6 +43,7 @@ import eu.stratosphere.types.StringValue;
  * objects in Stratosphere stream processing. The elements of the batch are
  * Value arrays.
  */
+//TODO: update documentation
 public class StreamRecord implements IOReadableWritable, Serializable {
 	private static final long serialVersionUID = 1L;
 

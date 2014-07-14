@@ -15,75 +15,71 @@
 
 package eu.stratosphere.streaming.examples.cellinfo;
 
-import java.io.File;
 import java.net.InetSocketAddress;
 
 import org.apache.log4j.Level;
 
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.client.program.Client;
-import eu.stratosphere.client.program.JobWithJars;
 import eu.stratosphere.configuration.Configuration;
-import eu.stratosphere.core.fs.Path;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.util.LogUtils;
 import eu.stratosphere.types.IntValue;
-import eu.stratosphere.util.LogUtils;
 
-public class CellInfo {
-
-	protected final Configuration config;
-
-	public CellInfo() {
-		this(new Configuration());
-	}
-
-	public CellInfo(Configuration config) {
-		this.config = config;
-
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
-	}
+public class CellInfoLocal {
 
 	public static JobGraph getJobGraph() {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("infoSource", InfoSourceInvokable.class);
-		graphBuilder.setSource("querySource", QuerySourceInvokable.class);
-		graphBuilder.setTask("cellTask", CellTaskInvokable.class, 3);
-		graphBuilder.setSink("sink", CellSinkInvokable.class);
+		graphBuilder.setSource("infoSource", InfoSource.class);
+		graphBuilder.setSource("querySource", QuerySource.class);
+		graphBuilder.setTask("cellTask", CellTask.class, 3);
+		graphBuilder.setSink("sink", CellSink.class);
 
 		graphBuilder.fieldsConnect("infoSource", "cellTask", 0, IntValue.class);
-		graphBuilder.fieldsConnect("querySource", "cellTask", 0, IntValue.class);
+		graphBuilder
+				.fieldsConnect("querySource", "cellTask", 0, IntValue.class);
 		graphBuilder.shuffleConnect("cellTask", "sink");
 
 		return graphBuilder.getJobGraph();
 	}
 
+	// TODO: arguments check
 	public static void main(String[] args) {
 
-		NepheleMiniCluster exec = new NepheleMiniCluster();
+		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
+
 		try {
-
-			File file = new File("target/stratosphere-streaming-0.5-SNAPSHOT.jar");
-			JobWithJars.checkJarFile(file);
-
 			JobGraph jG = getJobGraph();
-
-			jG.addJar(new Path(file.getAbsolutePath()));
-
 			Configuration configuration = jG.getJobConfiguration();
 
-			// Client client = new Client(new InetSocketAddress("localhost",
-			// 6498),
-			// configuration);
+			if (args.length == 0) {
+				args = new String[] { "local" };
+			}
 
-			Client client = new Client(new InetSocketAddress("hadoop02.ilab.sztaki.hu", 6123), configuration);
-			exec.start();
-			client.run(jG, true);
-			exec.stop();
+			if (args[0].equals("local")) {
+				System.out.println("Running in Local mode");
+				NepheleMiniCluster exec = new NepheleMiniCluster();
+
+				exec.start();
+
+				Client client = new Client(new InetSocketAddress("localhost",
+						6498), configuration);
+
+				client.run(jG, true);
+
+				exec.stop();
+			} else if (args[0].equals("cluster")) {
+				System.out.println("Running in Cluster2 mode");
+
+				Client client = new Client(new InetSocketAddress(
+						"hadoop02.ilab.sztaki.hu", 6123), configuration);
+				client.run(jG, true);
+			}
+
 		} catch (Exception e) {
 			System.out.println(e);
 		}
 
 	}
-
 }
