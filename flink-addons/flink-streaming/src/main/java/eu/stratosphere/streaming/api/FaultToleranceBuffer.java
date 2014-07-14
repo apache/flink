@@ -24,6 +24,9 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.io.RecordWriter;
 
 /**
@@ -33,6 +36,7 @@ import eu.stratosphere.nephele.io.RecordWriter;
  */
 public class FaultToleranceBuffer {
 
+	private static final Log log = LogFactory.getLog(FaultToleranceBuffer.class);
 	private long TIMEOUT = 10000;
 	private Long timeOfLastUpdate;
 	private Map<String, StreamRecord> recordBuffer;
@@ -200,7 +204,7 @@ public class FaultToleranceBuffer {
 	 */
 	public void failRecord(String recordID) {
 		// Create new id to avoid double counting acks
-		System.out.println("Fail ID: " + recordID);
+		log.warn("Fail ID: " + recordID);
 		StreamRecord newRecord = popRecord(recordID).setId(channelID);
 		addRecord(newRecord);
 		reEmit(newRecord);
@@ -216,9 +220,9 @@ public class FaultToleranceBuffer {
 		for (RecordWriter<StreamRecord> output : outputs) {
 			try {
 				output.emit(record);
-				System.out.println("Re-emitted");
+				log.warn("Re-emitted");
 			} catch (Exception e) {
-				System.out.println("Re-emit failed");
+				log.warn("Re-emit failed");
 			}
 		}
 

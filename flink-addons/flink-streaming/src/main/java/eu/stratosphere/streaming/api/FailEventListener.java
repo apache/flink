@@ -41,8 +41,7 @@ public class FailEventListener implements EventListener {
 	 * @param recordBuffer
 	 *            The fault tolerance buffer associated with this task
 	 */
-	public FailEventListener(String taskInstanceID,
-			FaultToleranceBuffer recordBuffer) {
+	public FailEventListener(String taskInstanceID, FaultToleranceBuffer recordBuffer) {
 		this.taskInstanceID = taskInstanceID;
 		this.recordBuffer = recordBuffer;
 	}
@@ -58,13 +57,8 @@ public class FailEventListener implements EventListener {
 		String failCID = recordId.split("-", 2)[0];
 		if (failCID.equals(taskInstanceID)) {
 			recordBuffer.failRecord(recordId);
-			if (log.isDebugEnabled()) {
-				log.debug("Fail recieved " + recordId + " conaining: "
-						+ recordBuffer.getRecordBuffer());
-			}
-			// System.out.println("Fail recieved " + recordId);
-			// System.out.println(recordBuffer.getRecordBuffer());
-			// System.out.println("---------------------");
+			log.debug("Fail recieved " + recordId + " conaining: " + recordBuffer.getRecordBuffer());
+			//log.trace(recordBuffer.getRecordBuffer());
 		}
 
 	}

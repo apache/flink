@@ -43,12 +43,7 @@ public class FailEvent extends AbstractTaskEvent {
 	 */
 	public FailEvent(String recordId) {
 		setRecordId(recordId);
-		if (log.isDebugEnabled()) {
-			log.debug("Fail sent " + recordId);
-		}
-		// System.out.println("Fail sent " + recordId);
-		// System.out.println("---------------------");
-
+		log.debug("Fail sent " + recordId);
 	}
 
 	@Override

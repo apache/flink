@@ -25,5 +25,4 @@ public class DefaultSinkInvokable implements UserSinkInvokable {
     StringValue value = (StringValue) record.getField(0, 0);
     System.out.println(value.getValue());
   }
-
 }

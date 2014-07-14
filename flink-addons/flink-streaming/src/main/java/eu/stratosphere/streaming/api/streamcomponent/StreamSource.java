@@ -18,16 +18,22 @@ package eu.stratosphere.streaming.api.streamcomponent;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
+import eu.stratosphere.streaming.api.AckEvent;
 import eu.stratosphere.streaming.api.FaultToleranceBuffer;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.test.RandIS;
 
 public class StreamSource extends AbstractInputTask<RandIS> {
+
+	private static final Log log = LogFactory.getLog(StreamSource.class);
 
 	private List<RecordWriter<StreamRecord>> outputs;
 	private List<ChannelSelector<StreamRecord>> partitioners;
@@ -73,16 +79,12 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 				taskConfiguration, outputs, sourceInstanceID, recordBuffer);
 		streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID, outputs);
 		streamSourceHelper.setFailListener(recordBuffer, sourceInstanceID, outputs);
-
 	}
 
 	@Override
 	public void invoke() throws Exception {
-
 		userFunction.invoke();
-//		System.out.println(this.getClass().getName() + "-" + sourceInstanceID);
-//		System.out.println("---------------------");
-
+		log.debug("Invoking source: " + sourceInstanceID);
 	}
 
 }
