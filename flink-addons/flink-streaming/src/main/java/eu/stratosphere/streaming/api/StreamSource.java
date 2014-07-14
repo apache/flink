@@ -35,7 +35,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 	private List<ChannelSelector<Record>> partitioners;
 	private UserSourceInvokable userFunction;
 	private int numberOfOutputs;
-	
+
 	private static int numSources = 0;
 	private String sourceInstanceID;
 	private Map<String, StreamRecord> recordBuffer;
@@ -49,6 +49,7 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 		numSources++;
 		sourceInstanceID = Integer.toString(numSources);
 		recordBuffer = new TreeMap<String, StreamRecord>();
+
 	}
 
 	@Override
@@ -61,39 +62,43 @@ public class StreamSource extends AbstractInputTask<RandIS> {
 		return null;
 	}
 
-	private void setConfigInputs() {
-		Configuration taskConfiguration = getTaskConfiguration();
-
-		numberOfOutputs = taskConfiguration.getInteger("numberOfOutputs", 0);
-
-		for (int i = 1; i <= numberOfOutputs; i++) {
-			StreamComponentFactory.setPartitioner(taskConfiguration, i, partitioners);
-		}
-
-		for (ChannelSelector<Record> outputPartitioner : partitioners) {
-			outputs.add(new RecordWriter<Record>(this, Record.class,
-					outputPartitioner));
-		}
-
-		setUserFunction(taskConfiguration);
-		StreamComponentFactory.setAckListener(recordBuffer, sourceInstanceID, outputs);
-	}
+	// alternative: remove the comments on this function as well as the
+	// statement in cregisterInputOuput functions.
+	// private void setConfigOutputs(Configuration taskConfiguration) {
+	// numberOfOutputs = taskConfiguration.getInteger("numberOfOutputs", 0);
+	// for (int i = 1; i <= numberOfOutputs; i++) {
+	// StreamComponentFactory.setPartitioner(taskConfiguration, i,
+	// partitioners);
+	// }
+	// for (ChannelSelector<Record> outputPartitioner : partitioners) {
+	// outputs.add(new RecordWriter<Record>(this, Record.class,
+	// outputPartitioner));
+	// }
+	// }
 
 	public void setUserFunction(Configuration taskConfiguration) {
 		Class<? extends UserSourceInvokable> userFunctionClass = taskConfiguration
 				.getClass("userfunction", DefaultSourceInvokable.class,
 						UserSourceInvokable.class);
 		try {
-			this.userFunction = userFunctionClass.newInstance();
-			this.userFunction.declareOutputs(outputs, sourceInstanceID, recordBuffer);
+			userFunction = userFunctionClass.newInstance();
+			userFunction
+					.declareOutputs(outputs, sourceInstanceID, recordBuffer);
 		} catch (Exception e) {
 
 		}
 	}
-	
+
 	@Override
 	public void registerInputOutput() {
-		setConfigInputs();
+		Configuration taskConfiguration = getTaskConfiguration();
+		// setConfigOutputs(taskConfiguration);
+		numberOfOutputs = StreamComponentFactory.setConfigOutputs(this,
+				taskConfiguration, outputs, partitioners);
+		setUserFunction(taskConfiguration);
+		StreamComponentFactory.setAckListener(recordBuffer, sourceInstanceID,
+				outputs);
+
 	}
 
 	@Override

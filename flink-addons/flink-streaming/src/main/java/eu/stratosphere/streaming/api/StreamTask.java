@@ -56,28 +56,27 @@ public class StreamTask extends AbstractTask {
 		recordBuffer = new TreeMap<String, StreamRecord>();
 	}
 
-	private void setConfigInputs() {
-		Configuration taskConfiguration = getTaskConfiguration();
+	// alternative: remove the comments on these two functions as well as the
+	// two statements in registerInputOuput functions.
 
-		numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
-		for (int i = 0; i < numberOfInputs; i++) {
-			inputs.add(new RecordReader<Record>(this, Record.class));
-		}
-
-		numberOfOutputs = taskConfiguration.getInteger("numberOfOutputs", 0);
-
-		for (int i = 1; i <= numberOfOutputs; i++) {
-			StreamComponentFactory.setPartitioner(taskConfiguration, i, partitioners);
-		}
-
-		for (ChannelSelector<Record> outputPartitioner : partitioners) {
-			outputs.add(new RecordWriter<Record>(this, Record.class,
-					outputPartitioner));
-		}
-
-		setUserFunction(taskConfiguration);
-		StreamComponentFactory.setAckListener(recordBuffer, taskInstanceID, outputs);
-	}
+	// private void setConfigInputs(Configuration taskConfiguration) {
+	// numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
+	// for (int i = 0; i < numberOfInputs; i++) {
+	// inputs.add(new RecordReader<Record>(this, Record.class));
+	// }
+	// }
+	//
+	// private void setConfigOutputs(Configuration taskConfiguration) {
+	// numberOfOutputs = taskConfiguration.getInteger("numberOfOutputs", 0);
+	// for (int i = 1; i <= numberOfOutputs; i++) {
+	// StreamComponentFactory.setPartitioner(taskConfiguration, i,
+	// partitioners);
+	// }
+	// for (ChannelSelector<Record> outputPartitioner : partitioners) {
+	// outputs.add(new RecordWriter<Record>(this, Record.class,
+	// outputPartitioner));
+	// }
+	// }
 
 	public void setUserFunction(Configuration taskConfiguration) {
 		Class<? extends UserTaskInvokable> userFunctionClass = taskConfiguration
@@ -93,7 +92,18 @@ public class StreamTask extends AbstractTask {
 
 	@Override
 	public void registerInputOutput() {
-		setConfigInputs();
+		Configuration taskConfiguration = getTaskConfiguration();
+		// setConfigInputs(taskConfiguration);
+		// setConfigOutputs(taskConfiguration);
+
+		numberOfInputs = StreamComponentFactory.setConfigInputs(this,
+				taskConfiguration, inputs);
+		numberOfOutputs = StreamComponentFactory.setConfigOutputs(this,
+				taskConfiguration, outputs, partitioners);
+
+		setUserFunction(taskConfiguration);
+		StreamComponentFactory.setAckListener(recordBuffer, taskInstanceID,
+				outputs);
 	}
 
 	@Override
@@ -106,9 +116,11 @@ public class StreamTask extends AbstractTask {
 					hasInput = true;
 					StreamRecord streamRecord = new StreamRecord(input.next());
 					String id = streamRecord.popId();
-					// TODO: Enclose invoke in try-catch to properly fail records
+					// TODO: Enclose invoke in try-catch to properly fail
+					// records
 					userFunction.invoke(streamRecord.getRecord());
-					System.out.println(this.getClass().getName() + "-" + taskInstanceID);
+					System.out.println(this.getClass().getName() + "-"
+							+ taskInstanceID);
 					System.out.println(recordBuffer.toString());
 					System.out.println("---------------------");
 					input.publishEvent(new AckEvent(id));

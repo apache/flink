@@ -38,23 +38,19 @@ public class StreamSink extends AbstractOutputTask {
 		numberOfInputs = 0;
 	}
 
-	private void setConfigInputs() {
-
-		Configuration taskConfiguration = getTaskConfiguration();
-
-		numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
-		for (int i = 0; i < numberOfInputs; i++) {
-			inputs.add(new RecordReader<Record>(this, Record.class));
-		}
-
-		setUserFunction(taskConfiguration);
-	}
+	// alternative: remove the comments on this function as well as the
+	// statement in cregisterInputOuput functions.
+	// private void setConfigInputs(Configuration taskConfiguration) {
+	// numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
+	// for (int i = 0; i < numberOfInputs; i++) {
+	// inputs.add(new RecordReader<Record>(this, Record.class));
+	// }
+	// }
 
 	public void setUserFunction(Configuration taskConfiguration) {
-
-		Class<? extends UserSinkInvokable> userFunctionClass;
-		userFunctionClass = taskConfiguration.getClass("userfunction",
-				DefaultSinkInvokable.class, UserSinkInvokable.class);
+		Class<? extends UserSinkInvokable> userFunctionClass = taskConfiguration
+				.getClass("userfunction", DefaultSinkInvokable.class,
+						UserSinkInvokable.class);
 		try {
 			userFunction = userFunctionClass.newInstance();
 		} catch (Exception e) {
@@ -64,7 +60,11 @@ public class StreamSink extends AbstractOutputTask {
 
 	@Override
 	public void registerInputOutput() {
-		setConfigInputs();
+		Configuration taskConfiguration = getTaskConfiguration();
+		// setConfigInputs(taskConfiguration);
+		numberOfInputs = StreamComponentFactory.setConfigInputs(this,
+				taskConfiguration, inputs);
+		setUserFunction(taskConfiguration);
 	}
 
 	@Override
