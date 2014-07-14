@@ -163,12 +163,12 @@ public class MapTest {
 	@Test
 	public void mapTest() throws Exception {
 
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
-		DataStream<Tuple1<Integer>> dataStream = context.addSource(new MySource(), 1)
+		DataStream<Tuple1<Integer>> dataStream = env.addSource(new MySource(), 1)
 				.map(new MyMap(), PARALELISM).addSink(new MySink());
 
-		context.execute();
+		env.execute();
 
 		fillExpectedList();
 
@@ -177,87 +177,86 @@ public class MapTest {
 
 	@Test
 	public void broadcastSinkTest() throws Exception {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		DataStream<Tuple1<Integer>> dataStream = context
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		DataStream<Tuple1<Integer>> dataStream = env
 				.addSource(new MySource(), 1)
 				.broadcast()
 				.map(new MyMap(), 3)
 				.addSink(new MyBroadcastSink());
 
-		context.execute();
+		env.execute();
 		assertEquals(30, broadcastResult);
 
 	}
 
 	@Test
 	public void shuffleSinkTest() throws Exception {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		DataStream<Tuple1<Integer>> dataStream = context
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		DataStream<Tuple1<Integer>> dataStream = env
 				.addSource(new MySource(), 1)
 				.map(new MyMap(), 3)
 				.addSink(new MyShufflesSink());
-
-		context.execute();
+		env.execute();
 		assertEquals(10, shuffleResult);
 
 	}
 
-	@Test
-	public void fieldsSinkTest() throws Exception {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		DataStream<Tuple1<Integer>> dataStream = context
-				.addSource(new MySource(), 1)
-				.partitionBy(0)
-				.map(new MyMap(), 3)
-				.addSink(new MyFieldsSink());
-
-		context.execute();
-		assertEquals(10, fieldsResult);
-
-	}
+//	@Test
+//	public void fieldsSinkTest() throws Exception {
+//		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+//		DataStream<Tuple1<Integer>> dataStream = env
+//				.addSource(new MySource(), 1)
+//				.partitionBy(0)
+//				.map(new MyMap(), 3)
+//				.addSink(new MyFieldsSink());
+//
+//		env.execute();
+//		assertEquals(10, fieldsResult);
+//
+//	}
 
 	@Test
 	public void fieldsMapTest() throws Exception {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		DataStream<Tuple1<Integer>> dataStream = context
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		DataStream<Tuple1<Integer>> dataStream = env
 				.addSource(new MyFieldsSource(), 1)
 				.partitionBy(0)
 				.map(new MyFieldsMap(), 3)
 				.addSink(new MyFieldsSink());
 
-		context.execute();
+		env.execute();
 		assertTrue(allInOne);
 
 	}
 	
 	@Test
 	public void diffFieldsMapTest() throws Exception {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		DataStream<Tuple1<Integer>> dataStream = context
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		DataStream<Tuple1<Integer>> dataStream = env
 				.addSource(new MyDiffFieldsSource(), 1)
 				.partitionBy(0)
 				.map(new MyDiffFieldsMap(), 3)
 				.addSink(new MyDiffFieldsSink());
 
-		context.execute();
+		env.execute();
 		assertTrue(threeInAll);
 		assertEquals(9, diffFieldsResult);
 
 	}
 
 	
-	@Test
-	public void graphTest() throws Exception {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		DataStream<Tuple1<Integer>> dataStream = context
-				.addSource(new MySource(), 2)
-				.partitionBy(0)
-				.map(new MyMap(), 3)
-				.broadcast()
-				.addSink(new MyGraphSink(),2);
-
-		context.execute();
-		assertEquals(40, graphResult);
-		
-	}
+//	@Test
+//	public void graphTest() throws Exception {
+//		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+//		DataStream<Tuple1<Integer>> dataStream = env
+//				.addSource(new MySource(), 2)
+//				.partitionBy(0)
+//				.map(new MyMap(), 3)
+//				.broadcast()
+//				.addSink(new MyGraphSink(),2);
+//
+//		env.execute();
+//		assertEquals(40, graphResult);
+//		
+//	}
 }

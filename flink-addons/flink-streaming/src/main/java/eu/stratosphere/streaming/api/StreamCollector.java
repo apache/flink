@@ -54,7 +54,7 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 	@Override
 	public void collect(T tuple) {
 		//TODO: move copy to StreamCollector2
-		streamRecord.setTuple(counter, StreamRecord.copyTuple(tuple));
+		streamRecord.setTuple(counter, tuple);
 		counter++;
 
 		if (counter >= batchSize) {

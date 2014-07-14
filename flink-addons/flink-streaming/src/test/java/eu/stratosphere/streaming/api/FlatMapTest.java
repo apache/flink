@@ -79,7 +79,6 @@ public class FlatMapTest {
 	private static void fillExpectedList(){
 		for(int i=0;i<10;i++){
 			expected.add(i*i);
-			System.out.println("expected " + i*i);
 		}
 	}
 
@@ -90,11 +89,11 @@ public class FlatMapTest {
 	@Test
 	public void test() throws Exception {
 		
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment(2, 1000);
-		DataStream<Tuple1<Integer>> dataStream0 = context.addSource(new MySource(),1).flatMap(new MyFlatMap(), PARALELISM).addSink(new MySink());
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment(2, 1000);
+		DataStream<Tuple1<Integer>> dataStream = env.addSource(new MySource(),1).flatMap(new MyFlatMap(), PARALELISM).addSink(new MySink());
 
 
-		context.execute();
+		env.execute();
 		
 		fillExpectedList();
 		
