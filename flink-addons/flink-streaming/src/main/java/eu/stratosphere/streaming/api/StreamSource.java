@@ -29,77 +29,78 @@ import eu.stratosphere.types.Record;
 
 public class StreamSource extends AbstractInputTask<RandIS> {
 
-	private List<RecordWriter<Record>> outputs;
-	private List<ChannelSelector<Record>> partitioners;
-	private UserSourceInvokable userFunction;
+  private List<RecordWriter<Record>> outputs;
+  private List<ChannelSelector<Record>> partitioners;
+  private UserSourceInvokable userFunction;
 
-	private int numberOfOutputs;
+  private int numberOfOutputs;
 
-	public StreamSource() {
-		// TODO: Make configuration file visible and call setClassInputs() here
-		outputs = new LinkedList<RecordWriter<Record>>();
-		partitioners = new LinkedList<ChannelSelector<Record>>();
-		userFunction = null;
-		numberOfOutputs = 0;
+  public StreamSource() {
+    // TODO: Make configuration file visible and call setClassInputs() here
+    outputs = new LinkedList<RecordWriter<Record>>();
+    partitioners = new LinkedList<ChannelSelector<Record>>();
+    userFunction = null;
+    numberOfOutputs = 0;
 
-	}
+  }
 
-	@Override
-	public RandIS[] computeInputSplits(int requestedMinNumber) throws Exception {
-		return null;
-	}
+  @Override
+  public RandIS[] computeInputSplits(int requestedMinNumber) throws Exception {
+    return null;
+  }
 
-	@Override
-	public Class<RandIS> getInputSplitType() {
-		return null;
-	}
+  @Override
+  public Class<RandIS> getInputSplitType() {
+    return null;
+  }
 
-	private void setConfigInputs() {
+  private void setConfigInputs() {
 
-		numberOfOutputs = getTaskConfiguration().getInteger("numberOfOutputs",
-				0);
-		Class<? extends ChannelSelector<Record>> partitioner;
+    numberOfOutputs = getTaskConfiguration().getInteger("numberOfOutputs", 0);
+    Class<? extends ChannelSelector<Record>> partitioner;
 
-		for (int i = 1; i <= numberOfOutputs; i++) {
-			partitioner = getTaskConfiguration().getClass("partitioner_" + i,
-					DefaultPartitioner.class, ChannelSelector.class);
+    for (int i = 1; i <= numberOfOutputs; i++) {
+      partitioner = getTaskConfiguration().getClass("partitioner_" + i,
+          DefaultPartitioner.class, ChannelSelector.class);
 
-			try {
-				partitioners.add(partitioner.newInstance());
-				// System.out.println("partitioner added");
-			} catch (Exception e) {
-				// System.out.println("partitioner error" + " " + "partitioner_"
-				// + i);
-			}
-		}
-		
-		Class<? extends UserSourceInvokable> userFunctionClass;
-		userFunctionClass = getTaskConfiguration().getClass("userfunction",
-				DefaultSourceInvokable.class, UserSourceInvokable.class);
+      try {
+        partitioners.add(partitioner.newInstance());
+        // System.out.println("partitioner added");
+      } catch (Exception e) {
+        // System.out.println("partitioner error" + " " + "partitioner_"
+        // + i);
+      }
+    }
 
-		try {
-			userFunction = userFunctionClass.newInstance();
-		} catch (Exception e) {
+    for (ChannelSelector<Record> outputPartitioner : partitioners) {
+      outputs.add(new RecordWriter<Record>(this, Record.class,
+          outputPartitioner));
+    }
 
-		}
+    Class<? extends UserSourceInvokable> userFunctionClass;
+    userFunctionClass = getTaskConfiguration().getClass("userfunction",
+        DefaultSourceInvokable.class, UserSourceInvokable.class);
 
-	}
+    try {
+      userFunction = userFunctionClass.newInstance();
+      userFunction.declareOutputs(outputs);
+    } catch (Exception e) {
 
-	@Override
-	public void registerInputOutput() {
-		setConfigInputs();
-		for (ChannelSelector<Record> partitioner : partitioners) {
-			outputs.add(new RecordWriter<Record>(this, Record.class,
-					partitioner));
-		}
-	}
+    }
 
-	@Override
-	public void invoke() throws Exception {
+  }
 
-		for (RecordWriter<Record> output : outputs) {
-			userFunction.invoke(output);
-		}
-	}
+  @Override
+  public void registerInputOutput() {
+    setConfigInputs();
+
+  }
+
+  @Override
+  public void invoke() throws Exception {
+
+    userFunction.invoke();
+
+  }
 
 }

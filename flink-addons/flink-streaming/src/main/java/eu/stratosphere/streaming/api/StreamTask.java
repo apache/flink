@@ -67,11 +67,17 @@ public class StreamTask extends AbstractTask {
       }
     }
 
+    for (ChannelSelector<Record> outputPartitioner : partitioners) {
+      outputs.add(new RecordWriter<Record>(this, Record.class,
+          outputPartitioner));
+    }
+
     Class<? extends UserTaskInvokable> userFunctionClass;
     userFunctionClass = getTaskConfiguration().getClass("userfunction",
         DefaultTaskInvokable.class, UserTaskInvokable.class);
     try {
       userFunction = userFunctionClass.newInstance();
+      userFunction.declareOutputs(outputs);
     } catch (Exception e) {
 
     }
@@ -80,12 +86,9 @@ public class StreamTask extends AbstractTask {
   @Override
   public void registerInputOutput() {
     setConfigInputs();
-    for (ChannelSelector<Record> partitioner : partitioners) {
-      outputs.add(new RecordWriter<Record>(this, Record.class, partitioner));
-    }
+
   }
 
-  // TODO: Performance with multiple outputs
   @Override
   public void invoke() throws Exception {
     boolean hasInput = true;
@@ -94,9 +97,8 @@ public class StreamTask extends AbstractTask {
       for (RecordReader<Record> input : inputs) {
         if (input.hasNext()) {
           hasInput = true;
-          for (RecordWriter<Record> output : outputs) {
-            userFunction.invoke(input.next(), output);
-          }
+          userFunction.invoke(input.next());
+
         }
       }
     }

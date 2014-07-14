@@ -15,11 +15,11 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
-import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.types.Record;
 
-public interface UserTaskInvokable {
+public abstract class UserTaskInvokable extends StreamInvokable {
 
-  public void invoke(Record record,
-      RecordWriter<Record> output) throws Exception;
+  public void invoke(Record record) throws Exception {
+
+  }
 }
