@@ -18,11 +18,11 @@ package eu.stratosphere.streaming.partitioner;
 import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
-//Randomly group, to distribute equally
+//Group to the partitioner with the lowest id
 public class GlobalPartitioner implements ChannelSelector<StreamRecord> {
-	
+
 	@Override
 	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
-		return new int[]{0};
+		return new int[] { 0 };
 	}
 }

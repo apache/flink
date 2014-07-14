@@ -14,7 +14,7 @@ public class BroadcastPartitionerTest {
 	private StreamRecord streamRecord = new StreamRecord(new StringValue());
 
 	@Before
-	public void setBroadcastPartitioner() {
+	public void setPartitioner() {
 		broadcastPartitioner = new BroadcastPartitioner();
 	}
 
@@ -25,7 +25,7 @@ public class BroadcastPartitionerTest {
 		int[] sixth = new int[] { 0, 1, 2, 3, 4, 5 };
 		
 		assertArrayEquals(first, broadcastPartitioner.selectChannels(streamRecord, 1));
-		assertArrayEquals(second, broadcastPartitioner.selectChannels(streamRecord, 1));
-		assertArrayEquals(sixth, broadcastPartitioner.selectChannels(streamRecord, 1));
+		assertArrayEquals(second, broadcastPartitioner.selectChannels(streamRecord, 2));
+		assertArrayEquals(sixth, broadcastPartitioner.selectChannels(streamRecord, 6));
 	}
 }

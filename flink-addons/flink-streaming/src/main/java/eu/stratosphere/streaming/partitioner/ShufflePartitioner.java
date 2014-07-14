@@ -22,10 +22,11 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 //Randomly group, to distribute equally
 public class ShufflePartitioner implements ChannelSelector<StreamRecord> {
-	
+
+	private Random random = new Random();
+
 	@Override
 	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
-		Random random = new Random();
-		return new int[]{random.nextInt(numberOfOutputChannels)};
+		return new int[] { random.nextInt(numberOfOutputChannels) };
 	}
 }
