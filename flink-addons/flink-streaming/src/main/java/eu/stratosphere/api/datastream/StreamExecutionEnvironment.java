@@ -1,14 +1,16 @@
 package eu.stratosphere.api.datastream;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.typeutils.TypeExtractor;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.api.StreamCollector;
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
@@ -37,23 +39,22 @@ public class StreamExecutionEnvironment {
 			}
 		}
 	}		
+
 	
 	public <T extends Tuple, R extends Tuple> DataStream<R> addFlatMapFunction(DataStream<T> inputStream, final FlatMapFunction<T, R> flatMapper, TypeInformation<R> returnType) {
 		DataStream<R> returnStream = new DataStream<R>(this, returnType);
 		
-		jobGraphBuilder.setTask(inputStream.getId(), new UserTaskInvokable<T, R>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public void invoke(StreamRecord record, StreamCollector<R> collector) throws Exception {
-				int batchSize = record.getBatchSize();
-				for (int i = 0; i < batchSize; i++) {
-					T tuple = (T) record.getTuple(i);
-					flatMapper.flatMap(tuple, collector);
-					// outRecord.setTuple(i, (Tuple) resultTuple);
-				}
-			}
-		});
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ObjectOutputStream oos;
+		try {
+			oos = new ObjectOutputStream(baos);
+			oos.writeObject(flatMapper);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		jobGraphBuilder.setTask(returnStream.getId(), new FlatMapInvokable<T,R>(flatMapper), baos.toByteArray());
 		
 		jobGraphBuilder.shuffleConnect(inputStream.getId(), returnStream.getId());
 
@@ -84,13 +85,15 @@ public class StreamExecutionEnvironment {
 
 	
 	public void execute(String idToSink) {
-		jobGraphBuilder.setSink("sink", new UserSinkInvokable() {
-
-			@Override
-			public void invoke(StreamRecord record, StreamCollector collector) throws Exception {
-				System.out.println("SINK: " + record);
-			}
-		});
+		jobGraphBuilder.setSink("sink", new DefaultSinkInvokable());
+				
+//				new UserSinkInvokable() {
+//
+//			@Override
+//			public void invoke(StreamRecord record, StreamCollector collector) throws Exception {
+//				System.out.println("SINK: " + record);
+//			}
+//		});
 		jobGraphBuilder.shuffleConnect(idToSink, "sink");
 		ClusterUtil.runOnMiniCluster(jobGraphBuilder.getJobGraph());
 	}

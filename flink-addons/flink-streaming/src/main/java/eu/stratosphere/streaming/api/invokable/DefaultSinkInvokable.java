@@ -15,16 +15,16 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
+import eu.stratosphere.streaming.api.StreamCollector;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.types.StringValue;
 
 public class DefaultSinkInvokable extends UserSinkInvokable {
 
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void invoke(StreamRecord record) throws Exception {
+	public void invoke(StreamRecord record, StreamCollector collector) throws Exception {
 		String value = (String) record.getTuple(0).getField(0);
-		System.out.println(value);
+		System.out.println(value);		
 	}
 }

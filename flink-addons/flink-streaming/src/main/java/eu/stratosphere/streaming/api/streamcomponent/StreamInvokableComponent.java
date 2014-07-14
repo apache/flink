@@ -21,13 +21,14 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceUtil;
 import eu.stratosphere.streaming.util.PerformanceCounter;
 
-public abstract class StreamInvokableComponent implements Serializable {
+public abstract class StreamInvokableComponent<IN, OUT extends Tuple> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
