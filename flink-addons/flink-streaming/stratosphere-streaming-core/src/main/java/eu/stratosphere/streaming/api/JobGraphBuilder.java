@@ -225,6 +225,34 @@ public class JobGraphBuilder {
 	}
 
 	/**
+	 * Adds serialized invokable object to the JobVertex configuration
+	 * 
+	 * @param InvokableObject
+	 *            Invokable object to serialize
+	 * @param config
+	 *            JobVertex configuration to which the serialized invokable will
+	 *            be added
+	 */
+	private void addSerializedObject(Serializable InvokableObject, Configuration config) {
+	
+		ByteArrayOutputStream baos = null;
+		ObjectOutputStream oos = null;
+		try {
+			baos = new ByteArrayOutputStream();
+	
+			oos = new ObjectOutputStream(baos);
+	
+			oos.writeObject(InvokableObject);
+	
+			config.setBytes("serializedudf", baos.toByteArray());
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.out.println("Serialization error " + InvokableObject.getClass());
+		}
+	
+	}
+
+	/**
 	 * Sets the number of tuples batched together for higher throughput
 	 * 
 	 * @param componentName
@@ -236,117 +264,6 @@ public class JobGraphBuilder {
 		Configuration config = components.get(componentName).getConfiguration();
 		config.setInteger("batchSize_"
 				+ (components.get(componentName).getNumberOfForwardConnections() - 1), batchSize);
-	}
-
-	/**
-	 * Adds serialized invokable object to the JobVertex configuration
-	 * 
-	 * @param InvokableObject
-	 *            Invokable object to serialize
-	 * @param config
-	 *            JobVertex configuration to which the serialized invokable will
-	 *            be added
-	 */
-	private void addSerializedObject(Serializable InvokableObject, Configuration config) {
-
-		ByteArrayOutputStream baos = null;
-		ObjectOutputStream oos = null;
-		try {
-			baos = new ByteArrayOutputStream();
-
-			oos = new ObjectOutputStream(baos);
-
-			oos.writeObject(InvokableObject);
-
-			config.setBytes("serializedudf", baos.toByteArray());
-		} catch (Exception e) {
-			e.printStackTrace();
-			System.out.println("Serialization error " + InvokableObject.getClass());
-		}
-
-	}
-
-	/**
-	 * Sets udf operator from one component to another, used with some sinks.
-	 * 
-	 * @param from
-	 *            from
-	 * @param to
-	 *            to
-	 */
-	public void setBytesFrom(String from, String to) {
-		Configuration fromConfig = components.get(from).getConfiguration();
-		Configuration toConfig = components.get(to).getConfiguration();
-
-		toConfig.setString("operatorName", fromConfig.getString("operatorName", null));
-		toConfig.setBytes("operator", fromConfig.getBytes("operator", null));
-
-	}
-
-	/**
-	 * Connects to JobGraph components with the given names, partitioning and
-	 * channel type
-	 * 
-	 * @param upStreamComponentName
-	 *            Name of the upstream component, that will emit the tuples
-	 * @param downStreamComponentName
-	 *            Name of the downstream component, that will receive the tuples
-	 * @param PartitionerClass
-	 *            Class of the partitioner
-	 */
-	private void connect(String upStreamComponentName, String downStreamComponentName,
-			Class<? extends ChannelSelector<StreamRecord>> PartitionerClass) {
-
-		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
-		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
-
-		try {
-			upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK);
-			Configuration config = new TaskConfig(upStreamComponent.getConfiguration())
-					.getConfiguration();
-			config.setClass(
-					"partitionerClass_" + (upStreamComponent.getNumberOfForwardConnections() - 1),
-					PartitionerClass);
-			if (log.isDebugEnabled()) {
-				log.debug("CONNECTED: " + PartitionerClass.getSimpleName() + " - "
-						+ upStreamComponentName + " -> " + downStreamComponentName);
-			}
-		} catch (JobGraphDefinitionException e) {
-			if (log.isErrorEnabled()) {
-				log.error("Cannot connect components with " + PartitionerClass.getSimpleName()
-						+ " : " + upStreamComponentName + " -> " + downStreamComponentName, e);
-			}
-		}
-	}
-
-	/**
-	 * Sets instance sharing between the given components
-	 * 
-	 * @param component1
-	 *            Share will be called on this component
-	 * @param component2
-	 *            Share will be called to this component
-	 */
-	public void setInstanceSharing(String component1, String component2) {
-		AbstractJobVertex c1 = components.get(component1);
-		AbstractJobVertex c2 = components.get(component2);
-
-		c1.setVertexToShareInstancesWith(c2);
-	}
-
-	/**
-	 * Sets all components to share with the one with highest parallelism
-	 */
-	private void setAutomaticInstanceSharing() {
-
-		AbstractJobVertex maxParallelismVertex = components.get(maxParallelismVertexName);
-
-		for (String componentName : components.keySet()) {
-			if (componentName != maxParallelismVertexName) {
-				components.get(componentName).setVertexToShareInstancesWith(maxParallelismVertex);
-			}
-		}
-
 	}
 
 	/**
@@ -384,28 +301,28 @@ public class JobGraphBuilder {
 	 */
 	public void fieldsConnect(String upStreamComponentName, String downStreamComponentName,
 			int keyPosition) {
-
+	
 		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
 		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
-
+	
 		try {
 			upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK);
-
+	
 			Configuration config = new TaskConfig(upStreamComponent.getConfiguration())
 					.getConfiguration();
-
+	
 			config.setClass(
 					"partitionerClass_" + (upStreamComponent.getNumberOfForwardConnections() - 1),
 					FieldsPartitioner.class);
-
+	
 			config.setInteger(
 					"partitionerIntParam_"
 							+ (upStreamComponent.getNumberOfForwardConnections() - 1), keyPosition);
-
+	
 			config.setInteger("numOfOutputs_"
 					+ (upStreamComponent.getNumberOfForwardConnections() - 1),
 					numberOfInstances.get(downStreamComponentName));
-
+	
 			addOutputChannels(upStreamComponentName, 1);
 			if (log.isDebugEnabled()) {
 				log.debug("CONNECTED: FIELD PARTITIONING - " + upStreamComponentName + " -> "
@@ -419,7 +336,7 @@ public class JobGraphBuilder {
 		}
 		log.info("Fieldsconnected " + upStreamComponentName + " to " + downStreamComponentName
 				+ " on " + keyPosition);
-
+	
 	}
 
 	/**
@@ -437,7 +354,7 @@ public class JobGraphBuilder {
 		connect(upStreamComponentName, downStreamComponentName, GlobalPartitioner.class);
 		addOutputChannels(upStreamComponentName, 1);
 		log.info("Globalconnected: " + upStreamComponentName + " to " + downStreamComponentName);
-
+	
 	}
 
 	/**
@@ -455,6 +372,89 @@ public class JobGraphBuilder {
 		connect(upStreamComponentName, downStreamComponentName, ShufflePartitioner.class);
 		addOutputChannels(upStreamComponentName, 1);
 		log.info("Shuffleconnected: " + upStreamComponentName + " to " + downStreamComponentName);
+	}
+
+	/**
+	 * Connects to JobGraph components with the given names, partitioning and
+	 * channel type
+	 * 
+	 * @param upStreamComponentName
+	 *            Name of the upstream component, that will emit the tuples
+	 * @param downStreamComponentName
+	 *            Name of the downstream component, that will receive the tuples
+	 * @param PartitionerClass
+	 *            Class of the partitioner
+	 */
+	private void connect(String upStreamComponentName, String downStreamComponentName,
+			Class<? extends ChannelSelector<StreamRecord>> PartitionerClass) {
+	
+		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
+		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
+	
+		try {
+			upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK);
+			Configuration config = new TaskConfig(upStreamComponent.getConfiguration())
+					.getConfiguration();
+			config.setClass(
+					"partitionerClass_" + (upStreamComponent.getNumberOfForwardConnections() - 1),
+					PartitionerClass);
+			if (log.isDebugEnabled()) {
+				log.debug("CONNECTED: " + PartitionerClass.getSimpleName() + " - "
+						+ upStreamComponentName + " -> " + downStreamComponentName);
+			}
+		} catch (JobGraphDefinitionException e) {
+			if (log.isErrorEnabled()) {
+				log.error("Cannot connect components with " + PartitionerClass.getSimpleName()
+						+ " : " + upStreamComponentName + " -> " + downStreamComponentName, e);
+			}
+		}
+	}
+
+	/**
+	 * Sets udf operator from one component to another, used with some sinks.
+	 * 
+	 * @param from
+	 *            from
+	 * @param to
+	 *            to
+	 */
+	public void setBytesFrom(String from, String to) {
+		Configuration fromConfig = components.get(from).getConfiguration();
+		Configuration toConfig = components.get(to).getConfiguration();
+
+		toConfig.setString("operatorName", fromConfig.getString("operatorName", null));
+		toConfig.setBytes("operator", fromConfig.getBytes("operator", null));
+
+	}
+
+	/**
+	 * Sets instance sharing between the given components
+	 * 
+	 * @param component1
+	 *            Share will be called on this component
+	 * @param component2
+	 *            Share will be called to this component
+	 */
+	public void setInstanceSharing(String component1, String component2) {
+		AbstractJobVertex c1 = components.get(component1);
+		AbstractJobVertex c2 = components.get(component2);
+
+		c1.setVertexToShareInstancesWith(c2);
+	}
+
+	/**
+	 * Sets all components to share with the one with highest parallelism
+	 */
+	private void setAutomaticInstanceSharing() {
+
+		AbstractJobVertex maxParallelismVertex = components.get(maxParallelismVertexName);
+
+		for (String componentName : components.keySet()) {
+			if (componentName != maxParallelismVertexName) {
+				components.get(componentName).setVertexToShareInstancesWith(maxParallelismVertex);
+			}
+		}
+
 	}
 
 	/**

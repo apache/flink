@@ -18,7 +18,7 @@ package eu.stratosphere.streaming.examples.join;
 import java.util.Random;
 
 import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.streaming.api.function.SourceFunction;
 import eu.stratosphere.util.Collector;
 
 public class JoinSourceOne extends SourceFunction<Tuple3<String, String, Integer>> {

@@ -13,38 +13,17 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api;
+package eu.stratosphere.streaming.api.function;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.Serializable;
 
-import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.util.Collector;
+import eu.stratosphere.api.common.functions.AbstractFunction;
+import eu.stratosphere.api.java.tuple.Tuple;
 
-public class FileStreamFunction extends SourceFunction<Tuple1<String>>{
+public abstract class SinkFunction<IN extends Tuple> extends AbstractFunction implements Serializable {
+
 	private static final long serialVersionUID = 1L;
-	
-	private final String path;
-	private Tuple1<String> outTuple = new Tuple1<String>();
-	
-	public FileStreamFunction(String path) {
-		this.path = path;
-	}
-	
-	@Override
-	public void invoke(Collector<Tuple1<String>> collector) throws IOException {
-		while(true){
-			BufferedReader br = new BufferedReader(new FileReader(path));
-			String line = br.readLine();
-			while (line != null) {
-				if (line != "") {
-					outTuple.f0 = line;
-					collector.collect(outTuple);
-				}
-				line = br.readLine();
-			}
-			br.close();
-		}
-	}
+
+	public abstract void invoke(IN tuple);
+
 }

@@ -150,6 +150,7 @@ public abstract class StreamRecord implements IOReadableWritable, Serializable {
 	 *            type of the tuple
 	 * @return Copy of the tuple
 	 */
+	@SuppressWarnings("unchecked")
 	public static <T extends Tuple> T copyTuple(T tuple) {
 		// TODO: implement deep copy for arrays
 		int numofFields = tuple.getArity();

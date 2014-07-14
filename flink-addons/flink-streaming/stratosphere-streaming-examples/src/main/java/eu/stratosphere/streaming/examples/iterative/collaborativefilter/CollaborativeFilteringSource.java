@@ -19,7 +19,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 
 import eu.stratosphere.api.java.tuple.Tuple4;
-import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.streaming.api.function.SourceFunction;
 import eu.stratosphere.util.Collector;
 
 public class CollaborativeFilteringSource extends SourceFunction<Tuple4<Integer, Integer, Integer, Long>> {

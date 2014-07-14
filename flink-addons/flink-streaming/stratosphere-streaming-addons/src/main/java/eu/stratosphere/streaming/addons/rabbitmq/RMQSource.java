@@ -25,7 +25,7 @@ import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.ShutdownSignalException;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.streaming.api.function.SourceFunction;
 import eu.stratosphere.util.Collector;
 
 /**

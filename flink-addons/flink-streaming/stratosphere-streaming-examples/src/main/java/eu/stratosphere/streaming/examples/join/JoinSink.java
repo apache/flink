@@ -16,7 +16,7 @@
 package eu.stratosphere.streaming.examples.join;
 
 import eu.stratosphere.api.java.tuple.Tuple3;
-import eu.stratosphere.streaming.api.SinkFunction;
+import eu.stratosphere.streaming.api.function.SinkFunction;
 
 public class JoinSink extends SinkFunction<Tuple3<String, Integer, Integer>> {
 	private static final long serialVersionUID = 1L;

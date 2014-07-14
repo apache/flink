@@ -22,6 +22,8 @@ import org.mockito.cglib.core.Local;
 
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.streaming.api.function.SinkFunction;
+import eu.stratosphere.streaming.api.function.SourceFunction;
 import eu.stratosphere.util.Collector;
 
 public class BatchTest {
