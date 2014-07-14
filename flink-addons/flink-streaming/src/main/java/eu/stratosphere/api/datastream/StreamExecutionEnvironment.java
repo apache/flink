@@ -18,11 +18,13 @@ package eu.stratosphere.api.datastream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.util.List;
 
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.nephele.io.InputChannelResult;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
 import eu.stratosphere.streaming.api.StreamCollector;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
@@ -54,6 +56,28 @@ public class StreamExecutionEnvironment {
 
 	}
 
+	public static enum ConnectionType {
+		SHUFFLE, BROADCAST, FIELD
+	}
+
+	private void connectGraph(List<String> inputIDs, String outputID, ConnectionType type, int param) {
+
+		for (String input : inputIDs) {
+			switch (type) {
+			case SHUFFLE:
+				jobGraphBuilder.shuffleConnect(input, outputID);
+				break;
+			case BROADCAST:
+				jobGraphBuilder.broadcastConnect(input, outputID);
+				break;
+			case FIELD:
+				jobGraphBuilder.fieldsConnect(input, outputID, param);
+				break;
+			}
+
+		}
+	}
+
 	public <T extends Tuple, R extends Tuple> DataStream<R> addFlatMapFunction(
 			DataStream<T> inputStream, final FlatMapFunction<T, R> flatMapper) {
 		DataStream<R> returnStream = new DataStream<R>(this);
@@ -71,7 +95,8 @@ public class StreamExecutionEnvironment {
 		jobGraphBuilder.setTask(returnStream.getId(), new FlatMapInvokable<T, R>(flatMapper),
 				"flatMap", baos.toByteArray());
 
-		jobGraphBuilder.shuffleConnect(inputStream.getId(), returnStream.getId());
+		connectGraph(inputStream.connectIDs, returnStream.getId(), inputStream.ctype,
+				inputStream.cparam);
 
 		return returnStream;
 	}
@@ -93,8 +118,9 @@ public class StreamExecutionEnvironment {
 		jobGraphBuilder.setTask(returnStream.getId(), new MapInvokable<T, R>(mapper), "map",
 				baos.toByteArray());
 
-		jobGraphBuilder.shuffleConnect(inputStream.getId(), returnStream.getId());
-
+		connectGraph(inputStream.connectIDs, returnStream.getId(), inputStream.ctype,
+				inputStream.cparam);
+		
 		return returnStream;
 	}
 
@@ -124,7 +150,8 @@ public class StreamExecutionEnvironment {
 
 		jobGraphBuilder.setSink("sink", new DummySink(), "sink", baos.toByteArray());
 
-		jobGraphBuilder.shuffleConnect(inputStream.getId(), "sink");
+		connectGraph(inputStream.connectIDs, "sink", inputStream.ctype,
+				inputStream.cparam);
 		return new DataStream<R>(this);
 	}
 
