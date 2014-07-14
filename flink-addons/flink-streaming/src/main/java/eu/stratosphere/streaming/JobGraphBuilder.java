@@ -95,7 +95,8 @@ public class JobGraphBuilder {
 			String downStreamComponentName, ChannelType channelType) {
 
 		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
-		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
+		AbstractJobVertex downStreamComponent = components
+				.get(downStreamComponentName);
 
 		try {
 			upStreamComponent.connectTo(downStreamComponent, channelType);
@@ -104,18 +105,13 @@ public class JobGraphBuilder {
 		}
 	}
 
-	private void setNumberOfJobInputs()
-	{
-		for (Map.Entry<String, AbstractJobVertex> entry : components.entrySet())
-		{
-			AbstractJobVertex component = entry.getValue();
-			Configuration config = new TaskConfig(
-					component.getConfiguration()).getConfiguration();
-			config.setInteger("numberOfInputs", component.getNumberOfBackwardConnections());
-			components.put(entry.getKey(), component);
-		}		
+	private void setNumberOfJobInputs() {
+		for (AbstractJobVertex component : components.values()) {
+			component.getConfiguration().setInteger("numberOfInputs",
+					component.getNumberOfBackwardConnections());
+		}
 	}
-	
+
 	public JobGraph getJobGraph() {
 		setNumberOfJobInputs();
 		return jobGraph;
