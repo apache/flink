@@ -36,7 +36,9 @@ import eu.stratosphere.streaming.api.FailEventListener;
 import eu.stratosphere.streaming.api.FaultToleranceBuffer;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
+import eu.stratosphere.streaming.api.invokable.RecordInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
+import eu.stratosphere.streaming.api.streamrecord.RecordSizeMismatchException;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
@@ -193,6 +195,32 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 			log.error(
 					"Error while setting partitioner: " + partitioner.getSimpleName()
 							+ " with " + nrOutput + " outputs", e);
+		}
+	}
+	
+	public void invokeRecords(RecordInvokable userFunction, List<RecordReader<StreamRecord>> inputs, String name) throws IOException, InterruptedException {
+		boolean hasInput = true;
+		while (hasInput) {
+			hasInput = false;
+			for (RecordReader<StreamRecord> input : inputs) {
+				if (input.hasNext()) {
+					hasInput = true;
+					StreamRecord record = input.next();
+					String id = record.getId();
+					try {
+						userFunction.invoke(record);
+						threadSafePublish(new AckEvent(id), input);
+						log.debug("ACK: " + id + " -- " + name);
+						//TODO: write an exception class to throw forward
+					} catch (RecordSizeMismatchException e) {
+						throw (e);
+					} catch (Exception e) {
+						e.printStackTrace();
+						threadSafePublish(new FailEvent(id), input);
+						log.warn("FAILED: " + id + " -- " + name + " -- due to " + e.getClass().getSimpleName());
+					}
+				}
+			}
 		}
 	}
 

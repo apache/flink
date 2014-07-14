@@ -133,7 +133,6 @@ public class StreamComponentTest {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		
 	}
 	
 	@Test

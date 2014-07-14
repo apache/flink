@@ -33,7 +33,7 @@ public class WordCountLocal {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
 		graphBuilder.setSource("WordCountSource", WordCountDummySource.class);
 		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, 2);
-		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 4);
+		graphBuilder.setTask("WordCountCounter", WordCountCounter.class, 2);
 		graphBuilder.setSink("WordCountSink", WordCountSink.class);
 
 		graphBuilder.shuffleConnect("WordCountSource", "WordCountSplitter");

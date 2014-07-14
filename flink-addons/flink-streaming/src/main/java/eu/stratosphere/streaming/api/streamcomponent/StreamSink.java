@@ -24,10 +24,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
-import eu.stratosphere.streaming.api.AckEvent;
-import eu.stratosphere.streaming.api.FailEvent;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.streamrecord.RecordSizeMismatchException;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class StreamSink extends AbstractOutputTask {
@@ -59,32 +56,10 @@ public class StreamSink extends AbstractOutputTask {
 		userFunction = streamSinkHelper.getUserFunction(taskConfiguration);
 	}
 
-	//TODO: eliminate code repetition (StreamTask)
 	@Override
 	public void invoke() throws Exception {
 		log.debug("SINK " + name + " invoked");
-		boolean hasInput = true;
-		while (hasInput) {
-			hasInput = false;
-			for (RecordReader<StreamRecord> input : inputs) {
-				if (input.hasNext()) {
-					hasInput = true;
-					StreamRecord rec = input.next();
-					String id = rec.getId();
-					try {
-						userFunction.invoke(rec);
-						streamSinkHelper.threadSafePublish(new AckEvent(id), input);
-						log.debug("ACK: " + id + " -- " + name);
-					} catch (RecordSizeMismatchException e) {
-						throw (e);
-					} catch (Exception e) {
-						streamSinkHelper.threadSafePublish(new FailEvent(id), input);
-						log.warn("INVOKE FAILED: " + id + " -- " + name + " -- due to " + e.getClass().getSimpleName());
-					}
-				}
-
-			}
-		}
+		streamSinkHelper.invokeRecords(userFunction, inputs, name);
 		System.out.println("Result: "+userFunction.getResult());
 		log.debug("SINK " + name + " invoke finished");
 	}
