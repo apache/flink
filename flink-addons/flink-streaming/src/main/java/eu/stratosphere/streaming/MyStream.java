@@ -21,13 +21,15 @@ import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.pact.runtime.task.util.TaskConfig;
 import eu.stratosphere.test.util.TestBase2;
+import eu.stratosphere.types.Record;
+import eu.stratosphere.types.StringValue;
 
 public class MyStream extends TestBase2 {
   
   public static class InfoSource extends AbstractInputTask<RandIS> {
-    private RecordWriter<IOReadableWritable> output;
-    private Class<? extends ChannelSelector<IOReadableWritable>> Partitioner;
-    ChannelSelector<IOReadableWritable> partitioner;
+    private RecordWriter<Record> output;
+    private Class<? extends ChannelSelector<Record>> Partitioner;
+    ChannelSelector<Record> partitioner;
     private Class<? extends UserSourceInvokable> UserFunction;
     UserSourceInvokable userFunction;
     
@@ -71,9 +73,7 @@ public class MyStream extends TestBase2 {
     @Override
     public void registerInputOutput() {
       setClassInputs();
-      output = new RecordWriter<IOReadableWritable>(this,
-          IOReadableWritable.class, this.partitioner);
-
+      output = new RecordWriter<Record>(this, Record.class, this.partitioner);
     }
 
     @Override
@@ -84,7 +84,7 @@ public class MyStream extends TestBase2 {
 
   public static class QuerySource extends AbstractInputTask<RandIS> {
 
-    private RecordWriter<StringRecord> output;
+    private RecordWriter<Record> output;
 
     @Override
     public RandIS[] computeInputSplits(int requestedMinNumber) throws Exception {
@@ -100,8 +100,7 @@ public class MyStream extends TestBase2 {
 
     @Override
     public void registerInputOutput() {
-      output = new RecordWriter<StringRecord>(this, StringRecord.class,
-          new StreamPartitioner());
+      output = new RecordWriter<Record>(this, Record.class, new StreamPartitioner());
     }
 
     @Override
@@ -111,8 +110,8 @@ public class MyStream extends TestBase2 {
       for (int i = 0; i < 5; i++) {
         // output.emit(new
         // StringRecord(rnd.nextInt(10)+" "+rnd.nextInt(1000)+" 500"));
-        output.emit(new StringRecord("5 510 100"));
-        output.emit(new StringRecord("4 510 100"));
+        output.emit(new Record(new StringValue("5 510 100")));
+        output.emit(new Record(new StringValue("4 510 100")));
       }
 
     }
@@ -121,18 +120,21 @@ public class MyStream extends TestBase2 {
 
   public static class MySink extends AbstractOutputTask {
 
-    private RecordReader<StringRecord> input = null;
+    private RecordReader<Record> input = null;
 
     @Override
     public void registerInputOutput() {
-      this.input = new RecordReader<StringRecord>(this, StringRecord.class);
+      this.input = new RecordReader<Record>(this, Record.class);
     }
 
     @Override
     public void invoke() throws Exception {
 
       while (input.hasNext()) {
-        System.out.println(input.next().toString());
+      	StringValue value = new StringValue("");
+      	Record record = input.next();
+      	record.getFieldInto(0, value);
+        System.out.println(value.getValue());
       }
 
     }
@@ -229,8 +231,8 @@ public class MyStream extends TestBase2 {
     graphBuilder.connect("querySource", "cellTask", ChannelType.INMEMORY);
     graphBuilder.connect("cellTask", "sink", ChannelType.INMEMORY);
 
-    //return graphBuilder.getJobGraph();
-    return myJG;
+    return graphBuilder.getJobGraph();
+    //return myJG;
   }
 
 }

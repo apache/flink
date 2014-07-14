@@ -11,18 +11,19 @@ import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractInputTask;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.streaming.cellinfo.WorkerEngineExact;
+import eu.stratosphere.types.Record;
 
 public class StreamTask extends AbstractTask {
 
-  private RecordWriter<IOReadableWritable> output;
-  private Class<? extends ChannelSelector<IOReadableWritable>> Partitioner;
-  ChannelSelector<IOReadableWritable> partitioner;
+  private RecordWriter<Record> output;
+  private Class<? extends ChannelSelector<Record>> Partitioner;
+  ChannelSelector<Record> partitioner;
   private Class<? extends UserTaskInvokable> UserFunction;
   private UserTaskInvokable userFunction;
   
 
-  private RecordReader<IOReadableWritable> inputInfo = null;
-  private RecordReader<IOReadableWritable> inputQuery = null;
+  private RecordReader<Record> inputInfo = null;
+  private RecordReader<Record> inputQuery = null;
 
 
   
@@ -55,19 +56,30 @@ public class StreamTask extends AbstractTask {
   @Override
   public void registerInputOutput() {
     setClassInputs();
-    this.inputInfo = new RecordReader<IOReadableWritable>(this, IOReadableWritable.class);
-    this.inputQuery = new RecordReader<IOReadableWritable>(this, IOReadableWritable.class);
-    output = new RecordWriter<IOReadableWritable>(this, IOReadableWritable.class, this.partitioner);
+    this.inputInfo = new RecordReader<Record>(this, Record.class);
+    this.inputQuery = new RecordReader<Record>(this, Record.class);
+    output = new RecordWriter<Record>(this, Record.class, this.partitioner);
     
   }
 
   @Override
   public void invoke() throws Exception {
-    List< RecordReader<IOReadableWritable>> inputs = new ArrayList< RecordReader<IOReadableWritable>>();
+    List< RecordReader<Record>> inputs = new ArrayList< RecordReader<Record>>();
     inputs.add(inputInfo);
     inputs.add(inputQuery);
-
-    userFunction.invoke(inputs,output);
+    
+    boolean hasInput = true;
+    while (hasInput)
+    {
+    	hasInput = false;
+    	for (RecordReader<Record> input : inputs)
+    	{
+    		if (input.hasNext()) {
+    			hasInput = true;
+    			userFunction.invoke(input.next(), output);
+    		}
+    	}
+    }
 
   }
 
