@@ -23,6 +23,7 @@ import org.apache.commons.logging.LogFactory;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.UID;
+import eu.stratosphere.streaming.util.PerformanceTracker;
 
 /**
  * An object to provide fault tolerance for Stratosphere stream processing. It
@@ -41,6 +42,7 @@ public class FaultToleranceUtil {
 	boolean exactlyOnce;
 
 	private FaultToleranceBuffer buffer;
+	public PerformanceTracker counter;
 
 	/**
 	 * Creates fault tolerance buffer object for the given output channels and
@@ -69,6 +71,9 @@ public class FaultToleranceUtil {
 			this.buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, sourceInstanceID);
 		}
 
+		counter = new PerformanceTracker("pc", 1000, 1000, 3000, "C:/temp/strato/buffer/Buffer"
+				+ sourceInstanceID + "-1.csv");
+
 	}
 
 	/**
@@ -81,7 +86,7 @@ public class FaultToleranceUtil {
 	public void addRecord(StreamRecord streamRecord) {
 
 		buffer.add(streamRecord);
-
+		counter.track(this.buffer.recordBuffer.size());
 	}
 
 	public void addRecord(StreamRecord streamRecord, int output) {
@@ -103,6 +108,7 @@ public class FaultToleranceUtil {
 	// TODO: find a place to call timeoutRecords
 	public void ackRecord(UID recordID, int channel) {
 		buffer.ack(recordID, channel);
+
 	}
 
 	/**

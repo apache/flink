@@ -15,14 +15,14 @@
 
 package eu.stratosphere.streaming.faulttolerance;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -55,12 +55,12 @@ public abstract class FaultToleranceBuffer {
 		this.componentInstanceID = componentInstanceID;
 		this.timeOfLastUpdate = System.currentTimeMillis();
 
-		this.recordBuffer = new HashMap<UID, StreamRecord>();
-		this.recordsByTime = new TreeMap<Long, Set<UID>>();
-		this.recordTimestamps = new HashMap<UID, Long>();
+		this.recordBuffer = new ConcurrentHashMap<UID, StreamRecord>();
+		this.recordsByTime = new ConcurrentSkipListMap<Long, Set<UID>>();
+		this.recordTimestamps = new ConcurrentHashMap<UID, Long>();
 	}
 
-	public synchronized void add(StreamRecord streamRecord) {
+	public void add(StreamRecord streamRecord) {
 
 		StreamRecord record = streamRecord.copy();
 		UID id = record.getId();
@@ -73,7 +73,7 @@ public abstract class FaultToleranceBuffer {
 		log.trace("Record added to buffer: " + id);
 	}
 
-	public synchronized void add(StreamRecord streamRecord, int channel) {
+	public void add(StreamRecord streamRecord, int channel) {
 
 		StreamRecord record = streamRecord.copy();
 
@@ -125,7 +125,7 @@ public abstract class FaultToleranceBuffer {
 
 	}
 
-	public synchronized StreamRecord remove(UID uid) {
+	public StreamRecord remove(UID uid) {
 
 		if (removeFromAckCounter(uid)) {
 
