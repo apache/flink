@@ -30,6 +30,8 @@ import org.apache.log4j.Logger;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.client.minicluster.NepheleMiniCluster;
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.configuration.Configuration;
@@ -43,89 +45,76 @@ import eu.stratosphere.streaming.partitioner.FieldsPartitioner;
 import eu.stratosphere.types.IntValue;
 
 public class StreamComponentTest {
-	
+
 	private static Map<Integer, Integer> data = new HashMap<Integer, Integer>();
-	private static FieldsPartitioner fP= new FieldsPartitioner(0, IntValue.class);
+	private static FieldsPartitioner fP = new FieldsPartitioner(0, IntValue.class);
 	private static boolean fPTest = true;
-	
-	
+
 	public static class MySource extends UserSourceInvokable {
 		public MySource() {
 		}
-		
+
 		@Override
 		public void invoke() throws Exception {
-			StreamRecord record = new StreamRecord(new IntValue(-1));
+			StreamRecord record = new StreamRecord(new Tuple1<Integer>(-1));
 			for (int i = 0; i < 1000; i++) {
 				record.setField(0, new IntValue(i));
 				emit(record);
 			}
 		}
 	}
-	
+
 	public static class MyTask extends UserTaskInvokable {
 		public MyTask() {
 		}
-		
-		int[] lastChannels=null;
-		
+
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
-			
-			if(lastChannels!=null){
-				if(!Arrays.equals(lastChannels, fP.selectChannels(record, 2))){
-					fPTest=false;
-				}
-			}
-			
-			lastChannels=fP.selectChannels(record, 2);
-			
-			IntValue val = (IntValue) record.getField(0);
-			Integer i = val.getValue();
-			emit(new StreamRecord(new IntValue(i), new IntValue(i+1)));
+
+			Integer i = (Integer) record.getField(0);
+			emit(new StreamRecord(new Tuple2<Integer, Integer>(i, i + 1)));
 		}
 	}
-	
+
 	public static class MySink extends UserSinkInvokable {
 		public MySink() {
 		}
-		
+
 		@Override
 		public void invoke(StreamRecord record) throws Exception {
-			IntValue k = (IntValue) record.getField(0);
-			IntValue v = (IntValue) record.getField(1);
-			data.put(k.getValue(), v.getValue());
+			Integer k = (Integer) record.getField(0);
+			Integer v = (Integer) record.getField(1);
+			data.put(k, v);
 		}
-		
+
 		@Override
 		public String getResult() {
 			return "";
 		}
 	}
-	
+
 	@BeforeClass
-	public static void runStream(){
+	public static void runStream() {
 		Logger root = Logger.getRootLogger();
 		root.removeAllAppenders();
 		root.addAppender(new ConsoleAppender());
 		root.setLevel(Level.OFF);
-		
+
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
 		graphBuilder.setSource("MySource", StreamComponentTest.MySource.class);
 		graphBuilder.setTask("MyTask", MyTask.class, 2);
 		graphBuilder.setSink("MySink", MySink.class);
 
-		graphBuilder.fieldsConnect("MySource", "MyTask",0,IntValue.class);
+		graphBuilder.shuffleConnect("MySource", "MyTask");
 		graphBuilder.shuffleConnect("MyTask", "MySink");
-		
+
 		JobGraph jG = graphBuilder.getJobGraph();
 		Configuration configuration = jG.getJobConfiguration();
-		
+
 		NepheleMiniCluster exec = new NepheleMiniCluster();
 		try {
 			exec.start();
-			Client client = new Client(new InetSocketAddress("localhost",
-					6498), configuration);
+			Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
 
 			client.run(jG, true);
 
@@ -134,16 +123,16 @@ public class StreamComponentTest {
 			e.printStackTrace();
 		}
 	}
-	
+
 	@Test
 	public void test() {
-		
+
 		Assert.assertTrue(fPTest);
-		
+
 		assertEquals(1000, data.keySet().size());
-		
+
 		for (Integer k : data.keySet()) {
-			assertEquals((Integer) (k+1), data.get(k));
+			assertEquals((Integer) (k + 1), data.get(k));
 		}
 	}
 }
