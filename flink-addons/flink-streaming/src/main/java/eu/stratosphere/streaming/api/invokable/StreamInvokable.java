@@ -1,8 +1,6 @@
 package eu.stratosphere.streaming.api.invokable;
 
 import java.util.List;
-import java.util.Map;
-
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.streaming.api.FaultTolerancyBuffer;
 import eu.stratosphere.streaming.api.StreamRecord;
@@ -30,7 +28,7 @@ public abstract class StreamInvokable {
 		for (RecordWriter<Record> output : outputs) {
 			try {
 
-				output.emit(streamRecord.getRecord());
+				output.emit(streamRecord.getRecordWithId());
 
 				System.out.println(this.getClass().getName());
 				System.out.println("Emitted " + streamRecord.getId() + "-"
