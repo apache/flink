@@ -32,12 +32,12 @@ public class DataStream<T extends Tuple> {
 	private final StreamExecutionEnvironment context;
 	private TypeInformation<T> type;
 	private final Random random = new Random();
-	private final String id;
+	private String id;
 	List<String> connectIDs;
 	List<ConnectionType> ctypes;
 	List<Integer> cparams;
 	List<Integer> batchSizes;
-
+	
 	protected DataStream() {
 		// TODO implement
 		context = new StreamExecutionEnvironment();
@@ -56,6 +56,11 @@ public class DataStream<T extends Tuple> {
 		initConnections();
 
 	}
+
+	private DataStream(StreamExecutionEnvironment context, String id) {
+		this(context);
+		this.id = id;
+	}
 	
 	//TODO: create copy method (or constructor) and copy datastream at every operator
 
@@ -71,69 +76,88 @@ public class DataStream<T extends Tuple> {
 
 	}
 
+	public DataStream<T> copy() {
+		DataStream<T> copiedStream = new DataStream<T>(context, getId());
+		copiedStream.type = this.type;
+		
+		copiedStream.connectIDs = new ArrayList<String>(this.connectIDs);
+		
+		copiedStream.ctypes = new ArrayList<StreamExecutionEnvironment.ConnectionType>(this.ctypes);
+		copiedStream.cparams = new ArrayList<Integer>(this.cparams);
+		copiedStream.batchSizes = new ArrayList<Integer>(this.batchSizes);
+		return copiedStream;
+	}
+	
 	public String getId() {
 		return id;
 	}
 
 	public DataStream<T> batch(int batchSize) {
-
+		DataStream<T> returnStream = copy();
+		
 		if (batchSize < 1) {
 			throw new IllegalArgumentException("Batch size must be positive.");
 		}
 
-		for (int i = 0; i < batchSizes.size(); i++) {
-			batchSizes.set(i, batchSize);
+		for (int i = 0; i < returnStream.batchSizes.size(); i++) {
+			returnStream.batchSizes.set(i, batchSize);
 		}
-		return this;
+		return returnStream;
 	}
 
 	public DataStream<T> connectWith(DataStream<T> stream) {
-		connectIDs.addAll(stream.connectIDs);
-		ctypes.addAll(stream.ctypes);
-		cparams.addAll(stream.cparams);
-		batchSizes.addAll(stream.batchSizes);
-		return this;
+		DataStream<T> returnStream = copy();
+
+		returnStream.connectIDs.addAll(stream.connectIDs);
+		returnStream.ctypes.addAll(stream.ctypes);
+		returnStream.cparams.addAll(stream.cparams);
+		returnStream.batchSizes.addAll(stream.batchSizes);
+		return returnStream;
 	}
 
 	public DataStream<T> partitionBy(int keyposition) {
-		for (int i = 0; i < ctypes.size(); i++) {
-			ctypes.set(i, ConnectionType.FIELD);
-			cparams.set(i, keyposition);
+		DataStream<T> returnStream = copy();
+
+		for (int i = 0; i < returnStream.ctypes.size(); i++) {
+			returnStream.ctypes.set(i, ConnectionType.FIELD);
+			returnStream.cparams.set(i, keyposition);
 		}
-		return this;
+		return returnStream;
 	}
 
 	public DataStream<T> broadcast() {
-		for (int i = 0; i < ctypes.size(); i++) {
-			ctypes.set(i, ConnectionType.BROADCAST);
+		DataStream<T> returnStream = copy();
+
+		for (int i = 0; i < returnStream.ctypes.size(); i++) {
+			returnStream.ctypes.set(i, ConnectionType.BROADCAST);
 		}
-		return this;
+		return returnStream;
 	}
 
 	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper) {
-		return context.addFunction("flatMap", this, flatMapper, new FlatMapInvokable<T, R>(
+		return context.addFunction("flatMap", this.copy(), flatMapper, new FlatMapInvokable<T, R>(
 				flatMapper));
 	}
 
 	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper) {
-		return context.addFunction("map", this, mapper, new MapInvokable<T, R>(mapper));
+		return context.addFunction("map", this.copy(), mapper, new MapInvokable<T, R>(mapper));
 	}
 
 	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer) {
-		return context.addFunction("batchReduce", this, reducer, new BatchReduceInvokable<T, R>(
+		return context.addFunction("batchReduce", this.copy(), reducer, new BatchReduceInvokable<T, R>(
 				reducer));
 	}
 
 	public DataStream<T> filter(FilterFunction<T> filter) {
-		return context.addFunction("filter", this, filter, new FilterInvokable<T>(filter));
+		return context.addFunction("filter", this.copy(), filter, new FilterInvokable<T>(filter));
 	}
 
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
-		return context.addSink(this, sinkFunction);
+		return context.addSink(this.copy(), sinkFunction);
 	}
 
 	public DataStream<T> addDummySink() {
-		return context.addDummySink(this);
+		return context.addDummySink(this.copy());
 	}
 
 	protected void setType(TypeInformation<T> type) {

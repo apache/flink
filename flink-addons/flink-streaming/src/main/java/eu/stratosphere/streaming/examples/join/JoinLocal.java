@@ -28,17 +28,17 @@ public class JoinLocal {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
+		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
 
-		DataStream<Tuple3<String, String, Integer>> source1 = context
+		DataStream<Tuple3<String, String, Integer>> source1 = env
 				.addSource(new JoinSourceOne());
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple3<String, Integer, Integer>> source2 = context
+		DataStream<Tuple3<String, Integer, Integer>> source2 = env
 				.addSource(new JoinSourceTwo()).connectWith(source1).partitionBy(1)
 				.flatMap(new JoinTask()).addSink(new JoinSink());
 
-		context.execute();
+		env.execute();
 
 	}
 

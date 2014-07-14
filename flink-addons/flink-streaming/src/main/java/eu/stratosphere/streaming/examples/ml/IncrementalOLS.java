@@ -173,5 +173,7 @@ public class IncrementalOLS {
 					.connectWith(model)
 					.map(new Predictor())
 					.addSink(new IncOLSSink());
+		
+		env.execute();
 	}
 }
