@@ -24,12 +24,12 @@ import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.streaming.api.StreamExecutionEnvironment.ConnectionType;
+import eu.stratosphere.streaming.api.collector.OutputSelector;
 import eu.stratosphere.streaming.api.function.SinkFunction;
 import eu.stratosphere.streaming.api.invokable.BatchReduceInvokable;
 import eu.stratosphere.streaming.api.invokable.FilterInvokable;
 import eu.stratosphere.streaming.api.invokable.FlatMapInvokable;
 import eu.stratosphere.streaming.api.invokable.MapInvokable;
-import eu.stratosphere.streaming.api.streamrecord.OutputSelector;
 import eu.stratosphere.types.TypeInformation;
 
 /**

@@ -13,15 +13,15 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api.streamrecord;
+package eu.stratosphere.streaming.api.collector;
 
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.streaming.api.collector.StreamCollector;
 import eu.stratosphere.streaming.api.streamcomponent.MockRecordWriter;
-import eu.stratosphere.streaming.api.streamrecord.StreamCollector;
 import eu.stratosphere.streaming.util.MockRecordWriterFactory;
 
 public class StreamCollectorTest {
@@ -31,7 +31,7 @@ public class StreamCollectorTest {
 		MockRecordWriter recWriter = MockRecordWriterFactory.create();
 
 		StreamCollector<Tuple1<Integer>> collector = new StreamCollector<Tuple1<Integer>>(10, 1000,
-				0, null, recWriter);
+				0, null, recWriter,0);
 		assertEquals(10, collector.batchSize);
 	}
 
@@ -40,7 +40,7 @@ public class StreamCollectorTest {
 		MockRecordWriter recWriter = MockRecordWriterFactory.create();
 
 		StreamCollector<Tuple1<Integer>> collector = new StreamCollector<Tuple1<Integer>>(2, 1000,
-				0, null, recWriter);
+				0, null, recWriter,0);
 		collector.collect(new Tuple1<Integer>(3));
 		collector.collect(new Tuple1<Integer>(4));
 		collector.collect(new Tuple1<Integer>(5));
@@ -53,7 +53,7 @@ public class StreamCollectorTest {
 		MockRecordWriter recWriter = MockRecordWriterFactory.create();
 
 		StreamCollector<Tuple1<Integer>> collector = new StreamCollector<Tuple1<Integer>>(3, 100,
-				0, null, recWriter);
+				0, null, recWriter,0);
 		collector.collect(new Tuple1<Integer>(0));
 		collector.collect(new Tuple1<Integer>(0));
 		collector.collect(new Tuple1<Integer>(0));
@@ -68,7 +68,7 @@ public class StreamCollectorTest {
 		MockRecordWriter recWriter = MockRecordWriterFactory.create();
 
 		StreamCollector<Tuple1<Integer>> collector = new StreamCollector<Tuple1<Integer>>(2, 1000,
-				0, null, recWriter);
+				0, null, recWriter,0);
 		collector.collect(new Tuple1<Integer>(3));
 		collector.collect(new Tuple1<Integer>(4));
 		collector.collect(new Tuple1<Integer>(5));

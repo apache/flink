@@ -57,9 +57,9 @@ public class StreamTask extends AbstractStreamComponent {
 
 		try {
 			setSerializers();
+			setCollector();
 			inputs = getConfigInputs();
 			setConfigOutputs(outputs, partitioners);
-			setCollector(outputs);
 		} catch (StreamComponentException e) {
 			if (log.isErrorEnabled()) {
 				log.error("Cannot register inputs/outputs for " + getClass().getSimpleName(), e);

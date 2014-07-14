@@ -57,9 +57,8 @@ public abstract class StreamRecord implements IOReadableWritable, Serializable {
 
 	protected UID uid = new UID();
 	protected int batchSize;
+	public int hashPartition;
 	
-	public int iterationFlag=1;
-
 	protected SerializationDelegate<Tuple> serializationDelegate;
 	protected DeserializationDelegate<Tuple> deserializationDelegate;
 	protected TupleSerializer<Tuple> tupleSerializer;
@@ -104,6 +103,10 @@ public abstract class StreamRecord implements IOReadableWritable, Serializable {
 	public StreamRecord setId(int channelID) {
 		uid = new UID(channelID);
 		return this;
+	}
+	
+	public void setPartition(int hashPartition){
+		this.hashPartition = hashPartition;
 	}
 
 	/**

@@ -56,8 +56,8 @@ public class StreamSource extends AbstractStreamComponent {
 		
 		try {
 			setSerializers();
+			setCollector();
 			setConfigOutputs(outputs, partitioners);
-			setCollector(outputs);
 		} catch (StreamComponentException e) {
 			if (log.isErrorEnabled()) {
 				log.error("Cannot register outputs", e);
@@ -95,7 +95,7 @@ public class StreamSource extends AbstractStreamComponent {
 			output.initializeSerializers();
 		}
 		
-		userFunction.invoke(collector);
+		userFunction.invoke(collectorManager);
 		
 		if (log.isDebugEnabled()) {
 			log.debug("SOURCE " + name + " invoke finished with instance id " + instanceID);
