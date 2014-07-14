@@ -19,18 +19,23 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ConcurrentModificationException;
-import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.core.io.StringRecord;
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 import eu.stratosphere.nephele.event.task.EventListener;
+import eu.stratosphere.nephele.io.AbstractRecordReader;
 import eu.stratosphere.nephele.io.ChannelSelector;
+import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.nephele.io.UnionRecordReader;
 import eu.stratosphere.nephele.template.AbstractInvokable;
+import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.streaming.api.invokable.DefaultSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
 import eu.stratosphere.streaming.api.invokable.RecordInvokable;
@@ -110,20 +115,34 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 	}
 
-	public void setConfigInputs(T taskBase, Configuration taskConfiguration,
-			List<StreamRecordReader<StreamRecord>> inputs) throws StreamComponentException {
+	public AbstractRecordReader getConfigInputs(T taskBase, Configuration taskConfiguration,
+			AbstractRecordReader inputs) throws StreamComponentException {
 		int numberOfInputs = taskConfiguration.getInteger("numberOfInputs", 0);
-		for (int i = 0; i < numberOfInputs; i++) {
 
+		if (numberOfInputs < 2) {
 			if (taskBase instanceof StreamTask) {
-				inputs.add(new StreamRecordReader<StreamRecord>((StreamTask) taskBase,
-						StreamRecord.class));
+				return new RecordReader<StreamRecord>((StreamTask) taskBase, StreamRecord.class);
 			} else if (taskBase instanceof StreamSink) {
-				inputs.add(new StreamRecordReader<StreamRecord>((StreamSink) taskBase,
-						StreamRecord.class));
+				return new RecordReader<StreamRecord>((StreamSink) taskBase, StreamRecord.class);
 			} else {
 				throw new StreamComponentException("Nonsupported object passed to setConfigInputs");
 			}
+		} else {
+			@SuppressWarnings("unchecked")
+			MutableRecordReader<StreamRecord>[] recordReaders = (MutableRecordReader<StreamRecord>[]) new MutableRecordReader<?>[numberOfInputs];
+
+			for (int i = 0; i < numberOfInputs; i++) {
+
+				if (taskBase instanceof StreamTask) {
+					recordReaders[i] = new MutableRecordReader<StreamRecord>((StreamTask) taskBase);
+				} else if (taskBase instanceof StreamSink) {
+					recordReaders[i] = new MutableRecordReader<StreamRecord>((StreamSink) taskBase);
+				} else {
+					throw new StreamComponentException(
+							"Nonsupported object passed to setConfigInputs");
+				}
+			}
+			return new UnionRecordReader<StreamRecord>(recordReaders, StreamRecord.class);
 		}
 	}
 
@@ -194,7 +213,8 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 				ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(
 						userFunctionSerialized));
 				userFunction = (StreamInvokableComponent) ois.readObject();
-				userFunction.declareOutputs(outputs, instanceID, name, recordBuffer, faultToleranceType);
+				userFunction.declareOutputs(outputs, instanceID, name, recordBuffer,
+						faultToleranceType);
 			} catch (Exception e) {
 				log.error("Cannot instanciate user function: " + userFunctionClass.getSimpleName());
 			}
@@ -202,7 +222,8 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 			try {
 				userFunction = userFunctionClass.newInstance();
-				userFunction.declareOutputs(outputs, instanceID, name, recordBuffer, faultToleranceType);
+				userFunction.declareOutputs(outputs, instanceID, name, recordBuffer,
+						faultToleranceType);
 			} catch (InstantiationException e) {
 				log.error("Cannot instanciate user function: " + userFunctionClass.getSimpleName());
 			} catch (Exception e) {
@@ -214,13 +235,13 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 	}
 
 	// TODO find a better solution for this
-	public void threadSafePublish(AbstractTaskEvent event, StreamRecordReader<StreamRecord> input)
+	public void threadSafePublish(AbstractTaskEvent event, AbstractRecordReader inputs)
 			throws InterruptedException, IOException {
 
 		boolean concurrentModificationOccured = false;
 		while (!concurrentModificationOccured) {
 			try {
-				input.publishEvent(event);
+				inputs.publishEvent(event);
 				concurrentModificationOccured = true;
 			} catch (ConcurrentModificationException exeption) {
 				log.trace("Waiting to publish " + event.getClass());
@@ -251,47 +272,53 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 		}
 	}
 
-
 	public void invokeRecords(RecordInvoker invoker, RecordInvokable userFunction,
-			List<StreamRecordReader<StreamRecord>> inputs, String name) throws Exception {
-		List<StreamRecordReader<StreamRecord>> closedInputs = new LinkedList<StreamRecordReader<StreamRecord>>();
-		boolean hasInput = true;
-		while (hasInput) {
-			hasInput = false;
-			for (StreamRecordReader<StreamRecord> input : inputs) {
-				if (input.hasNext()) {
-					hasInput = true;
-					invoker.call(name, userFunction, input);
-				} else if (input.isInputClosed()) {
-					closedInputs.add(input);
-				}
+			AbstractRecordReader inputs, String name) throws Exception {
+		System.out.println("INVOKE");
+		System.out.println(inputs);
+		if (inputs instanceof UnionRecordReader) {
+			System.out.println("UNION READER");
+			@SuppressWarnings("unchecked")
+			UnionRecordReader<StreamRecord> recordReader = (UnionRecordReader<StreamRecord>) inputs;
+			
+			while (recordReader.hasNext()) {
+				StreamRecord record = recordReader.next();
+				invoker.call(name, userFunction, recordReader, record);
 			}
-			inputs.removeAll(closedInputs);
+			
+		} else if (inputs instanceof RecordReader) {
+			System.out.println("READER");
+			@SuppressWarnings("unchecked")
+			RecordReader<StreamRecord> recordReader = (RecordReader<StreamRecord>) inputs;
+			
+			while (recordReader.hasNext()) {
+				StreamRecord record = recordReader.next();
+				invoker.call(name, userFunction, recordReader, record);
+			}			
 		}
 	}
 
 	public static interface RecordInvoker {
-		void call(String name, RecordInvokable userFunction, StreamRecordReader<StreamRecord> input)
-				throws Exception;
+		void call(String name, RecordInvokable userFunction, AbstractRecordReader inputs,
+				StreamRecord record) throws Exception;
 	}
 
 	public class InvokerWithFaultTolerance implements RecordInvoker {
+
 		@Override
-		public void call(String name, RecordInvokable userFunction,
-				StreamRecordReader<StreamRecord> input) throws Exception {
-			StreamRecord record = input.next();
+		public void call(String name, RecordInvokable userFunction, AbstractRecordReader inputs,
+				StreamRecord record) throws Exception {
 			UID id = record.getId();
 			userFunction.invoke(record);
-			threadSafePublish(new AckEvent(id), input);
+			threadSafePublish(new AckEvent(id), inputs);
 			log.debug("ACK: " + id + " -- " + name);
 		}
 	}
 
 	public static class Invoker implements RecordInvoker {
 		@Override
-		public void call(String name, RecordInvokable userFunction,
-				StreamRecordReader<StreamRecord> input) throws Exception {
-			StreamRecord record = input.next();
+		public void call(String name, RecordInvokable userFunction, AbstractRecordReader inputs,
+				StreamRecord record) throws Exception {
 			userFunction.invoke(record);
 		}
 	}

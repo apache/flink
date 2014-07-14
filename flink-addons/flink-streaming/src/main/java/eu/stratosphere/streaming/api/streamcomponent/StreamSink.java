@@ -15,24 +15,21 @@
 
 package eu.stratosphere.streaming.api.streamcomponent;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.configuration.Configuration;
+import eu.stratosphere.nephele.io.AbstractRecordReader;
 import eu.stratosphere.nephele.template.AbstractOutputTask;
 import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.streamcomponent.StreamComponentHelper.RecordInvoker;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
 
 public class StreamSink extends AbstractOutputTask {
 
 	private static final Log log = LogFactory.getLog(StreamSink.class);
 
-	private List<StreamRecordReader<StreamRecord>> inputs;
+	private AbstractRecordReader inputs;
 	private UserSinkInvokable userFunction;
 	private StreamComponentHelper<StreamSink> streamSinkHelper;
 	private String name;
@@ -40,7 +37,8 @@ public class StreamSink extends AbstractOutputTask {
 
 	public StreamSink() {
 		// TODO: Make configuration file visible and call setClassInputs() here
-		inputs = new LinkedList<StreamRecordReader<StreamRecord>>();
+		//	inputs = new UnionRecordReader<StreamRecord>()
+		
 		userFunction = null;
 		streamSinkHelper = new StreamComponentHelper<StreamSink>();
 	}
@@ -51,7 +49,7 @@ public class StreamSink extends AbstractOutputTask {
 		name = taskConfiguration.getString("componentName", "MISSING_COMPONENT_NAME");
 
 		try {
-			streamSinkHelper.setConfigInputs(this, taskConfiguration, inputs);
+			inputs = streamSinkHelper.getConfigInputs(this, taskConfiguration, inputs);
 		} catch (Exception e) {
 			log.error("Cannot register inputs", e);
 		}
