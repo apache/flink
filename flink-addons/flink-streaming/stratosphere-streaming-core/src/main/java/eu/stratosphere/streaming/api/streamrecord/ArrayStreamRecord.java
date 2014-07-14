@@ -102,6 +102,7 @@ public class ArrayStreamRecord extends StreamRecord {
 	 *            Value to set
 	 * @throws NoSuchTupleException
 	 *             , TupleSizeMismatchException
+	 * @return Returns the StreamRecord object
 	 */
 	public StreamRecord setTuple(int tupleNumber, Tuple tuple) throws NoSuchTupleException {
 		try {

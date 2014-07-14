@@ -129,6 +129,7 @@ public abstract class StreamRecord implements IOReadableWritable, Serializable {
 	 *            Value to set
 	 * @throws NoSuchTupleException
 	 *             , TupleSizeMismatchException
+	 * @return Returns the StreamRecord object
 	 */
 	public abstract StreamRecord setTuple(int tupleNumber, Tuple tuple) throws NoSuchTupleException;
 

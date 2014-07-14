@@ -28,8 +28,6 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
  * A record writer connects an input gate to an application. It allows the
  * application query for incoming records and read them from input gate.
  * 
- * @param <StreamRecord>
- *            The type of the record that can be read from this record reader.
  */
 public class StreamRecordReader extends AbstractSingleGateRecordReader<StreamRecord> implements
 		Reader<StreamRecord> {

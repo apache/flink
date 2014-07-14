@@ -22,8 +22,6 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	/**
 	 * Executes the JobGraph of the on a mini cluster of CLusterUtil.
 	 * 
-	 * @param parallelism
-	 *            Number of parallel cores utilized.
 	 */
 	@Override
 	public void execute() {
