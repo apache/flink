@@ -3,7 +3,7 @@ package eu.stratosphere.streaming.api.invokable;
 import java.util.List;
 
 import eu.stratosphere.nephele.io.RecordWriter;
-import eu.stratosphere.streaming.api.FaultTolerancyBuffer;
+import eu.stratosphere.streaming.api.FaultToleranceBuffer;
 import eu.stratosphere.streaming.api.StreamRecord;
 
 public abstract class StreamInvokable {
@@ -11,10 +11,10 @@ public abstract class StreamInvokable {
 	private List<RecordWriter<StreamRecord>> outputs;
 
 	protected String channelID;
-	private FaultTolerancyBuffer emittedRecords;
+	private FaultToleranceBuffer emittedRecords;
 
 	public final void declareOutputs(List<RecordWriter<StreamRecord>> outputs,
-			String channelID, FaultTolerancyBuffer emittedRecords) {
+			String channelID, FaultToleranceBuffer emittedRecords) {
 		this.outputs = outputs;
 		this.channelID = channelID;
 		this.emittedRecords = emittedRecords;

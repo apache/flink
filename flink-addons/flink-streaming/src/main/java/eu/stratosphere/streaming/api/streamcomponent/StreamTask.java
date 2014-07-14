@@ -25,7 +25,7 @@ import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
 import eu.stratosphere.streaming.api.AckEvent;
 import eu.stratosphere.streaming.api.FailEvent;
-import eu.stratosphere.streaming.api.FaultTolerancyBuffer;
+import eu.stratosphere.streaming.api.FaultToleranceBuffer;
 import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 
@@ -39,7 +39,7 @@ public class StreamTask extends AbstractTask {
 	private String taskInstanceID = "";
 	StreamComponentHelper<StreamTask> streamTaskHelper;
 
-	private FaultTolerancyBuffer recordBuffer;
+	private FaultToleranceBuffer recordBuffer;
 
 	public StreamTask() {
 		// TODO: Make configuration file visible and call setClassInputs() here
@@ -64,7 +64,7 @@ public class StreamTask extends AbstractTask {
 			e.printStackTrace();
 		}
 
-		recordBuffer = new FaultTolerancyBuffer(outputs, taskInstanceID);
+		recordBuffer = new FaultToleranceBuffer(outputs, taskInstanceID);
 		userFunction = (UserTaskInvokable) streamTaskHelper.getUserFunction(
 				taskConfiguration, outputs, taskInstanceID, recordBuffer);
 		streamTaskHelper.setAckListener(recordBuffer, taskInstanceID, outputs);
