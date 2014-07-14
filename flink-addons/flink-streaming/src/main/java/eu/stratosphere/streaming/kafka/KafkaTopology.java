@@ -15,42 +15,18 @@
 
 package eu.stratosphere.streaming.kafka;
 
-import org.apache.log4j.Level;
-
-import eu.stratosphere.nephele.jobgraph.JobGraph;
-import eu.stratosphere.streaming.api.JobGraphBuilder;
-import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
-import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
-import eu.stratosphere.streaming.util.ClusterUtil;
-import eu.stratosphere.streaming.util.LogUtils;
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.streaming.api.DataStream;
+import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
 
 public class KafkaTopology {
 
-	public static class Sink extends UserSinkInvokable {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void invoke(StreamRecord record) throws Exception {
-			System.out.println(record.getTuple(0).getField(0));
-		}
-	}
-
-	private static JobGraph getJobGraph() {
-
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("RMQ", FaultToleranceType.NONE);
-		graphBuilder.setSource("Source", new KafkaSource("localhost:7077", "group", "topic", 1), 1, 1);
-		graphBuilder.setSink("Sink", new Sink(), 1, 1);
-
-		graphBuilder.shuffleConnect("Source", "Sink");
-
-		return graphBuilder.getJobGraph();
-	}
-
 	public static void main(String[] args) {
-
-		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
-		ClusterUtil.runOnMiniCluster(getJobGraph());
-
+		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
+		
+		DataStream<Tuple1<String>> stream = context.addSource(new KafkaSource("localhost:7077", "group", "topic", 1))
+				.addDummySink();
+		
+		context.execute();
 	}
 }

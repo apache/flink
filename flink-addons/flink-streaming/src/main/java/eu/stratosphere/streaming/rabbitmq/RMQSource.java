@@ -24,16 +24,16 @@ import com.rabbitmq.client.ConsumerCancelledException;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.ShutdownSignalException;
 
-import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
-import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
-import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.api.java.tuple.Tuple1;
+import eu.stratosphere.streaming.api.SourceFunction;
+import eu.stratosphere.util.Collector;
 
 /**
  * Source for reading messages from a RabbitMQ queue. The source currently only
  * support string messages. Other types will be added soon.
  * 
  */
-public class RMQSource extends UserSourceInvokable {
+public class RMQSource extends SourceFunction<Tuple1<String>> {
 	private static final long serialVersionUID = 1L;
 
 	private final String QUEUE_NAME;
@@ -47,8 +47,8 @@ public class RMQSource extends UserSourceInvokable {
 
 	private transient String message;
 
-	StreamRecord record = new ArrayStreamRecord(1);
-
+	Tuple1<String> outTuple = new Tuple1<String>();
+	
 	public RMQSource(String HOST_NAME, String QUEUE_NAME) {
 		this.HOST_NAME = HOST_NAME;
 		this.QUEUE_NAME = QUEUE_NAME;
@@ -68,7 +68,7 @@ public class RMQSource extends UserSourceInvokable {
 	}
 
 	@Override
-	public void invoke() {
+	public void invoke(Collector<Tuple1<String>> collector) throws Exception {
 
 		initializeConnection();
 
@@ -91,9 +91,9 @@ public class RMQSource extends UserSourceInvokable {
 			if (message.equals("q")) {
 				break;
 			}
-
-			record.getTuple(0).setField(message, 0);
-			emit(record);
+			
+			outTuple.f0 = message;
+			collector.collect(outTuple);
 		}
 
 		try {
