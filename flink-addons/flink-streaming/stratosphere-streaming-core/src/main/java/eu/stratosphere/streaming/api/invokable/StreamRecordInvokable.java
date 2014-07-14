@@ -20,7 +20,7 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.util.Collector;
 
 public abstract class StreamRecordInvokable<IN extends Tuple, OUT extends Tuple> extends
-		StreamComponent {
+		StreamComponentInvokable {
 	public abstract void invoke(StreamRecord record, Collector<OUT> collector)
 			throws Exception;
 }
