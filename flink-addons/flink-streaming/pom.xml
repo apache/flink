@@ -14,7 +14,7 @@
 	<repositories>
 		<repository>
 			<id>snapshots-repo</id>
-            <url>https://dms.sztaki.hu/maven-public</url>
+			<url>https://dms.sztaki.hu/maven-public</url>
 			<releases><enabled>false</enabled></releases>
 			<snapshots><enabled>true</enabled></snapshots>
 		</repository>
@@ -52,6 +52,11 @@
 			<version>4.7</version>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>3.3.2</version>
+		</dependency>
+		<dependency>
 			<groupId>eu.stratosphere</groupId>
 			<artifactId>stratosphere-java</artifactId>
 			<version>${project.version}</version>
@@ -64,7 +69,7 @@
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
-        <dependency>
+		<dependency>
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
 			<version>1.2.16</version>
@@ -170,44 +175,40 @@
 					<forkMode>once</forkMode>
 					<argLine>-Xmx1024m</argLine>
 				</configuration>
-            </plugin>
-            <!--TODO fix RAT plugin && subs tabs for spaces-->
+			</plugin>
 			<plugin>
-                <groupId>org.apache.rat</groupId>
-                <artifactId>apache-rat-plugin</artifactId>
-                <version>0.10</version>
-                <executions>
-                        <execution>
-                            <phase>verify</phase>
-                            <goals>
-                                <goal>check</goal>
-                            </goals>
-                        </execution>
-                </executions>
-                <configuration>
-                        <excludeSubProjects>false</excludeSubProjects>
-                        <numUnapprovedLicenses>0</numUnapprovedLicenses>
-                        <excludes>
-                            <!-- Additional files like .gitignore etc.-->
-                            <exclude>**/.*</exclude>
-                            <exclude>**/*.prefs</exclude>
-                            <!-- Resource files which have values. -->
-                            <exclude>**/resources/**</exclude>
-                            <!-- Configuration Files. -->
-                            <exclude>**/stratosphere-bin/conf/slaves</exclude>
-                            <!-- Administrative files in the main trunk. -->
-                            <exclude>README.md</exclude>
-                            <exclude>CHANGELOG</exclude>
-                            <exclude>**/*.creole</exclude>
-                            <exclude>CONTRIBUTORS</exclude>
-                            <!-- Build fiels -->
-                            <exclude>**/pom.xml</exclude>
-                            <exclude>**/*.iml</exclude>
-                            <!-- Generated content -->
-                            <exclude>**/target/**</exclude>
-                        </excludes>
-                </configuration>
-            </plugin>
+				<groupId>org.apache.rat</groupId>
+				<artifactId>apache-rat-plugin</artifactId>
+				<version>0.10</version>
+				<executions>
+						<execution>
+							<phase>verify</phase>
+							<goals>
+								<goal>check</goal>
+							</goals>
+						</execution>
+				</executions>
+				<configuration>
+						<excludeSubProjects>false</excludeSubProjects>
+						<numUnapprovedLicenses>0</numUnapprovedLicenses>
+						<excludes>
+							<!-- Additional files like .gitignore etc.-->
+							<exclude>**/.*</exclude>
+							<!-- Resource files which have values. -->
+							<exclude>**/resources/**</exclude>
+							<!-- Configuration Files. -->
+							<exclude>**/stratosphere-bin/conf/slaves</exclude>
+							<!-- Administrative files in the main trunk. -->
+							<exclude>README.md</exclude>
+							<exclude>CHANGELOG</exclude>
+							<exclude>CONTRIBUTORS</exclude>
+							<!-- Build fields -->
+							<exclude>**/pom.xml</exclude>
+							<!-- Generated content -->
+							<exclude>**/target/**</exclude>
+						</excludes>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 </project>
