@@ -15,9 +15,9 @@
 
 package eu.stratosphere.streaming.examples.wordcount;
 
-import eu.stratosphere.api.datastream.DataStream;
-import eu.stratosphere.api.datastream.StreamExecutionEnvironment;
 import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.streaming.api.DataStream;
+import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
 
 public class WordCountLocal {
 

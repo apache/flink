@@ -13,17 +13,17 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.api.datastream;
+package eu.stratosphere.streaming.api;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import eu.stratosphere.api.datastream.StreamExecutionEnvironment.ConnectionType;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.streaming.api.StreamExecutionEnvironment.ConnectionType;
 import eu.stratosphere.types.TypeInformation;
 
 public class DataStream<T extends Tuple> {
@@ -94,7 +94,7 @@ public class DataStream<T extends Tuple> {
 		return context.addMapFunction(this, mapper);
 	}
 
-	public <R extends Tuple> DataStream<R> flatMap(GroupReduceFunction<T, R> reducer) {
+	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer) {
 		return context.addBatchReduceFunction(this, reducer);
 	}
 	

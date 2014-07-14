@@ -22,9 +22,6 @@ import java.io.ObjectInputStream;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.datastream.DataStream;
-import eu.stratosphere.api.datastream.SinkFunction;
-import eu.stratosphere.api.datastream.StreamExecutionEnvironment;
 import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.MapFunction;
 import eu.stratosphere.api.java.tuple.Tuple;

@@ -13,16 +13,13 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.api.datastream;
-
-import java.io.Serializable;
+package eu.stratosphere.streaming.api;
 
 import eu.stratosphere.api.java.tuple.Tuple;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 
-public abstract class SinkFunction<IN extends Tuple> implements Serializable {
+public abstract class SourceFunction<OUT extends Tuple> extends UserSourceInvokable<OUT> {
 
 	private static final long serialVersionUID = 1L;
-
-	public abstract void invoke(IN tuple);
 
 }

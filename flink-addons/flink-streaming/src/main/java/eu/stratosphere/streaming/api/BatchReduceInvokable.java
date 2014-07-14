@@ -1,10 +1,9 @@
-package eu.stratosphere.api.datastream;
+package eu.stratosphere.streaming.api;
 
 import java.util.Iterator;
 
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.streaming.api.StreamCollector;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
