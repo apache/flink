@@ -21,8 +21,6 @@ import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 
-import junit.framework.Assert;
-
 import org.apache.log4j.Level;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -38,12 +36,13 @@ import eu.stratosphere.streaming.api.invokable.UserSinkInvokable;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.faulttolerance.FaultToleranceType;
+import eu.stratosphere.streaming.util.ClusterUtil;
 import eu.stratosphere.streaming.util.LogUtils;
 
 public class StreamComponentTest {
 
 	private static Map<Integer, Integer> data = new HashMap<Integer, Integer>();
-	private static boolean fPTest = true;
 
 	public static class MySource extends UserSourceInvokable {
 		private static final long serialVersionUID = 1L;
@@ -59,7 +58,7 @@ public class StreamComponentTest {
 
 		@Override
 		public void invoke() throws Exception {
-			for (int i = 0; i < 1000; i++) {
+			for (int i = 0; i < 100; i++) {
 				record.setField(0, i);
 				emit(record);
 			}
@@ -100,7 +99,7 @@ public class StreamComponentTest {
 	public static class MySink extends UserSinkInvokable {
 
 		private static final long serialVersionUID = 1L;
-		
+
 		String out;
 
 		public MySink(String out) {
@@ -124,35 +123,20 @@ public class StreamComponentTest {
 	public static void runStream() {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
 
-		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("MySource", new MySource("source"), 1, 1);
+		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph", FaultToleranceType.NONE);
+		graphBuilder.setSource("MySource", new MySource("source"));
 		graphBuilder.setTask("MyTask", new MyTask("task"), 2, 2);
-		graphBuilder.setSink("MySink", new MySink("sink"), 1, 1);
+		graphBuilder.setSink("MySink", new MySink("sink"));
 
 		graphBuilder.shuffleConnect("MySource", "MyTask");
 		graphBuilder.shuffleConnect("MyTask", "MySink");
 
-		JobGraph jG = graphBuilder.getJobGraph();
-		Configuration configuration = jG.getJobConfiguration();
-
-		NepheleMiniCluster exec = new NepheleMiniCluster();
-		try {
-			exec.start();
-			Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
-
-			client.run(jG, true);
-
-			exec.stop();
-		} catch (Exception e) {
-		}
+		ClusterUtil.runOnMiniCluster(graphBuilder.getJobGraph());
 	}
 
 	@Test
 	public void test() {
-
-		Assert.assertTrue(fPTest);
-
-		assertEquals(1000, data.keySet().size());
+		assertEquals(100, data.keySet().size());
 
 		for (Integer k : data.keySet()) {
 			assertEquals((Integer) (k + 1), data.get(k));
