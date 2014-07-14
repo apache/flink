@@ -627,28 +627,22 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
-	 * Sets the first tuple in the batch
+	 * Sets the first tuple in the batch with a deep copy of the given tuple
 	 * 
 	 * @param tuple
 	 *            Tuple to set
 	 * @throws TupleSizeMismatchException
 	 */
-	// TODO: refactor this functionality - why new list?
 	public void setTuple(Tuple tuple) throws TupleSizeMismatchException {
 		if (tuple.getArity() == numOfFields) {
-			if (numOfTuples != 1) {
-				tupleBatch = new ArrayList<Tuple>(1);
-				tupleBatch.add(tuple);
-			} else {
-				tupleBatch.set(0, tuple);
-			}
+			setTuple(0, tuple);
 		} else {
 			throw (new TupleSizeMismatchException());
 		}
 	}
 
 	/**
-	 * Sets a tuple at the given position in the batch
+	 * Sets a tuple at the given position in the batch with a deep copy of the given tuple
 	 * 
 	 * @param tupleNumber
 	 *            Position of tuple in the batch
@@ -661,7 +655,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 			throws NoSuchTupleException, TupleSizeMismatchException {
 		if (tuple.getArity() == numOfFields) {
 			try {
-				tupleBatch.set(tupleNumber, tuple);
+				tupleBatch.set(tupleNumber, copyTuple(tuple));
 			} catch (IndexOutOfBoundsException e) {
 				throw (new NoSuchTupleException());
 			}
@@ -672,14 +666,14 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 
 	/**
 	 * Checks if the number of fields are equal to the batch field size then
-	 * adds the Tuple to the end of the batch
+	 * adds the deep copy of Tuple to the end of the batch
 	 * 
 	 * @param tuple
 	 *            Tuple to be added as the next record of the batch
 	 */
 	public void addTuple(Tuple tuple) {
 		if (tuple.getArity() == numOfFields) {
-			tupleBatch.add(tuple);
+			tupleBatch.add(copyTuple(tuple));
 			numOfTuples++;
 		} else {
 			throw new TupleSizeMismatchException();
