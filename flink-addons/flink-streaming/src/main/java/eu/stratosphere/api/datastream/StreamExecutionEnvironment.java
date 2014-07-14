@@ -46,7 +46,6 @@ public class StreamExecutionEnvironment {
 	private static class DummySource extends UserSourceInvokable<Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
-		@Override
 		public void invoke(Collector<Tuple1<String>> collector) throws Exception {
 
 			for (int i = 0; i < 10; i++) {
@@ -101,28 +100,6 @@ public class StreamExecutionEnvironment {
 		return returnStream;
 	}
 
-	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
-			SinkFunction<T> sinkFunction) {
-		DataStream<T> returnStream = new DataStream<T>(this);
-
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos;
-		try {
-			oos = new ObjectOutputStream(baos);
-			oos.writeObject(sinkFunction);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		jobGraphBuilder.setSink("sink", new SinkInvokable<T>(sinkFunction), "sink",
-				baos.toByteArray());
-
-		connectGraph(inputStream.connectIDs, "sink", inputStream.ctype, inputStream.cparam);
-
-		return returnStream;
-	}
-
 	public <T extends Tuple, R extends Tuple> DataStream<R> addMapFunction(
 			DataStream<T> inputStream, final MapFunction<T, R> mapper) {
 		DataStream<R> returnStream = new DataStream<R>(this);
@@ -146,6 +123,28 @@ public class StreamExecutionEnvironment {
 		return returnStream;
 	}
 
+	public <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
+			SinkFunction<T> sinkFunction) {
+		DataStream<T> returnStream = new DataStream<T>(this);
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ObjectOutputStream oos;
+		try {
+			oos = new ObjectOutputStream(baos);
+			oos.writeObject(sinkFunction);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		jobGraphBuilder.setSink("sink", new SinkInvokable<T>(sinkFunction), "sink",
+				baos.toByteArray());
+
+		connectGraph(inputStream.connectIDs, "sink", inputStream.ctype, inputStream.cparam);
+
+		return returnStream;
+	}
+	
 	public static final class DummySink extends SinkFunction<Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
@@ -165,7 +164,29 @@ public class StreamExecutionEnvironment {
 		ClusterUtil.runOnMiniCluster(jobGraphBuilder.getJobGraph());
 	}
 
-	public DataStream<Tuple1<String>> setDummySource() {
+	public <T extends Tuple> DataStream<T> addSource(DataStream<T> outputStream,
+			SourceFunction<T> sourceFunction) {
+		DataStream<T> returnStream = new DataStream<T>(this);
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ObjectOutputStream oos;
+		try {
+			oos = new ObjectOutputStream(baos);
+			oos.writeObject(sourceFunction);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		jobGraphBuilder.setSource("source", new SourceInvokable<T>(sourceFunction), "source",
+				baos.toByteArray());
+
+		connectGraph(outputStream.connectIDs, "source", outputStream.ctype, outputStream.cparam);
+
+		return returnStream;
+	}
+	
+	public DataStream<Tuple1<String>> addDummySource() {
 		DataStream<Tuple1<String>> returnStream = new DataStream<Tuple1<String>>(this);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();

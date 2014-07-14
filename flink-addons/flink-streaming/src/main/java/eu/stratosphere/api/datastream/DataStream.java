@@ -75,16 +75,20 @@ public class DataStream<T extends Tuple> {
 		return this;
 	}
 
-	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper) {
-		return context.addFlatMapFunction(this, flatMapper);
+	public DataStream<T> addSource(SourceFunction<T> sourceFunction) {
+		return context.addSource(this, sourceFunction);
 	}
 	
-	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
-		return context.addSink(this, sinkFunction);
+	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper) {
+		return context.addFlatMapFunction(this, flatMapper);
 	}
 
 	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper) {
 		return context.addMapFunction(this, mapper);
+	}
+	
+	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
+		return context.addSink(this, sinkFunction);
 	}
 
 	public  DataStream<T> addDummySink() {

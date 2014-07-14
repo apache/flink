@@ -43,7 +43,7 @@ public class MapTest {
 
 		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
 
-		DataStream<Tuple1<String>> dataStream = context.setDummySource().map(new MyMap())
+		DataStream<Tuple1<String>> dataStream = context.addDummySource().map(new MyMap())
 				.addDummySink();
 
 		context.execute();

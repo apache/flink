@@ -13,19 +13,23 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.api.invokable;
+package eu.stratosphere.api.datastream;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.streaming.api.StreamCollector;
+import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 
-public class DefaultSourceInvokable extends UserSourceInvokable<Tuple> {
-
+public class SourceInvokable<OUT extends Tuple> extends UserSourceInvokable<OUT> {
 	private static final long serialVersionUID = 1L;
 
-	//@Override
-	public void invoke(StreamCollector<Tuple> collector) throws Exception {
-		// TODO Auto-generated method stub
+	private SourceFunction<OUT> sourceFunction;
 
+	public SourceInvokable(SourceFunction<OUT> sourceFunction) {
+		this.sourceFunction = sourceFunction;
 	}
 
+	@Override
+	public void invoke(StreamCollector<Tuple> collector) throws Exception {
+		sourceFunction.invoke(collector);
+	}
 }
