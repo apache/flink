@@ -19,6 +19,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 
 /**
@@ -27,18 +30,24 @@ import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
  * 
  */
 public class FailEvent extends AbstractTaskEvent {
+
+	private static final Log log = LogFactory.getLog(FailEvent.class);
+
 	private String recordId;
 
 	/**
 	 * Creates a new event to fail the record with the given ID
 	 * 
 	 * @param recordId
-	 *          ID of the record to be acknowledged
+	 *            ID of the record to be acknowledged
 	 */
 	public FailEvent(String recordId) {
 		setRecordId(recordId);
-		System.out.println("Fail sent " + recordId);
-		System.out.println("---------------------");
+		if (log.isDebugEnabled()) {
+			log.debug("Fail sent " + recordId);
+		}
+		// System.out.println("Fail sent " + recordId);
+		// System.out.println("---------------------");
 
 	}
 
