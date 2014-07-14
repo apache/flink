@@ -24,6 +24,7 @@ import eu.stratosphere.configuration.Configuration;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.jobgraph.JobGraph;
 import eu.stratosphere.streaming.api.JobGraphBuilder;
+import eu.stratosphere.streaming.api.StreamRecord;
 import eu.stratosphere.types.StringValue;
 import eu.stratosphere.util.LogUtils;
 
@@ -128,6 +129,5 @@ public class WordCountLocal {
 			wC.runJob();
 			wC.stopCluster();
 		} catch (Exception e) {}
-
 	}
 }

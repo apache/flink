@@ -15,10 +15,8 @@
 
 package eu.stratosphere.streaming.api;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
+
 import eu.stratosphere.nephele.event.task.EventListener;
 
 /**
@@ -26,8 +24,6 @@ import eu.stratosphere.nephele.event.task.EventListener;
  * uses the task's fault tolerance buffer to acknowledge the given record.
  */
 public class AckEventListener implements EventListener {
-
-	private static final Log log = LogFactory.getLog(AckEventListener.class);
 
 	private String taskInstanceID;
 	private FaultToleranceBuffer recordBuffer;
@@ -37,9 +33,9 @@ public class AckEventListener implements EventListener {
 	 * given ID.
 	 * 
 	 * @param taskInstanceID
-	 *            ID of the task that creates the listener
+	 *          ID of the task that creates the listener
 	 * @param recordBuffer
-	 *            The fault tolerance buffer associated with this task
+	 *          The fault tolerance buffer associated with this task
 	 */
 	public AckEventListener(String taskInstanceID,
 			FaultToleranceBuffer recordBuffer) {
@@ -61,15 +57,9 @@ public class AckEventListener implements EventListener {
 
 			Long nt = System.nanoTime();
 			recordBuffer.ackRecord(ackEvent.getRecordId());
-
-			if (log.isDebugEnabled()) {
-				log.debug("Ack recieved " + ackEvent.getRecordId()
-						+ "\nAck exec. time(ns): " + (System.nanoTime() - nt));
-			}
-
-			// System.out.println("Ack recieved " + ackEvent.getRecordId()
-			// + "\nAck exec. time(ns): " + (System.nanoTime() - nt));
-			// System.out.println("--------------");
+			System.out.println("Ack recieved " + ackEvent.getRecordId()
+					+ "\nAck exec. time(ns): " + (System.nanoTime() - nt));
+			System.out.println("--------------");
 		}
 
 	}
