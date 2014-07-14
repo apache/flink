@@ -38,6 +38,9 @@ public class DataStream<T extends Tuple> {
 	List<Integer> cparams;
 	List<Integer> batchSizes;
 	
+	/**
+	 * Constructor
+	 */
 	protected DataStream() {
 		// TODO implement
 		context = new StreamExecutionEnvironment();
@@ -45,6 +48,10 @@ public class DataStream<T extends Tuple> {
 		initConnections();
 	}
 
+	/**
+	 * Constructor
+	 * @param context
+	 */
 	protected DataStream(StreamExecutionEnvironment context) {
 		if (context == null) {
 			throw new NullPointerException("context is null");
@@ -57,6 +64,11 @@ public class DataStream<T extends Tuple> {
 
 	}
 
+	/**
+	 * Constructor
+	 * @param context
+	 * @param id
+	 */
 	private DataStream(StreamExecutionEnvironment context, String id) {
 		this(context);
 		this.id = id;
@@ -64,6 +76,9 @@ public class DataStream<T extends Tuple> {
 	
 	//TODO: create copy method (or constructor) and copy datastream at every operator
 
+	/**
+	 * Initialize the connections.
+	 */
 	private void initConnections() {
 		connectIDs = new ArrayList<String>();
 		connectIDs.add(getId());
@@ -76,6 +91,11 @@ public class DataStream<T extends Tuple> {
 
 	}
 
+	/**
+	 * Creates an identical datastream.
+	 * @return
+	 * The identical datastream.
+	 */
 	public DataStream<T> copy() {
 		DataStream<T> copiedStream = new DataStream<T>(context, getId());
 		copiedStream.type = this.type;
@@ -88,10 +108,22 @@ public class DataStream<T extends Tuple> {
 		return copiedStream;
 	}
 	
+	/**
+	 * Gets the id of the datastream.
+	 * @return
+	 * The id of the datastream.
+	 */
 	public String getId() {
 		return id;
 	}
 
+	/**
+	 * Collects a number of consecutive elements from the datastream.
+	 * @param batchSize
+	 * The number of elements to collect.
+	 * @return
+	 * The collected elements.
+	 */
 	public DataStream<T> batch(int batchSize) {
 		DataStream<T> returnStream = copy();
 		
@@ -105,6 +137,13 @@ public class DataStream<T extends Tuple> {
 		return returnStream;
 	}
 
+	/**
+	 * Connecting streams to each other.
+	 * @param stream
+	 * The stream it connects to.
+	 * @return
+	 * The new already connected datastream.
+	 */
 	public DataStream<T> connectWith(DataStream<T> stream) {
 		DataStream<T> returnStream = copy();
 
@@ -115,6 +154,13 @@ public class DataStream<T extends Tuple> {
 		return returnStream;
 	}
 
+	/**
+	 * Send the elements of the stream to the following vertices according to their hashcode.
+	 * @param keyposition
+	 * The field used to compute the hashcode.
+	 * @return
+	 * The original datastream.
+	 */
 	public DataStream<T> partitionBy(int keyposition) {
 		DataStream<T> returnStream = copy();
 
@@ -125,6 +171,11 @@ public class DataStream<T extends Tuple> {
 		return returnStream;
 	}
 
+	/**
+	 * Send the elements of the stream to every following vertices of the graph.
+	 * @return
+	 * The datastream.
+	 */
 	public DataStream<T> broadcast() {
 		DataStream<T> returnStream = copy();
 
@@ -134,40 +185,109 @@ public class DataStream<T extends Tuple> {
 		return returnStream;
 	}
 
+	/**
+	 * Sets the given flatmap function.
+	 * @param flatMapper
+	 * The object containing the flatmap function.
+	 * @param paralelism
+	 * The number of threads the function runs on.
+	 * @return
+	 * The modified datastream.
+	 */
 	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper, int paralelism) {
 		return context.addFunction("flatMap", this.copy(), flatMapper, new FlatMapInvokable<T, R>(
 				flatMapper), paralelism);
 	}
 
+	/**
+	 * Sets the given map function.
+	 * @param mapper
+	 * The object containing the map function.
+	 * @param paralelism
+	 * The number of threads the function runs on.
+	 * @return
+	 * The modified datastream.
+	 */
 	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper, int paralelism) {
 		return context.addFunction("map", this.copy(), mapper, new MapInvokable<T, R>(mapper), paralelism);
 	}
 
+	/**
+	 * Sets the given batchreduce function.
+	 * @param reducer
+	 * The object containing the batchreduce function.
+	 * @param batchSize
+	 * The number of elements proceeded at the same time
+	 * @param paralelism
+	 * The number of threads the function runs on.
+	 * @return
+	 * The modified datastream.
+	 */
 	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer, int batchSize, int paralelism) {
 		return context.addFunction("batchReduce", batch(batchSize).copy(), reducer, new BatchReduceInvokable<T, R>(
 				reducer), paralelism);
 	}
 
+	/**
+	 * Sets the given filter function.
+	 * @param filter
+	 * The object containing the filter function.
+	 * @param paralelism
+	 * The number of threads the function runs on.
+	 * @return
+	 * The modified datastream.
+	 */
 	public DataStream<T> filter(FilterFunction<T> filter, int paralelism) {
 		return context.addFunction("filter", this.copy(), filter, new FilterInvokable<T>(filter), paralelism);
 	}
 
+	/**
+	 * Sets the given sink function.
+	 * @param sinkFunction
+	 * The object containing the sink's invoke function.
+	 * @param paralelism
+	 * The number of threads the function runs on.
+	 * @return
+	 * The modified datastream.
+	 */
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction, int paralelism) {
 		return context.addSink(this.copy(), sinkFunction, paralelism);
 	}
 	
+	/**
+	 * Sets the given sink function.
+	 * @param sinkFunction
+	 * The object containing the sink's invoke function.
+	 * @return
+	 * The modified datastream.
+	 */
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
 		return context.addSink(this.copy(), sinkFunction);
 	}
 
+	/**
+	 * Prints the datastream.
+	 * @return
+	 * The original stream.
+	 */
 	public DataStream<T> print() {
 		return context.print(this.copy());
 	}
 
+	/**
+	 * Set the type parameter.
+	 * @param type
+	 * The type parameter.
+	 */
 	protected void setType(TypeInformation<T> type) {
 		this.type = type;
 	}
 
+	/**
+	 * Get the type information.
+	 * @return
+	 * The type of the generic parameter.
+	 */
 	public TypeInformation<T> getType() {
 		return this.type;
 	}
