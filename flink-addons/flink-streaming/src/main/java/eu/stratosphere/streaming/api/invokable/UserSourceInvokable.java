@@ -15,8 +15,6 @@
 
 package eu.stratosphere.streaming.api.invokable;
 
-import eu.stratosphere.streaming.api.streamcomponent.StreamInvokable;
-
 public abstract class UserSourceInvokable extends StreamInvokable {
 
   public void invoke() throws Exception {

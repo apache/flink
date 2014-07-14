@@ -36,7 +36,7 @@ public class FaultToleranceBufferTest {
 	@Test
 	public void testAddRecord() {
 		StreamRecord record = (new StreamRecord(1)).setId("1");
-		record.addRecord(new AtomRecord(new StringValue("V1")));
+		record.addRecord(new StringValue("V1"));
 		faultTolerancyBuffer.addRecord(record);
 		assertEquals((Integer) 3, faultTolerancyBuffer.getAckCounter().get(record.getId()));
 		assertEquals(record,faultTolerancyBuffer.getRecordBuffer().get(record.getId()));
@@ -85,7 +85,7 @@ public class FaultToleranceBufferTest {
 	@Test
 	public void testPopRecord() {
 		StreamRecord record1 = (new StreamRecord(1)).setId("1");
-		record1.addRecord(new AtomRecord(new StringValue("V1")));
+		record1.addRecord(new StringValue("V1"));
 		faultTolerancyBuffer.addRecord(record1);
 		
 		assertEquals(record1, faultTolerancyBuffer.popRecord(record1.getId()));
@@ -95,9 +95,9 @@ public class FaultToleranceBufferTest {
 	@Test
 	public void testRemoveRecord() {
 		StreamRecord record1 = (new StreamRecord(1)).setId("1");
-		record1.addRecord(new AtomRecord(new StringValue("V1")));
+		record1.addRecord(new StringValue("V1"));
 		StreamRecord record2 = (new StreamRecord(1)).setId("1");
-		record2.addRecord(new AtomRecord(new StringValue("V2")));
+		record2.addRecord(new StringValue("V2"));
 		
 		faultTolerancyBuffer.addRecord(record1);
 		faultTolerancyBuffer.addRecord(record2);
@@ -121,7 +121,7 @@ public class FaultToleranceBufferTest {
 	@Test
 	public void testAckRecord() {
 		StreamRecord record1 = (new StreamRecord(1)).setId("1");
-		record1.addRecord(new AtomRecord(new StringValue("V1")));
+		record1.addRecord(new StringValue("V1"));
 		faultTolerancyBuffer.addRecord(record1);
 		Long record1TS=faultTolerancyBuffer.getRecordTimestamps().get(record1.getId());
 		
@@ -145,7 +145,7 @@ public class FaultToleranceBufferTest {
 	@Test
 	public void testFailRecord() {
 		StreamRecord record1 = (new StreamRecord(1)).setId("1");
-		record1.addRecord(new AtomRecord(new StringValue("V1")));
+		record1.addRecord(new StringValue("V1"));
 		faultTolerancyBuffer.addRecord(record1);
 		Long record1TS=faultTolerancyBuffer.getRecordTimestamps().get(record1.getId());
 		
@@ -184,11 +184,11 @@ public class FaultToleranceBufferTest {
 		faultTolerancyBuffer.setTIMEOUT(1000);
 		
 		StreamRecord record1 = (new StreamRecord(1)).setId("1");
-		record1.addRecord(new AtomRecord(new StringValue("V1")));
+		record1.addRecord(new StringValue("V1"));
 		StreamRecord record2 = (new StreamRecord(1)).setId("1");
-		record2.addRecord(new AtomRecord(new StringValue("V2")));
+		record2.addRecord(new StringValue("V2"));
 		StreamRecord record3 = (new StreamRecord(1)).setId("1");
-		record3.addRecord(new AtomRecord(new StringValue("V3")));
+		record3.addRecord(new StringValue("V3"));
 		
 		faultTolerancyBuffer.addRecord(record1);
 		faultTolerancyBuffer.addRecord(record2);
