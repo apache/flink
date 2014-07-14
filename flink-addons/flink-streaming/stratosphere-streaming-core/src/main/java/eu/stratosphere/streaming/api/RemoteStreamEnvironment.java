@@ -21,6 +21,7 @@ import java.net.InetSocketAddress;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import eu.stratosphere.api.java.ExecutionEnvironment;
 import eu.stratosphere.client.program.Client;
 import eu.stratosphere.client.program.JobWithJars;
 import eu.stratosphere.client.program.ProgramInvocationException;
@@ -35,6 +36,16 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	private int port;
 	private String[] jarFiles;
 
+	/**
+	 * Creates a new RemoteStreamEnvironment that points to the master (JobManager) described by the
+	 * given host name and port.
+	 * 
+	 * @param host The host name or address of the master (JobManager), where the program should be executed.
+	 * @param port The port of the master (JobManager), where the program should be executed. 
+	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
+	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
+	 *                 provided in the JAR files.
+	 */	
 	public RemoteStreamEnvironment(String host, int port, String... jarFiles) {
 		if (host == null) {
 			throw new NullPointerException("Host must not be null.");
@@ -60,7 +71,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 				JobWithJars.checkJarFile(file);
 				jobGraph.addJar(new Path(file.getAbsolutePath()));
 			}
-
+			
 			Configuration configuration = jobGraph.getJobConfiguration();
 			Client client = new Client(new InetSocketAddress(host, port), configuration);
 
@@ -69,12 +80,20 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		} catch (IOException e) {
 			if (log.isErrorEnabled()) {
 				log.error(e.getMessage());
+				e.printStackTrace();
 			}
 		} catch (ProgramInvocationException e) {
 			if (log.isErrorEnabled()) {
 				log.error(e.getMessage());
+				e.printStackTrace();
 			}
 		}
+	}
+	
+	@Override
+	public String toString() {
+		return "Remote Environment (" + this.host + ":" + this.port + " - DOP = " + 
+				(getDegreeOfParallelism() == -1 ? "default" : getDegreeOfParallelism()) + ")";
 	}
 
 }
