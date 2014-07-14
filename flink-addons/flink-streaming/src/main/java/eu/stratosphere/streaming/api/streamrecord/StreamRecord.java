@@ -438,9 +438,9 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @param d
 	 *            New value
 	 */
-	public void setDouble(int tupleNumber, int fieldNumber, Double tuple) {
+	public void setDouble(int tupleNumber, int fieldNumber, Double d) {
 		try {
-			tupleBatch.get(tupleNumber).setField(tuple, fieldNumber);
+			tupleBatch.get(tupleNumber).setField(d, fieldNumber);
 		} catch (IndexOutOfBoundsException e) {
 			throw (new NoSuchTupleException());
 		}
