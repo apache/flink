@@ -22,9 +22,9 @@ public class DefaultSinkInvokable extends UserSinkInvokable {
 
 	private static final long serialVersionUID = 1L;
 
-@Override
-  public void invoke(StreamRecord record) throws Exception {
-    StringValue value = (StringValue) record.getField(0, 0);
-    System.out.println(value.getValue());
-  }
+	@Override
+	public void invoke(StreamRecord record) throws Exception {
+		String value = (String) record.getTuple(0).getField(0);
+		System.out.println(value);
+	}
 }

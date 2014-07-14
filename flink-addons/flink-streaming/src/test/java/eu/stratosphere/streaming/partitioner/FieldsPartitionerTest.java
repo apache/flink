@@ -22,15 +22,14 @@ import org.junit.Before;
 import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple2;
+import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class FieldsPartitionerTest {
 
 	private FieldsPartitioner fieldsPartitioner;
-	private StreamRecord streamRecord1 = new StreamRecord(
-			new Tuple2<String, Integer>("test", 0));
-	private StreamRecord streamRecord2 = new StreamRecord(
-			new Tuple2<String, Integer>("test", 42));
+	private StreamRecord streamRecord1 = new ArrayStreamRecord(1).setTuple(0, new Tuple2<String, Integer>("test", 0));
+	private StreamRecord streamRecord2 = new ArrayStreamRecord(1).setTuple(0, new Tuple2<String, Integer>("test", 42));
 
 	@Before
 	public void setPartitioner() {

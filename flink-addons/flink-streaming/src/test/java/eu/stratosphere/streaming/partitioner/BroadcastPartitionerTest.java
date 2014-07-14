@@ -20,12 +20,13 @@ import static org.junit.Assert.assertArrayEquals;
 import org.junit.Before;
 import org.junit.Test;
 
+import eu.stratosphere.streaming.api.streamrecord.ArrayStreamRecord;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class BroadcastPartitionerTest {
 
 	private BroadcastPartitioner broadcastPartitioner;
-	private StreamRecord streamRecord = new StreamRecord();
+	private StreamRecord streamRecord = new ArrayStreamRecord();
 
 	@Before
 	public void setPartitioner() {

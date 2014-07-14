@@ -12,7 +12,7 @@
 	<packaging>jar</packaging>
 
 	<properties>
-		<stratosphere.version>0.5</stratosphere.version>
+		<stratosphere.version>0.5.1</stratosphere.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
@@ -87,12 +87,7 @@
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka_2.10</artifactId>
-			<version>0.8.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.jblas</groupId>
-			<artifactId>jblas</artifactId>
-			<version>1.2.3</version>
+			<version>0.8.1.1</version>
 		</dependency>
 	</dependencies>
 
