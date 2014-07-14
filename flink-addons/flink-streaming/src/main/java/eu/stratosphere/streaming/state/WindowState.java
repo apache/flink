@@ -15,9 +15,12 @@
 
 package eu.stratosphere.streaming.state;
 
+import java.util.HashMap;
+
 import org.apache.commons.collections.buffer.CircularFifoBuffer;
 
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.index.IndexPair;
 
 /**
  * The window state for window operator. To be general enough, this class
@@ -26,24 +29,54 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
  * stream into multiple mini batches.
  */
 public class WindowState<K> {
+	private int windowSize;
+	private int slidingStep;
+	private int computeGranularity;
+	private int windowFieldId;
+
+	private int initTimestamp;
+	private int nextTimestamp;
 	private int currentRecordCount;
 	private int fullRecordCount;
 	private int slideRecordCount;
 
+	HashMap<K, IndexPair> windowIndex;
 	CircularFifoBuffer buffer;
+	StreamRecord tempRecord;
 
-	public WindowState(int windowSize, int slidingStep, int computeGranularity) {
+	public WindowState(int windowSize, int slidingStep, int computeGranularity,
+			int windowFieldId) {
+		this.windowSize = windowSize;
+		this.slidingStep = slidingStep;
+		this.computeGranularity = computeGranularity;
+		this.windowFieldId = windowFieldId;
+
+		this.initTimestamp = -1;
+		this.nextTimestamp = -1;
 		this.currentRecordCount = 0;
 		// here we assume that windowSize and slidingStep is divisible by
 		// computeGranularity.
 		this.fullRecordCount = windowSize / computeGranularity;
 		this.slideRecordCount = slidingStep / computeGranularity;
+
+		this.windowIndex = new HashMap<K, IndexPair>();
 		this.buffer = new CircularFifoBuffer(fullRecordCount);
 	}
 
 	public void pushBack(StreamRecord record) {
-		buffer.add(record);
-		currentRecordCount += 1;
+		if (initTimestamp == -1) {
+			initTimestamp = (Integer) record.getTuple(0).getField(windowFieldId);
+			nextTimestamp = initTimestamp + computeGranularity;
+			tempRecord = new StreamRecord(record.getNumOfFields());
+		}
+		for (int i = 0; i < record.getNumOfTuples(); ++i) {
+			while ((Integer) record.getTuple(i).getField(windowFieldId) > nextTimestamp) {
+				buffer.add(tempRecord);
+				currentRecordCount += 1;
+				tempRecord = new StreamRecord(record.getNumOfFields());
+			}
+			tempRecord.addTuple(record.getTuple(i));
+		}
 	}
 
 	public StreamRecord popFront() {
@@ -56,7 +89,7 @@ public class WindowState<K> {
 		return currentRecordCount >= fullRecordCount;
 	}
 
-	public boolean isEmittable() {
+	public boolean isComputable() {
 		if (currentRecordCount == fullRecordCount + slideRecordCount) {
 			currentRecordCount -= slideRecordCount;
 			return true;

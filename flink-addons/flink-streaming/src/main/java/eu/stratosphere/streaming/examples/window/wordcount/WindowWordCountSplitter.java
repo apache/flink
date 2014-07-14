@@ -21,14 +21,16 @@ import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class WindowWordCountSplitter extends UserTaskInvokable {
 	private String[] words = new String[] {};
+	private StreamRecord outputRecord = new StreamRecord(3);
 
 	private Long timestamp = 0L;
 
 	@Override
 	public void invoke(StreamRecord record) throws Exception {
-		StreamRecord outputRecord = new StreamRecord(3);
 		words = record.getString(0).split(" ");
 		timestamp = record.getLong(1);
+		System.out.println("sentence=" + record.getString(0) + ", timestamp="
+				+ record.getLong(1));
 		for (String word : words) {
 			Tuple3<String, Integer, Long> tuple =new Tuple3<String, Integer, Long>(word, 1, timestamp);
 			outputRecord.addTuple(tuple);
