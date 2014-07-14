@@ -111,6 +111,7 @@ public class StreamRecordTest {
 		assertEquals((Character) '\0', record.getCharacter(0, 6));
 		assertEquals((Float) 0.f, record.getFloat(0, 7));
 		assertEquals((Short) (short) 0, record.getShort(0, 8));
+				
 
 	}
 
