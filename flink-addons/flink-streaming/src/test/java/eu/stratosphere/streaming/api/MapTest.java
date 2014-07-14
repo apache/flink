@@ -266,7 +266,7 @@ public class MapTest {
 	public void mapTest() throws Exception {
 		
 		//mapTest
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
 		fillFromCollectionSet();
 		

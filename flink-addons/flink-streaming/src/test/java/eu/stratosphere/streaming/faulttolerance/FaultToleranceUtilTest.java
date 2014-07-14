@@ -21,7 +21,7 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
-import eu.stratosphere.nephele.io.RecordWriter;
+import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public class FaultToleranceUtilTest {

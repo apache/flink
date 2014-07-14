@@ -29,7 +29,7 @@ import eu.stratosphere.streaming.util.LogUtils;
 public class SSSPLocal {
 
 	public static void main(String[] args) {
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
 //		@SuppressWarnings("unused")
 //		DataStream<Tuple2<String, Integer>> dataStream = env

@@ -91,7 +91,7 @@ public class StreamComponentTest {
 
 	@BeforeClass
 	public static void runStream() {
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
+		StreamExecutionEnvironment context = StreamExecutionEnvironment.createLocalEnvironment();
 
 		DataStream<Tuple2<Integer, Integer>> oneTask = context.addSource(new MySource(), SOURCE_PARALELISM)
 				.map(new MyTask(), PARALELISM).addSink(new MySink());

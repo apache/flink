@@ -151,7 +151,7 @@ public class FlatMapTest {
 
 	@Test
 	public void test() throws Exception {
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
 		// flatmapTest
 

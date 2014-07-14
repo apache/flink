@@ -13,22 +13,34 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.rabbitmq;
+package eu.stratosphere.streaming.api;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.streaming.api.DataStream;
-import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.util.Collector;
 
-public class RMQTopology {
+/**
+ * Source Function used to generate the number sequence
+ * 
+ */
+public class SequenceSource extends SourceFunction<Tuple1<Long>> {
 
-	private static final int SOURCE_PARALELISM = 1;
+	private static final long serialVersionUID = 1L;
 
-	public static void main(String[] args) {
-		StreamExecutionEnvironment context = StreamExecutionEnvironment.createLocalEnvironment();
+	long from;
+	long to;
+	Tuple1<Long> outTuple = new Tuple1<Long>();
 
-		DataStream<Tuple1<String>> stream = context.addSource(new RMQSource("localhost", "hello"),
-				SOURCE_PARALELISM).print();
-
-		context.execute();
+	public SequenceSource(long from, long to) {
+		this.from = from;
+		this.to = to;
 	}
+
+	@Override
+	public void invoke(Collector<Tuple1<Long>> collector) throws Exception {
+		for (long i = from; i <= to; i++) {
+			outTuple.f0 = i;
+			collector.collect(outTuple);
+		}
+	}
+
 }

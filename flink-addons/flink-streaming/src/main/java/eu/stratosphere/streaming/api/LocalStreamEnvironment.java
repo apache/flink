@@ -13,22 +13,21 @@
  *
  **********************************************************************************************************************/
 
-package eu.stratosphere.streaming.rabbitmq;
+package eu.stratosphere.streaming.api;
 
-import eu.stratosphere.api.java.tuple.Tuple1;
-import eu.stratosphere.streaming.api.DataStream;
-import eu.stratosphere.streaming.api.StreamExecutionEnvironment;
+import eu.stratosphere.streaming.util.ClusterUtil;
 
-public class RMQTopology {
+public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 
-	private static final int SOURCE_PARALELISM = 1;
-
-	public static void main(String[] args) {
-		StreamExecutionEnvironment context = StreamExecutionEnvironment.createLocalEnvironment();
-
-		DataStream<Tuple1<String>> stream = context.addSource(new RMQSource("localhost", "hello"),
-				SOURCE_PARALELISM).print();
-
-		context.execute();
+	/**
+	 * Executes the JobGraph of the on a mini cluster of CLusterUtil.
+	 * 
+	 * @param parallelism
+	 *            Number of parallel cores utilized.
+	 */
+	@Override
+	public void execute() {
+		ClusterUtil.runOnMiniCluster(this.jobGraphBuilder.getJobGraph(), getDegreeOfParallelism());
 	}
+
 }

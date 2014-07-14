@@ -47,7 +47,6 @@ public class TypeExtractTest {
 
 		Myclass f = new Myclass();
 
-		System.out.println(f.getClass().getGenericSuperclass());
 		TypeInformation<?> ts = TypeExtractor.createTypeInfo(MySuperlass.class, f.getClass(), 0,
 				null, null);
 

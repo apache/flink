@@ -27,7 +27,7 @@ public class WindowWordCountLocal {
 	// This example will count the occurrence of each word in the input file with a sliding window.
 	
 	public static void main(String[] args) {
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 		
 		@SuppressWarnings("unused")
 		DataStream<Tuple3<String, Integer, Long>> dataStream = env

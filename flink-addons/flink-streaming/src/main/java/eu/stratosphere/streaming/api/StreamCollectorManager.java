@@ -19,8 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import eu.stratosphere.api.java.tuple.Tuple;
-import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.pact.runtime.plugable.SerializationDelegate;
+import eu.stratosphere.runtime.io.api.RecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 import eu.stratosphere.util.Collector;
 
