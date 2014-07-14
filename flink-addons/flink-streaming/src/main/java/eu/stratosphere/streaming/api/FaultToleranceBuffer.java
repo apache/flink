@@ -125,13 +125,11 @@ public class FaultToleranceBuffer {
 	public void addTimestamp(String recordID) {
 		Long currentTime = System.currentTimeMillis();
 		recordTimestamps.put(recordID, currentTime);
-		
-		Set<String> recordSet = recordsByTime.get(currentTime);
-		
-		if (recordSet != null) {
-			recordSet.add(recordID);
+
+		if (recordsByTime.containsKey(currentTime)) {
+			recordsByTime.get(currentTime).add(recordID);
 		} else {
-			recordSet = new HashSet<String>();
+			Set<String> recordSet = new HashSet<String>();
 			recordSet.add(recordID);
 			recordsByTime.put(currentTime, recordSet);
 		}
@@ -145,7 +143,9 @@ public class FaultToleranceBuffer {
 	 */
 	public StreamRecord popRecord(String recordID) {
 		System.out.println("Pop ID: " + recordID);
-		return removeRecord(recordID);
+		StreamRecord record = recordBuffer.get(recordID);
+		removeRecord(recordID);
+		return record;
 	}
 
 	/**
@@ -156,18 +156,18 @@ public class FaultToleranceBuffer {
 	 *            The ID of the record that will be removed
 	 * 
 	 */
-	StreamRecord removeRecord(String recordID) {
-		
+	void removeRecord(String recordID) {
+		recordBuffer.remove(recordID);
 		ackCounter.remove(recordID);
 		try {
-			recordsByTime.get(recordTimestamps.remove(recordID)).remove(recordID);
+			Long ts = recordTimestamps.remove(recordID);
+			recordsByTime.get(ts).remove(recordID);
 		} catch (NullPointerException e) {
 
 		} catch (Exception e) {
 			e.printStackTrace();
 			System.out.println(recordID);
 		}
-		return recordBuffer.remove(recordID);
 	}
 
 	/**
@@ -180,7 +180,7 @@ public class FaultToleranceBuffer {
 	// TODO: find a place to call timeoutRecords
 	public void ackRecord(String recordID) {
 		if (ackCounter.containsKey(recordID)) {
-			Integer ackCount = ackCounter.get(recordID) - 1;
+			int ackCount = ackCounter.get(recordID) - 1;
 
 			if (ackCount == 0) {
 				removeRecord(recordID);
@@ -188,6 +188,7 @@ public class FaultToleranceBuffer {
 				ackCounter.put(recordID, ackCount);
 			}
 		}
+		// timeoutRecords(System.currentTimeMillis());
 	}
 
 	/**

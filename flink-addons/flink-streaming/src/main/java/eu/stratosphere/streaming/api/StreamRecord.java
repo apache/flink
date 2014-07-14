@@ -14,10 +14,11 @@ import eu.stratosphere.types.StringValue;
 import eu.stratosphere.types.Value;
 
 /**
- * Object for storing serializable records in batch (single records are
+ * Object for storing serializable records in batch(single records are
  * represented batches with one element) used for sending records between task
  * objects in Stratosphere stream processing. The elements of the batch are
  * Value arrays.
+ * 
  */
 public class StreamRecord implements IOReadableWritable, Serializable {
 	private static final long serialVersionUID = 1L;
@@ -44,7 +45,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            Number of fields in the records
 	 */
 	public StreamRecord(int length) {
-		numOfFields = length;
+		this.numOfFields = length;
 		recordBatch = new ArrayList<Value[]>();
 	}
 
@@ -58,8 +59,8 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            Number of records
 	 */
 	public StreamRecord(int length, int batchSize) {
-		numOfFields = length;
-		numOfRecords = batchSize;
+		this.numOfFields = length;
+		this.numOfRecords = batchSize;
 		recordBatch = new ArrayList<Value[]>(batchSize);
 	}
 
@@ -71,11 +72,14 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            Array containing the Values for the first record in the batch
 	 */
 	public StreamRecord(Value... values) {
-		this(values.length, 1);
+		numOfFields = values.length;
+		recordBatch = new ArrayList<Value[]>();
 		recordBatch.add(values);
+		numOfRecords = 1;
 	}
 
 	/**
+	 * 
 	 * @return Number of fields in the records
 	 */
 	public int getNumOfFields() {
@@ -83,6 +87,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
+	 * 
 	 * @return Number of records in the batch
 	 */
 	public int getNumOfRecords() {
@@ -102,6 +107,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
+	 * 
 	 * @return The ID of the object
 	 */
 	public String getId() {
@@ -135,55 +141,11 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * @return Value of the field
 	 */
 	public Value getField(int fieldNumber) {
-		return getField(0, fieldNumber);
-	}
-
-	/**
-	 * Sets a field in the given position of a specific record in the batch
-	 * 
-	 * @param recordNumber
-	 *            Position of record in batch
-	 * @param fieldNumber
-	 *            Position of field in record
-	 * @param value
-	 *            Value to set
-	 */
-	public void setField(int recordNumber, int fieldNumber, Value value) {
 		try {
-			recordBatch.get(recordNumber)[fieldNumber] = value;
+			return recordBatch.get(0)[fieldNumber];
 		} catch (IndexOutOfBoundsException e) {
 			throw (new NoSuchRecordException());
 		}
-	}
-	
-	/**
-	 * Sets a field in the given position of the first record in the batch
-	 * 
-	 * @param fieldNumber
-	 *            Position of the field in the record
-	 */
-	public void setField(int fieldNumber, Value value) {
-		setField(0, fieldNumber, value);
-	}
-
-	/**
-	 * @param recordNumber
-	 *            Position of the record in the batch
-	 * @return Value array containing the fields of the record
-	 */
-	public Value[] getRecord(int recordNumber) {
-		try {
-			return recordBatch.get(recordNumber);
-		} catch (IndexOutOfBoundsException e) {
-			throw (new NoSuchRecordException());
-		}
-	}
-
-	/**
-	 * @return Value array containing the fields of first the record
-	 */
-	public Value[] getRecord() {
-		return getRecord(0);
 	}
 
 	/**
@@ -226,6 +188,15 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	}
 
 	/**
+	 * @param recordNumber
+	 *            Position of the record in the batch
+	 * @return Value array containing the fields of the record
+	 */
+	public Value[] getRecord(int recordNumber) {
+		return recordBatch.get(recordNumber);
+	}
+
+	/**
 	 * Checks if the number of fields are equal to the batch field size then
 	 * adds the Value array to the end of the batch
 	 * 
@@ -248,8 +219,6 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 */
 	public StreamRecord copy() {
 		StreamRecord copiedRecord = new StreamRecord(this.numOfFields, this.numOfRecords);
-		copiedRecord.uid = this.uid;
-		
 		for (Value[] record : recordBatch) {
 			copiedRecord.recordBatch.add(record);
 		}
