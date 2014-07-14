@@ -97,6 +97,8 @@ public class JobGraphBuilder {
 	 *            User defined class describing the source
 	 * @param parallelism
 	 *            Number of task instances of this type to run in parallel
+	 * @param subtasksPerInstance
+	 *            Number of subtasks allocated to a machine
 	 */
 	public void setSource(String sourceName,
 			final Class<? extends UserSourceInvokable> InvokableClass, int parallelism,
@@ -128,6 +130,8 @@ public class JobGraphBuilder {
 	 *            User defined class describing the task
 	 * @param parallelism
 	 *            Number of task instances of this type to run in parallel
+	 * @param subtasksPerInstance
+	 *            Number of subtasks allocated to a machine
 	 */
 	public void setTask(String taskName, final Class<? extends UserTaskInvokable> InvokableClass,
 			int parallelism, int subtasksPerInstance) {
@@ -158,6 +162,8 @@ public class JobGraphBuilder {
 	 *            User defined class describing the sink
 	 * @param parallelism
 	 *            Number of task instances of this type to run in parallel
+	 * @param subtasksPerInstance
+	 *            Number of subtasks allocated to a machine
 	 */
 	public void setSink(String sinkName, final Class<? extends UserSinkInvokable> InvokableClass,
 			int parallelism, int subtasksPerInstance) {
@@ -223,7 +229,7 @@ public class JobGraphBuilder {
 	public void setInstanceSharing(String component1, String component2) {
 		AbstractJobVertex c1 = components.get(component1);
 		AbstractJobVertex c2 = components.get(component2);
-		
+
 		c1.setVertexToShareInstancesWith(c2);
 	}
 
