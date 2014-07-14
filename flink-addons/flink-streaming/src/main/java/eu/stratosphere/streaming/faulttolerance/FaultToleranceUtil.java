@@ -22,6 +22,7 @@ import org.apache.commons.logging.LogFactory;
 
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.api.streamrecord.UID;
 
 /**
  * An object to provide fault tolerance for Stratosphere stream processing. It
@@ -33,7 +34,7 @@ public class FaultToleranceUtil {
 	private static final Log log = LogFactory.getLog(FaultToleranceUtil.class);
 
 	private List<RecordWriter<StreamRecord>> outputs;
-	private final String componentID;
+	private final int componentID;
 
 	private int numberOfChannels;
 
@@ -47,25 +48,25 @@ public class FaultToleranceUtil {
 	 * 
 	 * @param outputs
 	 *            List of outputs
-	 * @param componentID
+	 * @param sourceInstanceID
 	 *            ID of the task object that uses this buffer
 	 * @param numberOfChannels
 	 *            Number of output channels for the output components
 	 */
 	// TODO:get faulttolerancy type from user config, update logs for channel
 	// acks and fails
-	public FaultToleranceUtil(List<RecordWriter<StreamRecord>> outputs, String componentID,
+	public FaultToleranceUtil(List<RecordWriter<StreamRecord>> outputs, int sourceInstanceID,
 			int[] numberOfChannels) {
 		this.outputs = outputs;
 
-		this.componentID = componentID;
+		this.componentID = sourceInstanceID;
 
 		exactlyOnce = true;
 
 		if (exactlyOnce) {
-			this.buffer = new ExactlyOnceFaultToleranceBuffer(numberOfChannels, componentID);
+			this.buffer = new ExactlyOnceFaultToleranceBuffer(numberOfChannels, sourceInstanceID);
 		} else {
-			this.buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, componentID);
+			this.buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, sourceInstanceID);
 		}
 
 	}
@@ -100,7 +101,7 @@ public class FaultToleranceUtil {
 	 * 
 	 */
 	// TODO: find a place to call timeoutRecords
-	public void ackRecord(String recordID, int channel) {
+	public void ackRecord(UID recordID, int channel) {
 		buffer.ack(recordID, channel);
 	}
 
@@ -113,7 +114,7 @@ public class FaultToleranceUtil {
 	 * @param channel
 	 *            Number of channel to be failed
 	 */
-	public void failRecord(String recordID, int channel) {
+	public void failRecord(UID recordID, int channel) {
 		// if by ft type
 		if (exactlyOnce) {
 			StreamRecord failed = buffer.failChannel(recordID, channel);
@@ -130,11 +131,11 @@ public class FaultToleranceUtil {
 	 * Re-emits the failed record for the given ID, removes the old record and
 	 * stores it with a new ID.
 	 * 
-	 * @param recordID
+	 * @param uid
 	 *            ID of the record that has been failed
 	 */
-	public void failRecord(String recordID) {
-		StreamRecord failed = buffer.fail(recordID);
+	public void failRecord(UID uid) {
+		StreamRecord failed = buffer.fail(uid);
 
 		if (failed != null) {
 
@@ -186,7 +187,7 @@ public class FaultToleranceUtil {
 		return this.outputs;
 	}
 
-	public String getChannelID() {
+	public int getChannelID() {
 		return this.componentID;
 	}
 

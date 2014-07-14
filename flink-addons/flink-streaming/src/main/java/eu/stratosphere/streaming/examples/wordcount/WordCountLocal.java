@@ -33,7 +33,7 @@ public class WordCountLocal {
 			int counterSubtasksPerInstance, int sinkSubtasks, int sinkSubtasksPerInstance)
 			throws Exception {
 		JobGraphBuilder graphBuilder = new JobGraphBuilder("testGraph");
-		graphBuilder.setSource("WordCountSource", WordCountSource.class, sourceSubtasks,
+		graphBuilder.setSource("WordCountSource", WordCountDummySource.class, sourceSubtasks,
 				sourceSubtasksPerInstance);
 		graphBuilder.setTask("WordCountSplitter", WordCountSplitter.class, splitterSubtasks,
 				splitterSubtasksPerInstance);

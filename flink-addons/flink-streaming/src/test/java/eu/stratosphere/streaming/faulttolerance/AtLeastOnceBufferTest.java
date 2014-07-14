@@ -25,6 +25,7 @@ import org.junit.Test;
 
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
+import eu.stratosphere.streaming.api.streamrecord.UID;
 
 public class AtLeastOnceBufferTest {
 
@@ -36,32 +37,33 @@ public class AtLeastOnceBufferTest {
 
 		numberOfChannels = new int[] { 1, 2 };
 
-		buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, "1");
+		buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, 1);
 
 	}
 
 	@Test
 	public void testAddToAckCounter() {
 
-		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId(1);
+		UID id = record1.getId();
 
 		buffer.addToAckCounter(record1.getId());
 
-		assertEquals((Integer) 3, buffer.ackCounter.get(record1.getId()));
+		assertEquals((Integer) 3, buffer.ackCounter.get(id));
 
 	}
 
 	@Test
 	public void testRemoveFromAckCounter() {
-		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
-		StreamRecord record2 = new StreamRecord(new Tuple1<String>("R2")).setId("1");
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId(1);
+		StreamRecord record2 = new StreamRecord(new Tuple1<String>("R2")).setId(1);
 
-		String id = record1.getId();
+		UID id = record1.getId();
 
 		buffer.addToAckCounter(record1.getId());
 		buffer.addToAckCounter(record2.getId());
 
-		record1.setId("1");
+		record1.setId(1);
 
 		buffer.removeFromAckCounter(record2.getId());
 
@@ -72,8 +74,8 @@ public class AtLeastOnceBufferTest {
 
 	@Test
 	public void testAck() {
-		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
-		String id = record1.getId();
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId(1);
+		UID id = record1.getId();
 
 		buffer.add(record1);
 		assertEquals((Integer) 3, buffer.ackCounter.get(id));
@@ -95,10 +97,10 @@ public class AtLeastOnceBufferTest {
 	public void testAtLeastOnceFaultToleranceBuffer() {
 		numberOfChannels = new int[] { 2, 2, 2 };
 
-		buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, "2");
+		buffer = new AtLeastOnceFaultToleranceBuffer(numberOfChannels, 2);
 
 		assertArrayEquals(numberOfChannels, buffer.numberOfEffectiveChannels);
-		assertEquals("2", buffer.componentInstanceID);
+		assertEquals(2, buffer.componentInstanceID);
 		assertEquals(6, buffer.totalNumberOfEffectiveChannels);
 
 	}
@@ -106,26 +108,30 @@ public class AtLeastOnceBufferTest {
 	@Test
 	public void testAdd() {
 
-		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId(1);
 
-		String id1 = record1.getId();
+		UID id1 = record1.getId().copy();
 
 		Long nt = System.nanoTime();
 
 		buffer.add(record1);
+		System.out.println(id1);
+		System.out.println(buffer.ackCounter);
 
 		System.out.println("ADD - " + " exec. time (ns): " + (System.nanoTime() - nt));
 
 		record1.setTuple(new Tuple1<String>("R2"));
-		record1.setId("1");
-		String id2 = record1.getId();
+		record1.setId(1);
+		UID id2 = record1.getId().copy();
 
 		try {
 			Thread.sleep(10);
 		} catch (InterruptedException e) {
 		}
 		buffer.add(record1);
-
+		System.out.println(id1);
+		System.out.println(buffer.ackCounter);
+		
 		assertEquals((Integer) 3, buffer.ackCounter.get(id1));
 		assertEquals((Integer) 3, buffer.ackCounter.get(id2));
 
@@ -144,8 +150,8 @@ public class AtLeastOnceBufferTest {
 
 	@Test
 	public void testFail() {
-		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
-		String id1 = record1.getId();
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId(1);
+		UID id1 = record1.getId();
 
 		buffer.add(record1);
 		buffer.ack(id1, 1);
@@ -156,7 +162,7 @@ public class AtLeastOnceBufferTest {
 		assertEquals(1, buffer.ackCounter.size());
 
 		StreamRecord failed = buffer.fail(id1);
-		String id2 = failed.getId();
+		UID id2 = failed.getId();
 
 		assertFalse(buffer.ackCounter.containsKey(id1));
 		assertFalse(buffer.recordBuffer.containsKey(id1));
@@ -176,25 +182,25 @@ public class AtLeastOnceBufferTest {
 
 		Long ctime = System.currentTimeMillis();
 
-		buffer.addTimestamp("1");
+		UID id = new UID(1);
+		buffer.addTimestamp(id);
 
-		assertEquals(ctime, buffer.recordTimestamps.get("1"));
+		assertEquals(ctime, buffer.recordTimestamps.get(id));
 
 		assertTrue(buffer.recordsByTime.containsKey(ctime));
-		assertTrue(buffer.recordsByTime.get(ctime).contains("1"));
-
+		assertTrue(buffer.recordsByTime.get(ctime).contains(id));
 	}
 
 	@Test
 	public void testRemove() {
-		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId("1");
+		StreamRecord record1 = new StreamRecord(new Tuple1<String>("R1")).setId(1);
 
-		String id1 = record1.getId();
+		UID id1 = record1.getId();
 		buffer.add(record1);
 
 		record1.setTuple(new Tuple1<String>("R2"));
-		record1.setId("1");
-		String id2 = record1.getId();
+		record1.setId(1);
+		UID id2 = record1.getId();
 		buffer.add(record1);
 
 		assertTrue(buffer.ackCounter.containsKey(id1));

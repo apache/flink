@@ -15,6 +15,7 @@
 
 package eu.stratosphere.streaming.api.streamrecord;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -31,7 +32,6 @@ import org.junit.Test;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.api.java.tuple.Tuple2;
 import eu.stratosphere.api.java.tuple.Tuple20;
-import eu.stratosphere.api.java.tuple.Tuple3;
 import eu.stratosphere.api.java.tuple.Tuple4;
 import eu.stratosphere.api.java.tuple.Tuple5;
 import eu.stratosphere.api.java.tuple.Tuple9;
@@ -195,10 +195,11 @@ public class StreamRecordTest {
 	@Test
 	public void copyTest() {
 		StreamRecord a = new StreamRecord(new Tuple1<String>("Big"));
+		a.setId(0);
 		StreamRecord b = a.copy();
 		assertTrue(a.getField(0).equals(b.getField(0)));
 		assertTrue(a.getId().equals(b.getId()));
-		b.setId("2");
+		b.setId(2);
 		b.setTuple(new Tuple1<String>("Data"));
 		assertFalse(a.getId().equals(b.getId()));
 		assertFalse(a.getField(0).equals(b.getField(0)));
@@ -348,15 +349,15 @@ public class StreamRecordTest {
 				new Tuple9<Boolean, Byte, Character, Double, Float, Integer, Long, Short, String>((Boolean) true,
 						(Byte) (byte) 12, (Character) 'a', (Double) 12.5, (Float) (float) 13.5, (Integer) 1234,
 						(Long) 12345678900l, (Short) (short) 12345, "something"));
-		@SuppressWarnings("rawtypes")
+		@SuppressWarnings({ "rawtypes", "unused" })
 		Class[] types = new Class[9];
-		assertEquals(new Class[] { Boolean.class, Byte.class, Character.class, Double.class, Float.class,
+		assertArrayEquals(new Class[] { Boolean.class, Byte.class, Character.class, Double.class, Float.class,
 				Integer.class, Long.class, Short.class, String.class },
 				rec.tupleBasicTypesFromLong(rec.tupleBasicTypesToLong(rec.getTuple()), 9));
-		assertEquals(new Class[] { Boolean.class, Byte.class, Character.class, Double.class, Float.class,
+		assertArrayEquals(new Class[] { Boolean.class, Byte.class, Character.class, Double.class, Float.class,
 				Integer.class, Long.class, Short.class, String.class },
 				rec.tupleBasicTypesFromString(rec.tupleBasicTypesToString(rec.getTuple()), 9));
-		assertEquals(new Class[] { Boolean.class, Byte.class, Character.class, Double.class, Float.class,
+		assertArrayEquals(new Class[] { Boolean.class, Byte.class, Character.class, Double.class, Float.class,
 				Integer.class, Long.class, Short.class, String.class },
 				rec.tupleBasicTypesFromByteArray(rec.tupleBasicTypesToByteArray(rec.getTuple()), 9));
 
@@ -383,6 +384,7 @@ public class StreamRecordTest {
 		for (int i = 0; i < 1000; i++) {
 			StringValue sv = new StringValue("");
 			sv.read(in2);
+			@SuppressWarnings({ "unused", "rawtypes" })
 			Class[] types2 = rec.tupleBasicTypesFromString(sv.getValue(), 9);
 		}
 		System.out.println("Type copy with String:\t\t" + (System.nanoTime() - start) + " ns");
@@ -397,9 +399,9 @@ public class StreamRecordTest {
 		for (int i = 0; i < 1000; i++) {
 			byte[] byteTypes = new byte[9];
 			in3.read(byteTypes);
+			@SuppressWarnings({ "unused", "rawtypes" })
 			Class[] types2 = rec.tupleBasicTypesFromByteArray(byteTypes, 9);
 		}
-		System.out.println("Type copy with ByteArray:\t" + (System.nanoTime() - start) + " ns");
-		
+		System.out.println("Type copy with ByteArray:\t" + (System.nanoTime() - start) + " ns");	
 	}
 }
