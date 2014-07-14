@@ -27,13 +27,14 @@ public class WindowSumAggregate extends
 	private static final long serialVersionUID = -2832409561059237150L;
 	private TableState<String, Integer> sum;
 	private Tuple2<Integer, Long> outTuple = new Tuple2<Integer, Long>();
-
+	
+	
 	public WindowSumAggregate(int windowSize, int slidingStep,
 			int computeGranularity, int windowFieldId) {
 		super(windowSize, slidingStep, computeGranularity, windowFieldId);
 		sum = new TableState<String, Integer>();
 		sum.put("sum", 0);
-		//checkpointer.RegisterState(sum);
+		checkpointer.registerState(sum);
 	}
 
 	@Override
