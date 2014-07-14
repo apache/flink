@@ -19,7 +19,8 @@ import java.io.Serializable;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 
-public abstract class UserSinkInvokable<T extends Tuple, R extends Tuple> implements RecordInvokable<R>, Serializable {
+public abstract class UserSinkInvokable<IN extends Tuple> implements RecordInvokable<IN>,
+		Serializable {
 
 	private static final long serialVersionUID = 1L;
 

@@ -17,10 +17,10 @@ import java.io.IOException;
 
 import eu.stratosphere.api.java.tuple.Tuple;
 import eu.stratosphere.api.java.typeutils.runtime.TupleSerializer;
+import eu.stratosphere.nephele.io.AbstractUnionRecordReader;
+import eu.stratosphere.nephele.io.MutableRecordReader;
+import eu.stratosphere.nephele.io.Reader;
 import eu.stratosphere.pact.runtime.plugable.DeserializationDelegate;
-import eu.stratosphere.runtime.io.api.AbstractUnionRecordReader;
-import eu.stratosphere.runtime.io.api.MutableRecordReader;
-import eu.stratosphere.runtime.io.api.Reader;
 import eu.stratosphere.streaming.api.streamrecord.StreamRecord;
 
 public final class UnionStreamRecordReader extends AbstractUnionRecordReader<StreamRecord>
