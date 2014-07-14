@@ -59,10 +59,10 @@ public class IncrementalOLS {
 		Random rnd = new Random();
 
 		@Override
-		public void invoke(Collector<Tuple2<Double, Double[]>> collector) throws Exception {
+		public void invoke(Collector<Tuple2<Double, Double[]>> out) throws Exception {
 
 			while (true) {
-				collector.collect(getTrainingData());
+				out.collect(getTrainingData());
 			}
 
 		}

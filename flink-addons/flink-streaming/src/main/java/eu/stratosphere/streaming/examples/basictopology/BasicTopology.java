@@ -29,10 +29,10 @@ public class BasicTopology {
 		Tuple1<String> tuple = new Tuple1<String>("streaming");
 
 		@Override
-		public void invoke(Collector<Tuple1<String>> collector) throws Exception {
-			// emit continuously a tuple
+		public void invoke(Collector<Tuple1<String>> out) throws Exception {
+			// emit continuously
 			while (true) {
-				collector.collect(tuple);
+				out.collect(tuple);
 			}
 		}
 	}
