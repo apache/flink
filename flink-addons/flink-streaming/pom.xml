@@ -105,20 +105,6 @@
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.16</version>
-				<configuration>
-					<argLine>-Xmx1024m</argLine>
-				</configuration>
-			</plugin>
-			<plugin>
-				<!-- plugin that tests whether the code style is appropriate -->
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.6</version>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-eclipse-plugin</artifactId>
 				<version>2.8</version>
 				<configuration>
@@ -130,28 +116,6 @@
 					<downloadSources>true</downloadSources>
 					<downloadJavadocs>true</downloadJavadocs>
 				</configuration>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-enforcer-plugin</artifactId>
-				<version>1.3.1</version>
-				<executions>
-					<execution>
-						<id>enforce-maven</id>
-						<goals>
-							<goal>enforce</goal>
-						</goals>
-						<configuration>
-							<rules>
-								<requireMavenVersion>
-									<version>(,2.1.0),(2.1.0,2.2.0),(2.2.0,)</version>
-									<message>Maven 2.1.0 and 2.2.0 produce incorrect GPG signatures and checksums respectively.</message>
-								</requireMavenVersion>
-							</rules>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -192,18 +156,6 @@
 					</excludes>
 					<forkMode>once</forkMode>
 					<argLine>-Xmx1024m</argLine>
-				</configuration>
-			</plugin>
-			<plugin>
-				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>2.7</version>
-				<configuration>
-					<systemPropertyVariables>
-						<log.level>WARN</log.level>
-					</systemPropertyVariables>
-					<forkMode>always</forkMode>
-					<threadCount>1</threadCount>
-					<perCoreThreadCount>false</perCoreThreadCount>
 				</configuration>
 			</plugin>
 		</plugins>
