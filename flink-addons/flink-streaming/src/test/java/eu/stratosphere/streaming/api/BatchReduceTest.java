@@ -15,13 +15,10 @@
 
 package eu.stratosphere.streaming.api;
 
-import static org.junit.Assert.fail;
-
 import java.util.Iterator;
 
 import org.junit.Test;
 
-import eu.stratosphere.api.java.functions.FlatMapFunction;
 import eu.stratosphere.api.java.functions.GroupReduceFunction;
 import eu.stratosphere.api.java.tuple.Tuple1;
 import eu.stratosphere.util.Collector;
@@ -72,8 +69,8 @@ public class BatchReduceTest {
 	@Test
 	public void test() throws Exception {
 
-		StreamExecutionEnvironment context = new StreamExecutionEnvironment();
-		DataStream<Tuple1<Double>> dataStream0 = context.addSource(new MySource()).batch(4)
+		StreamExecutionEnvironment context = new StreamExecutionEnvironment(4, 1000);
+		DataStream<Tuple1<Double>> dataStream0 = context.addSource(new MySource())
 				.batchReduce(new MyBatchReduce()).addSink(new MySink());
 
 		context.execute();

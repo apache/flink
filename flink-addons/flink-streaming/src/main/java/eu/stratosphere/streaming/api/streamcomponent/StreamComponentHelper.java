@@ -107,8 +107,11 @@ public final class StreamComponentHelper<T extends AbstractInvokable> {
 
 	public StreamCollector<Tuple> setCollector(Configuration taskConfiguration, int id,
 			List<RecordWriter<StreamRecord>> outputs) {
+
 		int batchSize = taskConfiguration.getInteger("batchSize", 1);
-		collector = new StreamCollector<Tuple>(batchSize, id, outSerializationDelegate, outputs);
+		long batchTimeout = taskConfiguration.getLong("batchTimeout", 1000);
+		collector = new StreamCollector<Tuple>(batchSize, batchTimeout, id,
+				outSerializationDelegate, outputs);
 		return collector;
 	}
 
