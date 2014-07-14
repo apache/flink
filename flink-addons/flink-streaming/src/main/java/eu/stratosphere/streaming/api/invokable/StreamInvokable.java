@@ -14,9 +14,10 @@ public abstract class StreamInvokable {
     this.outputs = outputs;
   }
 
-  public final void emit(FlatStreamRecord streamRecord) {
+  public final void emit(Record record) {
     for (RecordWriter<Record> output : outputs) {
       try {
+      	FlatStreamRecord streamRecord = new FlatStreamRecord(record);
         output.emit(streamRecord.getRecord());
       } catch (Exception e) {
         System.out.println("Emit error");

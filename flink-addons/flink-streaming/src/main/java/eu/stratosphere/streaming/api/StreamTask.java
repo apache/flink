@@ -26,7 +26,6 @@ import eu.stratosphere.streaming.api.invokable.DefaultTaskInvokable;
 import eu.stratosphere.streaming.api.invokable.UserTaskInvokable;
 import eu.stratosphere.streaming.partitioner.DefaultPartitioner;
 import eu.stratosphere.types.Record;
-import eu.stratosphere.types.StringValue;
 
 public class StreamTask extends AbstractTask {
 
@@ -59,7 +58,7 @@ public class StreamTask extends AbstractTask {
     Class<? extends ChannelSelector<Record>> partitioner;
 
     for (int i = 1; i <= numberOfOutputs; i++) {
-      partitioner = getTaskConfiguration().getClass("partitionerClass_" + i,
+      partitioner = getTaskConfiguration().getClass("partitioner_" + i,
           DefaultPartitioner.class, ChannelSelector.class);
       try {
         partitioners.add(partitioner.newInstance());
@@ -87,8 +86,6 @@ public class StreamTask extends AbstractTask {
   @Override
   public void registerInputOutput() {
     setConfigInputs();
-    Record r = new Record();
-    r.addField(new StringValue(""));
   }
 
   @Override
@@ -99,7 +96,9 @@ public class StreamTask extends AbstractTask {
       for (RecordReader<Record> input : inputs) {
         if (input.hasNext()) {
           hasInput = true;
-          userFunction.invoke(new FlatStreamRecord(input.next()));
+          Record rec = input.next();
+          rec.removeField(rec.getNumFields()-1);
+          userFunction.invoke(rec);
         }
       }
     }

@@ -15,7 +15,6 @@
 
 package eu.stratosphere.streaming.test;
 
-import eu.stratosphere.streaming.api.FlatStreamRecord;
 import eu.stratosphere.streaming.api.invokable.UserSourceInvokable;
 import eu.stratosphere.types.IntValue;
 import eu.stratosphere.types.LongValue;
@@ -32,8 +31,8 @@ public class TestSourceInvokable extends UserSourceInvokable {
       Record record2 = new Record(2);
       record2.setField(0, new IntValue(4));
       record2.setField(1, new LongValue(500));
-      emit(new FlatStreamRecord(record1));
-      emit(new FlatStreamRecord(record2));
+      emit(record1);
+      emit(record2);
     }
   }
 

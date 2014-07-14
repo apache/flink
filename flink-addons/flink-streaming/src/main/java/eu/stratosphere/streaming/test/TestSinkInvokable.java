@@ -22,9 +22,8 @@ import eu.stratosphere.types.StringValue;
 public class TestSinkInvokable implements UserSinkInvokable {
 
   @Override
-  public void invoke(Record record) throws Exception {
-
-    StringValue value = new StringValue("");
+  public void invoke(Record record) throws Exception {  	
+  	StringValue value = new StringValue("");
     record.getFieldInto(0, value);
     System.out.println(value.getValue());
   }
