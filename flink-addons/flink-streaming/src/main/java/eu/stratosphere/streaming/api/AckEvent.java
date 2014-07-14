@@ -19,12 +19,18 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import eu.stratosphere.nephele.event.task.AbstractTaskEvent;
 /**TaskEvent for sending record acknowledgements to the input's fault tolerance buffer
  * 
  *
  */
 public class AckEvent extends AbstractTaskEvent {
+	
+	private static final Log log = LogFactory.getLog(AckEvent.class);
+	
 	private String recordId;
 	
 	/**Creates a new event to acknowledge the record with the given ID
@@ -33,9 +39,13 @@ public class AckEvent extends AbstractTaskEvent {
 	 * ID of the record to be acknowledged
 	 */
 	public AckEvent(String recordId) {
+		
 		setRecordId(recordId);
-		System.out.println("Ack sent " + recordId);
-		System.out.println("---------------------");
+		if (log.isDebugEnabled()) {
+			log.debug("Ack sent " + recordId);
+		}
+//		System.out.println("Ack sent " + recordId);
+//		System.out.println("---------------------");
 
 	}
 
