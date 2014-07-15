@@ -24,20 +24,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
 import java.util.Arrays;
 
 import junit.framework.Assert;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 import org.junit.Test;
 
 /**
@@ -355,49 +347,5 @@ public abstract class SerializerTestBase<T> {
 			throw new RuntimeException("Test case corrupt. Returns null as test data.");
 		}
 		return data;
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	private static final class TestOutputView extends DataOutputStream implements DataOutputView {
-		
-		public TestOutputView() {
-			super(new ByteArrayOutputStream(4096));
-		}
-		
-		public TestInputView getInputView() {
-			ByteArrayOutputStream baos = (ByteArrayOutputStream) out;
-			return new TestInputView(baos.toByteArray());
-		}
-
-		@Override
-		public void skipBytesToWrite(int numBytes) throws IOException {
-			for (int i = 0; i < numBytes; i++) {
-				write(0);
-			}
-		}
-
-		@Override
-		public void write(DataInputView source, int numBytes) throws IOException {
-			byte[] buffer = new byte[numBytes];
-			source.readFully(buffer);
-			write(buffer);
-		}
-	}
-	
-	
-	private static final class TestInputView extends DataInputStream implements DataInputView {
-
-		public TestInputView(byte[] data) {
-			super(new ByteArrayInputStream(data));
-		}
-
-		@Override
-		public void skipBytesToRead(int numBytes) throws IOException {
-			while (numBytes > 0) {
-				int skipped = skipBytes(numBytes);
-				numBytes -= skipped;
-			}
-		}
 	}
 }

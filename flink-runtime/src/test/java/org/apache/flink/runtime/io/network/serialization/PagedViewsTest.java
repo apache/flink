@@ -74,7 +74,7 @@ public class PagedViewsTest {
 
 		} catch (Exception e) {
 			e.printStackTrace();
-			fail("Test encountered an unexpected exception.");
+			fail("Test encountered an unexpected exception: " + e);
 		}
 	}
 
@@ -381,9 +381,13 @@ public class PagedViewsTest {
 		}
 
 		@Override
-		protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws IOException {
-			segments.add(new SegmentWithPosition(current, positionInCurrent));
+		protected MemorySegment requestSegment() {
 			return new MemorySegment(new byte[segmentSize]);
+		}
+
+		@Override
+		protected void returnSegment(MemorySegment current, int positionInCurrent) throws IOException {
+			segments.add(new SegmentWithPosition(current, positionInCurrent));
 		}
 
 		public void close() {

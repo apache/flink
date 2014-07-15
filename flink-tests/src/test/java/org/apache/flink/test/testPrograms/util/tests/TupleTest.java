@@ -26,7 +26,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 import org.apache.flink.test.recordJobs.util.Tuple;
 import org.junit.Assert;
 import org.junit.Test;
@@ -643,14 +643,14 @@ public class TupleTest {
 		Tuple t = new Tuple();
 		t.addAttribute("Hello world!");
 		try {
-			t.write(new OutputViewDataOutputStreamWrapper(dos));
+			t.write(new OutputViewDataOutputWrapper(dos));
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
 		
 		t.addAttribute("2ndAttribute");
 		try {
-			t.write(new OutputViewDataOutputStreamWrapper(dos));
+			t.write(new OutputViewDataOutputWrapper(dos));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -660,7 +660,7 @@ public class TupleTest {
 		t = new Tuple(ba, of2, 5);
 		
 		try {
-			t.write(new OutputViewDataOutputStreamWrapper(dos));
+			t.write(new OutputViewDataOutputWrapper(dos));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

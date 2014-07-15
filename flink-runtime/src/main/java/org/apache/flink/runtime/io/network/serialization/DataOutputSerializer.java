@@ -44,6 +44,7 @@ public class DataOutputSerializer implements DataOutputView {
 			throw new IllegalArgumentException();
 		}
 
+		this.position = 0;
 		this.buffer = new byte[startSize];
 		this.wrapper = ByteBuffer.wrap(buffer);
 	}
@@ -59,7 +60,7 @@ public class DataOutputSerializer implements DataOutputView {
 	}
 
 	public int length() {
-		return this.position;
+		return position;
 	}
 
 	@Override
@@ -247,7 +248,9 @@ public class DataOutputSerializer implements DataOutputView {
 		try {
 			final int newLen = Math.max(this.buffer.length * 2, this.buffer.length + minCapacityAdd);
 			final byte[] nb = new byte[newLen];
-			System.arraycopy(this.buffer, 0, nb, 0, this.position);
+			// copy the whole buffer since we might have data after the current position
+			// due to seeking
+			System.arraycopy(this.buffer, 0, nb, 0, this.buffer.length);
 			this.buffer = nb;
 			this.wrapper = ByteBuffer.wrap(this.buffer);
 		}
@@ -281,5 +284,29 @@ public class DataOutputSerializer implements DataOutputView {
 
 		source.read(this.buffer, this.position, numBytes);
 		this.position += numBytes;
+	}
+
+	@Override
+	public void lock() {
+		// We do not need locking/unlocking since we always only have one buffer
+	}
+
+	@Override
+	public void unlock() throws IOException {
+		// We do not need locking/unlocking since we always only have one buffer
+	}
+
+	@Override
+	public long tell() throws IOException {
+		return position;
+	}
+
+	@Override
+	public void seek(long newPosition) throws IOException {
+		if (newPosition > buffer.length - 1) {
+			resize((int)(newPosition * 1.5));
+		}
+		// we only have one byte array so int is enough for addressing
+		position = (int) newPosition;
 	}
 }

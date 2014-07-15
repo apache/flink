@@ -36,7 +36,7 @@ import java.util.jar.Manifest;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 import org.apache.flink.runtime.jobmanager.JobManagerITCase;
 import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
 
@@ -205,7 +205,7 @@ public final class ServerTestUtils {
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		final DataOutputStream dos = new DataOutputStream(baos);
 
-		original.write(new OutputViewDataOutputStreamWrapper(dos));
+		original.write(new OutputViewDataOutputWrapper(dos));
 
 		final String className = original.getClass().getName();
 		if (className == null) {

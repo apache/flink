@@ -64,21 +64,18 @@ public class SpillingBuffer extends AbstractPagedOutputView {
 		this.memorySource = memSource;
 		this.ioManager = ioManager;
 	}
-	
 
 	@Override
-	protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws IOException {
+	protected MemorySegment requestSegment() throws IOException {
 		// check if we are still in memory
 		if (this.writer == null) {
-			this.fullSegments.add(current);
-			
 			final MemorySegment nextSeg = this.memorySource.nextSegment();
 			if (nextSeg != null) {
 				return nextSeg;
 			} else {
 				// out of memory, need to spill: create a writer
 				this.writer = this.ioManager.createBlockChannelWriter(this.ioManager.createChannel());
-				
+
 				// add all segments to the writer
 				this.blockCount = this.fullSegments.size();
 				this.numMemorySegmentsInWriter = this.blockCount;
@@ -92,9 +89,19 @@ public class SpillingBuffer extends AbstractPagedOutputView {
 			}
 		} else {
 			// spilling
-			this.writer.writeBlock(current);
 			this.blockCount++;
 			return this.writer.getNextReturnedSegment();
+		}
+	}
+
+	@Override
+	protected void returnSegment(MemorySegment current, int positionInCurrent) throws IOException {
+		// check if we are still in memory
+		if (this.writer == null) {
+			this.fullSegments.add(current);
+		} else {
+			// spilling
+			this.writer.writeBlock(current);
 		}
 	}
 	

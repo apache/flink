@@ -31,7 +31,7 @@ import java.util.Map.Entry;
 import junit.framework.Assert;
 
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.ListValue;
@@ -72,7 +72,7 @@ public class CollectionsDataTypeTest {
 		try {
 			NfIntStringPair mPairActual = new NfIntStringPair();
 
-			pair1.write(new OutputViewDataOutputStreamWrapper(out));
+			pair1.write(new OutputViewDataOutputWrapper(out));
 			mPairActual.read(new InputViewDataInputStreamWrapper(in));
 
 			Assert.assertEquals(pair1, mPairActual);
@@ -196,7 +196,7 @@ public class CollectionsDataTypeTest {
 		// now test data transfer
 		NfIntStringMap nMap = new NfIntStringMap();
 		try {
-			map0.write(new OutputViewDataOutputStreamWrapper(out));
+			map0.write(new OutputViewDataOutputWrapper(out));
 			nMap.read(new InputViewDataInputStreamWrapper(in));
 		} catch (Exception e) {
 			Assert.assertTrue(false);
@@ -224,7 +224,7 @@ public class CollectionsDataTypeTest {
 		// test data transfer
 		NfStringList mList2 = new NfStringList();
 		try {
-			list.write(new OutputViewDataOutputStreamWrapper(out));
+			list.write(new OutputViewDataOutputWrapper(out));
 			mList2.read(new InputViewDataInputStreamWrapper(in));
 		} catch (Exception e) {
 			Assert.assertTrue(false);

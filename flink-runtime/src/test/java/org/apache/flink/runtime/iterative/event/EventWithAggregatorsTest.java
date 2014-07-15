@@ -30,7 +30,7 @@ import java.util.Set;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.IterationEventWithAggregators;
 import org.apache.flink.types.LongValue;
@@ -103,7 +103,7 @@ public class EventWithAggregatorsTest {
 		try {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			DataOutputStream out = new DataOutputStream(baos);
-			event.write(new OutputViewDataOutputStreamWrapper(out));
+			event.write(new OutputViewDataOutputWrapper(out));
 			out.flush();
 			
 			byte[] data = baos.toByteArray();

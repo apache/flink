@@ -30,7 +30,7 @@ import java.io.IOException;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 
 /**
  * This class contains auxiliary methods for unit tests in the Nephele management module.
@@ -69,7 +69,7 @@ public final class ManagementTestUtils {
 		final DataOutputStream dos = new DataOutputStream(baos);
 
 		try {
-			original.write(new OutputViewDataOutputStreamWrapper(dos));
+			original.write(new OutputViewDataOutputWrapper(dos));
 		} catch (IOException ioe) {
 			fail(ioe.getMessage());
 		}

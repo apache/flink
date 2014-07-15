@@ -25,31 +25,34 @@ import java.util.Random;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-public class AsciiStringType implements SerializationTestType {
+public class LongAsciiStringType implements SerializationTestType {
 
+	// make it bigger than the segment size in PageViewTests.testRandomTypes() so that we check whether locking
+	// and seeking works across segment boundaries
+	private static final int MIN_LEN = 100;
 	private static final int MAX_LEN = 1500;
 
 	public String value;
 
-	public AsciiStringType() {
+	public LongAsciiStringType() {
 		this.value = "";
 	}
 
-	private AsciiStringType(String value) {
+	private LongAsciiStringType(String value) {
 		this.value = value;
 	}
 
 	@Override
-	public AsciiStringType getRandom(Random rnd) {
+	public LongAsciiStringType getRandom(Random rnd) {
 		final StringBuilder bld = new StringBuilder();
-		final int len = rnd.nextInt(MAX_LEN + 1);
+		final int len = MIN_LEN + rnd.nextInt(MAX_LEN + 1);
 
 		for (int i = 0; i < len; i++) {
 			// 1--127
 			bld.append((char) (rnd.nextInt(126) + 1));
 		}
 
-		return new AsciiStringType(bld.toString());
+		return new LongAsciiStringType(bld.toString());
 	}
 
 	@Override
@@ -92,8 +95,8 @@ public class AsciiStringType implements SerializationTestType {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof AsciiStringType) {
-			AsciiStringType other = (AsciiStringType) obj;
+		if (obj instanceof LongAsciiStringType) {
+			LongAsciiStringType other = (LongAsciiStringType) obj;
 			return this.value.equals(other.value);
 		} else {
 			return false;

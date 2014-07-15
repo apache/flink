@@ -199,16 +199,17 @@ public final class ChannelWriterOutputView extends AbstractPagedOutputView
 	// --------------------------------------------------------------------------------------------
 	//                                      Page Management
 	// --------------------------------------------------------------------------------------------
-	
-	protected final MemorySegment nextSegment(MemorySegment current, int posInSegment) throws IOException
-	{
-		if (current != null) {
-			writeSegment(current, posInSegment, false);
-		}
-		
+
+	@Override
+	protected final MemorySegment requestSegment() throws IOException {
 		final MemorySegment next = this.writer.getNextReturnedSegment();
 		this.blockCount++;
 		return next;
+	}
+	protected final void returnSegment(MemorySegment segment, int posInSegment) throws IOException {
+		if (segment != null) {
+			writeSegment(segment, posInSegment, false);
+		}
 	}
 	
 	private final void writeSegment(MemorySegment segment, int writePosition, boolean lastSegment) throws IOException

@@ -31,7 +31,7 @@ import java.util.Arrays;
 import java.util.Random;
 
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
@@ -72,13 +72,13 @@ public class RecordTest {
 		try {
 			// test deserialize into self
 			Record empty = new Record();
-			empty.write(new OutputViewDataOutputStreamWrapper(this.out));
+			empty.write(new OutputViewDataOutputWrapper(this.out));
 			empty.read(new InputViewDataInputStreamWrapper(this.in));
 			Assert.assertTrue("Deserialized Empty record is not another empty record.", empty.getNumFields() == 0);
 			
 			// test deserialize into new
 			empty = new Record();
-			empty.write(new OutputViewDataOutputStreamWrapper(this.out));
+			empty.write(new OutputViewDataOutputWrapper(this.out));
 			empty = new Record();
 			empty.read(new InputViewDataInputStreamWrapper(this.in));
 			Assert.assertTrue("Deserialized Empty record is not another empty record.", empty.getNumFields() == 0);
@@ -395,7 +395,7 @@ public class RecordTest {
 	
 			try {
 				// serialize and deserialize to remove all buffered info
-				r.write(new OutputViewDataOutputStreamWrapper(out));
+				r.write(new OutputViewDataOutputWrapper(out));
 				r = new Record();
 				r.read(new InputViewDataInputStreamWrapper(in));
 	
@@ -404,7 +404,7 @@ public class RecordTest {
 				r.setField(5, new StringValue("An even longer value"));
 				r.setField(10, new IntValue(10));
 	
-				r.write(new OutputViewDataOutputStreamWrapper(out));
+				r.write(new OutputViewDataOutputWrapper(out));
 				r = new Record();
 				r.read(new InputViewDataInputStreamWrapper(in));
 	
@@ -440,7 +440,7 @@ public class RecordTest {
 			Record record2 = new Record();
 			try {
 				// De/Serialize the record
-				record1.write(new OutputViewDataOutputStreamWrapper(this.out));
+				record1.write(new OutputViewDataOutputWrapper(this.out));
 				record2.read(new InputViewDataInputStreamWrapper(this.in));
 	
 				assertTrue(record1.getNumFields() == record2.getNumFields());
@@ -469,11 +469,11 @@ public class RecordTest {
 		try {
 			Record record = new Record(new IntValue(42));
 	
-			record.write(new OutputViewDataOutputStreamWrapper(out));
+			record.write(new OutputViewDataOutputWrapper(out));
 			Assert.assertEquals(42, record.getField(0, IntValue.class).getValue());
 	
 			record.setField(0, new IntValue(23));
-			record.write(new OutputViewDataOutputStreamWrapper(out));
+			record.write(new OutputViewDataOutputWrapper(out));
 			Assert.assertEquals(23, record.getField(0, IntValue.class).getValue());
 	
 			record.clear();
@@ -600,7 +600,7 @@ public class RecordTest {
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
-		rec.write(new OutputViewDataOutputStreamWrapper(writer));
+		rec.write(new OutputViewDataOutputWrapper(writer));
 		rec = new Record();
 		rec.read(new InputViewDataInputStreamWrapper(reader));
 		testAllRetrievalMethods(rec, permutation2, values);
@@ -611,7 +611,7 @@ public class RecordTest {
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
-		rec.write(new OutputViewDataOutputStreamWrapper(writer));
+		rec.write(new OutputViewDataOutputWrapper(writer));
 		rec.read(new InputViewDataInputStreamWrapper(reader));
 		testAllRetrievalMethods(rec, permutation2, values);
 		
@@ -620,7 +620,7 @@ public class RecordTest {
 		updatePos = rnd.nextInt(values.length + 1);
 		for (int i = 0; i < values.length; i++) {
 			if (i == updatePos) {
-				rec.write(new OutputViewDataOutputStreamWrapper(writer));
+				rec.write(new OutputViewDataOutputWrapper(writer));
 				rec = new Record();
 				rec.read(new InputViewDataInputStreamWrapper(reader));
 			}
@@ -629,7 +629,7 @@ public class RecordTest {
 			rec.setField(pos, values[pos]);
 		}
 		if (updatePos == values.length) {
-			rec.write(new OutputViewDataOutputStreamWrapper(writer));
+			rec.write(new OutputViewDataOutputWrapper(writer));
 			rec = new Record();
 			rec.read(new InputViewDataInputStreamWrapper(reader));
 		}
@@ -640,7 +640,7 @@ public class RecordTest {
 		updatePos = rnd.nextInt(values.length + 1);
 		for (int i = 0; i < values.length; i++) {
 			if (i == updatePos) {
-				rec.write(new OutputViewDataOutputStreamWrapper(writer));
+				rec.write(new OutputViewDataOutputWrapper(writer));
 				rec.read(new InputViewDataInputStreamWrapper(reader));
 			}
 			
@@ -648,7 +648,7 @@ public class RecordTest {
 			rec.setField(pos, values[pos]);
 		}
 		if (updatePos == values.length) {
-			rec.write(new OutputViewDataOutputStreamWrapper(writer));
+			rec.write(new OutputViewDataOutputWrapper(writer));
 			rec.read(new InputViewDataInputStreamWrapper(reader));
 		}
 		testAllRetrievalMethods(rec, permutation2, values);
@@ -658,7 +658,7 @@ public class RecordTest {
 		updatePos = rnd.nextInt(values.length + 1);
 		for (int i = 0; i < values.length; i++) {
 			if (i == updatePos) {
-				rec.write(new OutputViewDataOutputStreamWrapper(writer));
+				rec.write(new OutputViewDataOutputWrapper(writer));
 				rec = new Record();
 				rec.read(new InputViewDataInputStreamWrapper(reader));
 			}
@@ -666,7 +666,7 @@ public class RecordTest {
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
-		rec.write(new OutputViewDataOutputStreamWrapper(writer));
+		rec.write(new OutputViewDataOutputWrapper(writer));
 		rec = new Record();
 		rec.read(new InputViewDataInputStreamWrapper(reader));
 		testAllRetrievalMethods(rec, permutation2, values);
@@ -676,14 +676,14 @@ public class RecordTest {
 		updatePos = rnd.nextInt(values.length + 1);
 		for (int i = 0; i < values.length; i++) {
 			if (i == updatePos) {
-				rec.write(new OutputViewDataOutputStreamWrapper(writer));
+				rec.write(new OutputViewDataOutputWrapper(writer));
 				rec.read(new InputViewDataInputStreamWrapper(reader));
 			}
 			
 			final int pos = permutation1[i];
 			rec.setField(pos, values[pos]);
 		}
-		rec.write(new OutputViewDataOutputStreamWrapper(writer));
+		rec.write(new OutputViewDataOutputWrapper(writer));
 		rec.read(new InputViewDataInputStreamWrapper(reader));
 		testAllRetrievalMethods(rec, permutation2, values);
 	}

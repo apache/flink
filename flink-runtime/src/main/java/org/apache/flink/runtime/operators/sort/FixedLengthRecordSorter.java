@@ -28,8 +28,8 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
+import org.apache.flink.runtime.memorymanager.AbstractMemorySegmentOutputView;
 import org.apache.flink.runtime.memorymanager.AbstractPagedInputView;
-import org.apache.flink.runtime.memorymanager.AbstractPagedOutputView;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
@@ -410,7 +410,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	 * 
 	 * @param output The output view to write the records to.
 	 * @param start The logical start position of the subset.
-	 * @param len The number of elements to write.
+	 * @param num The number of elements to write.
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
 	@Override
@@ -447,19 +447,30 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		}
 	}
 	
-	private static final class SingleSegmentOutputView extends AbstractPagedOutputView {
+	private static final class SingleSegmentOutputView extends AbstractMemorySegmentOutputView {
 		
 		SingleSegmentOutputView(int segmentSize) {
 			super(segmentSize, 0);
 		}
 		
 		void set(MemorySegment segment) {
-			seekOutput(segment, 0);
+			currentSegment = segment;
+			positionInSegment = 0;
 		}
-		
+
 		@Override
-		protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws IOException {
-			throw new EOFException();
+		public long tell() {
+			return positionInSegment;
+		}
+
+		@Override
+		public void seek(long position) {
+			positionInSegment = (int) position;
+		}
+
+		@Override
+		protected void advance() throws IOException {
+			throw new IOException("We only have one single memory segment.");
 		}
 	}
 	

@@ -32,7 +32,7 @@ import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.memory.InputViewObjectInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewObjectOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 
 /**
  * An input format that returns objects from a collection.
@@ -83,7 +83,7 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 		out.writeInt(dataSet.size());
 		
 		for (T element : dataSet){
-			serializer.serialize(element, new OutputViewObjectOutputStreamWrapper(out));
+			serializer.serialize(element, new OutputViewDataOutputWrapper(out));
 		}
 	}
 
