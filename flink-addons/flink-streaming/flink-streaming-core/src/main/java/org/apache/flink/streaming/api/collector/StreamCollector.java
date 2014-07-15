@@ -31,10 +31,11 @@ import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.StringUtils;
 
 public class StreamCollector<T extends Tuple> implements Collector<T> {
 
-	private static final Log log = LogFactory.getLog(StreamCollector.class);
+	private static final Log LOG = LogFactory.getLog(StreamCollector.class);
 
 	protected StreamRecord<T> streamRecord;
 	protected int channelID;
@@ -69,8 +70,9 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 			try {
 				output.emit(streamRecord);
 			} catch (Exception e) {
-				if (log.isErrorEnabled()) {
-					log.error("Emit failed: " + output + " " + e.getMessage());
+				if (LOG.isErrorEnabled()) {
+					LOG.error(String.format("Emit failed due to: %s",
+							StringUtils.stringifyException(e)));
 				}
 			}
 		}

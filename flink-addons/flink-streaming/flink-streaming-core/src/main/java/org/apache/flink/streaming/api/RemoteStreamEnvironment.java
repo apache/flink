@@ -41,15 +41,21 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	private String[] jarFiles;
 
 	/**
-	 * Creates a new RemoteStreamEnvironment that points to the master (JobManager) described by the
-	 * given host name and port.
+	 * Creates a new RemoteStreamEnvironment that points to the master
+	 * (JobManager) described by the given host name and port.
 	 * 
-	 * @param host The host name or address of the master (JobManager), where the program should be executed.
-	 * @param port The port of the master (JobManager), where the program should be executed. 
-	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
-	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
-	 *                 provided in the JAR files.
-	 */	
+	 * @param host
+	 *            The host name or address of the master (JobManager), where the
+	 *            program should be executed.
+	 * @param port
+	 *            The port of the master (JobManager), where the program should
+	 *            be executed.
+	 * @param jarFiles
+	 *            The JAR files with code that needs to be shipped to the
+	 *            cluster. If the program uses user-defined functions,
+	 *            user-defined input formats, or any libraries, those must be
+	 *            provided in the JAR files.
+	 */
 	public RemoteStreamEnvironment(String host, int port, String... jarFiles) {
 		if (host == null) {
 			throw new NullPointerException("Host must not be null.");
@@ -66,39 +72,36 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public void execute() {
-		try {
-			if (log.isInfoEnabled()) {
-				log.info("Running remotely at " + host + ":" + port);
-			}
-			
-			JobGraph jobGraph = jobGraphBuilder.getJobGraph();
+		if (log.isInfoEnabled()) {
+			log.info("Running remotely at " + host + ":" + port);
+		}
 
-			for (int i = 0; i < jarFiles.length; i++) {
-				File file = new File(jarFiles[i]);
+		JobGraph jobGraph = jobGraphBuilder.getJobGraph();
+
+		for (int i = 0; i < jarFiles.length; i++) {
+			File file = new File(jarFiles[i]);
+			try {
 				JobWithJars.checkJarFile(file);
-				jobGraph.addJar(new Path(file.getAbsolutePath()));
+			} catch (IOException e) {
+				throw new RuntimeException("Problem with jar file " + file.getAbsolutePath(), e);
 			}
-			
-			Configuration configuration = jobGraph.getJobConfiguration();
-			Client client = new Client(new InetSocketAddress(host, port), configuration);
+			jobGraph.addJar(new Path(file.getAbsolutePath()));
+		}
 
+		Configuration configuration = jobGraph.getJobConfiguration();
+		Client client = new Client(new InetSocketAddress(host, port), configuration);
+
+		try {
 			client.run(jobGraph, true);
-			
-		} catch (IOException e) {
-			if (log.isErrorEnabled()) {
-				log.error(e.getMessage());
-			}
 		} catch (ProgramInvocationException e) {
-			if (log.isErrorEnabled()) {
-				log.error(e.getMessage());
-			}
+			throw new RuntimeException("Cannot execute job due to ProgramInvocationException", e);
 		}
 	}
-	
+
 	@Override
 	public String toString() {
-		return "Remote Environment (" + this.host + ":" + this.port + " - DOP = " + 
-				(getDegreeOfParallelism() == -1 ? "default" : getDegreeOfParallelism()) + ")";
+		return "Remote Environment (" + this.host + ":" + this.port + " - DOP = "
+				+ (getDegreeOfParallelism() == -1 ? "default" : getDegreeOfParallelism()) + ")";
 	}
 
 }

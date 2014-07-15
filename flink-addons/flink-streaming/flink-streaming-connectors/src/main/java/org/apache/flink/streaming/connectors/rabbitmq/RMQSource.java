@@ -21,17 +21,16 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.function.SourceFunction;
+import org.apache.flink.util.Collector;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.ConsumerCancelledException;
 import com.rabbitmq.client.QueueingConsumer;
-import com.rabbitmq.client.ShutdownSignalException;
-
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.util.Collector;
 
 /**
  * Source for reading messages from a RabbitMQ queue. The source currently only
@@ -40,6 +39,8 @@ import org.apache.flink.util.Collector;
  */
 
 public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
+	private static final Log LOG = LogFactory.getLog(RMQSource.class);
+
 	private static final long serialVersionUID = 1L;
 
 	private final String QUEUE_NAME;
@@ -69,6 +70,8 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 			consumer = new QueueingConsumer(channel);
 			channel.basicConsume(QUEUE_NAME, true, consumer);
 		} catch (IOException e) {
+			new RuntimeException("Cannot create RMQ connection with " + QUEUE_NAME + " at "
+					+ HOST_NAME, e);
 		}
 	}
 
@@ -80,14 +83,11 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 
 			try {
 				delivery = consumer.nextDelivery();
-			} catch (ShutdownSignalException e) {
-				e.printStackTrace();
-				break;
-			} catch (ConsumerCancelledException e) {
-				e.printStackTrace();
-				break;
-			} catch (InterruptedException e) {
-				e.printStackTrace();
+			} catch (Exception e) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Cannot receive RMQ message " + QUEUE_NAME + " at " + HOST_NAME);
+				}
+
 			}
 
 			outTuple = deserialize(delivery.getBody());
@@ -101,7 +101,6 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-
 	}
 
 	public abstract IN deserialize(byte[] t);

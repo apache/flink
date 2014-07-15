@@ -27,16 +27,16 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.util.StringUtils;
 
 public class StreamIterationSink<IN extends Tuple> extends AbstractStreamComponent<IN, IN> {
 
-	private static final Log log = LogFactory.getLog(StreamIterationSink.class);
+	private static final Log LOG = LogFactory.getLog(StreamIterationSink.class);
 
 	private AbstractRecordReader inputs;
 	private String iterationId;
 	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;
-	
 
 	public StreamIterationSink() {
 	}
@@ -52,22 +52,21 @@ public class StreamIterationSink<IN extends Tuple> extends AbstractStreamCompone
 			iterationId = configuration.getString("iteration-id", "iteration-0");
 			dataChannel = BlockingQueueBroker.instance().getAndRemove(iterationId);
 		} catch (Exception e) {
-			if (log.isErrorEnabled()) {
-				log.error("Cannot register inputs", e);
-			}
+			throw new StreamComponentException(String.format(
+					"Cannot register inputs of StreamIterationSink %s", iterationId), e);
 		}
 	}
 
 	@Override
 	public void invoke() throws Exception {
-		if (log.isDebugEnabled()) {
-			log.debug("SINK " + name + " invoked");
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("SINK " + name + " invoked");
 		}
 
 		forwardRecords(inputs);
 
-		if (log.isDebugEnabled()) {
-			log.debug("SINK " + name + " invoke finished");
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("SINK " + name + " invoke finished");
 		}
 	}
 
@@ -94,7 +93,10 @@ public class StreamIterationSink<IN extends Tuple> extends AbstractStreamCompone
 		try {
 			dataChannel.offer(record, 5, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException e) {
-			e.printStackTrace();
+			if (LOG.isErrorEnabled()) {
+				LOG.error(String.format("Pushing back record at iteration %s failed due to: %s",
+						iterationId, StringUtils.stringifyException(e)));
+			}
 		}
 	}
 

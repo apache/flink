@@ -60,23 +60,22 @@ public class TestDataUtil {
 			checkSumDesired = bufferedReader.readLine();
 			bufferedReader.close();
 			fileReader.close();
-		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} catch (IOException e2) {
-			// TODO Auto-generated catch block
-			e2.printStackTrace();
+		} catch (FileNotFoundException e) {
+			throw new RuntimeException("File not found: " + file.getAbsolutePath(), e);
+		} catch (IOException e) {
+			throw new RuntimeException("Cannot read file: " + file.getAbsolutePath(), e);
 		}
 
 		if (file.exists()) {
 			if (log.isInfoEnabled()) {
 				log.info(fileName + " already exists.");
 			}
+
 			try {
 				checkSumActaul = DigestUtils.md5Hex(FileUtils.readFileToByteArray(file));
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				throw new RuntimeException("Cannot read file to byte array: "
+						+ file.getAbsolutePath(), e);
 			}
 			if (!checkSumActaul.equals(checkSumDesired)) {
 				if (log.isInfoEnabled()) {
@@ -110,10 +109,10 @@ public class TestDataUtil {
 				bWriter.newLine();
 			}
 			bWriter.close();
-		} catch (MalformedURLException e1) {
-			e1.printStackTrace();
+		} catch (MalformedURLException e) {
+			throw new RuntimeException("URL is malformed: ", e);
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new RuntimeException("Unexpected problem while downloading file " + fileName, e);
 		}
 	}
 }

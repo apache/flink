@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class StreamSource<OUT extends Tuple> extends AbstractStreamComponent<Tuple, OUT> {
 
-	private static final Log log = LogFactory.getLog(StreamSource.class);
+	private static final Log LOG = LogFactory.getLog(StreamSource.class);
 
 	private List<RecordWriter<StreamRecord<OUT>>> outputs;
 	private UserSourceInvokable<OUT> userFunction;
@@ -41,7 +41,6 @@ public class StreamSource<OUT extends Tuple> extends AbstractStreamComponent<Tup
 
 	public StreamSource() {
 
-		
 		outputs = new LinkedList<RecordWriter<StreamRecord<OUT>>>();
 		userFunction = null;
 		numSources = newComponent();
@@ -51,15 +50,14 @@ public class StreamSource<OUT extends Tuple> extends AbstractStreamComponent<Tup
 	@Override
 	public void registerInputOutput() {
 		initialize();
-		
+
 		try {
 			setSerializers();
 			setCollector();
 			setConfigOutputs(outputs);
 		} catch (StreamComponentException e) {
-			if (log.isErrorEnabled()) {
-				log.error("Cannot register outputs", e);
-			}
+			throw new StreamComponentException("Cannot register outputs for "
+					+ getClass().getSimpleName(), e);
 		}
 
 		numberOfOutputChannels = new int[outputs.size()];
@@ -68,10 +66,6 @@ public class StreamSource<OUT extends Tuple> extends AbstractStreamComponent<Tup
 		}
 
 		setInvokable();
-		// streamSourceHelper.setAckListener(recordBuffer, sourceInstanceID,
-		// outputs);
-		// streamSourceHelper.setFailListener(recordBuffer, sourceInstanceID,
-		// outputs);
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -85,21 +79,21 @@ public class StreamSource<OUT extends Tuple> extends AbstractStreamComponent<Tup
 
 	@Override
 	public void invoke() throws Exception {
-		if (log.isDebugEnabled()) {
-			log.debug("SOURCE " + name + " invoked with instance id " + instanceID);
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("SOURCE " + name + " invoked with instance id " + instanceID);
 		}
 
 		for (RecordWriter<StreamRecord<OUT>> output : outputs) {
 			output.initializeSerializers();
 		}
-		
-		userFunction.invoke(collectorManager);
-		
-		if (log.isDebugEnabled()) {
-			log.debug("SOURCE " + name + " invoke finished with instance id " + instanceID);
+
+		userFunction.invoke(collector);
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("SOURCE " + name + " invoke finished with instance id " + instanceID);
 		}
-		
-		for (RecordWriter<StreamRecord<OUT>> output : outputs){
+
+		for (RecordWriter<StreamRecord<OUT>> output : outputs) {
 			output.flush();
 		}
 	}

@@ -24,8 +24,6 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.Collection;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -47,8 +45,6 @@ import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
  * 
  */
 public abstract class StreamExecutionEnvironment {
-
-	private static final Log log = LogFactory.getLog(StreamExecutionEnvironment.class);
 
 	/**
 	 * The environment of the context (local by default, cluster if invoked
@@ -279,32 +275,39 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
-	protected <T extends Tuple, R extends Tuple> DataStream<R> addFunction(String functionName,
-			DataStream<T> inputStream, final AbstractFunction function,
+	protected <T extends Tuple, R extends Tuple> StreamOperator<T, R> addFunction(
+			String functionName, DataStream<T> inputStream, final AbstractFunction function,
 			UserTaskInvokable<T, R> functionInvokable) {
-		DataStream<R> returnStream = new DataStream<R>(this, functionName);
+		StreamOperator<T, R> returnStream = new StreamOperator<T, R>(this, functionName);
 
 		jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, functionName,
 				serializeToByteArray(function), degreeOfParallelism);
 
 		connectGraph(inputStream, returnStream.getId());
 
+		if (inputStream.iterationflag) {
+			returnStream.addIterationSource(inputStream.iterationID.toString());
+			inputStream.iterationflag = false;
+		}
+
 		return returnStream;
 	}
 
-	protected <T extends Tuple, R extends Tuple> void addIterationSource(DataStream<T> inputStream) {
+	protected <T extends Tuple, R extends Tuple> void addIterationSource(DataStream<T> inputStream,
+			String iterationID) {
 		DataStream<R> returnStream = new DataStream<R>(this, "iterationHead");
 
-		jobGraphBuilder.addIterationSource(returnStream.getId(), inputStream.getId(),
+		jobGraphBuilder.addIterationSource(returnStream.getId(), inputStream.getId(), iterationID,
 				degreeOfParallelism);
 
 		jobGraphBuilder.shuffleConnect(returnStream.getId(), inputStream.getId());
 	}
 
-	protected <T extends Tuple, R extends Tuple> void addIterationSink(DataStream<T> inputStream) {
+	protected <T extends Tuple, R extends Tuple> void addIterationSink(DataStream<T> inputStream,
+			String iterationID) {
 		DataStream<R> returnStream = new DataStream<R>(this, "iterationTail");
 
-		jobGraphBuilder.addIterationSink(returnStream.getId(), inputStream.getId(),
+		jobGraphBuilder.addIterationSink(returnStream.getId(), inputStream.getId(), iterationID,
 				degreeOfParallelism, "iterate");
 
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
@@ -428,9 +431,7 @@ public abstract class StreamExecutionEnvironment {
 			oos = new ObjectOutputStream(baos);
 			oos.writeObject(object);
 		} catch (IOException e) {
-			if (log.isErrorEnabled()) {
-				log.error("Cannot serialize object: " + object);
-			}
+			throw new RuntimeException("Cannot serialize object: " + object);
 		}
 		return baos.toByteArray();
 	}

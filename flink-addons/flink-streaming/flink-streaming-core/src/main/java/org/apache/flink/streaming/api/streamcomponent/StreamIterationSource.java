@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class StreamIterationSource<OUT extends Tuple> extends AbstractStreamComponent<Tuple, OUT> {
 
-	private static final Log log = LogFactory.getLog(StreamIterationSource.class);
+	private static final Log LOG = LogFactory.getLog(StreamIterationSource.class);
 
 	private List<RecordWriter<StreamRecord<OUT>>> outputs;
 	private static int numSources;
@@ -59,16 +59,14 @@ public class StreamIterationSource<OUT extends Tuple> extends AbstractStreamComp
 			setSerializers();
 			setConfigOutputs(outputs);
 		} catch (StreamComponentException e) {
-			if (log.isErrorEnabled()) {
-				log.error("Cannot register outputs", e);
-			}
+			throw new StreamComponentException("Cannot register outputs", e);
 		}
 
 		numberOfOutputChannels = new int[outputs.size()];
 		for (int i = 0; i < numberOfOutputChannels.length; i++) {
 			numberOfOutputChannels[i] = configuration.getInteger("channels_" + i, 0);
 		}
-		
+
 		iterationId = configuration.getString("iteration-id", "iteration-0");
 		BlockingQueueBroker.instance().handIn(iterationId, dataChannel);
 
@@ -76,8 +74,8 @@ public class StreamIterationSource<OUT extends Tuple> extends AbstractStreamComp
 
 	@Override
 	public void invoke() throws Exception {
-		if (log.isDebugEnabled()) {
-			log.debug("SOURCE " + name + " invoked with instance id " + instanceID);
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("SOURCE " + name + " invoked with instance id " + instanceID);
 		}
 
 		for (RecordWriter<StreamRecord<OUT>> output : outputs) {
@@ -86,18 +84,19 @@ public class StreamIterationSource<OUT extends Tuple> extends AbstractStreamComp
 
 		while (true) {
 			@SuppressWarnings("unchecked")
-			StreamRecord<OUT> nextRecord = dataChannel.poll(5, TimeUnit.SECONDS);
+
+			StreamRecord<OUT> nextRecord = dataChannel.poll(3, TimeUnit.SECONDS);
 			if(nextRecord == null){
 				break;
 			}
 			nextRecord.setSeralizationDelegate(this.outSerializationDelegate);
 			for (RecordWriter<StreamRecord<OUT>> output : outputs) {
 				output.emit(nextRecord);
-				//output.flush();
+				// output.flush();
 			}
 		}
-		
-		for (RecordWriter<StreamRecord<OUT>> output : outputs){
+
+		for (RecordWriter<StreamRecord<OUT>> output : outputs) {
 			output.flush();
 		}
 
@@ -105,8 +104,6 @@ public class StreamIterationSource<OUT extends Tuple> extends AbstractStreamComp
 
 	@Override
 	protected void setInvokable() {
-		// TODO Auto-generated method stub
-		
 	}
 
 }
