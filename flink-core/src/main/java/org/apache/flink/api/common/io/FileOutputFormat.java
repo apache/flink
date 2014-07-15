@@ -217,7 +217,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, Initiali
 				// prepare local output path. checks for write mode and removes existing files in case of OVERWRITE mode
 				if(!fs.initOutPathLocalFS(p, writeMode, false)) {
 					// output preparation failed! Cancel task.
-					throw new IOException("Output path could not be initialized. Canceling task...");
+					throw new IOException("Output path '" + p.toString() + "' could not be initialized. Canceling task...");
 				}
 			}
 			else {
@@ -225,7 +225,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, Initiali
 				
 				if(!fs.initOutPathLocalFS(p, writeMode, true)) {
 					// output preparation failed! Cancel task.
-					throw new IOException("Output directory could not be created. Canceling task...");
+					throw new IOException("Output directory '" + p.toString() + "' could not be created. Canceling task...");
 				}
 			}
 		}
