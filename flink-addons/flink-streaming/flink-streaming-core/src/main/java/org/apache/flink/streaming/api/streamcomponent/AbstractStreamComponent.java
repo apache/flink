@@ -178,7 +178,7 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 
 		if (numberOfInputs < 2) {
 
-			return new StreamRecordReader<IN>(this, (Class<? extends StreamRecord<IN>>) StreamRecord.class, inDeserializationDelegate,
+			return new StreamRecordReader<IN>(this, StreamRecord.class, inDeserializationDelegate,
 					inTupleSerializer);
 
 		} else {

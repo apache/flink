@@ -184,7 +184,7 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the returned stream
 	 * @return The DataStream representing the elements.
 	 */
-	public <X> DataStream<Tuple1<X>> fromElements(@SuppressWarnings("unchecked") X... data) {
+	public <X> DataStream<Tuple1<X>> fromElements(X... data) {
 		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
 
 		jobGraphBuilder.addSource(returnStream.getId(), new FromElementsFunction<X>(data),
