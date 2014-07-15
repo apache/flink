@@ -10,6 +10,8 @@ FLINK_VERSION_SHORT: 0.6
 FLINK_ISSUES_URL: https://issues.apache.org/jira/browse/FLINK
 FLINK_GITHUB_URL:  https://github.com/apache/incubator-flink
 
+FLINK_DOWNLOAD_URL_HADOOP_1_STABLE: https://github.com/stratosphere/stratosphere/releases/download/release-0.5.2/stratosphere-0.5.2-bin.tgz
+
 #------------------------------------------------------------------------------
 # BUILD CONFIG
 #------------------------------------------------------------------------------
