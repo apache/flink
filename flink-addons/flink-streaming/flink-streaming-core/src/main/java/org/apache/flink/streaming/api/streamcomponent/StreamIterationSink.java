@@ -24,15 +24,17 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-public class StreamIterationSink extends AbstractStreamComponent {
+public class StreamIterationSink<IN extends Tuple> extends AbstractStreamComponent<IN, IN> {
 
 	private static final Log log = LogFactory.getLog(StreamIterationSink.class);
 
 	private AbstractRecordReader inputs;
 	private String iterationId;
+	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;
 	
 
@@ -69,25 +71,26 @@ public class StreamIterationSink extends AbstractStreamComponent {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	protected void forwardRecords(AbstractRecordReader inputs) throws Exception {
 		if (inputs instanceof UnionStreamRecordReader) {
-			UnionStreamRecordReader recordReader = (UnionStreamRecordReader) inputs;
+			UnionStreamRecordReader<IN> recordReader = (UnionStreamRecordReader<IN>) inputs;
 			while (recordReader.hasNext()) {
-				StreamRecord record = recordReader.next();
+				StreamRecord<IN> record = recordReader.next();
 				pushToQueue(record);
 			}
 
 		} else if (inputs instanceof StreamRecordReader) {
-			StreamRecordReader recordReader = (StreamRecordReader) inputs;
+			StreamRecordReader<IN> recordReader = (StreamRecordReader<IN>) inputs;
 
 			while (recordReader.hasNext()) {
-				StreamRecord record = recordReader.next();
+				StreamRecord<IN> record = recordReader.next();
 				pushToQueue(record);
 			}
 		}
 	}
 
-	private void pushToQueue(StreamRecord record) {
+	private void pushToQueue(StreamRecord<IN> record) {
 		try {
 			dataChannel.offer(record, 5, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException e) {

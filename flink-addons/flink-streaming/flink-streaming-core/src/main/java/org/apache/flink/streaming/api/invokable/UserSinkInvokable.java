@@ -23,7 +23,7 @@ import java.io.Serializable;
 
 import org.apache.flink.api.java.tuple.Tuple;
 
-public abstract class UserSinkInvokable<IN extends Tuple> extends StreamRecordInvokable<IN, Tuple>
+public abstract class UserSinkInvokable<IN extends Tuple> extends StreamRecordInvokable<IN, IN>
 		implements Serializable {
 
 	

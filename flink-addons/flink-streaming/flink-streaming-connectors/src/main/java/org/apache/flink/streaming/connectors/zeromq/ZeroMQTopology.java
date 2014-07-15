@@ -19,19 +19,16 @@
 
 package org.apache.flink.streaming.connectors.zeromq;
 
-import org.apache.commons.lang.SerializationUtils;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.SinkFunction;
-import org.apache.flink.streaming.api.function.SourceFunction;
-
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.util.Collector;
 
 public class ZeroMQTopology {
 	
-	public static final class MyZeroMQSource extends ZeroMQSource<Tuple1<String>>{
+	@SuppressWarnings("serial")
+  public static final class MyZeroMQSource extends ZeroMQSource<Tuple1<String>>{
 
 		public MyZeroMQSource(String connection, String type) throws Exception {
 			super(connection, type);
@@ -46,7 +43,8 @@ public class ZeroMQTopology {
 		
 	}
 	
-	public static final class MyZeroMQSource1 extends ZeroMQSource<Tuple1<String>>{
+	@SuppressWarnings("serial")
+  public static final class MyZeroMQSource1 extends ZeroMQSource<Tuple1<String>>{
 
 		private int counter=0;
 		
@@ -64,8 +62,9 @@ public class ZeroMQTopology {
 		
 	}
 	
-	public static final class MyZeroMQSource2 extends ZeroMQSource<Tuple1<String>>{
-
+  public static final class MyZeroMQSource2 extends ZeroMQSource<Tuple1<String>>{
+    private static final long serialVersionUID = 1L;
+    
 		private int counter=0;
 		
 		public MyZeroMQSource2(String connection, String type, String filter) throws Exception {
@@ -83,6 +82,7 @@ public class ZeroMQTopology {
 	}
 	
 	public static final class MyZeroMQSink extends ZeroMQSink<Tuple1<String>>{
+    private static final long serialVersionUID = 1L;
 
 		public MyZeroMQSink(String connection, String type) throws Exception {
 			super(connection, type);
@@ -104,6 +104,7 @@ public class ZeroMQTopology {
 	}
 	
 	public static final class PrintSink1 extends SinkFunction<Tuple1<String>>{
+    private static final long serialVersionUID = 1L;
 
 		@Override
 		public void invoke(Tuple1<String> tuple) {
@@ -113,6 +114,7 @@ public class ZeroMQTopology {
 	}
 	
 	public static final class PrintSink2 extends SinkFunction<Tuple1<String>>{
+    private static final long serialVersionUID = 1L;
 
 		@Override
 		public void invoke(Tuple1<String> tuple) {
@@ -121,7 +123,8 @@ public class ZeroMQTopology {
 		}
 	}
 	
-	public static void main(String[] args) throws Exception {
+	@SuppressWarnings("unused")
+  public static void main(String[] args) throws Exception {
 		
 		
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);

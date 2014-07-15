@@ -29,6 +29,6 @@ public abstract class StreamRecordInvokable<IN extends Tuple, OUT extends Tuple>
 
 	private static final long serialVersionUID = 1L;
 
-	public abstract void invoke(StreamRecord record, Collector<OUT> collector)
+	public abstract void invoke(StreamRecord<IN> record, Collector<OUT> collector)
 			throws Exception;
 }

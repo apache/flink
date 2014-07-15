@@ -31,12 +31,13 @@ public class FromElementsFunction<T> extends SourceFunction<Tuple1<T>> {
 	Iterable<T> iterable;
 	Tuple1<T> outTuple = new Tuple1<T>();
 
+	@SuppressWarnings("unchecked")
 	public FromElementsFunction(T... elements) {
-		this.iterable = (Iterable<T>) Arrays.asList(elements);
+		this.iterable = Arrays.asList(elements);
 	}
 
 	public FromElementsFunction(Collection<T> elements) {
-		this.iterable = (Iterable<T>) elements;
+		this.iterable = elements;
 	}
 
 	@Override

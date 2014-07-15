@@ -23,24 +23,25 @@ import java.util.ArrayList;
 
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.runtime.operators.DataSourceTask;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 
-public class MockRecordWriter extends RecordWriter<StreamRecord> {
+public class MockRecordWriter extends RecordWriter<StreamRecord<Tuple1<Integer>>> {
 
-	public ArrayList<StreamRecord> emittedRecords;
+	public ArrayList<StreamRecord<Tuple1<Integer>>> emittedRecords;
 
-	public MockRecordWriter(DataSourceTask<?> inputBase, Class<StreamRecord> outputClass) {
+	public MockRecordWriter(DataSourceTask<?> inputBase, Class<StreamRecord<Tuple1<Integer>>> outputClass) {
 		super(inputBase);
 	}
 
 	public boolean initList() {
-		emittedRecords = new ArrayList<StreamRecord>();
+		emittedRecords = new ArrayList<StreamRecord<Tuple1<Integer>>>();
 		return true;
 	}
 	
 	@Override
-	public void emit(StreamRecord record) {
+	public void emit(StreamRecord<Tuple1<Integer>> record) {
 		emittedRecords.add(record);
 	}
 }

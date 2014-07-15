@@ -33,11 +33,10 @@ public class SinkInvokable<IN extends Tuple> extends UserSinkInvokable<IN> {
 	public SinkInvokable(SinkFunction<IN> sinkFunction) {
 		this.sinkFunction = sinkFunction;
 	}
-
+	
 	@Override
-	public void invoke(StreamRecord record, Collector<Tuple> collector) throws Exception {
-
-		IN tuple = (IN) record.getTuple();
+	public void invoke(StreamRecord<IN> record, Collector<IN> collector) throws Exception {
+		IN tuple = record.getTuple();
 		sinkFunction.invoke(tuple);
 	}
 }

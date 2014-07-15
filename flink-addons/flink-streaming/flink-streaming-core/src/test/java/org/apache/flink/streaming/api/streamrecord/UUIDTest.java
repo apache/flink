@@ -19,15 +19,8 @@
 
 package org.apache.flink.streaming.api.streamrecord;
 
-import static org.junit.Assert.*;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 
-import org.apache.flink.streaming.api.streamrecord.UID;
 import org.junit.Test;
 
 public class UUIDTest {

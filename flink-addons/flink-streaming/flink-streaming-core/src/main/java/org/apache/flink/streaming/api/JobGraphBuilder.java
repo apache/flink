@@ -68,7 +68,7 @@ public class JobGraphBuilder {
 	private Map<String, AbstractJobVertex> components;
 	private Map<String, Integer> componentParallelism;
 	private Map<String, List<String>> edgeList;
-	private Map<String, List<Class<? extends ChannelSelector<StreamRecord>>>> connectionTypes;
+	private Map<String, List<Class<? extends ChannelSelector<StreamRecord<Tuple>>>>> connectionTypes;
 	private Map<String, List<Integer>> connectionParams;
 	private Map<String, String> userDefinedNames;
 	private Map<String, String> operatorNames;
@@ -95,7 +95,7 @@ public class JobGraphBuilder {
 		components = new HashMap<String, AbstractJobVertex>();
 		componentParallelism = new HashMap<String, Integer>();
 		edgeList = new HashMap<String, List<String>>();
-		connectionTypes = new HashMap<String, List<Class<? extends ChannelSelector<StreamRecord>>>>();
+		connectionTypes = new HashMap<String, List<Class<? extends ChannelSelector<StreamRecord<Tuple>>>>>();
 		connectionParams = new HashMap<String, List<Integer>>();
 		userDefinedNames = new HashMap<String, String>();
 		operatorNames = new HashMap<String, String>();
@@ -271,7 +271,7 @@ public class JobGraphBuilder {
 		edgeList.put(componentName, new ArrayList<String>());
 		connectionTypes
 				.put(componentName,
-						new ArrayList<Class<? extends ChannelSelector<StreamRecord>>>());
+						new ArrayList<Class<? extends ChannelSelector<StreamRecord<Tuple>>>>());
 		connectionParams.put(componentName, new ArrayList<Integer>());
 	}
 
@@ -392,7 +392,7 @@ public class JobGraphBuilder {
 
 	public void setEdge(String upStreamComponentName,
 			String downStreamComponentName,
-			Class<? extends ChannelSelector<StreamRecord>> partitionerClass,
+			Class<? extends ChannelSelector<StreamRecord<Tuple>>> partitionerClass,
 			int partitionerParam) {
 		edgeList.get(upStreamComponentName).add(downStreamComponentName);
 		connectionTypes.get(upStreamComponentName).add(partitionerClass);
@@ -496,7 +496,7 @@ public class JobGraphBuilder {
 	 */
 	private void connect(String upStreamComponentName,
 			String downStreamComponentName,
-			Class<? extends ChannelSelector<StreamRecord>> PartitionerClass,
+			Class<? extends ChannelSelector<StreamRecord<Tuple>>> PartitionerClass,
 			int partitionerParam) {
 
 		AbstractJobVertex upStreamComponent = components

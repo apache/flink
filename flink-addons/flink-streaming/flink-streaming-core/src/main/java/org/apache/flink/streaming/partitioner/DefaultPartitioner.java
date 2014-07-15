@@ -19,16 +19,16 @@
 
 package org.apache.flink.streaming.partitioner;
 
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.runtime.io.network.api.ChannelSelector;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-import org.apache.flink.runtime.io.network.api.ChannelSelector;
+public class DefaultPartitioner implements ChannelSelector<StreamRecord<Tuple>> {
 
-public class DefaultPartitioner implements ChannelSelector<StreamRecord> {
-
-	ChannelSelector<StreamRecord> selector = new ShufflePartitioner();
+	ChannelSelector<StreamRecord<Tuple>> selector = new ShufflePartitioner();
 	
 	@Override
-	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
+	public int[] selectChannels(StreamRecord<Tuple> record, int numberOfOutputChannels) {
 		return selector.selectChannels(record,
 				numberOfOutputChannels);
 	}

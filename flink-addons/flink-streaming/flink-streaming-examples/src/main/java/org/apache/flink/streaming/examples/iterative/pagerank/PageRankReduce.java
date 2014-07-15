@@ -19,10 +19,6 @@
 
 package org.apache.flink.streaming.examples.iterative.pagerank;
 
-import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-
-import org.apache.flink.api.java.tuple.Tuple1;
 
 //public class PageRankReduce extends UserTaskInvokable {
 //

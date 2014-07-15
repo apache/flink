@@ -41,6 +41,7 @@ public class BTreeIndex<Key extends Comparable<Key>, Value>  {
 
     // internal nodes: only use key and next
     // external nodes: only use key and value
+    @SuppressWarnings("rawtypes")
     private static class Entry {
         private Comparable key;
         private Object value;
@@ -64,6 +65,7 @@ public class BTreeIndex<Key extends Comparable<Key>, Value>  {
 
     // search for given key, return associated value; return null if no such key
     public Value get(Key key) { return search(root, key, HT); }
+    @SuppressWarnings("unchecked")
     private Value search(Node x, Key key, int ht) {
         Entry[] children = x.children;
 
@@ -164,10 +166,12 @@ public class BTreeIndex<Key extends Comparable<Key>, Value>  {
     }
 
     // comparison functions - make Comparable instead of Key to avoid casts
+    @SuppressWarnings({ "rawtypes", "unchecked" }) 
     private boolean less(Comparable k1, Comparable k2) {
         return k1.compareTo(k2) < 0;
     }
-
+    
+    @SuppressWarnings({ "rawtypes", "unchecked" }) 
     private boolean eq(Comparable k1, Comparable k2) {
         return k1.compareTo(k2) == 0;
     }

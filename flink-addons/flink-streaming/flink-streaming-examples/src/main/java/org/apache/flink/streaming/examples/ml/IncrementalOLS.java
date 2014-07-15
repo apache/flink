@@ -59,8 +59,6 @@ public class IncrementalOLS {
 	public static class TrainingDataSource extends SourceFunction<Tuple2<Double, Double[]>> {
 		private static final long serialVersionUID = 1L;
 
-		// TODO: batch training data
-		private final int BATCH_SIZE = 1000;
 		Random rnd = new Random();
 
 		@Override
@@ -166,7 +164,8 @@ public class IncrementalOLS {
 				.addSource(new TrainingDataSource(), SOURCE_PARALLELISM)
 				.map(new PartialModelBuilder()).broadcast();
 
-		DataStream<Tuple1<Double>> prediction = env
+		@SuppressWarnings("unchecked")
+    DataStream<Tuple1<Double>> prediction = env
 				.addSource(new NewDataSource(), SOURCE_PARALLELISM).connectWith(model)
 				.map(new Predictor());
 

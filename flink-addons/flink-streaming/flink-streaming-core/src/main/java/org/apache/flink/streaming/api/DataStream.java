@@ -22,6 +22,11 @@ package org.apache.flink.streaming.api;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.java.functions.FilterFunction;
+import org.apache.flink.api.java.functions.FlatMapFunction;
+import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment.ConnectionType;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.function.SinkFunction;
@@ -29,11 +34,6 @@ import org.apache.flink.streaming.api.invokable.operator.BatchReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
-import org.apache.flink.api.java.functions.FilterFunction;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.types.TypeInformation;
 
 /**
@@ -111,7 +111,6 @@ public class DataStream<T extends Tuple> {
 		cparams = new ArrayList<Integer>();
 		cparams.add(0);
 
-
 	}
 
 	/**
@@ -169,7 +168,6 @@ public class DataStream<T extends Tuple> {
 		return this.degreeOfParallelism;
 	}
 
-
 	/**
 	 * Gives the data transformation a user defined name in order to use at
 	 * directed outputs
@@ -199,6 +197,7 @@ public class DataStream<T extends Tuple> {
 	 *            The DataStreams to connect output with.
 	 * @return The connected DataStream.
 	 */
+	@SuppressWarnings("unchecked")
 	public DataStream<T> connectWith(DataStream<T>... streams) {
 		DataStream<T> returnStream = copy();
 
@@ -231,6 +230,15 @@ public class DataStream<T extends Tuple> {
 	 * @return The DataStream with field partitioning set.
 	 */
 	public DataStream<T> partitionBy(int keyposition) {
+		if (keyposition < 0) {
+			throw new IllegalArgumentException("The position of the field must be non-negative");
+		}
+		// TODO get type information
+		// else if (type.getArity() <= keyposition) {
+		// throw new IllegalArgumentException(
+		// "The position of the field must be smaller than the number of fields in the Tuple");
+		// }
+
 		DataStream<T> returnStream = copy();
 
 		for (int i = 0; i < returnStream.ctypes.size(); i++) {

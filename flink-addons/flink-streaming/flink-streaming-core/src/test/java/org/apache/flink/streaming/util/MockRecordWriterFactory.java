@@ -28,6 +28,7 @@ import org.mockito.Mockito;
 
 public class MockRecordWriterFactory {
 
+	@SuppressWarnings("unchecked")
 	public static MockRecordWriter create() {
 		MockRecordWriter recWriter = mock(MockRecordWriter.class);
 		

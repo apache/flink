@@ -34,26 +34,26 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
  * Object for wrapping a tuple with ID used for sending records between task
  * objects in Apache Flink stream processing.
  */
-public class StreamRecord implements IOReadableWritable, Serializable {
+public class StreamRecord<T extends Tuple> implements IOReadableWritable, Serializable {
 	private static final long serialVersionUID = 1L;
 
 	protected UID uid;
-	private Tuple tuple;
+	private T tuple;
 
-	protected SerializationDelegate<Tuple> serializationDelegate;
-	protected DeserializationDelegate<Tuple> deserializationDelegate;
-	protected TupleSerializer<Tuple> tupleSerializer;
+	protected SerializationDelegate<T> serializationDelegate;
+	protected DeserializationDelegate<T> deserializationDelegate;
+	protected TupleSerializer<T> tupleSerializer;
 
 	public StreamRecord() {
 
 	}
 
-	public void setSeralizationDelegate(SerializationDelegate<Tuple> serializationDelegate) {
+	public void setSeralizationDelegate(SerializationDelegate<T> serializationDelegate) {
 		this.serializationDelegate = serializationDelegate;
 	}
 
-	public void setDeseralizationDelegate(DeserializationDelegate<Tuple> deserializationDelegate,
-			TupleSerializer<Tuple> tupleSerializer) {
+	public void setDeseralizationDelegate(DeserializationDelegate<T> deserializationDelegate,
+			TupleSerializer<T> tupleSerializer) {
 		this.deserializationDelegate = deserializationDelegate;
 		this.tupleSerializer = tupleSerializer;
 	}
@@ -72,7 +72,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            ID of the emitting task
 	 * @return The StreamRecord object
 	 */
-	public StreamRecord setId(int channelID) {
+	public StreamRecord<T> setId(int channelID) {
 		uid = new UID(channelID);
 		return this;
 	}
@@ -81,7 +81,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 * 
 	 * @return The tuple contained
 	 */
-	public Tuple getTuple() {
+	public T getTuple() {
 		return tuple;
 	}
 
@@ -92,7 +92,7 @@ public class StreamRecord implements IOReadableWritable, Serializable {
 	 *            Value to set
 	 * @return Returns the StreamRecord object
 	 */
-	public StreamRecord setTuple(Tuple tuple) {
+	public StreamRecord<T> setTuple(T tuple) {
 		this.tuple = tuple;
 		return this;
 	}

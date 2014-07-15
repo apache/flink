@@ -22,28 +22,27 @@ package org.apache.flink.streaming.api.collector;
 import java.util.Collection;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-public class DirectedStreamCollector extends StreamCollector {
+public class DirectedStreamCollector<T extends Tuple> extends StreamCollector<T> {
 
-	OutputSelector outputSelector;
+	OutputSelector<T> outputSelector;
 
 	public DirectedStreamCollector(int channelID,
-			SerializationDelegate<Tuple> serializationDelegate, OutputSelector outputSelector) {
+			SerializationDelegate<T> serializationDelegate, OutputSelector<T> outputSelector) {
 		super(channelID, serializationDelegate);
 		this.outputSelector = outputSelector;
 
 	}
 
 	@Override
-	public void collect(Tuple tuple) {
+	public void collect(T tuple) {
 		streamRecord.setTuple(tuple);
 		emit(streamRecord);
 	}
 
-	private void emit(StreamRecord streamRecord) {
+	private void emit(StreamRecord<T> streamRecord) {
 		Collection<String> outputNames = outputSelector.getOutputs(streamRecord.getTuple());
 		streamRecord.setId(channelID);
 		for (String outputName : outputNames) {

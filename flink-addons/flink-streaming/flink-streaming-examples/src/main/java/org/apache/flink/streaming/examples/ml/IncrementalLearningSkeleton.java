@@ -50,10 +50,6 @@ public class IncrementalLearningSkeleton {
 	public static class TrainingDataSource extends SourceFunction<Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
 		
-		// Number of tuples grouped for building partial model
-		// TODO: batch training data
-		private final int BATCH_SIZE = 1000;
-
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
 
@@ -137,7 +133,8 @@ public class IncrementalLearningSkeleton {
 					.map(new PartialModelBuilder())
 					.broadcast();
 		
-		DataStream<Tuple1<Integer>> prediction =
+    @SuppressWarnings("unchecked")
+    DataStream<Tuple1<Integer>> prediction =
 				env.addSource(new NewDataSource(), SOURCE_PARALLELISM)
 					.connectWith(model)
 					.map(new Predictor());

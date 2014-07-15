@@ -35,10 +35,9 @@ public class FilterInvokable<IN extends Tuple> extends UserTaskInvokable<IN, IN>
 		this.filterFunction = filterFunction;
 	}
 
-	@Override
-	public void invoke(StreamRecord record, Collector<IN> collector) throws Exception {
-
-		IN tuple = (IN) record.getTuple();
+  @Override
+	public void invoke(StreamRecord<IN> record, Collector<IN> collector) throws Exception {
+	  	IN tuple = record.getTuple();
 		if (filterFunction.filter(tuple)) {
 			collector.collect(tuple);
 		}

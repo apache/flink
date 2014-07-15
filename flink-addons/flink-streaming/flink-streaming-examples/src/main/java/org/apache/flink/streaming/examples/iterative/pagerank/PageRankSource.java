@@ -22,9 +22,8 @@ package org.apache.flink.streaming.examples.iterative.pagerank;
 import java.io.BufferedReader;
 import java.io.FileReader;
 
-import org.apache.flink.streaming.api.function.SourceFunction;
-
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.streaming.api.function.SourceFunction;
 import org.apache.flink.util.Collector;
 
 public class PageRankSource extends SourceFunction<Tuple3<Integer, Integer, Long>> {
@@ -36,7 +35,8 @@ public class PageRankSource extends SourceFunction<Tuple3<Integer, Integer, Long
 	@Override
 	public void invoke(Collector<Tuple3<Integer, Integer, Long>> collector)
 			throws Exception {
-		BufferedReader br = new BufferedReader(new FileReader(
+		@SuppressWarnings("resource")
+    BufferedReader br = new BufferedReader(new FileReader(
 				"src/test/resources/testdata/ASTopology.data"));
 		while (true) {
 			String line = br.readLine();

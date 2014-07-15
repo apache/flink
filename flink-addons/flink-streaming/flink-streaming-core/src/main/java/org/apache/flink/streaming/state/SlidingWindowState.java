@@ -53,9 +53,10 @@ public class SlidingWindowState<InTuple extends Tuple> implements Serializable{
 		buffer.add(tupleArray);
 		currentRecordCount += 1;
 	}
-
+	
+	@SuppressWarnings("unchecked")
 	public ArrayList<InTuple> popFront() {
-		ArrayList<InTuple> frontRecord = (ArrayList<InTuple>) buffer.get();
+    ArrayList<InTuple> frontRecord = (ArrayList<InTuple>) buffer.get();
 		buffer.remove();
 		return frontRecord;
 	}

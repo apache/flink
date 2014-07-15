@@ -211,11 +211,15 @@ public class MapTest {
 	private static Set<Integer> result = new HashSet<Integer>();
 	private static int broadcastResult = 0;
 	private static int shuffleResult = 0;
-	private static int fieldsResult = 0;
+	@SuppressWarnings("unused")
+  private static int fieldsResult = 0;
 	private static int diffFieldsResult = 0;
-	private static int graphResult = 0;
-	private static int map = 0;
-	private static final int PARALLELISM = 1;
+	@SuppressWarnings("unused")
+  private static int graphResult = 0;
+	@SuppressWarnings("unused")
+  private static int map = 0;
+	@SuppressWarnings("unused")
+  private static final int PARALLELISM = 1;
 	private static final long MEMORYSIZE = 32;
 	private static final int MAXSOURCE = 10;
 	private static boolean allInOne = false;
@@ -335,7 +339,7 @@ public class MapTest {
 		DataStream<Tuple1<Integer>> source1 = env.addSource(new MySource1(),
 				1);
 		
-		@SuppressWarnings("unused")
+		@SuppressWarnings({ "unused", "unchecked" })
 		DataStream<Tuple1<Integer>> source2 = env
 				.addSource(new MySource2(), 1)
 				.connectWith(source1)
@@ -354,7 +358,7 @@ public class MapTest {
 		DataStream<Tuple1<Integer>> source4 = env.addSource(new MySource2(),
 				1);
 		
-		@SuppressWarnings("unused")
+		@SuppressWarnings({ "unused", "unchecked" })
 		DataStream<Tuple1<Integer>> source5 = env
 				.addSource(new MySource3(), 1)
 				.connectWith(source3, source4)

@@ -43,6 +43,7 @@ public class KafkaTopology {
 	}
 	
 	public static final class MyKafkaSource extends KafkaSource<Tuple1<String>, String>{
+    private static final long serialVersionUID = 1L;
 
 		public MyKafkaSource(String zkQuorum, String groupId, String topicId, int numThreads) {
 			super(zkQuorum, groupId, topicId, numThreads);
@@ -61,6 +62,7 @@ public class KafkaTopology {
 		
 	}
 	public static final class MyKafkaSink extends KafkaSink<Tuple1<String>, String>{
+    private static final long serialVersionUID = 1L;
 
 		public MyKafkaSink(String topicId, String brokerAddr) {
 			super(topicId, brokerAddr);
@@ -82,10 +84,12 @@ public class KafkaTopology {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 		
-		DataStream<Tuple1<String>> stream1 = env.addSource(new MyKafkaSource("localhost:2181", "group", "test", 1), SOURCE_PARALELISM)
+		@SuppressWarnings("unused")
+    DataStream<Tuple1<String>> stream1 = env.addSource(new MyKafkaSource("localhost:2181", "group", "test", 1), SOURCE_PARALELISM)
 				.print();
 		
-		DataStream<Tuple1<String>> stream2 = env
+		@SuppressWarnings("unused")
+    DataStream<Tuple1<String>> stream2 = env
 				.addSource(new MySource())
 				.addSink(new MyKafkaSink("test", "localhost:9092"));
 		env.execute();

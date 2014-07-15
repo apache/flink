@@ -36,7 +36,8 @@ public class SSSPSource extends SourceFunction<Tuple3<Integer, Integer, Long>> {
 	@Override
 	public void invoke(Collector<Tuple3<Integer, Integer, Long>> collector)
 			throws Exception {
-		BufferedReader br = new BufferedReader(new FileReader(
+		@SuppressWarnings("resource")
+    BufferedReader br = new BufferedReader(new FileReader(
 				"src/test/resources/testdata/ASTopology.data"));
 		while (true) {
 			String line = br.readLine();

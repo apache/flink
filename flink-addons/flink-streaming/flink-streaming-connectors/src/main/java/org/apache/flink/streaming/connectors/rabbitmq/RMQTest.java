@@ -20,18 +20,12 @@
 package org.apache.flink.streaming.connectors.rabbitmq;
 
 
-import static org.junit.Assert.*;
-
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.function.SinkFunction;
 import org.junit.Test;
-
-import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.util.Collector;
-
 
 public class RMQTest {
 	
@@ -49,7 +43,8 @@ public class RMQTest {
 	private static Set<String> expected = new HashSet<String>();
 	private static Set<String> result = new HashSet<String>();
 	
-	private static void fillExpected() {
+	@SuppressWarnings("unused")
+  private static void fillExpected() {
 		expected.add("one");
 		expected.add("two");
 		expected.add("three");

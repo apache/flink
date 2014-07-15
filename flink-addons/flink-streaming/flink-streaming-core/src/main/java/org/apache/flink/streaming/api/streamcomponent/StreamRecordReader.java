@@ -36,16 +36,16 @@ import org.apache.flink.runtime.io.network.gates.InputChannelResult;
  * application query for incoming records and read them from input gate.
  * 
  */
-public class StreamRecordReader extends AbstractSingleGateRecordReader<StreamRecord> implements
-		Reader<StreamRecord> {
+public class StreamRecordReader<T extends Tuple> extends AbstractSingleGateRecordReader<StreamRecord<T>> implements
+		Reader<StreamRecord<T>> {
 
-	private final Class<? extends StreamRecord> recordType;
-	private DeserializationDelegate<Tuple> deserializationDelegate;
-	private TupleSerializer<Tuple> tupleSerializer;
+	private final Class<? extends StreamRecord<T>> recordType;
+	private DeserializationDelegate<T> deserializationDelegate;
+	private TupleSerializer<T> tupleSerializer;
 	/**
 	 * Stores the last read record.
 	 */
-	private StreamRecord lookahead;
+	private StreamRecord<T> lookahead;
 
 	/**
 	 * Stores if more no more records will be received from the assigned input
@@ -68,9 +68,9 @@ public class StreamRecordReader extends AbstractSingleGateRecordReader<StreamRec
 	 * @param tupleSerializer
 	 *            tupleSerializer
 	 */
-	public StreamRecordReader(AbstractInvokable taskBase, Class<? extends StreamRecord> recordType,
-			DeserializationDelegate<Tuple> deserializationDelegate,
-			TupleSerializer<Tuple> tupleSerializer) {
+	public StreamRecordReader(AbstractInvokable taskBase, Class<? extends StreamRecord<T>> recordType,
+			DeserializationDelegate<T> deserializationDelegate,
+			TupleSerializer<T> tupleSerializer) {
 		super(taskBase);
 		this.recordType = recordType;
 		this.deserializationDelegate = deserializationDelegate;
@@ -96,7 +96,7 @@ public class StreamRecordReader extends AbstractSingleGateRecordReader<StreamRec
 				return false;
 			}
 
-			StreamRecord record = instantiateRecordType();
+			StreamRecord<T> record = instantiateRecordType();
 			record.setDeseralizationDelegate(deserializationDelegate, tupleSerializer);
 
 			while (true) {
@@ -138,9 +138,9 @@ public class StreamRecordReader extends AbstractSingleGateRecordReader<StreamRec
 	 *             input gate
 	 */
 	@Override
-	public StreamRecord next() throws IOException, InterruptedException {
+	public StreamRecord<T> next() throws IOException, InterruptedException {
 		if (hasNext()) {
-			StreamRecord tmp = this.lookahead;
+			StreamRecord<T> tmp = this.lookahead;
 			this.lookahead = null;
 			return tmp;
 		} else {
@@ -153,7 +153,7 @@ public class StreamRecordReader extends AbstractSingleGateRecordReader<StreamRec
 		return this.noMoreRecordsWillFollow;
 	}
 
-	private StreamRecord instantiateRecordType() {
+	private StreamRecord<T> instantiateRecordType() {
 		try {
 			return this.recordType.newInstance();
 		} catch (InstantiationException e) {

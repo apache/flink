@@ -25,13 +25,16 @@ import org.apache.flink.streaming.state.TableState;
 
 public class StateCheckpointer {
 
-	private LinkedList<TableState> stateList = new LinkedList<TableState>();
+	@SuppressWarnings("rawtypes")
+  private LinkedList<TableState> stateList = new LinkedList<TableState>();
 	
-	public void RegisterState(TableState state){
+	@SuppressWarnings("rawtypes")
+  public void RegisterState(TableState state){
 		stateList.add(state);
 	}
 	
-	public void CheckpointStates(){
+	@SuppressWarnings({ "unused", "rawtypes" })
+  public void CheckpointStates(){
 		for(TableState state: stateList){
 			//take snapshot of every registered state.
 			

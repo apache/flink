@@ -19,15 +19,11 @@
 
 package org.apache.flink.streaming.util;
 
-import static org.junit.Assert.assertTrue;
-
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
-
-import org.junit.Test;
 
 public class TestDataUtilTest {
 
@@ -42,7 +38,8 @@ public class TestDataUtilTest {
 //				+ fileToDownload));
 //	}
 
-	public boolean compareFile(String file1, String file2) throws FileNotFoundException,
+	@SuppressWarnings("resource")
+  public boolean compareFile(String file1, String file2) throws FileNotFoundException,
 			IOException {
 
 		BufferedReader myInput1 = new BufferedReader(new InputStreamReader(new FileInputStream(file1)));

@@ -21,15 +21,15 @@ package org.apache.flink.streaming.api.streamcomponent;
 
 import java.util.ArrayList;
 
-import org.apache.flink.streaming.state.SlidingWindowState;
-import org.apache.flink.streaming.state.StateManager;
-
 import org.apache.flink.api.java.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.streaming.state.SlidingWindowState;
+import org.apache.flink.streaming.state.StateManager;
 import org.apache.flink.util.Collector;
 
 public class StreamWindowTask<InTuple extends Tuple, OutTuple extends Tuple> extends FlatMapFunction<InTuple, OutTuple> {
-
+  private static final long serialVersionUID = 1L;
+  
 	private int computeGranularity;
 	private int windowFieldId;
 

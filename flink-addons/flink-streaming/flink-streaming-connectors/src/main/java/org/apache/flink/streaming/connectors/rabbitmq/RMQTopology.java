@@ -72,18 +72,21 @@ public class RMQTopology {
 		
 	}
 	
-	private static Set<String> result = new HashSet<String>();
+	@SuppressWarnings("unused")
+  private static Set<String> result = new HashSet<String>();
 	
 	public static void main(String[] args) throws Exception {
 		
 		
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
-		DataStream<Tuple1<String>> dataStream1 = env
+		@SuppressWarnings("unused")
+    DataStream<Tuple1<String>> dataStream1 = env
 				.addSource(new MyRMQSource("localhost", "hello"))
 				.print();
 		
-		DataStream<Tuple1<String>> dataStream2 = env
+		@SuppressWarnings("unused")
+    DataStream<Tuple1<String>> dataStream2 = env
 				.fromElements("one", "two", "three", "four", "five", "q")
 				.addSink(new MyRMQSink("localhost", "hello"));
 

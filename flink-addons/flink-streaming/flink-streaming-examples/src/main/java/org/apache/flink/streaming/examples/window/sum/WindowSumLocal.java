@@ -32,7 +32,8 @@ public class WindowSumLocal {
 	public static void main(String[] args) {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
 		
-		DataStream<Tuple2<Integer, Long>> dataStream = env
+		@SuppressWarnings("unused")
+    DataStream<Tuple2<Integer, Long>> dataStream = env
 				.addSource(new WindowSumSource(), SOURCE_PARALLELISM)
 				.map(new WindowSumMultiple())
 				.flatMap(new WindowSumAggregate(100, 20, 10, 1))
