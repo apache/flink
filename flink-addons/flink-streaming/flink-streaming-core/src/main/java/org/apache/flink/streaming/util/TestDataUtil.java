@@ -100,7 +100,7 @@ public class TestDataUtil {
 	}
 
 	public static void download(String fileName) {
-		System.out.println("downloading " + fileName);
+		log.info("downloading " + fileName);
 
 		try {
 			URL website = new URL(testRepoUrl + fileName);
