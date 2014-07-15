@@ -197,7 +197,6 @@ public class DataStream<T extends Tuple> {
 	 *            The DataStreams to connect output with.
 	 * @return The connected DataStream.
 	 */
-	@SuppressWarnings("unchecked")
 	public DataStream<T> connectWith(DataStream<T>... streams) {
 		DataStream<T> returnStream = copy();
 

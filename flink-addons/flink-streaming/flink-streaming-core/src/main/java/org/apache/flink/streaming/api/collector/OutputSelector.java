@@ -34,11 +34,8 @@ public abstract class OutputSelector<T extends Tuple> implements Serializable {
 		outputs = new ArrayList<String>();
 	}
 	
-	void clearList() {
-		outputs.clear();
-	}
-	
 	Collection<String> getOutputs(T tuple) {
+		outputs.clear();
 		select(tuple, outputs);
 		return outputs;
 	}

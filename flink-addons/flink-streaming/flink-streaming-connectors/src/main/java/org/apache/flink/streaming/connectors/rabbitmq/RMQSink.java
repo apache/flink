@@ -21,6 +21,9 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.function.SinkFunction;
 
 import com.rabbitmq.client.Channel;
@@ -35,31 +38,33 @@ import org.apache.flink.api.java.tuple.Tuple;
  * 
  */
 public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
+	private static final Log log = LogFactory.getLog(RMQSink.class);
+
 	private static final long serialVersionUID = 1L;
 	private boolean close = false;
 
-	private String QUEUE_NAME;
-	private String HOST_NAME;
+	private String queueName;
+	private String hostName;
 	private transient ConnectionFactory factory;
 	private transient Connection connection;
 	private transient Channel channel;
 	private boolean initDone = false;
 
-	public RMQSink(String HOST_NAME, String QUEUE_NAME) {
-		this.HOST_NAME = HOST_NAME;
-		this.QUEUE_NAME = QUEUE_NAME;
+	public RMQSink(String hostName, String queueName) {
+		this.hostName = hostName;
+		this.queueName = queueName;
 	}
 
 	public void initializeConnection() {
 		factory = new ConnectionFactory();
-		factory.setHost(HOST_NAME);
+		factory.setHost(hostName);
 		try {
 			connection = factory.newConnection();
 			channel = connection.createChannel();
-
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			if (log.isErrorEnabled()) {
+				log.error("Cannot create connection with RMQ " + queueName + " at " + hostName);
+			}
 		}
 
 		initDone = true;
@@ -71,12 +76,13 @@ public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 			initializeConnection();
 
 		try {
-			channel.queueDeclare(QUEUE_NAME, false, false, false, null);
+			channel.queueDeclare(queueName, false, false, false, null);
 			byte[] msg = serialize(tuple);
-			channel.basicPublish("", QUEUE_NAME, null, msg);
+			channel.basicPublish("", queueName, null, msg);
 		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
+			if (log.isErrorEnabled()) {
+				log.error("Cannot send message to RMQ " + queueName + " at " + hostName);
+			}
 		}
 
 		if (close) {
@@ -84,8 +90,9 @@ public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 				channel.close();
 				connection.close();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				if (log.isWarnEnabled()) {
+					log.warn("Cannot close RMQ connection: " + queueName + " at " + hostName);
+				}
 			}
 		}
 	}

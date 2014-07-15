@@ -19,29 +19,37 @@
 
 package org.apache.flink.streaming.api.streamrecord;
 
-import java.io.IOException;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+
+import org.apache.flink.runtime.io.network.serialization.DataInputDeserializer;
+import org.apache.flink.runtime.io.network.serialization.DataOutputSerializer;
 import org.junit.Test;
 
-public class UUIDTest {
+public class UIDTest {
 
 	//TODO fix with matching DataOutputStream and DataOutputView
 	@Test
 	public void test() throws IOException {
-//		ByteArrayOutputStream buff = new ByteArrayOutputStream();
-//		DataOutputStream out = new DataOutputStream(buff);
-//		
-//		UID id = new UID(3);
-//		id.write(out);
-//		
-//		DataInputStream in = new DataInputStream(new ByteArrayInputStream(buff.toByteArray()));
-//		
-//		UID id2 = new UID();
-//		id2.read(in);
-//
-//		assertEquals(id.getChannelId(), id2.getChannelId());
-//		assertArrayEquals(id.getGeneratedId(), id2.getGeneratedId());
-//		assertArrayEquals(id.getId(), id2.getId());
+		DataOutputSerializer out = new DataOutputSerializer(64);
+		
+		UID id = new UID(3);
+		id.write(out);
+
+		ByteBuffer buff = out.wrapAsByteBuffer();
+
+		
+		DataInputDeserializer in = new DataInputDeserializer(buff);
+		
+		UID id2 = new UID();
+		id2.read(in);
+
+		assertEquals(id.getChannelId(), id2.getChannelId());
+		assertArrayEquals(id.getGeneratedId(), id2.getGeneratedId());
+		assertArrayEquals(id.getId(), id2.getId());
 	}
 
 }
