@@ -25,19 +25,19 @@ import org.apache.flink.api.java.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.util.Collector;
 
-public class FlatMapInvokable<T extends Tuple, R extends Tuple> extends UserTaskInvokable<T, R> {
+public class FlatMapInvokable<IN extends Tuple, OUT extends Tuple> extends
+		UserTaskInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private FlatMapFunction<T, R> flatMapper;
+	private FlatMapFunction<IN, OUT> flatMapper;
 
-	public FlatMapInvokable(FlatMapFunction<T, R> flatMapper) {
+	public FlatMapInvokable(FlatMapFunction<IN, OUT> flatMapper) {
 		this.flatMapper = flatMapper;
 	}
 
 	@Override
-	public void invoke(StreamRecord record, Collector<R> collector) throws Exception {
-
-		T tuple = (T) record.getTuple();
+	public void invoke(StreamRecord<IN> record, Collector<OUT> collector) throws Exception {
+		IN tuple = record.getTuple();
 		flatMapper.flatMap(tuple, collector);
 	}
 }

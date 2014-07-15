@@ -22,6 +22,7 @@ package org.apache.flink.streaming.partitioner;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.junit.Before;
@@ -30,8 +31,8 @@ import org.junit.Test;
 public class FieldsPartitionerTest {
 
 	private FieldsPartitioner fieldsPartitioner;
-	private StreamRecord streamRecord1 = new StreamRecord().setTuple(new Tuple2<String, Integer>("test", 0));
-	private StreamRecord streamRecord2 = new StreamRecord().setTuple(new Tuple2<String, Integer>("test", 42));
+	private StreamRecord<Tuple> streamRecord1 = new StreamRecord<Tuple>().setTuple(new Tuple2<String, Integer>("test", 0));
+	private StreamRecord<Tuple> streamRecord2 = new StreamRecord<Tuple>().setTuple(new Tuple2<String, Integer>("test", 42));
 
 	@Before
 	public void setPartitioner() {

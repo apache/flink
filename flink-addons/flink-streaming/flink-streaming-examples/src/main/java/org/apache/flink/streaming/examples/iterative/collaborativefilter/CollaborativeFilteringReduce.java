@@ -20,13 +20,6 @@
 package org.apache.flink.streaming.examples.iterative.collaborativefilter;
 
 
-import java.util.HashMap;
-
-import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.jblas.DoubleMatrix;
-
-import org.apache.flink.api.java.tuple.Tuple1;
 
 //public class CollaborativeFilteringReduce extends UserTaskInvokable {
 //

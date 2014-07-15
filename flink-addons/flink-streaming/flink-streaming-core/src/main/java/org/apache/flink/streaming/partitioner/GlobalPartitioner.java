@@ -21,10 +21,11 @@ package org.apache.flink.streaming.partitioner;
 
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.ChannelSelector;
 
 //Group to the partitioner with the lowest id
-public class GlobalPartitioner implements ChannelSelector<StreamRecord> {
+public class GlobalPartitioner implements ChannelSelector<StreamRecord<Tuple>> {
 
 	private int[] returnArray;
 
@@ -33,7 +34,7 @@ public class GlobalPartitioner implements ChannelSelector<StreamRecord> {
 	}
 
 	@Override
-	public int[] selectChannels(StreamRecord record, int numberOfOutputChannels) {
+	public int[] selectChannels(StreamRecord<Tuple> record, int numberOfOutputChannels) {
 		return returnArray;
 	}
 }

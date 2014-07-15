@@ -24,13 +24,12 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.util.Collector;
 
-public class DefaultSinkInvokable extends UserSinkInvokable<Tuple> {
-
+public class DefaultSinkInvokable<T extends Tuple> extends UserSinkInvokable<T> {
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void invoke(StreamRecord record, Collector<Tuple> collector) throws Exception {
+	public void invoke(StreamRecord<T> record, Collector<T> collector) throws Exception {
 		String value = (String) record.getTuple().getField(0);
-		System.out.println(value);
+		System.out.println(value);	
 	}
 }

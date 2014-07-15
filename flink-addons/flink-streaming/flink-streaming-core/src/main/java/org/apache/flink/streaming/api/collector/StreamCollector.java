@@ -30,23 +30,23 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
-public class StreamCollector implements Collector<Tuple> {
+public class StreamCollector<T extends Tuple> implements Collector<T> {
 
-	protected StreamRecord streamRecord;
+	protected StreamRecord<T> streamRecord;
 	protected int channelID;
-	private List<RecordWriter<StreamRecord>> outputs;
-	protected Map<String, RecordWriter<StreamRecord>> outputMap;
+	private List<RecordWriter<StreamRecord<T>>> outputs;
+	protected Map<String, RecordWriter<StreamRecord<T>>> outputMap;
 
-	public StreamCollector(int channelID, SerializationDelegate<Tuple> serializationDelegate) {
+	public StreamCollector(int channelID, SerializationDelegate<T> serializationDelegate) {
 
-		this.streamRecord = new StreamRecord();
+		this.streamRecord = new StreamRecord<T>();
 		this.streamRecord.setSeralizationDelegate(serializationDelegate);
 		this.channelID = channelID;
-		this.outputs = new ArrayList<RecordWriter<StreamRecord>>();
-		this.outputMap = new HashMap<String, RecordWriter<StreamRecord>>();
+		this.outputs = new ArrayList<RecordWriter<StreamRecord<T>>>();
+		this.outputMap = new HashMap<String, RecordWriter<StreamRecord<T>>>();
 	}
 
-	public void addOutput(RecordWriter<StreamRecord> output, String outputName) {
+	public void addOutput(RecordWriter<StreamRecord<T>> output, String outputName) {
 		outputs.add(output);
 		if (outputName != null) {
 			outputMap.put(outputName, output);
@@ -54,14 +54,14 @@ public class StreamCollector implements Collector<Tuple> {
 	}
 
 	@Override
-	public void collect(Tuple tuple) {
+	public void collect(T tuple) {
 		streamRecord.setTuple(tuple);
 		emit(streamRecord);
 	}
 
-	private void emit(StreamRecord streamRecord) {
+	private void emit(StreamRecord<T> streamRecord) {
 		streamRecord.setId(channelID);
-		for (RecordWriter<StreamRecord> output : outputs) {
+		for (RecordWriter<StreamRecord<T>> output : outputs) {
 			try {
 				output.emit(streamRecord);
 			} catch (Exception e) {
@@ -69,12 +69,9 @@ public class StreamCollector implements Collector<Tuple> {
 				System.out.println("emit fail");
 			}
 		}
-
 	}
 
 	@Override
 	public void close() {
-
 	}
-
 }

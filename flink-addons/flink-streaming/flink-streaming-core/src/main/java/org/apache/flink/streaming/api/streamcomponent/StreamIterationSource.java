@@ -27,24 +27,25 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-import org.apache.flink.runtime.io.network.api.ChannelSelector;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
-
-public class StreamIterationSource extends AbstractStreamComponent {
+public class StreamIterationSource<OUT extends Tuple> extends AbstractStreamComponent<Tuple, OUT> {
 
 	private static final Log log = LogFactory.getLog(StreamIterationSource.class);
 
-	private List<RecordWriter<StreamRecord>> outputs;
+	private List<RecordWriter<StreamRecord<OUT>>> outputs;
 	private static int numSources;
 	private int[] numberOfOutputChannels;
 	private String iterationId;
+	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;
 
+	@SuppressWarnings("rawtypes")
 	public StreamIterationSource() {
 
-		outputs = new LinkedList<RecordWriter<StreamRecord>>();
+		outputs = new LinkedList<RecordWriter<StreamRecord<OUT>>>();
 		numSources = newComponent();
 		instanceID = numSources;
 		dataChannel = new ArrayBlockingQueue<StreamRecord>(1);
@@ -79,23 +80,24 @@ public class StreamIterationSource extends AbstractStreamComponent {
 			log.debug("SOURCE " + name + " invoked with instance id " + instanceID);
 		}
 
-		for (RecordWriter<StreamRecord> output : outputs) {
+		for (RecordWriter<StreamRecord<OUT>> output : outputs) {
 			output.initializeSerializers();
 		}
 
 		while (true) {
-			StreamRecord nextRecord = dataChannel.poll(5, TimeUnit.SECONDS);
+			@SuppressWarnings("unchecked")
+			StreamRecord<OUT> nextRecord = dataChannel.poll(5, TimeUnit.SECONDS);
 			if(nextRecord == null){
 				break;
 			}
 			nextRecord.setSeralizationDelegate(this.outSerializationDelegate);
-			for (RecordWriter<StreamRecord> output : outputs) {
+			for (RecordWriter<StreamRecord<OUT>> output : outputs) {
 				output.emit(nextRecord);
 				//output.flush();
 			}
 		}
 		
-		for (RecordWriter<StreamRecord> output : outputs){
+		for (RecordWriter<StreamRecord<OUT>> output : outputs){
 			output.flush();
 		}
 

@@ -24,27 +24,25 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.streaming.api.invokable.DefaultSourceInvokable;
 import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.io.network.api.ChannelSelector;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
-
-public class StreamSource extends AbstractStreamComponent {
+public class StreamSource<OUT extends Tuple> extends AbstractStreamComponent<Tuple, OUT> {
 
 	private static final Log log = LogFactory.getLog(StreamSource.class);
 
-	private List<RecordWriter<StreamRecord>> outputs;
-	private UserSourceInvokable<Tuple> userFunction;
+	private List<RecordWriter<StreamRecord<OUT>>> outputs;
+	private UserSourceInvokable<OUT> userFunction;
 	private static int numSources;
 	private int[] numberOfOutputChannels;
 
 	public StreamSource() {
 
 		
-		outputs = new LinkedList<RecordWriter<StreamRecord>>();
+		outputs = new LinkedList<RecordWriter<StreamRecord<OUT>>>();
 		userFunction = null;
 		numSources = newComponent();
 		instanceID = numSources;
@@ -82,7 +80,7 @@ public class StreamSource extends AbstractStreamComponent {
 		// Default value is a TaskInvokable even if it was called from a source
 		Class<? extends UserSourceInvokable> userFunctionClass = configuration.getClass(
 				"userfunction", DefaultSourceInvokable.class, UserSourceInvokable.class);
-		userFunction = (UserSourceInvokable<Tuple>) getInvokable(userFunctionClass);
+		userFunction = (UserSourceInvokable<OUT>) getInvokable(userFunctionClass);
 	}
 
 	@Override
@@ -91,7 +89,7 @@ public class StreamSource extends AbstractStreamComponent {
 			log.debug("SOURCE " + name + " invoked with instance id " + instanceID);
 		}
 
-		for (RecordWriter<StreamRecord> output : outputs) {
+		for (RecordWriter<StreamRecord<OUT>> output : outputs) {
 			output.initializeSerializers();
 		}
 		
@@ -101,7 +99,7 @@ public class StreamSource extends AbstractStreamComponent {
 			log.debug("SOURCE " + name + " invoke finished with instance id " + instanceID);
 		}
 		
-		for (RecordWriter<StreamRecord> output : outputs){
+		for (RecordWriter<StreamRecord<OUT>> output : outputs){
 			output.flush();
 		}
 	}

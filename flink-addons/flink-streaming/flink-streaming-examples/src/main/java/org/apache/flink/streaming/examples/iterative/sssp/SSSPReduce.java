@@ -19,11 +19,6 @@
 
 package org.apache.flink.streaming.examples.iterative.sssp;
 
-import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.state.GraphState;
-
-import org.apache.flink.api.java.tuple.Tuple1;
 
 //public class SSSPReduce extends UserTaskInvokable {
 //

@@ -30,18 +30,18 @@ import org.apache.flink.runtime.io.network.api.AbstractUnionRecordReader;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.Reader;
 
-public final class UnionStreamRecordReader extends AbstractUnionRecordReader<StreamRecord>
-		implements Reader<StreamRecord> {
+public final class UnionStreamRecordReader<T extends Tuple> extends AbstractUnionRecordReader<StreamRecord<T>>
+		implements Reader<StreamRecord<T>> {
 
-	private final Class<? extends StreamRecord> recordType;
+	private final Class<? extends StreamRecord<T>> recordType;
 
-	private StreamRecord lookahead;
-	private DeserializationDelegate<Tuple> deserializationDelegate;
-	private TupleSerializer<Tuple> tupleSerializer;
+	private StreamRecord<T> lookahead;
+	private DeserializationDelegate<T> deserializationDelegate;
+	private TupleSerializer<T> tupleSerializer;
 
-	public UnionStreamRecordReader(MutableRecordReader<StreamRecord>[] recordReaders, Class<? extends StreamRecord> recordType,
-			DeserializationDelegate<Tuple> deserializationDelegate,
-			TupleSerializer<Tuple> tupleSerializer) {
+	public UnionStreamRecordReader(MutableRecordReader<StreamRecord<T>>[] recordReaders, Class<? extends StreamRecord<T>> recordType,
+			DeserializationDelegate<T> deserializationDelegate,
+			TupleSerializer<T> tupleSerializer) {
 		super(recordReaders);
 		this.recordType = recordType;
 		this.deserializationDelegate = deserializationDelegate;
@@ -53,7 +53,7 @@ public final class UnionStreamRecordReader extends AbstractUnionRecordReader<Str
 		if (this.lookahead != null) {
 			return true;
 		} else {
-			StreamRecord record = instantiateRecordType();
+			StreamRecord<T> record = instantiateRecordType();
 			record.setDeseralizationDelegate(deserializationDelegate, tupleSerializer);
 			if (getNextRecord(record)) {
 				this.lookahead = record;
@@ -65,9 +65,9 @@ public final class UnionStreamRecordReader extends AbstractUnionRecordReader<Str
 	}
 
 	@Override
-	public StreamRecord next() throws IOException, InterruptedException {
+	public StreamRecord<T> next() throws IOException, InterruptedException {
 		if (hasNext()) {
-			StreamRecord tmp = this.lookahead;
+			StreamRecord<T> tmp = this.lookahead;
 			this.lookahead = null;
 			return tmp;
 		} else {
@@ -75,7 +75,7 @@ public final class UnionStreamRecordReader extends AbstractUnionRecordReader<Str
 		}
 	}
 
-	private StreamRecord instantiateRecordType() {
+	private StreamRecord<T> instantiateRecordType() {
 		try {
 			return this.recordType.newInstance();
 		} catch (InstantiationException e) {

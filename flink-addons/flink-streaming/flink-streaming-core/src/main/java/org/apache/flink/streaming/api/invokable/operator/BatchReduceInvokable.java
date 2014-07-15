@@ -20,7 +20,6 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.java.functions.GroupReduceFunction;
@@ -32,7 +31,7 @@ import org.apache.flink.util.Collector;
 public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
 		UserTaskInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
-	private List<Tuple> tupleBatch;
+	private List<IN> tupleBatch;
 	private int counter;
 	private int batchSize;
 
@@ -40,21 +39,21 @@ public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
 
 	public BatchReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, int batchSize) {
 		this.reducer = reduceFunction;
-		this.tupleBatch = new ArrayList<Tuple>();
+		this.tupleBatch = new ArrayList<IN>();
 		this.counter = 0;
 		this.batchSize = batchSize;
 	}
 
 	@Override
-	public void invoke(StreamRecord record, Collector<OUT> collector) throws Exception {
-		
+	public void invoke(StreamRecord<IN> record, Collector<OUT> collector) throws Exception {
+
 		tupleBatch.add(record.getTuple());
 		counter++;
-		if(counter>= batchSize){
-			counter=0;
-			reducer.reduce((Iterator<IN>) tupleBatch.iterator(), collector);
+		if (counter >= batchSize) {
+			counter = 0;
+			reducer.reduce(tupleBatch.iterator(), collector);
 			tupleBatch.clear();
 		}
-		
+
 	}
 }

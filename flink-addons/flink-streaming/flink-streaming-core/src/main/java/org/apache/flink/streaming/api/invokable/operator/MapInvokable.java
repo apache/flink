@@ -25,19 +25,18 @@ import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.util.Collector;
 
-public class MapInvokable<T extends Tuple, R extends Tuple> extends UserTaskInvokable<T, R> {
+public class MapInvokable<IN extends Tuple, OUT extends Tuple> extends UserTaskInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private MapFunction<T, R> mapper;
+	private MapFunction<IN, OUT> mapper;
 
-	public MapInvokable(MapFunction<T, R> mapper) {
+	public MapInvokable(MapFunction<IN, OUT> mapper) {
 		this.mapper = mapper;
 	}
 
 	@Override
-	public void invoke(StreamRecord record, Collector<R> collector) throws Exception {
-
-		T tuple = (T) record.getTuple();
+	public void invoke(StreamRecord<IN> record, Collector<OUT> collector) throws Exception {
+		IN tuple = record.getTuple();
 		collector.collect(mapper.map(tuple));
 	}
 }

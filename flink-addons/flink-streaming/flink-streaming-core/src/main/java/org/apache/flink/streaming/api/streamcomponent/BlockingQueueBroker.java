@@ -21,10 +21,10 @@ package org.apache.flink.streaming.api.streamcomponent;
 
 import java.util.concurrent.BlockingQueue;
 
+import org.apache.flink.runtime.iterative.concurrent.Broker;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-import org.apache.flink.runtime.iterative.concurrent.Broker;
-
+@SuppressWarnings("rawtypes")
 public class BlockingQueueBroker extends Broker<BlockingQueue<StreamRecord>>{
 	/**
 	 * Singleton instance

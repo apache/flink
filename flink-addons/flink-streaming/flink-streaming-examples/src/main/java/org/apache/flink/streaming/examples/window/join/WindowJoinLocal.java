@@ -19,14 +19,12 @@
 
 package org.apache.flink.streaming.examples.window.join;
 
-import org.apache.flink.streaming.api.DataStream;
-import org.apache.flink.streaming.api.StreamExecutionEnvironment;
-import org.apache.flink.streaming.examples.join.JoinSink;
-import org.apache.flink.streaming.util.LogUtils;
-import org.apache.log4j.Level;
-
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.streaming.api.DataStream;
+import org.apache.flink.streaming.api.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.LogUtils;
+import org.apache.log4j.Level;
 
 public class WindowJoinLocal {
 
@@ -45,7 +43,8 @@ public class WindowJoinLocal {
 		DataStream<Tuple4<String, String, Integer, Long>> dataStream1 = env.addSource(
 				new WindowJoinSourceOne(), SOURCE_PARALLELISM);
 
-		DataStream<Tuple3<String, Integer, Integer>> dataStream2 = env
+		@SuppressWarnings("unchecked")
+    DataStream<Tuple3<String, Integer, Integer>> dataStream2 = env
 				.addSource(new WindowJoinSourceTwo(), SOURCE_PARALLELISM)
 				.connectWith(dataStream1)
 				.partitionBy(1)

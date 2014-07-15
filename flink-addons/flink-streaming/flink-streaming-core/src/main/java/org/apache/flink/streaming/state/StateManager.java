@@ -42,7 +42,8 @@ public class StateManager implements Runnable, Serializable {
 		stateList.add(state);
 	}
 
-	public void restoreState(){
+	@SuppressWarnings("unused")
+  public void restoreState(){
 		ObjectInputStream ois = null;
 		try {
 			ois=new ObjectInputStream(new FileInputStream(filename));
@@ -59,7 +60,8 @@ public class StateManager implements Runnable, Serializable {
 	}
 
 	//run checkpoint.
-	@Override
+	@SuppressWarnings("resource")
+  @Override
 	public void run() {
 		ObjectOutputStream oos = null;
 		try {

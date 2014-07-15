@@ -39,7 +39,8 @@ import org.apache.flink.util.Collector;
 
 public class StreamComponentTest {
 
-	private static final int PARALLELISM = 1;
+	@SuppressWarnings("unused")
+  private static final int PARALLELISM = 1;
 	private static final int SOURCE_PARALELISM = 1;
 	private static final long MEMORYSIZE = 32;
 
@@ -93,7 +94,8 @@ public class StreamComponentTest {
 		}
 	}
 
-	@BeforeClass
+	@SuppressWarnings("unused")
+  @BeforeClass
 	public static void runStream() {
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(SOURCE_PARALELISM);
 

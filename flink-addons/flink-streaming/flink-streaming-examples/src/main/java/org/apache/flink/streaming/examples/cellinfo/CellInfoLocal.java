@@ -115,7 +115,8 @@ public class CellInfoLocal {
 
 	//In this example two different source then connect the two stream and apply a function for the connected stream
 	// TODO add arguments
-	public static void main(String[] args) {
+	@SuppressWarnings("unchecked")
+  public static void main(String[] args) {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
 
 		DataStream<Tuple4<Boolean, Integer, Long, Integer>> querySource = env.addSource(

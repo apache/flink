@@ -34,7 +34,8 @@ public class JoinLocal {
 	// This example will join two streams. One which emits people's grades and
 	// one which emits people's salaries.
 	
-	public static void main(String[] args) {
+	@SuppressWarnings("unchecked")
+  public static void main(String[] args) {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 

@@ -24,29 +24,27 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
+import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.streaming.api.invokable.DefaultTaskInvokable;
 import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
-import org.apache.flink.runtime.io.network.api.ChannelSelector;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
-
-public class StreamTask extends AbstractStreamComponent {
+public class StreamTask<IN extends Tuple, OUT extends Tuple> extends AbstractStreamComponent<IN, OUT> {
 
 	private static final Log log = LogFactory.getLog(StreamTask.class);
 
 	private AbstractRecordReader inputs;
-	private List<RecordWriter<StreamRecord>> outputs;
-	private StreamRecordInvokable<Tuple, Tuple> userFunction;
+	private List<RecordWriter<StreamRecord<OUT>>> outputs;
+	private StreamRecordInvokable<IN, OUT> userFunction;
 	private int[] numberOfOutputChannels;
 	private static int numTasks;
 
 	public StreamTask() {
 		
-		outputs = new LinkedList<RecordWriter<StreamRecord>>();
+		outputs = new LinkedList<RecordWriter<StreamRecord<OUT>>>();
 		userFunction = null;
 		numTasks = newComponent();
 		instanceID = numTasks;
@@ -87,7 +85,7 @@ public class StreamTask extends AbstractStreamComponent {
 		// Default value is a TaskInvokable even if it was called from a source
 		Class<? extends UserTaskInvokable> userFunctionClass = configuration.getClass(
 				"userfunction", DefaultTaskInvokable.class, UserTaskInvokable.class);
-		userFunction = (UserTaskInvokable<Tuple, Tuple>) getInvokable(userFunctionClass);
+		userFunction = (UserTaskInvokable<IN, OUT>) getInvokable(userFunctionClass);
 	}
 
 	@Override
@@ -96,7 +94,7 @@ public class StreamTask extends AbstractStreamComponent {
 			log.debug("TASK " + name + " invoked with instance id " + instanceID);
 		}
 
-		for (RecordWriter<StreamRecord> output : outputs) {
+		for (RecordWriter<StreamRecord<OUT>> output : outputs) {
 			output.initializeSerializers();
 		}
 
@@ -106,7 +104,7 @@ public class StreamTask extends AbstractStreamComponent {
 			log.debug("TASK " + name + " invoke finished with instance id " + instanceID);
 		}
 		
-		for (RecordWriter<StreamRecord> output : outputs){
+		for (RecordWriter<StreamRecord<OUT>> output : outputs){
 			output.flush();
 		}
 	}

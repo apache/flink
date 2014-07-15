@@ -25,6 +25,7 @@ import java.io.ObjectOutputStream;
 import java.util.Collection;
 
 import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.collector.OutputSelector;
@@ -37,7 +38,6 @@ import org.apache.flink.streaming.api.function.SinkFunction;
 import org.apache.flink.streaming.api.function.SourceFunction;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
-import org.apache.flink.api.java.ExecutionEnvironment;
 
 /**
  * {@link ExecutionEnvironment} for streaming jobs. An instance of it is necessary to
@@ -184,7 +184,7 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the returned stream
 	 * @return The DataStream representing the elements.
 	 */
-	public <X> DataStream<Tuple1<X>> fromElements(X... data) {
+	public <X> DataStream<Tuple1<X>> fromElements(@SuppressWarnings("unchecked") X... data) {
 		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
 
 		jobGraphBuilder.addSource(returnStream.getId(), new FromElementsFunction<X>(data),

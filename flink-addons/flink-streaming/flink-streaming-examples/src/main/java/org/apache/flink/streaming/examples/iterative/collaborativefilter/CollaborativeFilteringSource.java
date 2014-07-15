@@ -38,7 +38,8 @@ public class CollaborativeFilteringSource extends SourceFunction<Tuple4<Integer,
 	public void invoke(
 			Collector<Tuple4<Integer, Integer, Integer, Long>> collector)
 			throws Exception {
-		BufferedReader br = new BufferedReader(new FileReader(
+		@SuppressWarnings("resource")
+    BufferedReader br = new BufferedReader(new FileReader(
 				"src/test/resources/testdata/MovieLens100k.data"));
 		while (true) {
 			line = br.readLine();

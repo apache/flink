@@ -19,19 +19,16 @@
 
 package org.apache.flink.streaming.api.collector;
 
-import static org.junit.Assert.assertEquals;
-
-import org.apache.flink.streaming.api.collector.StreamCollector;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.streamcomponent.MockRecordWriter;
 import org.apache.flink.streaming.util.MockRecordWriterFactory;
 import org.junit.Test;
-
-import org.apache.flink.api.java.tuple.Tuple1;
 
 public class StreamCollectorTest {
 
 
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testCollect() {
 		MockRecordWriter recWriter = MockRecordWriterFactory.create();

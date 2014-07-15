@@ -24,13 +24,12 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.util.Collector;
 
-public class DefaultTaskInvokable extends UserTaskInvokable<Tuple, Tuple> {
+public class DefaultTaskInvokable<T extends Tuple> extends UserTaskInvokable<T, T> {
 
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void invoke(StreamRecord record, Collector<Tuple> collector) throws Exception {
-
+	public void invoke(StreamRecord<T> record, Collector<T> collector) throws Exception {
+		collector.collect(record.getTuple());
 	}
-
 }

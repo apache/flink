@@ -19,9 +19,9 @@
 
 package org.apache.flink.streaming.state;
 
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class SlidingWindowStateIterator<K>{
 
@@ -29,7 +29,7 @@ public class SlidingWindowStateIterator<K>{
 		return false;
 	}
 
-	public Tuple2<K, StreamRecord> next() {
+	public Tuple2<K, StreamRecord<Tuple>> next() {
 		return null;
 	}
 

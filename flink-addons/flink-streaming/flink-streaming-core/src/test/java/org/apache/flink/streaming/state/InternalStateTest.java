@@ -56,7 +56,8 @@ public class InternalStateTest {
 		}
 	}
 	
-	@Test
+	@SuppressWarnings({ "rawtypes", "unused" })
+  @Test
 	public void WindowStateTest(){
 		SlidingWindowState state=new SlidingWindowState(100, 20, 10);
 		

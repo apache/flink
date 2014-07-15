@@ -28,12 +28,12 @@ import org.apache.flink.streaming.api.invokable.UserSinkInvokable;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
 
-public class StreamSink extends AbstractStreamComponent {
+public class StreamSink<IN extends Tuple> extends AbstractStreamComponent<IN, IN> {
 
 	private static final Log log = LogFactory.getLog(StreamSink.class);
 
 	private AbstractRecordReader inputs;
-	private StreamRecordInvokable<Tuple, Tuple> userFunction;
+	private StreamRecordInvokable<IN, IN> userFunction;
 
 	public StreamSink() {
 		userFunction = null;
@@ -65,7 +65,7 @@ public class StreamSink extends AbstractStreamComponent {
 	protected void setInvokable() {
 		Class<? extends UserSinkInvokable> userFunctionClass = configuration.getClass(
 				"userfunction", DefaultSinkInvokable.class, UserSinkInvokable.class);
-		userFunction = (UserSinkInvokable<Tuple>) getInvokable(userFunctionClass);
+		userFunction = (UserSinkInvokable<IN>) getInvokable(userFunctionClass);
 	}
 
 	@Override

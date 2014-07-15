@@ -26,6 +26,7 @@ import java.util.Map;
 /**
  * The most general internal state that stores data in a mutable map.
  */
+@SuppressWarnings("serial")
 public class TableState<K, V> implements Serializable {
 
 	private Map<K, V> state=new LinkedHashMap<K, V>();
