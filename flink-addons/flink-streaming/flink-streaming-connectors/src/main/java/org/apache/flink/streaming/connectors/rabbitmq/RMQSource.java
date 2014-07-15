@@ -44,7 +44,7 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 
 	private final String QUEUE_NAME;
 	private final String HOST_NAME;
-	private boolean close=false;
+	private boolean close = false;
 
 	private transient ConnectionFactory factory;
 	private transient Connection connection;
@@ -53,7 +53,7 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 	private transient QueueingConsumer.Delivery delivery;
 
 	IN outTuple;
-	
+
 	public RMQSource(String HOST_NAME, String QUEUE_NAME) {
 		this.HOST_NAME = HOST_NAME;
 		this.QUEUE_NAME = QUEUE_NAME;
@@ -71,41 +71,43 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 		} catch (IOException e) {
 		}
 	}
-	
+
 	@Override
 	public void invoke(Collector<IN> collector) throws Exception {
 		initializeConnection();
-		
-				while (!close) {
-		
-					try {
-						delivery = consumer.nextDelivery();
-					} catch (ShutdownSignalException e) {
-						e.printStackTrace();
-						break;
-					} catch (ConsumerCancelledException e) {
-						e.printStackTrace();
-						break;
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-		
-					outTuple=deserialize(delivery.getBody());
-					if(!close)
-						collector.collect(outTuple);
-				}
-		
-				try {
-					connection.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-		
+
+		while (!close) {
+
+			try {
+				delivery = consumer.nextDelivery();
+			} catch (ShutdownSignalException e) {
+				e.printStackTrace();
+				break;
+			} catch (ConsumerCancelledException e) {
+				e.printStackTrace();
+				break;
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+
+			outTuple = deserialize(delivery.getBody());
+			if (!close) {
+				collector.collect(outTuple);
+			}
+		}
+
+		try {
+			connection.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 	}
-	
+
 	public abstract IN deserialize(byte[] t);
-	public void close(){
-		close=true;
+
+	public void close() {
+		close = true;
 	}
 
 }

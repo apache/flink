@@ -91,8 +91,9 @@ public class WorkerEngineBin implements java.io.Serializable, IWorkerEngine {
 
 	public void put(int cellId, long timeStamp) {
 		int shift = refresh(timeStamp);
-		if (shift >= counters_.length)
+		if (shift >= counters_.length) {
 			return;
+		}
 		incrCell(shift, cellId);
 	}
 }

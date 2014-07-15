@@ -23,14 +23,12 @@ import java.io.IOException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.streaming.api.JobGraphBuilder;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.function.SinkFunction;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-
-import org.apache.flink.api.java.tuple.Tuple;
 
 /**
  * Source for sending messages to a RabbitMQ queue. The source currently only
@@ -72,8 +70,9 @@ public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 
 	@Override
 	public void invoke(IN tuple) {
-		if (!initDone)
+		if (!initDone) {
 			initializeConnection();
+		}
 
 		try {
 			channel.queueDeclare(queueName, false, false, false, null);

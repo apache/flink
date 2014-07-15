@@ -33,6 +33,7 @@
 		<module>flink-jdbc</module>
 		<module>flink-spargel</module>
 		<module>flink-hadoop-compatibility</module>
+		<module>flink-streaming</module>
 	</modules>
 	
 	<!-- See main pom.xml for explanation of profiles -->

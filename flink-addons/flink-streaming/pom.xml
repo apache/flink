@@ -1,93 +1,74 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License. See accompanying LICENSE file.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>org.apache.flink</groupId>
-	<version>0.3-SNAPSHOT</version>
-	<artifactId>flink-streaming-parent</artifactId>
+	<parent>
+		<groupId>org.apache.flink</groupId>
+		<artifactId>flink-addons</artifactId>
+		<version>0.6-incubating-SNAPSHOT</version>
+		<relativePath>..</relativePath>
+	</parent>
 
+	<artifactId>flink-streaming-parent</artifactId>
 	<name>flink-streaming</name>
 	<packaging>pom</packaging>
-	<!-- TODO update url -->
-	<url>http://github.com/stratosphere/stratosphere-streaming</url>
-	<inceptionYear>2014</inceptionYear>
-
-	<licenses>
-		<license>
-			<name>The Apache Software License, Version 2.0</name>
-			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-			<distribution>Apache Flink</distribution>
-		</license>
-	</licenses>
-
-	<scm>
-		<!-- TODO update scm -->
-		<url>http://github.com/stratosphere/stratosphere-streaming</url>
-		<connection>scm:git:git@github.com:stratosphere/stratosphere-streaming.git</connection>
-		<developerConnection>scm:git:git@github.com:stratosphere/stratosphere-streaming.git</developerConnection>
-	</scm>
-
-	<developers>
-	</developers>
 
 	<modules>
 		<module>flink-streaming-core</module>
 		<module>flink-streaming-examples</module>
 		<module>flink-streaming-connectors</module>
 	</modules>
-
-	<properties>
-		<flink.version>0.6-incubating-SNAPSHOT</flink.version>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-	</properties>
-	
-	<repositories>
-		<repository>
-			<id>dms-repo</id>
-			<url>https://dms.sztaki.hu/maven-public</url>
-			<releases><enabled>true</enabled></releases>
-			<snapshots><enabled>true</enabled></snapshots>
-		</repository>
-	</repositories>
 	
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
-            		<version>${flink.version}</version>
+            		<version>${project.version}</version>
 			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-tests</artifactId>
-			<version>${flink.version}</version>
+			<version>${project.version}</version>
 			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-compiler</artifactId>
-			<version>${flink.version}</version>
+			<version>${project.version}</version>
 			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime</artifactId>
-			<version>${flink.version}</version>
+			<version>${project.version}</version>
 			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
-			<version>${flink.version}</version>
+			<version>${project.version}</version>
 			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
-			<version>${flink.version}</version>
+			<version>${project.version}</version>
 			<type>jar</type>
 		</dependency>
 		<dependency>
@@ -124,168 +105,44 @@
   		</dependency>
 	</dependencies>
 
-	<build>
-		<plugins>
-			<plugin>
-				<!-- just define the Java version to be used for compiling and plugins -->
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.1</version>
-				<configuration>
-					<source>1.6</source>
-					<target>1.6</target>
-					<!-- High optimization, no debugging <compilerArgument>-g:none -O</compilerArgument> -->
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>2.9.1</version>
-				<configuration>
-					<quiet>true</quiet>
-				</configuration>
-				<executions>
-					<execution>
-						<id>attach-javadocs</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>2.6</version>
-				<executions>
-					<execution>
-						<goals>
-							<goal>integration-test</goal>
-							<goal>verify</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<argLine>-Xmx1024m</argLine>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-eclipse-plugin</artifactId>
-				<version>2.8</version>
-				<configuration>
-					<classpathContainers>
-						<classpathContainer>
-							org.eclipse.jdt.launching.JRE_CONTAINER
-						</classpathContainer>
-					</classpathContainers>
-					<downloadSources>true</downloadSources>
-					<downloadJavadocs>true</downloadJavadocs>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
-				<version>2.2.1</version>
-				<executions>
-					<execution>
-						<id>attach-sources</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.2</version>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.7</version>
-				<configuration>
-					<systemPropertyVariables>
-						<log.level>WARN</log.level>
-					</systemPropertyVariables>
-					<excludes>
-						<exclude>**/*TestBase*.class</exclude>
-					</excludes>
-					<forkMode>once</forkMode>
-					<argLine>-Xmx1024m</argLine>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.rat</groupId>
-				<artifactId>apache-rat-plugin</artifactId>
-				<version>0.10</version>
-				<executions>
-						<execution>
-							<phase>verify</phase>
-							<goals>
-								<goal>check</goal>
-							</goals>
-						</execution>
-				</executions>
-				<configuration>
-						<excludeSubProjects>false</excludeSubProjects>
-						<numUnapprovedLicenses>0</numUnapprovedLicenses>
-						<excludes>
-							<!-- Additional files like .gitignore etc.-->
-							<exclude>**/.*</exclude>
-							<exclude>**/.*/**</exclude>
-							<!-- Resource files which have values. -->
-							<exclude>**/resources/**</exclude>
-							<!-- Configuration Files. -->
-							<exclude>**/Apache Flink-bin/conf/slaves</exclude>
-							<!-- Administrative files in the main trunk. -->
-							<exclude>README.md</exclude>
-							<exclude>CHANGELOG</exclude>
-							<exclude>CONTRIBUTORS</exclude>
-							<!-- Build fields -->
-							<exclude>**/pom.xml</exclude>
-							<!-- Generated content -->
-							<exclude>**/target/**</exclude>
-						</excludes>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<version>2.4</version>
-				<configuration>
-					<descriptorRefs>
-						<descriptorRef>jar-with-dependencies</descriptorRef>
-					</descriptorRefs>
-				</configuration>
-			</plugin>
- 			<plugin>
-        			<groupId>org.apache.maven.plugins</groupId>
-        			<artifactId>maven-dependency-plugin</artifactId>
-        			<version>2.8</version>
-        			<executions>
-          				<execution>
-            					<id>copy-dependencies</id>
-            					<phase>package</phase>
-            					<goals>
-              						<goal>copy-dependencies</goal>
-            					</goals>
-            					<configuration>
-              						<outputDirectory>${project.build.directory}/alternateLocation</outputDirectory>
-              						<overWriteReleases>false</overWriteReleases>
-              						<overWriteSnapshots>false</overWriteSnapshots>
-             						<overWriteIfNewer>true</overWriteIfNewer>
-            					</configuration>
-          				</execution>
-        			</executions>
-      			</plugin>
-		</plugins>
-	</build>
+	<!-- See main pom.xml for explanation of profiles -->
+	<profiles>
+		<profile>
+			<id>hadoop-1</id>
+			<activation>
+				<property>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop1--><name>!hadoop.profile</name>
+				</property>
+			</activation>
+			<modules>
+				<!-- No extra modules: pact-hbase is currently not compatible with Hadoop v1 -->
+			</modules>
+		</profile>
+		<profile>
+			<id>hadoop-2</id>
+			<activation>
+				<property>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop2--><name>hadoop.profile</name><value>2</value>
+				</property>
+			</activation>
+			<modules>
+				<module>flink-hbase</module>
+			</modules>
+		</profile>
+		<profile>
+			<id>include-yarn</id>
+			<activation>
+				<property>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop2--><name>hadoop.profile</name><value>2</value>
+				</property>
+			</activation>
+			<modules>
+				<module>flink-yarn</module>
+			</modules>
+		</profile>
+	</profiles>
+
 </project>

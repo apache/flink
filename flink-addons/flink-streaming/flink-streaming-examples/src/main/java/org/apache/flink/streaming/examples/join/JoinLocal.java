@@ -33,24 +33,22 @@ public class JoinLocal {
 
 	// This example will join two streams. One which emits people's grades and
 	// one which emits people's salaries.
-	
+
 	@SuppressWarnings("unchecked")
-  public static void main(String[] args) {
+	public static void main(String[] args) {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment
+				.createLocalEnvironment(PARALLELISM);
 
 		DataStream<Tuple3<String, String, Integer>> source1 = env.addSource(new JoinSourceOne(),
 				SOURCE_PARALLELISM);
 
 		@SuppressWarnings("unused")
 		DataStream<Tuple3<String, Integer, Integer>> source2 = env
-				.addSource(new JoinSourceTwo(), SOURCE_PARALLELISM)
-				.connectWith(source1)
-				.partitionBy(1)
-				.flatMap(new JoinTask())
-				.addSink(new JoinSink());
+				.addSource(new JoinSourceTwo(), SOURCE_PARALLELISM).connectWith(source1)
+				.partitionBy(1).flatMap(new JoinTask()).addSink(new JoinSink());
 
 		env.execute();
 

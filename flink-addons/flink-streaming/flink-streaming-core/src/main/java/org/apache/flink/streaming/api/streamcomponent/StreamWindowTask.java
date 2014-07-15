@@ -27,9 +27,10 @@ import org.apache.flink.streaming.state.SlidingWindowState;
 import org.apache.flink.streaming.state.StateManager;
 import org.apache.flink.util.Collector;
 
-public class StreamWindowTask<InTuple extends Tuple, OutTuple extends Tuple> extends FlatMapFunction<InTuple, OutTuple> {
-  private static final long serialVersionUID = 1L;
-  
+public class StreamWindowTask<InTuple extends Tuple, OutTuple extends Tuple>
+		extends FlatMapFunction<InTuple, OutTuple> {
+	private static final long serialVersionUID = 1L;
+
 	private int computeGranularity;
 	private int windowFieldId;
 
@@ -39,7 +40,7 @@ public class StreamWindowTask<InTuple extends Tuple, OutTuple extends Tuple> ext
 	private long nextTimestamp = -1;
 
 	protected StateManager checkpointer = new StateManager("object.out", 1000);
-	
+
 	public StreamWindowTask(int windowSize, int slidingStep,
 			int computeGranularity, int windowFieldId) {
 		this.computeGranularity = computeGranularity;
@@ -51,11 +52,14 @@ public class StreamWindowTask<InTuple extends Tuple, OutTuple extends Tuple> ext
 		t.start();
 	}
 
-	protected void incrementCompute(ArrayList<InTuple> tupleArray) {}
+	protected void incrementCompute(ArrayList<InTuple> tupleArray) {
+	}
 
-	protected void decrementCompute(ArrayList<InTuple> tupleArray) {}
+	protected void decrementCompute(ArrayList<InTuple> tupleArray) {
+	}
 
-	protected void produceOutput(long progress, Collector<OutTuple> out) {}
+	protected void produceOutput(long progress, Collector<OutTuple> out) {
+	}
 
 	@Override
 	public void flatMap(InTuple value, Collector<OutTuple> out)
@@ -87,6 +91,6 @@ public class StreamWindowTask<InTuple extends Tuple, OutTuple extends Tuple> ext
 				tempTupleArray = new ArrayList<InTuple>();
 			}
 			tempTupleArray.add(value);
-		}		
+		}
 	}
 }

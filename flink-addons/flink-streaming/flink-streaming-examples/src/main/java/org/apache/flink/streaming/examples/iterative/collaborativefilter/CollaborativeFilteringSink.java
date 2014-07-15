@@ -23,7 +23,8 @@ import org.apache.flink.streaming.api.function.SinkFunction;
 
 import org.apache.flink.api.java.tuple.Tuple4;
 
-public class CollaborativeFilteringSink extends SinkFunction<Tuple4<Integer, Integer, Integer, Long>> {
+public class CollaborativeFilteringSink extends
+		SinkFunction<Tuple4<Integer, Integer, Integer, Long>> {
 	private static final long serialVersionUID = 1L;
 
 	@Override

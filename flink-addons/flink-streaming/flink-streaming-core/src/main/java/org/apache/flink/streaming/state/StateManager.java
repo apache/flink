@@ -43,25 +43,25 @@ public class StateManager implements Runnable, Serializable {
 	}
 
 	@SuppressWarnings("unused")
-  public void restoreState(){
+	public void restoreState() {
 		ObjectInputStream ois = null;
 		try {
-			ois=new ObjectInputStream(new FileInputStream(filename));
+			ois = new ObjectInputStream(new FileInputStream(filename));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		for (Object state : stateList){
+		for (Object state : stateList) {
 			try {
-				state= ois.readObject();
+				state = ois.readObject();
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		}
 	}
 
-	//run checkpoint.
+	// run checkpoint.
 	@SuppressWarnings("resource")
-  @Override
+	@Override
 	public void run() {
 		ObjectOutputStream oos = null;
 		try {

@@ -25,20 +25,19 @@ import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 public class WindowSumLocal {
-	
+
 	private static final int PARALLELISM = 1;
 	private static final int SOURCE_PARALLELISM = 1;
 
 	public static void main(String[] args) {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
-		
+		StreamExecutionEnvironment env = StreamExecutionEnvironment
+				.createLocalEnvironment(PARALLELISM);
+
 		@SuppressWarnings("unused")
-    DataStream<Tuple2<Integer, Long>> dataStream = env
-				.addSource(new WindowSumSource(), SOURCE_PARALLELISM)
-				.map(new WindowSumMultiple())
-				.flatMap(new WindowSumAggregate(100, 20, 10, 1))
-				.addSink(new WindowSumSink());
-		
+		DataStream<Tuple2<Integer, Long>> dataStream = env
+				.addSource(new WindowSumSource(), SOURCE_PARALLELISM).map(new WindowSumMultiple())
+				.flatMap(new WindowSumAggregate(100, 20, 10, 1)).addSink(new WindowSumSink());
+
 		env.execute();
 	}
 }

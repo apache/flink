@@ -19,7 +19,6 @@
 
 package org.apache.flink.streaming.examples.iterative.collaborativefilter;
 
-
 public class CollaborativeFilteringLocal {
 	public static void main(String[] args) {
 

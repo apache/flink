@@ -29,15 +29,14 @@ import org.apache.flink.util.Collector;
 
 public class SSSPSource extends SourceFunction<Tuple3<Integer, Integer, Long>> {
 	private static final long serialVersionUID = 1L;
-	
+
 	private Tuple3<Integer, Integer, Long> outRecord = new Tuple3<Integer, Integer, Long>();
 	private Long timestamp = 0L;
-	
+
 	@Override
-	public void invoke(Collector<Tuple3<Integer, Integer, Long>> collector)
-			throws Exception {
+	public void invoke(Collector<Tuple3<Integer, Integer, Long>> collector) throws Exception {
 		@SuppressWarnings("resource")
-    BufferedReader br = new BufferedReader(new FileReader(
+		BufferedReader br = new BufferedReader(new FileReader(
 				"src/test/resources/testdata/ASTopology.data"));
 		while (true) {
 			String line = br.readLine();
@@ -45,14 +44,14 @@ public class SSSPSource extends SourceFunction<Tuple3<Integer, Integer, Long>> {
 				break;
 			}
 			if (line != "") {
-				String[] link=line.split(":");
+				String[] link = line.split(":");
 				outRecord.f0 = Integer.valueOf(link[0]);
 				outRecord.f1 = Integer.valueOf(link[1]);
 				outRecord.f2 = timestamp;
 				collector.collect(outRecord);
 				timestamp += 1;
 			}
-		}		
+		}
 	}
 
 }

@@ -42,8 +42,8 @@ import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 
 /**
- * {@link ExecutionEnvironment} for streaming jobs. An instance of it is necessary to
- * construct streaming topologies.
+ * {@link ExecutionEnvironment} for streaming jobs. An instance of it is
+ * necessary to construct streaming topologies.
  * 
  */
 public abstract class StreamExecutionEnvironment {
@@ -115,9 +115,9 @@ public abstract class StreamExecutionEnvironment {
 	 *            The degree of parallelism
 	 */
 	protected void setDegreeOfParallelism(int degreeOfParallelism) {
-		if (degreeOfParallelism < 1)
+		if (degreeOfParallelism < 1) {
 			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
-
+		}
 		this.degreeOfParallelism = degreeOfParallelism;
 	}
 
@@ -129,8 +129,9 @@ public abstract class StreamExecutionEnvironment {
 	 *            The degree of parallelism in local environment
 	 */
 	public void setExecutionParallelism(int degreeOfParallelism) {
-		if (degreeOfParallelism < 1)
+		if (degreeOfParallelism < 1) {
 			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
+		}
 
 		this.executionParallelism = degreeOfParallelism;
 	}
@@ -230,7 +231,7 @@ public abstract class StreamExecutionEnvironment {
 	public DataStream<Tuple1<Long>> generateSequence(long from, long to) {
 		return addSource(new GenSequenceFunction(from, to), 1);
 	}
-	
+
 	/**
 	 * Ads a data source thus opening a {@link DataStream}.
 	 * 
