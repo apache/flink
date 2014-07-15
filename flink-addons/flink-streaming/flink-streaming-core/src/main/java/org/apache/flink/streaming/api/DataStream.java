@@ -62,6 +62,8 @@ public class DataStream<T extends Tuple> {
 	protected List<String> connectIDs;
 	protected List<ConnectionType> ctypes;
 	protected List<Integer> cparams;
+	protected boolean iterationflag;
+	protected Integer iterationID;
 
 	/**
 	 * Create a new {@link DataStream} in the given execution environment
@@ -123,10 +125,12 @@ public class DataStream<T extends Tuple> {
 		copiedStream.type = this.type;
 
 		copiedStream.connectIDs = new ArrayList<String>(this.connectIDs);
-
+		copiedStream.userDefinedName = this.userDefinedName;
 		copiedStream.ctypes = new ArrayList<StreamExecutionEnvironment.ConnectionType>(this.ctypes);
 		copiedStream.cparams = new ArrayList<Integer>(this.cparams);
 		copiedStream.degreeOfParallelism = this.degreeOfParallelism;
+		copiedStream.iterationflag = this.iterationflag;
+		copiedStream.iterationID = this.iterationID;
 		return copiedStream;
 	}
 
@@ -274,7 +278,7 @@ public class DataStream<T extends Tuple> {
 	 *            output type
 	 * @return The transformed DataStream.
 	 */
-	public <R extends Tuple> DataStream<R> map(MapFunction<T, R> mapper) {
+	public <R extends Tuple> StreamOperator<T, R> map(MapFunction<T, R> mapper) {
 		return environment.addFunction("map", this.copy(), mapper, new MapInvokable<T, R>(mapper));
 
 	}
@@ -293,7 +297,7 @@ public class DataStream<T extends Tuple> {
 	 *            output type
 	 * @return The transformed DataStream.
 	 */
-	public <R extends Tuple> DataStream<R> flatMap(FlatMapFunction<T, R> flatMapper) {
+	public <R extends Tuple> StreamOperator<T, R> flatMap(FlatMapFunction<T, R> flatMapper) {
 		return environment.addFunction("flatMap", this.copy(), flatMapper,
 				new FlatMapInvokable<T, R>(flatMapper));
 	}
@@ -309,7 +313,7 @@ public class DataStream<T extends Tuple> {
 	 *            DataSet.
 	 * @return The filtered DataStream.
 	 */
-	public DataStream<T> filter(FilterFunction<T> filter) {
+	public StreamOperator<T, T> filter(FilterFunction<T> filter) {
 		return environment.addFunction("filter", this.copy(), filter,
 				new FilterInvokable<T>(filter));
 	}
@@ -329,7 +333,7 @@ public class DataStream<T extends Tuple> {
 	 *            output type
 	 * @return The modified DataStream.
 	 */
-	public <R extends Tuple> DataStream<R> batchReduce(GroupReduceFunction<T, R> reducer,
+	public <R extends Tuple> StreamOperator<T, R> batchReduce(GroupReduceFunction<T, R> reducer,
 			int batchSize) {
 		return environment.addFunction("batchReduce", this.copy(), reducer,
 				new BatchReduceInvokable<T, R>(reducer, batchSize));
@@ -359,19 +363,27 @@ public class DataStream<T extends Tuple> {
 		return environment.print(this.copy());
 	}
 
-	public DataStream<T> addIterationSource() {
-		environment.addIterationSource(this);
-		return this.copy();
-	}
-
-	public DataStream<T> addIterationSink() {
-		environment.addIterationSink(this);
-		return this;
-	}
-
+	/**
+	 * Initiates an iterative part of the program that executes multiple times
+	 * and feeds back data streams. The iterative part needs to be closed by
+	 * calling {@link IterativeDataStream#closeWith(DataStream)}. The data
+	 * stream given to the {@code closeWith(DataStream)} method is the data
+	 * stream that will be fed back and used as the input for the iteration
+	 * head. Unlike in batch processing by default the output of the iteration
+	 * stream is directed to both to the iteration head and the next component.
+	 * To direct tuples to the iteration head or the output specifically one can
+	 * use the {@code directTo(OutputSelector)} while referencing the iteration
+	 * head as 'iterate'.
+	 * 
+	 * @return The iterative data stream created.
+	 */
 	public IterativeDataStream<T> iterate() {
-		addIterationSource();
-		return new IterativeDataStream<T>(this);
+		return new IterativeDataStream<T>(copy());
+	}
+
+	protected DataStream<T> addIterationSource(String iterationID) {
+		environment.addIterationSource(this, iterationID);
+		return this.copy();
 	}
 
 	/**

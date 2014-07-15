@@ -30,7 +30,7 @@ import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
 
 public class StreamSink<IN extends Tuple> extends AbstractStreamComponent<IN, IN> {
 
-	private static final Log log = LogFactory.getLog(StreamSink.class);
+	private static final Log LOG = LogFactory.getLog(StreamSink.class);
 
 	private AbstractRecordReader inputs;
 	private StreamRecordInvokable<IN, IN> userFunction;
@@ -42,20 +42,15 @@ public class StreamSink<IN extends Tuple> extends AbstractStreamComponent<IN, IN
 	@Override
 	public void registerInputOutput() {
 		initialize();
-		
+
 		try {
 			setSerializers();
 			setSinkSerializer();
 			inputs = getConfigInputs();
 		} catch (Exception e) {
-			if (log.isErrorEnabled()) {
-				log.error("Cannot register inputs", e);
-			}
+			throw new StreamComponentException("Cannot register inputs for "
+					+ getClass().getSimpleName(), e);
 		}
-
-		// FaultToleranceType faultToleranceType =
-		// FaultToleranceType.from(taskConfiguration
-		// .getInteger("faultToleranceType", 0));
 
 		setInvokable();
 	}
@@ -70,14 +65,14 @@ public class StreamSink<IN extends Tuple> extends AbstractStreamComponent<IN, IN
 
 	@Override
 	public void invoke() throws Exception {
-		if (log.isDebugEnabled()) {
-			log.debug("SINK " + name + " invoked");
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("SINK " + name + " invoked");
 		}
 
 		invokeRecords(userFunction, inputs);
 
-		if (log.isDebugEnabled()) {
-			log.debug("SINK " + name + " invoke finished");
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("SINK " + name + " invoke finished");
 		}
 	}
 

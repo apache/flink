@@ -60,27 +60,22 @@ public class TestDataUtil {
 			checkSumDesired = bufferedReader.readLine();
 			bufferedReader.close();
 			fileReader.close();
-		} catch (FileNotFoundException e1) {
-			if (log.isErrorEnabled()) {
-				log.error("File not found: " + file.getAbsolutePath() + " " + e1.getMessage());
-			}
-		} catch (IOException e2) {
-			if (log.isErrorEnabled()) {
-				log.error("Cannot read file: " + file.getAbsolutePath() + " " + e2.getMessage());
-			}
+		} catch (FileNotFoundException e) {
+			throw new RuntimeException("File not found: " + file.getAbsolutePath(), e);
+		} catch (IOException e) {
+			throw new RuntimeException("Cannot read file: " + file.getAbsolutePath(), e);
 		}
 
 		if (file.exists()) {
 			if (log.isInfoEnabled()) {
 				log.info(fileName + " already exists.");
 			}
-			
+
 			try {
 				checkSumActaul = DigestUtils.md5Hex(FileUtils.readFileToByteArray(file));
 			} catch (IOException e) {
-				if (log.isErrorEnabled()) {
-					log.error("IOException: " + e.getMessage());
-				}
+				throw new RuntimeException("Cannot read file to byte array: "
+						+ file.getAbsolutePath(), e);
 			}
 			if (!checkSumActaul.equals(checkSumDesired)) {
 				if (log.isInfoEnabled()) {
@@ -114,14 +109,10 @@ public class TestDataUtil {
 				bWriter.newLine();
 			}
 			bWriter.close();
-		} catch (MalformedURLException e1) {
-			if (log.isErrorEnabled()) {
-				log.error("MalformedURLException: " + e1.getMessage());
-			}
+		} catch (MalformedURLException e) {
+			throw new RuntimeException("URL is malformed: ", e);
 		} catch (IOException e) {
-			if (log.isErrorEnabled()) {
-				log.error("IOException: " + e.getMessage());
-			}
+			throw new RuntimeException("Unexpected problem while downloading file " + fileName, e);
 		}
 	}
 }

@@ -34,7 +34,7 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class StreamTask<IN extends Tuple, OUT extends Tuple> extends AbstractStreamComponent<IN, OUT> {
 
-	private static final Log log = LogFactory.getLog(StreamTask.class);
+	private static final Log LOG = LogFactory.getLog(StreamTask.class);
 
 	private AbstractRecordReader inputs;
 	private List<RecordWriter<StreamRecord<OUT>>> outputs;
@@ -60,9 +60,8 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends AbstractStr
 			inputs = getConfigInputs();
 			setConfigOutputs(outputs);
 		} catch (StreamComponentException e) {
-			if (log.isErrorEnabled()) {
-				log.error("Cannot register inputs/outputs for " + getClass().getSimpleName(), e);
-			}
+			throw new StreamComponentException("Cannot register inputs/outputs for "
+					+ getClass().getSimpleName(), e);
 		}
 
 		numberOfOutputChannels = new int[outputs.size()];
@@ -71,14 +70,8 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends AbstractStr
 		}
 
 		setInvokable();
-
-		// streamTaskHelper.setAckListener(recordBuffer, taskInstanceID,
-		// outputs);
-		// streamTaskHelper.setFailListener(recordBuffer, taskInstanceID,
-		// outputs);
 	}
 
-	// TODO consider logging stack trace!
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Override
 	protected void setInvokable() {
@@ -90,8 +83,8 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends AbstractStr
 
 	@Override
 	public void invoke() throws Exception {
-		if (log.isDebugEnabled()) {
-			log.debug("TASK " + name + " invoked with instance id " + instanceID);
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("TASK " + name + " invoked with instance id " + instanceID);
 		}
 
 		for (RecordWriter<StreamRecord<OUT>> output : outputs) {
@@ -100,8 +93,8 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends AbstractStr
 
 		invokeRecords(userFunction, inputs);
 
-		if (log.isDebugEnabled()) {
-			log.debug("TASK " + name + " invoke finished with instance id " + instanceID);
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("TASK " + name + " invoke finished with instance id " + instanceID);
 		}
 		
 		for (RecordWriter<StreamRecord<OUT>> output : outputs){

@@ -36,7 +36,7 @@ import com.rabbitmq.client.ConnectionFactory;
  * 
  */
 public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
-	private static final Log log = LogFactory.getLog(RMQSink.class);
+	private static final Log LOG = LogFactory.getLog(RMQSink.class);
 
 	private static final long serialVersionUID = 1L;
 	private boolean close = false;
@@ -60,9 +60,8 @@ public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 			connection = factory.newConnection();
 			channel = connection.createChannel();
 		} catch (IOException e) {
-			if (log.isErrorEnabled()) {
-				log.error("Cannot create connection with RMQ " + queueName + " at " + hostName);
-			}
+			new RuntimeException("Cannot create RMQ connection with " + queueName + " at "
+					+ hostName, e);
 		}
 
 		initDone = true;
@@ -78,9 +77,9 @@ public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 			channel.queueDeclare(queueName, false, false, false, null);
 			byte[] msg = serialize(tuple);
 			channel.basicPublish("", queueName, null, msg);
-		} catch (IOException e1) {
-			if (log.isErrorEnabled()) {
-				log.error("Cannot send message to RMQ " + queueName + " at " + hostName);
+		} catch (IOException e) {
+			if (LOG.isErrorEnabled()) {
+				LOG.error("Cannot send RMQ message to " + queueName + " at " + hostName);
 			}
 		}
 
@@ -89,8 +88,8 @@ public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 				channel.close();
 				connection.close();
 			} catch (IOException e) {
-				if (log.isWarnEnabled()) {
-					log.warn("Cannot close RMQ connection: " + queueName + " at " + hostName);
+				if (LOG.isWarnEnabled()) {
+					LOG.warn("Cannot close RMQ connection: " + queueName + " at " + hostName);
 				}
 			}
 		}

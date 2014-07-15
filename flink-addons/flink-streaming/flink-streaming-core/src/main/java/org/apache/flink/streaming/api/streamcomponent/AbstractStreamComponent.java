@@ -57,7 +57,7 @@ import org.apache.flink.util.Collector;
 
 public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tuple> extends
 		AbstractInvokable {
-	private final Log log = LogFactory.getLog(AbstractStreamComponent.class);
+	private static final Log LOG = LogFactory.getLog(AbstractStreamComponent.class);
 
 	protected TupleTypeInfo<IN> inTupleTypeInfo = null;
 	protected TupleSerializer<IN> inTupleSerializer = null;
@@ -68,7 +68,7 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 	protected SerializationDelegate<OUT> outSerializationDelegate = null;
 
 	protected Configuration configuration;
-	protected StreamCollector<OUT> collectorManager;
+	protected StreamCollector<OUT> collector;
 	protected int instanceID;
 	protected String name;
 	private static int numComponents = 0;
@@ -91,17 +91,16 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 				outputSelector = (OutputSelector<OUT>) deserializeObject(configuration.getBytes(
 						"outputSelector", null));
 			} catch (Exception e) {
-				if (log.isErrorEnabled()) {
-					log.error("Cannot instantiate OutputSelector");
-				}
+				throw new StreamComponentException(
+						"Cannot deserialize and instantiate OutputSelector", e);
 			}
 
-			collectorManager = new DirectedStreamCollector<OUT>(instanceID,
-					outSerializationDelegate, outputSelector);
+			collector = new DirectedStreamCollector<OUT>(instanceID, outSerializationDelegate,
+					outputSelector);
 		} else {
-			collectorManager = new StreamCollector<OUT>(instanceID, outSerializationDelegate);
+			collector = new StreamCollector<OUT>(instanceID, outSerializationDelegate);
 		}
-		return collectorManager;
+		return collector;
 	}
 
 	protected void setSerializers() {
@@ -188,14 +187,13 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 			for (int i = 0; i < numberOfInputs; i++) {
 				recordReaders[i] = new MutableRecordReader<StreamRecord<IN>>(this);
 			}
-			return  new UnionStreamRecordReader<IN>(recordReaders,
+			return new UnionStreamRecordReader<IN>(recordReaders,
 					(Class<? extends StreamRecord<IN>>) StreamRecord.class,
 					inDeserializationDelegate, inTupleSerializer);
 		}
 	}
 
-	protected void setConfigOutputs(List<RecordWriter<StreamRecord<OUT>>> outputs)
-			throws StreamComponentException {
+	protected void setConfigOutputs(List<RecordWriter<StreamRecord<OUT>>> outputs) {
 
 		int numberOfOutputs = configuration.getInteger("numberOfOutputs", 0);
 
@@ -212,39 +210,32 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 						ChannelSelector.class);
 
 		try {
-			if (partitioner.equals(FieldsPartitioner.class)) {
+			ChannelSelector<StreamRecord<OUT>> outputPartitioner;
 
+			if (partitioner.equals(FieldsPartitioner.class)) {
 				int keyPosition = configuration.getInteger(
 						"partitionerIntParam_" + numberOfOutputs, 1);
-				ChannelSelector<StreamRecord<OUT>> outputPartitioner = partitioner.getConstructor(
-						int.class).newInstance(keyPosition);
-				RecordWriter<StreamRecord<OUT>> output = new RecordWriter<StreamRecord<OUT>>(this,
-						outputPartitioner);
-				outputs.add(output);
-				String outputName = configuration.getString("outputName_" + numberOfOutputs, null);
-				if (collectorManager != null) {
-					collectorManager.addOutput(output, outputName);
-				}
-
+				outputPartitioner = partitioner.getConstructor(int.class).newInstance(keyPosition);
 			} else {
-				ChannelSelector<StreamRecord<OUT>> outputPartitioner = partitioner.newInstance();
-				RecordWriter<StreamRecord<OUT>> output = new RecordWriter<StreamRecord<OUT>>(this,
-						outputPartitioner);
-				outputs.add(output);
-				String outputName = configuration.getString("outputName_" + numberOfOutputs, null);
-				if (collectorManager != null) {
-					collectorManager.addOutput(output, outputName);
-				}
+				outputPartitioner = partitioner.newInstance();
 			}
-			if (log.isTraceEnabled()) {
-				log.trace("Partitioner set: " + partitioner.getSimpleName() + " with "
+
+			RecordWriter<StreamRecord<OUT>> output = new RecordWriter<StreamRecord<OUT>>(this,
+					outputPartitioner);
+			outputs.add(output);
+			String outputName = configuration.getString("outputName_" + numberOfOutputs, null);
+
+			if (collector != null) {
+				collector.addOutput(output, outputName);
+			}
+
+			if (LOG.isTraceEnabled()) {
+				LOG.trace("Partitioner set: " + partitioner.getSimpleName() + " with "
 						+ numberOfOutputs + " outputs");
 			}
 		} catch (Exception e) {
-			if (log.isErrorEnabled()) {
-				log.error("Error while setting partitioner: " + partitioner.getSimpleName()
-						+ " with " + numberOfOutputs + " outputs", e);
-			}
+			throw new StreamComponentException("Unexpected problem while setting partitioner "
+					+ partitioner.getSimpleName() + " with " + numberOfOutputs + " outputs");
 		}
 	}
 
@@ -255,7 +246,7 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 			UnionStreamRecordReader<IN> recordReader = (UnionStreamRecordReader<IN>) inputs;
 			while (recordReader.hasNext()) {
 				StreamRecord<IN> record = recordReader.next();
-				userFunction.invoke(record, collectorManager);
+				userFunction.invoke(record, collector);
 			}
 
 		} else if (inputs instanceof StreamRecordReader) {
@@ -263,7 +254,7 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 
 			while (recordReader.hasNext()) {
 				StreamRecord<IN> record = recordReader.next();
-				userFunction.invoke(record, collectorManager);
+				userFunction.invoke(record, collector);
 			}
 		}
 	}
@@ -283,10 +274,12 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 
 		try {
 			userFunction = (StreamComponentInvokable) deserializeObject(userFunctionSerialized);
-		} catch (Exception e) {
-			if (log.isErrorEnabled()) {
-				log.error("Cannot instantiate user function: " + userFunctionClass.getSimpleName());
-			}
+		} catch (ClassNotFoundException e) {
+			new StreamComponentException("Cannot instantiate user function: "
+					+ userFunctionClass.getSimpleName());
+		} catch (IOException e) {
+			new StreamComponentException("Cannot instantiate user function: "
+					+ userFunctionClass.getSimpleName());
 		}
 
 		return userFunction;
@@ -299,48 +292,4 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 	}
 
 	protected abstract void setInvokable();
-
-	// protected void threadSafePublish(AbstractTaskEvent event,
-	// AbstractRecordReader inputs)
-	// throws InterruptedException, IOException {
-	//
-	// boolean concurrentModificationOccured = false;
-	// while (!concurrentModificationOccured) {
-	// try {
-	// inputs.publishEvent(event);
-	// concurrentModificationOccured = true;
-	// } catch (ConcurrentModificationException exeption) {
-	// if (log.isTraceEnabled()) {
-	// log.trace("Waiting to publish " + event.getClass());
-	// }
-	// }
-	// }
-	// }
-	//
-	// protected void setAckListener(FaultToleranceUtil recordBuffer, int
-	// sourceInstanceID,
-	// List<RecordWriter<StreamRecord>> outputs) {
-	//
-	// EventListener[] ackListeners = new EventListener[outputs.size()];
-	//
-	// for (int i = 0; i < outputs.size(); i++) {
-	// ackListeners[i] = new AckEventListener(sourceInstanceID, recordBuffer,
-	// i);
-	// outputs.get(i).subscribeToEvent(ackListeners[i], AckEvent.class);
-	// }
-	//
-	// }
-	//
-	// protected void setFailListener(FaultToleranceUtil recordBuffer, int
-	// sourceInstanceID,
-	// List<RecordWriter<StreamRecord>> outputs) {
-	//
-	// EventListener[] failListeners = new EventListener[outputs.size()];
-	//
-	// for (int i = 0; i < outputs.size(); i++) {
-	// failListeners[i] = new FailEventListener(sourceInstanceID, recordBuffer,
-	// i);
-	// outputs.get(i).subscribeToEvent(failListeners[i], FailEvent.class);
-	// }
-	// }
 }

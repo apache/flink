@@ -84,18 +84,17 @@ public class IterateTest {
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		List<Boolean> bl = new ArrayList<Boolean>();
-		for (int i = 0; i < 1000000; i++) {
+		for (int i = 0; i < 100000; i++) {
 			bl.add(false);
 		}
+		DataStream<Tuple1<Boolean>> source =  env
+				.fromCollection(bl);
 
-		IterativeDataStream<Tuple1<Boolean>> source = env
-				.fromCollection(bl)
-				.flatMap(new IterationHead())
-				.iterate();
+		IterativeDataStream<Tuple1<Boolean>> iteration = source.iterate();
+				
+		DataStream<Tuple1<Boolean>> increment = iteration.flatMap(new IterationHead()).flatMap(new IterationTail());
 
-		DataStream<Tuple1<Boolean>> increment = source.flatMap(new IterationTail());
-
-		source.closeWith(increment).addSink(new MySink());
+		iteration.closeWith(increment).addSink(new MySink());
 
 		env.executeTest(MEMORYSIZE);
 

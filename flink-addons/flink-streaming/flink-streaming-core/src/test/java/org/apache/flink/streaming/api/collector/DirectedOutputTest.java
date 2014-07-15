@@ -29,7 +29,6 @@ import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.function.SinkFunction;
 import org.apache.flink.streaming.util.LogUtils;
 import org.apache.log4j.Level;
@@ -93,7 +92,7 @@ public class DirectedOutputTest {
 
 	@SuppressWarnings("unused")
 	@Test
-	public void directOutputTest() {
+	public void directOutputTest() throws Exception {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
