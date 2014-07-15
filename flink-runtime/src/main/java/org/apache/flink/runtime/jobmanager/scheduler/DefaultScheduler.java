@@ -152,7 +152,12 @@ public class DefaultScheduler implements InstanceListener, JobStatusListener, Ex
 		final int availableSlots = this.getInstanceManager().getNumberOfSlots();
 
 		if(requiredSlots > availableSlots){
-			throw new SchedulingException("Not enough slots to schedule job " + executionGraph.getJobID());
+			throw new SchedulingException(String.format(
+					"Not enough available task slots to run job %s (%s). Required: %d Available: %d . "
+					+ "Either reduce the parallelism of your program, wait for other programs to finish, or increase "
+					+ "the number of task slots in the cluster by adding more machines or increasing the number of slots "
+					+ "per machine in conf/flink-conf.yaml .", 
+					executionGraph.getJobName(), executionGraph.getJobID(), requiredSlots, availableSlots));
 		}
 
 		// Subscribe to job status notifications
