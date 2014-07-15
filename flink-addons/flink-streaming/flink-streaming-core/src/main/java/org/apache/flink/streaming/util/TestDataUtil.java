@@ -61,22 +61,26 @@ public class TestDataUtil {
 			bufferedReader.close();
 			fileReader.close();
 		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
+			if (log.isErrorEnabled()) {
+				log.error("File not found: " + file.getAbsolutePath() + " " + e1.getMessage());
+			}
 		} catch (IOException e2) {
-			// TODO Auto-generated catch block
-			e2.printStackTrace();
+			if (log.isErrorEnabled()) {
+				log.error("Cannot read file: " + file.getAbsolutePath() + " " + e2.getMessage());
+			}
 		}
 
 		if (file.exists()) {
 			if (log.isInfoEnabled()) {
 				log.info(fileName + " already exists.");
 			}
+			
 			try {
 				checkSumActaul = DigestUtils.md5Hex(FileUtils.readFileToByteArray(file));
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				if (log.isErrorEnabled()) {
+					log.error("IOException: " + e.getMessage());
+				}
 			}
 			if (!checkSumActaul.equals(checkSumDesired)) {
 				if (log.isInfoEnabled()) {
@@ -111,11 +115,13 @@ public class TestDataUtil {
 			}
 			bWriter.close();
 		} catch (MalformedURLException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
+			if (log.isErrorEnabled()) {
+				log.error("MalformedURLException: " + e1.getMessage());
+			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			if (log.isErrorEnabled()) {
+				log.error("IOException: " + e.getMessage());
+			}
 		}
 	}
 }

@@ -29,11 +29,12 @@ import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.SinkFunction;
+import org.apache.flink.streaming.util.LogUtils;
 import org.junit.Test;
-
 import org.apache.flink.api.java.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
+import org.apache.log4j.Level;
 
 public class FlatMapTest {
 
@@ -161,6 +162,8 @@ public class FlatMapTest {
 
 	@Test
 	public void test() throws Exception {
+		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
+
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
 		// flatmapTest
 
@@ -177,15 +180,18 @@ public class FlatMapTest {
 
 		DataStream<Tuple1<Integer>> source = env.fromCollection(fromCollectionSet);
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> map = source.flatMap(new ParallelFlatMap()).addSink(
-				new MySink());
+		DataStream<Tuple1<Integer>> map = source
+				.flatMap(new ParallelFlatMap())
+				.addSink(new MySink());
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> map2 = source.flatMap(new ParallelFlatMap()).addSink(
-				new MySink());
+		DataStream<Tuple1<Integer>> map2 = source
+				.flatMap(new ParallelFlatMap())
+				.addSink(new MySink());
 
 		// fromElementsTest
-		DataStream<Tuple1<Integer>> fromElementsMap = env.fromElements(2, 5, 9).flatMap(
-				new MyFlatMap());
+		DataStream<Tuple1<Integer>> fromElementsMap = env
+				.fromElements(2, 5, 9)
+				.flatMap(new MyFlatMap());
 		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> sink = fromElementsMap.addSink(new FromElementsSink());
 
@@ -194,7 +200,8 @@ public class FlatMapTest {
 		// fromCollectionTest
 		fillFromCollectionSet();
 
-		DataStream<Tuple1<Integer>> fromCollectionMap = env.fromCollection(fromCollectionSet)
+		DataStream<Tuple1<Integer>> fromCollectionMap = env
+				.fromCollection(fromCollectionSet)
 				.flatMap(new MyFlatMap());
 		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> fromCollectionSink = fromCollectionMap
@@ -203,8 +210,9 @@ public class FlatMapTest {
 		// generateSequenceTest
 		fillSequenceSet();
 
-		DataStream<Tuple1<Long>> generateSequenceMap = env.generateSequence(0, 9).flatMap(
-				new GenerateSequenceFlatMap());
+		DataStream<Tuple1<Long>> generateSequenceMap = env
+				.generateSequence(0, 9)
+				.flatMap(new GenerateSequenceFlatMap());
 		@SuppressWarnings("unused")
 		DataStream<Tuple1<Long>> generateSequenceSink = generateSequenceMap
 				.addSink(new GenerateSequenceSink());

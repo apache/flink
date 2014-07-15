@@ -32,11 +32,12 @@ import org.apache.flink.streaming.api.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.SinkFunction;
 import org.apache.flink.streaming.api.function.SourceFunction;
+import org.apache.flink.streaming.util.LogUtils;
 import org.junit.Test;
-
 import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
+import org.apache.log4j.Level;
 
 public class MapTest {
 
@@ -56,7 +57,6 @@ public class MapTest {
 
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
-			System.out.println("src1");
 			for (int i = 0; i < 5; i++) {
 				collector.collect(new Tuple1<Integer>(i));
 			}
@@ -68,7 +68,6 @@ public class MapTest {
 
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
-			System.out.println("src2");
 			for (int i = 5; i < 10; i++) {
 				collector.collect(new Tuple1<Integer>(i));
 			}
@@ -80,7 +79,6 @@ public class MapTest {
 
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
-			System.out.println("src3");
 			for (int i = 10; i < 15; i++) {
 				collector.collect(new Tuple1<Integer>(i));
 			}
@@ -278,7 +276,7 @@ public class MapTest {
 
 	@Test
 	public void mapTest() throws Exception {
-		
+		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
 		//mapTest
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(3);
 
@@ -380,39 +378,5 @@ public class MapTest {
 		assertEquals(multipleJoinSetExpected, multipleJoinSetResult);
 		
 	}
-	
-//	@Test
-//	public void fieldsSinkTest() throws Exception {
-//		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-//		DataStream<Tuple1<Integer>> dataStream = env
-//				.addSource(new MySource(), 1)
-//				.partitionBy(0)
-//				.map(new MyMap(), 3)
-//				.addSink(new MyFieldsSink());
-//
-//		env.execute();
-//		assertEquals(10, fieldsResult);
-//
-//	}
-	
-//	@Test
-//	public void graphTest() throws Exception {
-//		for(int i=0; i<1000; i++){
-//			System.out.println(i);
-//			StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-//			DataStream<Tuple1<Integer>> dataStream = env
-//					.addSource(new MySource(), 2)
-//					.partitionBy(0)
-//					.map(new MyMap(), 3)
-//					.broadcast()
-//					.addSink(new MyGraphSink(),2);
-//	
-//			env.execute();
-//			assertEquals(40, graphResult);
-//			graphResult=0;
-//			map=0;
-//		}
-//		
-//	}
 
 }

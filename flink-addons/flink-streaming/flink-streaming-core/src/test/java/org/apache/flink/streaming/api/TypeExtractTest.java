@@ -47,7 +47,7 @@ public class TypeExtractTest {
 	}
 
 	@SuppressWarnings("unused")
-  @Test
+	@Test
 	public void test() throws IOException, ClassNotFoundException {
 
 		Myclass f = new Myclass();
