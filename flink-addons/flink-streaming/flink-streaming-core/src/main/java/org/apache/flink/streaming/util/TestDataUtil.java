@@ -96,7 +96,7 @@ public class TestDataUtil {
 	}
 
 	public static void download(String fileName) {
-		System.out.println("downloading " + fileName);
+		log.info("downloading " + fileName);
 
 		try {
 			URL website = new URL(testRepoUrl + fileName);
@@ -111,10 +111,8 @@ public class TestDataUtil {
 			}
 			bWriter.close();
 		} catch (MalformedURLException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}

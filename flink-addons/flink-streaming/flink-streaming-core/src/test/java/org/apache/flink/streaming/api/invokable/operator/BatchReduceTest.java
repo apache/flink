@@ -17,7 +17,7 @@
  *
  */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.streaming.api.invokable.operator;
 
 import static org.junit.Assert.assertEquals;
 

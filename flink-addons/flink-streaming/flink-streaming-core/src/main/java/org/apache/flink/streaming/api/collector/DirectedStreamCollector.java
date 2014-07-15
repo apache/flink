@@ -21,6 +21,8 @@ package org.apache.flink.streaming.api.collector;
 
 import java.util.Collection;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -28,9 +30,10 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 public class DirectedStreamCollector<T extends Tuple> extends StreamCollector<T> {
 
 	OutputSelector<T> outputSelector;
+	private static final Log log = LogFactory.getLog(DirectedStreamCollector.class);
 
-	public DirectedStreamCollector(int channelID,
-			SerializationDelegate<T> serializationDelegate, OutputSelector<T> outputSelector) {
+	public DirectedStreamCollector(int channelID, SerializationDelegate<T> serializationDelegate,
+			OutputSelector<T> outputSelector) {
 		super(channelID, serializationDelegate);
 		this.outputSelector = outputSelector;
 
@@ -49,11 +52,10 @@ public class DirectedStreamCollector<T extends Tuple> extends StreamCollector<T>
 			try {
 				outputMap.get(outputName).emit(streamRecord);
 			} catch (Exception e) {
-				e.printStackTrace();
-				System.out.println("emit fail");
+				if (log.isErrorEnabled()) {
+					log.error("Emit failed: " + outputName + " " + e.getMessage());
+				}
 			}
 		}
-		outputNames.clear();
-
 	}
 }
