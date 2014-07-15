@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -31,6 +33,8 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
 public class StreamCollector<T extends Tuple> implements Collector<T> {
+
+	private static final Log log = LogFactory.getLog(StreamCollector.class);
 
 	protected StreamRecord<T> streamRecord;
 	protected int channelID;
@@ -65,8 +69,9 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 			try {
 				output.emit(streamRecord);
 			} catch (Exception e) {
-				e.printStackTrace();
-				System.out.println("emit fail");
+				if (log.isErrorEnabled()) {
+					log.error("Emit failed: " + output + " " + e.getMessage());
+				}
 			}
 		}
 	}

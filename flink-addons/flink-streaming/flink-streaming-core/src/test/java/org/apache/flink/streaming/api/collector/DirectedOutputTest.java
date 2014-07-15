@@ -17,7 +17,7 @@
  *
  */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.streaming.api.collector;
 
 import static org.junit.Assert.assertEquals;
 
@@ -27,10 +27,10 @@ import java.util.HashSet;
 
 import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.streaming.api.DataStream;
+import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.function.SinkFunction;
-import org.apache.flink.streaming.util.LogUtils;
-import org.apache.log4j.Level;
 import org.junit.Test;
 
 public class DirectedOutputTest {
@@ -92,8 +92,6 @@ public class DirectedOutputTest {
 	@SuppressWarnings("unused")
 	@Test
 	public void directOutputTest() {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
-
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 		DataStream<Tuple1<Long>> s = env.generateSequence(1, 6).directTo(new MySelector());
 		DataStream<Tuple1<Long>> ds1 = s.map(new PlusTwo()).name("ds1").addSink(new EvenSink());
@@ -109,23 +107,4 @@ public class DirectedOutputTest {
 		assertEquals(expectedOdd, oddSet);
 	}
 	
-	@SuppressWarnings("unused")
-	@Test
-	public void directOutputPartitionedTest() {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(2);
-		DataStream<Tuple1<Long>> s = env.generateSequence(1, 6).directTo(new MySelector());
-		DataStream<Tuple1<Long>> ds1 = s.map(new PlusTwo()).name("ds1").partitionBy(0).addSink(new EvenSink());
-		DataStream<Tuple1<Long>> ds2 = s.map(new PlusTwo()).name("ds2").addSink(new OddSink());
-		DataStream<Tuple1<Long>> ds3 = s.map(new PlusTwo()).name("ds3").addSink(new OddSink());
-
-		env.execute();
-		
-		HashSet<Long> expectedEven = new HashSet<Long>(Arrays.asList(4L, 6L, 8L));
-		HashSet<Long> expectedOdd = new HashSet<Long>(Arrays.asList(3L, 5L, 7L));
-		
-		assertEquals(expectedEven, evenSet);
-		assertEquals(expectedOdd, oddSet);
-	}
 }
