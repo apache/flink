@@ -24,12 +24,13 @@ import java.util.Set;
 
 import org.apache.flink.streaming.api.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.LogUtils;
 import org.junit.Test;
-
 import org.apache.flink.api.java.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
+import org.apache.log4j.Level;
 
 public class PrintTest {
 
@@ -39,10 +40,9 @@ public class PrintTest {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(Tuple2<Integer, String> value,
-				Collector<Tuple2<Integer, String>> out) throws Exception {
-			out.collect(new Tuple2<Integer, String>(value.f0 * value.f0,
-					value.f1));
+		public void flatMap(Tuple2<Integer, String> value, Collector<Tuple2<Integer, String>> out)
+				throws Exception {
+			out.collect(new Tuple2<Integer, String>(value.f0 * value.f0, value.f1));
 
 		}
 
@@ -50,14 +50,12 @@ public class PrintTest {
 
 	private static final long MEMORYSIZE = 32;
 
-	public static final class Increment extends
-			FlatMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+	public static final class Increment extends FlatMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(Tuple1<Integer> value,
-				Collector<Tuple1<Integer>> out) throws Exception {
+		public void flatMap(Tuple1<Integer> value, Collector<Tuple1<Integer>> out) throws Exception {
 			if (value.f0 < 5) {
 				out.collect(new Tuple1<Integer>(value.f0 + 1));
 			}
@@ -66,14 +64,12 @@ public class PrintTest {
 
 	}
 
-	public static final class Forward extends
-			FlatMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+	public static final class Forward extends FlatMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(Tuple1<Integer> value,
-				Collector<Tuple1<Integer>> out) throws Exception {
+		public void flatMap(Tuple1<Integer> value, Collector<Tuple1<Integer>> out) throws Exception {
 			out.collect(value);
 
 		}
@@ -82,17 +78,16 @@ public class PrintTest {
 
 	@Test
 	public void test() throws Exception {
+		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
 
-		LocalStreamEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(1);
-		
-		 env.generateSequence(1, 10).print();
-		 Set<Integer> a = new HashSet<Integer>();
-		 a.add(-2);
-		 a.add(-100);
-		 env.fromCollection(a).print();
+		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+
+		env.generateSequence(1, 10).print();
+		Set<Integer> a = new HashSet<Integer>();
+		a.add(-2);
+		a.add(-100);
+		env.fromCollection(a).print();
 		env.executeTest(MEMORYSIZE);
-
 	}
 
 }

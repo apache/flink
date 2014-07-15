@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.Collection;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -45,6 +47,8 @@ import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
  * 
  */
 public abstract class StreamExecutionEnvironment {
+
+	private static final Log log = LogFactory.getLog(StreamExecutionEnvironment.class);
 
 	/**
 	 * The environment of the context (local by default, cluster if invoked
@@ -423,8 +427,9 @@ public abstract class StreamExecutionEnvironment {
 			oos = new ObjectOutputStream(baos);
 			oos.writeObject(object);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			if (log.isErrorEnabled()) {
+				log.error("Cannot serialize object: " + object);
+			}
 		}
 		return baos.toByteArray();
 	}

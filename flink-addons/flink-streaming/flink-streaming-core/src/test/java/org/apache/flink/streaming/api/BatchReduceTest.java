@@ -29,11 +29,12 @@ import org.apache.flink.streaming.api.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.SinkFunction;
 import org.apache.flink.streaming.api.function.SourceFunction;
+import org.apache.flink.streaming.util.LogUtils;
 import org.junit.Test;
-
 import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
+import org.apache.log4j.Level;
 
 public class BatchReduceTest {
 
@@ -84,6 +85,8 @@ public class BatchReduceTest {
 
 	@Test
 	public void test() throws Exception {
+		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
+		
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALlELISM);
 
 		@SuppressWarnings("unused")

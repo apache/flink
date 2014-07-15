@@ -27,39 +27,37 @@ import org.junit.Test;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 public class InternalStateTest {
-	
+
 	@Test
-	public void MutableTableStateTest(){
-		TableState<String, String> state=new TableState<String, String>();
+	public void MutableTableStateTest() {
+		TableState<String, String> state = new TableState<String, String>();
 		state.put("abc", "hello");
 		state.put("test", "world");
 		state.put("state", "mutable");
 		state.put("streaming", "persist");
-		String s=state.get("streaming");
-		if(s==null){
+		String s = state.get("streaming");
+		if (s == null) {
 			System.out.println("key does not exist!");
+		} else {
+			System.out.println("value=" + s);
 		}
-		else{
-			System.out.println("value="+s);
-		}
-		s=state.get("null");
-		if(s==null){
+		s = state.get("null");
+		if (s == null) {
 			System.out.println("key does not exist!");
+		} else {
+			System.out.println("value=" + s);
 		}
-		else{
-			System.out.println("value="+s);
-		}
-		TableStateIterator<String, String> iterator=state.getIterator();
-		while(iterator.hasNext()){
-			Tuple2<String, String> tuple=iterator.next();
-			System.out.println(tuple.getField(0)+", "+tuple.getField(1));
+		TableStateIterator<String, String> iterator = state.getIterator();
+		while (iterator.hasNext()) {
+			Tuple2<String, String> tuple = iterator.next();
+			System.out.println(tuple.getField(0) + ", " + tuple.getField(1));
 		}
 	}
-	
+
 	@SuppressWarnings({ "rawtypes", "unused" })
-  @Test
-	public void WindowStateTest(){
-		SlidingWindowState state=new SlidingWindowState(100, 20, 10);
-		
+	@Test
+	public void WindowStateTest() {
+		SlidingWindowState state = new SlidingWindowState(100, 20, 10);
+
 	}
 }

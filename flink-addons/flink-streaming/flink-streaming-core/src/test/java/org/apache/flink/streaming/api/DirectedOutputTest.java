@@ -29,6 +29,8 @@ import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.function.SinkFunction;
+import org.apache.flink.streaming.util.LogUtils;
+import org.apache.log4j.Level;
 import org.junit.Test;
 
 public class DirectedOutputTest {
@@ -90,6 +92,8 @@ public class DirectedOutputTest {
 	@SuppressWarnings("unused")
 	@Test
 	public void directOutputTest() {
+		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
+
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 		DataStream<Tuple1<Long>> s = env.generateSequence(1, 6).directTo(new MySelector());
 		DataStream<Tuple1<Long>> ds1 = s.map(new PlusTwo()).name("ds1").addSink(new EvenSink());
@@ -108,6 +112,8 @@ public class DirectedOutputTest {
 	@SuppressWarnings("unused")
 	@Test
 	public void directOutputPartitionedTest() {
+		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
+
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(2);
 		DataStream<Tuple1<Long>> s = env.generateSequence(1, 6).directTo(new MySelector());
 		DataStream<Tuple1<Long>> ds1 = s.map(new PlusTwo()).name("ds1").partitionBy(0).addSink(new EvenSink());
