@@ -32,7 +32,7 @@ public class IncrementalLearningSkeleton {
 	// Source for feeding new data for prediction
 	public static class NewDataSource extends SourceFunction<Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
 			while (true) {
@@ -49,14 +49,15 @@ public class IncrementalLearningSkeleton {
 	// Source for feeding new training data for partial model building
 	public static class TrainingDataSource extends SourceFunction<Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
 
 			while (true) {
 				// Group the predefined number of records in a streamrecord then
 				// emit for model building
-				collector.collect(getTrainingData());;
+				collector.collect(getTrainingData());
+				;
 			}
 
 		}
@@ -71,7 +72,7 @@ public class IncrementalLearningSkeleton {
 	// Task for building up-to-date partial models on new training data
 	public static class PartialModelBuilder extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public Tuple1<Integer> map(Tuple1<Integer> inTuple) throws Exception {
 			return buildPartialModel(inTuple);
@@ -88,7 +89,7 @@ public class IncrementalLearningSkeleton {
 	// batch-processing and the up-to-date partial model
 	public static class Predictor extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
-		
+
 		Tuple1<Integer> batchModel = null;
 		Tuple1<Integer> partialModel = null;
 
@@ -97,7 +98,7 @@ public class IncrementalLearningSkeleton {
 			if (isModel(inTuple)) {
 				partialModel = inTuple;
 				batchModel = getBatchModel();
-				return null; //TODO: fix
+				return null; // TODO: fix
 			} else {
 				return predict(inTuple);
 			}
@@ -126,21 +127,20 @@ public class IncrementalLearningSkeleton {
 
 	public static void main(String[] args) {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment
+				.createLocalEnvironment(PARALLELISM);
 
-		DataStream<Tuple1<Integer>> model = 
-				env.addSource(new TrainingDataSource(), SOURCE_PARALLELISM)
-					.map(new PartialModelBuilder())
-					.broadcast();
-		
-    @SuppressWarnings("unchecked")
-    DataStream<Tuple1<Integer>> prediction =
-				env.addSource(new NewDataSource(), SOURCE_PARALLELISM)
-					.connectWith(model)
-					.map(new Predictor());
-	
+		DataStream<Tuple1<Integer>> model = env
+				.addSource(new TrainingDataSource(), SOURCE_PARALLELISM)
+				.map(new PartialModelBuilder()).broadcast();
+
+		@SuppressWarnings("unchecked")
+		DataStream<Tuple1<Integer>> prediction = env
+				.addSource(new NewDataSource(), SOURCE_PARALLELISM).connectWith(model)
+				.map(new Predictor());
+
 		prediction.print();
-		
+
 		env.execute();
 	}
 }

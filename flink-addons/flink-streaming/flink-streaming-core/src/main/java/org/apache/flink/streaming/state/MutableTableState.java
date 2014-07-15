@@ -26,10 +26,9 @@ import java.util.Map;
 /**
  * The most general internal state that stores data in a mutable map.
  */
-public class MutableTableState<K, V> extends TableState<K, V> implements
-		Serializable {
-  private static final long serialVersionUID = 1L;
-  
+public class MutableTableState<K, V> extends TableState<K, V> implements Serializable {
+	private static final long serialVersionUID = 1L;
+
 	private Map<K, V> state = new LinkedHashMap<K, V>();
 
 	@Override

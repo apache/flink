@@ -24,14 +24,15 @@ import java.util.Map.Entry;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
-public class MutableTableStateIterator<K, V> extends TableStateIterator<K, V>{
+public class MutableTableStateIterator<K, V> extends TableStateIterator<K, V> {
 
 	private Iterator<Entry<K, V>> iterator;
-	public MutableTableStateIterator(Iterator<Entry<K, V>> iter){
+
+	public MutableTableStateIterator(Iterator<Entry<K, V>> iter) {
 		super(iter);
-		iterator=iter;
+		iterator = iter;
 	}
-	
+
 	@Override
 	public boolean hasNext() {
 		return iterator.hasNext();
@@ -39,7 +40,7 @@ public class MutableTableStateIterator<K, V> extends TableStateIterator<K, V>{
 
 	@Override
 	public Tuple2<K, V> next() {
-		Entry<K, V> entry=iterator.next();
+		Entry<K, V> entry = iterator.next();
 		return new Tuple2<K, V>(entry.getKey(), entry.getValue());
 	}
 }

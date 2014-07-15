@@ -71,18 +71,17 @@ public class UID implements IOReadableWritable, Serializable {
 	public void write(DataOutputView out) throws IOException {
 		out.write(uid.array());
 	}
-	
-	
-	private void writeObject(ObjectOutputStream stream)
-	            throws IOException {
-	        stream.write(uid.array());
-	    }
-	 private void readObject(java.io.ObjectInputStream stream)
-	            throws IOException, ClassNotFoundException {
-		 	byte[] uidA = new byte[20];
-	        stream.read(uidA);
-	        uid = ByteBuffer.allocate(20).put(uidA);
-	    }
+
+	private void writeObject(ObjectOutputStream stream) throws IOException {
+		stream.write(uid.array());
+	}
+
+	private void readObject(java.io.ObjectInputStream stream) throws IOException,
+			ClassNotFoundException {
+		byte[] uidA = new byte[20];
+		stream.read(uidA);
+		uid = ByteBuffer.allocate(20).put(uidA);
+	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
@@ -93,7 +92,8 @@ public class UID implements IOReadableWritable, Serializable {
 
 	@Override
 	public String toString() {
-		return getChannelId() + "-" + Long.toHexString(uid.getLong(4)) + "-" + Long.toHexString(uid.getLong(12));
+		return getChannelId() + "-" + Long.toHexString(uid.getLong(4)) + "-"
+				+ Long.toHexString(uid.getLong(12));
 	}
 
 	@Override

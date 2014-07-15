@@ -25,7 +25,8 @@ import org.apache.flink.api.java.functions.FilterFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.util.Collector;
 
-public class FilterInvokable<IN extends Tuple> extends UserTaskInvokable<IN, IN> {
+public class FilterInvokable<IN extends Tuple> extends
+		UserTaskInvokable<IN, IN> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -35,9 +36,10 @@ public class FilterInvokable<IN extends Tuple> extends UserTaskInvokable<IN, IN>
 		this.filterFunction = filterFunction;
 	}
 
-  @Override
-	public void invoke(StreamRecord<IN> record, Collector<IN> collector) throws Exception {
-	  	IN tuple = record.getTuple();
+	@Override
+	public void invoke(StreamRecord<IN> record, Collector<IN> collector)
+			throws Exception {
+		IN tuple = record.getTuple();
 		if (filterFunction.filter(tuple)) {
 			collector.collect(tuple);
 		}

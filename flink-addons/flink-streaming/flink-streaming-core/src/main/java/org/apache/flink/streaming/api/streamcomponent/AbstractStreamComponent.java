@@ -55,7 +55,8 @@ import org.apache.flink.streaming.partitioner.DefaultPartitioner;
 import org.apache.flink.streaming.partitioner.FieldsPartitioner;
 import org.apache.flink.util.Collector;
 
-public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tuple> extends AbstractInvokable {
+public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tuple> extends
+		AbstractInvokable {
 	private final Log log = LogFactory.getLog(AbstractStreamComponent.class);
 
 	protected TupleTypeInfo<IN> inTupleTypeInfo = null;
@@ -95,8 +96,8 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 				}
 			}
 
-			collectorManager = new DirectedStreamCollector<OUT>(instanceID, outSerializationDelegate,
-					outputSelector);
+			collectorManager = new DirectedStreamCollector<OUT>(instanceID,
+					outSerializationDelegate, outputSelector);
 		} else {
 			collectorManager = new StreamCollector<OUT>(instanceID, outSerializationDelegate);
 		}
@@ -187,12 +188,14 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 			for (int i = 0; i < numberOfInputs; i++) {
 				recordReaders[i] = new MutableRecordReader<StreamRecord<IN>>(this);
 			}
-			return new UnionStreamRecordReader<IN>(recordReaders, (Class<? extends StreamRecord<IN>>) StreamRecord.class,
+			return  new UnionStreamRecordReader<IN>(recordReaders,
+					(Class<? extends StreamRecord<IN>>) StreamRecord.class,
 					inDeserializationDelegate, inTupleSerializer);
 		}
 	}
 
-	protected void setConfigOutputs(List<RecordWriter<StreamRecord<OUT>>> outputs) throws StreamComponentException {
+	protected void setConfigOutputs(List<RecordWriter<StreamRecord<OUT>>> outputs)
+			throws StreamComponentException {
 
 		int numberOfOutputs = configuration.getInteger("numberOfOutputs", 0);
 
@@ -202,12 +205,11 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 	}
 
 	@SuppressWarnings("unchecked")
-	private void setPartitioner(int numberOfOutputs,
-			List<RecordWriter<StreamRecord<OUT>>> outputs) {
+	private void setPartitioner(int numberOfOutputs, List<RecordWriter<StreamRecord<OUT>>> outputs) {
 
-		Class<? extends ChannelSelector<StreamRecord<OUT>>> partitioner = (Class<? extends ChannelSelector<StreamRecord<OUT>>>) configuration.getClass(
-				"partitionerClass_" + numberOfOutputs, DefaultPartitioner.class,
-				ChannelSelector.class);
+		Class<? extends ChannelSelector<StreamRecord<OUT>>> partitioner = (Class<? extends ChannelSelector<StreamRecord<OUT>>>) configuration
+				.getClass("partitionerClass_" + numberOfOutputs, DefaultPartitioner.class,
+						ChannelSelector.class);
 
 		try {
 			if (partitioner.equals(FieldsPartitioner.class)) {

@@ -38,18 +38,17 @@ public class WindowJoinLocal {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment
+				.createLocalEnvironment(PARALLELISM);
 
 		DataStream<Tuple4<String, String, Integer, Long>> dataStream1 = env.addSource(
 				new WindowJoinSourceOne(), SOURCE_PARALLELISM);
 
 		@SuppressWarnings("unchecked")
-    DataStream<Tuple3<String, Integer, Integer>> dataStream2 = env
-				.addSource(new WindowJoinSourceTwo(), SOURCE_PARALLELISM)
-				.connectWith(dataStream1)
-				.partitionBy(1)
-				.flatMap(new WindowJoinTask());
-		
+		DataStream<Tuple3<String, Integer, Integer>> dataStream2 = env
+				.addSource(new WindowJoinSourceTwo(), SOURCE_PARALLELISM).connectWith(dataStream1)
+				.partitionBy(1).flatMap(new WindowJoinTask());
+
 		dataStream2.print();
 
 		env.execute();

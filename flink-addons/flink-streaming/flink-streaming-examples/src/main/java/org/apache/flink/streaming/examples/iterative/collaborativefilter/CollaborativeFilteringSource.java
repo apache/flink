@@ -27,19 +27,19 @@ import org.apache.flink.streaming.api.function.SourceFunction;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.util.Collector;
 
-public class CollaborativeFilteringSource extends SourceFunction<Tuple4<Integer, Integer, Integer, Long>> {
+public class CollaborativeFilteringSource extends
+		SourceFunction<Tuple4<Integer, Integer, Integer, Long>> {
 	private static final long serialVersionUID = 1L;
-	
+
 	private String line = "";
 	private Tuple4<Integer, Integer, Integer, Long> outRecord = new Tuple4<Integer, Integer, Integer, Long>();
 	private Long timestamp = 0L;
-	
+
 	@Override
-	public void invoke(
-			Collector<Tuple4<Integer, Integer, Integer, Long>> collector)
+	public void invoke(Collector<Tuple4<Integer, Integer, Integer, Long>> collector)
 			throws Exception {
 		@SuppressWarnings("resource")
-    BufferedReader br = new BufferedReader(new FileReader(
+		BufferedReader br = new BufferedReader(new FileReader(
 				"src/test/resources/testdata/MovieLens100k.data"));
 		while (true) {
 			line = br.readLine();
@@ -47,7 +47,7 @@ public class CollaborativeFilteringSource extends SourceFunction<Tuple4<Integer,
 				break;
 			}
 			if (line != "") {
-				String[] items=line.split("\t");
+				String[] items = line.split("\t");
 				outRecord.f0 = Integer.valueOf(items[0]);
 				outRecord.f1 = Integer.valueOf(items[1]);
 				outRecord.f2 = Integer.valueOf(items[2]);
@@ -55,7 +55,7 @@ public class CollaborativeFilteringSource extends SourceFunction<Tuple4<Integer,
 				collector.collect(outRecord);
 				timestamp++;
 			}
-		}		
+		}
 	}
 
 }

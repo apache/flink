@@ -65,8 +65,7 @@ public class CellInfoLocal {
 				false, 0, 0L, 0);
 
 		@Override
-		public void invoke(Collector<Tuple4<Boolean, Integer, Long, Integer>> out)
-				throws Exception {
+		public void invoke(Collector<Tuple4<Boolean, Integer, Long, Integer>> out) throws Exception {
 			for (int i = 0; i < 1000; i++) {
 				Thread.sleep(100);
 
@@ -90,7 +89,7 @@ public class CellInfoLocal {
 
 		Tuple1<String> outTuple = new Tuple1<String>();
 
-		// write information to String tuple based on the input tuple 
+		// write information to String tuple based on the input tuple
 		@Override
 		public void flatMap(Tuple4<Boolean, Integer, Long, Integer> value,
 				Collector<Tuple1<String>> out) throws Exception {
@@ -113,21 +112,19 @@ public class CellInfoLocal {
 		}
 	}
 
-	//In this example two different source then connect the two stream and apply a function for the connected stream
+	// In this example two different source then connect the two stream and
+	// apply a function for the connected stream
 	// TODO add arguments
 	@SuppressWarnings("unchecked")
-  public static void main(String[] args) {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
+	public static void main(String[] args) {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment
+				.createLocalEnvironment(PARALLELISM);
 
 		DataStream<Tuple4<Boolean, Integer, Long, Integer>> querySource = env.addSource(
 				new QuerySource(), SOURCE_PARALLELISM);
 
-
-		DataStream<Tuple1<String>> stream = env
-				.addSource(new InfoSource(), SOURCE_PARALLELISM)
-				.connectWith(querySource)
-				.partitionBy(1)
-				.flatMap(new CellTask());
+		DataStream<Tuple1<String>> stream = env.addSource(new InfoSource(), SOURCE_PARALLELISM)
+				.connectWith(querySource).partitionBy(1).flatMap(new CellTask());
 		stream.print();
 
 		env.execute();

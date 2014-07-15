@@ -19,8 +19,6 @@
 
 package org.apache.flink.streaming.examples.iterative.collaborativefilter;
 
-
-
 //public class CollaborativeFilteringReduce extends UserTaskInvokable {
 //
 //	private static final long serialVersionUID = 1L;
@@ -45,4 +43,4 @@ package org.apache.flink.streaming.examples.iterative.collaborativefilter;
 //		//outRecord.setString(0, line);
 //	}
 //
-//}
+// }

@@ -26,9 +26,9 @@ public abstract class StreamComponentInvokable implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	@SuppressWarnings("unused")
-  private String componentName;
+	private String componentName;
 	@SuppressWarnings("unused")
-  private int channelID;
+	private int channelID;
 
 	public void setAttributes(String componentName, int channelID) {
 		this.componentName = componentName;

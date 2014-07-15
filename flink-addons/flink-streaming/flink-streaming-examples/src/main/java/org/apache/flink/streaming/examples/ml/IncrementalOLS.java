@@ -165,7 +165,7 @@ public class IncrementalOLS {
 				.map(new PartialModelBuilder()).broadcast();
 
 		@SuppressWarnings("unchecked")
-    DataStream<Tuple1<Double>> prediction = env
+		DataStream<Tuple1<Double>> prediction = env
 				.addSource(new NewDataSource(), SOURCE_PARALLELISM).connectWith(model)
 				.map(new Predictor());
 

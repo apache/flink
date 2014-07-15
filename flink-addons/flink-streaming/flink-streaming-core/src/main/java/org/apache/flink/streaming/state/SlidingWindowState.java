@@ -32,7 +32,7 @@ import org.apache.flink.api.java.tuple.Tuple;
  * compose time based window operator by extending this class by splitting the
  * stream into multiple mini batches.
  */
-public class SlidingWindowState<InTuple extends Tuple> implements Serializable{
+public class SlidingWindowState<InTuple extends Tuple> implements Serializable {
 	private static final long serialVersionUID = -2376149970115888901L;
 	private int currentRecordCount;
 	private int fullRecordCount;
@@ -53,10 +53,10 @@ public class SlidingWindowState<InTuple extends Tuple> implements Serializable{
 		buffer.add(tupleArray);
 		currentRecordCount += 1;
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	public ArrayList<InTuple> popFront() {
-    ArrayList<InTuple> frontRecord = (ArrayList<InTuple>) buffer.get();
+		ArrayList<InTuple> frontRecord = (ArrayList<InTuple>) buffer.get();
 		buffer.remove();
 		return frontRecord;
 	}
