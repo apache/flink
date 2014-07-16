@@ -401,7 +401,7 @@ public final class ConfigConstants {
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
 	
 	
-	// ------------------------ File System Bahavior ------------------------
+	// ------------------------ File System Behavior ------------------------
 
 	/**
 	 * The default behavior with respect to overwriting existing files (= not overwrite)

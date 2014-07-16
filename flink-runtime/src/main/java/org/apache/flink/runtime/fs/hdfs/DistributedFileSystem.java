@@ -38,7 +38,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.hadoop.conf.Configuration;
 
 /**
- * Concrete implementation of the {@Link FileSystem} base class for the Hadoop Distribution File System. The
+ * Concrete implementation of the {@link FileSystem} base class for the Hadoop Distribution File System. The
  * class is essentially a wrapper class which encapsulated the original Hadoop HDFS API.
  */
 public final class DistributedFileSystem extends FileSystem {
