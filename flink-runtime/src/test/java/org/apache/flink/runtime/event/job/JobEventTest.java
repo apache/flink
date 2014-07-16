@@ -46,7 +46,7 @@ public class JobEventTest {
 		try {
 
 			final JobEvent orig = new JobEvent(1234567L, JobStatus.FINISHED, null);
-			final JobEvent copy = (JobEvent) CommonTestUtils.createCopy(orig);
+			final JobEvent copy = (JobEvent) CommonTestUtils.createCopyWritable(orig);
 
 			assertEquals(orig.getTimestamp(), copy.getTimestamp());
 			assertEquals(orig.getCurrentJobStatus(), copy.getCurrentJobStatus());
@@ -68,7 +68,7 @@ public class JobEventTest {
 
 			final VertexEvent orig = new VertexEvent(23423423L, new JobVertexID(), "Test Vertex", 2, 0,
 				ExecutionState.READY, "Test Description");
-			final VertexEvent copy = (VertexEvent) CommonTestUtils.createCopy(orig);
+			final VertexEvent copy = (VertexEvent) CommonTestUtils.createCopyWritable(orig);
 
 			assertEquals(orig.getTimestamp(), copy.getTimestamp());
 			assertEquals(orig.getJobVertexID(), copy.getJobVertexID());

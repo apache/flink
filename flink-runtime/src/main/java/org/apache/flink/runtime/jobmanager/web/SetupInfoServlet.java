@@ -125,9 +125,10 @@ public class SetupInfoServlet extends HttpServlet {
 				objInner.put("timeSinceLastHeartbeat", time / 1000);
 				objInner.put("slotsNumber", instance.getNumberOfSlots());
 				objInner.put("freeSlots", instance.getNumberOfAvailableSlots());
-				objInner.put("cpuCores", instance.getHardwareDescription().getNumberOfCPUCores());
-				objInner.put("physicalMemory", instance.getHardwareDescription().getSizeOfPhysicalMemory() / 1048576);
-				objInner.put("freeMemory", instance.getHardwareDescription().getSizeOfFreeMemory() / 1048576);
+				objInner.put("cpuCores", instance.getResources().getNumberOfCPUCores());
+				objInner.put("physicalMemory", instance.getResources().getSizeOfPhysicalMemory() >>> 20);
+				objInner.put("freeMemory", instance.getResources().getSizeOfJvmHeap() >>> 20);
+				objInner.put("managedMemory", instance.getResources().getSizeOfManagedMemory() >>> 20);
 				array.put(objInner);
 			} catch (JSONException e) {
 				LOG.warn("Json object creation failed", e);

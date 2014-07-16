@@ -36,12 +36,13 @@ public class EnvironmentInformation {
 
 	/**
 	 * Returns the version of the code as String. If version == null, then the JobManager does not run from a
-	 * maven build. An example is a source code checkout, compile, and run from inside an IDE.
+	 * Maven build. An example is a source code checkout, compile, and run from inside an IDE.
 	 * 
 	 * @return The version string.
 	 */
 	public static String getVersion() {
-		return EnvironmentInformation.class.getPackage().getImplementationVersion();
+		String version = EnvironmentInformation.class.getPackage().getImplementationVersion();
+		return version != null ? version : UNKNOWN;
 	}
 
 	/**
@@ -78,6 +79,11 @@ public class EnvironmentInformation {
 		public String commitDate;
 	}
 
+	/**
+	 * Gets the name of the user that is running the JVM.
+	 * 
+	 * @return The name of the user that is running the JVM.
+	 */
 	public static String getUserRunning() {
 		try {
 			return UserGroupInformation.getCurrentUser().getShortUserName();
@@ -98,10 +104,44 @@ public class EnvironmentInformation {
 		return user;
 	}
 
-	public static long getMaxJvmMemory() {
-		return Runtime.getRuntime().maxMemory() >>> 20;
+	/**
+	 * The maximum JVM heap size, in bytes.
+	 * 
+	 * @return The maximum JVM heap size, in bytes.
+	 */
+	public static long getMaxJvmHeapMemory() {
+		return Runtime.getRuntime().maxMemory();
 	}
 
+	/**
+	 * Gets an estimate of the size of the free heap memory.
+	 * 
+	 * NOTE: This method is heavy-weight. It triggers a garbage collection to reduce fragmentation and get
+	 * a better estimate at the size of free memory. It is typically more accurate than the plain version
+	 * {@link #getSizeOfFreeHeapMemory()}.
+	 * 
+	 * @return An estimate of the size of the free heap memory, in bytes.
+	 */
+	public static long getSizeOfFreeHeapMemoryWithDefrag() {
+		// trigger a garbage collection, to reduce fragmentation
+		System.gc();
+		
+		return getSizeOfFreeHeapMemory();
+	}
+	
+	/**
+	 * Gets an estimate of the size of the free heap memory. The estimate may vary, depending on the current
+	 * level of memory fragmentation and the number of dead objects. For a better (but more heavy-weight)
+	 * estimate, use {@link #getSizeOfFreeHeapMemoryWithDefrag()}.
+	 * 
+	 * @return An estimate of the size of the free heap memory, in bytes.
+	 */
+	public static long getSizeOfFreeHeapMemory() {
+		Runtime r = Runtime.getRuntime();
+		return r.maxMemory() - r.totalMemory() + r.freeMemory();
+	}
+	
+	
 	public static String getJvmVersion() {
 		try {
 			final RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
@@ -135,7 +175,7 @@ public class EnvironmentInformation {
 			
 			String javaHome = System.getenv("JAVA_HOME");
 			
-			long memory = getMaxJvmMemory();
+			long maxHeapMegabytes = getMaxJvmHeapMemory() >>> 20;
 			
 			log.info("-------------------------------------------------------");
 			log.info(" Starting " + componentName + " (Version: " + version + ", "
@@ -143,7 +183,7 @@ public class EnvironmentInformation {
 			log.info(" Current user: " + user);
 			log.info(" JVM: " + jvmVersion);
 			log.info(" Startup Options: " + options);
-			log.info(" Maximum heap size: " + memory + " MiBytes");
+			log.info(" Maximum heap size: " + maxHeapMegabytes + " MiBytes");
 			log.info(" JAVA_HOME: " + (javaHome == null ? "not set" : javaHome));
 			log.info("-------------------------------------------------------");
 		}

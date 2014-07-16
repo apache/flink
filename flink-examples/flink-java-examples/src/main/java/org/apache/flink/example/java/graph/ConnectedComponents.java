@@ -114,10 +114,11 @@ public class ConnectedComponents implements ProgramDescription {
 		} else {
 			result.print();
 		}
-				
+		
 		// execute program
-		env.execute("Connected Components Example");
-				
+//		env.execute("Connected Components Example");
+		
+		System.out.println(env.getExecutionPlan());
 	}
 	
 	// *************************************************************************

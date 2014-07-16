@@ -54,7 +54,7 @@ public class AbstractIDTest {
 
 		final ChannelID origID = new ChannelID();
 		try {
-			final ChannelID copyID = (ChannelID) CommonTestUtils.createCopy(origID);
+			final ChannelID copyID = (ChannelID) CommonTestUtils.createCopyWritable(origID);
 
 			assertEquals(origID.hashCode(), copyID.hashCode());
 			assertEquals(origID, copyID);

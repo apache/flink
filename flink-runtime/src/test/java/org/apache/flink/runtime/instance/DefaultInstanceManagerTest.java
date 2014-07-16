@@ -16,22 +16,22 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.instance;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.net.InetAddress;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.util.LogUtils;
+
+import org.apache.log4j.Level;
+
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -40,34 +40,34 @@ import org.junit.Test;
  * Tests for {@link org.apache.flink.runtime.instance.DefaultInstanceManager}.
  */
 public class DefaultInstanceManagerTest {
+	
 	@Test
 	public void testInstanceRegistering() {
 		try {
 			DefaultInstanceManager cm = new DefaultInstanceManager();
-			TestInstanceListener testInstanceListener = new TestInstanceListener();
-			cm.setInstanceListener(testInstanceListener);
 			
-			
-			int ipcPort = ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT;
-			int dataPort = ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT;
+			final int ipcPort = 10000;
+			final int dataPort = 20000;
 
-			HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(2, 2L * 1024L * 1024L * 1024L,
-																				2L * 1024L * 1024L * 1024L);
+			HardwareDescription hardwareDescription = HardwareDescription.extractFromSystem(4096);
 
-			String hostname = "192.168.198.1";
-			InetAddress address = InetAddress.getByName("192.168.198.1");
-			
-			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 0, dataPort + 0);
-			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 15, dataPort + 15);
-			InstanceConnectionInfo ici3 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 30, dataPort + 30);
+			InetAddress address = InetAddress.getByName("127.0.0.1");
 			
 			// register three instances
-			cm.registerTaskManager(ici1, hardwareDescription, 1);
-			cm.registerTaskManager(ici2, hardwareDescription, 1);
-			cm.registerTaskManager(ici3, hardwareDescription, 1);
+			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, ipcPort + 0, dataPort + 0);
+			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, ipcPort + 15, dataPort + 15);
+			InstanceConnectionInfo ici3 = new InstanceConnectionInfo(address, ipcPort + 30, dataPort + 30);
 			
-
-			assertEquals(3, cm.getNumberOfSlots());
+			InstanceID i1 = cm.registerTaskManager(ici1, hardwareDescription, 1);
+			InstanceID i2 = cm.registerTaskManager(ici2, hardwareDescription, 2);
+			InstanceID i3 = cm.registerTaskManager(ici3, hardwareDescription, 5);
+			
+			assertEquals(3, cm.getNumberOfRegisteredTaskManagers());
+			assertEquals(8, cm.getTotalNumberOfSlots());
+			
+			assertEquals(ici1, cm.getAllRegisteredInstances().get(i1).getInstanceConnectionInfo());
+			assertEquals(ici2, cm.getAllRegisteredInstances().get(i2).getInstanceConnectionInfo());
+			assertEquals(ici3, cm.getAllRegisteredInstances().get(i3).getInstanceConnectionInfo());
 
 			cm.shutdown();
 		}
@@ -77,79 +77,121 @@ public class DefaultInstanceManagerTest {
 			Assert.fail("Test erroneous: " + e.getMessage());
 		}
 	}
-
+	
 	@Test
-	public void testAllocationDeallocation() {
+	public void testRegisteringAlreadyRegistered() {
 		try {
 			DefaultInstanceManager cm = new DefaultInstanceManager();
-			TestInstanceListener testInstanceListener = new TestInstanceListener();
-			cm.setInstanceListener(testInstanceListener);
 			
-			
-			int ipcPort = ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT;
-			int dataPort = ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT;
+			final int ipcPort = 10000;
+			final int dataPort = 20000;
 
-			HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(2, 2L * 1024L * 1024L * 1024L,
-																				2L * 1024L * 1024L * 1024L);
-
-			String hostname = "192.168.198.1";
-			InetAddress address = InetAddress.getByName("192.168.198.1");
+			HardwareDescription resources = HardwareDescription.extractFromSystem(4096);
+			InetAddress address = InetAddress.getByName("127.0.0.1");
+			InstanceConnectionInfo ici = new InstanceConnectionInfo(address, ipcPort + 0, dataPort + 0);
 			
-			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 0, dataPort + 0);
-			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 15, dataPort + 15);
+			InstanceID i = cm.registerTaskManager(ici, resources, 1);
+
+			assertNotNull(i);
+			assertEquals(1, cm.getNumberOfRegisteredTaskManagers());
+			assertEquals(1, cm.getTotalNumberOfSlots());
+			
+			InstanceID next = cm.registerTaskManager(ici, resources, 1);
+			assertNull(next);
+			
+			assertEquals(1, cm.getNumberOfRegisteredTaskManagers());
+			assertEquals(1, cm.getTotalNumberOfSlots());
+
+			cm.shutdown();
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail("Test erroneous: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testReportHeartbeat() {
+		try {
+			DefaultInstanceManager cm = new DefaultInstanceManager();
+			
+			final int ipcPort = 10000;
+			final int dataPort = 20000;
+
+			HardwareDescription hardwareDescription = HardwareDescription.extractFromSystem(4096);
+
+			InetAddress address = InetAddress.getByName("127.0.0.1");
 			
 			// register three instances
-			cm.registerTaskManager(ici1, hardwareDescription, 1);
-			cm.registerTaskManager(ici2, hardwareDescription, 1);
+			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, ipcPort + 0, dataPort + 0);
+			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, ipcPort + 1, dataPort + 1);
+			InstanceConnectionInfo ici3 = new InstanceConnectionInfo(address, ipcPort + 2, dataPort + 2);
+			
+			InstanceID i1 = cm.registerTaskManager(ici1, hardwareDescription, 1);
+			InstanceID i2 = cm.registerTaskManager(ici2, hardwareDescription, 1);
+			InstanceID i3 = cm.registerTaskManager(ici3, hardwareDescription, 1);
 
-			assertEquals(2, cm.getNumberOfSlots());
+			// report some immediate heart beats
+			assertTrue(cm.reportHeartBeat(i1));
+			assertTrue(cm.reportHeartBeat(i2));
+			assertTrue(cm.reportHeartBeat(i3));
 			
+			// report heart beat for non-existing instance
+			assertFalse(cm.reportHeartBeat(new InstanceID()));
 			
-			// allocate something
-			JobID jobID = new JobID();
-			Configuration conf = new Configuration();
-			cm.requestInstance(jobID, conf, 2);
+			final long WAIT = 200;
+			CommonTestUtils.sleepUninterruptibly(WAIT);
 			
-			DefaultInstanceManagerTestUtils.waitForInstances(jobID, testInstanceListener, 3, 1000);
-			
-			List<AllocatedResource> allocatedResources = testInstanceListener.getAllocatedResourcesForJob(jobID);
-			assertEquals(2, allocatedResources.size());
-			
-			Iterator<AllocatedResource> it = allocatedResources.iterator();
-			Set<AllocationID> allocationIDs = new HashSet<AllocationID>();
-			while (it.hasNext()) {
-				AllocatedResource allocatedResource = it.next();
+			long h1 = cm.getAllRegisteredInstances().get(i1).getLastHeartBeat();
+			long h2 = cm.getAllRegisteredInstances().get(i2).getLastHeartBeat();
+			long h3 = cm.getAllRegisteredInstances().get(i3).getLastHeartBeat();
 
-				if (allocationIDs.contains(allocatedResource.getAllocationID())) {
-					fail("Discovered allocation ID " + allocatedResource.getAllocationID() + " at least twice");
-				} else {
-					allocationIDs.add(allocatedResource.getAllocationID());
-				}
-			}
-
-			// Try to allocate more resources which must result in an error
-			try {
-				cm.requestInstance(jobID, conf, 3);
-
-				fail("ClusterManager allowed to request more instances than actually available");
-
-			} catch (InstanceException ie) {
-				// Exception is expected and correct behavior here
-			}
-
-			// Release all allocated resources
-			it = allocatedResources.iterator();
-			while (it.hasNext()) {
-				final AllocatedResource allocatedResource = it.next();
-				cm.releaseAllocatedResource(allocatedResource);
-			}
+			// send one heart beat again and verify that the
+			assertTrue(cm.reportHeartBeat(i1));
+			long newH1 = cm.getAllRegisteredInstances().get(i1).getLastHeartBeat();
 			
-			// Now further allocations should be possible
+			long now = System.currentTimeMillis();
 			
-			cm.requestInstance(jobID, conf, 1);
-			
+			assertTrue(now - h1 >= WAIT);
+			assertTrue(now - h2 >= WAIT);
+			assertTrue(now - h3 >= WAIT);
+			assertTrue(now - newH1 <= WAIT);
 			
 			cm.shutdown();
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail("Test erroneous: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testShutdown() {
+		try {
+			DefaultInstanceManager cm = new DefaultInstanceManager();
+			cm.shutdown();
+			
+			try {
+				HardwareDescription resources = HardwareDescription.extractFromSystem(4096);
+				InetAddress address = InetAddress.getByName("127.0.0.1");
+				InstanceConnectionInfo ici = new InstanceConnectionInfo(address, 10000, 20000);
+		
+				cm.registerTaskManager(ici, resources, 1);
+				fail("Should raise exception in shutdown state");
+			}
+			catch (IllegalStateException e) {
+				// expected
+			}
+			
+			try {
+				cm.reportHeartBeat(new InstanceID());
+				fail("Should raise exception in shutdown state");
+			}
+			catch (IllegalStateException e) {
+				// expected
+			}
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -164,58 +206,67 @@ public class DefaultInstanceManagerTest {
 	@Test
 	public void testCleanUp() {
 		try {
-			
-			final int CLEANUP_INTERVAL = 2;
+			DefaultInstanceManager cm = new DefaultInstanceManager(200, 100);
 
-			// configure a short cleanup interval
-			Configuration config = new Configuration();
-			config.setInteger("instancemanager.cluster.cleanupinterval", CLEANUP_INTERVAL);
-			GlobalConfiguration.includeConfiguration(config);
-
-			DefaultInstanceManager cm = new DefaultInstanceManager();
-			TestInstanceListener testInstanceListener = new TestInstanceListener();
-			cm.setInstanceListener(testInstanceListener);
-
-
-			int ipcPort = ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT;
-			int dataPort = ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT;
-
-			HardwareDescription hardwareDescription = HardwareDescriptionFactory.construct(2, 2L * 1024L * 1024L * 1024L,
-																				2L * 1024L * 1024L * 1024L);
-
-			String hostname = "192.168.198.1";
-			InetAddress address = InetAddress.getByName("192.168.198.1");
-
-			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 0, dataPort + 0);
-			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 15, dataPort + 15);
-			InstanceConnectionInfo ici3 = new InstanceConnectionInfo(address, hostname, null, ipcPort + 30, dataPort + 30);
+			HardwareDescription resources = HardwareDescription.extractFromSystem(4096);
+			InetAddress address = InetAddress.getByName("127.0.0.1");
+			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, 10000, 20000);
+			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, 10001, 20001);
 
 			// register three instances
-			cm.registerTaskManager(ici1, hardwareDescription, 1);
-			cm.registerTaskManager(ici2, hardwareDescription, 1);
-			cm.registerTaskManager(ici3, hardwareDescription, 1);
+			InstanceID i1 = cm.registerTaskManager(ici1, resources, 1);
+			InstanceID i2 = cm.registerTaskManager(ici2, resources, 1);
 
-			assertEquals(3, cm.getNumberOfSlots());
+			assertNotNull(i1);
+			assertNotNull(i2);
+			
+			assertEquals(2, cm.getNumberOfRegisteredTaskManagers());
+			assertEquals(2, cm.getTotalNumberOfSlots());
 
-			// request some instances
-			JobID jobID = new JobID();
-			Configuration conf = new Configuration();
+			// report a few heatbeats for both of the machines (each 50 msecs)...
+			for (int i = 0; i < 8; i++) {
+				CommonTestUtils.sleepUninterruptibly(50);
+				
+				assertTrue(cm.reportHeartBeat(i1));
+				assertTrue(cm.reportHeartBeat(i2));
+			}
+			
+			// all should be alive
+			assertEquals(2, cm.getNumberOfRegisteredTaskManagers());
+			assertEquals(2, cm.getTotalNumberOfSlots());
 
-			cm.requestInstance(jobID, conf, 1);
+			// report a few heatbeats for both only one machine
+			for (int i = 0; i < 8; i++) {
+				CommonTestUtils.sleepUninterruptibly(50);
+				
+				assertTrue(cm.reportHeartBeat(i1));
+			}
+			
+			// we should have lost one TM by now
+			assertEquals(1, cm.getNumberOfRegisteredTaskManagers());
+			assertEquals(1, cm.getTotalNumberOfSlots());
+			
+			// if the lost TM reports, it should not be accepted
+			assertFalse(cm.reportHeartBeat(i2));
+			
+			// allow the lost TM to re-register itself
+			i2 = cm.registerTaskManager(ici2, resources, 1);
+			assertEquals(2, cm.getNumberOfRegisteredTaskManagers());
+			assertEquals(2, cm.getTotalNumberOfSlots());
+			
+			// report a few heatbeats for both of the machines (each 50 msecs)...
+			for (int i = 0; i < 8; i++) {
+				CommonTestUtils.sleepUninterruptibly(50);
+				
+				assertTrue(cm.reportHeartBeat(i1));
+				assertTrue(cm.reportHeartBeat(i2));
+			}
+			
+			// all should be alive
+			assertEquals(2, cm.getNumberOfRegisteredTaskManagers());
+			assertEquals(2, cm.getTotalNumberOfSlots());
 
-			DefaultInstanceManagerTestUtils.waitForInstances(jobID, testInstanceListener, 1, 1000);
-			assertEquals(1, testInstanceListener.getNumberOfAllocatedResourcesForJob(jobID));
-
-			// wait for the cleanup to kick in
-			Thread.sleep(2000 * CLEANUP_INTERVAL);
-
-			// check that the instances are gone
-			DefaultInstanceManagerTestUtils.waitForInstances(jobID, testInstanceListener, 0, 1000);
-			assertEquals(0, testInstanceListener.getNumberOfAllocatedResourcesForJob(jobID));
-
-
-			assertEquals(0, cm.getNumberOfSlots());
-
+			
 			cm.shutdown();
 		}
 		catch (Exception e) {

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.client.minicluster;
 
 import java.lang.reflect.Method;
@@ -30,9 +29,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.client.JobClient;
-import org.apache.flink.runtime.instance.HardwareDescriptionFactory;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 
 
 public class NepheleMiniCluster {
@@ -296,7 +295,7 @@ public class NepheleMiniCluster {
 		config.setBoolean(ConfigConstants.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY, defaultAlwaysCreateDirectory);
 
 		if (memorySize < 0){
-			memorySize = HardwareDescriptionFactory.extractFromSystem().getSizeOfFreeMemory();
+			memorySize = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag();
 
 			// at this time, we need to scale down the memory, because we cannot dedicate all free memory to the
 			// memory manager. we have to account for the buffer pools as well, and the job manager#s data structures

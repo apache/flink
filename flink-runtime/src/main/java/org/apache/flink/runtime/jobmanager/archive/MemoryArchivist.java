@@ -34,7 +34,6 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.managementgraph.ManagementGraph;
 import org.apache.flink.runtime.managementgraph.ManagementVertexID;
-import org.apache.flink.runtime.topology.NetworkTopology;
 
 /**
  * Implementation of the ArchiveListener, that archives old data of the jobmanager in memory
@@ -60,10 +59,6 @@ public class MemoryArchivist implements ArchiveListener {
 	 */
 	private final Map<JobID, ManagementGraph> managementGraphs = new HashMap<JobID, ManagementGraph>();
 
-	/**
-	 * Map of network topologies belonging to recently started jobs with the time stamp of the last received job event.
-	 */
-	private final Map<JobID, NetworkTopology> networkTopologies = new HashMap<JobID, NetworkTopology>();
 	
 	private final LinkedList<JobID> lru = new LinkedList<JobID>();
 	
@@ -96,13 +91,6 @@ public class MemoryArchivist implements ArchiveListener {
 		
 		cleanup(jobId);
 	}
-	
-	public void archiveNetworkTopology(JobID jobId, NetworkTopology topology) {
-		
-		networkTopologies.put(jobId, topology);
-		
-		cleanup(jobId);
-	}
 
 	public List<RecentJobEvent> getJobs() {
 
@@ -118,7 +106,6 @@ public class MemoryArchivist implements ArchiveListener {
 			collectedEvents.remove(toRemove);
 			oldJobs.remove(toRemove);
 			managementGraphs.remove(toRemove);
-			networkTopologies.remove(toRemove);
 		}
 	}
 	

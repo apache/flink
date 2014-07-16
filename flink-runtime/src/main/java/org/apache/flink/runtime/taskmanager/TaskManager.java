@@ -74,7 +74,6 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheUpdate;
 import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.HardwareDescription;
-import org.apache.flink.runtime.instance.HardwareDescriptionFactory;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.ChannelManager;
@@ -119,6 +118,15 @@ public class TaskManager implements TaskOperationProtocol {
 	
 	public final static String ARG_CONF_DIR = "tempDir";
 	
+	// --------------------------------------------------------------------------------------------
+	
+	private final InstanceConnectionInfo localInstanceConnectionInfo;
+	
+	private final HardwareDescription hardwareDescription;
+	
+	private final ExecutionMode executionMode;
+	
+	
 	private final JobManagerProtocol jobManager;
 
 	private final InputSplitProviderProtocol globalInputSplitProvider;
@@ -132,14 +140,13 @@ public class TaskManager implements TaskOperationProtocol {
 	private final Server taskManagerServer;
 
 	private final FileCache fileCache = new FileCache();
+	
 	/**
 	 * This map contains all the tasks whose threads are in a state other than TERMINATED. If any task
 	 * is stored inside this map and its thread status is TERMINATED, this indicates a virtual machine error.
 	 * As a result, task status will switch to FAILED and reported to the {@link org.apache.flink.runtime.jobmanager.JobManager}.
 	 */
 	private final Map<ExecutionVertexID, Task> runningTasks = new ConcurrentHashMap<ExecutionVertexID, Task>();
-
-	private final InstanceConnectionInfo localInstanceConnectionInfo;
 
 	/**
 	 * The instance of the {@link ChannelManager} which is responsible for
@@ -155,8 +162,6 @@ public class TaskManager implements TaskOperationProtocol {
 	private final MemoryManager memoryManager;
 
 	private final IOManager ioManager;
-
-	private final HardwareDescription hardwareDescription;
 
 	private final int numberOfSlots;
 
@@ -175,8 +180,9 @@ public class TaskManager implements TaskOperationProtocol {
 		if (executionMode == null) {
 			throw new NullPointerException("Execution mode must not be null.");
 		}
-			
+		
 		LOG.info("Execution mode: " + executionMode);
+		this.executionMode = executionMode;
 
 		// IMPORTANT! At this point, the GlobalConfiguration must have been read!
 		
@@ -352,8 +358,6 @@ public class TaskManager implements TaskOperationProtocol {
 			this.numberOfSlots = slots;
 		}
 		
-		this.hardwareDescription = HardwareDescriptionFactory.extractFromSystem();
-		
 		// initialize the memory manager
 		{
 			// Check whether the memory size has been explicitly configured.
@@ -363,7 +367,7 @@ public class TaskManager implements TaskOperationProtocol {
 			if (configuredMemorySize == -1) {
 				// no manually configured memory. take a relative fraction of the free heap space
 				float fraction = GlobalConfiguration.getFloat(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY, ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
-				memorySize = (long) (this.hardwareDescription.getSizeOfFreeMemory() * fraction);
+				memorySize = (long) (EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag() * fraction);
 				LOG.info("Using " + fraction + " of the free heap space for managed memory.");
 			}
 			else if (configuredMemorySize <= 0) {
@@ -391,6 +395,8 @@ public class TaskManager implements TaskOperationProtocol {
 				throw new Exception("Unable to initialize memory manager.", t);
 			}
 		}
+		
+		this.hardwareDescription = HardwareDescription.extractFromSystem(this.memoryManager.getMemorySize());
 
 		this.ioManager = new IOManager(tmpDirPaths);
 		
@@ -1117,6 +1123,22 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 		}
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Properties
+	// --------------------------------------------------------------------------------------------
+	
+	public InstanceConnectionInfo getConnectionInfo() {
+		return this.localInstanceConnectionInfo;
+	}
+	
+	public ExecutionMode getExecutionMode() {
+		return this.executionMode;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Memory and Garbace Collection Debugging Utilities
+	// --------------------------------------------------------------------------------------------
 
 	private String getMemoryUsageStatsAsString(MemoryMXBean memoryMXBean) {
 		MemoryUsage heap = memoryMXBean.getHeapMemoryUsage();

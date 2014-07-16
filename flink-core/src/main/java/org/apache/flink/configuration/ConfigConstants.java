@@ -56,6 +56,12 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_IPC_HANDLERS_KEY = "jobmanager.rpc.numhandler";
 
 	/**
+	 * The config parameter defining the number of seconds that a task manager heartbeat may be missing before it is
+	 * marked as failed.
+	 */
+	public static final String JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY = "jobmanager.max-heartbeat-delay-before-failure.sec";
+	
+	/**
 	 * The config parameter defining the task manager's IPC port from the configuration.
 	 */
 	public static final String TASK_MANAGER_IPC_PORT_KEY = "taskmanager.rpc.port";
@@ -309,14 +315,22 @@ public final class ConfigConstants {
 	public static final int DEFAULT_JOB_MANAGER_IPC_HANDLERS = 8;
 	
 	/**
-	 * The default network port the task manager expects incoming IPC connections.
+	 * Default number of seconds after which a task manager is marked as failed.
 	 */
-	public static final int DEFAULT_TASK_MANAGER_IPC_PORT = 6122;
+	// 30 seconds (its enough to get to mars, should be enough to detect failure)
+	public static final int DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT = 30;
+	
+	/**
+	 * The default network port the task manager expects incoming IPC connections. The {@code -1} means that
+	 * the TaskManager searches for a free port.
+	 */
+	public static final int DEFAULT_TASK_MANAGER_IPC_PORT = -1;
 
 	/**
-	 * The default network port the task manager expects to receive transfer envelopes on.
+	 * The default network port the task manager expects to receive transfer envelopes on. The {@code -1} means that
+	 * the TaskManager searches for a free port.
 	 */
-	public static final int DEFAULT_TASK_MANAGER_DATA_PORT = 6121;
+	public static final int DEFAULT_TASK_MANAGER_DATA_PORT = -1;
 
 	/**
 	 * The default directory for temporary files of the task manager.

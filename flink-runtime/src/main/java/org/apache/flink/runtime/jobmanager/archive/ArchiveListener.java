@@ -28,7 +28,6 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.managementgraph.ManagementGraph;
 import org.apache.flink.runtime.managementgraph.ManagementVertexID;
-import org.apache.flink.runtime.topology.NetworkTopology;
 
 /**
  * Interface used to implement Archivists, that store old jobmanager information discarded by the EventCollector.
@@ -59,14 +58,6 @@ public interface ArchiveListener {
 	 * @param graph
 	 */
 	void archiveManagementGraph(JobID jobId, ManagementGraph graph);
-	
-	/**
-	 * Stores old NetworkTopology in Archive
-	 * 
-	 * @param jobId
-	 * @param topology
-	 */
-	void archiveNetworkTopology(JobID jobId, NetworkTopology topology);
 	
 	/**
 	 * Get all archived Jobs

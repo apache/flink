@@ -55,7 +55,7 @@ public class JobResultTest {
 
 		try {
 
-			final JobCancelResult copy = (JobCancelResult) CommonTestUtils.createCopy(orig);
+			final JobCancelResult copy = (JobCancelResult) CommonTestUtils.createCopyWritable(orig);
 			assertEquals(orig.getReturnCode(), copy.getReturnCode());
 			assertEquals(orig.getDescription(), copy.getDescription());
 			assertEquals(orig.hashCode(), copy.hashCode());
@@ -78,7 +78,7 @@ public class JobResultTest {
 
 		try {
 
-			final JobProgressResult copy = (JobProgressResult) CommonTestUtils.createCopy(orig);
+			final JobProgressResult copy = (JobProgressResult) CommonTestUtils.createCopyWritable(orig);
 			assertEquals(orig.getReturnCode(), copy.getReturnCode());
 			assertEquals(orig.getDescription(), copy.getDescription());
 			assertEquals(orig.hashCode(), copy.hashCode());
@@ -99,7 +99,7 @@ public class JobResultTest {
 
 		try {
 
-			final JobSubmissionResult copy = (JobSubmissionResult) CommonTestUtils.createCopy(orig);
+			final JobSubmissionResult copy = (JobSubmissionResult) CommonTestUtils.createCopyWritable(orig);
 			assertEquals(orig.getReturnCode(), copy.getReturnCode());
 			assertEquals(orig.getDescription(), copy.getDescription());
 			assertEquals(orig.hashCode(), copy.hashCode());

@@ -16,39 +16,24 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.instance;
-
 
 import java.util.Map;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.topology.NetworkTopology;
-
+/**
+ * Simple manager that keeps track of which TaskManager are available and alive.
+ */
 public interface InstanceManager {
 
+	InstanceID registerTaskManager(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription resources, int numberOfTaskSlots);
+	
+	boolean reportHeartBeat(InstanceID instance);
 
 	void shutdown();
 
-	void releaseAllocatedResource(AllocatedResource allocatedResource) throws InstanceException;
+	Map<InstanceID, Instance> getAllRegisteredInstances();
 
-	void reportHeartBeat(InstanceConnectionInfo instanceConnectionInfo);
+	int getNumberOfRegisteredTaskManagers();
 
-	void registerTaskManager(InstanceConnectionInfo instanceConnectionInfo,
-									HardwareDescription hardwareDescription, int numberOfSlots);
-	void requestInstance(JobID jobID, Configuration conf,  int requiredSlots)
-			throws InstanceException;
-
-	NetworkTopology getNetworkTopology(JobID jobID);
-
-	void setInstanceListener(InstanceListener instanceListener);
-
-	Instance getInstanceByName(String name);
-
-	int getNumberOfTaskManagers();
-
-	int getNumberOfSlots();
-
-	Map<InstanceConnectionInfo, Instance> getInstances();
+	int getTotalNumberOfSlots();
 }

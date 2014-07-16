@@ -44,7 +44,7 @@ public class TaskEventTest {
 
 		try {
 			final IntegerTaskEvent orig = new IntegerTaskEvent(11);
-			final IntegerTaskEvent copy = (IntegerTaskEvent) CommonTestUtils.createCopy(orig);
+			final IntegerTaskEvent copy = (IntegerTaskEvent) CommonTestUtils.createCopyWritable(orig);
 
 			assertEquals(orig.getInteger(), copy.getInteger());
 			assertEquals(orig.hashCode(), copy.hashCode());
@@ -64,7 +64,7 @@ public class TaskEventTest {
 		try {
 
 			final StringTaskEvent orig = new StringTaskEvent("Test");
-			final StringTaskEvent copy = (StringTaskEvent) CommonTestUtils.createCopy(orig);
+			final StringTaskEvent copy = (StringTaskEvent) CommonTestUtils.createCopyWritable(orig);
 
 			assertEquals(orig.getString(), copy.getString());
 			assertEquals(orig.hashCode(), copy.hashCode());
@@ -86,7 +86,7 @@ public class TaskEventTest {
 			final EventList orig = new EventList();
 			orig.add(new StringTaskEvent("Test 2"));
 			orig.add(new IntegerTaskEvent(70));
-			final EventList copy = (EventList) CommonTestUtils.createCopy(orig);
+			final EventList copy = (EventList) CommonTestUtils.createCopyWritable(orig);
 
 			assertEquals(orig.size(), copy.size());
 			final Iterator<AbstractEvent> origIt = orig.iterator();

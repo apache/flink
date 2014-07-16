@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.instance;
 
 
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.logging.LogFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -31,36 +31,55 @@ import org.apache.flink.runtime.taskmanager.TaskManager;
 
 public class LocalInstanceManager extends DefaultInstanceManager {
 	
-	private List<TaskManager> taskManagers = new ArrayList<TaskManager>();
+	private final List<TaskManager> taskManagers = new ArrayList<TaskManager>();
 
-	public LocalInstanceManager() throws Exception{
-		int numTaskManager = GlobalConfiguration.getInteger(ConfigConstants
-				.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1);
-
-		ExecutionMode execMode = numTaskManager == 1 ? ExecutionMode.LOCAL : ExecutionMode.CLUSTER;
+	
+	public LocalInstanceManager(int numTaskManagers) throws Exception {
+		ExecutionMode execMode = numTaskManagers == 1 ? ExecutionMode.LOCAL : ExecutionMode.CLUSTER;
 		
-		for (int i=0; i < numTaskManager; i++){
-			Configuration tm = new Configuration();
-			int ipcPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
-					ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT);
-			int dataPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
-					ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT);
+		final int ipcPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, -1);
+		final int dataPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, -1);
+		
+		for (int i = 0; i < numTaskManagers; i++) {
+			
+			// configure ports, if necessary
+			if (ipcPort > 0 || dataPort > 0) {
+				Configuration tm = new Configuration();
+				if (ipcPort > 0) {
+					tm.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, ipcPort + i);
+				}
+				if (dataPort > 0) {
+					tm.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort + i);
+				}
 
-			tm.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, ipcPort + i);
-			tm.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort + i);
-
-			GlobalConfiguration.includeConfiguration(tm);
+				GlobalConfiguration.includeConfiguration(tm);
+			}
 
 			taskManagers.add(new TaskManager(execMode));
 		}
 	}
 
 	@Override
-	public void shutdown(){
-		for(TaskManager taskManager: taskManagers){
-			taskManager.shutdown();
+	public void shutdown() {
+		try {
+			for (TaskManager taskManager: taskManagers){
+				try {
+					taskManager.shutdown();
+				}
+				catch (Throwable t) {
+					// log and continue in any case
+					// we initialize the log lazily, because this is the only place we log
+					// and most likely we never log.
+					LogFactory.getLog(LocalInstanceManager.class).error("Error shutting down local embedded TaskManager.", t);
+				}
+			}
+		} finally {
+			this.taskManagers.clear();
+			super.shutdown();
 		}
-
-		super.shutdown();
+	}
+	
+	public TaskManager[] getTaskManagers() {
+		return (TaskManager[]) this.taskManagers.toArray(new TaskManager[this.taskManagers.size()]);
 	}
 }

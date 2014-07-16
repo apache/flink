@@ -28,14 +28,12 @@ import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.managementgraph.ManagementGraph;
 import org.apache.flink.runtime.managementgraph.ManagementVertexID;
-import org.apache.flink.runtime.topology.NetworkTopology;
 
 /**
  * This protocol provides extended management capabilities beyond the
  * simple {@link JobManagementProtocol}. It can be used to retrieve
  * internal scheduling information, the network topology, or profiling
  * information about thread or instance utilization.
- * 
  */
 public interface ExtendedManagementProtocol extends JobManagementProtocol {
 
@@ -50,18 +48,6 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 *         thrown if an error occurs while retrieving the management graph
 	 */
 	ManagementGraph getManagementGraph(JobID jobID) throws IOException;
-
-	/**
-	 * Retrieves the current network topology for the job with
-	 * the given ID.
-	 * 
-	 * @param jobID
-	 *        the ID identifying the job
-	 * @return the network topology for the job
-	 * @throws IOException
-	 *         thrown if an error occurs while retrieving the network topology
-	 */
-	NetworkTopology getNetworkTopology(JobID jobID) throws IOException;
 
 	/**
 	 * Retrieves a list of jobs which have either running or have been started recently.

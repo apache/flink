@@ -61,7 +61,7 @@ public class StringRecordTest {
 
 		try {
 
-			final StringRecord copy = (StringRecord) CommonTestUtils.createCopy(orig);
+			final StringRecord copy = (StringRecord) CommonTestUtils.createCopyWritable(orig);
 			
 			assertEquals(orig.getLength(), copy.getLength());
 			assertEquals(orig.toString(), copy.toString());

@@ -39,7 +39,6 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.managementgraph.ManagementGraph;
 import org.apache.flink.runtime.managementgraph.ManagementVertexID;
 import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
-import org.apache.flink.runtime.topology.NetworkTopology;
 import org.apache.flink.runtime.types.IntegerRecord;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -204,11 +203,6 @@ public class CliFrontendListCancelTest {
 
 		@Override
 		public void logBufferUtilization(JobID jobID) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public NetworkTopology getNetworkTopology(JobID jobID) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 

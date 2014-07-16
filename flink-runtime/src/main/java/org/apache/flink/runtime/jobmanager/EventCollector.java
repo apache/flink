@@ -55,7 +55,6 @@ import org.apache.flink.runtime.managementgraph.ManagementVertex;
 import org.apache.flink.runtime.managementgraph.ManagementVertexID;
 import org.apache.flink.runtime.profiling.ProfilingListener;
 import org.apache.flink.runtime.profiling.types.ProfilingEvent;
-import org.apache.flink.runtime.topology.NetworkTopology;
 
 /**
  * The event collector collects events which occurred during the execution of a job and prepares them
@@ -312,11 +311,6 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	private final Map<JobID, ManagementGraph> recentManagementGraphs = new HashMap<JobID, ManagementGraph>();
 
 	/**
-	 * Map of network topologies belonging to recently started jobs with the time stamp of the last received job event.
-	 */
-	private final Map<JobID, NetworkTopology> recentNetworkTopologies = new HashMap<JobID, NetworkTopology>();
-
-	/**
 	 * The timer used to trigger the cleanup routine.
 	 */
 	private final Timer timer;
@@ -545,10 +539,6 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 						archiveManagementGraph(entry.getKey(), this.recentManagementGraphs.get(entry.getKey()));
 						this.recentManagementGraphs.remove(entry.getValue());
 					}
-					synchronized (this.recentNetworkTopologies) {
-						archiveNetworkTopology(entry.getKey(), this.recentNetworkTopologies.get(entry.getKey()));
-						this.recentNetworkTopologies.remove(entry.getValue());
-					}
 				}
 			}
 		}
@@ -667,12 +657,6 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	private void archiveManagementGraph(JobID jobId, ManagementGraph graph) {
 		for(ArchiveListener al : archivists) {
 			al.archiveManagementGraph(jobId, graph);
-		}
-	}
-	
-	private void archiveNetworkTopology(JobID jobId, NetworkTopology topology) {
-		for(ArchiveListener al : archivists) {
-			al.archiveNetworkTopology(jobId, topology);
 		}
 	}
 }

@@ -42,27 +42,22 @@ import org.apache.flink.runtime.protocols.TaskOperationProtocol;
 import org.apache.flink.runtime.taskmanager.TaskCancelResult;
 import org.apache.flink.runtime.taskmanager.TaskKillResult;
 import org.apache.flink.runtime.taskmanager.TaskSubmissionResult;
-import org.apache.flink.runtime.topology.NetworkNode;
-import org.apache.flink.runtime.topology.NetworkTopology;
 
 /**
  * An instance represents a resource a {@link org.apache.flink.runtime.taskmanager.TaskManager} runs on.
- * 
  */
-public class Instance extends NetworkNode {
-	/**
-	 * The connection info identifying the instance.
-	 */
+public class Instance {
+	
+	/** The connection info to connect to the task manager represented by this instance. */
 	private final InstanceConnectionInfo instanceConnectionInfo;
+	
+	/** A description of the resources of the task manager */
+	private final HardwareDescription resources;
+	
+	/** The ID identifying the instance. */
+	private final InstanceID instanceId;
 
-	/**
-	 * The hardware description as reported by the instance itself.
-	 */
-	private final HardwareDescription hardwareDescription;
-
-	/**
-	 * Number of slots available on the node
-	 */
+	/** The number of task slots available on the node */
 	private final int numberOfSlots;
 
 	/**
@@ -78,26 +73,20 @@ public class Instance extends NetworkNode {
 	/**
 	 * Time when last heat beat has been received from the task manager running on this instance.
 	 */
-	private long lastReceivedHeartBeat = System.currentTimeMillis();
+	private volatile long lastReceivedHeartBeat = System.currentTimeMillis();
 
 	/**
 	 * Constructs an abstract instance object.
 	 * 
-	 * @param instanceConnectionInfo
-	 *        the connection info identifying the instance
-	 * @param parentNode
-	 *        the parent node in the network topology
-	 * @param networkTopology
-	 *        the network topology this node is a part of
-	 * @param hardwareDescription
-	 *        the hardware description provided by the instance itself
+	 * @param instanceConnectionInfo The connection info under which to reach the TaskManager instance.
+	 * @param id The id under which the instance is registered.
+	 * @param resources The resources available on the machine.
+	 * @param numberOfSlots The number of task slots offered by this instance.
 	 */
-	public Instance(final InstanceConnectionInfo instanceConnectionInfo,
-					final NetworkNode parentNode, final NetworkTopology networkTopology,
-					final HardwareDescription hardwareDescription, int numberOfSlots) {
-		super((instanceConnectionInfo == null) ? null : instanceConnectionInfo.toString(), parentNode, networkTopology);
+	public Instance(InstanceConnectionInfo instanceConnectionInfo, InstanceID id, HardwareDescription resources, int numberOfSlots) {
 		this.instanceConnectionInfo = instanceConnectionInfo;
-		this.hardwareDescription = hardwareDescription;
+		this.instanceId = id;
+		this.resources = resources;
 		this.numberOfSlots = numberOfSlots;
 	}
 
@@ -138,15 +127,6 @@ public class Instance extends NetworkNode {
 	 */
 	public final InstanceConnectionInfo getInstanceConnectionInfo() {
 		return this.instanceConnectionInfo;
-	}
-
-	/**
-	 * Returns the instance's hardware description as reported by the instance itself.
-	 * 
-	 * @return the instance's hardware description
-	 */
-	public HardwareDescription getHardwareDescription() {
-		return this.hardwareDescription;
 	}
 
 	/**
@@ -193,9 +173,7 @@ public class Instance extends NetworkNode {
 	 * @throws IOException
 	 *         thrown if an error occurs while transmitting the task
 	 */
-	public synchronized List<TaskSubmissionResult> submitTasks(final List<TaskDeploymentDescriptor> tasks)
-			throws IOException {
-
+	public synchronized List<TaskSubmissionResult> submitTasks(final List<TaskDeploymentDescriptor> tasks) throws IOException {
 		return getTaskManagerProxy().submitTasks(tasks);
 	}
 
@@ -232,25 +210,12 @@ public class Instance extends NetworkNode {
 	/**
 	 * Updates the time of last received heart beat to the current system time.
 	 */
-	public synchronized void reportHeartBeat() {
+	public void reportHeartBeat() {
 		this.lastReceivedHeartBeat = System.currentTimeMillis();
 	}
 
-	/**
-	 * Returns whether the host is still alive.
-	 *
-	 * @param cleanUpInterval
-	 *        duration (in milliseconds) after which a host is
-	 *        considered dead if it has no received heat-beats.
-	 * @return <code>true</code> if the host has received a heat-beat before the <code>cleanUpInterval</code> duration
-	 *         has expired, <code>false</code> otherwise
-	 */
-	public synchronized boolean isStillAlive(final long cleanUpInterval) {
-
-		if (this.lastReceivedHeartBeat + cleanUpInterval < System.currentTimeMillis()) {
-			return false;
-		}
-		return true;
+	public boolean isStillAlive(long now, long cleanUpInterval) {
+		return this.lastReceivedHeartBeat + cleanUpInterval > now;
 	}
 
 
@@ -368,5 +333,22 @@ public class Instance extends NetworkNode {
 
 	public long getLastHeartBeat() {
 		return this.lastReceivedHeartBeat;
+	}
+	
+	
+	public void markDied() {
+		
+	}
+	
+	public void destroy() {
+		
+	}
+	
+	public InstanceID getId() {
+		return instanceId;
+	}
+	
+	public HardwareDescription getResources() {
+		return this.resources;
 	}
 }

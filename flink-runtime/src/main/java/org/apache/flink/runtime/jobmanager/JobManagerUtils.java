@@ -106,40 +106,6 @@ public class JobManagerUtils {
 	}
 
 	/**
-	 * Tries to locate a class with given name and to
-	 * instantiate a instance manager from it.
-	 * 
-	 * @param instanceManagerClassName
-	 *        the name of the class to instantiate the instance manager object from
-	 * @return the {@link org.apache.flink.runtime.instance.InstanceManager} object instantiated from the class with the provided name
-	 */
-	@SuppressWarnings("unchecked")
-	static InstanceManager loadInstanceManager(final String instanceManagerClassName) {
-
-		Class<? extends InstanceManager> instanceManagerClass;
-		try {
-			instanceManagerClass = (Class<? extends InstanceManager>) Class.forName(instanceManagerClassName);
-		} catch (ClassNotFoundException e) {
-			LOG.error("Cannot find class " + instanceManagerClassName + ": " + StringUtils.stringifyException(e));
-			return null;
-		}
-
-		InstanceManager instanceManager;
-
-		try {
-			instanceManager = instanceManagerClass.newInstance();
-		} catch (InstantiationException e) {
-			LOG.error("Cannot create instanceManager: " + StringUtils.stringifyException(e));
-			return null;
-		} catch (IllegalAccessException e) {
-			LOG.error("Cannot create instanceManager: " + StringUtils.stringifyException(e));
-			return null;
-		}
-
-		return instanceManager;
-	}
-
-	/**
 	 * Tries to read the class name of the {@link org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler} implementation from the global configuration which
 	 * is set to be used for the provided execution mode.
 	 * 
@@ -149,24 +115,5 @@ public class JobManagerUtils {
 	 */
 	static String getSchedulerClassName(ExecutionMode executionMode) {
 		return "org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler";
-	}
-
-	/**
-	 * Tries to read the class name of the {@link org.apache.flink.runtime.instance.InstanceManager} implementation from the global configuration which is
-	 * set to be used for the provided execution mode.
-	 * 
-	 * @param executionMode The Nephele execution mode.
-	 * @return the class name of the {@link org.apache.flink.runtime.instance.InstanceManager} implementation to be used or <code>null</code> if no
-	 *         implementation is configured for the given execution mode
-	 */
-	static String getInstanceManagerClassName(ExecutionMode executionMode) {
-		switch (executionMode) {
-		case LOCAL:
-			return "org.apache.flink.runtime.instance.LocalInstanceManager";
-		case CLUSTER:
-			return "org.apache.flink.runtime.instance.DefaultInstanceManager";
-		default:
-			throw new RuntimeException("Unrecognized Execution Mode.");
-		}
 	}
 }
