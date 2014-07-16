@@ -54,8 +54,8 @@ public class DirectedStreamCollector<T extends Tuple> extends StreamCollector<T>
 				outputMap.get(outputName).emit(streamRecord);
 			} catch (Exception e) {
 				if (log.isErrorEnabled()) {
-					log.error(String.format("Emit to %s failed due to: %s", outputName,
-							StringUtils.stringifyException(e)));
+					log.error(String.format("Emit to %s failed due to: %s",
+							outputName, StringUtils.stringifyException(e)));
 				}
 			}
 		}
