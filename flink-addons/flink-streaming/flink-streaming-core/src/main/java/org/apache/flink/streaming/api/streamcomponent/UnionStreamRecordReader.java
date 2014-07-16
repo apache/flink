@@ -22,7 +22,6 @@ package org.apache.flink.streaming.api.streamcomponent;
 import java.io.IOException;
 
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
@@ -33,17 +32,19 @@ import org.apache.flink.runtime.io.network.api.Reader;
 public final class UnionStreamRecordReader<T extends Tuple> extends AbstractUnionRecordReader<StreamRecord<T>>
 		implements Reader<StreamRecord<T>> {
 
-	private final Class<? extends StreamRecord<T>> recordType;
+	@SuppressWarnings("rawtypes")
+	private final Class<? extends StreamRecord> recordType;
 
 	private StreamRecord<T> lookahead;
 	private DeserializationDelegate<T> deserializationDelegate;
 	private TupleSerializer<T> tupleSerializer;
 
-	public UnionStreamRecordReader(MutableRecordReader<StreamRecord<T>>[] recordReaders, Class<? extends StreamRecord<T>> recordType,
+	@SuppressWarnings("rawtypes")
+	public UnionStreamRecordReader(MutableRecordReader<StreamRecord<T>>[] recordReaders, Class<? extends StreamRecord> class1,
 			DeserializationDelegate<T> deserializationDelegate,
 			TupleSerializer<T> tupleSerializer) {
 		super(recordReaders);
-		this.recordType = recordType;
+		this.recordType = class1;
 		this.deserializationDelegate = deserializationDelegate;
 		this.tupleSerializer = tupleSerializer;
 	}
@@ -75,6 +76,7 @@ public final class UnionStreamRecordReader<T extends Tuple> extends AbstractUnio
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	private StreamRecord<T> instantiateRecordType() {
 		try {
 			return this.recordType.newInstance();

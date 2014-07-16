@@ -19,11 +19,10 @@
 
 package org.apache.flink.streaming.api;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.Collection;
 
+import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -185,11 +184,11 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the returned stream
 	 * @return The DataStream representing the elements.
 	 */
-	public <X> DataStream<Tuple1<X>> fromElements(X... data) {
+	public <X extends Serializable> DataStream<Tuple1<X>> fromElements(X... data) {
 		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
 
 		jobGraphBuilder.addSource(returnStream.getId(), new FromElementsFunction<X>(data),
-				"elements", serializeToByteArray(data[0]), 1);
+				"elements", SerializationUtils.serialize(data[0]), 1);
 
 		return returnStream.copy();
 	}
@@ -206,11 +205,11 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the returned stream
 	 * @return The DataStream representing the elements.
 	 */
-	public <X> DataStream<Tuple1<X>> fromCollection(Collection<X> data) {
+	public <X extends Serializable> DataStream<Tuple1<X>> fromCollection(Collection<X> data) {
 		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
 
 		jobGraphBuilder.addSource(returnStream.getId(), new FromElementsFunction<X>(data),
-				"elements", serializeToByteArray(data.toArray()[0]), 1);
+				"elements", SerializationUtils.serialize((Serializable) data.toArray()[0]), 1);
 
 		return returnStream.copy();
 	}
@@ -244,7 +243,7 @@ public abstract class StreamExecutionEnvironment {
 		DataStream<T> returnStream = new DataStream<T>(this, "source");
 
 		jobGraphBuilder.addSource(returnStream.getId(), sourceFunction, "source",
-				serializeToByteArray(sourceFunction), parallelism);
+				SerializationUtils.serialize(sourceFunction), parallelism);
 
 		return returnStream.copy();
 	}
@@ -281,7 +280,7 @@ public abstract class StreamExecutionEnvironment {
 		StreamOperator<T, R> returnStream = new StreamOperator<T, R>(this, functionName);
 
 		jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, functionName,
-				serializeToByteArray(function), degreeOfParallelism);
+				SerializationUtils.serialize(function), degreeOfParallelism);
 
 		connectGraph(inputStream, returnStream.getId());
 
@@ -300,7 +299,7 @@ public abstract class StreamExecutionEnvironment {
 		jobGraphBuilder.addIterationSource(returnStream.getId(), inputStream.getId(), iterationID,
 				degreeOfParallelism);
 
-		jobGraphBuilder.shuffleConnect(returnStream.getId(), inputStream.getId());
+		jobGraphBuilder.shuffleConnect(inputStream, returnStream.getId(), inputStream.getId());
 	}
 
 	protected <T extends Tuple, R extends Tuple> void addIterationSink(DataStream<T> inputStream,
@@ -312,7 +311,7 @@ public abstract class StreamExecutionEnvironment {
 
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
 			String input = inputStream.connectIDs.get(i);
-			jobGraphBuilder.shuffleConnect(input, returnStream.getId());
+			jobGraphBuilder.shuffleConnect(inputStream, input, returnStream.getId());
 
 		}
 	}
@@ -334,7 +333,7 @@ public abstract class StreamExecutionEnvironment {
 		DataStream<T> returnStream = new DataStream<T>(this, "sink");
 
 		jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction), "sink",
-				serializeToByteArray(sinkFunction), degreeOfParallelism);
+				SerializationUtils.serialize(sinkFunction), degreeOfParallelism);
 
 		connectGraph(inputStream, returnStream.getId());
 
@@ -342,7 +341,7 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	<T extends Tuple> void addDirectedEmit(String id, OutputSelector<T> outputSelector) {
-		jobGraphBuilder.setOutputSelector(id, serializeToByteArray(outputSelector));
+		jobGraphBuilder.setOutputSelector(id, SerializationUtils.serialize(outputSelector));
 	}
 
 	/**
@@ -387,13 +386,13 @@ public abstract class StreamExecutionEnvironment {
 
 			switch (type) {
 			case SHUFFLE:
-				jobGraphBuilder.shuffleConnect(input, outputID);
+				jobGraphBuilder.shuffleConnect(inputStream, input, outputID);
 				break;
 			case BROADCAST:
-				jobGraphBuilder.broadcastConnect(input, outputID);
+				jobGraphBuilder.broadcastConnect(inputStream, input, outputID);
 				break;
 			case FIELD:
-				jobGraphBuilder.fieldsConnect(input, outputID, param);
+				jobGraphBuilder.fieldsConnect(inputStream, input, outputID, param);
 				break;
 			}
 
@@ -417,24 +416,25 @@ public abstract class StreamExecutionEnvironment {
 		jobGraphBuilder.setParallelism(inputStream.getId(), inputStream.degreeOfParallelism);
 	}
 
-	/**
-	 * Converts object to byte array using default java serialization
-	 * 
-	 * @param object
-	 *            Object to be serialized
-	 * @return Serialized object
-	 */
-	private static byte[] serializeToByteArray(Object object) {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos;
-		try {
-			oos = new ObjectOutputStream(baos);
-			oos.writeObject(object);
-		} catch (IOException e) {
-			throw new RuntimeException("Cannot serialize object: " + object);
-		}
-		return baos.toByteArray();
-	}
+//	/**
+//	 * Converts object to byte array using default java serialization
+//	 * 
+//	 * @param object
+//	 *            Object to be serialized
+//	 * @return Serialized object
+//	 */
+//	static byte[] serializeToByteArray(Serializable object) {
+//		SerializationUtils.serialize(object);
+//		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//		ObjectOutputStream oos;
+//		try {
+//			oos = new ObjectOutputStream(baos);
+//			oos.writeObject(object);
+//		} catch (IOException e) {
+//			throw new RuntimeException("Cannot serialize object: " + object);
+//		}
+//		return baos.toByteArray();
+//	}
 
 	// --------------------------------------------------------------------------------------------
 	// Instantiation of Execution Contexts
