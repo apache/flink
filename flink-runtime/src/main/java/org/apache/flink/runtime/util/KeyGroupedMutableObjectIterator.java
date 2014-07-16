@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util;
 
 import java.io.IOException;
@@ -28,10 +27,9 @@ import org.apache.flink.util.MutableObjectIterator;
 /**
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
  * A sub-iterator over all values with the same key is provided.
- * 
  */
-public final class KeyGroupedMutableObjectIterator<E>
-{
+public final class KeyGroupedMutableObjectIterator<E> {
+	
 	private final MutableObjectIterator<E> iterator;
 	
 	private final TypeSerializer<E> serializer;

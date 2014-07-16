@@ -108,6 +108,7 @@ public class IterationTailPactTask<S extends Function, OT> extends AbstractItera
 			catch (NullPointerException e) {
 				boolean terminationRequested = terminationRequested();
 				System.out.println("Nullpoint exception when termination requested was " + terminationRequested);
+				e.printStackTrace();
 			}
 
 			// check if termination was requested
