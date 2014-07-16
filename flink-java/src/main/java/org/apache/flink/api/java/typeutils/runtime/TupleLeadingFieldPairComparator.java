@@ -39,17 +39,17 @@ public class TupleLeadingFieldPairComparator<K, T1 extends Tuple, T2 extends Tup
 	
 	@Override
 	public void setReference(T1 reference) {
-		this.comparator1.setReference(reference.<K>getField(0));
+		this.comparator1.setReference(reference.<K>getFieldNotNull(0));
 	}
 
 	@Override
 	public boolean equalToReference(T2 candidate) {
-		return this.comparator1.equalToReference(candidate.<K>getField(0));
+		return this.comparator1.equalToReference(candidate.<K>getFieldNotNull(0));
 	}
 
 	@Override
 	public int compareToReference(T2 candidate) {
-		this.comparator2.setReference(candidate.<K>getField(0));
+		this.comparator2.setReference(candidate.<K>getFieldNotNull(0));
 		return this.comparator1.compareToReference(this.comparator2);
 	}
 }

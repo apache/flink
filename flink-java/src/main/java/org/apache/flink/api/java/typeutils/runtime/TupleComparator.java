@@ -156,16 +156,13 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 	public int hash(T value) {
 		int i = 0;
 		try {
-			int code = this.comparators[0].hash(value.getField(keyPositions[0]));
+			int code = this.comparators[0].hash(value.getFieldNotNull(keyPositions[0]));
 			
 			for (i = 1; i < this.keyPositions.length; i++) {
 				code *= HASH_SALT[i & 0x1F]; // salt code with (i % HASH_SALT.length)-th salt component
-				code += this.comparators[i].hash(value.getField(keyPositions[i]));
+				code += this.comparators[i].hash(value.getFieldNotNull(keyPositions[i]));
 			}
 			return code;
-		}
-		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(keyPositions[i]);
 		}
 		catch (IndexOutOfBoundsException iobex) {
 			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
@@ -177,11 +174,8 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 		int i = 0;
 		try {
 			for (; i < this.keyPositions.length; i++) {
-				this.comparators[i].setReference(toCompare.getField(this.keyPositions[i]));
+				this.comparators[i].setReference(toCompare.getFieldNotNull(this.keyPositions[i]));
 			}
-		}
-		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(keyPositions[i]);
 		}
 		catch (IndexOutOfBoundsException iobex) {
 			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
@@ -193,14 +187,11 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 		int i = 0;
 		try {
 			for (; i < this.keyPositions.length; i++) {
-				if (!this.comparators[i].equalToReference(candidate.getField(this.keyPositions[i]))) {
+				if (!this.comparators[i].equalToReference(candidate.getFieldNotNull(this.keyPositions[i]))) {
 					return false;
 				}
 			}
 			return true;
-		}
-		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(keyPositions[i]);
 		}
 		catch (IndexOutOfBoundsException iobex) {
 			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
@@ -235,15 +226,13 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 		try {
 			for (; i < keyPositions.length; i++) {
 				int keyPos = keyPositions[i];
-				int cmp = comparators[i].compare(first.getField(keyPos), second.getField(keyPos));
+				int cmp = comparators[i].compare(first.getFieldNotNull(keyPos), second.getFieldNotNull(keyPos));
 				if (cmp != 0) {
 					return cmp;
 				}
 			}
 			
 			return 0;
-		} catch (NullPointerException npex) {
-			throw new NullKeyFieldException(keyPositions[i]);
 		} catch (IndexOutOfBoundsException iobex) {
 			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
 		}
@@ -303,7 +292,7 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 			{
 				int len = this.normalizedKeyLengths[i]; 
 				len = numBytes >= len ? len : numBytes;
-				this.comparators[i].putNormalizedKey(value.getField(this.keyPositions[i]), target, offset, len);
+				this.comparators[i].putNormalizedKey(value.getFieldNotNull(this.keyPositions[i]), target, offset, len);
 				numBytes -= len;
 				offset += len;
 			}

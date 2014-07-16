@@ -46,18 +46,18 @@ public final class TupleLeadingFieldComparator<T extends Tuple, K> extends TypeC
 	
 	@Override
 	public int hash(T value) {
-		return comparator.hash(value.<K>getField(0));
+		return comparator.hash(value.<K>getFieldNotNull(0));
 		
 	}
 
 	@Override
 	public void setReference(T toCompare) {
-		this.comparator.setReference(toCompare.<K>getField(0));
+		this.comparator.setReference(toCompare.<K>getFieldNotNull(0));
 	}
 
 	@Override
 	public boolean equalToReference(T candidate) {
-		return this.comparator.equalToReference(candidate.<K>getField(0));
+		return this.comparator.equalToReference(candidate.<K>getFieldNotNull(0));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -68,7 +68,7 @@ public final class TupleLeadingFieldComparator<T extends Tuple, K> extends TypeC
 	
 	@Override
 	public int compare(T first, T second) {
-		return this.comparator.compare(first.<K>getField(0), second.<K>getField(0));
+		return this.comparator.compare(first.<K>getFieldNotNull(0), second.<K>getFieldNotNull(0));
 	}
 
 	@Override
@@ -98,7 +98,7 @@ public final class TupleLeadingFieldComparator<T extends Tuple, K> extends TypeC
 
 	@Override
 	public void putNormalizedKey(T record, MemorySegment target, int offset, int numBytes) {
-		this.comparator.putNormalizedKey(record.<K>getField(0), target, offset, numBytes);
+		this.comparator.putNormalizedKey(record.<K>getFieldNotNull(0), target, offset, numBytes);
 	}
 
 	@Override
