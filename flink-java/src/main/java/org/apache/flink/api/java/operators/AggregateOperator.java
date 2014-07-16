@@ -37,8 +37,9 @@ import org.apache.flink.api.java.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.types.NullFieldException;
+import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.util.Collector;
-
 import org.apache.flink.api.java.DataSet;
 
 /**
@@ -283,8 +284,12 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 				current = values.next();
 				
 				for (int i = 0; i < fieldPositions.length; i++) {
-					Object val = current.getField(fieldPositions[i]);
-					aggFunctions[i].aggregate(val);
+					try {
+						Object val = current.getFieldNotNull(fieldPositions[i]);
+						aggFunctions[i].aggregate(val);
+					} catch (NullKeyFieldException e) {
+						throw new NullFieldException(fieldPositions[i]);
+					}
 				}
 			}
 			
