@@ -87,11 +87,10 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 				if (LOG.isErrorEnabled()) {
 					LOG.error("Cannot receive RMQ message " + QUEUE_NAME + " at " + HOST_NAME);
 				}
-
 			}
 
 			outTuple = deserialize(delivery.getBody());
-			if (!close) {
+			if (!close){
 				collector.collect(outTuple);
 			}
 		}
@@ -101,6 +100,7 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+
 	}
 
 	public abstract IN deserialize(byte[] t);

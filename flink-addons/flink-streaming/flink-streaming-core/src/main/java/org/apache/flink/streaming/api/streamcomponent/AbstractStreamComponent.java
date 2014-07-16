@@ -91,12 +91,11 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 				outputSelector = (OutputSelector<OUT>) deserializeObject(configuration.getBytes(
 						"outputSelector", null));
 			} catch (Exception e) {
-				throw new StreamComponentException(
-						"Cannot deserialize and instantiate OutputSelector", e);
+				throw new StreamComponentException("Cannot deserialize and instantiate OutputSelector", e);
 			}
 
-			collector = new DirectedStreamCollector<OUT>(instanceID, outSerializationDelegate,
-					outputSelector);
+			collector = new DirectedStreamCollector<OUT>(instanceID,
+					outSerializationDelegate, outputSelector);
 		} else {
 			collector = new StreamCollector<OUT>(instanceID, outSerializationDelegate);
 		}
@@ -224,7 +223,7 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 					outputPartitioner);
 			outputs.add(output);
 			String outputName = configuration.getString("outputName_" + numberOfOutputs, null);
-
+			
 			if (collector != null) {
 				collector.addOutput(output, outputName);
 			}
