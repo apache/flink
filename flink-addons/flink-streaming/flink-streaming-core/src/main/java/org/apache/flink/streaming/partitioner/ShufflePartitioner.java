@@ -21,25 +21,30 @@ package org.apache.flink.streaming.partitioner;
 
 import java.util.Random;
 
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.io.network.api.ChannelSelector;
-
-//Randomly group, to distribute equally
-public class ShufflePartitioner implements ChannelSelector<StreamRecord<Tuple>> {
+/**
+ * Partitioner that distributes the data equally by selecting one output channel
+ * randomly.
+ *
+ * @param <T>
+ *            Type of the Tuple
+ */
+public class ShufflePartitioner<T extends Tuple> implements StreamPartitioner<T> {
+	private static final long serialVersionUID = 1L;
 
 	private Random random = new Random();
-	
+
 	private int[] returnArray;
-	
-	public ShufflePartitioner(){
+
+	public ShufflePartitioner() {
 		this.random = new Random();
 		this.returnArray = new int[1];
 	}
 
 	@Override
-	public int[] selectChannels(StreamRecord<Tuple> record, int numberOfOutputChannels) {
+	public int[] selectChannels(StreamRecord<T> record, int numberOfOutputChannels) {
 		returnArray[0] = random.nextInt(numberOfOutputChannels);
 		return returnArray;
 	}

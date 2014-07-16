@@ -28,12 +28,12 @@ import org.junit.Test;
 
 public class GlobalPartitionerTest {
 
-	private GlobalPartitioner globalPartitioner;
+	private GlobalPartitioner<Tuple> globalPartitioner;
 	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>();
 
 	@Before
 	public void setPartitioner() {
-		globalPartitioner = new GlobalPartitioner();
+		globalPartitioner = new GlobalPartitioner<Tuple>();
 	}
 
 	@Test

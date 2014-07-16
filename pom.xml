@@ -490,10 +490,15 @@ under the License.
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
+						<exclude>tools/checkstyle.xml</exclude>
 						<exclude>CHANGELOG</exclude>
 						<exclude>**/*.creole</exclude>
 						<exclude>CONTRIBUTORS</exclude>
 						<!-- Build fiels -->
+						<exclude>tools/maven/checkstyle.xml</exclude>
+						<exclude>tools/maven/suppressions.xml</exclude>
+						<exclude>**/pom.xml</exclude>
+						<exclude>**/pom.hadoop2.xml</exclude>
 						<exclude>**/*.iml</exclude>
 						<!-- Generated content -->
 						<exclude>**/target/**</exclude>

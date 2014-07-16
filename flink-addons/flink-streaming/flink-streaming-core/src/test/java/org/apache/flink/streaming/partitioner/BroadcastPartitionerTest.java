@@ -28,17 +28,17 @@ import org.junit.Test;
 
 public class BroadcastPartitionerTest {
 
-	private BroadcastPartitioner broadcastPartitioner1;
-	private BroadcastPartitioner broadcastPartitioner2;
-	private BroadcastPartitioner broadcastPartitioner3;
+	private BroadcastPartitioner<Tuple> broadcastPartitioner1;
+	private BroadcastPartitioner<Tuple> broadcastPartitioner2;
+	private BroadcastPartitioner<Tuple> broadcastPartitioner3;
 	
 	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>();
 
 	@Before
 	public void setPartitioner() {
-		broadcastPartitioner1 = new BroadcastPartitioner();
-		broadcastPartitioner2 = new BroadcastPartitioner();
-		broadcastPartitioner3 = new BroadcastPartitioner();
+		broadcastPartitioner1 = new BroadcastPartitioner<Tuple>();
+		broadcastPartitioner2 = new BroadcastPartitioner<Tuple>();
+		broadcastPartitioner3 = new BroadcastPartitioner<Tuple>();
 
 	}
 

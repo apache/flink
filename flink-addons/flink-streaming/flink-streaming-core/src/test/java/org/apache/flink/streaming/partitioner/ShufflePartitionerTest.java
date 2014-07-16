@@ -29,12 +29,12 @@ import org.junit.Test;
 
 public class ShufflePartitionerTest {
 
-	private ShufflePartitioner shufflePartitioner;
+	private ShufflePartitioner<Tuple> shufflePartitioner;
 	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>();
 
 	@Before
 	public void setPartitioner() {
-		shufflePartitioner = new ShufflePartitioner();
+		shufflePartitioner = new ShufflePartitioner<Tuple>();
 	}
 
 	@Test

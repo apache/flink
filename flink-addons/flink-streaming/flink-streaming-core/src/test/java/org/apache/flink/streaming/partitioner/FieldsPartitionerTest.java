@@ -30,13 +30,13 @@ import org.junit.Test;
 
 public class FieldsPartitionerTest {
 
-	private FieldsPartitioner fieldsPartitioner;
+	private FieldsPartitioner<Tuple> fieldsPartitioner;
 	private StreamRecord<Tuple> streamRecord1 = new StreamRecord<Tuple>().setTuple(new Tuple2<String, Integer>("test", 0));
 	private StreamRecord<Tuple> streamRecord2 = new StreamRecord<Tuple>().setTuple(new Tuple2<String, Integer>("test", 42));
 
 	@Before
 	public void setPartitioner() {
-		fieldsPartitioner = new FieldsPartitioner(0);
+		fieldsPartitioner = new FieldsPartitioner<Tuple>(0);
 	}
 
 	@Test

@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.List;
 
+import org.apache.commons.lang.SerializationUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.AbstractFunction;
@@ -37,7 +38,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
-import org.apache.flink.runtime.io.network.api.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -51,8 +51,8 @@ import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
 import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
 import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.partitioner.DefaultPartitioner;
-import org.apache.flink.streaming.partitioner.FieldsPartitioner;
+import org.apache.flink.streaming.partitioner.ShufflePartitioner;
+import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.util.Collector;
 
 public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tuple> extends
@@ -83,19 +83,18 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 		name = configuration.getString("componentName", "MISSING_COMPONENT_NAME");
 	}
 
-	@SuppressWarnings("unchecked")
 	protected Collector<OUT> setCollector() {
 		if (configuration.getBoolean("directedEmit", false)) {
 			OutputSelector<OUT> outputSelector = null;
 			try {
-				outputSelector = (OutputSelector<OUT>) deserializeObject(configuration.getBytes(
-						"outputSelector", null));
+				outputSelector = deserializeObject(configuration.getBytes("outputSelector", null));
 			} catch (Exception e) {
-				throw new StreamComponentException("Cannot deserialize and instantiate OutputSelector", e);
+				throw new StreamComponentException(
+						"Cannot deserialize and instantiate OutputSelector", e);
 			}
 
-			collector = new DirectedStreamCollector<OUT>(instanceID,
-					outSerializationDelegate, outputSelector);
+			collector = new DirectedStreamCollector<OUT>(instanceID, outSerializationDelegate,
+					outputSelector);
 		} else {
 			collector = new StreamCollector<OUT>(instanceID, outSerializationDelegate);
 		}
@@ -186,8 +185,7 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 			for (int i = 0; i < numberOfInputs; i++) {
 				recordReaders[i] = new MutableRecordReader<StreamRecord<IN>>(this);
 			}
-			return new UnionStreamRecordReader<IN>(recordReaders,
-					(Class<? extends StreamRecord<IN>>) StreamRecord.class,
+			return new UnionStreamRecordReader<IN>(recordReaders, StreamRecord.class,
 					inDeserializationDelegate, inTupleSerializer);
 		}
 	}
@@ -201,40 +199,32 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 		}
 	}
 
-	@SuppressWarnings("unchecked")
-	private void setPartitioner(int numberOfOutputs, List<RecordWriter<StreamRecord<OUT>>> outputs) {
+	private void setPartitioner(int outputNumber, List<RecordWriter<StreamRecord<OUT>>> outputs) {
 
-		Class<? extends ChannelSelector<StreamRecord<OUT>>> partitioner = (Class<? extends ChannelSelector<StreamRecord<OUT>>>) configuration
-				.getClass("partitionerClass_" + numberOfOutputs, DefaultPartitioner.class,
-						ChannelSelector.class);
+		byte[] serializedPartitioner = configuration.getBytes("partitionerObject_" + outputNumber,
+				SerializationUtils.serialize((new ShufflePartitioner<OUT>())));
+		StreamPartitioner<OUT> outputPartitioner = null;
 
 		try {
-			ChannelSelector<StreamRecord<OUT>> outputPartitioner;
-
-			if (partitioner.equals(FieldsPartitioner.class)) {
-				int keyPosition = configuration.getInteger(
-						"partitionerIntParam_" + numberOfOutputs, 1);
-				outputPartitioner = partitioner.getConstructor(int.class).newInstance(keyPosition);
-			} else {
-				outputPartitioner = partitioner.newInstance();
-			}
+			outputPartitioner = deserializeObject(serializedPartitioner);
 
 			RecordWriter<StreamRecord<OUT>> output = new RecordWriter<StreamRecord<OUT>>(this,
 					outputPartitioner);
 			outputs.add(output);
-			String outputName = configuration.getString("outputName_" + numberOfOutputs, null);
-			
+			String outputName = configuration.getString("outputName_" + outputNumber, null);
+
 			if (collector != null) {
 				collector.addOutput(output, outputName);
 			}
 
 			if (LOG.isTraceEnabled()) {
-				LOG.trace("Partitioner set: " + partitioner.getSimpleName() + " with "
-						+ numberOfOutputs + " outputs");
+				LOG.trace("Partitioner set: " + outputPartitioner.getClass().getSimpleName()
+						+ " with " + outputNumber + " outputs");
 			}
 		} catch (Exception e) {
-			throw new StreamComponentException("Unexpected problem while setting partitioner "
-					+ partitioner.getSimpleName() + " with " + numberOfOutputs + " outputs");
+			throw new StreamComponentException("Cannot deserialize partitioner "
+					+ outputPartitioner.getClass().getSimpleName() + " with " + outputNumber
+					+ " outputs");
 		}
 	}
 
@@ -272,7 +262,7 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 		byte[] userFunctionSerialized = configuration.getBytes("serializedudf", null);
 
 		try {
-			userFunction = (StreamComponentInvokable) deserializeObject(userFunctionSerialized);
+			userFunction = deserializeObject(userFunctionSerialized);
 		} catch (ClassNotFoundException e) {
 			new StreamComponentException("Cannot instantiate user function: "
 					+ userFunctionClass.getSimpleName());
@@ -284,10 +274,10 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 		return userFunction;
 	}
 
-	private static Object deserializeObject(byte[] serializedObject) throws IOException,
+	@SuppressWarnings("unchecked")
+	private static <T> T deserializeObject(byte[] serializedObject) throws IOException,
 			ClassNotFoundException {
-		ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(serializedObject));
-		return ois.readObject();
+		return (T) SerializationUtils.deserialize(serializedObject);
 	}
 
 	protected abstract void setInvokable();

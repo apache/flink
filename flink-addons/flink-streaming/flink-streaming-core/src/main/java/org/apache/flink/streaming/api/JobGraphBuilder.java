@@ -27,11 +27,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.network.api.ChannelSelector;
 import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobgraph.JobOutputVertex;
 import org.apache.flink.runtime.jobgraph.JobTaskVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
 import org.apache.flink.streaming.api.invokable.UserSinkInvokable;
 import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
@@ -50,11 +51,11 @@ import org.apache.flink.streaming.api.streamcomponent.StreamIterationSource;
 import org.apache.flink.streaming.api.streamcomponent.StreamSink;
 import org.apache.flink.streaming.api.streamcomponent.StreamSource;
 import org.apache.flink.streaming.api.streamcomponent.StreamTask;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.partitioner.FieldsPartitioner;
 import org.apache.flink.streaming.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
+import org.apache.flink.streaming.partitioner.StreamPartitioner;
 
 /**
  * Object for building Flink stream processing job graphs
@@ -68,8 +69,7 @@ public class JobGraphBuilder {
 	private Map<String, AbstractJobVertex> components;
 	private Map<String, Integer> componentParallelism;
 	private Map<String, List<String>> edgeList;
-	private Map<String, List<Class<? extends ChannelSelector<StreamRecord<Tuple>>>>> connectionTypes;
-	private Map<String, List<Integer>> connectionParams;
+	private Map<String, List<StreamPartitioner<? extends Tuple>>> connectionTypes;
 	private Map<String, String> userDefinedNames;
 	private Map<String, String> operatorNames;
 	private Map<String, StreamComponentInvokable> invokableObjects;
@@ -96,8 +96,7 @@ public class JobGraphBuilder {
 		components = new HashMap<String, AbstractJobVertex>();
 		componentParallelism = new HashMap<String, Integer>();
 		edgeList = new HashMap<String, List<String>>();
-		connectionTypes = new HashMap<String, List<Class<? extends ChannelSelector<StreamRecord<Tuple>>>>>();
-		connectionParams = new HashMap<String, List<Integer>>();
+		connectionTypes = new HashMap<String, List<StreamPartitioner<? extends Tuple>>>();
 		userDefinedNames = new HashMap<String, String>();
 		operatorNames = new HashMap<String, String>();
 		invokableObjects = new HashMap<String, StreamComponentInvokable>();
@@ -170,7 +169,7 @@ public class JobGraphBuilder {
 	 * 
 	 * @param componentName
 	 *            Name of the component
-	 * @param TaskInvokableObject
+	 * @param taskInvokableObject
 	 *            User defined operator
 	 * @param operatorName
 	 *            Operator type
@@ -179,11 +178,11 @@ public class JobGraphBuilder {
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
-	public void addTask(String componentName,
-			UserTaskInvokable<? extends Tuple, ? extends Tuple> TaskInvokableObject,
-			String operatorName, byte[] serializedFunction, int parallelism) {
+	public <IN extends Tuple, OUT extends Tuple> void addTask(String componentName,
+			UserTaskInvokable<IN, OUT> taskInvokableObject, String operatorName,
+			byte[] serializedFunction, int parallelism) {
 
-		addComponent(componentName, StreamTask.class, TaskInvokableObject, operatorName,
+		addComponent(componentName, StreamTask.class, taskInvokableObject, operatorName,
 				serializedFunction, parallelism);
 
 		if (LOG.isDebugEnabled()) {
@@ -255,7 +254,7 @@ public class JobGraphBuilder {
 	 *            Name of the component
 	 * @param componentClass
 	 *            The class of the vertex
-	 * @param InvokableObject
+	 * @param invokableObject
 	 *            The user defined invokable object
 	 * @param operatorName
 	 *            Type of the user defined operator
@@ -266,18 +265,16 @@ public class JobGraphBuilder {
 	 */
 	private void addComponent(String componentName,
 			Class<? extends AbstractInvokable> componentClass,
-			StreamComponentInvokable InvokableObject, String operatorName,
+			StreamComponentInvokable invokableObject, String operatorName,
 			byte[] serializedFunction, int parallelism) {
 
 		componentClasses.put(componentName, componentClass);
 		componentParallelism.put(componentName, parallelism);
-		invokableObjects.put(componentName, InvokableObject);
+		invokableObjects.put(componentName, invokableObject);
 		operatorNames.put(componentName, operatorName);
 		serializedFunctions.put(componentName, serializedFunction);
 		edgeList.put(componentName, new ArrayList<String>());
-		connectionTypes.put(componentName,
-				new ArrayList<Class<? extends ChannelSelector<StreamRecord<Tuple>>>>());
-		connectionParams.put(componentName, new ArrayList<Integer>());
+		connectionTypes.put(componentName, new ArrayList<StreamPartitioner<? extends Tuple>>());
 	}
 
 	/**
@@ -414,18 +411,13 @@ public class JobGraphBuilder {
 	 *            Name of the upstream(output) vertex
 	 * @param downStreamComponentName
 	 *            Name of the downstream(input) vertex
-	 * @param partitionerClass
-	 *            Class of the partitioner
-	 * @param partitionerParam
-	 *            Parameters for the partitioner, used by the
-	 *            {@link FieldsPartitioner}
+	 * @param partitionerObject
+	 *            Partitioner object
 	 */
 	public void setEdge(String upStreamComponentName, String downStreamComponentName,
-			Class<? extends ChannelSelector<StreamRecord<Tuple>>> partitionerClass,
-			int partitionerParam) {
+			StreamPartitioner<? extends Tuple> partitionerObject) {
 		edgeList.get(upStreamComponentName).add(downStreamComponentName);
-		connectionTypes.get(upStreamComponentName).add(partitionerClass);
-		connectionParams.get(upStreamComponentName).add(partitionerParam);
+		connectionTypes.get(upStreamComponentName).add(partitionerObject);
 	}
 
 	/**
@@ -434,14 +426,17 @@ public class JobGraphBuilder {
 	 * Broadcast partitioning: All the emitted tuples are replicated to all of
 	 * the output instances
 	 * 
+	 * @param inputStream
+	 *            The DataStream object of the input
 	 * @param upStreamComponentName
 	 *            Name of the upstream component, that will emit the records
 	 * @param downStreamComponentName
 	 *            Name of the downstream component, that will receive the
 	 *            records
 	 */
-	public void broadcastConnect(String upStreamComponentName, String downStreamComponentName) {
-		setEdge(upStreamComponentName, downStreamComponentName, BroadcastPartitioner.class, 0);
+	public <T extends Tuple> void broadcastConnect(DataStream<T> inputStream,
+			String upStreamComponentName, String downStreamComponentName) {
+		setEdge(upStreamComponentName, downStreamComponentName, new BroadcastPartitioner<T>());
 		LOG.info("Broadcastconnected: " + upStreamComponentName + " to " + downStreamComponentName);
 	}
 
@@ -452,6 +447,8 @@ public class JobGraphBuilder {
 	 * Fields partitioning: Tuples are hashed by the given key, and grouped to
 	 * outputs accordingly
 	 * 
+	 * @param inputStream
+	 *            The DataStream object of the input
 	 * @param upStreamComponentName
 	 *            Name of the upstream component, that will emit the records
 	 * @param downStreamComponentName
@@ -460,11 +457,11 @@ public class JobGraphBuilder {
 	 * @param keyPosition
 	 *            Position of key in the tuple
 	 */
-	public void fieldsConnect(String upStreamComponentName, String downStreamComponentName,
-			int keyPosition) {
+	public <T extends Tuple> void fieldsConnect(DataStream<T> inputStream,
+			String upStreamComponentName, String downStreamComponentName, int keyPosition) {
 
-		setEdge(upStreamComponentName, downStreamComponentName, FieldsPartitioner.class,
-				keyPosition);
+		setEdge(upStreamComponentName, downStreamComponentName, new FieldsPartitioner<T>(
+				keyPosition));
 		LOG.info("Fieldsconnected: " + upStreamComponentName + " to " + downStreamComponentName
 				+ "by" + keyPosition);
 
@@ -476,13 +473,16 @@ public class JobGraphBuilder {
 	 * Global partitioning: sends all emitted tuples to one output instance
 	 * (i.e. the first one)
 	 * 
+	 * @param inputStream
+	 *            The DataStream object of the input
 	 * @param upStreamComponentName
 	 *            Name of the upstream component, that will emit the tuples
 	 * @param downStreamComponentName
 	 *            Name of the downstream component, that will receive the tuples
 	 */
-	public void globalConnect(String upStreamComponentName, String downStreamComponentName) {
-		setEdge(upStreamComponentName, downStreamComponentName, GlobalPartitioner.class, 0);
+	public <T extends Tuple> void globalConnect(DataStream<T> inputStream,
+			String upStreamComponentName, String downStreamComponentName) {
+		setEdge(upStreamComponentName, downStreamComponentName, new GlobalPartitioner<T>());
 		LOG.info("Globalconnected: " + upStreamComponentName + " to " + downStreamComponentName);
 
 	}
@@ -493,13 +493,16 @@ public class JobGraphBuilder {
 	 * Shuffle partitioning: sends the output tuples to a randomly selected
 	 * channel
 	 * 
+	 * @param inputStream
+	 *            The DataStream object of the input
 	 * @param upStreamComponentName
 	 *            Name of the upstream component, that will emit the tuples
 	 * @param downStreamComponentName
 	 *            Name of the downstream component, that will receive the tuples
 	 */
-	public void shuffleConnect(String upStreamComponentName, String downStreamComponentName) {
-		setEdge(upStreamComponentName, downStreamComponentName, ShufflePartitioner.class, 0);
+	public <T extends Tuple> void shuffleConnect(DataStream<T> inputStream,
+			String upStreamComponentName, String downStreamComponentName) {
+		setEdge(upStreamComponentName, downStreamComponentName, new ShufflePartitioner<T>());
 		LOG.info("Shuffleconnected: " + upStreamComponentName + " to " + downStreamComponentName);
 	}
 
@@ -511,14 +514,11 @@ public class JobGraphBuilder {
 	 *            Name of the upstream component, that will emit the tuples
 	 * @param downStreamComponentName
 	 *            Name of the downstream component, that will receive the tuples
-	 * @param PartitionerClass
-	 *            Class of the partitioner
-	 * @param partitionerParam
-	 *            Parameter of the partitioner
+	 * @param partitionerObject
+	 *            The partitioner
 	 */
-	private void connect(String upStreamComponentName, String downStreamComponentName,
-			Class<? extends ChannelSelector<StreamRecord<Tuple>>> PartitionerClass,
-			int partitionerParam) {
+	private <T extends Tuple> void connect(String upStreamComponentName,
+			String downStreamComponentName, StreamPartitioner<T> partitionerObject) {
 
 		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
 		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
@@ -530,7 +530,7 @@ public class JobGraphBuilder {
 			upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK);
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("CONNECTED: " + PartitionerClass.getSimpleName() + " - "
+				LOG.debug("CONNECTED: " + partitionerObject.getClass().getSimpleName() + " - "
 						+ upStreamComponentName + " -> " + downStreamComponentName);
 			}
 
@@ -541,15 +541,10 @@ public class JobGraphBuilder {
 
 		int outputIndex = upStreamComponent.getNumberOfForwardConnections() - 1;
 
-		if (PartitionerClass.equals(FieldsPartitioner.class)) {
-			config.setBoolean("isPartitionedOutput_" + outputIndex, true);
-		}
-
 		putOutputNameToConfig(upStreamComponentName, downStreamComponentName, outputIndex, config);
 
-		config.setClass("partitionerClass_" + outputIndex, PartitionerClass);
-
-		config.setInteger("partitionerIntParam_" + outputIndex, partitionerParam);
+		config.setBytes("partitionerObject_" + outputIndex,
+				SerializationUtils.serialize(partitionerObject));
 
 		config.setInteger("numOfOutputs_" + outputIndex,
 				componentParallelism.get(downStreamComponentName));
@@ -673,8 +668,7 @@ public class JobGraphBuilder {
 			int i = 0;
 			for (String downStreamComponentName : edgeList.get(upStreamComponentName)) {
 				connect(upStreamComponentName, downStreamComponentName,
-						connectionTypes.get(upStreamComponentName).get(i),
-						connectionParams.get(upStreamComponentName).get(i));
+						connectionTypes.get(upStreamComponentName).get(i));
 				i++;
 			}
 
