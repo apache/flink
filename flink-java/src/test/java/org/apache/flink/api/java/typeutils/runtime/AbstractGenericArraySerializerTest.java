@@ -29,16 +29,14 @@ import org.junit.Test;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
-import org.apache.flink.api.java.typeutils.runtime.GenericArraySerializer;
-import org.apache.flink.api.java.typeutils.runtime.GenericTypeSerializerTest.Book;
-import org.apache.flink.api.java.typeutils.runtime.GenericTypeSerializerTest.BookAuthor;
-import org.apache.flink.api.java.typeutils.runtime.GenericTypeSerializerTest.ComplexNestedObject1;
-import org.apache.flink.api.java.typeutils.runtime.GenericTypeSerializerTest.ComplexNestedObject2;
-import org.apache.flink.api.java.typeutils.runtime.GenericTypeSerializerTest.SimpleTypes;
+import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest.Book;
+import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest.BookAuthor;
+import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest.ComplexNestedObject1;
+import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest.ComplexNestedObject2;
+import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest.SimpleTypes;
 import org.apache.flink.util.StringUtils;
 
-public class GenericArraySerializerTest {
+abstract public class AbstractGenericArraySerializerTest {
 	
 	private final Random rnd = new Random(349712539451944123L);
 	
@@ -150,7 +148,7 @@ public class GenericArraySerializerTest {
 		try {
 			@SuppressWarnings("unchecked")
 			Class<T> type = (Class<T>) instances[0][0].getClass();
-			TypeSerializer<T> serializer = new AvroSerializer<T>(type);
+			TypeSerializer<T> serializer = createComponentSerializer(type);
 			runTests(type, serializer, instances);
 		}
 		catch (Exception e) {
@@ -183,4 +181,6 @@ public class GenericArraySerializerTest {
 	private final <T> GenericArraySerializer<T> createSerializer(Class<T> type, TypeSerializer<T> componentSerializer) {
 		return new GenericArraySerializer<T>(type, componentSerializer);
 	}
+
+	abstract protected <T> TypeSerializer<T> createComponentSerializer(Class<T> type);
 }
