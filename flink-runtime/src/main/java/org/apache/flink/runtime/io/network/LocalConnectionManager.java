@@ -16,11 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network;
 
 import java.io.IOException;
 
+/**
+ * Local dummy network connection manager used, when the task manager
+ * runs in local mode without starting up the remote network stack.
+ */
 public class LocalConnectionManager implements NetworkConnectionManager {
 
 	@Override
@@ -29,6 +32,10 @@ public class LocalConnectionManager implements NetworkConnectionManager {
 
 	@Override
 	public void enqueue(Envelope envelope, RemoteReceiver receiver) throws IOException {
+	}
+
+	@Override
+	public void close(RemoteReceiver receiver) {
 	}
 
 	@Override
