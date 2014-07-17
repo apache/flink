@@ -16,16 +16,21 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network;
 
 import java.io.IOException;
 
+/**
+ * The network connection manager is responsible to dispatch envelopes
+ * to remote receivers.
+ */
 public interface NetworkConnectionManager {
 
 	public void start(ChannelManager channelManager) throws IOException;
 
 	public void enqueue(Envelope envelope, RemoteReceiver receiver) throws IOException;
+
+	public void close(RemoteReceiver receiver);
 
 	public void shutdown() throws IOException;
 }
