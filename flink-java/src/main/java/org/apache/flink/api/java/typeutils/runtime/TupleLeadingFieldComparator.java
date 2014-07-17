@@ -25,6 +25,8 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.types.NullFieldException;
+import org.apache.flink.types.NullKeyFieldException;
 
 
 public final class TupleLeadingFieldComparator<T extends Tuple, K> extends TypeComparator<T>
@@ -46,18 +48,32 @@ public final class TupleLeadingFieldComparator<T extends Tuple, K> extends TypeC
 	
 	@Override
 	public int hash(T value) {
-		return comparator.hash(value.<K>getFieldNotNull(0));
-		
+		try {
+			return comparator.hash(value.<K> getFieldNotNull(0));
+		} catch (NullFieldException nfex) {
+			throw new NullKeyFieldException(nfex);
+		}
+
 	}
 
 	@Override
 	public void setReference(T toCompare) {
-		this.comparator.setReference(toCompare.<K>getFieldNotNull(0));
+		try {
+			this.comparator.setReference(toCompare.<K> getFieldNotNull(0));
+		} catch (NullFieldException nfex) {
+			throw new NullKeyFieldException(nfex);
+		}
 	}
+	
 
 	@Override
 	public boolean equalToReference(T candidate) {
-		return this.comparator.equalToReference(candidate.<K>getFieldNotNull(0));
+		try {
+			return this.comparator.equalToReference(candidate
+					.<K> getFieldNotNull(0));
+		} catch (NullFieldException nfex) {
+			throw new NullKeyFieldException(nfex);
+		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -68,7 +84,12 @@ public final class TupleLeadingFieldComparator<T extends Tuple, K> extends TypeC
 	
 	@Override
 	public int compare(T first, T second) {
-		return this.comparator.compare(first.<K>getFieldNotNull(0), second.<K>getFieldNotNull(0));
+		try {
+			return this.comparator.compare(first.<K> getFieldNotNull(0),
+					second.<K> getFieldNotNull(0));
+		} catch (NullFieldException nfex) {
+			throw new NullKeyFieldException(nfex);
+		}
 	}
 
 	@Override
@@ -98,7 +119,12 @@ public final class TupleLeadingFieldComparator<T extends Tuple, K> extends TypeC
 
 	@Override
 	public void putNormalizedKey(T record, MemorySegment target, int offset, int numBytes) {
-		this.comparator.putNormalizedKey(record.<K>getFieldNotNull(0), target, offset, numBytes);
+		try {
+			this.comparator.putNormalizedKey(record.<K> getFieldNotNull(0),
+					target, offset, numBytes);
+		} catch (NullFieldException nfex) {
+			throw new NullKeyFieldException(nfex);
+		}
 	}
 
 	@Override

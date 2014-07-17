@@ -23,6 +23,8 @@ import java.io.Serializable;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.types.NullFieldException;
+import org.apache.flink.types.NullKeyFieldException;
 
 
 public class TupleLeadingFieldPairComparator<K, T1 extends Tuple, T2 extends Tuple> extends TypePairComparator<T1, T2> implements Serializable {
@@ -39,17 +41,30 @@ public class TupleLeadingFieldPairComparator<K, T1 extends Tuple, T2 extends Tup
 	
 	@Override
 	public void setReference(T1 reference) {
-		this.comparator1.setReference(reference.<K>getFieldNotNull(0));
+		try {
+			this.comparator1.setReference(reference.<K> getFieldNotNull(0));
+		} catch (NullFieldException nfex) {
+			throw new NullKeyFieldException(nfex);
+		}
 	}
 
 	@Override
 	public boolean equalToReference(T2 candidate) {
-		return this.comparator1.equalToReference(candidate.<K>getFieldNotNull(0));
+		try {
+			return this.comparator1.equalToReference(candidate
+					.<K> getFieldNotNull(0));
+		} catch (NullFieldException nfex) {
+			throw new NullKeyFieldException(nfex);
+		}
 	}
 
 	@Override
 	public int compareToReference(T2 candidate) {
-		this.comparator2.setReference(candidate.<K>getFieldNotNull(0));
-		return this.comparator1.compareToReference(this.comparator2);
+		try {
+			this.comparator2.setReference(candidate.<K> getFieldNotNull(0));
+			return this.comparator1.compareToReference(this.comparator2);
+		} catch (NullFieldException nfex) {
+			throw new NullKeyFieldException(nfex);
+		}
 	}
 }

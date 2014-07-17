@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types;
-
 
 /**
  * An exception specifying that a required field was not set in a record, i.e. was <code>null</code>.
@@ -30,7 +28,7 @@ public class NullFieldException extends RuntimeException
 	 */
 	private static final long serialVersionUID = -8820467525772321173L;
 	
-	private final int fieldNumber;
+	private final int fieldPos;
 
 	/**
 	 * Constructs an {@code NullFieldException} with {@code null}
@@ -38,7 +36,7 @@ public class NullFieldException extends RuntimeException
 	 */
 	public NullFieldException() {
 		super();
-		this.fieldNumber = -1;
+		this.fieldPos = -1;
 	}
 
 	/**
@@ -48,18 +46,18 @@ public class NullFieldException extends RuntimeException
 	 */
 	public NullFieldException(String message) {
 		super(message);
-		this.fieldNumber = -1;
+		this.fieldPos = -1;
 	}
 	
 	/**
 	 * Constructs an {@code NullFieldException} with a default message, referring to
 	 * given field number as the null field.
 	 *
-	 * @param fieldNumber The index of the field that was null, bit expected to hold a value.
+	 * @param fieldIdx The index of the field that was null, but expected to hold a value.
 	 */
-	public NullFieldException(int fieldNumber) {
-		super("Field " + fieldNumber + " is null, but expected to hold a value.");
-		this.fieldNumber = fieldNumber;
+	public NullFieldException(int fieldIdx) {
+		super("Field " + fieldIdx + " is null, but expected to hold a value.");
+		this.fieldPos = fieldIdx;
 	}
 	
 	/**
@@ -68,7 +66,7 @@ public class NullFieldException extends RuntimeException
 	 * 
 	 * @return The field number that was attempted to access, or {@code -1}, if not set.
 	 */
-	public int getFieldNumber() {
-		return this.fieldNumber;
+	public int getFieldPos() {
+		return this.fieldPos;
 	}
 }

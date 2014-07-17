@@ -28,6 +28,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.types.KeyFieldOutOfBoundsException;
+import org.apache.flink.types.NullFieldException;
 import org.apache.flink.types.NullKeyFieldException;
 
 
@@ -164,6 +165,9 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 			}
 			return code;
 		}
+		catch (NullFieldException nfex) {
+			throw new NullKeyFieldException(nfex);
+		}
 		catch (IndexOutOfBoundsException iobex) {
 			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
 		}
@@ -176,6 +180,9 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 			for (; i < this.keyPositions.length; i++) {
 				this.comparators[i].setReference(toCompare.getFieldNotNull(this.keyPositions[i]));
 			}
+		}
+		catch (NullFieldException nfex) {
+			throw new NullKeyFieldException(nfex);
 		}
 		catch (IndexOutOfBoundsException iobex) {
 			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
@@ -192,6 +199,9 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 				}
 			}
 			return true;
+		}
+		catch (NullFieldException nfex) {
+			throw new NullKeyFieldException(nfex);
 		}
 		catch (IndexOutOfBoundsException iobex) {
 			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
@@ -233,9 +243,12 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 					return cmp;
 				}
 			}
-			
 			return 0;
-		} catch (IndexOutOfBoundsException iobex) {
+		} 
+		catch (NullFieldException nfex) {
+			throw new NullKeyFieldException(nfex);
+		}
+		catch (IndexOutOfBoundsException iobex) {
 			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
 		}
 	}
@@ -298,6 +311,9 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 				numBytes -= len;
 				offset += len;
 			}
+		}
+		catch (NullFieldException nfex) {
+			throw new NullKeyFieldException(nfex);
 		}
 		catch (NullPointerException npex) {
 			throw new NullKeyFieldException(this.keyPositions[i]);
