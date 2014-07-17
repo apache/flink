@@ -190,7 +190,7 @@ public abstract class StreamExecutionEnvironment {
 		jobGraphBuilder.addSource(returnStream.getId(), new FromElementsFunction<X>(data),
 				"elements", SerializationUtils.serialize(data[0]), 1);
 
-		return returnStream.copy();
+		return returnStream;
 	}
 
 	/**
@@ -211,7 +211,7 @@ public abstract class StreamExecutionEnvironment {
 		jobGraphBuilder.addSource(returnStream.getId(), new FromElementsFunction<X>(data),
 				"elements", SerializationUtils.serialize((Serializable) data.toArray()[0]), 1);
 
-		return returnStream.copy();
+		return returnStream;
 	}
 
 	/**
@@ -245,7 +245,7 @@ public abstract class StreamExecutionEnvironment {
 		jobGraphBuilder.addSource(returnStream.getId(), sourceFunction, "source",
 				SerializationUtils.serialize(sourceFunction), parallelism);
 
-		return returnStream.copy();
+		return returnStream;
 	}
 
 	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction) {
@@ -294,24 +294,25 @@ public abstract class StreamExecutionEnvironment {
 
 	protected <T extends Tuple, R extends Tuple> void addIterationSource(DataStream<T> inputStream,
 			String iterationID) {
-		DataStream<R> returnStream = new DataStream<R>(this, "iterationHead");
+		DataStream<R> returnStream = new DataStream<R>(this, "iterationSource");
 
 		jobGraphBuilder.addIterationSource(returnStream.getId(), inputStream.getId(), iterationID,
 				degreeOfParallelism);
 
-		jobGraphBuilder.shuffleConnect(inputStream, returnStream.getId(), inputStream.getId());
 	}
 
 	protected <T extends Tuple, R extends Tuple> void addIterationSink(DataStream<T> inputStream,
 			String iterationID) {
-		DataStream<R> returnStream = new DataStream<R>(this, "iterationTail");
+		DataStream<R> returnStream = new DataStream<R>(this, "iterationSink");
 
 		jobGraphBuilder.addIterationSink(returnStream.getId(), inputStream.getId(), iterationID,
-				degreeOfParallelism, "iterate");
+				inputStream.getParallelism(), "iterate");
+		
+		jobGraphBuilder.setIterationSourceParallelism(iterationID, inputStream.getParallelism());
 
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
 			String input = inputStream.connectIDs.get(i);
-			jobGraphBuilder.shuffleConnect(inputStream, input, returnStream.getId());
+			jobGraphBuilder.forwardConnect(inputStream, input, returnStream.getId());
 
 		}
 	}

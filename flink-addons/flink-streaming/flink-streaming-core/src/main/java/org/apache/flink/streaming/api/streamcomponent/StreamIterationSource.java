@@ -68,8 +68,11 @@ public class StreamIterationSource<OUT extends Tuple> extends AbstractStreamComp
 		}
 
 		iterationId = configuration.getString("iteration-id", "iteration-0");
-		BlockingQueueBroker.instance().handIn(iterationId, dataChannel);
+		try {
+			BlockingQueueBroker.instance().handIn(iterationId, dataChannel);
+		} catch (Exception e) {
 
+		}
 	}
 
 	@Override
@@ -84,9 +87,8 @@ public class StreamIterationSource<OUT extends Tuple> extends AbstractStreamComp
 
 		while (true) {
 			@SuppressWarnings("unchecked")
-
 			StreamRecord<OUT> nextRecord = dataChannel.poll(3, TimeUnit.SECONDS);
-			if(nextRecord == null){
+			if (nextRecord == null) {
 				break;
 			}
 			nextRecord.setSeralizationDelegate(this.outSerializationDelegate);

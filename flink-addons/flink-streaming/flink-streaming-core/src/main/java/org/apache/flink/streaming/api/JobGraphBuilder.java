@@ -70,7 +70,8 @@ public class JobGraphBuilder {
 	// Graph attributes
 	private Map<String, AbstractJobVertex> components;
 	private Map<String, Integer> componentParallelism;
-	private Map<String, List<String>> edgeList;
+	private Map<String, List<String>> outEdgeList;
+	private Map<String, List<String>> inEdgeList;
 	private Map<String, List<StreamPartitioner<? extends Tuple>>> connectionTypes;
 	private Map<String, String> userDefinedNames;
 	private Map<String, String> operatorNames;
@@ -79,6 +80,7 @@ public class JobGraphBuilder {
 	private Map<String, byte[]> outputSelectors;
 	private Map<String, Class<? extends AbstractInvokable>> componentClasses;
 	private Map<String, String> iterationIds;
+	private Map<String, String> iterationHeadNames;
 
 	private String maxParallelismVertexName;
 	private int maxParallelism;
@@ -97,7 +99,8 @@ public class JobGraphBuilder {
 
 		components = new HashMap<String, AbstractJobVertex>();
 		componentParallelism = new HashMap<String, Integer>();
-		edgeList = new HashMap<String, List<String>>();
+		outEdgeList = new HashMap<String, List<String>>();
+		inEdgeList = new HashMap<String, List<String>>();
 		connectionTypes = new HashMap<String, List<StreamPartitioner<? extends Tuple>>>();
 		userDefinedNames = new HashMap<String, String>();
 		operatorNames = new HashMap<String, String>();
@@ -106,6 +109,7 @@ public class JobGraphBuilder {
 		outputSelectors = new HashMap<String, byte[]>();
 		componentClasses = new HashMap<String, Class<? extends AbstractInvokable>>();
 		iterationIds = new HashMap<String, String>();
+		iterationHeadNames = new HashMap<String, String>();
 
 		maxParallelismVertexName = "";
 		maxParallelism = 0;
@@ -158,8 +162,12 @@ public class JobGraphBuilder {
 
 		addComponent(componentName, StreamIterationSource.class, null, null, null, parallelism);
 		iterationIds.put(componentName, iterationID);
+		iterationHeadNames.put(iterationID, componentName);
 
 		setBytesFrom(iterationHead, componentName);
+
+		setEdge(componentName, iterationHead,
+				connectionTypes.get(inEdgeList.get(iterationHead).get(0)).get(0));
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Iteration head source: " + componentName);
@@ -275,7 +283,8 @@ public class JobGraphBuilder {
 		invokableObjects.put(componentName, invokableObject);
 		operatorNames.put(componentName, operatorName);
 		serializedFunctions.put(componentName, serializedFunction);
-		edgeList.put(componentName, new ArrayList<String>());
+		outEdgeList.put(componentName, new ArrayList<String>());
+		inEdgeList.put(componentName, new ArrayList<String>());
 		connectionTypes.put(componentName, new ArrayList<StreamPartitioner<? extends Tuple>>());
 	}
 
@@ -403,6 +412,10 @@ public class JobGraphBuilder {
 			maxParallelism = parallelism;
 			maxParallelismVertexName = componentName;
 		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Parallelism set: " + parallelism + " for " + componentName);
+		}
 	}
 
 	/**
@@ -418,7 +431,8 @@ public class JobGraphBuilder {
 	 */
 	public void setEdge(String upStreamComponentName, String downStreamComponentName,
 			StreamPartitioner<? extends Tuple> partitionerObject) {
-		edgeList.get(upStreamComponentName).add(downStreamComponentName);
+		outEdgeList.get(upStreamComponentName).add(downStreamComponentName);
+		inEdgeList.get(downStreamComponentName).add(upStreamComponentName);
 		connectionTypes.get(upStreamComponentName).add(partitionerObject);
 	}
 
@@ -439,7 +453,6 @@ public class JobGraphBuilder {
 	public <T extends Tuple> void broadcastConnect(DataStream<T> inputStream,
 			String upStreamComponentName, String downStreamComponentName) {
 		setEdge(upStreamComponentName, downStreamComponentName, new BroadcastPartitioner<T>());
-		LOG.info("Broadcastconnected: " + upStreamComponentName + " to " + downStreamComponentName);
 	}
 
 	/**
@@ -464,9 +477,6 @@ public class JobGraphBuilder {
 
 		setEdge(upStreamComponentName, downStreamComponentName, new FieldsPartitioner<T>(
 				keyPosition));
-		LOG.info("Fieldsconnected: " + upStreamComponentName + " to " + downStreamComponentName
-				+ "by" + keyPosition);
-
 	}
 
 	/**
@@ -485,8 +495,6 @@ public class JobGraphBuilder {
 	public <T extends Tuple> void globalConnect(DataStream<T> inputStream,
 			String upStreamComponentName, String downStreamComponentName) {
 		setEdge(upStreamComponentName, downStreamComponentName, new GlobalPartitioner<T>());
-		LOG.info("Globalconnected: " + upStreamComponentName + " to " + downStreamComponentName);
-
 	}
 
 	/**
@@ -505,7 +513,6 @@ public class JobGraphBuilder {
 	public <T extends Tuple> void shuffleConnect(DataStream<T> inputStream,
 			String upStreamComponentName, String downStreamComponentName) {
 		setEdge(upStreamComponentName, downStreamComponentName, new ShufflePartitioner<T>());
-		LOG.info("Shuffleconnected: " + upStreamComponentName + " to " + downStreamComponentName);
 	}
 
 	/**
@@ -525,7 +532,6 @@ public class JobGraphBuilder {
 	public <T extends Tuple> void forwardConnect(DataStream<T> inputStream,
 			String upStreamComponentName, String downStreamComponentName) {
 		setEdge(upStreamComponentName, downStreamComponentName, new ForwardPartitioner<T>());
-		LOG.info("Shuffleconnected: " + upStreamComponentName + " to " + downStreamComponentName);
 	}
 
 	/**
@@ -597,6 +603,20 @@ public class JobGraphBuilder {
 		if (outputName != null) {
 			config.setString("outputName_" + (index), outputName);
 		}
+	}
+
+	/**
+	 * Sets the parallelism of the iteration head of the given iteration id to
+	 * the parallelism given.
+	 * 
+	 * @param iterationID
+	 *            ID of the iteration
+	 * @param parallelism
+	 *            Parallelism to set, typically the parallelism of the iteration
+	 *            tail.
+	 */
+	public void setIterationSourceParallelism(String iterationID, int parallelism) {
+		setParallelism(iterationHeadNames.get(iterationID), parallelism);
 	}
 
 	/**
@@ -687,13 +707,13 @@ public class JobGraphBuilder {
 	 */
 	private void buildGraph() {
 
-		for (String componentName : edgeList.keySet()) {
+		for (String componentName : outEdgeList.keySet()) {
 			createVertex(componentName);
 		}
 
-		for (String upStreamComponentName : edgeList.keySet()) {
+		for (String upStreamComponentName : outEdgeList.keySet()) {
 			int i = 0;
-			for (String downStreamComponentName : edgeList.get(upStreamComponentName)) {
+			for (String downStreamComponentName : outEdgeList.get(upStreamComponentName)) {
 				connect(upStreamComponentName, downStreamComponentName,
 						connectionTypes.get(upStreamComponentName).get(i));
 				i++;

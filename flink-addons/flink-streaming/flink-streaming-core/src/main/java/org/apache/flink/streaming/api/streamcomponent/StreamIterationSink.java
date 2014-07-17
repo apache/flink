@@ -50,7 +50,7 @@ public class StreamIterationSink<IN extends Tuple> extends AbstractStreamCompone
 			setSinkSerializer();
 			inputs = getConfigInputs();
 			iterationId = configuration.getString("iteration-id", "iteration-0");
-			dataChannel = BlockingQueueBroker.instance().getAndRemove(iterationId);
+			dataChannel = BlockingQueueBroker.instance().get(iterationId);
 		} catch (Exception e) {
 			throw new StreamComponentException(String.format(
 					"Cannot register inputs of StreamIterationSink %s", iterationId), e);

@@ -32,7 +32,7 @@ public class IterativeDataStream<T extends Tuple> extends StreamOperator<T, T> {
 	static Integer iterationCount = 0;
 
 	protected IterativeDataStream(DataStream<T> dataStream) {
-		super(dataStream.environment, "iteration", dataStream.id);
+		super(dataStream);
 		iterationID = iterationCount;
 		iterationCount++;
 		iterationflag = true;
