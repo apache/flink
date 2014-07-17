@@ -265,6 +265,36 @@ public class DataStream<T extends Tuple> {
 		}
 		return returnStream;
 	}
+	
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output tuples
+	 * are shuffled to the next component.
+	 * 
+	 * @return The DataStream with shuffle partitioning set.
+	 */
+	public DataStream<T> shuffle() {
+		DataStream<T> returnStream = copy();
+
+		for (int i = 0; i < returnStream.ctypes.size(); i++) {
+			returnStream.ctypes.set(i, ConnectionType.SHUFFLE);
+		}
+		return returnStream;
+	}
+	
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output tuples
+	 * are forwarded to the local subtask of the next component.
+	 * 
+	 * @return The DataStream with shuffle partitioning set.
+	 */
+	public DataStream<T> forward() {
+		DataStream<T> returnStream = copy();
+
+		for (int i = 0; i < returnStream.ctypes.size(); i++) {
+			returnStream.ctypes.set(i, ConnectionType.FORWARD);
+		}
+		return returnStream;
+	}
 
 	/**
 	 * Applies a Map transformation on a {@link DataStream}. The transformation
