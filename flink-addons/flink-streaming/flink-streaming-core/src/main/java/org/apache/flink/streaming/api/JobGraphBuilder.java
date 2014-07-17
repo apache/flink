@@ -34,6 +34,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphDefinitionException;
 import org.apache.flink.runtime.jobgraph.JobInputVertex;
@@ -53,6 +54,7 @@ import org.apache.flink.streaming.api.streamcomponent.StreamSource;
 import org.apache.flink.streaming.api.streamcomponent.StreamTask;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.partitioner.FieldsPartitioner;
+import org.apache.flink.streaming.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
@@ -507,6 +509,26 @@ public class JobGraphBuilder {
 	}
 
 	/**
+	 * Connects two components with the given names by connecting the local
+	 * subtasks in memory.
+	 * <p>
+	 * Forward partitioning: sends the output tuples to the local subtask of the
+	 * output vertex
+	 * 
+	 * @param inputStream
+	 *            The DataStream object of the input
+	 * @param upStreamComponentName
+	 *            Name of the upstream component, that will emit the tuples
+	 * @param downStreamComponentName
+	 *            Name of the downstream component, that will receive the tuples
+	 */
+	public <T extends Tuple> void forwardConnect(DataStream<T> inputStream,
+			String upStreamComponentName, String downStreamComponentName) {
+		setEdge(upStreamComponentName, downStreamComponentName, new ForwardPartitioner<T>());
+		LOG.info("Shuffleconnected: " + upStreamComponentName + " to " + downStreamComponentName);
+	}
+
+	/**
 	 * Connects to JobGraph components with the given names, partitioning and
 	 * channel type
 	 * 
@@ -527,7 +549,12 @@ public class JobGraphBuilder {
 				.getConfiguration();
 
 		try {
-			upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK);
+			if (partitionerObject.getClass().equals(ForwardPartitioner.class)) {
+				upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK,
+						DistributionPattern.POINTWISE);
+			} else {
+				upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK);
+			}
 
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("CONNECTED: " + partitionerObject.getClass().getSimpleName() + " - "

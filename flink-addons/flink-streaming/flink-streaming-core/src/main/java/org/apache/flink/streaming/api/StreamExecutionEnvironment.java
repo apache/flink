@@ -66,7 +66,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Partitioning strategy on the stream.
 	 */
 	public static enum ConnectionType {
-		SHUFFLE, BROADCAST, FIELD
+		SHUFFLE, BROADCAST, FIELD, FORWARD
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -393,6 +393,9 @@ public abstract class StreamExecutionEnvironment {
 				break;
 			case FIELD:
 				jobGraphBuilder.fieldsConnect(inputStream, input, outputID, param);
+				break;
+			case FORWARD:
+				jobGraphBuilder.forwardConnect(inputStream, input, outputID);
 				break;
 			}
 
