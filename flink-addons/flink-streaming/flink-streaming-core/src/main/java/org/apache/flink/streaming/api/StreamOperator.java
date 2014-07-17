@@ -27,8 +27,8 @@ public class StreamOperator<IN extends Tuple, OUT extends Tuple> extends DataStr
 		super(environment, operatorType);
 	}
 
-	protected StreamOperator(StreamExecutionEnvironment environment, String operatorType, String id) {
-		super(environment, operatorType, id);
+	protected StreamOperator(DataStream<OUT> dataStream) {
+		super(dataStream);
 	}
 
 }

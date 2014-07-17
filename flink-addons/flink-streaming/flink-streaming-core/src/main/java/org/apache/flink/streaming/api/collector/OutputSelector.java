@@ -25,20 +25,38 @@ import java.util.Collection;
 
 import org.apache.flink.api.java.tuple.Tuple;
 
+/**
+ * Class for defining an OutputSelector for the directTo operator. Every output
+ * tuple of a directed DataStream will run through this operator to select
+ * outputs.
+ * 
+ * @param <T>
+ *            Type parameter of the directed tuples.
+ */
 public abstract class OutputSelector<T extends Tuple> implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private Collection<String> outputs;
-	
+
 	public OutputSelector() {
 		outputs = new ArrayList<String>();
 	}
-	
+
 	Collection<String> getOutputs(T tuple) {
 		outputs.clear();
 		select(tuple, outputs);
 		return outputs;
 	}
-	
+
+	/**
+	 * Method for selecting output names for the emitted tuples when using the
+	 * directTo operator. The tuple will be emitted only to output names which
+	 * are added to the outputs collection.
+	 * 
+	 * @param tuple
+	 *            Tuple for which the output selection should be made.
+	 * @param outputs
+	 *            Selected output names should be added to this collection.
+	 */
 	public abstract void select(T tuple, Collection<String> outputs);
 }

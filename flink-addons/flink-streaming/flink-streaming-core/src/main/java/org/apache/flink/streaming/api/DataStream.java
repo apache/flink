@@ -82,23 +82,29 @@ public class DataStream<T extends Tuple> {
 		counter++;
 		this.id = operatorType + "-" + counter.toString();
 		this.environment = environment;
+		this.degreeOfParallelism = environment.getDegreeOfParallelism();
 		initConnections();
 
 	}
 
 	/**
-	 * Create a new {@link DataStream} in the given environment with the given
-	 * id
+	 * Create a new DataStream by creating a copy of another DataStream
 	 * 
-	 * @param environment
-	 *            StreamExecutionEnvironment
-	 * @param id
-	 *            The id of the DataStream
+	 * @param dataStream
+	 *            The DataStream that will be copied.
 	 */
-	protected DataStream(StreamExecutionEnvironment environment, String operatorType, String id) {
-		this.environment = environment;
-		this.id = id;
-		initConnections();
+	protected DataStream(DataStream<T> dataStream) {
+		this.environment = dataStream.environment;
+		this.type = dataStream.type;
+		this.id = dataStream.id;
+		this.degreeOfParallelism = dataStream.degreeOfParallelism;
+		this.userDefinedName = dataStream.userDefinedName;
+		this.outputSelector = dataStream.outputSelector;
+		this.connectIDs = new ArrayList<String>(dataStream.connectIDs);
+		this.ctypes = new ArrayList<StreamExecutionEnvironment.ConnectionType>(dataStream.ctypes);
+		this.cparams = new ArrayList<Integer>(dataStream.cparams);
+		this.iterationflag = dataStream.iterationflag;
+		this.iterationID = dataStream.iterationID;
 	}
 
 	/**
@@ -113,25 +119,6 @@ public class DataStream<T extends Tuple> {
 		cparams = new ArrayList<Integer>();
 		cparams.add(0);
 
-	}
-
-	/**
-	 * Creates an identical {@link DataStream}.
-	 * 
-	 * @return The DataStream copy.
-	 */
-	public DataStream<T> copy() {
-		DataStream<T> copiedStream = new DataStream<T>(environment, "", getId());
-		copiedStream.type = this.type;
-
-		copiedStream.connectIDs = new ArrayList<String>(this.connectIDs);
-		copiedStream.userDefinedName = this.userDefinedName;
-		copiedStream.ctypes = new ArrayList<StreamExecutionEnvironment.ConnectionType>(this.ctypes);
-		copiedStream.cparams = new ArrayList<Integer>(this.cparams);
-		copiedStream.degreeOfParallelism = this.degreeOfParallelism;
-		copiedStream.iterationflag = this.iterationflag;
-		copiedStream.iterationID = this.iterationID;
-		return copiedStream;
 	}
 
 	/**
@@ -159,7 +146,7 @@ public class DataStream<T extends Tuple> {
 
 		environment.setOperatorParallelism(this);
 
-		return this.copy();
+		return new DataStream<T>(this);
 
 	}
 
@@ -173,8 +160,9 @@ public class DataStream<T extends Tuple> {
 	}
 
 	/**
-	 * Gives the data transformation a user defined name in order to use at
-	 * directed outputs
+	 * Gives the data transformation(vertex) a user defined name in order to use
+	 * at directed outputs. The {@link OutputSelector} of the input vertex
+	 * should use this name for directed emits.
 	 * 
 	 * @param name
 	 *            The name to set
@@ -202,7 +190,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The connected DataStream.
 	 */
 	public DataStream<T> connectWith(DataStream<T>... streams) {
-		DataStream<T> returnStream = copy();
+		DataStream<T> returnStream = new DataStream<T>(this);
 
 		for (DataStream<T> stream : streams) {
 			addConnection(returnStream, stream);
@@ -218,6 +206,16 @@ public class DataStream<T extends Tuple> {
 		return returnStream;
 	}
 
+	/**
+	 * Operator used for directing tuples to specific named outputs. Sets an
+	 * {@link OutputSelector} for the vertex. The tuples emitted from this
+	 * vertex will be sent to the output names selected by the OutputSelector.
+	 * Unnamed outputs will not receive any tuples.
+	 * 
+	 * @param outputSelector
+	 *            The user defined OutputSelector for directing the tuples.
+	 * @return The directed DataStream.
+	 */
 	public DataStream<T> directTo(OutputSelector<T> outputSelector) {
 		this.outputSelector = outputSelector;
 		environment.addDirectedEmit(id, outputSelector);
@@ -242,7 +240,7 @@ public class DataStream<T extends Tuple> {
 		// "The position of the field must be smaller than the number of fields in the Tuple");
 		// }
 
-		DataStream<T> returnStream = copy();
+		DataStream<T> returnStream = new DataStream<T>(this);
 
 		for (int i = 0; i < returnStream.ctypes.size(); i++) {
 			returnStream.ctypes.set(i, ConnectionType.FIELD);
@@ -258,14 +256,14 @@ public class DataStream<T extends Tuple> {
 	 * @return The DataStream with broadcast partitioning set.
 	 */
 	public DataStream<T> broadcast() {
-		DataStream<T> returnStream = copy();
+		DataStream<T> returnStream = new DataStream<T>(this);
 
 		for (int i = 0; i < returnStream.ctypes.size(); i++) {
 			returnStream.ctypes.set(i, ConnectionType.BROADCAST);
 		}
 		return returnStream;
 	}
-	
+
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
 	 * are shuffled to the next component.
@@ -273,14 +271,14 @@ public class DataStream<T extends Tuple> {
 	 * @return The DataStream with shuffle partitioning set.
 	 */
 	public DataStream<T> shuffle() {
-		DataStream<T> returnStream = copy();
+		DataStream<T> returnStream = new DataStream<T>(this);
 
 		for (int i = 0; i < returnStream.ctypes.size(); i++) {
 			returnStream.ctypes.set(i, ConnectionType.SHUFFLE);
 		}
 		return returnStream;
 	}
-	
+
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
 	 * are forwarded to the local subtask of the next component.
@@ -288,7 +286,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The DataStream with shuffle partitioning set.
 	 */
 	public DataStream<T> forward() {
-		DataStream<T> returnStream = copy();
+		DataStream<T> returnStream = new DataStream<T>(this);
 
 		for (int i = 0; i < returnStream.ctypes.size(); i++) {
 			returnStream.ctypes.set(i, ConnectionType.FORWARD);
@@ -309,7 +307,8 @@ public class DataStream<T extends Tuple> {
 	 * @return The transformed DataStream.
 	 */
 	public <R extends Tuple> StreamOperator<T, R> map(MapFunction<T, R> mapper) {
-		return environment.addFunction("map", this.copy(), mapper, new MapInvokable<T, R>(mapper));
+		return environment.addFunction("map", new DataStream<T>(this), mapper,
+				new MapInvokable<T, R>(mapper));
 
 	}
 
@@ -328,7 +327,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The transformed DataStream.
 	 */
 	public <R extends Tuple> StreamOperator<T, R> flatMap(FlatMapFunction<T, R> flatMapper) {
-		return environment.addFunction("flatMap", this.copy(), flatMapper,
+		return environment.addFunction("flatMap", new DataStream<T>(this), flatMapper,
 				new FlatMapInvokable<T, R>(flatMapper));
 	}
 
@@ -344,7 +343,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The filtered DataStream.
 	 */
 	public StreamOperator<T, T> filter(FilterFunction<T> filter) {
-		return environment.addFunction("filter", this.copy(), filter,
+		return environment.addFunction("filter", new DataStream<T>(this), filter,
 				new FilterInvokable<T>(filter));
 	}
 
@@ -365,7 +364,7 @@ public class DataStream<T extends Tuple> {
 	 */
 	public <R extends Tuple> StreamOperator<T, R> batchReduce(GroupReduceFunction<T, R> reducer,
 			int batchSize) {
-		return environment.addFunction("batchReduce", this.copy(), reducer,
+		return environment.addFunction("batchReduce", new DataStream<T>(this), reducer,
 				new BatchReduceInvokable<T, R>(reducer, batchSize));
 	}
 
@@ -379,7 +378,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The modified DataStream.
 	 */
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
-		return environment.addSink(this.copy(), sinkFunction);
+		return environment.addSink(new DataStream<T>(this), sinkFunction);
 	}
 
 	/**
@@ -390,7 +389,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The closed DataStream.
 	 */
 	public DataStream<T> print() {
-		return environment.print(this.copy());
+		return environment.print(new DataStream<T>(this));
 	}
 
 	/**
@@ -408,12 +407,12 @@ public class DataStream<T extends Tuple> {
 	 * @return The iterative data stream created.
 	 */
 	public IterativeDataStream<T> iterate() {
-		return new IterativeDataStream<T>(copy());
+		return new IterativeDataStream<T>(this);
 	}
 
 	protected DataStream<T> addIterationSource(String iterationID) {
 		environment.addIterationSource(this, iterationID);
-		return this.copy();
+		return new DataStream<T>(this);
 	}
 
 	/**
