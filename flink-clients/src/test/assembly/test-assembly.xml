@@ -29,7 +29,7 @@ under the License.
 			<outputDirectory>/</outputDirectory>
 			<!--modify/add include to match your package(s) -->
 			<includes>
-				<include>org/apache/flink/client/testjar**</include>
+				<include>org/apache/flink/client/testjar/**</include>
 			</includes>
 		</fileSet>
 	</fileSets>

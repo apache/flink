@@ -64,6 +64,7 @@ public class PackagedProgramEndToEndITCase {
 			fwClusters.close();
 
 			String jarPath = "target/maven-test-jar.jar";
+//			String jarPath = "/home/aljoscha/maven-test-jar.jar";
 
 			// run KMeans
 			cluster.setNumTaskTracker(2);
