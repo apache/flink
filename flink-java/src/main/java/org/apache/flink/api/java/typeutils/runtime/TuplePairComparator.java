@@ -23,6 +23,8 @@ import java.io.Serializable;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.types.NullFieldException;
+import org.apache.flink.types.NullKeyFieldException;
 
 
 public class TuplePairComparator<T1 extends Tuple, T2 extends Tuple> extends TypePairComparator<T1, T2> implements Serializable {
@@ -59,15 +61,25 @@ public class TuplePairComparator<T1 extends Tuple, T2 extends Tuple> extends Typ
 	@Override
 	public void setReference(T1 reference) {
 		for (int i = 0; i < this.comparators1.length; i++) {
-			this.comparators1[i].setReference(reference.getFieldNotNull(keyFields1[i]));
+			try {
+				this.comparators1[i].setReference(reference
+						.getFieldNotNull(keyFields1[i]));
+			} catch (NullFieldException nfex) {
+				throw new NullKeyFieldException(nfex);
+			}
 		}
 	}
 
 	@Override
 	public boolean equalToReference(T2 candidate) {
 		for (int i = 0; i < this.comparators1.length; i++) {
-			if (!this.comparators1[i].equalToReference(candidate.getFieldNotNull(keyFields2[i]))) {
-				return false;
+			try {
+				if (!this.comparators1[i].equalToReference(candidate
+						.getFieldNotNull(keyFields2[i]))) {
+					return false;
+				}
+			} catch (NullFieldException nfex) {
+				throw new NullKeyFieldException(nfex);
 			}
 		}
 		return true;
@@ -76,10 +88,16 @@ public class TuplePairComparator<T1 extends Tuple, T2 extends Tuple> extends Typ
 	@Override
 	public int compareToReference(T2 candidate) {
 		for (int i = 0; i < this.comparators1.length; i++) {
-			this.comparators2[i].setReference(candidate.getFieldNotNull(keyFields2[i]));
-			int res = this.comparators1[i].compareToReference(this.comparators2[i]);
-			if(res != 0) {
-				return res;
+			try {
+				this.comparators2[i].setReference(candidate
+						.getFieldNotNull(keyFields2[i]));
+				int res = this.comparators1[i]
+						.compareToReference(this.comparators2[i]);
+				if (res != 0) {
+					return res;
+				}
+			} catch (NullFieldException nfex) {
+				throw new NullKeyFieldException(nfex);
 			}
 		}
 		return 0;

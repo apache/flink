@@ -21,7 +21,7 @@ package org.apache.flink.api.java.tuple;
 
 import junit.framework.Assert;
 
-import org.apache.flink.types.NullKeyFieldException;
+import org.apache.flink.types.NullFieldException;
 import org.junit.Test;
 
 public class Tuple2Test {
@@ -45,7 +45,7 @@ public class Tuple2Test {
 		try {
 			tuple.getFieldNotNull(1);
 			Assert.fail();
-		} catch (NullKeyFieldException e) {
+		} catch (NullFieldException e) {
 			// right
 		}
 	}
