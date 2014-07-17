@@ -20,8 +20,8 @@ package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
 import org.apache.flink.api.java.typeutils.runtime.GenericTypeComparator;
+import org.apache.flink.api.java.typeutils.runtime.KryoSerializer;
 import org.apache.flink.types.TypeInformation;
 
 
@@ -64,7 +64,7 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 
 	@Override
 	public TypeSerializer<T> createSerializer() {
-		return new AvroSerializer<T>(this.typeClass);
+		return new KryoSerializer<T>(this.typeClass);
 	}
 
 	@SuppressWarnings("unchecked")
