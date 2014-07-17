@@ -40,7 +40,7 @@ public class ClientMasterControl extends Thread {
 	private ApplicationMasterStatus appMasterStatus;
 	private YARNClientMasterProtocol cmp;
 	private Object lock = new Object();
-	private List<Message> messages;
+	private List<Message> messages = new ArrayList<Message>();
 	private boolean running = true;
 
 	public ClientMasterControl(InetSocketAddress applicationMasterAddress) {
@@ -55,9 +55,13 @@ public class ClientMasterControl extends Thread {
 
 			while(running) {
 				synchronized (lock) {
-					appMasterStatus = cmp.getAppplicationMasterStatus();
-					if(messages != null && appMasterStatus != null &&
-							messages.size() != appMasterStatus.getMessageCount()) {
+					try {
+						appMasterStatus = cmp.getAppplicationMasterStatus();
+					} catch(Throwable e) {
+						// TODO: try to clean up as much as possible! (set to failed state? // kill app? // clean up files)
+						LOG.warn("Failed to get Application Master status", e);
+					}
+					if(appMasterStatus != null && messages.size() != appMasterStatus.getMessageCount()) {
 						messages = cmp.getMessages();
 					}
 				}
@@ -104,7 +108,8 @@ public class ClientMasterControl extends Thread {
 
 	public boolean shutdownAM() {
 		try {
-			return cmp.shutdownAM().getValue();
+			boolean result = cmp.shutdownAM().getValue();
+			return result;
 		} catch(Throwable e) {
 			LOG.warn("Error shutting down the application master", e);
 			return false;
@@ -112,9 +117,6 @@ public class ClientMasterControl extends Thread {
 	}
 
 	public List<Message> getMessages() {
-		if(this.messages == null) {
-			return new ArrayList<Message>();
-		}
 		return this.messages;
 	}
 

@@ -250,7 +250,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	}
 
 	public void shutdown() {
-
+		LOG.debug("JobManager shutdown requested");
 		if (!this.isShutdownInProgress.compareAndSet(false, true)) {
 			return;
 		}
@@ -288,6 +288,14 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// Finally, shut down the scheduler
 		if (this.scheduler != null) {
 			this.scheduler.shutdown();
+		}
+		
+		if(server != null) {
+			try {
+				server.stop();
+			} catch (Exception e) {
+				LOG.error("Error while shutting down the JobManager's webserver", e);
+			}
 		}
 
 		this.isShutDown = true;

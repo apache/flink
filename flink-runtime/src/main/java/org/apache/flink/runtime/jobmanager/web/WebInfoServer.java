@@ -191,4 +191,11 @@ public class WebInfoServer {
 		server.start();
 	}
 
+	/**
+	 * Stop the webserver
+	 */
+	public void stop() throws Exception {
+		server.stop();
+	}
+
 }

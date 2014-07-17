@@ -497,7 +497,6 @@ public class Client {
 				return;
 			}
 			touch();
-
 			try {
 				int id = in.readInt(); // try to read an id
 
@@ -521,8 +520,12 @@ public class Client {
 							LOG.error(e);
 						} catch (IllegalAccessException e) {
 							LOG.error(e);
+						} 
+						try {
+							value.read(new InputViewDataInputStreamWrapper(in)); // read value
+						} catch(Throwable e) {
+							LOG.error("Exception while receiving an RPC call", e);
 						}
-						value.read(new InputViewDataInputStreamWrapper(in)); // read value
 					}
 					call.setValue(value);
 				} else if (state == Status.ERROR.state) {
@@ -532,6 +535,9 @@ public class Client {
 					markClosed(new RemoteException(StringRecord.readString(in), StringRecord.readString(in)));
 				}
 			} catch (IOException e) {
+				if(LOG.isDebugEnabled()) {
+					LOG.debug("Closing RPC connection due to exception", e);
+				}
 				markClosed(e);
 			}
 		}

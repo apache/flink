@@ -86,6 +86,7 @@ function poll(jobId) {
 	$.ajax({ url : "jobsInfo?get=taskmanagers", cache: false, type : "GET",
 	    success : function(json) {
 		$("#stat-taskmanagers").html(json.taskmanagers);
+		$("#stat-slots").html(json.slots);
 	    }, dataType : "json",
 	});
 })();

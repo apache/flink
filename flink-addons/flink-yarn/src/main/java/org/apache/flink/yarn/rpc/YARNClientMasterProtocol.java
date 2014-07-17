@@ -19,6 +19,7 @@
 package org.apache.flink.yarn.rpc;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.List;
 
 import org.apache.flink.core.io.IOReadableWritable;
@@ -34,21 +35,37 @@ import org.apache.flink.types.BooleanValue;
  */
 public interface YARNClientMasterProtocol extends VersionedProtocol {
 
+	/**
+	 * Message from Am to Client.
+	 *
+	 */
 	public static class Message implements IOReadableWritable {
-		public String text;
-
+		private String text;
+		private Date date;
+		
+		public Message() {	
+			// for deserializability
+		}
+		
 		public Message(String msg) {
 			this.text = msg;
+			this.date = new Date();
+		}
+		
+		public String getMessage() {
+			return "["+date+"] "+text;
 		}
 
 		@Override
 		public void write(DataOutputView out) throws IOException {
 			out.writeUTF(text);
+			out.writeLong(date.getTime());
 		}
 
 		@Override
 		public void read(DataInputView in) throws IOException {
 			text = in.readUTF();
+			date = new Date(in.readLong());
 		}
 	}
 
@@ -59,5 +76,4 @@ public interface YARNClientMasterProtocol extends VersionedProtocol {
 	List<Message> getMessages();
 
 	void addTaskManagers(int n);
-
 }

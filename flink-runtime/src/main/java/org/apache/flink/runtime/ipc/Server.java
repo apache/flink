@@ -956,7 +956,6 @@ public abstract class Server {
 					CurCall.set(call);
 
 					value = call(call.connection.protocol, call.param, call.timestamp);
-
 					CurCall.set(null);
 
 					setupResponse(buf, call, (error == null) ? Status.SUCCESS : Status.ERROR, value, errorClass, error);

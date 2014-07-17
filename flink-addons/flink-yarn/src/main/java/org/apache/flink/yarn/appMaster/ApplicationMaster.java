@@ -36,6 +36,8 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.ipc.RPC;
@@ -81,7 +83,8 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 	private final String currDir;
 	private final String logDirs;
 	private final String ownHostname;
-	private final String appId;
+	private final String appId; // YARN style application id, for example: application_1406629969999_0002
+	private final int appNumber; // app number, for example 2 (see above)
 	private final String clientHomeDir;
 	private final String applicationMasterHost;
 	private final String remoteFlinkJarPath;
@@ -91,8 +94,10 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 	private final int taskManagerCount;
 	private final int memoryPerTaskManager;
 	private final int coresPerTaskManager;
+	private final int slots;
 	private final String localWebInterfaceDir;
-	private final Configuration conf;
+	private final Configuration conf; // Hadoop!! configuration.
+	
 
 	/**
 	 * File system for interacting with Flink's files such as the jar
@@ -153,6 +158,21 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 	 * that the client can still retrieve the messages and then shut it down)
 	 */
 	private Boolean isFailed = false;
+	private boolean isClosed = false;
+
+	private String dynamicPropertiesEncodedString;
+	
+	/**
+	 * AM status that is send to the Client periodically
+	 */
+	private ApplicationMasterStatus amStatus;
+
+	/**
+	 * The JobManager's port, offsetted by the appNumber.
+	 */
+	private final int jobManagerPort;
+	private final int jobManagerWebPort;
+	
 
 	public ApplicationMaster(Configuration conf) throws IOException {
 		fs = FileSystem.get(conf);
@@ -161,15 +181,19 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 		logDirs =  envs.get(Environment.LOG_DIRS.key());
 		ownHostname = envs.get(Environment.NM_HOST.key());
 		appId = envs.get(Client.ENV_APP_ID);
+		appNumber = Integer.valueOf(envs.get(Client.ENV_APP_NUMBER));
 		clientHomeDir = envs.get(Client.ENV_CLIENT_HOME_DIR);
 		applicationMasterHost = envs.get(Environment.NM_HOST.key());
 		remoteFlinkJarPath = envs.get(Client.FLINK_JAR_PATH);
 		shipListString = envs.get(Client.ENV_CLIENT_SHIP_FILES);
 		yarnClientUsername = envs.get(Client.ENV_CLIENT_USERNAME);
-		rpcPort = envs.get(Client.ENV_AM_PRC_PORT);
+		rpcPort = envs.get(Client.ENV_AM_PRC_PORT); // already offsetted
 		taskManagerCount = Integer.valueOf(envs.get(Client.ENV_TM_COUNT));
 		memoryPerTaskManager = Integer.valueOf(envs.get(Client.ENV_TM_MEMORY));
 		coresPerTaskManager = Integer.valueOf(envs.get(Client.ENV_TM_CORES));
+		slots = Integer.valueOf(envs.get(Client.ENV_SLOTS));
+		dynamicPropertiesEncodedString = envs.get(Client.ENV_DYNAMIC_PROPERTIES); // might return null!
+		
 		localWebInterfaceDir = currDir+"/resources/"+ConfigConstants.DEFAULT_JOB_MANAGER_WEB_PATH_NAME;
 		this.conf = conf;
 
@@ -179,7 +203,7 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 		if(ownHostname == null) {
 			throw new RuntimeException("Own hostname ("+Environment.NM_HOST+") not set.");
 		}
-		LOG.info("Working directory "+currDir);
+		LOG.debug("Working directory "+currDir);
 
 		// load Flink configuration.
 		Utils.getFlinkConfiguration(currDir);
@@ -187,6 +211,16 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 		// start AM RPC service
 		amRpcServer = RPC.getServer(this, ownHostname, Integer.valueOf(rpcPort), 2);
 		amRpcServer.start();
+		
+		// determine JobManager port
+		int port = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
+		if(port != -1) {
+			port += appNumber;
+		} else {
+			LOG.warn("JobManager port is unknown");
+		}
+		this.jobManagerPort = port;
+		this.jobManagerWebPort = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT)+appNumber;
 	}
 	
 	private void setFailed(boolean failed) {
@@ -210,8 +244,26 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 		}
 		// just to make sure.
 		output.append(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY+": "+ownHostname+"\n");
+		output.append(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY+": "+jobManagerPort+"\n"); // already offsetted here.
 		output.append(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY+": "+localWebInterfaceDir+"\n");
 		output.append(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY+": "+logDirs+"\n");
+		
+		output.append(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY+": "+ jobManagerWebPort +"\n");
+		
+		
+		if(slots != -1) {
+			// configure slots and default dop
+			output.append(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS+": "+slots+"\n");
+			output.append(ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY+": "+slots*taskManagerCount+"\n");
+		}
+		// add dynamic properties
+		List<Tuple2<String, String>> dynamicProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncodedString);
+		for(Tuple2<String, String> dynamicProperty : dynamicProperties) {
+			String propLine = dynamicProperty.f0+": "+dynamicProperty.f1;
+			output.append(propLine+"\n");
+			LOG.debug("Adding user-supplied configuration value to generated configuration file: "+propLine);
+		}
+		
 		output.close();
 		br.close();
 		File newConf = new File(currDir+"/flink-conf-modified.yaml");
@@ -245,10 +297,11 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 		nmClient.init(conf);
 		nmClient.start();
 		nmClient.cleanupRunningContainersOnStop(true);
-
+		
 		// Register with ResourceManager
-		LOG.info("Registering ApplicationMaster");
-		rmClient.registerApplicationMaster(applicationMasterHost, 0, "http://"+applicationMasterHost+":"+GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, "undefined"));
+		String url = "http://"+applicationMasterHost+":"+jobManagerWebPort;
+		LOG.info("Registering ApplicationMaster with tracking url "+url);
+		rmClient.registerApplicationMaster(applicationMasterHost, 0, url);
 
 		// Priority for worker containers - priorities are intra-application
 		Priority priority = Records.newRecord(Priority.class);
@@ -329,15 +382,17 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 			}
 			Thread.sleep(5000);
 		}
-		LOG.info("Shutting down JobManager");
-		jobManager.shutdown();
-
+		if(isClosed) {
+			return;
+		}
 		// Un-register with ResourceManager
 		final String diagnosticsMessage = "Application Master shut down after all "
 				+ "containers finished\n"+containerDiag.toString();
 		LOG.info("Diagnostics message: "+diagnosticsMessage);
 		rmClient.unregisterApplicationMaster(FinalApplicationStatus.FAILED, diagnosticsMessage, "");
 		this.close();
+		amRpcServer.stop(); // we need to manually stop the RPC service. Usually, the Client stops the RPC,
+		// but at this point, the AM has been shut down (for some reason).
 		LOG.info("Application Master shutdown completed.");
 	}
 
@@ -364,7 +419,7 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 				if(hasLog4j) {
 					tmCommand += " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/taskmanager-log4j.log\" -Dlog4j.configuration=file:log4j.properties";
 				}
-				tmCommand	+= " org.apache.flink.appMaster.YarnTaskManagerRunner -configDir . "
+				tmCommand	+= " "+YarnTaskManagerRunner.class.getName()+" -configDir . "
 						+ " 1>"
 						+ ApplicationConstants.LOG_DIR_EXPANSION_VAR
 						+ "/taskmanager-stdout.log" 
@@ -398,7 +453,6 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 
 				LOG.info("Launching container " + allocatedContainers);
 				nmClient.startContainer(container, ctx);
-				messages.add(new Message("Launching new container"));
 			}
 			for (ContainerStatus status : response.getCompletedContainersStatuses()) {
 				++completedContainers;
@@ -422,12 +476,16 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 	
 	@Override
 	public ApplicationMasterStatus getAppplicationMasterStatus() {
-		ApplicationMasterStatus amStatus;
+		if(amStatus == null) {
+			amStatus = new ApplicationMasterStatus();
+		}
 		if(jobManager == null) {
 			// JM not yet started
-			amStatus = new ApplicationMasterStatus(0, 0 );
+			amStatus.setNumTaskManagers(0);
+			amStatus.setNumSlots(0);
 		} else {
-			amStatus = new ApplicationMasterStatus(jobManager.getNumberOfTaskManagers(), jobManager.getAvailableSlots() );
+			amStatus.setNumTaskManagers(jobManager.getNumberOfTaskManagers());
+			amStatus.setNumSlots(jobManager.getAvailableSlots());
 		}
 		amStatus.setMessageCount(messages.size());
 		amStatus.setFailed(isFailed);
@@ -452,12 +510,17 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 	}
 	
 	private void close() throws Exception {
-		nmClient.close();
-		rmClient.close();
-		if(!isFailed) {
-			LOG.warn("Can not close AM RPC connection since this the AM is in failed state");
-			amRpcServer.stop();
+		if(!isClosed) {
+			jobManager.shutdown();
+			nmClient.close();
+			rmClient.close();
+			if(!isFailed) {
+			//	amRpcServer.stop();
+			} else {
+				LOG.warn("Can not close AM RPC connection since the AM is in failed state");
+			}
 		}
+		this.isClosed = true;
 	}
 
 	@Override

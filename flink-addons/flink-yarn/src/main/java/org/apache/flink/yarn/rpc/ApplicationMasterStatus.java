@@ -71,6 +71,15 @@ public class ApplicationMasterStatus implements IOReadableWritable {
 		this.failed = isFailed;
 	}
 
+	public void setNumTaskManagers(int num) {
+		this.numTaskManagers = num;
+	}
+	
+	public void setNumSlots(int slots) {
+		this.numSlots = slots;
+	}
+	
+	
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		out.writeInt(numTaskManagers);
