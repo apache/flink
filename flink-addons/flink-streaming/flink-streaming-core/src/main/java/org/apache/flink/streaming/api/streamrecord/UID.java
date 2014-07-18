@@ -30,6 +30,10 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+/**
+ * Object for creating unique IDs for {@link StreamRecord}s.
+ * 
+ **/
 public class UID implements IOReadableWritable, Serializable {
 	private static final long serialVersionUID = 1L;
 
@@ -48,7 +52,6 @@ public class UID implements IOReadableWritable, Serializable {
 	}
 
 	UID(byte[] id) {
-		// TODO: throw wrong length exception
 		uid = ByteBuffer.wrap(id);
 	}
 

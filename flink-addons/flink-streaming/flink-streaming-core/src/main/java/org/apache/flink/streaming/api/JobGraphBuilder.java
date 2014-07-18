@@ -172,7 +172,7 @@ public class JobGraphBuilder {
 				connectionTypes.get(inEdgeList.get(iterationHead).get(0)).get(0));
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Iteration head source: " + componentName);
+			LOG.debug("ITERATION SOURCE: " + componentName);
 		}
 	}
 
@@ -258,7 +258,7 @@ public class JobGraphBuilder {
 		}
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Iteration tail sink: " + componentName);
+			LOG.debug("ITERATION SINK: " + componentName);
 		}
 
 	}
@@ -285,7 +285,7 @@ public class JobGraphBuilder {
 			byte[] serializedFunction, int parallelism) {
 
 		componentClasses.put(componentName, componentClass);
-		componentParallelism.put(componentName, parallelism);
+		setParallelism(componentName, parallelism);
 		invokableObjects.put(componentName, invokableObject);
 		operatorNames.put(componentName, operatorName);
 		serializedFunctions.put(componentName, serializedFunction);
@@ -327,6 +327,9 @@ public class JobGraphBuilder {
 
 		component.setInvokableClass(componentClass);
 		component.setNumberOfSubtasks(parallelism);
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Parallelism set: " + parallelism + " for " + componentName);
+		}
 
 		Configuration config = new TaskConfig(component.getConfiguration()).getConfiguration();
 
@@ -402,6 +405,10 @@ public class JobGraphBuilder {
 	 */
 	public void setUserDefinedName(String componentName, String userDefinedName) {
 		userDefinedNames.put(componentName, userDefinedName);
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Name set: " + userDefinedName + " for " + componentName);
+		}
 	}
 
 	/**
@@ -414,15 +421,6 @@ public class JobGraphBuilder {
 	 */
 	public void setParallelism(String componentName, int parallelism) {
 		componentParallelism.put(componentName, parallelism);
-
-		if (parallelism > maxParallelism) {
-			maxParallelism = parallelism;
-			maxParallelismVertexName = componentName;
-		}
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Parallelism set: " + parallelism + " for " + componentName);
-		}
 	}
 
 	/**
@@ -566,7 +564,8 @@ public class JobGraphBuilder {
 				upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK,
 						DistributionPattern.POINTWISE);
 			} else {
-				upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK);
+				upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK,
+						DistributionPattern.BIPARTITE);
 			}
 
 			if (LOG.isDebugEnabled()) {
@@ -575,7 +574,7 @@ public class JobGraphBuilder {
 			}
 
 		} catch (JobGraphDefinitionException e) {
-			throw new RuntimeException("Cannot connect components by field: "
+			throw new RuntimeException("Cannot connect components: "
 					+ upStreamComponentName + " to " + downStreamComponentName, e);
 		}
 
@@ -639,6 +638,10 @@ public class JobGraphBuilder {
 	public <T extends Tuple> void setOutputSelector(String componentName,
 			byte[] serializedOutputSelector) {
 		outputSelectors.put(componentName, serializedOutputSelector);
+		
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Outputselector set for " + componentName);
+		}
 
 	}
 

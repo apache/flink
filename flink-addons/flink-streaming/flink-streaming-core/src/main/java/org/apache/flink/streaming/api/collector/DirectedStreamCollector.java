@@ -29,11 +29,28 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.StringUtils;
 
+/**
+ * A StreamCollector that uses user defined output names and a user defined
+ * output selector to make directed emits.
+ * 
+ * @param <T>
+ *            Type of the Tuple collected.
+ */
 public class DirectedStreamCollector<T extends Tuple> extends StreamCollector<T> {
 
 	OutputSelector<T> outputSelector;
 	private static final Log log = LogFactory.getLog(DirectedStreamCollector.class);
 
+	/**
+	 * Creates a new DirectedStreamCollector
+	 * 
+	 * @param channelID
+	 *            Channel ID of the Task
+	 * @param serializationDelegate
+	 *            Serialization delegate used for tuple serialization
+	 * @param outputSelector
+	 *            User defined {@link OutputSelector}
+	 */
 	public DirectedStreamCollector(int channelID, SerializationDelegate<T> serializationDelegate,
 			OutputSelector<T> outputSelector) {
 		super(channelID, serializationDelegate);
@@ -41,12 +58,26 @@ public class DirectedStreamCollector<T extends Tuple> extends StreamCollector<T>
 
 	}
 
+	/**
+	 * Collects and emits a tuple to the outputs by reusing a StreamRecord
+	 * object.
+	 * 
+	 * @param tuple
+	 *            Tuple to be collected and emitted.
+	 */
 	@Override
 	public void collect(T tuple) {
 		streamRecord.setTuple(tuple);
 		emit(streamRecord);
 	}
 
+	/**
+	 * Emits a StreamRecord to the outputs selected by the user defined
+	 * OutputSelector
+	 * 
+	 * @param streamRecord
+	 *            Record to emit.
+	 */
 	private void emit(StreamRecord<T> streamRecord) {
 		Collection<String> outputNames = outputSelector.getOutputs(streamRecord.getTuple());
 		streamRecord.setId(channelID);
