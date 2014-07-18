@@ -117,7 +117,8 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 			} else if (operatorName.equals("batchReduce")) {
 				setSerializerDeserializer(function, GroupReduceFunction.class);
 			} else if (operatorName.equals("filter")) {
-				setSerializerDeserializer(function, FilterFunction.class);
+				setDeserializer(function, FilterFunction.class);
+				setSerializer(function, FilterFunction.class, 0);
 			} else if (operatorName.equals("sink")) {
 				setDeserializer(function, SinkFunction.class);
 			} else if (operatorName.equals("source")) {
@@ -132,8 +133,9 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 			}
 
 		} catch (Exception e) {
-			throw new StreamComponentException("Nonsupported object (named " + operatorName
-					+ ") passed as operator");
+			throw new StreamComponentException(e);
+//			throw new StreamComponentException("Nonsupported object (named " + operatorName
+//					+ ") passed as operator");
 		}
 	}
 
