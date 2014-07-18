@@ -274,6 +274,9 @@ under the License.
 					<activeByDefault>false</activeByDefault>
 					<jdk>1.8</jdk>
 				</activation>
+                <modules>
+                    <module>flink-java8-tests</module>
+                </modules>
 				<build>
 					<plugins>
 						<plugin>

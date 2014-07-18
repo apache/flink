@@ -37,6 +37,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.sort.MergeIterator;
 import org.apache.flink.runtime.operators.sort.MergeMatchIterator;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
@@ -353,8 +354,7 @@ public class SortMergeMatchIteratorITCase {
 		}
 		
 		@Override
-		public void join(Record rec1, Record rec2, Collector<Record> out)
-		{
+		public void join(Record rec1, Record rec2, Collector<Record> out) throws Exception {
 			TestData.Key key = rec1.getField(0, TestData.Key.class);
 			TestData.Value value1 = rec1.getField(1, TestData.Value.class);
 			TestData.Value value2 = rec2.getField(1, TestData.Value.class);

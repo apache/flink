@@ -21,13 +21,13 @@ package org.apache.flink.compiler.testfunctions;
 
 import java.util.Iterator;
 
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction.Combinable;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.util.Collector;
 
 
 @Combinable
-public class IdentityGroupReducer<T> extends GroupReduceFunction<T, T> {
+public class IdentityGroupReducer<T> extends RichGroupReduceFunction<T, T> {
 
 	private static final long serialVersionUID = 1L;
 

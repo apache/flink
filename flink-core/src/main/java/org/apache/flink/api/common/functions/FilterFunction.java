@@ -18,11 +18,16 @@
 
 
 package org.apache.flink.api.common.functions;
+import java.io.Serializable;
 
-import org.apache.flink.util.Collector;
-
-
-public interface GenericJoiner<V1, V2, O> extends Function {
+public interface FilterFunction<T> extends Function, Serializable {
 	
-	void join(V1 value1, V2 value2, Collector<O> out) throws Exception;
+	/**
+	 * User defined function for a filter.
+	 * 
+	 * @param value Incoming tuples
+	 * @return true for tuples that are allowed to pass the filter
+	 * @throws Exception
+	 */
+	boolean filter(T value) throws Exception;
 }

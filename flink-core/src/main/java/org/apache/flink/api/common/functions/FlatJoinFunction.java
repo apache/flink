@@ -21,22 +21,10 @@ package org.apache.flink.api.common.functions;
 
 import org.apache.flink.util.Collector;
 
+import java.io.Serializable;
 
-/**
- *
- * @param <T>
- * @param <O>
- */
-public interface GenericFlatMap<T, O> extends Function {
-	
-	/**
-	 * User defined function to perform transformations on records.
-	 * This method allows to submit an arbitrary number of records
-	 * per incoming tuple.
-	 * 
-	 * @param record incoming record
-	 * @param out outgoing collector to return none, one or more records
-	 * @throws Exception
-	 */
-	void flatMap(T record, Collector<O> out) throws Exception;
+
+public interface FlatJoinFunction<IN1, IN2, OUT> extends Function, Serializable {
+
+	void join (IN1 left, IN2 right, Collector<OUT> out) throws Exception;
 }

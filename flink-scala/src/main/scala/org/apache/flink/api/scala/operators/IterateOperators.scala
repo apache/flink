@@ -33,7 +33,7 @@ import org.apache.flink.api.scala.analysis.UDF0
 import org.apache.flink.api.scala.analysis.FieldSelector
 
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.api.common.functions.AbstractFunction
+import org.apache.flink.api.common.functions.AbstractRichFunction
 import org.apache.flink.api.java.record.operators.BulkIteration
 import org.apache.flink.api.common.operators.base.BulkIterationBase
 import org.apache.flink.api.java.record.operators.DeltaIteration

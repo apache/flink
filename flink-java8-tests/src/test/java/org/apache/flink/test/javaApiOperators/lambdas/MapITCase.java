@@ -16,17 +16,33 @@
  * limitations under the License.
  */
 
+package org.apache.flink.test.javaApiOperators.lambdas;
 
-package org.apache.flink.api.common.functions;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
+import org.junit.Assert;
+import org.junit.Test;
 
-import java.util.Iterator;
+import java.io.Serializable;
 
-import org.apache.flink.util.Collector;
+public class MapITCase implements Serializable{
 
-/**
- * Generic interface used for combiners.
- */
-public interface GenericCombine<T> extends Function {
+	@Test
+	public void TestMapLambda () {
+		try {
+			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-	void combine(Iterator<T> records, Collector<T> out) throws Exception;
+			DataSet<String> stringDs = env.fromElements("aa", "ab", "ac", "ad");
+			DataSet<String> mappedDs = stringDs.map (s -> s.replace("a", "b"));
+			env.execute();
+		}
+		catch (UnsupportedLambdaExpressionException e) {
+			// Success
+			return;
+		}
+		catch (Exception e) {
+			Assert.fail();
+		}
+	}
 }

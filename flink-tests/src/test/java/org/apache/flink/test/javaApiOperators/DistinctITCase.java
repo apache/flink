@@ -23,7 +23,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -164,7 +164,7 @@ public class DistinctITCase extends JavaProgramTestBase {
 										return in.myInt;
 									}
 								})
-						.map(new MapFunction<CollectionDataSets.CustomType, Tuple1<Integer>>() {
+						.map(new RichMapFunction<CustomType, Tuple1<Integer>>() {
 							@Override
 							public Tuple1<Integer> map(CustomType value) throws Exception {
 								return new Tuple1<Integer>(value.myInt);

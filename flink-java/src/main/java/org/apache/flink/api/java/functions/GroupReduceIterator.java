@@ -23,7 +23,7 @@ import java.util.Iterator;
 import org.apache.flink.util.Collector;
 
 
-public abstract class GroupReduceIterator<IN, OUT> extends GroupReduceFunction<IN, OUT> {
+public abstract class GroupReduceIterator<IN, OUT> extends RichGroupReduceFunction<IN, OUT> {
 	
 	private static final long serialVersionUID = 1L;
 

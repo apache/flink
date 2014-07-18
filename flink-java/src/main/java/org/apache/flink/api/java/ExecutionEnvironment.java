@@ -112,7 +112,7 @@ public abstract class ExecutionEnvironment {
 	 * individually override this value to use a specific degree of parallelism via
 	 * {@link Operator#setParallelism(int)}. Other operations may need to run with a different
 	 * degree of parallelism - for example calling
-	 * {@link DataSet#reduce(org.apache.flink.api.java.functions.ReduceFunction)} over the entire
+	 * {@link DataSet#reduce(org.apache.flink.api.java.functions.RichReduceFunction)} over the entire
 	 * set will insert eventually an operation that runs non-parallel (degree of parallelism of one).
 	 * 
 	 * @return The degree of parallelism used by operations, unless they override that value. This method
@@ -550,7 +550,7 @@ public abstract class ExecutionEnvironment {
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 * <p>
 	 * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
-	 * {@link org.apache.flink.api.common.functions.Function#getRuntimeContext()} and provides access 
+	 * {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and provides access
 	 * {@link org.apache.flink.api.common.cache.DistributedCache} via 
 	 * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
 	 * 
@@ -568,7 +568,7 @@ public abstract class ExecutionEnvironment {
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 * <p>
 	 * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
-	 * {@link org.apache.flink.api.common.functions.Function#getRuntimeContext()} and provides access 
+	 * {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and provides access
 	 * {@link org.apache.flink.api.common.cache.DistributedCache} via 
 	 * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
 	 * 

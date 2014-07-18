@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
-import org.apache.flink.api.java.functions.FilterFunction;
+import org.apache.flink.api.java.functions.RichFilterFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
@@ -145,7 +145,7 @@ public class UnionITCase extends JavaProgramTestBase {
 				
 				// Don't know how to make an empty result in an other way than filtering it 
 				DataSet<Tuple3<Integer, Long, String>> empty = CollectionDataSets.get3TupleDataSet(env).
-						filter(new FilterFunction<Tuple3<Integer,Long,String>>() {
+						filter(new RichFilterFunction<Tuple3<Integer,Long,String>>() {
 							private static final long serialVersionUID = 1L;
 
 							@Override

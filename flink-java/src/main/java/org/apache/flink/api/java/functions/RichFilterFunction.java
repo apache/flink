@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.java.functions;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.common.functions.GenericFilter;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.FilterFunction;
 
 /**
  * The abstract base class for Filter functions. A filter function take elements and evaluates a
@@ -36,7 +36,7 @@ import org.apache.flink.api.common.functions.GenericFilter;
  * 
  * @param <T> The type of the filtered elements.
  */
-public abstract class FilterFunction<T> extends AbstractFunction implements GenericFilter<T> {
+public abstract class RichFilterFunction<T> extends AbstractRichFunction implements FilterFunction<T> {
 	
 	private static final long serialVersionUID = 1L;
 	

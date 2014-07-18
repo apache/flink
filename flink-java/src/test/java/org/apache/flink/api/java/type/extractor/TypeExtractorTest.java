@@ -23,16 +23,16 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Iterator;
 
-import org.apache.flink.api.common.functions.GenericMap;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.java.functions.CoGroupFunction;
-import org.apache.flink.api.java.functions.CrossFunction;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.RichCoGroupFunction;
+import org.apache.flink.api.java.functions.RichCrossFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.InvalidTypesException;
-import org.apache.flink.api.java.functions.JoinFunction;
+import org.apache.flink.api.java.functions.RichFlatJoinFunction;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -68,7 +68,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testBasicType() {
 		// use getGroupReduceReturnTypes()
-		GroupReduceFunction<?, ?> function = new GroupReduceFunction<Boolean, Boolean>() {
+		RichGroupReduceFunction<?, ?> function = new RichGroupReduceFunction<Boolean, Boolean>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -107,7 +107,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testWritableType() {
-		MapFunction<?, ?> function = new MapFunction<MyWritable, MyWritable>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<MyWritable, MyWritable>() {
 			private static final long serialVersionUID = 1L;
 			
 			@Override
@@ -127,7 +127,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testTupleWithBasicTypes() throws Exception {
 		// use getMapReturnTypes()
-		MapFunction<?, ?> function = new MapFunction<Tuple9<Integer, Long, Double, Float, Boolean, String, Character, Short, Byte>, Tuple9<Integer, Long, Double, Float, Boolean, String, Character, Short, Byte>>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<Tuple9<Integer, Long, Double, Float, Boolean, String, Character, Short, Byte>, Tuple9<Integer, Long, Double, Float, Boolean, String, Character, Short, Byte>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -192,7 +192,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testTupleWithTuples() {
 		// use getFlatMapReturnTypes()
-		FlatMapFunction<?, ?> function = new FlatMapFunction<Tuple3<Tuple1<String>, Tuple1<Integer>, Tuple2<Long, Long>>, Tuple3<Tuple1<String>, Tuple1<Integer>, Tuple2<Long, Long>>>() {
+		RichFlatMapFunction<?, ?> function = new RichFlatMapFunction<Tuple3<Tuple1<String>, Tuple1<Integer>, Tuple2<Long, Long>>, Tuple3<Tuple1<String>, Tuple1<Integer>, Tuple2<Long, Long>>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -247,12 +247,12 @@ public class TypeExtractorTest {
 	@Test
 	public void testSubclassOfTuple() {
 		// use getJoinReturnTypes()
-		JoinFunction<?, ?, ?> function = new JoinFunction<CustomTuple, String, CustomTuple>() {
+		RichFlatJoinFunction<?, ?, ?> function = new RichFlatJoinFunction<CustomTuple, String, CustomTuple>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public CustomTuple join(CustomTuple first, String second) throws Exception {
-				return null;
+			public void join(CustomTuple first, String second, Collector<CustomTuple> out) throws Exception {
+				out.collect(null);
 			}			
 		};
 
@@ -295,7 +295,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testCustomType() {
 		// use getCrossReturnTypes()
-		CrossFunction<?, ?, ?> function = new CrossFunction<CustomType, Integer, CustomType>() {
+		RichCrossFunction<?, ?, ?> function = new RichCrossFunction<CustomType, Integer, CustomType>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -342,7 +342,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testTupleWithCustomType() {
 		// use getMapReturnTypes()
-		MapFunction<?, ?> function = new MapFunction<Tuple2<Long, CustomType>, Tuple2<Long, CustomType>>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<Tuple2<Long, CustomType>, Tuple2<Long, CustomType>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -412,7 +412,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testTupleOfValues() {
 		// use getMapReturnTypes()
-		MapFunction<?, ?> function = new MapFunction<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -451,7 +451,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testGenericsNotInSuperclass() {
 		// use getMapReturnTypes()
-		MapFunction<?, ?> function = new MapFunction<LongKeyValue<String>, LongKeyValue<String>>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<LongKeyValue<String>, LongKeyValue<String>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -494,7 +494,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testChainedGenericsNotInSuperclass() {
 		// use TypeExtractor
-		MapFunction<?, ?> function = new MapFunction<ChainedTwo<Integer>, ChainedTwo<Integer>>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<ChainedTwo<Integer>, ChainedTwo<Integer>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -536,7 +536,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testGenericsInDirectSuperclass() {
 		// use TypeExtractor
-		MapFunction<?, ?> function = new MapFunction<ChainedThree, ChainedThree>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<ChainedThree, ChainedThree>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -562,7 +562,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testGenericsNotInSuperclassWithNonGenericClassAtEnd() {
 		// use TypeExtractor
-		MapFunction<?, ?> function = new MapFunction<ChainedFour, ChainedFour>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<ChainedFour, ChainedFour>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -587,7 +587,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testMissingTupleGenericsException() {
-		MapFunction<?, ?> function = new MapFunction<String, Tuple2>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<String, Tuple2>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -607,7 +607,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testTupleSupertype() {
-		MapFunction<?, ?> function = new MapFunction<String, Tuple>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<String, Tuple>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -635,7 +635,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testSameGenericVariable() {
-		MapFunction<?, ?> function = new MapFunction<SameTypeVariable<String>, SameTypeVariable<String>>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<SameTypeVariable<String>, SameTypeVariable<String>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -667,7 +667,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testNestedTupleGenerics() {
-		MapFunction<?, ?> function = new MapFunction<Nested<String, Integer>, Nested<String, Integer>>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<Nested<String, Integer>, Nested<String, Integer>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -706,7 +706,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testNestedTupleGenerics2() {
-		MapFunction<?, ?> function = new MapFunction<Nested2<Boolean>, Nested2<Boolean>>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<Nested2<Boolean>, Nested2<Boolean>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -746,7 +746,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testFunctionWithMissingGenerics() {
-		MapFunction function = new MapFunction() {
+		RichMapFunction function = new RichMapFunction() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -776,7 +776,7 @@ public class TypeExtractorTest {
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
 	}
 
-	public class IdentityMapper<T> extends MapFunction<T, T> {
+	public class IdentityMapper<T> extends RichMapFunction<T, T> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -807,7 +807,7 @@ public class TypeExtractorTest {
 		}
 	}
 
-	public class IdentityMapper2<T> extends MapFunction<Tuple2<T, String>, T> {
+	public class IdentityMapper2<T> extends RichMapFunction<Tuple2<T, String>, T> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -843,7 +843,7 @@ public class TypeExtractorTest {
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(1));
 	}
 
-	public class IdentityMapper3<T, V> extends MapFunction<T, V> {
+	public class IdentityMapper3<T, V> extends RichMapFunction<T, V> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -916,7 +916,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testFunctionWithNoGenericSuperclass() {
-		MapFunction<?, ?> function = new Mapper2();
+		RichMapFunction<?, ?> function = new Mapper2();
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"));
 
@@ -924,7 +924,7 @@ public class TypeExtractorTest {
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, ti);
 	}
 
-	public class OneAppender<T> extends MapFunction<T, Tuple2<T, Integer>> {
+	public class OneAppender<T> extends RichMapFunction<T, Tuple2<T, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		public Tuple2<T, Integer> map(T value) {
@@ -935,7 +935,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testFunctionDependingPartialOnInput() {
-		MapFunction<?, ?> function = new OneAppender<DoubleValue>() {
+		RichMapFunction<?, ?> function = new OneAppender<DoubleValue>() {
 			private static final long serialVersionUID = 1L;
 		};
 
@@ -955,7 +955,7 @@ public class TypeExtractorTest {
 
 	@Test
 	public void testFunctionDependingPartialOnInput2() {
-		MapFunction<DoubleValue, ?> function = new OneAppender<DoubleValue>();
+		RichMapFunction<DoubleValue, ?> function = new OneAppender<DoubleValue>();
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, new ValueTypeInfo<DoubleValue>(DoubleValue.class));
 
@@ -971,7 +971,7 @@ public class TypeExtractorTest {
 		Assert.assertEquals(Integer.class , tti.getTypeAt(1).getTypeClass());
 	}
 
-	public class FieldDuplicator<T> extends MapFunction<T, Tuple2<T, T>> {
+	public class FieldDuplicator<T> extends RichMapFunction<T, Tuple2<T, T>> {
 		private static final long serialVersionUID = 1L;
 
 		public Tuple2<T, T> map(T value) {
@@ -981,7 +981,7 @@ public class TypeExtractorTest {
 
 	@Test
 	public void testFunctionInputInOutputMultipleTimes() {
-		MapFunction<Float, ?> function = new FieldDuplicator<Float>();
+		RichMapFunction<Float, ?> function = new FieldDuplicator<Float>();
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, BasicTypeInfo.FLOAT_TYPE_INFO);
 
@@ -994,7 +994,7 @@ public class TypeExtractorTest {
 
 	@Test
 	public void testFunctionInputInOutputMultipleTimes2() {
-		MapFunction<Tuple2<Float, Float>, ?> function = new FieldDuplicator<Tuple2<Float, Float>>();
+		RichMapFunction<Tuple2<Float, Float>, ?> function = new FieldDuplicator<Tuple2<Float, Float>>();
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, new TupleTypeInfo<Tuple2<Float, Float>>(
 				BasicTypeInfo.FLOAT_TYPE_INFO, BasicTypeInfo.FLOAT_TYPE_INFO));
@@ -1023,7 +1023,7 @@ public class TypeExtractorTest {
 
 	@Test
 	public void testAbstractAndInterfaceTypesException() {
-		MapFunction<String, ?> function = new MapFunction<String, Testable>() {
+		RichMapFunction<String, ?> function = new RichMapFunction<String, Testable>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -1039,7 +1039,7 @@ public class TypeExtractorTest {
 			// good
 		}
 
-		MapFunction<String, ?> function2 = new MapFunction<String, AbstractClass>() {
+		RichMapFunction<String, ?> function2 = new RichMapFunction<String, AbstractClass>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -1059,7 +1059,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testValueSupertypeException() {
-		MapFunction<?, ?> function = new MapFunction<StringValue, Value>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<StringValue, Value>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -1080,7 +1080,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testBasicArray() {
 		// use getCoGroupReturnTypes()
-		CoGroupFunction<?, ?, ?> function = new CoGroupFunction<String[], String[], String[]>() {
+		RichCoGroupFunction<?, ?, ?> function = new RichCoGroupFunction<String[], String[], String[]>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -1107,7 +1107,7 @@ public class TypeExtractorTest {
 
 	@Test
 	public void testBasicArray2() {
-		MapFunction<Boolean[], ?> function = new IdentityMapper<Boolean[]>();
+		RichMapFunction<Boolean[], ?> function = new IdentityMapper<Boolean[]>();
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, BasicArrayTypeInfo.BOOLEAN_ARRAY_TYPE_INFO);
 
@@ -1122,7 +1122,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testCustomArray() {
-		MapFunction<?, ?> function = new MapFunction<CustomArrayObject[], CustomArrayObject[]>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<CustomArrayObject[], CustomArrayObject[]>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -1140,7 +1140,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testTupleArray() {
-		MapFunction<?, ?> function = new MapFunction<Tuple2<String, String>[], Tuple2<String, String>[]>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<Tuple2<String, String>[], Tuple2<String, String>[]>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -1167,7 +1167,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testCustomArrayWithTypeVariable() {
-		MapFunction<CustomArrayObject2<Boolean>[], ?> function = new IdentityMapper<CustomArrayObject2<Boolean>[]>();
+		RichMapFunction<CustomArrayObject2<Boolean>[], ?> function = new IdentityMapper<CustomArrayObject2<Boolean>[]>();
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple1<Boolean>[]"));
 
@@ -1178,7 +1178,7 @@ public class TypeExtractorTest {
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, tti.getTypeAt(0));
 	}
 	
-	public class GenericArrayClass<T> extends MapFunction<T[], T[]> {
+	public class GenericArrayClass<T> extends RichMapFunction<T[], T[]> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -1207,7 +1207,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testParamertizedCustomObject() {
-		MapFunction<?, ?> function = new MapFunction<MyObject<String>, MyObject<String>>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<MyObject<String>, MyObject<String>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -1242,7 +1242,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testInputMismatchExceptions() {
 		
-		MapFunction<?, ?> function = new MapFunction<Tuple2<String, String>, String>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<Tuple2<String, String>, String>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -1265,7 +1265,7 @@ public class TypeExtractorTest {
 			// right
 		}
 		
-		MapFunction<?, ?> function2 = new MapFunction<StringValue, String>() {
+		RichMapFunction<?, ?> function2 = new RichMapFunction<StringValue, String>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -1281,7 +1281,7 @@ public class TypeExtractorTest {
 			// right
 		}
 		
-		MapFunction<?, ?> function3 = new MapFunction<Tuple1<Integer>[], String>() {
+		RichMapFunction<?, ?> function3 = new RichMapFunction<Tuple1<Integer>[], String>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -1297,7 +1297,7 @@ public class TypeExtractorTest {
 			// right
 		}
 		
-		MapFunction<?, ?> function4 = new MapFunction<Writable, String>() {
+		RichMapFunction<?, ?> function4 = new RichMapFunction<Writable, String>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -1314,7 +1314,7 @@ public class TypeExtractorTest {
 		}
 	}
 	
-	public static class DummyFlatMapFunction<A,B,C,D> extends FlatMapFunction<Tuple2<A,B>, Tuple2<C,D>> {
+	public static class DummyFlatMapFunction<A,B,C,D> extends RichFlatMapFunction<Tuple2<A,B>, Tuple2<C,D>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -1336,7 +1336,7 @@ public class TypeExtractorTest {
 		}
 	}
 
-	public static class MyQueryableMapper<A> extends MapFunction<String, A> implements ResultTypeQueryable<A> {
+	public static class MyQueryableMapper<A> extends RichMapFunction<String, A> implements ResultTypeQueryable<A> {
 		private static final long serialVersionUID = 1L;
 		
 		@SuppressWarnings("unchecked")
@@ -1359,7 +1359,7 @@ public class TypeExtractorTest {
 	
 	@Test
 	public void testTupleWithPrimitiveArray() {
-		MapFunction<Integer, Tuple9<int[],double[],long[],byte[],char[],float[],short[], boolean[], String[]>> function = new MapFunction<Integer, Tuple9<int[],double[],long[],byte[],char[],float[],short[], boolean[], String[]>>() {
+		RichMapFunction<Integer, Tuple9<int[],double[],long[],byte[],char[],float[],short[], boolean[], String[]>> function = new RichMapFunction<Integer, Tuple9<int[],double[],long[],byte[],char[],float[],short[], boolean[], String[]>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -1382,8 +1382,8 @@ public class TypeExtractorTest {
 	}
 	
 	@Test
-	public void testInterface() {
-		GenericMap<String, Boolean> mapInterface = new GenericMap<String, Boolean>() {
+	public void testFunction() {
+		RichMapFunction<String, Boolean> mapInterface = new RichMapFunction<String, Boolean>() {
 			
 			@Override
 			public void setRuntimeContext(RuntimeContext t) {
@@ -1392,7 +1392,6 @@ public class TypeExtractorTest {
 			
 			@Override
 			public void open(Configuration parameters) throws Exception {
-				
 			}
 			
 			@Override
@@ -1411,6 +1410,19 @@ public class TypeExtractorTest {
 			}
 		};
 		
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(mapInterface, BasicTypeInfo.STRING_TYPE_INFO);
+		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
+	}
+
+	@Test
+	public void testInterface() {
+		MapFunction<String, Boolean> mapInterface = new MapFunction<String, Boolean>() {
+			@Override
+			public Boolean map(String record) throws Exception {
+				return null;
+			}
+		};
+
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(mapInterface, BasicTypeInfo.STRING_TYPE_INFO);
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
 	}

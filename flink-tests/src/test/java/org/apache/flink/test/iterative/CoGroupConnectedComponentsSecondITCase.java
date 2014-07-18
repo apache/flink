@@ -23,9 +23,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.flink.api.java.functions.CoGroupFunction;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichCoGroupFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsSecond;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -90,7 +90,7 @@ public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase 
 	//  The test program
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class VertexParser extends MapFunction<String, Long> {
+	public static final class VertexParser extends RichMapFunction<String, Long> {
 
 		@Override
 		public Long map(String value) throws Exception {
@@ -98,7 +98,7 @@ public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase 
 		}
 	}
 	
-	public static final class EdgeParser extends FlatMapFunction<String, Tuple2<Long, Long>> {
+	public static final class EdgeParser extends RichFlatMapFunction<String, Tuple2<Long, Long>> {
 
 		@Override
 		public void flatMap(String value, Collector<Tuple2<Long, Long>> out) throws Exception {
@@ -113,7 +113,7 @@ public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase 
 
 	@ConstantFieldsFirst("0")
 	@ConstantFieldsSecond("0")
-	public static final class MinIdAndUpdate extends CoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class MinIdAndUpdate extends RichCoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		
 		@Override
 		public void coGroup(Iterator<Tuple2<Long, Long>> candidates, Iterator<Tuple2<Long, Long>> current, Collector<Tuple2<Long, Long>> out) {

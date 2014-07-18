@@ -20,24 +20,25 @@
 package org.apache.flink.runtime.operators.chaining;
 
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.GenericMap;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.RegularPactTask;
 
 public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 
-	private GenericMap<IT, OT> mapper;
+	private MapFunction<IT, OT> mapper;
 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void setup(AbstractInvokable parent) {
 		@SuppressWarnings("unchecked")
-		final GenericMap<IT, OT> mapper =
-			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GenericMap.class);
+		final MapFunction<IT, OT> mapper =
+			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, MapFunction.class);
 		this.mapper = mapper;
-		mapper.setRuntimeContext(getUdfRuntimeContext());
+		FunctionUtils.setFunctionRuntimeContext(mapper, getUdfRuntimeContext());
 	}
 
 	@Override
@@ -54,7 +55,7 @@ public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	@Override
 	public void cancelTask() {
 		try {
-			this.mapper.close();
+			FunctionUtils.closeFunction(this.mapper);
 		} catch (Throwable t) {
 		}
 	}
@@ -84,4 +85,5 @@ public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	public void close() {
 		this.outputCollector.close();
 	}
+
 }

@@ -19,23 +19,24 @@
 
 package org.apache.flink.api.common.functions;
 
-import org.apache.flink.util.Collector;
+import java.io.Serializable;
 
 
 /**
- * @param <V1> First input type
- * @param <V2> Second input type
- * @param <O> Output type
+ * @param <IN1> First input type
+ * @param <IN2> Second input type
+ * @param <OUT> Output type
  */
-public interface GenericCrosser<V1, V2, O> extends Function {
+public interface CrossFunction<IN1, IN2, OUT> extends Function, Serializable {
 
 	/**
 	 * User defined function for the cross operator.
 	 * 
 	 * @param record1 Record from first input
 	 * @param record2 Record from the second input
-	 * @param out Collector to submit resulting records.
+	 * @return result of cross UDF.
 	 * @throws Exception
 	 */
-	void cross(V1 record1, V2 record2, Collector<O> out) throws Exception;
+	OUT cross(IN1 record1, IN2 record2) throws Exception;
+
 }

@@ -25,7 +25,7 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.base.FlatMapOperatorBase;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.functions.FlatMapFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
@@ -174,7 +174,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 		});
 	}
 
-	public static final class DummyFlatMap extends FlatMapFunction<String, Tuple2<String, Integer>> {
+	public static final class DummyFlatMap extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
 
 		private static final long serialVersionUID = 1L;
 

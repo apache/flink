@@ -24,8 +24,9 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.GenericCombine;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -497,7 +498,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			if (this.stub != null) {
 				try {
 					Configuration stubConfig = this.config.getStubParameters();
-					this.stub.open(stubConfig);
+					FunctionUtils.openFunction(this.stub, stubConfig);
 					stubOpen = true;
 				}
 				catch (Throwable t) {
@@ -510,7 +511,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 			// close. We close here such that a regular close throwing an exception marks a task as failed.
 			if (this.running && this.stub != null) {
-				this.stub.close();
+				FunctionUtils.closeFunction(this.stub);
 				stubOpen = false;
 			}
 
@@ -525,15 +526,17 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			// modify accumulators.ll;
 			if (this.stub != null) {
 				// collect the counters from the stub
-				Map<String, Accumulator<?,?>> accumulators = this.stub.getRuntimeContext().getAllAccumulators();
-				RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
+				if (FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext) != null) {
+					Map<String, Accumulator<?, ?>> accumulators = FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
+					RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
+				}
 			}
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
 			if (stubOpen) {
 				try {
-					this.stub.close();
+					FunctionUtils.closeFunction(this.stub);
 				}
 				catch (Throwable t) {}
 			}
@@ -582,9 +585,12 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		// tasks. Type conflicts can occur here if counters with same name but
 		// different type were used.
 
+
 		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
-			Map<String, Accumulator<?, ?>> chainedAccumulators = chainedTask.getStub().getRuntimeContext().getAllAccumulators();
-			AccumulatorHelper.mergeInto(accumulators, chainedAccumulators);
+			if (FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null) != null) {
+				Map<String, Accumulator<?, ?>> chainedAccumulators = FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators();
+				AccumulatorHelper.mergeInto(accumulators, chainedAccumulators);
+			}
 		}
 
 		// Don't report if the UDF didn't collect any accumulators
@@ -607,7 +613,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		// done before sending
 		AccumulatorHelper.resetAndClearAccumulators(accumulators);
 		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
-			AccumulatorHelper.resetAndClearAccumulators(chainedTask.getStub().getRuntimeContext().getAllAccumulators());
+			if (FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null) != null) {
+				AccumulatorHelper.resetAndClearAccumulators(FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators());
+			}
 		}
 	}
 
@@ -693,7 +701,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				throw new RuntimeException("The class '" + stub.getClass().getName() + "' is not a subclass of '" + 
 						stubSuperClass.getName() + "' as is required.");
 			}
-			stub.setRuntimeContext(this.runtimeUdfContext);
+			FunctionUtils.setFunctionRuntimeContext(stub, this.runtimeUdfContext);
 			return stub;
 		}
 		catch (ClassCastException ccex) {
@@ -988,13 +996,13 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 						e.getMessage() == null ? "." : ": " + e.getMessage(), e);
 				}
 				
-				if (!(localStub instanceof GenericCombine)) {
+				if (!(localStub instanceof FlatCombineFunction)) {
 					throw new IllegalStateException("Performing combining sort outside a reduce task!");
 				}
 
 				@SuppressWarnings({ "rawtypes", "unchecked" })
 				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
-					(GenericCombine) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum], 
+					(FlatCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
 					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
 					this.config.getSpillingThresholdInput(inputNum));
@@ -1375,7 +1383,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Opens the given stub using its {@link Function#open(Configuration)} method. If the open call produces
+	 * Opens the given stub using its {@link org.apache.flink.api.common.functions.RichFunction#open(Configuration)} method. If the open call produces
 	 * an exception, a new exception with a standard error message is created, using the encountered exception
 	 * as its cause.
 	 * 
@@ -1386,14 +1394,14 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	public static void openUserCode(Function stub, Configuration parameters) throws Exception {
 		try {
-			stub.open(parameters);
+			FunctionUtils.openFunction(stub, parameters);
 		} catch (Throwable t) {
 			throw new Exception("The user defined 'open(Configuration)' method in " + stub.getClass().toString() + " caused an exception: " + t.getMessage(), t);
 		}
 	}
 	
 	/**
-	 * Closes the given stub using its {@link Function#close()} method. If the close call produces
+	 * Closes the given stub using its {@link org.apache.flink.api.common.functions.RichFunction#close()} method. If the close call produces
 	 * an exception, a new exception with a standard error message is created, using the encountered exception
 	 * as its cause.
 	 * 
@@ -1403,7 +1411,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	public static void closeUserCode(Function stub) throws Exception {
 		try {
-			stub.close();
+			FunctionUtils.closeFunction(stub);
 		} catch (Throwable t) {
 			throw new Exception("The user defined 'close()' method caused an exception: " + t.getMessage(), t);
 		}
@@ -1505,4 +1513,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		}
 		return a;
 	}
+
+
 }

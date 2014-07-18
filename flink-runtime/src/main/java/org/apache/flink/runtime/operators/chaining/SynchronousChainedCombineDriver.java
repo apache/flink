@@ -22,8 +22,9 @@ package org.apache.flink.runtime.operators.chaining;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.GenericCombine;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -51,7 +52,7 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 
 	private InMemorySorter<T> sorter;
 
-	private GenericCombine<T> combiner;
+	private FlatCombineFunction<T> combiner;
 
 	private TypeSerializer<T> serializer;
 
@@ -72,10 +73,10 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		this.parent = parent;
 
 		@SuppressWarnings("unchecked")
-		final GenericCombine<T> combiner =
-			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GenericCombine.class);
+		final FlatCombineFunction<T> combiner =
+			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, FlatCombineFunction.class);
 		this.combiner = combiner;
-		combiner.setRuntimeContext(getUdfRuntimeContext());
+		FunctionUtils.setFunctionRuntimeContext(combiner, getUdfRuntimeContext());
 	}
 
 	@Override
@@ -185,7 +186,7 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 				this.comparator);
 
 			// cache references on the stack
-			final GenericCombine<T> stub = this.combiner;
+			final FlatCombineFunction<T> stub = this.combiner;
 			final Collector<T> output = this.outputCollector;
 
 			// run stub implementation

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.GenericGroupReduce;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -37,13 +37,13 @@ import org.apache.flink.util.MutableObjectIterator;
  * The GroupReduceTask creates a iterator over all records from its input. The iterator returns all records grouped by their
  * key. The iterator is handed to the <code>reduce()</code> method of the GroupReduceFunction.
  * 
- * @see GenericGroupReduce
+ * @see org.apache.flink.api.common.functions.GroupReduceFunction
  */
-public class GroupReduceDriver<IT, OT> implements PactDriver<GenericGroupReduce<IT, OT>, OT> {
+public class GroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunction<IT, OT>, OT> {
 	
 	private static final Log LOG = LogFactory.getLog(GroupReduceDriver.class);
 
-	private PactTaskContext<GenericGroupReduce<IT, OT>, OT> taskContext;
+	private PactTaskContext<GroupReduceFunction<IT, OT>, OT> taskContext;
 	
 	private MutableObjectIterator<IT> input;
 
@@ -56,7 +56,7 @@ public class GroupReduceDriver<IT, OT> implements PactDriver<GenericGroupReduce<
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<GenericGroupReduce<IT, OT>, OT> context) {
+	public void setup(PactTaskContext<GroupReduceFunction<IT, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -67,9 +67,9 @@ public class GroupReduceDriver<IT, OT> implements PactDriver<GenericGroupReduce<
 	}
 
 	@Override
-	public Class<GenericGroupReduce<IT, OT>> getStubType() {
+	public Class<GroupReduceFunction<IT, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericGroupReduce<IT, OT>> clazz = (Class<GenericGroupReduce<IT, OT>>) (Class<?>) GenericGroupReduce.class;
+		final Class<GroupReduceFunction<IT, OT>> clazz = (Class<GroupReduceFunction<IT, OT>>) (Class<?>) GroupReduceFunction.class;
 		return clazz;
 	}
 
@@ -100,7 +100,7 @@ public class GroupReduceDriver<IT, OT> implements PactDriver<GenericGroupReduce<
 		final KeyGroupedIterator<IT> iter = new KeyGroupedIterator<IT>(this.input, this.serializer, this.comparator);
 
 		// cache references on the stack
-		final GenericGroupReduce<IT, OT> stub = this.taskContext.getStub();
+		final GroupReduceFunction<IT, OT> stub = this.taskContext.getStub();
 		final Collector<OT> output = this.taskContext.getOutputCollector();
 
 		// run stub implementation

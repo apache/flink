@@ -19,26 +19,23 @@
 
 package org.apache.flink.api.common.functions;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 import org.apache.flink.util.Collector;
 
 
-/**
- *
- * @param <T> Incoming types
- * @param <O> Outgoing types
- */
-public interface GenericGroupReduce<T, O> extends Function {
+public interface CoGroupFunction<V1, V2, O> extends Function, Serializable {
+	
 	/**
+	 * This method must be implemented to provide a user implementation of a
+	 * coGroup. It is called for each two key-value pairs that share the same
+	 * key and come from different inputs.
 	 * 
-	 * The central function to be implemented for a reducer. The function receives per call one
-	 * key and all the values that belong to that key. Each key is guaranteed to be processed by exactly
-	 * one function call across all involved instances across all computing nodes.
-	 * 
-	 * @param records All records that belong to the given input key.
-	 * @param out The collector to hand results to.
-	 * @throws Exception
+	 * @param first The records from the first input which were paired with the key.
+	 * @param second The records from the second input which were paired with the key.
+	 * @param out A collector that collects all output pairs.
 	 */
-	void reduce(Iterator<T> records, Collector<O> out) throws Exception;
+	void coGroup(Iterator<V1> first, Iterator<V2> second, Collector<O> out) throws Exception;
+	
 }

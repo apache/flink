@@ -23,8 +23,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.GenericGroupReduce;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.operators.AllGroupReduceDriver;
@@ -46,8 +46,8 @@ public class AllGroupReduceDriverTest {
 	@Test
 	public void testAllReduceDriverImmutableEmpty() {
 		try {
-			TestTaskContext<GenericGroupReduce<Tuple2<String, Integer>, Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
-					new TestTaskContext<GenericGroupReduce<Tuple2<String, Integer>, Tuple2<String, Integer>>, Tuple2<String,Integer>>();
+			TestTaskContext<GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
+					new TestTaskContext<GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>, Tuple2<String,Integer>>();
 			
 			List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
 			TypeInformation<Tuple2<String, Integer>> typeInfo = TypeExtractor.getForObject(data.get(0));
@@ -72,8 +72,8 @@ public class AllGroupReduceDriverTest {
 	@Test
 	public void testAllReduceDriverImmutable() {
 		try {
-			TestTaskContext<GenericGroupReduce<Tuple2<String, Integer>, Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
-					new TestTaskContext<GenericGroupReduce<Tuple2<String, Integer>, Tuple2<String, Integer>>, Tuple2<String,Integer>>();
+			TestTaskContext<GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
+					new TestTaskContext<GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>, Tuple2<String,Integer>>();
 			
 			List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
 			TypeInformation<Tuple2<String, Integer>> typeInfo = TypeExtractor.getForObject(data.get(0));
@@ -112,8 +112,8 @@ public class AllGroupReduceDriverTest {
 	@Test
 	public void testAllReduceDriverMutable() {
 		try {
-			TestTaskContext<GenericGroupReduce<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
-					new TestTaskContext<GenericGroupReduce<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>();
+			TestTaskContext<GroupReduceFunction<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
+					new TestTaskContext<GroupReduceFunction<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>();
 			
 			List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
 			TypeInformation<Tuple2<StringValue, IntValue>> typeInfo = TypeExtractor.getForObject(data.get(0));
@@ -152,7 +152,7 @@ public class AllGroupReduceDriverTest {
 	//  Test UDFs
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class ConcatSumReducer extends GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> {
+	public static final class ConcatSumReducer extends RichGroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> {
 
 		@Override
 		public void reduce(Iterator<Tuple2<String, Integer>> values, Collector<Tuple2<String, Integer>> out) {
@@ -169,7 +169,7 @@ public class AllGroupReduceDriverTest {
 		}
 	}
 	
-	public static final class ConcatSumMutableReducer extends GroupReduceFunction<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>> {
+	public static final class ConcatSumMutableReducer extends RichGroupReduceFunction<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>> {
 
 		@Override
 		public void reduce(Iterator<Tuple2<StringValue, IntValue>> values, Collector<Tuple2<StringValue, IntValue>> out) {

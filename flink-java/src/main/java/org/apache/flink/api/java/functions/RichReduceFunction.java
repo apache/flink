@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.java.functions;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.common.functions.GenericReduce;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 
 /**
  * The abstract base class for Reduce functions. Reduce functions combine groups of elements to
@@ -28,8 +28,8 @@ import org.apache.flink.api.common.functions.GenericReduce;
  * individually.
  * <p>
  * For a reduce functions that work on an entire group at the same time (such as the 
- * MapReduce/Hadoop-style reduce), see {@link GroupReduceFunction}, called via
- * {@link org.apache.flink.api.java.DataSet#reduceGroup(GroupReduceFunction)}. In the general case,
+ * MapReduce/Hadoop-style reduce), see {@link RichGroupReduceFunction}, called via
+ * {@link org.apache.flink.api.java.DataSet#reduceGroup(RichGroupReduceFunction)}. In the general case,
  * ReduceFunctions are considered faster, because they allow the system to use hash-based
  * execution strategies.
  * <p>
@@ -44,7 +44,7 @@ import org.apache.flink.api.common.functions.GenericReduce;
  * 
  * @param <T> Type of the elements that this function processes.
  */
-public abstract class ReduceFunction<T> extends AbstractFunction implements GenericReduce<T> {
+public abstract class RichReduceFunction<T> extends AbstractRichFunction implements ReduceFunction<T> {
 	
 	private static final long serialVersionUID = 1L;
 

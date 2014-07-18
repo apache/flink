@@ -23,9 +23,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.JoinFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
+import org.apache.flink.api.java.functions.RichJoinFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -153,8 +153,7 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static final class FindCandidatesJoin extends JoinFunction
-		<Tuple2<Long, Long>, Tuple2<Long, Long>, Long> {
+	public static final class FindCandidatesJoin extends RichJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Long> {
 		
 		private static final long serialVersionUID = 1L;
 		
@@ -166,7 +165,7 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static final class RemoveDuplicatesReduce extends GroupReduceFunction<Long, Long> {
+	public static final class RemoveDuplicatesReduce extends RichGroupReduceFunction<Long, Long> {
 		
 		private static final long serialVersionUID = 1L;
 
@@ -176,8 +175,7 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static final class FindCandidatesDependenciesJoin extends JoinFunction
-		<Long, Tuple2<Long, Long>,Tuple2<Long, Long>> {
+	public static final class FindCandidatesDependenciesJoin extends RichJoinFunction<Long, Tuple2<Long, Long>,Tuple2<Long, Long>> {
 	
 		private static final long serialVersionUID = 1L;
 		
@@ -187,8 +185,7 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static final class NeighborWithComponentIDJoin extends JoinFunction
-		<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class NeighborWithComponentIDJoin extends RichJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 	
 		private static final long serialVersionUID = 1L;
 		
@@ -201,8 +198,7 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static final class MinimumReduce extends GroupReduceFunction
-		<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class MinimumReduce extends RichGroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		
 		private static final long serialVersionUID = 1L;
 		final Tuple2<Long, Long> resultVertex = new Tuple2<Long, Long>();
@@ -228,8 +224,7 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		}
 	}
 
-	public static final class MinimumIdFilter extends FlatMapFunction
-		<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
+	public static final class MinimumIdFilter extends RichFlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
 	
 		private static final long serialVersionUID = 1L;
 	

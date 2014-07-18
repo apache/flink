@@ -22,8 +22,8 @@ package org.apache.flink.runtime.operators.drivers;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.GenericReduce;
-import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.operators.AllReduceDriver;
@@ -44,8 +44,8 @@ public class AllReduceDriverTest {
 	@Test
 	public void testAllReduceDriverImmutableEmpty() {
 		try {
-			TestTaskContext<GenericReduce<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
-					new TestTaskContext<GenericReduce<Tuple2<String,Integer>>, Tuple2<String,Integer>>();
+			TestTaskContext<ReduceFunction<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
+					new TestTaskContext<ReduceFunction<Tuple2<String,Integer>>, Tuple2<String,Integer>>();
 			
 			List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
 			TypeInformation<Tuple2<String, Integer>> typeInfo = TypeExtractor.getForObject(data.get(0));
@@ -71,8 +71,8 @@ public class AllReduceDriverTest {
 	public void testAllReduceDriverImmutable() {
 		try {
 			{
-				TestTaskContext<GenericReduce<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
-						new TestTaskContext<GenericReduce<Tuple2<String,Integer>>, Tuple2<String,Integer>>();
+				TestTaskContext<ReduceFunction<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
+						new TestTaskContext<ReduceFunction<Tuple2<String,Integer>>, Tuple2<String,Integer>>();
 				
 				List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
 				TypeInformation<Tuple2<String, Integer>> typeInfo = TypeExtractor.getForObject(data.get(0));
@@ -103,8 +103,8 @@ public class AllReduceDriverTest {
 			}
 			
 			{
-				TestTaskContext<GenericReduce<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
-						new TestTaskContext<GenericReduce<Tuple2<String,Integer>>, Tuple2<String,Integer>>();
+				TestTaskContext<ReduceFunction<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
+						new TestTaskContext<ReduceFunction<Tuple2<String,Integer>>, Tuple2<String,Integer>>();
 				
 				List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
 				TypeInformation<Tuple2<String, Integer>> typeInfo = TypeExtractor.getForObject(data.get(0));
@@ -145,8 +145,8 @@ public class AllReduceDriverTest {
 	public void testAllReduceDriverMutable() {
 		try {
 			{
-				TestTaskContext<GenericReduce<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
-						new TestTaskContext<GenericReduce<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>();
+				TestTaskContext<ReduceFunction<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
+						new TestTaskContext<ReduceFunction<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>();
 				
 				List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
 				TypeInformation<Tuple2<StringValue, IntValue>> typeInfo = TypeExtractor.getForObject(data.get(0));
@@ -176,8 +176,8 @@ public class AllReduceDriverTest {
 				Assert.assertEquals(78, res.f1.getValue());
 			}
 			{
-				TestTaskContext<GenericReduce<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
-						new TestTaskContext<GenericReduce<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>();
+				TestTaskContext<ReduceFunction<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
+						new TestTaskContext<ReduceFunction<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>();
 				
 				List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
 				TypeInformation<Tuple2<StringValue, IntValue>> typeInfo = TypeExtractor.getForObject(data.get(0));
@@ -217,7 +217,7 @@ public class AllReduceDriverTest {
 	//  Test UDFs
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class ConcatSumFirstReducer extends ReduceFunction<Tuple2<String, Integer>> {
+	public static final class ConcatSumFirstReducer extends RichReduceFunction<Tuple2<String, Integer>> {
 
 		@Override
 		public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1, Tuple2<String, Integer> value2) {
@@ -227,7 +227,7 @@ public class AllReduceDriverTest {
 		}
 	}
 	
-	public static final class ConcatSumSecondReducer extends ReduceFunction<Tuple2<String, Integer>> {
+	public static final class ConcatSumSecondReducer extends RichReduceFunction<Tuple2<String, Integer>> {
 		
 		@Override
 		public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1, Tuple2<String, Integer> value2) {
@@ -237,7 +237,7 @@ public class AllReduceDriverTest {
 		}
 	}
 	
-	public static final class ConcatSumFirstMutableReducer extends ReduceFunction<Tuple2<StringValue, IntValue>> {
+	public static final class ConcatSumFirstMutableReducer extends RichReduceFunction<Tuple2<StringValue, IntValue>> {
 
 		@Override
 		public Tuple2<StringValue, IntValue> reduce(Tuple2<StringValue, IntValue> value1, Tuple2<StringValue, IntValue> value2) {
@@ -247,7 +247,7 @@ public class AllReduceDriverTest {
 		}
 	}
 	
-	public static final class ConcatSumSecondMutableReducer extends ReduceFunction<Tuple2<StringValue, IntValue>> {
+	public static final class ConcatSumSecondMutableReducer extends RichReduceFunction<Tuple2<StringValue, IntValue>> {
 
 		@Override
 		public Tuple2<StringValue, IntValue> reduce(Tuple2<StringValue, IntValue> value1, Tuple2<StringValue, IntValue> value2) {

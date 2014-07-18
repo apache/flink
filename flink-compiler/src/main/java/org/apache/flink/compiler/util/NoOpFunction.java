@@ -18,9 +18,9 @@
 
 package org.apache.flink.compiler.util;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 
 
-public class NoOpFunction extends AbstractFunction {
+public class NoOpFunction extends AbstractRichFunction {
 	private static final long serialVersionUID = 1L;
 }

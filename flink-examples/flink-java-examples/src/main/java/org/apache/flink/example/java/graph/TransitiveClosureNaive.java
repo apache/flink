@@ -19,6 +19,8 @@
 
 package org.apache.flink.example.java.graph;
 
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.IterativeDataSet;
@@ -26,8 +28,6 @@ import org.apache.flink.api.java.IterativeDataSet;
 import java.util.Iterator;
 
 import org.apache.flink.api.common.ProgramDescription;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.JoinFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.example.java.graph.util.ConnectedComponentsData;
 import org.apache.flink.util.Collector;

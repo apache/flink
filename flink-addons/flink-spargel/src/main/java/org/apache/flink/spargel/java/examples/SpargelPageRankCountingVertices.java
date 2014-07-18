@@ -18,9 +18,9 @@
 
 package org.apache.flink.spargel.java.examples;
 
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
+import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
@@ -53,7 +53,7 @@ public class SpargelPageRankCountingVertices {
 		
 		// generate some random edges. the transition probability on each edge is 1/num-out-edges of the source vertex
 		DataSet<Tuple3<Long, Long, Double>> edgesWithProbability = env.generateSequence(1, NUM_VERTICES)
-								.flatMap(new FlatMapFunction<Long, Tuple3<Long, Long, Double>>() {
+								.flatMap(new RichFlatMapFunction<Long, Tuple3<Long, Long, Double>>() {
 									public void flatMap(Long value, Collector<Tuple3<Long, Long, Double>> out) {
 										int numOutEdges = (int) (Math.random() * (NUM_VERTICES / 2));
 										for (int i = 0; i < numOutEdges; i++) {
@@ -67,12 +67,12 @@ public class SpargelPageRankCountingVertices {
 		
 		// count the number of vertices
 		DataSet<Long> count = vertices
-			.map(new MapFunction<Long, Long>() {
+			.map(new RichMapFunction<Long, Long>() {
 				public Long map(Long value) {
 					return 1L;
 				}
 			})
-			.reduce(new ReduceFunction<Long>() {
+			.reduce(new RichReduceFunction<Long>() {
 				public Long reduce(Long value1, Long value2) {
 					return value1 + value2;
 				}
@@ -80,7 +80,7 @@ public class SpargelPageRankCountingVertices {
 		
 		// enumerate some sample edges and assign an initial uniform probability (rank)
 		DataSet<Tuple2<Long, Double>> intialRanks = vertices
-			.map(new MapFunction<Long, Tuple2<Long, Double>>() {
+			.map(new RichMapFunction<Long, Tuple2<Long, Double>>() {
 				
 				private long numVertices;
 				

@@ -19,7 +19,7 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import org.apache.flink.api.common.functions.GenericMap;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
@@ -33,7 +33,7 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
  * @param <OUT> The result type.
  * @param <FT> The type of the user-defined function.
  */
-public class MapOperatorBase<IN, OUT, FT extends GenericMap<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
+public class MapOperatorBase<IN, OUT, FT extends MapFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 	
 	public MapOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
 		super(udf, operatorInfo, name);

@@ -18,9 +18,8 @@
 
 package org.apache.flink.api.java.functions;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.common.functions.GenericCrosser;
-import org.apache.flink.util.Collector;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.CrossFunction;
 
 
 /**
@@ -46,7 +45,7 @@ import org.apache.flink.util.Collector;
  * @param <IN2> The type of the elements in the second input.
  * @param <OUT> The type of the result elements.
  */
-public abstract class CrossFunction<IN1, IN2, OUT> extends AbstractFunction implements GenericCrosser<IN1, IN2, OUT>{
+public abstract class RichCrossFunction<IN1, IN2, OUT> extends AbstractRichFunction implements CrossFunction<IN1, IN2, OUT> {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -62,15 +61,7 @@ public abstract class CrossFunction<IN1, IN2, OUT> extends AbstractFunction impl
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
 	 *                   to fail and may trigger recovery.
 	 */
-	public abstract OUT cross(IN1 first, IN2 second) throws Exception;
-	
-	
-	
-	/**
-	 * This method only delegates calls to the {@link #cross(Object, Object)} method.
-	 */
 	@Override
-	public final void cross(IN1 record1, IN2 record2, Collector<OUT> out) throws Exception {
-		out.collect(cross(record1, record2));
-	}
+	public abstract OUT cross(IN1 first, IN2 second) throws Exception;
+
 }

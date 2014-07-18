@@ -16,18 +16,16 @@
  * limitations under the License.
  */
 
+package org.apache.flink.api.java.functions;
 
-package org.apache.flink.api.common.functions;
 
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
 
-public interface GenericFilter<T> extends Function {
-	
-	/**
-	 * User defined function for a filter.
-	 * 
-	 * @param value Incoming tuples
-	 * @return true for tuples that are allowed to pass the filter
-	 * @throws Exception
-	 */
-	boolean filter(T value) throws Exception;
+public abstract class RichJoinFunction<IN1,IN2,OUT> extends AbstractRichFunction implements JoinFunction<IN1,IN2,OUT> {
+
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public abstract OUT join(IN1 first, IN2 second) throws Exception;
 }

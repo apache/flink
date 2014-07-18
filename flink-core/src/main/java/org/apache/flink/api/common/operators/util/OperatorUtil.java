@@ -25,11 +25,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.flink.api.common.functions.GenericCoGrouper;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.CrossFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
-import org.apache.flink.api.common.functions.GenericCrosser;
-import org.apache.flink.api.common.functions.GenericGroupReduce;
-import org.apache.flink.api.common.functions.GenericJoiner;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.InputFormat;
@@ -56,10 +56,10 @@ public class OperatorUtil {
 
 	static {
 		STUB_CONTRACTS.put(GenericCollectorMap.class, CollectorMapOperatorBase.class);
-		STUB_CONTRACTS.put(GenericGroupReduce.class, GroupReduceOperatorBase.class);
-		STUB_CONTRACTS.put(GenericCoGrouper.class, CoGroupOperatorBase.class);
-		STUB_CONTRACTS.put(GenericCrosser.class, CrossOperatorBase.class);
-		STUB_CONTRACTS.put(GenericJoiner.class, JoinOperatorBase.class);
+		STUB_CONTRACTS.put(GroupReduceFunction.class, GroupReduceOperatorBase.class);
+		STUB_CONTRACTS.put(CoGroupFunction.class, CoGroupOperatorBase.class);
+		STUB_CONTRACTS.put(CrossFunction.class, CrossOperatorBase.class);
+		STUB_CONTRACTS.put(FlatJoinFunction.class, JoinOperatorBase.class);
 		STUB_CONTRACTS.put(FileInputFormat.class, GenericDataSourceBase.class);
 		STUB_CONTRACTS.put(FileOutputFormat.class, GenericDataSinkBase.class);
 		STUB_CONTRACTS.put(InputFormat.class, GenericDataSourceBase.class);
@@ -67,7 +67,7 @@ public class OperatorUtil {
 	}
 
 	/**
-	 * Returns the associated {@link Operator} type for the given {@link org.apache.flink.api.common.functions.Function} class.
+	 * Returns the associated {@link Operator} type for the given {@link org.apache.flink.api.common.functions.RichFunction} class.
 	 * 
 	 * @param stubClass
 	 *        the stub class

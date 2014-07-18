@@ -18,31 +18,36 @@
 
 package org.apache.flink.api.java.functions;
 
-import java.util.Iterator;
-
-import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.common.functions.GenericCoGrouper;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.util.Collector;
 
 /**
- * The abstract base class for CoGroup functions. CoGroup functions combine two data sets by first grouping each data set
- * after a key and then "joining" the groups by calling this function with the two sets for each key. 
- * If a key is present in only one of the two inputs, it may be that one of the groups is empty.
+ * The abstract base class for Join functions. Join functions combine two data sets by joining their
+ * elements on specified keys and calling this function with each pair of joining elements.
+ * By default, this follows strictly the semantics of an "inner join" in SQL.
+ * the semantics are those of an "inner join", meaning that elements are filtered out
+ * if their key is not contained in the other data set.
  * <p>
- * The basic syntax for using CoGoup on two data sets is as follows:
+ * Per the semantics of an inner join, the function is 
+ * <p>
+ * The basic syntax for using Join on two data sets is as follows:
  * <pre><blockquote>
  * DataSet<X> set1 = ...;
  * DataSet<Y> set2 = ...;
  * 
- * set1.coGroup(set2).where(<key-definition>).equalTo(<key-definition>).with(new MyCoGroupFunction());
+ * set1.join(set2).where(<key-definition>).equalTo(<key-definition>).with(new MyJoinFunction());
  * </blockquote></pre>
  * <p>
  * {@code set1} is here considered the first input, {@code set2} the second input.
  * The keys can be defined through tuple field positions or key extractors.
  * See {@link org.apache.flink.api.java.operators.Keys} for details.
  * <p>
- * Some keys may only be contained in one of the two original data sets. In that case, the CoGroup function is invoked
- * with in empty input for the side of the data set that did not contain elements with that specific key.
+ * The Join function is actually not a necessary part of a join operation. If no JoinFunction is provided,
+ * the result of the operation is a sequence of Tuple2, where the elements in the tuple are those that
+ * the JoinFunction would have been invoked with.
+ * <P>
+ * Note: You can use a {@link RichCoGroupFunction} to perform an outer join.
  * <p>
  * All functions need to be serializable, as defined in {@link java.io.Serializable}.
  * 
@@ -50,25 +55,21 @@ import org.apache.flink.util.Collector;
  * @param <IN2> The type of the elements in the second input.
  * @param <OUT> The type of the result elements.
  */
-public abstract class CoGroupFunction<IN1, IN2, OUT> extends AbstractFunction implements GenericCoGrouper<IN1, IN2, OUT> {
+public abstract class RichFlatJoinFunction<IN1, IN2, OUT> extends AbstractRichFunction implements FlatJoinFunction<IN1, IN2, OUT> {
 
 	private static final long serialVersionUID = 1L;
-	
-	
+
 	/**
-	 * The core method of the CoGroupFunction. This method is called for each pair of groups that have the same
-	 * key. The elements of the groups are returned by the respective iterators.
+	 * The user-defined method for performing transformations after a join.
+	 * The method is called with matching pairs of elements from the inputs.
 	 * 
-	 * It is possible that one of the two groups is empty, in which case the respective iterator has no elements.
-	 * 
-	 * @param first The group from the first input.
-	 * @param second The group from the second input.
-	 * @param out The collector through which to return the result elements.
+	 * @param first The element from first input.
+	 * @param second The element from second input.
+	 * @return The resulting element.
 	 * 
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
 	 *                   to fail and may trigger recovery.
 	 */
 	@Override
-	public abstract void coGroup(Iterator<IN1> first, Iterator<IN2> second, Collector<OUT> out) throws Exception;
-
+	public abstract void join(IN1 first, IN2 second, Collector<OUT> out) throws Exception;
 }

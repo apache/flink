@@ -24,7 +24,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
@@ -61,7 +61,7 @@ public class BulkIterationWithAllReducerITCase extends JavaProgramTestBase {
 	}
 
 	
-	public static class PickOneAllReduce extends GroupReduceFunction<Integer, Integer> {
+	public static class PickOneAllReduce extends RichGroupReduceFunction<Integer, Integer> {
 		
 		private Integer bcValue;
 		

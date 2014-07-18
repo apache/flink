@@ -17,16 +17,12 @@
  */
 
 
-package org.apache.flink.compiler.testfunctions;
+package org.apache.flink.api.common.functions;
 
-import org.apache.flink.api.java.functions.JoinFunction;
+import java.io.Serializable;
 
-public class DummyJoinFunction<T> extends JoinFunction<T, T, T> {
 
-	private static final long serialVersionUID = 1L;
+public interface JoinFunction<IN1, IN2, OUT> extends Function, Serializable {
 
-	@Override
-	public T join(T first, T second) {
-		return null;
-	}
+	OUT join(IN1 first, IN2 second) throws Exception;
 }
