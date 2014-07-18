@@ -19,8 +19,7 @@
 
 package org.apache.flink.streaming.examples.iterative.collaborativefilter;
 
-import org.apache.flink.streaming.api.function.SinkFunction;
-
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.api.java.tuple.Tuple4;
 
 public class CollaborativeFilteringSink extends

@@ -25,8 +25,7 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.math.stat.regression.OLSMultipleLinearRegression;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.SourceFunction;
-
+import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;

@@ -23,7 +23,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.streaming.api.function.SourceFunction;
+import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
 public class PageRankSource extends SourceFunction<Tuple3<Integer, Integer, Long>> {

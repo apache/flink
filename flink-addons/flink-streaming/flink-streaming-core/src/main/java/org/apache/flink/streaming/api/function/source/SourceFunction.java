@@ -17,7 +17,7 @@
  *
  */
 
-package org.apache.flink.streaming.api.function;
+package org.apache.flink.streaming.api.function.source;
 
 import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
 

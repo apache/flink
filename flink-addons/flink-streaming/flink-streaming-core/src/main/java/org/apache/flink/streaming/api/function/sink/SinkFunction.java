@@ -1,4 +1,4 @@
-/***********************************************************************************************************************
+/**
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -15,33 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- **********************************************************************************************************************/
+ */
 
-package org.apache.flink.streaming.api.function;
+package org.apache.flink.streaming.api.function.sink;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 
+import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 
-/**
- * Abstract class for formatting the output of the writeAsText and writeAsCsv
- * functions.
- *
- * @param <IN>
- *            Input tuple type
- */
-public abstract class WriteFormat<IN extends Tuple> implements Serializable {
+public abstract class SinkFunction<IN extends Tuple> extends AbstractFunction implements Serializable {
+
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Writes the contents of tupleList to the file specified by path.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param tupleList
-	 *            is the list of tuples to be written
-	 */
-	protected abstract void write(String path, ArrayList<IN> tupleList);
+	public abstract void invoke(IN tuple);
 
 }

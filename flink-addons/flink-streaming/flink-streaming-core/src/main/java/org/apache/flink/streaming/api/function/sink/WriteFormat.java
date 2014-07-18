@@ -17,37 +17,31 @@
  *
  */
 
-package org.apache.flink.streaming.api.function;
+package org.apache.flink.streaming.api.function.sink;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
 
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.util.Collector;
+import org.apache.flink.api.java.tuple.Tuple;
 
-public class FileSourceFunction extends SourceFunction<Tuple1<String>> {
+/**
+ * Abstract class for formatting the output of the writeAsText and writeAsCsv
+ * functions.
+ *
+ * @param <IN>
+ *            Input tuple type
+ */
+public abstract class WriteFormat<IN extends Tuple> implements Serializable {
 	private static final long serialVersionUID = 1L;
-	
-	private final String path;
-	private Tuple1<String> outTuple = new Tuple1<String>();
-	
-	public FileSourceFunction(String path) {
-		this.path = path;
-	}
-	
-	@Override
-	public void invoke(Collector<Tuple1<String>> collector) throws IOException {
-		BufferedReader br = new BufferedReader(new FileReader(path));
-		String line = br.readLine();
-		while (line != null) {
-			if (line != "") {
-				outTuple.f0 = line;
-				collector.collect(outTuple);
-			}
-			line = br.readLine();
-		}
-		br.close();
-	}
+
+	/**
+	 * Writes the contents of tupleList to the file specified by path.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param tupleList
+	 *            is the list of tuples to be written
+	 */
+	protected abstract void write(String path, ArrayList<IN> tupleList);
 
 }

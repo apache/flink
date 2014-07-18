@@ -19,9 +19,8 @@
 
 package org.apache.flink.streaming.api.invokable;
 
-import org.apache.flink.streaming.api.function.SinkFunction;
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.util.Collector;
 

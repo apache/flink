@@ -26,7 +26,7 @@ import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.streaming.api.function.SinkFunction;
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
 
 public abstract class KafkaSink<IN extends Tuple, OUT> extends SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;

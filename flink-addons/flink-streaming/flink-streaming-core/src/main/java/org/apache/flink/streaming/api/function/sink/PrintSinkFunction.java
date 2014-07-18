@@ -17,7 +17,7 @@
  *
  */
 
-package org.apache.flink.streaming.api.function;
+package org.apache.flink.streaming.api.function.sink;
 
 import org.apache.flink.api.java.tuple.Tuple;
 

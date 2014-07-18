@@ -22,8 +22,7 @@ package org.apache.flink.streaming.examples.iterative.collaborativefilter;
 import java.io.BufferedReader;
 import java.io.FileReader;
 
-import org.apache.flink.streaming.api.function.SourceFunction;
-
+import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.util.Collector;
 
