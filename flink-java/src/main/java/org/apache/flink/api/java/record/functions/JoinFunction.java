@@ -19,7 +19,7 @@
 
 package org.apache.flink.api.java.record.functions;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GenericJoiner;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
@@ -28,7 +28,7 @@ import org.apache.flink.util.Collector;
  * The JoinFunction must implementation by functions of a {@link org.apache.flink.api.java.operators.JoinOperator}.
  * It resembles an equality join of both inputs on their key fields.
  */
-public abstract class JoinFunction extends AbstractFunction implements GenericJoiner<Record, Record, Record> {
+public abstract class JoinFunction extends AbstractRichFunction implements GenericJoiner<Record, Record, Record> {
 	
 	private static final long serialVersionUID = 1L;
 	

@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.functions;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GenericMap;
 
 /**
@@ -40,7 +40,7 @@ import org.apache.flink.api.common.functions.GenericMap;
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
  */
-public abstract class MapFunction<IN, OUT> extends AbstractFunction implements GenericMap<IN, OUT> {
+public abstract class MapFunction<IN, OUT> extends AbstractRichFunction implements GenericMap<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 

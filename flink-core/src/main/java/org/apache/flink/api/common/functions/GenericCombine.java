@@ -26,7 +26,7 @@ import org.apache.flink.util.Collector;
 /**
  * Generic interface used for combiners.
  */
-public interface GenericCombine<T> extends Function {
+public interface GenericCombine<T> extends RichFunction {
 
 	void combine(Iterator<T> records, Collector<T> out) throws Exception;
 }

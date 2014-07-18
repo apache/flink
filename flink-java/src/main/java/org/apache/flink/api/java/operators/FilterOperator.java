@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.functions.FilterFunctional;
 import org.apache.flink.api.common.functions.GenericFlatMap;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.java.functions.FilterFunction;
@@ -33,10 +34,10 @@ import org.apache.flink.api.java.DataSet;
  */
 public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperator<T>> {
 	
-	protected final FilterFunction<T> function;
+	protected final FilterFunctional<T> function;
 	
 	
-	public FilterOperator(DataSet<T> input, FilterFunction<T> function) {
+	public FilterOperator(DataSet<T> input, FilterFunctional<T> function) {
 		super(input, input.getType());
 		
 		this.function = function;

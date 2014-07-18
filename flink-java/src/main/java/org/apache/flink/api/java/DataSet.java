@@ -19,6 +19,7 @@
 package org.apache.flink.api.java;
 
 import org.apache.commons.lang3.Validate;
+import org.apache.flink.api.common.functions.FilterFunctional;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.aggregation.Aggregations;
@@ -173,7 +174,7 @@ public abstract class DataSet<T> {
 	 * @see FilterOperator
 	 * @see DataSet
 	 */
-	public FilterOperator<T> filter(FilterFunction<T> filter) {
+	public FilterOperator<T> filter(FilterFunctional<T> filter) {
 		if (filter == null) {
 			throw new NullPointerException("Filter function must not be null.");
 		}

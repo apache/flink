@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.operators.translation;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GenericMap;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
@@ -32,7 +32,7 @@ public class PlanProjectOperator<T, R extends Tuple> extends MapOperatorBase<T, 
 	}
 	
 	public static final class MapProjector<T, R extends Tuple>
-		extends AbstractFunction
+		extends AbstractRichFunction
 		implements GenericMap<T, R>
 	{
 		private static final long serialVersionUID = 1L;

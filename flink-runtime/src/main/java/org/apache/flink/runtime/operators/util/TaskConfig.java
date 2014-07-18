@@ -35,7 +35,7 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.distributions.DataDistribution;
-import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
@@ -303,7 +303,7 @@ public class TaskConfig {
 		this.config.setString(DRIVER_CLASS, driver.getName());
 	}
 	
-	public <S extends Function, OT> Class<? extends PactDriver<S, OT>> getDriver() {
+	public <S extends RichFunction, OT> Class<? extends PactDriver<S, OT>> getDriver() {
 		final String className = this.config.getString(DRIVER_CLASS, null);
 		if (className == null) {
 			throw new CorruptConfigurationException("The pact driver class is missing.");

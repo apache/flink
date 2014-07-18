@@ -22,7 +22,7 @@ package org.apache.flink.test.iterative.nephele.customdanglingpagerank;
 import java.util.Random;
 import java.util.Set;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GenericJoiner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.iterative.nephele.ConfigUtils;
@@ -31,7 +31,7 @@ import org.apache.flink.test.iterative.nephele.customdanglingpagerank.types.Vert
 import org.apache.flink.test.iterative.nephele.customdanglingpagerank.types.VertexWithRankAndDangling;
 import org.apache.flink.util.Collector;
 
-public class CustomCompensatableDotProductMatch extends AbstractFunction implements
+public class CustomCompensatableDotProductMatch extends AbstractRichFunction implements
 		GenericJoiner<VertexWithRankAndDangling, VertexWithAdjacencyList, VertexWithRank>
 {
 	private static final long serialVersionUID = 1L;

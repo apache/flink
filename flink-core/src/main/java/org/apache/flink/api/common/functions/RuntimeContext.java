@@ -34,7 +34,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
  * the current degree of parallelism) and other constructs like accumulators and broadcast variables.
  * <p>
  * A function can, during runtime, obtain the RuntimeContext via a call to
- * {@link org.apache.flink.api.common.functions.AbstractFunction#getRuntimeContext()}.
+ * {@link AbstractRichFunction#getRuntimeContext()}.
  */
 public interface RuntimeContext {
 

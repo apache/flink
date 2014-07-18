@@ -24,7 +24,7 @@ import java.util.Iterator;
 import org.apache.flink.util.Collector;
 
 
-public interface GenericCoGrouper<V1, V2, O> extends Function {
+public interface GenericCoGrouper<V1, V2, O> extends RichFunction {
 	
 	/**
 	 * This method must be implemented to provide a user implementation of a

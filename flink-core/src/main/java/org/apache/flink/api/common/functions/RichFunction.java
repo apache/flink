@@ -22,11 +22,11 @@ package org.apache.flink.api.common.functions;
 import org.apache.flink.configuration.Configuration;
 
 /**
- * An base interface for all user-defined functions. This class defines methods for
+ * An base interface for all rich user-defined functions. This class defines methods for
  * the life cycle of the functions, as well as methods to access the context in which the functions
  * are executed.
  */
-public interface RichFunction {
+public interface RichFunction extends Function {
 	
 	/**
 	 * Initialization method for the function. It is called before the actual working methods 

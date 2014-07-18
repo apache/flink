@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RichFunction;
 
 
 /**
@@ -32,7 +32,7 @@ import org.apache.flink.api.common.functions.Function;
  * @param <S> The type of stub driven by this driver.
  * @param <OT> The data type of the records produced by this driver.
  */
-public interface PactDriver<S extends Function, OT> {
+public interface PactDriver<S extends RichFunction, OT> {
 	
 	void setup(PactTaskContext<S, OT> context);
 	

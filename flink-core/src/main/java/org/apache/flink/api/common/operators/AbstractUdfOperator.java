@@ -22,7 +22,7 @@ package org.apache.flink.api.common.operators;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 
 /**
@@ -30,7 +30,7 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
  *
  * @param <FT> Type of the user function
  */
-public abstract class AbstractUdfOperator<OUT, FT extends Function> extends Operator<OUT> {
+public abstract class AbstractUdfOperator<OUT, FT extends RichFunction> extends Operator<OUT> {
 	
 	/**
 	 * The object or class containing the user function.

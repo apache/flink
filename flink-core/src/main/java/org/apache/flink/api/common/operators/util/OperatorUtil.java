@@ -67,7 +67,7 @@ public class OperatorUtil {
 	}
 
 	/**
-	 * Returns the associated {@link Operator} type for the given {@link org.apache.flink.api.common.functions.Function} class.
+	 * Returns the associated {@link Operator} type for the given {@link org.apache.flink.api.common.functions.RichFunction} class.
 	 * 
 	 * @param stubClass
 	 *        the stub class

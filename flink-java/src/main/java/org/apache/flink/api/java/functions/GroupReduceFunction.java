@@ -24,7 +24,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.Iterator;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GenericCombine;
 import org.apache.flink.api.common.functions.GenericGroupReduce;
 import org.apache.flink.util.Collector;
@@ -51,7 +51,7 @@ import org.apache.flink.util.Collector;
  * @param <IN> Type of the elements that this function processes.
  * @param <OUT> The type of the elements returned by the user-defined function.
  */
-public abstract class GroupReduceFunction<IN, OUT> extends AbstractFunction implements GenericGroupReduce<IN, OUT>, GenericCombine<IN> {
+public abstract class GroupReduceFunction<IN, OUT> extends AbstractRichFunction implements GenericGroupReduce<IN, OUT>, GenericCombine<IN> {
 	
 	private static final long serialVersionUID = 1L;
 

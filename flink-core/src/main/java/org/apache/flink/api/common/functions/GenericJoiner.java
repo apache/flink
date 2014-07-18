@@ -22,7 +22,7 @@ package org.apache.flink.api.common.functions;
 import org.apache.flink.util.Collector;
 
 
-public interface GenericJoiner<V1, V2, O> extends Function {
+public interface GenericJoiner<V1, V2, O> extends RichFunction {
 	
 	void join(V1 value1, V2 value2, Collector<O> out) throws Exception;
 }

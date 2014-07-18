@@ -20,7 +20,7 @@
 package org.apache.flink.api.common.functions;
 
 
-public interface GenericReduce<T> extends Function {
+public interface GenericReduce<T> extends RichFunction {
 	
 	T reduce(T value1, T value2) throws Exception;
 }

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.iterative.task;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrier;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrierBroker;
 import org.apache.flink.runtime.iterative.io.WorksetUpdateOutputCollector;
@@ -38,7 +38,7 @@ import org.apache.flink.util.Collector;
  * <p/>
  * If there is a separate solution set tail, the iteration head has to make sure to wait for it to finish.
  */
-public class IterationTailPactTask<S extends Function, OT> extends AbstractIterativePactTask<S, OT>
+public class IterationTailPactTask<S extends RichFunction, OT> extends AbstractIterativePactTask<S, OT>
 		implements PactTaskContext<S, OT> {
 
 	private static final Log log = LogFactory.getLog(IterationTailPactTask.class);

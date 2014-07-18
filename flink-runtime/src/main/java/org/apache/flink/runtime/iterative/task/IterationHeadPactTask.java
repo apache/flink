@@ -25,7 +25,7 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -75,7 +75,7 @@ import org.apache.flink.util.MutableObjectIterator;
  *        The type of the feed-back data set (bulk partial solution / workset). For bulk iterations, {@code Y} is the
  *        same as {@code X}
  */
-public class IterationHeadPactTask<X, Y, S extends Function, OT> extends AbstractIterativePactTask<S, OT> {
+public class IterationHeadPactTask<X, Y, S extends RichFunction, OT> extends AbstractIterativePactTask<S, OT> {
 
 	private static final Log log = LogFactory.getLog(IterationHeadPactTask.class);
 

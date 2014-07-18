@@ -20,7 +20,7 @@
 package org.apache.flink.api.common.functions;
 
 
-public interface GenericMap<T, O> extends Function {
+public interface GenericMap<T, O> extends RichFunction {
 	
 	/**
 	 * A user-implemented function that modifies or transforms an incoming object and

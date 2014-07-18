@@ -29,14 +29,14 @@ import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Value;
 
 
-public abstract class WrappingFunction<T extends AbstractFunction> extends AbstractFunction {
+public abstract class WrappingFunction<T extends AbstractRichFunction> extends AbstractRichFunction {
 	
 	private static final long serialVersionUID = 1L;
 

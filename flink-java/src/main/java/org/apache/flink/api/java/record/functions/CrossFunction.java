@@ -19,7 +19,7 @@
 
 package org.apache.flink.api.java.record.functions;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GenericCrosser;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
@@ -27,7 +27,7 @@ import org.apache.flink.util.Collector;
 /**
  * The CrossFunction is the base class for functions that are invoked by a {@link org.apache.flink.api.java.operators.CrossOperator}.
  */
-public abstract class CrossFunction extends AbstractFunction implements GenericCrosser<Record, Record, Record> {
+public abstract class CrossFunction extends AbstractRichFunction implements GenericCrosser<Record, Record, Record> {
 	
 	private static final long serialVersionUID = 1L;
 	

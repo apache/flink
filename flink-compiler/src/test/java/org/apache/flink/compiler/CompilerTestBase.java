@@ -27,14 +27,12 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.api.java.record.operators.BulkIteration;
 import org.apache.flink.api.java.record.operators.DeltaIteration;
-import org.apache.flink.compiler.DataStatistics;
-import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.costs.DefaultCostEstimator;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.PlanNode;
@@ -181,7 +179,7 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 		}
 		
 		@SuppressWarnings("unchecked")
-		public <T extends PlanNode> T getNode(String name, Class<? extends Function> stubClass) {
+		public <T extends PlanNode> T getNode(String name, Class<? extends RichFunction> stubClass) {
 			List<PlanNode> nodes = this.map.get(name);
 			if (nodes == null || nodes.isEmpty()) {
 				throw new RuntimeException("No node found with the given name and stub class.");
@@ -243,7 +241,7 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 		}
 		
 		@SuppressWarnings("unchecked")
-		public <T extends Operator<?>> T getNode(String name, Class<? extends Function> stubClass) {
+		public <T extends Operator<?>> T getNode(String name, Class<? extends RichFunction> stubClass) {
 			List<Operator<?>> nodes = this.map.get(name);
 			if (nodes == null || nodes.isEmpty()) {
 				throw new RuntimeException("No node found with the given name and stub class.");

@@ -550,7 +550,7 @@ public abstract class ExecutionEnvironment {
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 * <p>
 	 * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
-	 * {@link org.apache.flink.api.common.functions.Function#getRuntimeContext()} and provides access 
+	 * {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and provides access
 	 * {@link org.apache.flink.api.common.cache.DistributedCache} via 
 	 * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
 	 * 
@@ -568,7 +568,7 @@ public abstract class ExecutionEnvironment {
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 * <p>
 	 * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
-	 * {@link org.apache.flink.api.common.functions.Function#getRuntimeContext()} and provides access 
+	 * {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and provides access
 	 * {@link org.apache.flink.api.common.cache.DistributedCache} via 
 	 * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
 	 * 

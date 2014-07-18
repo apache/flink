@@ -21,7 +21,7 @@ package org.apache.flink.api.common.operators.util;
 
 import static org.junit.Assert.assertEquals;
 
-import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.GenericCoGrouper;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
 import org.apache.flink.api.common.functions.GenericCrosser;
@@ -36,7 +36,6 @@ import org.apache.flink.api.common.operators.base.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
-import org.apache.flink.api.common.operators.util.OperatorUtil;
 import org.apache.flink.types.IntValue;
 import org.junit.Test;
 
@@ -85,7 +84,7 @@ public class OperatorUtilTest {
 	 */
 	@Test
 	public void getContractClassShouldReturnNullForStub() {
-		final Class<?> result = OperatorUtil.getContractClass(Function.class);
+		final Class<?> result = OperatorUtil.getContractClass(RichFunction.class);
 		assertEquals(null, result);
 	}
 

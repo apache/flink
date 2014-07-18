@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.functions;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GenericCrosser;
 import org.apache.flink.util.Collector;
 
@@ -46,7 +46,7 @@ import org.apache.flink.util.Collector;
  * @param <IN2> The type of the elements in the second input.
  * @param <OUT> The type of the result elements.
  */
-public abstract class CrossFunction<IN1, IN2, OUT> extends AbstractFunction implements GenericCrosser<IN1, IN2, OUT>{
+public abstract class CrossFunction<IN1, IN2, OUT> extends AbstractRichFunction implements GenericCrosser<IN1, IN2, OUT>{
 	
 	private static final long serialVersionUID = 1L;
 	

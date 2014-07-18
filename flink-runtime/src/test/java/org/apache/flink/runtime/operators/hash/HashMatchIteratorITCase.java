@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GenericJoiner;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
@@ -39,8 +39,6 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.hash.BuildFirstHashMatchIterator;
-import org.apache.flink.runtime.operators.hash.BuildSecondHashMatchIterator;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
@@ -695,7 +693,7 @@ public class HashMatchIteratorITCase {
 		}
 	}
 	
-	static final class RecordIntPairMatchRemovingMatcher extends AbstractFunction implements GenericJoiner<IntPair, Record, Record>
+	static final class RecordIntPairMatchRemovingMatcher extends AbstractRichFunction implements GenericJoiner<IntPair, Record, Record>
 	{
 		private final Map<TestData.Key, Collection<RecordIntPairMatch>> toRemoveFrom;
 		

@@ -24,7 +24,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
-import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.GenericCombine;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -77,7 +77,7 @@ import java.util.Map;
  * The abstract base class for all tasks. Encapsulated common behavior and implements the main life-cycle
  * of the user code.
  */
-public class RegularPactTask<S extends Function, OT> extends AbstractInvokable implements PactTaskContext<S, OT> {
+public class RegularPactTask<S extends RichFunction, OT> extends AbstractInvokable implements PactTaskContext<S, OT> {
 
 	protected static final Log LOG = LogFactory.getLog(RegularPactTask.class);
 
@@ -1375,7 +1375,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Opens the given stub using its {@link Function#open(Configuration)} method. If the open call produces
+	 * Opens the given stub using its {@link org.apache.flink.api.common.functions.RichFunction#open(Configuration)} method. If the open call produces
 	 * an exception, a new exception with a standard error message is created, using the encountered exception
 	 * as its cause.
 	 * 
@@ -1384,7 +1384,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * 
 	 * @throws Exception Thrown, if the user code's open method produces an exception.
 	 */
-	public static void openUserCode(Function stub, Configuration parameters) throws Exception {
+	public static void openUserCode(RichFunction stub, Configuration parameters) throws Exception {
 		try {
 			stub.open(parameters);
 		} catch (Throwable t) {
@@ -1393,7 +1393,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	}
 	
 	/**
-	 * Closes the given stub using its {@link Function#close()} method. If the close call produces
+	 * Closes the given stub using its {@link org.apache.flink.api.common.functions.RichFunction#close()} method. If the close call produces
 	 * an exception, a new exception with a standard error message is created, using the encountered exception
 	 * as its cause.
 	 * 
@@ -1401,7 +1401,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * 
 	 * @throws Exception Thrown, if the user code's close method produces an exception.
 	 */
-	public static void closeUserCode(Function stub) throws Exception {
+	public static void closeUserCode(RichFunction stub) throws Exception {
 		try {
 			stub.close();
 		} catch (Throwable t) {

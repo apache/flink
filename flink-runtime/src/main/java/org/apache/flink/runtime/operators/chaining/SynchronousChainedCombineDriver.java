@@ -22,7 +22,7 @@ package org.apache.flink.runtime.operators.chaining;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.GenericCombine;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -126,7 +126,7 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 
 	// --------------------------------------------------------------------------------------------
 
-	public Function getStub() {
+	public RichFunction getStub() {
 		return this.combiner;
 	}
 

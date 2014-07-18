@@ -29,7 +29,7 @@ import org.apache.flink.util.Collector;
  * @param <T> Incoming types
  * @param <O> Outgoing types
  */
-public interface GenericGroupReduce<T, O> extends Function {
+public interface GenericGroupReduce<T, O> extends RichFunction {
 	/**
 	 * 
 	 * The central function to be implemented for a reducer. The function receives per call one

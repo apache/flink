@@ -27,7 +27,7 @@ import org.apache.flink.util.Collector;
  * @param <T>
  * @param <O>
  */
-public interface GenericFlatMap<T, O> extends Function {
+public interface GenericFlatMap<T, O> extends RichFunction {
 	
 	/**
 	 * User defined function to perform transformations on records.

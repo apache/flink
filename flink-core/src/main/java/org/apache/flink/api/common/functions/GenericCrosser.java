@@ -27,7 +27,7 @@ import org.apache.flink.util.Collector;
  * @param <V2> Second input type
  * @param <O> Output type
  */
-public interface GenericCrosser<V1, V2, O> extends Function {
+public interface GenericCrosser<V1, V2, O> extends RichFunction {
 
 	/**
 	 * User defined function for the cross operator.
