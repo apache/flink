@@ -1,4 +1,4 @@
-/***********************************************************************************************************************
+/**
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -15,37 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- **********************************************************************************************************************/
+ */
 
-package org.apache.flink.streaming.api.function;
-
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.ArrayList;
+package org.apache.flink.streaming.api.function.sink;
 
 import org.apache.flink.api.java.tuple.Tuple;
 
 /**
- * Writes tuples in text format.
+ * Implementation of WriteSinkFunction. Writes tuples to file in every millis
+ * milliseconds.
  *
  * @param <IN>
  *            Input tuple type
  */
-public class WriteFormatAsText<IN extends Tuple> extends WriteFormat<IN> {
+public class WriteSinkFunctionByMillis<IN extends Tuple> extends WriteSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
-	@Override
-	public void write(String path, ArrayList<IN> tupleList) {
-		try {
-			PrintWriter outStream = new PrintWriter(new BufferedWriter(new FileWriter(path, true)));
-			for (IN tupleToWrite : tupleList) {
-				outStream.println(tupleToWrite);
-			}
-			outStream.close();
-		} catch (IOException e) {
-			throw new RuntimeException("Exception occured while writing file " + path, e);
-		}
+	private final long millis;
+	private long lastTime;
+
+	public WriteSinkFunctionByMillis(String path, WriteFormat<IN> format, long millis, IN endTuple) {
+		super(path, format, endTuple);
+		this.millis = millis;
+		lastTime = System.currentTimeMillis();
 	}
+
+	@Override
+	protected boolean updateCondition() {
+		return System.currentTimeMillis() - lastTime >= millis;
+	}
+
+	@Override
+	protected void resetParameters() {
+		tupleList.clear();
+		lastTime = System.currentTimeMillis();
+	}
+
 }

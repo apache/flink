@@ -19,8 +19,7 @@
 
 package org.apache.flink.streaming.examples.window.wordcount;
 
-import org.apache.flink.streaming.api.function.SinkFunction;
-
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 
 public class WindowWordCountSink extends SinkFunction<Tuple3<String, Integer, Long>> {

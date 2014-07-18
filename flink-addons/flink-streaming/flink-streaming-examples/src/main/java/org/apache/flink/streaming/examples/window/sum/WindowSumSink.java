@@ -19,8 +19,7 @@
 
 package org.apache.flink.streaming.examples.window.sum;
 
-import org.apache.flink.streaming.api.function.SinkFunction;
-
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 public class WindowSumSink extends SinkFunction<Tuple2<Integer, Long>> {

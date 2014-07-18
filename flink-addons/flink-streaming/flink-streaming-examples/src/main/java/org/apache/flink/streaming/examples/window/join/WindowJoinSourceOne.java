@@ -21,8 +21,7 @@ package org.apache.flink.streaming.examples.window.join;
 
 import java.util.Random;
 
-import org.apache.flink.streaming.api.function.SourceFunction;
-
+import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.util.Collector;
 

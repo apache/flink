@@ -17,16 +17,37 @@
  *
  */
 
-package org.apache.flink.streaming.examples.iterative.kmeans;
+package org.apache.flink.streaming.api.function.source;
 
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.api.java.tuple.Tuple3;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 
-public class KMeansSink extends SinkFunction<Tuple3<Integer, Integer, Long>> {
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.util.Collector;
+
+public class FileSourceFunction extends SourceFunction<Tuple1<String>> {
 	private static final long serialVersionUID = 1L;
 	
-	@Override
-	public void invoke(Tuple3<Integer, Integer, Long> tuple) {
-		System.out.println(tuple);
+	private final String path;
+	private Tuple1<String> outTuple = new Tuple1<String>();
+	
+	public FileSourceFunction(String path) {
+		this.path = path;
 	}
+	
+	@Override
+	public void invoke(Collector<Tuple1<String>> collector) throws IOException {
+		BufferedReader br = new BufferedReader(new FileReader(path));
+		String line = br.readLine();
+		while (line != null) {
+			if (line != "") {
+				outTuple.f0 = line;
+				collector.collect(outTuple);
+			}
+			line = br.readLine();
+		}
+		br.close();
+	}
+
 }

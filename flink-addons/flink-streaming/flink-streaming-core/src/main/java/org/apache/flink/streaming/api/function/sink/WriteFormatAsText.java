@@ -17,38 +17,35 @@
  *
  */
 
-package org.apache.flink.streaming.api.function;
+package org.apache.flink.streaming.api.function.sink;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
 
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.util.Collector;
+import org.apache.flink.api.java.tuple.Tuple;
 
-public class FileStreamFunction extends SourceFunction<Tuple1<String>>{
+/**
+ * Writes tuples in text format.
+ *
+ * @param <IN>
+ *            Input tuple type
+ */
+public class WriteFormatAsText<IN extends Tuple> extends WriteFormat<IN> {
 	private static final long serialVersionUID = 1L;
-	
-	private final String path;
-	private Tuple1<String> outTuple = new Tuple1<String>();
-	
-	public FileStreamFunction(String path) {
-		this.path = path;
-	}
-	
+
 	@Override
-	public void invoke(Collector<Tuple1<String>> collector) throws IOException {
-		while(true){
-			BufferedReader br = new BufferedReader(new FileReader(path));
-			String line = br.readLine();
-			while (line != null) {
-				if (line != "") {
-					outTuple.f0 = line;
-					collector.collect(outTuple);
-				}
-				line = br.readLine();
+	public void write(String path, ArrayList<IN> tupleList) {
+		try {
+			PrintWriter outStream = new PrintWriter(new BufferedWriter(new FileWriter(path, true)));
+			for (IN tupleToWrite : tupleList) {
+				outStream.println(tupleToWrite);
 			}
-			br.close();
+			outStream.close();
+		} catch (IOException e) {
+			throw new RuntimeException("Exception occured while writing file " + path, e);
 		}
 	}
 }

@@ -17,17 +17,36 @@
  *
  */
 
-package org.apache.flink.streaming.api.function;
+package org.apache.flink.streaming.api.function.sink;
 
-import java.io.Serializable;
-
-import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 
-public abstract class SinkFunction<IN extends Tuple> extends AbstractFunction implements Serializable {
-
+/**
+ * Implementation of WriteSinkFunction. Writes tuples to file in equally sized
+ * batches.
+ *
+ * @param <IN>
+ *            Input tuple type
+ */
+public class WriteSinkFunctionByBatches<IN extends Tuple> extends WriteSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
-	public abstract void invoke(IN tuple);
+	private final int batchSize;
+
+	public WriteSinkFunctionByBatches(String path, WriteFormat<IN> format, int batchSize,
+			IN endTuple) {
+		super(path, format, endTuple);
+		this.batchSize = batchSize;
+	}
+
+	@Override
+	protected boolean updateCondition() {
+		return tupleList.size() >= batchSize;
+	}
+
+	@Override
+	protected void resetParameters() {
+		tupleList.clear();
+	}
 
 }

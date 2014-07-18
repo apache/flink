@@ -24,12 +24,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.flink.streaming.api.function.SourceFunction;
+import org.apache.flink.streaming.api.function.source.SourceFunction;
 
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
+
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.util.Collector;
 
