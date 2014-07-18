@@ -16,88 +16,60 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobmanager.splitassigner;
 
-import java.util.Arrays;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentMap;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.InputSplit;
-import org.apache.flink.runtime.executiongraph.ExecutionGroupVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.core.io.InputSplitAssigner;
 
 /**
  * This is the default implementation of the {@link InputSplitAssigner} interface. The default input split assigner
- * simply returns all input splits of an input vertex in the order they were originally computed. The default input
- * split assigner is always used when a more specific {@link InputSplitAssigned} could not be found.
- * <p>
- * This class is thread-safe.
- * 
+ * simply returns all input splits of an input vertex in the order they were originally computed.
  */
 public class DefaultInputSplitAssigner implements InputSplitAssigner {
 
-	/**
-	 * The logging object used to report information and errors.
-	 */
+	/** The logging object used to report information and errors. */
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultInputSplitAssigner.class);
 
-	/**
-	 * The split map stores a list of all input splits that still must be consumed by a specific input vertex.
-	 */
-	private final ConcurrentMap<ExecutionGroupVertex, Queue<InputSplit>> splitMap = new ConcurrentHashMap<ExecutionGroupVertex, Queue<InputSplit>>();
+	/** The list of all splits */
+	private final List<InputSplit> splits = new ArrayList<InputSplit>();
 
 
-	@Override
-	public void registerGroupVertex(final ExecutionGroupVertex groupVertex) {
-
-		final InputSplit[] inputSplits = groupVertex.getInputSplits();
-
-		if (inputSplits == null) {
-			return;
-		}
-
-		if (inputSplits.length == 0) {
-			return;
-		}
-
-		final Queue<InputSplit> queue = new ConcurrentLinkedQueue<InputSplit>();
-		if (this.splitMap.putIfAbsent(groupVertex, queue) != null) {
-			LOG.error("Group vertex " + groupVertex.getName() + " already has a split queue");
-		}
-
-		queue.addAll(Arrays.asList(inputSplits));
+	public DefaultInputSplitAssigner(InputSplit[] splits) {
+		Collections.addAll(this.splits, splits);
 	}
-
-
-	@Override
-	public void unregisterGroupVertex(final ExecutionGroupVertex groupVertex) {
-
-		this.splitMap.remove(groupVertex);
+	
+	public DefaultInputSplitAssigner(Collection<? extends InputSplit> splits) {
+		this.splits.addAll(splits);
 	}
-
-
+	
+	
 	@Override
-	public InputSplit getNextInputSplit(final ExecutionVertex vertex) {
-
-		final Queue<InputSplit> queue = this.splitMap.get(vertex.getGroupVertex());
-		if (queue == null) {
-			final JobID jobID = vertex.getExecutionGraph().getJobID();
-			LOG.error("Cannot find split queue for vertex " + vertex.getGroupVertex() + " (job " + jobID + ")");
-			return null;
+	public InputSplit getNextInputSplit(String host) {
+		InputSplit next = null;
+		
+		// keep the synchronized part short
+		synchronized (this.splits) {
+			if (this.splits.size() > 0) {
+				next = this.splits.remove(this.splits.size() - 1);
+			}
 		}
-
-		InputSplit nextSplit = queue.poll();
-
-		if (LOG.isDebugEnabled() && nextSplit != null) {
-			LOG.debug("Assigning split " + nextSplit.getSplitNumber() + " to " + vertex);
+		
+		if (LOG.isDebugEnabled()) {
+			if (next == null) {
+				LOG.debug("Assigning split " + next + " to " + host);
+			} else {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("No more input splits available");
+				}
+			}
 		}
-
-		return nextSplit;
+		return next;
 	}
 }

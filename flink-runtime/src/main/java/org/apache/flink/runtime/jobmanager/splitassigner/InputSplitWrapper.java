@@ -28,12 +28,10 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.util.StringUtils;
 
 /**
  * An input split wrapper object wraps an input split for RPC calls. In particular, the input split wrapper ensures that
  * the right class loader is used to instantiate the wrapped input split object.
- * 
  */
 public final class InputSplitWrapper implements IOReadableWritable {
 
@@ -45,7 +43,7 @@ public final class InputSplitWrapper implements IOReadableWritable {
 	/**
 	 * The wrapped input split.
 	 */
-	private InputSplit inputSplit = null;
+	private InputSplit inputSplit;
 
 	/**
 	 * Constructs a new input split wrapper.
@@ -55,10 +53,9 @@ public final class InputSplitWrapper implements IOReadableWritable {
 	 * @param inputSplit
 	 *        the input split to be wrapped
 	 */
-	public InputSplitWrapper(final JobID jobID, final InputSplit inputSplit) {
-
+	public InputSplitWrapper(JobID jobID, InputSplit inputSplit) {
 		if (jobID == null) {
-			throw new IllegalArgumentException("Argument jobID must not be null");
+			throw new NullPointerException();
 		}
 
 		this.jobID = jobID;
@@ -74,7 +71,7 @@ public final class InputSplitWrapper implements IOReadableWritable {
 
 
 	@Override
-	public void write(final DataOutputView out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 
 		// Write the job ID
 		this.jobID.write(out);
@@ -96,7 +93,7 @@ public final class InputSplitWrapper implements IOReadableWritable {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public void read(final DataInputView in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 
 		// Read the job ID
 		this.jobID.read(in);
@@ -117,15 +114,15 @@ public final class InputSplitWrapper implements IOReadableWritable {
 			try {
 				splitClass = (Class<? extends InputSplit>) Class.forName(className, true, cl);
 			} catch (ClassNotFoundException e) {
-				throw new IOException(StringUtils.stringifyException(e));
+				throw new IOException(e);
 			}
 
 			try {
 				this.inputSplit = splitClass.newInstance();
 			} catch (InstantiationException e) {
-				throw new IOException(StringUtils.stringifyException(e));
+				throw new IOException(e);
 			} catch (IllegalAccessException e) {
-				throw new IOException(StringUtils.stringifyException(e));
+				throw new IOException(e);
 			}
 
 			// Read the input split itself
@@ -142,7 +139,6 @@ public final class InputSplitWrapper implements IOReadableWritable {
 	 * @return the wrapped input split, possibly <code>null</code>
 	 */
 	public InputSplit getInputSplit() {
-
 		return this.inputSplit;
 	}
 }

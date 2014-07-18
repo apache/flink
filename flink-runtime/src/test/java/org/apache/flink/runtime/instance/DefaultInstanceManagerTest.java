@@ -28,12 +28,8 @@ import static org.junit.Assert.fail;
 import java.net.InetAddress;
 
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.util.LogUtils;
-
-import org.apache.log4j.Level;
 
 import org.junit.Assert;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**

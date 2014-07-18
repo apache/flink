@@ -16,35 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.fs;
-
-import java.io.IOException;
+package org.apache.flink.core.io;
 
 /**
- * A BlockLocation lists hosts, offset and length of block.
+ * An input split assigner distributes the {@link InputSplit}s among the instances on which a
+ * data source exists.
  */
-public interface BlockLocation extends Comparable<BlockLocation> {
+public interface InputSplitAssigner {
 
 	/**
-	 * Get the list of hosts (hostname) hosting this block.
+	 * Returns the next input split that shall be consumed. The consumer's host is passed as a parameter
+	 * to allow localized assignments.
 	 * 
-	 * @return A list of hosts (hostname) hosting this block.
-	 * @throws IOException
-	 *         thrown if the list of hosts could not be retrieved
+	 * @param host The address of the host to assign the split to.
+	 * @return the next input split to be consumed, or <code>null</code> if no more splits remain.
 	 */
-	String[] getHosts() throws IOException;
-
-	/**
-	 * Get the start offset of the file associated with this block.
-	 * 
-	 * @return The start offset of the file associated with this block.
-	 */
-	long getOffset();
-
-	/**
-	 * Get the length of the block.
-	 * 
-	 * @return the length of the block
-	 */
-	long getLength();
+	InputSplit getNextInputSplit(String host);
 }

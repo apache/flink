@@ -57,10 +57,9 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.taskmanager.transferenvelope.RegisterTaskManagerResult;
 import org.apache.flink.runtime.types.IntegerRecord;
-import org.apache.flink.util.LogUtils;
+
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -70,12 +69,6 @@ public class LocalInstanceManagerTest {
 	private Server jmServer;
 	
 	private int port;
-	
-	
-	@BeforeClass
-	public static void initLogger() {
-		LogUtils.initializeDefaultTestConsoleLogger();
-	}
 	
 	@Before
 	public void startJobManagerServer() {

@@ -16,105 +16,182 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobmanager.splitassigner;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.LocatableInputSplit;
-import org.apache.flink.runtime.executiongraph.ExecutionGroupVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.Instance;
 
 /**
- * The locatable input split assigner is a specific implementation of the {@link InputSplitAssigner} interface for
- * {@link LocatableInputSplit} objects. The locatable input split assigner offers to take the storage location of the
- * individual locatable input splits into account. It attempts to always assign the splits to vertices in a way that the
- * data locality is preserved as well as possible.
- * <p>
- * This class is thread-safe.
- * 
+ * The locatable input split assigner assigns to each host splits that are local, before assigning
+ * splits that are not local. 
  */
 public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 
-	/**
-	 * The logging object which is used to report information and errors.
-	 */
 	private static final Logger LOG = LoggerFactory.getLogger(LocatableInputSplitAssigner.class);
 
-	private final ConcurrentMap<ExecutionGroupVertex, LocatableInputSplitList> vertexMap = new ConcurrentHashMap<ExecutionGroupVertex, LocatableInputSplitList>();
 
+	private final Set<LocatableInputSplit> unassigned = new HashSet<LocatableInputSplit>();
+	
+	private final ConcurrentHashMap<String, List<LocatableInputSplit>> localPerHost = new ConcurrentHashMap<String, List<LocatableInputSplit>>();
+	
+	private int localAssignments;		// lock protected by the unassigned set lock
+	
+	private int remoteAssignments;		// lock protected by the unassigned set lock
+
+	// --------------------------------------------------------------------------------------------
+	
+	public LocatableInputSplitAssigner(Collection<LocatableInputSplit> splits) {
+		this.unassigned.addAll(splits);
+	}
+	
+	public LocatableInputSplitAssigner(LocatableInputSplit[] splits) {
+		Collections.addAll(this.unassigned, splits);
+	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public void registerGroupVertex(final ExecutionGroupVertex groupVertex) {
-
-		if (!LocatableInputSplit.class.isAssignableFrom(groupVertex.getInputSplitType())) {
-			LOG.error(groupVertex.getName() + " produces input splits of type " + groupVertex.getInputSplitType()
-				+ " and cannot be handled by this split assigner");
-			return;
-		}
-
-		// Ignore vertices that do not produce splits
-		final InputSplit[] inputSplits = groupVertex.getInputSplits();
-		if (inputSplits == null) {
-			return;
-		}
-
-		if (inputSplits.length == 0) {
-			return;
-		}
-
-		final LocatableInputSplitList splitStore = new LocatableInputSplitList();
-		if (this.vertexMap.putIfAbsent(groupVertex, splitStore) != null) {
-			LOG.error(groupVertex.getName()
-				+ " appears to be already registered with the locatable input split assigner, ignoring vertex...");
-			return;
-		}
-
-		synchronized (splitStore) {
-
-			for (int i = 0; i < inputSplits.length; ++i) {
-				// TODO: Improve this
-				final InputSplit inputSplit = inputSplits[i];
-				if (!(inputSplit instanceof LocatableInputSplit)) {
-					LOG.error("Input split " + i + " of vertex " + groupVertex.getName() + " is of type "
-						+ inputSplit.getClass() + ", ignoring split...");
-					continue;
+	public LocatableInputSplit getNextInputSplit(String host) {
+		// for a null host, we return an arbitrary split
+		if (host == null) {
+			
+			synchronized (this.unassigned) {
+				Iterator<LocatableInputSplit> iter = this.unassigned.iterator();
+				if (iter.hasNext()) {
+					LocatableInputSplit next = iter.next();
+					iter.remove();
+					
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Assigning arbitrary split to null host.");
+					}
+					
+					remoteAssignments++;
+					return next;
+				} else {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("No more input splits remaining.");
+					}
+					return null;
 				}
-				splitStore.addSplit((LocatableInputSplit) inputSplit);
 			}
-
+		}
+		
+		host = host.toLowerCase(Locale.US);
+		
+		// for any non-null host, we take the list of non-null splits
+		List<LocatableInputSplit> localSplits = this.localPerHost.get(host);
+		
+		// if we have no list for this host yet, create one
+		if (localSplits == null) {
+			localSplits = new ArrayList<LocatableInputSplit>(16);
+			
+			// lock the list, to be sure that others have to wait for that host's local list
+			synchronized (localSplits) {
+				List<LocatableInputSplit> prior = this.localPerHost.putIfAbsent(host, localSplits);
+				
+				// if someone else beat us in the case to create this list, then we do not populate this one, but
+				// simply work with that other list
+				if (prior == null) {
+					// we are the first, we populate
+					
+					// first, copy the remaining splits to release the lock on the set early
+					// because that is shared among threads
+					LocatableInputSplit[] remaining;
+					synchronized (this.unassigned) {
+						remaining = (LocatableInputSplit[]) this.unassigned.toArray(new LocatableInputSplit[this.unassigned.size()]);
+					}
+					
+					for (LocatableInputSplit is : remaining) {
+						if (isLocal(host, is.getHostnames())) {
+							localSplits.add(is);
+						}
+					}
+				}
+				else {
+					// someone else was faster
+					localSplits = prior;
+				}
+			}
+		}
+		
+		// at this point, we have a list of local splits (possibly empty)
+		// we need to make sure no one else operates in the current list (that protects against
+		// list creation races) and that the unassigned set is consistent
+		// NOTE: we need to obtain the locks in this order, strictly!!!
+		synchronized (localSplits) {
+			int size = localSplits.size();
+			if (size > 0) {
+				synchronized (this.unassigned) {
+					do {
+						--size;
+						LocatableInputSplit split = localSplits.remove(size);
+						if (this.unassigned.remove(split)) {
+							
+							if (LOG.isDebugEnabled()) {
+								LOG.debug("Assigning local split to host " + host);
+							}
+							
+							localAssignments++;
+							return split;
+						}
+					} while (size > 0);
+				}
+			}
+		}
+		
+		// we did not find a local split, return any
+		synchronized (this.unassigned) {
+			Iterator<LocatableInputSplit> iter = this.unassigned.iterator();
+			if (iter.hasNext()) {
+				LocatableInputSplit next = iter.next();
+				iter.remove();
+				
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Assigning remote split to host " + host);
+				}
+				
+				remoteAssignments++;
+				return next;
+			} else {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("No more input splits remaining.");
+				}
+				return null;
+			}
 		}
 	}
-
-
-	@Override
-	public void unregisterGroupVertex(final ExecutionGroupVertex groupVertex) {
-		this.vertexMap.remove(groupVertex);
-	}
-
-
-	@Override
-	public InputSplit getNextInputSplit(final ExecutionVertex vertex) {
-
-		final ExecutionGroupVertex groupVertex = vertex.getGroupVertex();
-		final LocatableInputSplitList splitStore = this.vertexMap.get(groupVertex);
-
-		if (splitStore == null) {
-			return null;
+	
+	private static final boolean isLocal(String host, String[] hosts) {
+		if (host == null || hosts == null) {
+			return false;
 		}
-
-		final Instance instance = vertex.getAllocatedResource().getInstance();
-		if (instance == null) {
-			LOG.error("Instance is null, returning random split");
-			return null;
+		
+		for (String h : hosts) {
+			if (h != null && host.equals(h.toLowerCase())) {
+				return true;
+			}
 		}
-
-		return splitStore.getNextInputSplit(instance);
+		
+		return false;
 	}
-
+	
+	public int getNumberOfLocalAssignments() {
+		return localAssignments;
+	}
+	
+	public int getNumberOfRemoteAssignments() {
+		return remoteAssignments;
+	}
 }
