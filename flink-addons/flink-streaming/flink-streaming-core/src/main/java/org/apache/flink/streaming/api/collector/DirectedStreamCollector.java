@@ -24,6 +24,7 @@ import java.util.Collection;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.StringUtils;
@@ -51,11 +52,13 @@ public class DirectedStreamCollector<T extends Tuple> extends StreamCollector<T>
 		streamRecord.setId(channelID);
 		for (String outputName : outputNames) {
 			try {
-				outputMap.get(outputName).emit(streamRecord);
+				for (RecordWriter<StreamRecord<T>> output : outputMap.get(outputName)) {
+					output.emit(streamRecord);
+				}
 			} catch (Exception e) {
 				if (log.isErrorEnabled()) {
-					log.error(String.format("Emit to %s failed due to: %s",
-							outputName, StringUtils.stringifyException(e)));
+					log.error(String.format("Emit to %s failed due to: %s", outputName,
+							StringUtils.stringifyException(e)));
 				}
 			}
 		}

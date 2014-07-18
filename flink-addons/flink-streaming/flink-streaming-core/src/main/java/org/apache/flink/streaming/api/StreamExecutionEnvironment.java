@@ -306,11 +306,11 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	protected <T extends Tuple, R extends Tuple> void addIterationSink(DataStream<T> inputStream,
-			String iterationID) {
+			String iterationID, String iterationName) {
 		DataStream<R> returnStream = new DataStream<R>(this, "iterationSink");
 
 		jobGraphBuilder.addIterationSink(returnStream.getId(), inputStream.getId(), iterationID,
-				inputStream.getParallelism(), "iterate");
+				inputStream.getParallelism(), iterationName);
 		
 		jobGraphBuilder.setIterationSourceParallelism(iterationID, inputStream.getParallelism());
 
