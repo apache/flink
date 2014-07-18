@@ -30,7 +30,7 @@ public class MapPartitionDescriptor extends OperatorDescriptorSingle {
 
 	@Override
 	public DriverStrategy getStrategy() {
-		return DriverStrategy.MAP;
+		return DriverStrategy.MAP_PARTITION;
 	}
 
 	@Override
