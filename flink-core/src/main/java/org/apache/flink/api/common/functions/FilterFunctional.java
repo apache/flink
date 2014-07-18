@@ -20,7 +20,7 @@
 package org.apache.flink.api.common.functions;
 
 
-public interface GenericFilter<T> extends Function {
+public interface FilterFunctional<T> extends Function {
 	
 	/**
 	 * User defined function for a filter.
