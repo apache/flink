@@ -36,7 +36,6 @@ import org.apache.flink.streaming.api.invokable.operator.BatchReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
-import org.apache.flink.types.TypeInformation;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -56,7 +55,6 @@ public class DataStream<T extends Tuple> {
 
 	protected static Integer counter = 0;
 	protected final StreamExecutionEnvironment environment;
-	protected TypeInformation<T> type;
 	protected String id;
 	protected int degreeOfParallelism;
 	protected String userDefinedName;
@@ -97,7 +95,6 @@ public class DataStream<T extends Tuple> {
 	 */
 	protected DataStream(DataStream<T> dataStream) {
 		this.environment = dataStream.environment;
-		this.type = dataStream.type;
 		this.id = dataStream.id;
 		this.degreeOfParallelism = dataStream.degreeOfParallelism;
 		this.userDefinedName = dataStream.userDefinedName;
@@ -615,22 +612,4 @@ public class DataStream<T extends Tuple> {
 		return new DataStream<T>(this);
 	}
 
-	/**
-	 * Set the type parameter.
-	 * 
-	 * @param type
-	 *            The type parameter.
-	 */
-	protected void setType(TypeInformation<T> type) {
-		this.type = type;
-	}
-
-	/**
-	 * Get the type information for this DataStream.
-	 * 
-	 * @return The type of the generic parameter.
-	 */
-	public TypeInformation<T> getType() {
-		return this.type;
-	}
 }

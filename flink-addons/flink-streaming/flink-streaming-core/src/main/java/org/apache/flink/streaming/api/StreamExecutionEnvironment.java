@@ -22,6 +22,7 @@ package org.apache.flink.streaming.api;
 import java.io.Serializable;
 import java.util.Collection;
 
+import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -191,9 +192,12 @@ public abstract class StreamExecutionEnvironment {
 	public <X extends Serializable> DataStream<Tuple1<X>> fromElements(X... data) {
 		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
 
-		jobGraphBuilder.addSource(returnStream.getId(), new FromElementsFunction<X>(data),
-				"elements", SerializationUtils.serialize(data[0]), 1);
-
+		try {
+			jobGraphBuilder.addSource(returnStream.getId(), new FromElementsFunction<X>(data),
+					"elements", SerializationUtils.serialize(data[0]), 1);
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize elements");
+		}
 		return returnStream;
 	}
 
@@ -212,9 +216,17 @@ public abstract class StreamExecutionEnvironment {
 	public <X extends Serializable> DataStream<Tuple1<X>> fromCollection(Collection<X> data) {
 		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
 
-		jobGraphBuilder.addSource(returnStream.getId(), new FromElementsFunction<X>(data),
-				"elements", SerializationUtils.serialize((Serializable) data.toArray()[0]), 1);
+		if (data.isEmpty()) {
+			throw new RuntimeException("Collection must not be empty");
+		}
 
+		try {
+			jobGraphBuilder.addSource(returnStream.getId(), new FromElementsFunction<X>(data),
+					"elements", SerializationUtils.serialize((Serializable) data.toArray()[0]), 1);
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize collection");
+		}
+		
 		return returnStream;
 	}
 
@@ -246,8 +258,12 @@ public abstract class StreamExecutionEnvironment {
 			int parallelism) {
 		DataStream<T> returnStream = new DataStream<T>(this, "source");
 
-		jobGraphBuilder.addSource(returnStream.getId(), sourceFunction, "source",
-				SerializationUtils.serialize(sourceFunction), parallelism);
+		try {
+			jobGraphBuilder.addSource(returnStream.getId(), sourceFunction, "source",
+					SerializationUtils.serialize(sourceFunction), parallelism);
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize SourceFunction");
+		}
 
 		return returnStream;
 	}
@@ -283,8 +299,12 @@ public abstract class StreamExecutionEnvironment {
 			UserTaskInvokable<T, R> functionInvokable) {
 		StreamOperator<T, R> returnStream = new StreamOperator<T, R>(this, functionName);
 
-		jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, functionName,
-				SerializationUtils.serialize(function), degreeOfParallelism);
+		try {
+			jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, functionName,
+					SerializationUtils.serialize(function), degreeOfParallelism);
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize user defined function");
+		}
 
 		connectGraph(inputStream, returnStream.getId());
 
@@ -337,8 +357,12 @@ public abstract class StreamExecutionEnvironment {
 			SinkFunction<T> sinkFunction) {
 		DataStream<T> returnStream = new DataStream<T>(this, "sink");
 
-		jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction), "sink",
-				SerializationUtils.serialize(sinkFunction), degreeOfParallelism);
+		try {
+			jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction),
+					"sink", SerializationUtils.serialize(sinkFunction), degreeOfParallelism);
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize SinkFunction");
+		}
 
 		connectGraph(inputStream, returnStream.getId());
 
@@ -346,7 +370,11 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	<T extends Tuple> void addDirectedEmit(String id, OutputSelector<T> outputSelector) {
-		jobGraphBuilder.setOutputSelector(id, SerializationUtils.serialize(outputSelector));
+		try {
+			jobGraphBuilder.setOutputSelector(id, SerializationUtils.serialize(outputSelector));
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize OutputSelector");
+		}
 	}
 
 	/**
