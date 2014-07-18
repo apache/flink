@@ -35,6 +35,10 @@ import org.apache.flink.streaming.api.function.GenSequenceFunction;
 import org.apache.flink.streaming.api.function.PrintSinkFunction;
 import org.apache.flink.streaming.api.function.SinkFunction;
 import org.apache.flink.streaming.api.function.SourceFunction;
+import org.apache.flink.streaming.api.function.WriteFormatAsCsv;
+import org.apache.flink.streaming.api.function.WriteFormatAsText;
+import org.apache.flink.streaming.api.function.WriteSinkFunctionByBatches;
+import org.apache.flink.streaming.api.function.WriteSinkFunctionByMillis;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 
@@ -362,6 +366,112 @@ public abstract class StreamExecutionEnvironment {
 
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 
+		return returnStream;
+	}
+	
+	/**
+	 * Writes a DataStream to the file specified by path in text format. The
+	 * writing is performed periodically, in every millis milliseconds. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param millis
+	 *            is the file update frequency
+	 * @param endTuple
+	 *            is a special tuple indicating the end of the stream. If an
+	 *            endTuple is caught, the last pending batch of tuples will be
+	 *            immediately appended to the target file regardless of the
+	 *            system time.
+	 * 
+	 * @return the data stream constructed
+	 */
+	protected <T extends Tuple> DataStream<T> writeAsText(DataStream<T> inputStream, String path,
+			WriteFormatAsText<T> format, long millis, T endTuple) {
+		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<T>(path,
+				format, millis, endTuple));
+		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+		return returnStream;
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in text format. The
+	 * writing is performed periodically in equally sized batches. For every
+	 * element of the DataStream the result of {@link Object#toString()} is
+	 * written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param batchSize
+	 *            is the size of the batches, i.e. the number of tuples written
+	 *            to the file at a time
+	 * @param endTuple
+	 *            is a special tuple indicating the end of the stream. If an
+	 *            endTuple is caught, the last pending batch of tuples will be
+	 *            immediately appended to the target file regardless of the
+	 *            batchSize.
+	 * 
+	 * @return the data stream constructed
+	 */
+	protected <T extends Tuple> DataStream<T> writeAsText(DataStream<T> inputStream, String path,
+			WriteFormatAsText<T> format, int batchSize, T endTuple) {
+		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByBatches<T>(path,
+				format, batchSize, endTuple));
+		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+		return returnStream;
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in csv format. The
+	 * writing is performed periodically, in every millis milliseconds. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param millis
+	 *            is the file update frequency
+	 * @param endTuple
+	 *            is a special tuple indicating the end of the stream. If an
+	 *            endTuple is caught, the last pending batch of tuples will be
+	 *            immediately appended to the target file regardless of the
+	 *            system time.
+	 * 
+	 * @return the data stream constructed
+	 */
+	protected <T extends Tuple> DataStream<T> writeAsCsv(DataStream<T> inputStream, String path,
+			WriteFormatAsCsv<T> format, long millis, T endTuple) {
+		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<T>(path,
+				format, millis, endTuple));
+		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+		return returnStream;
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in csv format. The
+	 * writing is performed periodically in equally sized batches. For every
+	 * element of the DataStream the result of {@link Object#toString()} is
+	 * written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param batchSize
+	 *            is the size of the batches, i.e. the number of tuples written
+	 *            to the file at a time
+	 * @param endTuple
+	 *            is a special tuple indicating the end of the stream. If an
+	 *            endTuple is caught, the last pending batch of tuples will be
+	 *            immediately appended to the target file regardless of the
+	 *            batchSize.
+	 * 
+	 * @return the data stream constructed
+	 */
+	protected <T extends Tuple> DataStream<T> writeAsCsv(DataStream<T> inputStream, String path,
+			WriteFormatAsCsv<T> format, int batchSize, T endTuple) {
+		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByBatches<T>(path,
+				format, batchSize, endTuple));
+		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 		return returnStream;
 	}
 
