@@ -54,15 +54,15 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends AbstractStr
 	public void registerInputOutput() {
 		initialize();
 
-		try {
+//		try {
 			setSerializers();
 			setCollector();
 			inputs = getConfigInputs();
 			setConfigOutputs(outputs);
-		} catch (StreamComponentException e) {
-			throw new StreamComponentException("Cannot register inputs/outputs for "
-					+ getClass().getSimpleName(), e);
-		}
+//		} catch (StreamComponentException e) {
+//			throw new StreamComponentException("Cannot register inputs/outputs for "
+//					+ getClass().getSimpleName(), e);
+//		}
 
 		numberOfOutputChannels = new int[outputs.size()];
 		for (int i = 0; i < numberOfOutputChannels.length; i++) {
