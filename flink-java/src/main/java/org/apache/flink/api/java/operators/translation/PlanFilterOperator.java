@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.FilterFunctional;
 import org.apache.flink.api.common.functions.GenericFlatMap;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.FilterOperatorBase;
-import org.apache.flink.api.java.functions.FilterFunction;
 import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.Collector;
 
@@ -33,7 +32,7 @@ public class PlanFilterOperator<T> extends FilterOperatorBase<T, GenericFlatMap<
 		super(new FlatMapFilter<T>(udf), new UnaryOperatorInformation<T, T>(type, type), name);
 	}
 
-	public static final class FlatMapFilter<T> extends WrappingFunction<FilterFunction<T>>
+	public static final class FlatMapFilter<T> extends WrappingFunction<FilterFunctional<T>>
 		implements GenericFlatMap<T, T>
 	{
 

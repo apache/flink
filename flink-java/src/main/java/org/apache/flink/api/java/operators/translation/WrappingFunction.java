@@ -30,13 +30,15 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Value;
 
 
-public abstract class WrappingFunction<T extends AbstractRichFunction> extends AbstractRichFunction {
+public abstract class WrappingFunction<T extends Function> extends AbstractRichFunction {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -50,12 +52,12 @@ public abstract class WrappingFunction<T extends AbstractRichFunction> extends A
 	
 	@Override
 	public void open(Configuration parameters) throws Exception {
-		this.wrappedFunction.open(parameters);
+		openFunction(this.wrappedFunction, parameters);
 	}
 	
 	@Override
 	public void close() throws Exception {
-		this.wrappedFunction.close();
+		closeFunction(this.wrappedFunction);
 	}
 	
 	@Override
@@ -63,13 +65,33 @@ public abstract class WrappingFunction<T extends AbstractRichFunction> extends A
 		super.setRuntimeContext(t);
 		
 		if (t instanceof IterationRuntimeContext) {
-			this.wrappedFunction.setRuntimeContext(new WrappingIterationRuntimeContext(t));
+			setFunctionRuntimeContext(this.wrappedFunction, new WrappingIterationRuntimeContext(t));
 		}
 		else{
-			this.wrappedFunction.setRuntimeContext(new WrappingRuntimeContext(t));
+			setFunctionRuntimeContext(this.wrappedFunction, new WrappingRuntimeContext(t));
 		}
 	}
-	
+
+	private static void openFunction (Function function, Configuration parameters) throws Exception{
+		if (function instanceof RichFunction) {
+			RichFunction richFunction = (RichFunction) function;
+			richFunction.open (parameters);
+		}
+	}
+
+	private static void closeFunction (Function function) throws Exception{
+		if (function instanceof RichFunction) {
+			RichFunction richFunction = (RichFunction) function;
+			richFunction.close ();
+		}
+	}
+
+	private static void setFunctionRuntimeContext (Function function, RuntimeContext context){
+		if (function instanceof RichFunction) {
+			RichFunction richFunction = (RichFunction) function;
+			richFunction.setRuntimeContext(context);
+		}
+	}
 	
 	
 	private static class WrappingRuntimeContext implements RuntimeContext {

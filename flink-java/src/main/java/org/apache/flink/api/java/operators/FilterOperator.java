@@ -21,7 +21,6 @@ package org.apache.flink.api.java.operators;
 import org.apache.flink.api.common.functions.FilterFunctional;
 import org.apache.flink.api.common.functions.GenericFlatMap;
 import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.api.java.functions.FilterFunction;
 import org.apache.flink.api.java.operators.translation.PlanFilterOperator;
 
 import org.apache.flink.api.java.DataSet;

@@ -18,9 +18,9 @@
 
 
 package org.apache.flink.api.common.functions;
+import java.io.Serializable;
 
-
-public interface FilterFunctional<T> extends Function {
+public interface FilterFunctional<T> extends Function, Serializable {
 	
 	/**
 	 * User defined function for a filter.
