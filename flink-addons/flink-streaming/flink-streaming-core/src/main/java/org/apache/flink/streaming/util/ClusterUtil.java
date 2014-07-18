@@ -62,7 +62,7 @@ public class ClusterUtil {
 
 			exec.stop();
 		} catch (Exception e) {
-			throw new RuntimeException("Cannot execute job", e);
+			throw new RuntimeException(e.getMessage());
 		}
 	}
 
@@ -82,7 +82,7 @@ public class ClusterUtil {
 		try {
 			client.run(jobGraph, true);
 		} catch (ProgramInvocationException e) {
-			throw new RuntimeException("Cannot execute job", e);
+			throw new RuntimeException(e.getMessage());
 		}
 	}
 

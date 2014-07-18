@@ -31,8 +31,8 @@ import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 
 /**
- * Object for wrapping a tuple with ID used for sending records between task
- * objects in Apache Flink stream processing.
+ * Object for wrapping a tuple with ID used for sending records between
+ * streaming task in Apache Flink stream processing.
  */
 public class StreamRecord<T extends Tuple> implements IOReadableWritable, Serializable {
 	private static final long serialVersionUID = 1L;
@@ -66,7 +66,7 @@ public class StreamRecord<T extends Tuple> implements IOReadableWritable, Serial
 	}
 
 	/**
-	 * Set the ID of the StreamRecord object
+	 * Creates a new ID for the StreamRecord using the given channelID
 	 * 
 	 * @param channelID
 	 *            ID of the emitting task

@@ -36,7 +36,6 @@ import org.apache.flink.streaming.api.invokable.operator.BatchReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
-import org.apache.flink.types.TypeInformation;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -56,7 +55,6 @@ public class DataStream<T extends Tuple> {
 
 	protected static Integer counter = 0;
 	protected final StreamExecutionEnvironment environment;
-	protected TypeInformation<T> type;
 	protected String id;
 	protected int degreeOfParallelism;
 	protected String userDefinedName;
@@ -68,7 +66,8 @@ public class DataStream<T extends Tuple> {
 	protected Integer iterationID;
 
 	/**
-	 * Create a new {@link DataStream} in the given execution environment
+	 * Create a new {@link DataStream} in the given execution environment with
+	 * partitioning set to shuffle by default.
 	 * 
 	 * @param environment
 	 *            StreamExecutionEnvironment
@@ -97,7 +96,6 @@ public class DataStream<T extends Tuple> {
 	 */
 	protected DataStream(DataStream<T> dataStream) {
 		this.environment = dataStream.environment;
-		this.type = dataStream.type;
 		this.id = dataStream.id;
 		this.degreeOfParallelism = dataStream.degreeOfParallelism;
 		this.userDefinedName = dataStream.userDefinedName;
@@ -126,7 +124,7 @@ public class DataStream<T extends Tuple> {
 	/**
 	 * Returns the ID of the {@link DataStream}.
 	 * 
-	 * @return ID of the datastream
+	 * @return ID of the DataStream
 	 */
 	public String getId() {
 		return id;
@@ -200,6 +198,15 @@ public class DataStream<T extends Tuple> {
 		return returnStream;
 	}
 
+	/**
+	 * Connects two DataStreams
+	 * 
+	 * @param returnStream
+	 *            The other DataStream will connected to this
+	 * @param stream
+	 *            This DataStream will be connected to returnStream
+	 * @return Connected DataStream
+	 */
 	private DataStream<T> addConnection(DataStream<T> returnStream, DataStream<T> stream) {
 		returnStream.connectIDs.addAll(stream.connectIDs);
 		returnStream.ctypes.addAll(stream.ctypes);
@@ -236,11 +243,6 @@ public class DataStream<T extends Tuple> {
 		if (keyposition < 0) {
 			throw new IllegalArgumentException("The position of the field must be non-negative");
 		}
-		// TODO get type information
-		// else if (type.getArity() <= keyposition) {
-		// throw new IllegalArgumentException(
-		// "The position of the field must be smaller than the number of fields in the Tuple");
-		// }
 
 		DataStream<T> returnStream = new DataStream<T>(this);
 
@@ -316,9 +318,9 @@ public class DataStream<T extends Tuple> {
 
 	/**
 	 * Applies a FlatMap transformation on a {@link DataStream}. The
-	 * transformation calls a FlatMapFunction for each element of the DataSet.
-	 * Each FlatMapFunction call can return any number of elements including
-	 * none.
+	 * transformation calls a FlatMapFunction for each element of the
+	 * DataStream. Each FlatMapFunction call can return any number of elements
+	 * including none.
 	 * 
 	 * @param flatMapper
 	 *            The FlatMapFunction that is called for each element of the
@@ -604,6 +606,9 @@ public class DataStream<T extends Tuple> {
 	 * use the {@code directTo(OutputSelector)} while referencing the iteration
 	 * head as 'iterate'.
 	 * 
+	 * The iteration edge will be partitioned the same way as the first input of
+	 * the iteration head.
+	 * 
 	 * @return The iterative data stream created.
 	 */
 	public IterativeDataStream<T> iterate() {
@@ -615,22 +620,4 @@ public class DataStream<T extends Tuple> {
 		return new DataStream<T>(this);
 	}
 
-	/**
-	 * Set the type parameter.
-	 * 
-	 * @param type
-	 *            The type parameter.
-	 */
-	protected void setType(TypeInformation<T> type) {
-		this.type = type;
-	}
-
-	/**
-	 * Get the type information for this DataStream.
-	 * 
-	 * @return The type of the generic parameter.
-	 */
-	public TypeInformation<T> getType() {
-		return this.type;
-	}
 }
