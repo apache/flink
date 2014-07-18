@@ -81,6 +81,7 @@ public class JobGraphBuilder {
 	private Map<String, Class<? extends AbstractInvokable>> componentClasses;
 	private Map<String, String> iterationIds;
 	private Map<String, String> iterationHeadNames;
+	private Map<String, Integer> iterationTailCount;
 
 	private String maxParallelismVertexName;
 	private int maxParallelism;
@@ -110,6 +111,7 @@ public class JobGraphBuilder {
 		componentClasses = new HashMap<String, Class<? extends AbstractInvokable>>();
 		iterationIds = new HashMap<String, String>();
 		iterationHeadNames = new HashMap<String, String>();
+		iterationTailCount = new HashMap<String, Integer>();
 
 		maxParallelismVertexName = "";
 		maxParallelism = 0;
@@ -249,7 +251,11 @@ public class JobGraphBuilder {
 		iterationIds.put(componentName, iterationID);
 		setBytesFrom(iterationTail, componentName);
 
-		setUserDefinedName(componentName, directName);
+		if (directName != null) {
+			setUserDefinedName(componentName, directName);
+		} else {
+			setUserDefinedName(componentName, "iterate");
+		}
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Iteration tail sink: " + componentName);
@@ -286,6 +292,7 @@ public class JobGraphBuilder {
 		outEdgeList.put(componentName, new ArrayList<String>());
 		inEdgeList.put(componentName, new ArrayList<String>());
 		connectionTypes.put(componentName, new ArrayList<StreamPartitioner<? extends Tuple>>());
+		iterationTailCount.put(componentName, 0);
 	}
 
 	/**

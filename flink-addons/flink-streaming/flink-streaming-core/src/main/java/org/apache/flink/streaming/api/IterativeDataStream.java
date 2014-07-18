@@ -26,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple;
  * DataStream.
  * 
  * @param <T>
+ *            Type of the DataStream
  */
 public class IterativeDataStream<T extends Tuple> extends StreamOperator<T, T> {
 
@@ -50,10 +51,26 @@ public class IterativeDataStream<T extends Tuple> extends StreamOperator<T, T> {
 	 * 
 	 */
 	public DataStream<T> closeWith(DataStream<T> iterationResult) {
-		environment.addIterationSink(iterationResult, iterationID.toString());
+		return closeWith(iterationResult, null);
+	}
+
+	/**
+	 * Closes the iteration. This method defines the end of the iterative
+	 * program part. By default the DataStream represented by the parameter will
+	 * be fed back to the iteration head, however the user can explicitly select
+	 * which tuples should be iterated by {@code directTo(OutputSelector)}.
+	 * Tuples directed to 'iterate' will be fed back to the iteration head.
+	 * 
+	 * @param iterationResult
+	 *            The data stream that can be fed back to the next iteration.
+	 * @param directName
+	 *            Name of the iteration edge (backward edge to iteration head)
+	 *            when used with directed emits
+	 * 
+	 */
+	public DataStream<T> closeWith(DataStream<T> iterationResult, String directName) {
+		environment.addIterationSink(iterationResult, iterationID.toString(), directName);
 		return iterationResult;
 	}
-	
-	
 
 }

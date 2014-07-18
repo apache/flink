@@ -40,7 +40,7 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 	protected StreamRecord<T> streamRecord;
 	protected int channelID;
 	private List<RecordWriter<StreamRecord<T>>> outputs;
-	protected Map<String, RecordWriter<StreamRecord<T>>> outputMap;
+	protected Map<String, List<RecordWriter<StreamRecord<T>>>> outputMap;
 
 	public StreamCollector(int channelID, SerializationDelegate<T> serializationDelegate) {
 
@@ -48,13 +48,19 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 		this.streamRecord.setSeralizationDelegate(serializationDelegate);
 		this.channelID = channelID;
 		this.outputs = new ArrayList<RecordWriter<StreamRecord<T>>>();
-		this.outputMap = new HashMap<String, RecordWriter<StreamRecord<T>>>();
+		this.outputMap = new HashMap<String, List<RecordWriter<StreamRecord<T>>>>();
 	}
 
 	public void addOutput(RecordWriter<StreamRecord<T>> output, String outputName) {
 		outputs.add(output);
 		if (outputName != null) {
-			outputMap.put(outputName, output);
+			if (outputMap.containsKey(outputName)) {
+				outputMap.get(outputName).add(output);
+			} else {
+				outputMap.put(outputName,new ArrayList<RecordWriter<StreamRecord<T>>>());
+				outputMap.get(outputName).add(output);
+			}
+
 		}
 	}
 
