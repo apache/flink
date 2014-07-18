@@ -30,6 +30,8 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment.ConnectionType;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.function.SinkFunction;
+import org.apache.flink.streaming.api.function.WriteFormatAsCsv;
+import org.apache.flink.streaming.api.function.WriteFormatAsText;
 import org.apache.flink.streaming.api.invokable.operator.BatchReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
@@ -390,6 +392,204 @@ public class DataStream<T extends Tuple> {
 	 */
 	public DataStream<T> print() {
 		return environment.print(new DataStream<T>(this));
+	}
+	
+	/**
+	 * Writes a DataStream to the file specified by path in text format. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * 
+	 * @return The closed DataStream
+	 */
+	public DataStream<T> writeAsText(String path) {
+		environment.writeAsText(this, path, new WriteFormatAsText<T>(), 1, null);
+		return new DataStream<T>(this);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in text format. The
+	 * writing is performed periodically, in every millis milliseconds. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param millis
+	 *            is the file update frequency
+	 * 
+	 * @return The closed DataStream
+	 */
+	public DataStream<T> writeAsText(String path, long millis) {
+		environment.writeAsText(this, path, new WriteFormatAsText<T>(), millis, null);
+		return new DataStream<T>(this);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in text format. The
+	 * writing is performed periodically in equally sized batches. For every
+	 * element of the DataStream the result of {@link Object#toString()} is
+	 * written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param batchSize
+	 *            is the size of the batches, i.e. the number of tuples written
+	 *            to the file at a time
+	 * 
+	 * @return The closed DataStream
+	 */
+	public DataStream<T> writeAsText(String path, int batchSize) {
+		environment.writeAsText(this, path, new WriteFormatAsText<T>(), batchSize, null);
+		return new DataStream<T>(this);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in text format. The
+	 * writing is performed periodically, in every millis milliseconds. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param millis
+	 *            is the file update frequency
+	 * @param endTuple
+	 *            is a special tuple indicating the end of the stream. If an
+	 *            endTuple is caught, the last pending batch of tuples will be
+	 *            immediately appended to the target file regardless of the
+	 *            system time.
+	 * 
+	 * @return The closed DataStream
+	 */
+	public DataStream<T> writeAsText(String path, long millis, T endTuple) {
+		environment.writeAsText(this, path, new WriteFormatAsText<T>(), millis, endTuple);
+		return new DataStream<T>(this);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in text format. The
+	 * writing is performed periodically in equally sized batches. For every
+	 * element of the DataStream the result of {@link Object#toString()} is
+	 * written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param batchSize
+	 *            is the size of the batches, i.e. the number of tuples written
+	 *            to the file at a time
+	 * @param endTuple
+	 *            is a special tuple indicating the end of the stream. If an
+	 *            endTuple is caught, the last pending batch of tuples will be
+	 *            immediately appended to the target file regardless of the
+	 *            batchSize.
+	 * 
+	 * @return The closed DataStream
+	 */
+	public DataStream<T> writeAsText(String path, int batchSize, T endTuple) {
+		environment.writeAsText(this, path, new WriteFormatAsText<T>(), batchSize, endTuple);
+		return new DataStream<T>(this);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in text format. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * 
+	 * @return The closed DataStream
+	 */
+	public DataStream<T> writeAsCsv(String path) {
+		environment.writeAsCsv(this, path, new WriteFormatAsCsv<T>(), 1, null);
+		return new DataStream<T>(this);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in text format. The
+	 * writing is performed periodically, in every millis milliseconds. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param millis
+	 *            is the file update frequency
+	 * 
+	 * @return The closed DataStream
+	 */
+	public DataStream<T> writeAsCsv(String path, long millis) {
+		environment.writeAsCsv(this, path, new WriteFormatAsCsv<T>(), millis, null);
+		return new DataStream<T>(this);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in text format. The
+	 * writing is performed periodically in equally sized batches. For every
+	 * element of the DataStream the result of {@link Object#toString()} is
+	 * written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param batchSize
+	 *            is the size of the batches, i.e. the number of tuples written
+	 *            to the file at a time
+	 * 
+	 * @return The closed DataStream
+	 */
+	public DataStream<T> writeAsCsv(String path, int batchSize) {
+		environment.writeAsCsv(this, path, new WriteFormatAsCsv<T>(), batchSize, null);
+		return new DataStream<T>(this);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in text format. The
+	 * writing is performed periodically, in every millis milliseconds. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param millis
+	 *            is the file update frequency
+	 * @param endTuple
+	 *            is a special tuple indicating the end of the stream. If an
+	 *            endTuple is caught, the last pending batch of tuples will be
+	 *            immediately appended to the target file regardless of the
+	 *            system time.
+	 * 
+	 * @return The closed DataStream
+	 */
+	public DataStream<T> writeAsCsv(String path, long millis, T endTuple) {
+		environment.writeAsCsv(this, path, new WriteFormatAsCsv<T>(), millis, endTuple);
+		return new DataStream<T>(this);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in text format. The
+	 * writing is performed periodically in equally sized batches. For every
+	 * element of the DataStream the result of {@link Object#toString()} is
+	 * written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param batchSize
+	 *            is the size of the batches, i.e. the number of tuples written
+	 *            to the file at a time
+	 * @param endTuple
+	 *            is a special tuple indicating the end of the stream. If an
+	 *            endTuple is caught, the last pending batch of tuples will be
+	 *            immediately appended to the target file regardless of the
+	 *            batchSize.
+	 * 
+	 * @return The closed DataStream
+	 */
+	public DataStream<T> writeAsCsv(String path, int batchSize, T endTuple) {
+		environment.writeAsCsv(this, path, new WriteFormatAsCsv<T>(), batchSize, endTuple);
+		return new DataStream<T>(this);
 	}
 
 	/**
