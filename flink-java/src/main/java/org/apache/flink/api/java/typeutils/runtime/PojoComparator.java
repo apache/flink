@@ -118,14 +118,16 @@ public final class PojoComparator<T> extends TypeComparator<T> implements java.i
 		this.invertNormKey = toClone.invertNormKey;
 
 		this.type = toClone.type;
+
 		try {
 			this.serializer = (TypeSerializer<T>) InstantiationUtil.deserializeObject(
-					InstantiationUtil.serializeObject(toClone.serializer), toClone.serializer.getClass().getClassLoader());
+					InstantiationUtil.serializeObject(toClone.serializer), Thread.currentThread().getContextClassLoader());
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new RuntimeException("Cannot copy serializer", e);
 		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
+			throw new RuntimeException("Cannot copy serializer", e);
 		}
+
 
 	}
 
