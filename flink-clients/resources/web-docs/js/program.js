@@ -106,6 +106,9 @@ function showPreviewPlan(data)
     $("#mainCanvas").append(svgElement);
     drawGraph(data.plan, "#svg-main");
     pactPlanRequested = 0;
+    
+    //activate zoom buttons
+    activateZoomButtons();
 //  }
 }
 

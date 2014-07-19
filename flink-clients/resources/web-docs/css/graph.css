@@ -3,7 +3,7 @@ g.type-TK > rect {
 }
 
 svg {
-  border: 1px solid #999;
+  border: 0px solid #999;
   overflow: hidden;
 }
 
@@ -15,7 +15,7 @@ text {
 
 .node rect {
   stroke: #999;
-  stroke-width: 1px;
+  stroke-width: 0px;
   fill: #fff;
 }
 
