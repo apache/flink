@@ -20,6 +20,8 @@ package org.apache.flink.api.java;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.functions.FilterFunctional;
+import org.apache.flink.api.common.functions.MapFunctional;
+import org.apache.flink.api.common.functions.ReduceFunctional;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.aggregation.Aggregations;
@@ -135,7 +137,7 @@ public abstract class DataSet<T> {
 	 * @see MapOperator
 	 * @see DataSet
 	 */
-	public <R> MapOperator<T, R> map(MapFunction<T, R> mapper) {
+	public <R> MapOperator<T, R> map(MapFunctional<T, R> mapper) {
 		if (mapper == null) {
 			throw new NullPointerException("Map function must not be null.");
 		}
@@ -276,7 +278,7 @@ public abstract class DataSet<T> {
 	 * @see ReduceOperator
 	 * @see DataSet
 	 */
-	public ReduceOperator<T> reduce(ReduceFunction<T> reducer) {
+	public ReduceOperator<T> reduce(ReduceFunctional<T> reducer) {
 		if (reducer == null) {
 			throw new NullPointerException("Reduce function must not be null.");
 		}

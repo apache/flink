@@ -88,7 +88,7 @@ public final class TupleSerializer<T extends Tuple> extends TypeSerializer<T> {
 	@Override
 	public T copy(T from, T reuse) {
 		for (int i = 0; i < arity; i++) {
-			Object copy = fieldSerializers[i].copy(from.getField(i), reuse.getField(i));
+			Object copy = fieldSerializers[i].copy((T)from.getField(i), (T)reuse.getField(i));
 			reuse.setField(copy, i);
 		}
 		

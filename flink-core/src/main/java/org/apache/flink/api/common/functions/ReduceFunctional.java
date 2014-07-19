@@ -20,11 +20,9 @@
 package org.apache.flink.api.common.functions;
 
 
-public interface GenericMap<T, O> extends RichFunction {
+import java.io.Serializable;
+
+public interface ReduceFunctional<T> extends Function, Serializable {
 	
-	/**
-	 * A user-implemented function that modifies or transforms an incoming object and
-	 * returns the result.
-	 */
-	O map(T record) throws Exception;
+	T reduce(T value1, T value2) throws Exception;
 }

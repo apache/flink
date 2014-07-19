@@ -24,8 +24,10 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.GenericCombine;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -77,7 +79,7 @@ import java.util.Map;
  * The abstract base class for all tasks. Encapsulated common behavior and implements the main life-cycle
  * of the user code.
  */
-public class RegularPactTask<S extends RichFunction, OT> extends AbstractInvokable implements PactTaskContext<S, OT> {
+public class RegularPactTask<S extends Function, OT> extends AbstractInvokable implements PactTaskContext<S, OT> {
 
 	protected static final Log LOG = LogFactory.getLog(RegularPactTask.class);
 
@@ -497,7 +499,7 @@ public class RegularPactTask<S extends RichFunction, OT> extends AbstractInvokab
 			if (this.stub != null) {
 				try {
 					Configuration stubConfig = this.config.getStubParameters();
-					this.stub.open(stubConfig);
+					openFunction(this.stub, stubConfig);
 					stubOpen = true;
 				}
 				catch (Throwable t) {
@@ -510,7 +512,7 @@ public class RegularPactTask<S extends RichFunction, OT> extends AbstractInvokab
 
 			// close. We close here such that a regular close throwing an exception marks a task as failed.
 			if (this.running && this.stub != null) {
-				this.stub.close();
+				closeFunction(this.stub);
 				stubOpen = false;
 			}
 
@@ -525,7 +527,9 @@ public class RegularPactTask<S extends RichFunction, OT> extends AbstractInvokab
 			// modify accumulators.ll;
 			if (this.stub != null) {
 				// collect the counters from the stub
-				Map<String, Accumulator<?,?>> accumulators = this.stub.getRuntimeContext().getAllAccumulators();
+				// KOSTAS
+				// !!! Is this.runtimeUdfContext the right thing to return here? !!!
+				Map<String, Accumulator<?,?>> accumulators = getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
 				RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
 			}
 		}
@@ -533,7 +537,7 @@ public class RegularPactTask<S extends RichFunction, OT> extends AbstractInvokab
 			// close the input, but do not report any exceptions, since we already have another root cause
 			if (stubOpen) {
 				try {
-					this.stub.close();
+					closeFunction(this.stub);
 				}
 				catch (Throwable t) {}
 			}
@@ -583,7 +587,7 @@ public class RegularPactTask<S extends RichFunction, OT> extends AbstractInvokab
 		// different type were used.
 
 		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
-			Map<String, Accumulator<?, ?>> chainedAccumulators = chainedTask.getStub().getRuntimeContext().getAllAccumulators();
+			Map<String, Accumulator<?, ?>> chainedAccumulators = getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators();
 			AccumulatorHelper.mergeInto(accumulators, chainedAccumulators);
 		}
 
@@ -607,7 +611,7 @@ public class RegularPactTask<S extends RichFunction, OT> extends AbstractInvokab
 		// done before sending
 		AccumulatorHelper.resetAndClearAccumulators(accumulators);
 		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
-			AccumulatorHelper.resetAndClearAccumulators(chainedTask.getStub().getRuntimeContext().getAllAccumulators());
+			AccumulatorHelper.resetAndClearAccumulators(getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators());
 		}
 	}
 
@@ -693,7 +697,7 @@ public class RegularPactTask<S extends RichFunction, OT> extends AbstractInvokab
 				throw new RuntimeException("The class '" + stub.getClass().getName() + "' is not a subclass of '" + 
 						stubSuperClass.getName() + "' as is required.");
 			}
-			stub.setRuntimeContext(this.runtimeUdfContext);
+			setFunctionRuntimeContext(stub, this.runtimeUdfContext);
 			return stub;
 		}
 		catch (ClassCastException ccex) {
@@ -1384,9 +1388,9 @@ public class RegularPactTask<S extends RichFunction, OT> extends AbstractInvokab
 	 * 
 	 * @throws Exception Thrown, if the user code's open method produces an exception.
 	 */
-	public static void openUserCode(RichFunction stub, Configuration parameters) throws Exception {
+	public static void openUserCode(Function stub, Configuration parameters) throws Exception {
 		try {
-			stub.open(parameters);
+			openFunction(stub, parameters);
 		} catch (Throwable t) {
 			throw new Exception("The user defined 'open(Configuration)' method in " + stub.getClass().toString() + " caused an exception: " + t.getMessage(), t);
 		}
@@ -1401,9 +1405,9 @@ public class RegularPactTask<S extends RichFunction, OT> extends AbstractInvokab
 	 * 
 	 * @throws Exception Thrown, if the user code's close method produces an exception.
 	 */
-	public static void closeUserCode(RichFunction stub) throws Exception {
+	public static void closeUserCode(Function stub) throws Exception {
 		try {
-			stub.close();
+			closeFunction(stub);
 		} catch (Throwable t) {
 			throw new Exception("The user defined 'close()' method caused an exception: " + t.getMessage(), t);
 		}
@@ -1504,5 +1508,36 @@ public class RegularPactTask<S extends RichFunction, OT> extends AbstractInvokab
 			a[i++] = val;
 		}
 		return a;
+	}
+
+	private static void openFunction (Function function, Configuration parameters) throws Exception{
+		if (function instanceof RichFunction) {
+			RichFunction richFunction = (RichFunction) function;
+			richFunction.open (parameters);
+		}
+	}
+
+	private static void closeFunction (Function function) throws Exception{
+		if (function instanceof RichFunction) {
+			RichFunction richFunction = (RichFunction) function;
+			richFunction.close ();
+		}
+	}
+
+	private static  RuntimeContext getFunctionRuntimeContext (Function function, RuntimeContext defaultContext){
+		if (function instanceof RichFunction) {
+			RichFunction richFunction = (RichFunction) function;
+			return richFunction.getRuntimeContext();
+		}
+		else {
+			return defaultContext;
+		}
+	}
+
+	private static void setFunctionRuntimeContext (Function function, RuntimeContext context){
+		if (function instanceof RichFunction) {
+			RichFunction richFunction = (RichFunction) function;
+			richFunction.setRuntimeContext(context);
+		}
 	}
 }

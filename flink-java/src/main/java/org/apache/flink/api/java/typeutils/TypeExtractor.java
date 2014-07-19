@@ -36,7 +36,7 @@ import org.apache.flink.api.common.functions.GenericCrosser;
 import org.apache.flink.api.common.functions.GenericFlatMap;
 import org.apache.flink.api.common.functions.GenericGroupReduce;
 import org.apache.flink.api.common.functions.GenericJoiner;
-import org.apache.flink.api.common.functions.GenericMap;
+import org.apache.flink.api.common.functions.MapFunctional;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.java.functions.InvalidTypesException;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -60,12 +60,12 @@ public class TypeExtractor {
 	// --------------------------------------------------------------------------------------------
 	
 	@SuppressWarnings("unchecked")
-	public static <IN, OUT> TypeInformation<OUT> getMapReturnTypes(GenericMap<IN, OUT> mapInterface, TypeInformation<IN> inType) {
-		validateInputType(GenericMap.class, mapInterface.getClass(), 0, inType);
+	public static <IN, OUT> TypeInformation<OUT> getMapReturnTypes(MapFunctional<IN, OUT> mapInterface, TypeInformation<IN> inType) {
+		validateInputType(MapFunctional.class, mapInterface.getClass(), 0, inType);
 		if(mapInterface instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) mapInterface).getProducedType();
 		}
-		return new TypeExtractor().privateCreateTypeInfo(GenericMap.class, mapInterface.getClass(), 1, inType, null);
+		return new TypeExtractor().privateCreateTypeInfo(MapFunctional.class, mapInterface.getClass(), 1, inType, null);
 	}
 	
 	@SuppressWarnings("unchecked")

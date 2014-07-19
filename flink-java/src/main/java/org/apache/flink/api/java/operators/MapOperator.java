@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.common.functions.GenericMap;
+import org.apache.flink.api.common.functions.MapFunctional;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
@@ -38,10 +38,10 @@ import org.apache.flink.api.java.DataSet;
  */
 public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOperator<IN, OUT>> {
 	
-	protected final MapFunction<IN, OUT> function;
+	protected final MapFunctional<IN, OUT> function;
 	
 	
-	public MapOperator(DataSet<IN> input, MapFunction<IN, OUT> function) {
+	public MapOperator(DataSet<IN> input, MapFunctional<IN, OUT> function) {
 		super(input, TypeExtractor.getMapReturnTypes(function, input.getType()));
 		
 		this.function = function;
@@ -49,11 +49,11 @@ public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOpe
 	}
 
 	@Override
-	protected org.apache.flink.api.common.operators.base.MapOperatorBase<IN, OUT, GenericMap<IN, OUT>> translateToDataFlow(Operator<IN> input) {
+	protected org.apache.flink.api.common.operators.base.MapOperatorBase<IN, OUT, MapFunctional<IN, OUT>> translateToDataFlow(Operator<IN> input) {
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator
-		MapOperatorBase<IN, OUT, GenericMap<IN, OUT>> po = new MapOperatorBase<IN, OUT, GenericMap<IN, OUT>>(function, new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType()), name);
+		MapOperatorBase<IN, OUT, MapFunctional<IN, OUT>> po = new MapOperatorBase<IN, OUT, MapFunctional<IN, OUT>>(function, new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType()), name);
 		// set input
 		po.setInput(input);
 		// set dop

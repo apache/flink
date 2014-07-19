@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.operators.chaining;
 
-import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -71,7 +71,7 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 
 	public abstract void cancelTask();
 
-	public abstract RichFunction getStub();
+	public abstract Function getStub();
 
 	public abstract String getTaskName();
 

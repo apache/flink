@@ -23,7 +23,7 @@ import static org.apache.flink.compiler.plan.PlanNode.FeedbackPropertiesMeetRequ
 import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.functions.GenericJoiner;
-import org.apache.flink.api.common.functions.GenericMap;
+import org.apache.flink.api.common.functions.MapFunctional;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.common.operators.Order;
@@ -1426,7 +1426,7 @@ public class FeedbackPropertiesMatchTest {
 	}
 	
 	private static final MapNode getMapNode() {
-		return new MapNode(new MapOperatorBase<String, String, GenericMap<String,String>>(new IdentityMapper<String>(), new UnaryOperatorInformation<String, String>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO), "map op"));
+		return new MapNode(new MapOperatorBase<String, String, MapFunctional<String,String>>(new IdentityMapper<String>(), new UnaryOperatorInformation<String, String>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO), "map op"));
 	}
 	
 	private static final MatchNode getJoinNode() {

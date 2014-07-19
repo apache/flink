@@ -24,7 +24,7 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.GenericReduce;
+import org.apache.flink.api.common.functions.ReduceFunctional;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -44,7 +44,7 @@ import org.apache.flink.util.MutableObjectIterator;
  * 
  * @param <T> The data type consumed and produced by the combiner.
  */
-public class ReduceCombineDriver<T> implements PactDriver<GenericReduce<T>, T> {
+public class ReduceCombineDriver<T> implements PactDriver<ReduceFunctional<T>, T> {
 	
 	private static final Log LOG = LogFactory.getLog(ReduceCombineDriver.class);
 
@@ -52,13 +52,13 @@ public class ReduceCombineDriver<T> implements PactDriver<GenericReduce<T>, T> {
 	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
 	
 	
-	private PactTaskContext<GenericReduce<T>, T> taskContext;
+	private PactTaskContext<ReduceFunctional<T>, T> taskContext;
 
 	private TypeSerializer<T> serializer;
 
 	private TypeComparator<T> comparator;
 	
-	private GenericReduce<T> reducer;
+	private ReduceFunctional<T> reducer;
 	
 	private Collector<T> output;
 	
@@ -75,7 +75,7 @@ public class ReduceCombineDriver<T> implements PactDriver<GenericReduce<T>, T> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<GenericReduce<T>, T> context) {
+	public void setup(PactTaskContext<ReduceFunctional<T>, T> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -86,9 +86,9 @@ public class ReduceCombineDriver<T> implements PactDriver<GenericReduce<T>, T> {
 	}
 
 	@Override
-	public Class<GenericReduce<T>> getStubType() {
+	public Class<ReduceFunctional<T>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericReduce<T>> clazz = (Class<GenericReduce<T>>) (Class<?>) GenericReduce.class;
+		final Class<ReduceFunctional<T>> clazz = (Class<ReduceFunctional<T>>) (Class<?>) ReduceFunctional.class;
 		return clazz;
 	}
 
@@ -168,7 +168,7 @@ public class ReduceCombineDriver<T> implements PactDriver<GenericReduce<T>, T> {
 			final TypeSerializer<T> serializer = this.serializer;
 			final TypeComparator<T> comparator = this.comparator;
 			
-			final GenericReduce<T> function = this.reducer;
+			final ReduceFunctional<T> function = this.reducer;
 			
 			final Collector<T> output = this.output;
 			

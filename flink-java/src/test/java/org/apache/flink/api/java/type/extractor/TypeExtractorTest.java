@@ -23,7 +23,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Iterator;
 
-import org.apache.flink.api.common.functions.GenericMap;
+import org.apache.flink.api.common.functions.MapFunctional;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.functions.CoGroupFunction;
 import org.apache.flink.api.java.functions.CrossFunction;
@@ -1382,8 +1382,8 @@ public class TypeExtractorTest {
 	}
 	
 	@Test
-	public void testInterface() {
-		GenericMap<String, Boolean> mapInterface = new GenericMap<String, Boolean>() {
+	public void testFunction() {
+		MapFunction<String, Boolean> mapInterface = new MapFunction<String, Boolean>() {
 			
 			@Override
 			public void setRuntimeContext(RuntimeContext t) {
@@ -1411,6 +1411,19 @@ public class TypeExtractorTest {
 			}
 		};
 		
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(mapInterface, BasicTypeInfo.STRING_TYPE_INFO);
+		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
+	}
+
+	@Test
+	public void testInterface() {
+		MapFunctional<String, Boolean> mapInterface = new MapFunctional<String, Boolean>() {
+			@Override
+			public Boolean map(String record) throws Exception {
+				return null;
+			}
+		};
+
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(mapInterface, BasicTypeInfo.STRING_TYPE_INFO);
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
 	}

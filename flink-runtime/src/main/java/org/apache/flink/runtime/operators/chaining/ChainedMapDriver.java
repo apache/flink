@@ -19,25 +19,27 @@
 
 package org.apache.flink.runtime.operators.chaining;
 
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.MapFunctional;
 import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.api.common.functions.GenericMap;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.RegularPactTask;
 
 public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 
-	private GenericMap<IT, OT> mapper;
+	private MapFunctional<IT, OT> mapper;
 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void setup(AbstractInvokable parent) {
 		@SuppressWarnings("unchecked")
-		final GenericMap<IT, OT> mapper =
-			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GenericMap.class);
+		final MapFunctional<IT, OT> mapper =
+			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, MapFunctional.class);
 		this.mapper = mapper;
-		mapper.setRuntimeContext(getUdfRuntimeContext());
+		setFunctionRuntimeContext(mapper, getUdfRuntimeContext());
 	}
 
 	@Override
@@ -54,14 +56,14 @@ public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	@Override
 	public void cancelTask() {
 		try {
-			this.mapper.close();
+			closeFunction(this.mapper);
 		} catch (Throwable t) {
 		}
 	}
 
 	// --------------------------------------------------------------------------------------------
 
-	public RichFunction getStub() {
+	public Function getStub() {
 		return this.mapper;
 	}
 
@@ -83,5 +85,19 @@ public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	@Override
 	public void close() {
 		this.outputCollector.close();
+	}
+
+	private static void setFunctionRuntimeContext (Function function, RuntimeContext context){
+		if (function instanceof RichFunction) {
+			RichFunction richFunction = (RichFunction) function;
+			richFunction.setRuntimeContext(context);
+		}
+	}
+
+	private static void closeFunction (Function function) throws Exception{
+		if (function instanceof RichFunction) {
+			RichFunction richFunction = (RichFunction) function;
+			richFunction.close ();
+		}
 	}
 }
