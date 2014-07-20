@@ -384,9 +384,9 @@ public final class ConfigConstants {
 	public static final int DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK = -1;
 
 	/**
-	 * The default interval for TaskManager heart beats (2000 msecs).
+	 * The default interval for TaskManager heart beats (5000 msecs).
 	 */
-	public static final int DEFAULT_TASK_MANAGER_HEARTBEAT_INTERVAL = 2000;
+	public static final int DEFAULT_TASK_MANAGER_HEARTBEAT_INTERVAL = 5000;
 
 	/**
 	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.

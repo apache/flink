@@ -1000,4 +1000,8 @@ public final class ExecutionVertex {
 
 		return tdd;
 	}
+	
+	public void handleException(Throwable t) {
+		
+	}
 }

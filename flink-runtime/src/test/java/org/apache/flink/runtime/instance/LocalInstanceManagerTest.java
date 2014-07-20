@@ -55,7 +55,6 @@ import org.apache.flink.runtime.protocols.InputSplitProviderProtocol;
 import org.apache.flink.runtime.protocols.JobManagerProtocol;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManager;
-import org.apache.flink.runtime.taskmanager.transferenvelope.RegisterTaskManagerResult;
 import org.apache.flink.runtime.types.IntegerRecord;
 
 import org.junit.After;
@@ -211,16 +210,6 @@ public class LocalInstanceManagerTest {
 		@Override
 		public ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID, ChannelID sourceChannelID) {
 			return null;
-		}
-
-		@Override
-		public void sendHeartbeat(InstanceConnectionInfo instanceConnectionInfo) {}
-
-		@Override
-		public RegisterTaskManagerResult registerTaskManager(InstanceConnectionInfo instanceConnectionInfo,
-				HardwareDescription hardwareDescription, IntegerRecord numberOfSlots)
-		{
-			return new RegisterTaskManagerResult(RegisterTaskManagerResult.ReturnCode.SUCCESS);
 		}
 
 		@Override

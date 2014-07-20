@@ -16,56 +16,67 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobmanager.scheduler.ResourceId;
 
 /**
- * An allocated slot is a part of an instance which is assigned to a job.
- * <p>
- * This class is thread-safe.
- * 
+ * An allocated slot is the unit in which resources are allocated on instances.
  */
 public class AllocatedSlot {
 
-	/**
-	 * The allocation ID which identifies the resources occupied by this slot.
-	 */
-	private final AllocationID allocationID;
+	/** The ID which identifies the resources occupied by this slot. */
+	private final ResourceId resourceId;
 
-	/**
-	 * The ID of the job this slice belongs to.
-	 */
+	/** The ID of the job this slice belongs to. */
 	private final JobID jobID;
+	
+	/** The instance on which the slot is allocated */
+	private final Instance instance;
+	
+	/** The number of the slot on which the task is deployed */
+	private final int slotNumber;
 
-	/**
-	 * Creates a new allocated slice on the given hosting instance.
-	 * 
-	 * @param jobID
-	 *        the ID of the job this slice belongs to
-	 */
-	public AllocatedSlot(final JobID jobID) {
 
-		this.allocationID = new AllocationID();
+	public AllocatedSlot(JobID jobID, ResourceId resourceId, Instance instance, int slotNumber) {
+		this.resourceId = resourceId;
 		this.jobID = jobID;
+		this.instance = instance;
+		this.slotNumber = slotNumber;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * Returns the allocation ID of this slice.
+	 * Returns the ID of the job this allocated slot belongs to.
 	 * 
-	 * @return the allocation ID of this slice
-	 */
-	public AllocationID getAllocationID() {
-		return this.allocationID;
-	}
-
-	/**
-	 * Returns the ID of the job this allocated slice belongs to.
-	 * 
-	 * @return the ID of the job this allocated slice belongs to
+	 * @return the ID of the job this allocated slot belongs to
 	 */
 	public JobID getJobID() {
 		return this.jobID;
+	}
+	
+	public ResourceId getResourceId() {
+		return resourceId;
+	}
+	
+	public Instance getInstance() {
+		return instance;
+	}
+	
+	public int getSlotNumber() {
+		return slotNumber;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public void runTask(ExecutionVertex2 vertex) {
+		
+	}
+	
+	public void cancelResource() {
+		
 	}
 }

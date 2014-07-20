@@ -121,6 +121,16 @@ public final class HardwareDescription implements IOReadableWritable, java.io.Se
 	}
 	
 	// --------------------------------------------------------------------------------------------
+	// Utils
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public String toString() {
+		return String.format("cores=%d, physMem=%d, heap=%d, managed=%d", 
+				numberOfCPUCores, sizeOfPhysicalMemory, sizeOfJvmHeap, sizeOfManagedMemory);
+	}
+	
+	// --------------------------------------------------------------------------------------------
 	// Factory
 	// --------------------------------------------------------------------------------------------
 	

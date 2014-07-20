@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.taskmanager;
 
 import java.io.File;
@@ -55,8 +54,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.configuration.ConfigConstants;
@@ -75,6 +74,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.ChannelManager;
 import org.apache.flink.runtime.io.network.InsufficientResourcesException;
@@ -95,7 +95,6 @@ import org.apache.flink.runtime.protocols.ChannelLookupProtocol;
 import org.apache.flink.runtime.protocols.InputSplitProviderProtocol;
 import org.apache.flink.runtime.protocols.JobManagerProtocol;
 import org.apache.flink.runtime.protocols.TaskOperationProtocol;
-import org.apache.flink.runtime.taskmanager.transferenvelope.RegisterTaskManagerResult;
 import org.apache.flink.runtime.types.IntegerRecord;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.SerializableArrayList;
@@ -110,11 +109,18 @@ import org.apache.flink.util.StringUtils;
  */
 public class TaskManager implements TaskOperationProtocol {
 
-	private static final Logger LOG = LoggerFactory.getLogger(TaskManager.class);
+	private static final Log LOG = LogFactory.getLog(TaskManager.class);
 
-	private final static int FAILURE_RETURN_CODE = -1;
+	private static final int STARTUP_FAILURE_RETURN_CODE = 1;
+	
+	private static final int CRITICAL_ERROR_RETURN_CODE = 2;
 	
 	private static final int IPC_HANDLER_COUNT = 1;
+	
+	private static final int MAX_LOST_HEART_BEATS = 3;
+	
+	private static final int DELAY_AFTER_LOST_CONNECTION = 10000;
+	
 	
 	public final static String ARG_CONF_DIR = "tempDir";
 	
@@ -125,7 +131,6 @@ public class TaskManager implements TaskOperationProtocol {
 	private final HardwareDescription hardwareDescription;
 	
 	private final ExecutionMode executionMode;
-	
 	
 	private final JobManagerProtocol jobManager;
 
@@ -169,8 +174,11 @@ public class TaskManager implements TaskOperationProtocol {
 	
 	private final AtomicBoolean shutdownStarted = new AtomicBoolean(false);
 	
+	private volatile InstanceID registeredId;
+	
 	/** Stores whether the task manager has already been shut down. */
 	private volatile boolean shutdownComplete;
+	
 	
 	/**
 	 * All parameters are obtained from the 
@@ -203,7 +211,7 @@ public class TaskManager implements TaskOperationProtocol {
 				jobManagerAddress = new InetSocketAddress(tmpAddress, port);
 			}
 			catch (UnknownHostException e) {
-				LOG.error("Could not resolve JobManager host name.");
+				LOG.fatal("Could not resolve JobManager host name.");
 				throw new Exception("Could not resolve JobManager host name: " + e.getMessage(), e);
 			}
 			
@@ -214,7 +222,7 @@ public class TaskManager implements TaskOperationProtocol {
 		try {
 			this.jobManager = RPC.getProxy(JobManagerProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
 		} catch (IOException e) {
-			LOG.error("Could not connect to the JobManager: " + e.getMessage(), e);
+			LOG.fatal("Could not connect to the JobManager: " + e.getMessage(), e);
 			throw new Exception("Failed to initialize connection to JobManager: " + e.getMessage(), e);
 		}
 		
@@ -245,7 +253,7 @@ public class TaskManager implements TaskOperationProtocol {
 				this.taskManagerServer = RPC.getServer(this, taskManagerAddress.getHostAddress(), ipcPort, IPC_HANDLER_COUNT);
 				this.taskManagerServer.start();
 			} catch (IOException e) {
-				LOG.error("Failed to start TaskManager server. " + e.getMessage(), e);
+				LOG.fatal("Failed to start TaskManager server. " + e.getMessage(), e);
 				throw new Exception("Failed to start taskmanager server. " + e.getMessage(), e);
 			}
 		}
@@ -254,7 +262,7 @@ public class TaskManager implements TaskOperationProtocol {
 		try {
 			this.globalInputSplitProvider = RPC.getProxy(InputSplitProviderProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
 		} catch (IOException e) {
-			LOG.error(e.getMessage(), e);
+			LOG.fatal(e.getMessage(), e);
 			throw new Exception("Failed to initialize connection to global input split provider: " + e.getMessage(), e);
 		}
 
@@ -262,7 +270,7 @@ public class TaskManager implements TaskOperationProtocol {
 		try {
 			this.lookupService = RPC.getProxy(ChannelLookupProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
 		} catch (IOException e) {
-			LOG.error(e.getMessage(), e);
+			LOG.fatal(e.getMessage(), e);
 			throw new Exception("Failed to initialize channel lookup protocol. " + e.getMessage(), e);
 		}
 
@@ -270,7 +278,7 @@ public class TaskManager implements TaskOperationProtocol {
 		try {
 			this.accumulatorProtocolProxy = RPC.getProxy(AccumulatorProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
 		} catch (IOException e) {
-			LOG.error("Failed to initialize accumulator protocol: " + e.getMessage(), e);
+			LOG.fatal("Failed to initialize accumulator protocol: " + e.getMessage(), e);
 			throw new Exception("Failed to initialize accumulator protocol: " + e.getMessage(), e);
 		}
 
@@ -324,17 +332,13 @@ public class TaskManager implements TaskOperationProtocol {
 							ConfigConstants.TASK_MANAGER_NET_NUM_OUT_THREADS_KEY,
 							ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_OUT_THREADS);
 
-					int lowWaterMark = GlobalConfiguration.getInteger(
-							ConfigConstants.TASK_MANAGER_NET_NETTY_LOW_WATER_MARK,
-							ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_LOW_WATER_MARK);
-
-					int highWaterMark = GlobalConfiguration.getInteger(
-							ConfigConstants.TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK,
-							ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK);
+					int closeAfterIdleForMs = GlobalConfiguration.getInteger(
+							ConfigConstants.TASK_MANAGER_NET_CLOSE_AFTER_IDLE_FOR_MS_KEY,
+							ConfigConstants.DEFAULT_TASK_MANAGER_NET_CLOSE_AFTER_IDLE_FOR_MS);
 
 					networkConnectionManager = new NettyConnectionManager(
 							localInstanceConnectionInfo.address(), localInstanceConnectionInfo.dataPort(),
-							bufferSize, numInThreads, numOutThreads, lowWaterMark, highWaterMark);
+							bufferSize, numInThreads, numOutThreads, closeAfterIdleForMs);
 					break;
 			}
 
@@ -391,7 +395,7 @@ public class TaskManager implements TaskOperationProtocol {
 				
 				this.memoryManager = new DefaultMemoryManager(memorySize, this.numberOfSlots, pageSize);
 			} catch (Throwable t) {
-				LOG.error("Unable to initialize memory manager with " + (memorySize >>> 20) + " megabytes of memory.", t);
+				LOG.fatal("Unable to initialize memory manager with " + (memorySize >>> 20) + " megabytes of memory.", t);
 				throw new Exception("Unable to initialize memory manager.", t);
 			}
 		}
@@ -400,15 +404,21 @@ public class TaskManager implements TaskOperationProtocol {
 
 		this.ioManager = new IOManager(tmpDirPaths);
 		
-		this.heartbeatThread = new Thread() {
-			@Override
-			public void run() {
-				runHeartbeatLoop();
-			}
-		};
-
-		this.heartbeatThread.setName("Heartbeat Thread");
-		this.heartbeatThread.start();
+		// start the heart beats
+		{
+			final long interval = GlobalConfiguration.getInteger(
+					ConfigConstants.TASK_MANAGER_HEARTBEAT_INTERVAL_KEY,
+					ConfigConstants.DEFAULT_TASK_MANAGER_HEARTBEAT_INTERVAL);
+			
+			this.heartbeatThread = new Thread() {
+				@Override
+				public void run() {
+					registerAndRunHeartbeatLoop(interval, MAX_LOST_HEART_BEATS);
+				}
+			};
+			this.heartbeatThread.setName("Heartbeat Thread");
+			this.heartbeatThread.start();
+		}
 
 		// --------------------------------------------------------------------
 		// Memory Usage
@@ -500,7 +510,7 @@ public class TaskManager implements TaskOperationProtocol {
 			line = parser.parse(options, args);
 		} catch (ParseException e) {
 			System.err.println("CLI Parsing failed. Reason: " + e.getMessage());
-			System.exit(FAILURE_RETURN_CODE);
+			System.exit(STARTUP_FAILURE_RETURN_CODE);
 		}
 
 		String configDir = line.getOptionValue(configDirOpt.getOpt(), null);
@@ -524,8 +534,8 @@ public class TaskManager implements TaskOperationProtocol {
 		try {
 			new TaskManager(ExecutionMode.CLUSTER);
 		} catch (Exception e) {
-			LOG.error("Taskmanager startup failed: " + e.getMessage(), e);
-			System.exit(FAILURE_RETURN_CODE);
+			LOG.fatal("Taskmanager startup failed: " + e.getMessage(), e);
+			System.exit(STARTUP_FAILURE_RETURN_CODE);
 		}
 		
 		// park the main thread to keep the JVM alive (all other threads may be daemon threads)
@@ -537,63 +547,7 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 	}
 
-	/**
-	 * This method send the periodic heartbeats.
-	 */
-	private void runHeartbeatLoop() {
-		final long interval = GlobalConfiguration.getInteger(
-						ConfigConstants.TASK_MANAGER_HEARTBEAT_INTERVAL_KEY,
-						ConfigConstants.DEFAULT_TASK_MANAGER_HEARTBEAT_INTERVAL);
 
-		try {
-			while(!shutdownStarted.get()){
-				RegisterTaskManagerResult result  = this.jobManager.registerTaskManager(this
-								.localInstanceConnectionInfo,this.hardwareDescription,
-						new IntegerRecord(this.numberOfSlots));
-
-				if(result.getReturnCode() == RegisterTaskManagerResult.ReturnCode.SUCCESS){
-					break;
-				}
-
-				try{
-					Thread.sleep(50);
-				}catch(InterruptedException e){
-					if (!shutdownStarted.get()) {
-						LOG.error("TaskManager register task manager loop was interrupted without shutdown.");
-					}
-				}
-			}
-
-		} catch (IOException e) {
-			if(!shutdownStarted.get()){
-				LOG.error("Registering task manager caused an exception: " + e.getMessage(), e);
-			}
-			return;
-		}
-
-		while (!shutdownStarted.get()) {
-			// sleep until the next heart beat
-			try {
-				Thread.sleep(interval);
-			}
-			catch (InterruptedException e) {
-				if (!shutdownStarted.get()) {
-					LOG.error("TaskManager heart beat loop was interrupted without shutdown.");
-				}
-			}
-
-			// send heart beat
-			try {
-				this.jobManager.sendHeartbeat(this.localInstanceConnectionInfo);
-			} catch (IOException e) {
-				if (shutdownStarted.get()) {
-					break;
-				} else {
-					LOG.error("Sending the heart beat caused an exception: " + e.getMessage(), e);
-				}
-			}
-		}
-	}
 
 	
 	/**
@@ -979,7 +933,7 @@ public class TaskManager implements TaskOperationProtocol {
 				this.jobManager.updateTaskExecutionState(new TaskExecutionState(jobID, id, newExecutionState,
 					optionalDescription));
 			} catch (IOException e) {
-				LOG.error("Could not update task execution state.", e);
+				LOG.error(e);
 			}
 		}
 	}
@@ -1046,7 +1000,7 @@ public class TaskManager implements TaskOperationProtocol {
 				this.executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
 			} catch (InterruptedException e) {
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Got interrupted while awaiting the termination of the executor service.", e);
+					LOG.debug(e);
 				}
 			}
 		}
@@ -1065,7 +1019,6 @@ public class TaskManager implements TaskOperationProtocol {
 
 	@Override
 	public void logBufferUtilization() {
-
 		this.channelManager.logBufferUtilization();
 	}
 
@@ -1090,38 +1043,8 @@ public class TaskManager implements TaskOperationProtocol {
 		this.channelManager.invalidateLookupCacheEntries(channelIDs);
 	}
 
-	/**
-	 * Checks, whether the given strings describe existing directories that are writable. If that is not
-	 * the case, an exception is raised.
-	 * 
-	 * @param tempDirs
-	 *        An array of strings which are checked to be paths to writable directories.
-	 * @throws Exception
-	 *         Thrown, if any of the mentioned checks fails.
-	 */
-	private static final void checkTempDirs(final String[] tempDirs) throws Exception {
-
-		for (int i = 0; i < tempDirs.length; ++i) {
-
-			final String dir = tempDirs[i];
-			if (dir == null) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " is null.");
-			}
-
-			final File f = new File(dir);
-
-			if (!f.exists()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' does not exist.");
-			}
-
-			if (!f.isDirectory()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not a directory.");
-			}
-
-			if (!f.canWrite()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not writable.");
-			}
-		}
+	public void cancelAndClearEverything() {
+		LOG.info("Cancelling all computations and discarding all cached data.");
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -1136,8 +1059,152 @@ public class TaskManager implements TaskOperationProtocol {
 		return this.executionMode;
 	}
 	
+	/**
+	 * Gets the ID under which the TaskManager is currently registered at its JobManager.
+	 * If the TaskManager has not been registered, yet, or if it lost contact, this is is null.
+	 * 
+	 * @return The ID under which the TaskManager is currently registered.
+	 */
+	public InstanceID getRegisteredId() {
+		return this.registeredId;
+	}
+	
+	/**
+	 * Checks if the TaskManager is properly registered and ready to receive work.
+	 * 
+	 * @return True, if the TaskManager is registered, false otherwise.
+	 */
+	public boolean isRegistered() {
+		return this.registeredId != null;
+	}
+	
 	// --------------------------------------------------------------------------------------------
-	//  Memory and Garbace Collection Debugging Utilities
+	//  Heartbeats
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * This method registers the TaskManager at the jobManager and send periodic heartbeats.
+	 */
+	private void registerAndRunHeartbeatLoop(long interval, int maxNonSuccessfulHeatbeats) {
+
+		while (!shutdownStarted.get()) {
+			InstanceID resultId = null;
+	
+			// try to register. We try as long as we need to, because it may be that the jobmanager is  not yet online
+			{
+				final long maxDelay = 10000;	// the maximal delay between registration attempts
+				final long reportingDelay = 5000;
+				long currentDelay = 100;		// initially, wait 100 msecs for the next registration attempt
+				
+				while (!shutdownStarted.get())
+				{
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Trying to register at Jobmanager...");
+					}
+					
+					try {
+						resultId = this.jobManager.registerTaskManager(this.localInstanceConnectionInfo,
+								this.hardwareDescription, this.numberOfSlots);
+					}
+					catch (IOException e) {
+						// this may be if the job manager was not yet online
+						// if this has happened for a while, report it. if it has just happened
+						// at the very beginning, this may not mean anything (JM still in startup)
+						if (currentDelay >= reportingDelay) {
+							LOG.error("Connection to JobManager failed.", e);
+						} else if (LOG.isDebugEnabled()) {
+							LOG.debug("Could not connect to JobManager.", e);
+						}
+					}
+					
+					// check if we were accepted
+					if (resultId != null) {
+						// success
+						this.registeredId = resultId;
+						break;
+					} else {
+						// this is bad. The job manager refused us. report and try again later
+						LOG.error("Registration attempt refused by JobManager.");
+					}
+		
+					try {
+						Thread.sleep(currentDelay);
+					}
+					catch (InterruptedException e) {
+						// may be due to shutdown
+						if (!shutdownStarted.get()) {
+							LOG.error("TaskManager's registration loop was interrupted without shutdown.");
+						}
+					}
+					
+					// increase the time between registration attempts, to not keep on pinging overly frequently
+					currentDelay = Math.min(2 * currentDelay, maxDelay);
+				}
+			}
+			
+			// registration complete, or shutdown
+			int successiveUnsuccessfulHeartbeats = 0;
+			
+			// the heart beat loop
+			while (!shutdownStarted.get()) {
+				// sleep until the next heart beat
+				try {
+					Thread.sleep(interval);
+				}
+				catch (InterruptedException e) {
+					if (!shutdownStarted.get()) {
+						LOG.error("TaskManager heart beat loop was interrupted without shutdown.");
+					}
+				}
+	
+				// send heart beat
+				try {
+					boolean accepted = this.jobManager.sendHeartbeat(resultId);
+					
+					if (accepted) {
+						// reset the unsuccessful heart beats
+						successiveUnsuccessfulHeartbeats = 0;
+					} else {
+						successiveUnsuccessfulHeartbeats++;
+						LOG.error("JobManager rejected heart beat.");
+					}
+				}
+				catch (IOException e) {
+					if (!shutdownStarted.get()) {
+						successiveUnsuccessfulHeartbeats++;
+						LOG.error("Sending the heart beat failed on I/O error: " + e.getMessage(), e);
+					}
+				}
+				
+				if (successiveUnsuccessfulHeartbeats == maxNonSuccessfulHeatbeats) {
+					// we are done for, we cannot connect to the jobmanager any more
+					// or we are not welcome there any more
+					// what to do now? Wait for a while and try to reconnect
+					LOG.error("TaskManager has lost connection to JobManager.");
+					
+					// mark us as disconnected and abort all computation
+					this.registeredId = null;
+					cancelAndClearEverything();
+					
+					// wait for a while, then attempt to register again
+					try {
+						Thread.sleep(DELAY_AFTER_LOST_CONNECTION);
+					}
+					catch (InterruptedException e) {
+						if (!shutdownStarted.get()) {
+							LOG.error("TaskManager heart beat loop was interrupted without shutdown.");
+						}
+					}
+					
+					// leave the heart beat loop
+					break;
+				}
+			} // end heart beat loop
+		} // end while not shutdown
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Memory and Garbage Collection Debugging Utilities
 	// --------------------------------------------------------------------------------------------
 
 	private String getMemoryUsageStatsAsString(MemoryMXBean memoryMXBean) {
@@ -1174,5 +1241,56 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 
 		return str.toString();
+	}
+	
+	
+	// --------------------------------------------------------------------------------------------
+	// Miscellaneous Utilities
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Checks, whether the given strings describe existing directories that are writable. If that is not
+	 * the case, an exception is raised.
+	 * 
+	 * @param tempDirs An array of strings which are checked to be paths to writable directories.
+	 * @throws Exception Thrown, if any of the mentioned checks fails.
+	 */
+	private static final void checkTempDirs(final String[] tempDirs) throws Exception {
+		for (int i = 0; i < tempDirs.length; ++i) {
+			final String dir = tempDirs[i];
+			if (dir == null) {
+				throw new Exception("Temporary file directory #" + (i + 1) + " is null.");
+			}
+
+			final File f = new File(dir);
+
+			if (!f.exists()) {
+				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' does not exist.");
+			}
+
+			if (!f.isDirectory()) {
+				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not a directory.");
+			}
+
+			if (!f.canWrite()) {
+				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not writable.");
+			}
+		}
+	}
+	
+	public static class EmergencyShutdownExceptionHandler implements Thread.UncaughtExceptionHandler {
+
+		private final TaskManager tm;
+		
+		public EmergencyShutdownExceptionHandler(TaskManager tm) {
+			this.tm = tm;
+		}
+		
+		@Override
+		public void uncaughtException(Thread t, Throwable e) {
+			LOG.fatal("Thread " + t.getName() + " caused an unrecoverable exception.", e);
+			tm.shutdown();
+		}
+		
 	}
 }

@@ -183,7 +183,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Serialization
+	// Utilities
 	// --------------------------------------------------------------------------------------------
 
 	@Override
