@@ -15,6 +15,8 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
 import org.apache.flink.runtime.jobgraph.JobID;
 
@@ -25,6 +27,8 @@ public class ScheduledUnit {
 	private final ExecutionVertex2 taskVertex;
 	
 	private final ResourceId resourceId;
+	
+	private final AtomicBoolean scheduled = new AtomicBoolean(false);
 	
 	
 	public ScheduledUnit(JobID jobId, ExecutionVertex2 taskVertex) {

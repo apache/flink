@@ -56,13 +56,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * A client for an IPC service. IPC calls take a single {@link Writable} as a
- * parameter, and return a {@link Writable} as their value. A service runs on
- * a port and is defined by a parameter class and a value class.
- * 
- * @see Server
- */
+
 public class Client {
 
 	public static final Logger LOG = LoggerFactory.getLogger(Client.class);
@@ -633,9 +627,6 @@ public class Client {
 		}
 	}
 
-	/**
-	 * Construct an IPC client whose values are of the given {@link Writable} class.
-	 */
 	public Client(final SocketFactory factory) {
 		this.maxIdleTime = 1000;
 		this.maxRetries = 10;
@@ -646,9 +637,6 @@ public class Client {
 
 	/**
 	 * Construct an IPC client with the default SocketFactory
-	 * 
-	 * @param valueClass
-	 * @param conf
 	 */
 	public Client() {
 		this(NetUtils.getDefaultSocketFactory());

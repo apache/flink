@@ -67,13 +67,7 @@ import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.flink.core.protocols.VersionedProtocol;
 import org.apache.flink.util.ClassUtils;
 
-/**
- * An abstract IPC service. IPC calls take a single {@link Writable} as a
- * parameter, and return a {@link Writable} as their value. A service runs on
- * a port and is defined by a parameter class and a value class.
- * 
- * @see Client
- */
+
 public abstract class Server {
 
 	public static final Logger LOG = LoggerFactory.getLogger(Server.class);
@@ -101,12 +95,7 @@ public abstract class Server {
 		return protocol;
 	}
 
-	/**
-	 * Returns the server instance called under or null. May be called under {@link #call(Writable, long)}
-	 * implementations, and under {@link Writable} methods of paramters and return values. Permits applications to
-	 * access
-	 * the server context.
-	 */
+
 	public static Server get() {
 		return SERVER.get();
 	}
@@ -119,7 +108,7 @@ public abstract class Server {
 
 	/**
 	 * Returns the remote side ip address when invoked inside an RPC
-	 * Returns null incase of an error.
+	 * Returns null in case of an error.
 	 */
 	public static InetAddress getRemoteIp() {
 		Call call = CurCall.get();

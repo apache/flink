@@ -19,6 +19,9 @@
 
 package org.apache.flink.util;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.protocols.VersionedProtocol;
@@ -92,5 +95,34 @@ public final class ClassUtils {
 
 	private static ClassLoader getClassLoader() {
 		return ClassUtils.class.getClassLoader();
+	}
+	
+	public static Class<?> resolveClassPrimitiveAware(String className) throws ClassNotFoundException {
+		if (className == null) {
+			throw new NullPointerException();
+		}
+		
+		Class<?> primClass = PRIMITIVE_TYPES.get(className);
+		if (primClass != null) {
+			return primClass;
+		} else {
+			return Class.forName(className);
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private static final Map<String, Class<?>> PRIMITIVE_TYPES = new HashMap<String, Class<?>>(9);
+	
+	static {
+		PRIMITIVE_TYPES.put("byte", byte.class);
+		PRIMITIVE_TYPES.put("short", short.class);
+		PRIMITIVE_TYPES.put("int", int.class);
+		PRIMITIVE_TYPES.put("long", long.class);
+		PRIMITIVE_TYPES.put("float", float.class);
+		PRIMITIVE_TYPES.put("double", double.class);
+		PRIMITIVE_TYPES.put("boolean", boolean.class);
+		PRIMITIVE_TYPES.put("char", char.class);
+		PRIMITIVE_TYPES.put("void", void.class);
 	}
 }

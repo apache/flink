@@ -251,5 +251,15 @@ public class LocalInstanceManagerTest {
 
 		@Override
 		public void deploy(JobID jobID, Instance instance, List<ExecutionVertex> verticesToBeDeployed) {}
+
+		@Override
+		public boolean sendHeartbeat(InstanceID taskManagerId) {
+			return true;
+		}
+
+		@Override
+		public InstanceID registerTaskManager(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription, int numberOfSlots) {
+			return new InstanceID();
+		}
 	}
 }

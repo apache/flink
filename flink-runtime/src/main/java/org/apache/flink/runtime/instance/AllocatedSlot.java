@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.instance;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.ResourceId;
@@ -38,6 +40,9 @@ public class AllocatedSlot {
 	
 	/** The number of the slot on which the task is deployed */
 	private final int slotNumber;
+	
+	/** Flag that marks the schedule as active */
+	private final AtomicBoolean active = new AtomicBoolean(true);
 
 
 	public AllocatedSlot(JobID jobID, ResourceId resourceId, Instance instance, int slotNumber) {
@@ -72,8 +77,14 @@ public class AllocatedSlot {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public void runTask(ExecutionVertex2 vertex) {
-		
+	/**
+	 * @param vertex
+	 * 
+	 * @return True, if the task was scheduled correctly, false if the slot was asynchronously deallocated
+	 *         in the meantime.
+	 */
+	public boolean runTask(ExecutionVertex2 vertex) {
+		return true;
 	}
 	
 	public void cancelResource() {
