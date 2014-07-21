@@ -22,8 +22,8 @@ package org.apache.flink.streaming.util;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamcomponent.MockRecordWriter;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.mockito.Mockito;
 
 public class MockRecordWriterFactory {
@@ -33,7 +33,7 @@ public class MockRecordWriterFactory {
 		MockRecordWriter recWriter = mock(MockRecordWriter.class);
 		
 		Mockito.when(recWriter.initList()).thenCallRealMethod();
-		doCallRealMethod().when(recWriter).emit(Mockito.any(StreamRecord.class));
+		doCallRealMethod().when(recWriter).emit(Mockito.any(SerializationDelegate.class));
 		
 		recWriter.initList();
 		

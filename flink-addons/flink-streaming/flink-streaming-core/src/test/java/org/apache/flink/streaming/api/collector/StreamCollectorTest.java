@@ -19,27 +19,29 @@
 
 package org.apache.flink.streaming.api.collector;
 
+import static org.junit.Assert.assertArrayEquals;
+
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamcomponent.MockRecordWriter;
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.MockRecordWriterFactory;
 import org.junit.Test;
 
 public class StreamCollectorTest {
 
-
-
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testCollect() {
 		MockRecordWriter recWriter = MockRecordWriterFactory.create();
 
-		StreamCollector collector = new StreamCollector(2, null);
+		StreamCollector<Tuple1<Integer>> collector = new StreamCollector<Tuple1<Integer>>(2, new SerializationDelegate<StreamRecord<Tuple1<Integer>>>(null));
 		collector.addOutput(recWriter, null);
 		collector.collect(new Tuple1<Integer>(3));
 		collector.collect(new Tuple1<Integer>(4));
 		collector.collect(new Tuple1<Integer>(5));
 		collector.collect(new Tuple1<Integer>(6));
 
+		assertArrayEquals(new Integer[] {3, 4, 5, 6}, recWriter.emittedRecords.toArray());
 	}
 
 	@Test
