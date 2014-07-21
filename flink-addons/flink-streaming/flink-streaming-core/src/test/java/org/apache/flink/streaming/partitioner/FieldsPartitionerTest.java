@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.junit.Before;
 import org.junit.Test;
@@ -31,8 +32,14 @@ import org.junit.Test;
 public class FieldsPartitionerTest {
 
 	private FieldsPartitioner<Tuple> fieldsPartitioner;
-	private StreamRecord<Tuple> streamRecord1 = new StreamRecord<Tuple>().setTuple(new Tuple2<String, Integer>("test", 0));
-	private StreamRecord<Tuple> streamRecord2 = new StreamRecord<Tuple>().setTuple(new Tuple2<String, Integer>("test", 42));
+	private StreamRecord<Tuple> streamRecord1 = new StreamRecord<Tuple>()
+			.setTuple(new Tuple2<String, Integer>("test", 0));
+	private StreamRecord<Tuple> streamRecord2 = new StreamRecord<Tuple>()
+			.setTuple(new Tuple2<String, Integer>("test", 42));
+	private SerializationDelegate<StreamRecord<Tuple>> sd1 = new SerializationDelegate<StreamRecord<Tuple>>(
+			null);
+	private SerializationDelegate<StreamRecord<Tuple>> sd2 = new SerializationDelegate<StreamRecord<Tuple>>(
+			null);
 
 	@Before
 	public void setPartitioner() {
@@ -41,22 +48,22 @@ public class FieldsPartitionerTest {
 
 	@Test
 	public void testSelectChannelsLength() {
-		assertEquals(1,
-				fieldsPartitioner.selectChannels(streamRecord1, 1).length);
-		assertEquals(1,
-				fieldsPartitioner.selectChannels(streamRecord1, 2).length);
-		assertEquals(1,
-				fieldsPartitioner.selectChannels(streamRecord1, 1024).length);
+		sd1.setInstance(streamRecord1);
+		assertEquals(1, fieldsPartitioner.selectChannels(sd1, 1).length);
+		assertEquals(1, fieldsPartitioner.selectChannels(sd1, 2).length);
+		assertEquals(1, fieldsPartitioner.selectChannels(sd1, 1024).length);
 	}
 
 	@Test
 	public void testSelectChannelsGrouping() {
-		assertArrayEquals(fieldsPartitioner.selectChannels(streamRecord1, 1),
-				fieldsPartitioner.selectChannels(streamRecord2, 1));
-		assertArrayEquals(fieldsPartitioner.selectChannels(streamRecord1, 2),
-				fieldsPartitioner.selectChannels(streamRecord2, 2));
-		assertArrayEquals(
-				fieldsPartitioner.selectChannels(streamRecord1, 1024),
-				fieldsPartitioner.selectChannels(streamRecord2, 1024));
+		sd1.setInstance(streamRecord1);
+		sd2.setInstance(streamRecord2);
+
+		assertArrayEquals(fieldsPartitioner.selectChannels(sd1, 1),
+				fieldsPartitioner.selectChannels(sd2, 1));
+		assertArrayEquals(fieldsPartitioner.selectChannels(sd1, 2),
+				fieldsPartitioner.selectChannels(sd2, 2));
+		assertArrayEquals(fieldsPartitioner.selectChannels(sd1, 1024),
+				fieldsPartitioner.selectChannels(sd2, 1024));
 	}
 }
