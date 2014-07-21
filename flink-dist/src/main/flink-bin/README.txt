@@ -6,8 +6,9 @@ and our GitHub Account
 
    https://github.com/apache/incubator-flink
 
-If you have any questions, ask on our Mailing list
+If you have any questions, ask on our Mailing lists:
 
+   user@flink.incubator.apache.org
    dev@flink.incubator.apache.org
 
 This distribution includes cryptographic software.  The country in 
