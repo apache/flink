@@ -19,18 +19,13 @@
 
 package org.apache.flink.streaming.api;
 
-import java.util.HashSet;
-import java.util.Set;
-
-import org.apache.flink.streaming.api.LocalStreamEnvironment;
-import org.apache.flink.streaming.api.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.LogUtils;
-import org.junit.Test;
 import org.apache.flink.api.java.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.util.LogUtils;
 import org.apache.flink.util.Collector;
 import org.apache.log4j.Level;
+import org.junit.Test;
 
 public class PrintTest {
 
@@ -83,11 +78,11 @@ public class PrintTest {
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		env.generateSequence(1, 10).print();
-		Set<Integer> a = new HashSet<Integer>();
-		a.add(-2);
-		a.add(-100);
-		env.fromCollection(a).print();
-		env.executeTest(MEMORYSIZE);
+		env.execute();
+
 	}
 
+	
+
+	
 }

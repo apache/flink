@@ -26,6 +26,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.invokable.DefaultSourceInvokable;
 import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -34,14 +35,14 @@ public class StreamSource<OUT extends Tuple> extends AbstractStreamComponent<Tup
 
 	private static final Log LOG = LogFactory.getLog(StreamSource.class);
 
-	private List<RecordWriter<StreamRecord<OUT>>> outputs;
+	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
 	private UserSourceInvokable<OUT> userFunction;
 	private static int numSources;
 	private int[] numberOfOutputChannels;
 
 	public StreamSource() {
 
-		outputs = new LinkedList<RecordWriter<StreamRecord<OUT>>>();
+		outputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
 		userFunction = null;
 		numSources = newComponent();
 		instanceID = numSources;
@@ -83,7 +84,7 @@ public class StreamSource<OUT extends Tuple> extends AbstractStreamComponent<Tup
 			LOG.debug("SOURCE " + name + " invoked with instance id " + instanceID);
 		}
 
-		for (RecordWriter<StreamRecord<OUT>> output : outputs) {
+		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
 			output.initializeSerializers();
 		}
 
@@ -93,7 +94,7 @@ public class StreamSource<OUT extends Tuple> extends AbstractStreamComponent<Tup
 			LOG.debug("SOURCE " + name + " invoke finished with instance id " + instanceID);
 		}
 
-		for (RecordWriter<StreamRecord<OUT>> output : outputs) {
+		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
 			output.flush();
 		}
 	}

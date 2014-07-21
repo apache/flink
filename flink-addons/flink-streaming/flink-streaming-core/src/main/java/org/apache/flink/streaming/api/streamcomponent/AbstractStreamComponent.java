@@ -28,6 +28,7 @@ import org.apache.commons.lang.SerializationUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.FilterFunction;
 import org.apache.flink.api.java.functions.FlatMapFunction;
 import org.apache.flink.api.java.functions.GroupReduceFunction;
@@ -35,12 +36,14 @@ import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
+import org.apache.flink.runtime.io.network.api.MutableUnionRecordReader;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.collector.DirectedStreamCollector;
@@ -48,24 +51,25 @@ import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.collector.StreamCollector;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
-import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
 import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.MutableObjectIterator;
 
 public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tuple> extends
 		AbstractInvokable {
 	private static final Log LOG = LogFactory.getLog(AbstractStreamComponent.class);
 
 	protected TupleTypeInfo<IN> inTupleTypeInfo = null;
-	protected TupleSerializer<IN> inTupleSerializer = null;
-	protected DeserializationDelegate<IN> inDeserializationDelegate = null;
+	protected StreamRecordSerializer<IN> inTupleSerializer = null;
+	protected DeserializationDelegate<StreamRecord<IN>> inDeserializationDelegate = null;
 
 	protected TupleTypeInfo<OUT> outTupleTypeInfo = null;
-	protected TupleSerializer<OUT> outTupleSerializer = null;
-	protected SerializationDelegate<OUT> outSerializationDelegate = null;
+	protected StreamRecordSerializer<OUT> outTupleSerializer = null;
+	protected SerializationDelegate<StreamRecord<OUT>> outSerializationDelegate = null;
 
 	protected Configuration configuration;
 	protected StreamCollector<OUT> collector;
@@ -126,16 +130,18 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 			} else if (operatorName.equals("elements")) {
 				outTupleTypeInfo = new TupleTypeInfo<OUT>(TypeExtractor.getForObject(function));
 
-				outTupleSerializer = outTupleTypeInfo.createSerializer();
-				outSerializationDelegate = new SerializationDelegate<OUT>(outTupleSerializer);
+				outTupleSerializer = new StreamRecordSerializer<OUT>(outTupleTypeInfo.createSerializer());
+				outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(
+						outTupleSerializer);
 			} else {
 				throw new Exception("Wrong operator name!");
 			}
 
 		} catch (Exception e) {
 			throw new StreamComponentException(e);
-//			throw new StreamComponentException("Nonsupported object (named " + operatorName
-//					+ ") passed as operator");
+			// throw new StreamComponentException("Nonsupported object (named "
+			// + operatorName
+			// + ") passed as operator");
 		}
 	}
 
@@ -149,8 +155,8 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 		inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(clazz, function.getClass(),
 				0, null, null);
 
-		inTupleSerializer = inTupleTypeInfo.createSerializer();
-		inDeserializationDelegate = new DeserializationDelegate<IN>(inTupleSerializer);
+		inTupleSerializer = new StreamRecordSerializer(inTupleTypeInfo.createSerializer());
+		inDeserializationDelegate = new DeserializationDelegate<StreamRecord<IN>>(inTupleSerializer);
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -158,8 +164,8 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 		outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(clazz, function.getClass(),
 				typeParameter, null, null);
 
-		outTupleSerializer = outTupleTypeInfo.createSerializer();
-		outSerializationDelegate = new SerializationDelegate<OUT>(outTupleSerializer);
+		outTupleSerializer = new StreamRecordSerializer(outTupleTypeInfo.createSerializer());
+		outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(outTupleSerializer);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -167,32 +173,42 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 		if (outSerializationDelegate != null) {
 			inTupleTypeInfo = (TupleTypeInfo<IN>) outTupleTypeInfo;
 
-			inTupleSerializer = inTupleTypeInfo.createSerializer();
-			inDeserializationDelegate = new DeserializationDelegate<IN>(inTupleSerializer);
+			inTupleSerializer = new StreamRecordSerializer<IN>(inTupleTypeInfo.createSerializer());
+			inDeserializationDelegate = new DeserializationDelegate<StreamRecord<IN>>(inTupleSerializer);
 		}
 	}
 
 	@SuppressWarnings("unchecked")
-	protected AbstractRecordReader getConfigInputs() throws StreamComponentException {
+	protected MutableReader<IOReadableWritable> getConfigInputs() throws StreamComponentException {
 		int numberOfInputs = configuration.getInteger("numberOfInputs", 0);
 
 		if (numberOfInputs < 2) {
 
-			return new StreamRecordReader<IN>(this, StreamRecord.class, inDeserializationDelegate,
-					inTupleSerializer);
+			return new MutableRecordReader<IOReadableWritable>(this);
 
 		} else {
-			MutableRecordReader<StreamRecord<IN>>[] recordReaders = (MutableRecordReader<StreamRecord<IN>>[]) new MutableRecordReader<?>[numberOfInputs];
+			MutableRecordReader<IOReadableWritable>[] recordReaders = (MutableRecordReader<IOReadableWritable>[]) new MutableRecordReader<?>[numberOfInputs];
 
 			for (int i = 0; i < numberOfInputs; i++) {
-				recordReaders[i] = new MutableRecordReader<StreamRecord<IN>>(this);
+				recordReaders[i] = new MutableRecordReader<IOReadableWritable>(this);
 			}
-			return new UnionStreamRecordReader<IN>(recordReaders, StreamRecord.class,
-					inDeserializationDelegate, inTupleSerializer);
+			return new MutableUnionRecordReader<IOReadableWritable>(recordReaders);
 		}
 	}
 
-	protected void setConfigOutputs(List<RecordWriter<StreamRecord<OUT>>> outputs) {
+	protected MutableObjectIterator<StreamRecord<IN>> createInputIterator(MutableReader<?> inputReader,
+			TypeSerializer<?> serializer) {
+
+		// generic data type serialization
+		@SuppressWarnings("unchecked")
+		MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		final MutableObjectIterator<StreamRecord<IN>> iter = new ReaderIterator(reader, serializer);
+		return iter;
+
+	}
+
+	protected void setConfigOutputs(List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs) {
 
 		int numberOfOutputs = configuration.getInteger("numberOfOutputs", 0);
 
@@ -201,7 +217,8 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 		}
 	}
 
-	private void setPartitioner(int outputNumber, List<RecordWriter<StreamRecord<OUT>>> outputs) {
+	private void setPartitioner(int outputNumber,
+			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs) {
 
 		byte[] serializedPartitioner = configuration.getBytes("partitionerObject_" + outputNumber,
 				SerializationUtils.serialize((new ShufflePartitioner<OUT>())));
@@ -210,8 +227,8 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 		try {
 			outputPartitioner = deserializeObject(serializedPartitioner);
 
-			RecordWriter<StreamRecord<OUT>> output = new RecordWriter<StreamRecord<OUT>>(this,
-					outputPartitioner);
+			RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(
+					this, outputPartitioner);
 			outputs.add(output);
 			String outputName = configuration.getString("outputName_" + outputNumber, null);
 
@@ -227,26 +244,6 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 			throw new StreamComponentException("Cannot deserialize partitioner "
 					+ outputPartitioner.getClass().getSimpleName() + " with " + outputNumber
 					+ " outputs");
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	protected void invokeRecords(StreamRecordInvokable<IN, OUT> userFunction,
-			AbstractRecordReader inputs) throws Exception {
-		if (inputs instanceof UnionStreamRecordReader) {
-			UnionStreamRecordReader<IN> recordReader = (UnionStreamRecordReader<IN>) inputs;
-			while (recordReader.hasNext()) {
-				StreamRecord<IN> record = recordReader.next();
-				userFunction.invoke(record, collector);
-			}
-
-		} else if (inputs instanceof StreamRecordReader) {
-			StreamRecordReader<IN> recordReader = (StreamRecordReader<IN>) inputs;
-
-			while (recordReader.hasNext()) {
-				StreamRecord<IN> record = recordReader.next();
-				userFunction.invoke(record, collector);
-			}
 		}
 	}
 

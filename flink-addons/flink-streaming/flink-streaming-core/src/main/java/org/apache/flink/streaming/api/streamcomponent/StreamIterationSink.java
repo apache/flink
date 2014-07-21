@@ -25,15 +25,18 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
+import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.StringUtils;
 
 public class StreamIterationSink<IN extends Tuple> extends AbstractStreamComponent<IN, IN> {
 
 	private static final Log LOG = LogFactory.getLog(StreamIterationSink.class);
 
-	private AbstractRecordReader inputs;
+	@SuppressWarnings("rawtypes")
+	private MutableReader inputs;
+	MutableObjectIterator<StreamRecord<IN>> inputIter;
 	private String iterationId;
 	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;
@@ -49,6 +52,7 @@ public class StreamIterationSink<IN extends Tuple> extends AbstractStreamCompone
 			setSerializers();
 			setSinkSerializer();
 			inputs = getConfigInputs();
+			inputIter = createInputIterator(inputs, inTupleSerializer);
 			iterationId = configuration.getString("iteration-id", "iteration-0");
 			dataChannel = BlockingQueueBroker.instance().get(iterationId);
 		} catch (Exception e) {
@@ -63,29 +67,19 @@ public class StreamIterationSink<IN extends Tuple> extends AbstractStreamCompone
 			LOG.debug("SINK " + name + " invoked");
 		}
 
-		forwardRecords(inputs);
+		forwardRecords();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("SINK " + name + " invoke finished");
 		}
 	}
 
-	@SuppressWarnings("unchecked")
-	protected void forwardRecords(AbstractRecordReader inputs) throws Exception {
-		if (inputs instanceof UnionStreamRecordReader) {
-			UnionStreamRecordReader<IN> recordReader = (UnionStreamRecordReader<IN>) inputs;
-			while (recordReader.hasNext()) {
-				StreamRecord<IN> record = recordReader.next();
-				pushToQueue(record);
-			}
-
-		} else if (inputs instanceof StreamRecordReader) {
-			StreamRecordReader<IN> recordReader = (StreamRecordReader<IN>) inputs;
-
-			while (recordReader.hasNext()) {
-				StreamRecord<IN> record = recordReader.next();
-				pushToQueue(record);
-			}
+	protected void forwardRecords() throws Exception {
+		StreamRecord<IN> reuse = inTupleSerializer.createInstance().setId(0);
+		while ((reuse = inputIter.next(reuse)) != null) {
+			pushToQueue(reuse);
+			// TODO: Fix object reuse for iteration
+			reuse = inTupleSerializer.createInstance().setId(0);
 		}
 	}
 

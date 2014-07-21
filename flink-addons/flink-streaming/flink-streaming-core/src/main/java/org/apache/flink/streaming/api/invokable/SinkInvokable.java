@@ -19,10 +19,8 @@
 
 package org.apache.flink.streaming.api.invokable;
 
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.util.Collector;
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
 
 public class SinkInvokable<IN extends Tuple> extends UserSinkInvokable<IN> {
 	private static final long serialVersionUID = 1L;
@@ -32,10 +30,11 @@ public class SinkInvokable<IN extends Tuple> extends UserSinkInvokable<IN> {
 	public SinkInvokable(SinkFunction<IN> sinkFunction) {
 		this.sinkFunction = sinkFunction;
 	}
-	
+
 	@Override
-	public void invoke(StreamRecord<IN> record, Collector<IN> collector) throws Exception {
-		IN tuple = record.getTuple();
-		sinkFunction.invoke(tuple);
+	public void invoke() throws Exception {
+		while ((reuse = recordIterator.next(reuse)) != null) {
+			sinkFunction.invoke((IN) reuse.getTuple());
+		}		
 	}
 }

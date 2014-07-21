@@ -20,11 +20,12 @@
 package org.apache.flink.streaming.partitioner;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 /**
- * Partitioner that selects the same (one) channel for two Tuples having a specified
- * fields equal.
+ * Partitioner that selects the same (one) channel for two Tuples having a
+ * specified fields equal.
  * 
  * @param <T>
  *            Type of the Tuple
@@ -41,8 +42,9 @@ public class FieldsPartitioner<T extends Tuple> implements StreamPartitioner<T> 
 	}
 
 	@Override
-	public int[] selectChannels(StreamRecord<T> record, int numberOfOutputChannels) {
-		returnArray[0] = Math.abs(record.getTuple().getField(keyPosition).hashCode())
+	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
+			int numberOfOutputChannels) {
+		returnArray[0] = Math.abs(record.getInstance().getTuple().getField(keyPosition).hashCode())
 				% numberOfOutputChannels;
 		return returnArray;
 	}

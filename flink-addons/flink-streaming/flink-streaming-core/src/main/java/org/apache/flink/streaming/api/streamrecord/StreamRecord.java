@@ -19,43 +19,25 @@
 
 package org.apache.flink.streaming.api.streamrecord;
 
-import java.io.IOException;
 import java.io.Serializable;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 
 /**
  * Object for wrapping a tuple with ID used for sending records between
  * streaming task in Apache Flink stream processing.
  */
-public class StreamRecord<T extends Tuple> implements IOReadableWritable, Serializable {
+public class StreamRecord<T extends Tuple> implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	protected UID uid;
 	private T tuple;
 
-	protected SerializationDelegate<T> serializationDelegate;
-	protected DeserializationDelegate<T> deserializationDelegate;
 	protected TupleSerializer<T> tupleSerializer;
 
 	public StreamRecord() {
 
-	}
-
-	public void setSeralizationDelegate(SerializationDelegate<T> serializationDelegate) {
-		this.serializationDelegate = serializationDelegate;
-	}
-
-	public void setDeseralizationDelegate(DeserializationDelegate<T> deserializationDelegate,
-			TupleSerializer<T> tupleSerializer) {
-		this.deserializationDelegate = deserializationDelegate;
-		this.tupleSerializer = tupleSerializer;
 	}
 
 	/**
@@ -95,22 +77,6 @@ public class StreamRecord<T extends Tuple> implements IOReadableWritable, Serial
 	public StreamRecord<T> setTuple(T tuple) {
 		this.tuple = tuple;
 		return this;
-	}
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-		uid = new UID();
-		uid.read(in);
-		deserializationDelegate.setInstance(tupleSerializer.createInstance());
-		deserializationDelegate.read(in);
-		tuple = deserializationDelegate.getInstance();
-	}
-
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		uid.write(out);
-		serializationDelegate.setInstance(tuple);
-		serializationDelegate.write(out);
 	}
 
 	@Override

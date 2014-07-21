@@ -19,11 +19,9 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.api.java.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.util.Collector;
+import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 
 public class FlatMapInvokable<IN extends Tuple, OUT extends Tuple> extends
 		UserTaskInvokable<IN, OUT> {
@@ -35,9 +33,9 @@ public class FlatMapInvokable<IN extends Tuple, OUT extends Tuple> extends
 		this.flatMapper = flatMapper;
 	}
 
-	@Override
-	public void invoke(StreamRecord<IN> record, Collector<OUT> collector) throws Exception {
-		IN tuple = record.getTuple();
-		flatMapper.flatMap(tuple, collector);
+	public void invoke() throws Exception {
+		while ((reuse = recordIterator.next(reuse)) != null) {
+			flatMapper.flatMap(reuse.getTuple(), collector);
+		}
 	}
 }
