@@ -50,9 +50,8 @@ public final class StreamRecordSerializer<T extends Tuple> extends TypeSerialize
 	public StreamRecord<T> createInstance() {
 		try {
 			@SuppressWarnings("unchecked")
-			StreamRecord<T> t = StreamRecord.class.newInstance().setId(0);
+			StreamRecord<T> t = StreamRecord.class.newInstance();
 			t.setTuple(tupleSerializer.createInstance());
-
 			return t;
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot instantiate StreamRecord.", e);
