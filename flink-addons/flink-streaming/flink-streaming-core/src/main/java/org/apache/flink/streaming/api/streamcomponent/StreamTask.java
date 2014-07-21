@@ -25,26 +25,31 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.invokable.DefaultTaskInvokable;
 import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.util.MutableObjectIterator;
 
-public class StreamTask<IN extends Tuple, OUT extends Tuple> extends AbstractStreamComponent<IN, OUT> {
+public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
+		AbstractStreamComponent<IN, OUT> {
 
 	private static final Log LOG = LogFactory.getLog(StreamTask.class);
 
-	private AbstractRecordReader inputs;
-	private List<RecordWriter<StreamRecord<OUT>>> outputs;
+	private MutableReader<IOReadableWritable> inputs;
+	MutableObjectIterator<StreamRecord<IN>> inputIter;
+	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
 	private StreamRecordInvokable<IN, OUT> userFunction;
 	private int[] numberOfOutputChannels;
 	private static int numTasks;
 
 	public StreamTask() {
-		
-		outputs = new LinkedList<RecordWriter<StreamRecord<OUT>>>();
+
+		outputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
 		userFunction = null;
 		numTasks = newComponent();
 		instanceID = numTasks;
@@ -54,15 +59,12 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends AbstractStr
 	public void registerInputOutput() {
 		initialize();
 
-//		try {
-			setSerializers();
-			setCollector();
-			inputs = getConfigInputs();
-			setConfigOutputs(outputs);
-//		} catch (StreamComponentException e) {
-//			throw new StreamComponentException("Cannot register inputs/outputs for "
-//					+ getClass().getSimpleName(), e);
-//		}
+		setSerializers();
+		setCollector();
+		inputs = getConfigInputs();
+		setConfigOutputs(outputs);
+
+		inputIter = createInputIterator(inputs, inTupleSerializer);
 
 		numberOfOutputChannels = new int[outputs.size()];
 		for (int i = 0; i < numberOfOutputChannels.length; i++) {
@@ -79,6 +81,7 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends AbstractStr
 		Class<? extends UserTaskInvokable> userFunctionClass = configuration.getClass(
 				"userfunction", DefaultTaskInvokable.class, UserTaskInvokable.class);
 		userFunction = (UserTaskInvokable<IN, OUT>) getInvokable(userFunctionClass);
+		userFunction.initialize(collector, inputIter, inTupleSerializer);
 	}
 
 	@Override
@@ -87,17 +90,17 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends AbstractStr
 			LOG.debug("TASK " + name + " invoked with instance id " + instanceID);
 		}
 
-		for (RecordWriter<StreamRecord<OUT>> output : outputs) {
+		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
 			output.initializeSerializers();
 		}
 
-		invokeRecords(userFunction, inputs);
+		userFunction.invoke();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("TASK " + name + " invoke finished with instance id " + instanceID);
 		}
-		
-		for (RecordWriter<StreamRecord<OUT>> output : outputs){
+
+		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
 			output.flush();
 		}
 	}

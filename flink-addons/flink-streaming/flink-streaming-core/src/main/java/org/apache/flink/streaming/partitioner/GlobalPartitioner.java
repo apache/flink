@@ -20,6 +20,7 @@
 package org.apache.flink.streaming.partitioner;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 //Group to the partitioner with the lowest id
@@ -33,7 +34,8 @@ public class GlobalPartitioner<T extends Tuple> implements StreamPartitioner<T> 
 	}
 
 	@Override
-	public int[] selectChannels(StreamRecord<T> record, int numberOfOutputChannels) {
+	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
+			int numberOfOutputChannels) {
 		return returnArray;
 	}
 }

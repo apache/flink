@@ -47,8 +47,9 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 
 	protected StreamRecord<T> streamRecord;
 	protected int channelID;
-	private List<RecordWriter<StreamRecord<T>>> outputs;
-	protected Map<String, List<RecordWriter<StreamRecord<T>>>> outputMap;
+	private List<RecordWriter<SerializationDelegate<StreamRecord<T>>>> outputs;
+	protected Map<String, List<RecordWriter<SerializationDelegate<StreamRecord<T>>>>> outputMap;
+	protected SerializationDelegate<StreamRecord<T>> serializationDelegate;
 
 	/**
 	 * Creates a new StreamCollector
@@ -58,13 +59,13 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 	 * @param serializationDelegate
 	 *            Serialization delegate used for tuple serialization
 	 */
-	public StreamCollector(int channelID, SerializationDelegate<T> serializationDelegate) {
+	public StreamCollector(int channelID, SerializationDelegate<StreamRecord<T>> serializationDelegate) {
 
+		this.serializationDelegate = serializationDelegate;
 		this.streamRecord = new StreamRecord<T>();
-		this.streamRecord.setSeralizationDelegate(serializationDelegate);
 		this.channelID = channelID;
-		this.outputs = new ArrayList<RecordWriter<StreamRecord<T>>>();
-		this.outputMap = new HashMap<String, List<RecordWriter<StreamRecord<T>>>>();
+		this.outputs = new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<T>>>>();
+		this.outputMap = new HashMap<String, List<RecordWriter<SerializationDelegate<StreamRecord<T>>>>>();
 	}
 
 	/**
@@ -75,13 +76,15 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 	 * @param outputName
 	 *            User defined name of the output.
 	 */
-	public void addOutput(RecordWriter<StreamRecord<T>> output, String outputName) {
+	public void addOutput(RecordWriter<SerializationDelegate<StreamRecord<T>>> output,
+			String outputName) {
 		outputs.add(output);
 		if (outputName != null) {
 			if (outputMap.containsKey(outputName)) {
 				outputMap.get(outputName).add(output);
 			} else {
-				outputMap.put(outputName,new ArrayList<RecordWriter<StreamRecord<T>>>());
+				outputMap.put(outputName,
+						new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<T>>>>());
 				outputMap.get(outputName).add(output);
 			}
 
@@ -109,9 +112,10 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 	 */
 	private void emit(StreamRecord<T> streamRecord) {
 		streamRecord.setId(channelID);
-		for (RecordWriter<StreamRecord<T>> output : outputs) {
+		serializationDelegate.setInstance(streamRecord);
+		for (RecordWriter<SerializationDelegate<StreamRecord<T>>> output : outputs) {
 			try {
-				output.emit(streamRecord);
+				output.emit(serializationDelegate);
 			} catch (Exception e) {
 				if (LOG.isErrorEnabled()) {
 					LOG.error(String.format("Emit failed due to: %s",

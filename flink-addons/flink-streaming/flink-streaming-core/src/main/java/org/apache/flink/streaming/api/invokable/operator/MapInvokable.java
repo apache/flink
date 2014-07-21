@@ -19,11 +19,9 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.util.Collector;
+import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 
 public class MapInvokable<IN extends Tuple, OUT extends Tuple> extends UserTaskInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
@@ -35,8 +33,9 @@ public class MapInvokable<IN extends Tuple, OUT extends Tuple> extends UserTaskI
 	}
 
 	@Override
-	public void invoke(StreamRecord<IN> record, Collector<OUT> collector) throws Exception {
-		IN tuple = record.getTuple();
-		collector.collect(mapper.map(tuple));
+	public void invoke() throws Exception {
+		while ((reuse = recordIterator.next(reuse)) != null) {
+			collector.collect(mapper.map(reuse.getTuple()));
+		}
 	}
 }

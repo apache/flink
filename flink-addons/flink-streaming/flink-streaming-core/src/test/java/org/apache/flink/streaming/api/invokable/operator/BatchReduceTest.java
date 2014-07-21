@@ -57,8 +57,9 @@ public class BatchReduceTest {
 				sum += values.next().f0;
 				count++;
 			}
-
-			out.collect(new Tuple1<Double>(sum / count));
+			if(count>0){
+				out.collect(new Tuple1<Double>(sum / count));
+			}
 		}
 	}
 

@@ -51,7 +51,8 @@ public class DirectedStreamCollector<T extends Tuple> extends StreamCollector<T>
 	 * @param outputSelector
 	 *            User defined {@link OutputSelector}
 	 */
-	public DirectedStreamCollector(int channelID, SerializationDelegate<T> serializationDelegate,
+	public DirectedStreamCollector(int channelID,
+			SerializationDelegate<StreamRecord<T>> serializationDelegate,
 			OutputSelector<T> outputSelector) {
 		super(channelID, serializationDelegate);
 		this.outputSelector = outputSelector;
@@ -81,10 +82,12 @@ public class DirectedStreamCollector<T extends Tuple> extends StreamCollector<T>
 	private void emit(StreamRecord<T> streamRecord) {
 		Collection<String> outputNames = outputSelector.getOutputs(streamRecord.getTuple());
 		streamRecord.setId(channelID);
+		serializationDelegate.setInstance(streamRecord);
 		for (String outputName : outputNames) {
 			try {
-				for (RecordWriter<StreamRecord<T>> output : outputMap.get(outputName)) {
-					output.emit(streamRecord);
+				for (RecordWriter<SerializationDelegate<StreamRecord<T>>> output : outputMap
+						.get(outputName)) {
+					output.emit(serializationDelegate);
 				}
 			} catch (Exception e) {
 				if (log.isErrorEnabled()) {

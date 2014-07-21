@@ -19,19 +19,16 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.IOException;
+import java.util.Iterator;
 
 import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.util.Collector;
 
 public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
 		UserTaskInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
-	private List<IN> tupleBatch;
 	private int counter;
 	private int batchSize;
 
@@ -39,20 +36,53 @@ public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
 
 	public BatchReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, int batchSize) {
 		this.reducer = reduceFunction;
-		this.tupleBatch = new ArrayList<IN>();
 		this.counter = 0;
 		this.batchSize = batchSize;
 	}
 
 	@Override
-	public void invoke(StreamRecord<IN> record, Collector<OUT> collector) throws Exception {
+	public void invoke() throws Exception {
+		MyIterator it = new MyIterator();
+		do {
+			reducer.reduce(it, collector);
+			it.reset();
+		} while (reuse != null);
+	}
 
-		tupleBatch.add(record.getTuple());
-		counter++;
-		if (counter >= batchSize) {
+	public class MyIterator implements Iterator<IN> {
+
+		public MyIterator() {
+			reset();
+		}
+
+		@Override
+		public boolean hasNext() {
+
+			if (counter >= batchSize) {
+				return false;
+			} else {
+				try {
+					reuse = recordIterator.next(reuse);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				return (reuse != null);
+			}
+		}
+
+		@Override
+		public IN next() {
+			counter++;
+			return reuse.getTuple();
+		}
+
+		public void reset() {
 			counter = 0;
-			reducer.reduce(tupleBatch.iterator(), collector);
-			tupleBatch.clear();
+		}
+
+		@Override
+		public void remove() {
+
 		}
 
 	}

@@ -19,14 +19,11 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.api.java.functions.FilterFunction;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.util.Collector;
+import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 
-public class FilterInvokable<IN extends Tuple> extends
-		UserTaskInvokable<IN, IN> {
+public class FilterInvokable<IN extends Tuple> extends UserTaskInvokable<IN, IN> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -37,11 +34,11 @@ public class FilterInvokable<IN extends Tuple> extends
 	}
 
 	@Override
-	public void invoke(StreamRecord<IN> record, Collector<IN> collector)
-			throws Exception {
-		IN tuple = record.getTuple();
-		if (filterFunction.filter(tuple)) {
-			collector.collect(tuple);
+	public void invoke() throws Exception {
+		while ((reuse = recordIterator.next(reuse)) != null) {
+			if (filterFunction.filter(reuse.getTuple())) {
+				collector.collect(reuse.getTuple());
+			}
 		}
 	}
 }

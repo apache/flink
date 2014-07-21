@@ -21,18 +21,21 @@ package org.apache.flink.streaming.api.streamcomponent;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.streaming.api.invokable.DefaultSinkInvokable;
 import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
 import org.apache.flink.streaming.api.invokable.UserSinkInvokable;
-
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.util.MutableObjectIterator;
 
 public class StreamSink<IN extends Tuple> extends AbstractStreamComponent<IN, IN> {
 
 	private static final Log LOG = LogFactory.getLog(StreamSink.class);
 
-	private AbstractRecordReader inputs;
+	@SuppressWarnings("rawtypes")
+	private MutableReader inputs;
+	private MutableObjectIterator<StreamRecord<IN>> inputIter;
 	private StreamRecordInvokable<IN, IN> userFunction;
 
 	public StreamSink() {
@@ -47,6 +50,7 @@ public class StreamSink<IN extends Tuple> extends AbstractStreamComponent<IN, IN
 			setSerializers();
 			setSinkSerializer();
 			inputs = getConfigInputs();
+			inputIter = createInputIterator(inputs, inTupleSerializer);
 		} catch (Exception e) {
 			throw new StreamComponentException("Cannot register inputs for "
 					+ getClass().getSimpleName(), e);
@@ -61,6 +65,7 @@ public class StreamSink<IN extends Tuple> extends AbstractStreamComponent<IN, IN
 		Class<? extends UserSinkInvokable> userFunctionClass = configuration.getClass(
 				"userfunction", DefaultSinkInvokable.class, UserSinkInvokable.class);
 		userFunction = (UserSinkInvokable<IN>) getInvokable(userFunctionClass);
+		userFunction.initialize(collector, inputIter, inTupleSerializer);
 	}
 
 	@Override
@@ -69,7 +74,7 @@ public class StreamSink<IN extends Tuple> extends AbstractStreamComponent<IN, IN
 			LOG.debug("SINK " + name + " invoked");
 		}
 
-		invokeRecords(userFunction, inputs);
+		userFunction.invoke();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("SINK " + name + " invoke finished");

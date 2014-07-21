@@ -19,16 +19,28 @@
 
 package org.apache.flink.streaming.api.invokable;
 
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.MutableObjectIterator;
 
 public abstract class StreamRecordInvokable<IN extends Tuple, OUT extends Tuple> extends
 		StreamComponentInvokable {
 
 	private static final long serialVersionUID = 1L;
 
-	public abstract void invoke(StreamRecord<IN> record, Collector<OUT> collector)
-			throws Exception;
+	protected Collector<OUT> collector;
+	protected MutableObjectIterator<StreamRecord<IN>> recordIterator;
+	protected StreamRecord<IN> reuse;
+
+	public void initialize(Collector<OUT> collector,
+			MutableObjectIterator<StreamRecord<IN>> recordIterator,
+			StreamRecordSerializer<IN> serializer) {
+		this.collector = collector;
+		this.recordIterator = recordIterator;
+		this.reuse = serializer.createInstance();
+	}
+
+	public abstract void invoke() throws Exception;
 }
