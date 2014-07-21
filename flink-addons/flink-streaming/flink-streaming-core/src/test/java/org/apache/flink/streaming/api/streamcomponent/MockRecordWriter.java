@@ -22,26 +22,26 @@ package org.apache.flink.streaming.api.streamcomponent;
 import java.util.ArrayList;
 
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.runtime.operators.DataSourceTask;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 
-public class MockRecordWriter extends RecordWriter<StreamRecord<Tuple1<Integer>>> {
+public class MockRecordWriter extends RecordWriter<SerializationDelegate<StreamRecord<Tuple1<Integer>>>> {
 
-	public ArrayList<StreamRecord<Tuple1<Integer>>> emittedRecords;
+	public ArrayList<Integer> emittedRecords;
 
 	public MockRecordWriter(DataSourceTask<?> inputBase, Class<StreamRecord<Tuple1<Integer>>> outputClass) {
 		super(inputBase);
 	}
 
 	public boolean initList() {
-		emittedRecords = new ArrayList<StreamRecord<Tuple1<Integer>>>();
+		emittedRecords = new ArrayList<Integer>();
 		return true;
 	}
 	
 	@Override
-	public void emit(StreamRecord<Tuple1<Integer>> record) {
-		emittedRecords.add(record);
+	public void emit(SerializationDelegate<StreamRecord<Tuple1<Integer>>> record) {
+		emittedRecords.add(record.getInstance().getTuple().f0);
 	}
 }
