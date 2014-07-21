@@ -34,8 +34,15 @@ public class FlatMapInvokable<IN extends Tuple, OUT extends Tuple> extends
 	}
 
 	public void invoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
-			flatMapper.flatMap(reuse.getTuple(), collector);
+		if (this.isMutable) {
+			while (recordIterator.next(reuse) != null) {
+				flatMapper.flatMap(reuse.getTuple(), collector);
+			}
+		} else {
+			while (recordIterator.next(reuse) != null) {
+				flatMapper.flatMap(reuse.getTuple(), collector);
+				resetReuse();
+			}
 		}
 	}
 }

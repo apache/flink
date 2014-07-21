@@ -129,6 +129,11 @@ public class DataStream<T extends Tuple> {
 	public String getId() {
 		return id;
 	}
+	
+	public DataStream<T> setMutability(boolean isMutable){
+		environment.setMutability(this,isMutable);
+		return this;
+	}
 
 	/**
 	 * Sets the degree of parallelism for this operator. The degree must be 1 or
@@ -590,6 +595,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsCsv(String path, int batchSize, T endTuple) {
+		setMutability(false);
 		environment.writeAsCsv(this, path, new WriteFormatAsCsv<T>(), batchSize, endTuple);
 		return new DataStream<T>(this);
 	}

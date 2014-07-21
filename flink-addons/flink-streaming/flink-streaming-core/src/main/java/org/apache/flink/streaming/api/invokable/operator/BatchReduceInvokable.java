@@ -43,10 +43,18 @@ public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
 	@Override
 	public void invoke() throws Exception {
 		MyIterator it = new MyIterator();
-		do {
-			reducer.reduce(it, collector);
-			it.reset();
-		} while (reuse != null);
+		if (this.isMutable) {
+			do {
+				reducer.reduce(it, collector);
+				it.reset();
+			} while (reuse != null);
+		} else {
+			do {
+				reducer.reduce(it, collector);
+				it.reset();
+			} while (reuse != null);
+		}
+
 	}
 
 	public class MyIterator implements Iterator<IN> {
@@ -62,6 +70,7 @@ public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
 				return false;
 			} else {
 				try {
+					resetReuse();
 					reuse = recordIterator.next(reuse);
 				} catch (IOException e) {
 					e.printStackTrace();

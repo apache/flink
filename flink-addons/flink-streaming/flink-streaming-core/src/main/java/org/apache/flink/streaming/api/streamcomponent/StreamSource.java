@@ -27,7 +27,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.invokable.DefaultSourceInvokable;
 import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
@@ -74,7 +73,7 @@ public class StreamSource<OUT extends Tuple> extends AbstractStreamComponent<Tup
 	protected void setInvokable() {
 		// Default value is a TaskInvokable even if it was called from a source
 		Class<? extends UserSourceInvokable> userFunctionClass = configuration.getClass(
-				"userfunction", DefaultSourceInvokable.class, UserSourceInvokable.class);
+				"userfunction", UserSourceInvokable.class, UserSourceInvokable.class);
 		userFunction = (UserSourceInvokable<OUT>) getInvokable(userFunctionClass);
 	}
 

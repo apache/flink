@@ -43,8 +43,8 @@ import org.apache.flink.runtime.jobgraph.JobTaskVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.collector.OutputSelector;
+import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
-import org.apache.flink.streaming.api.invokable.UserSinkInvokable;
 import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 import org.apache.flink.streaming.api.streamcomponent.StreamIterationSink;
@@ -70,6 +70,7 @@ public class JobGraphBuilder {
 	// Graph attributes
 	private Map<String, AbstractJobVertex> components;
 	private Map<String, Integer> componentParallelism;
+	private Map<String, Boolean> mutability;
 	private Map<String, List<String>> outEdgeList;
 	private Map<String, List<String>> inEdgeList;
 	private Map<String, List<StreamPartitioner<? extends Tuple>>> connectionTypes;
@@ -100,6 +101,7 @@ public class JobGraphBuilder {
 
 		components = new HashMap<String, AbstractJobVertex>();
 		componentParallelism = new HashMap<String, Integer>();
+		mutability = new HashMap<String, Boolean>();
 		outEdgeList = new HashMap<String, List<String>>();
 		inEdgeList = new HashMap<String, List<String>>();
 		connectionTypes = new HashMap<String, List<StreamPartitioner<? extends Tuple>>>();
@@ -216,7 +218,7 @@ public class JobGraphBuilder {
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
-	public void addSink(String componentName, UserSinkInvokable<? extends Tuple> InvokableObject,
+	public void addSink(String componentName, SinkInvokable<? extends Tuple> InvokableObject,
 			String operatorName, byte[] serializedFunction, int parallelism) {
 
 		addComponent(componentName, StreamSink.class, InvokableObject, operatorName,
@@ -286,6 +288,7 @@ public class JobGraphBuilder {
 
 		componentClasses.put(componentName, componentClass);
 		setParallelism(componentName, parallelism);
+		mutability.put(componentName, false);
 		invokableObjects.put(componentName, invokableObject);
 		operatorNames.put(componentName, operatorName);
 		serializedFunctions.put(componentName, serializedFunction);
@@ -332,6 +335,8 @@ public class JobGraphBuilder {
 		}
 
 		Configuration config = new TaskConfig(component.getConfiguration()).getConfiguration();
+
+		config.setBoolean("isMutable", mutability.get(componentName));
 
 		// Set vertex config
 		if (invokableObject != null) {
@@ -421,6 +426,10 @@ public class JobGraphBuilder {
 	 */
 	public void setParallelism(String componentName, int parallelism) {
 		componentParallelism.put(componentName, parallelism);
+	}
+
+	public void setMutability(String componentName, boolean isMutable) {
+		mutability.put(componentName, isMutable);
 	}
 
 	/**
@@ -574,8 +583,8 @@ public class JobGraphBuilder {
 			}
 
 		} catch (JobGraphDefinitionException e) {
-			throw new RuntimeException("Cannot connect components: "
-					+ upStreamComponentName + " to " + downStreamComponentName, e);
+			throw new RuntimeException("Cannot connect components: " + upStreamComponentName
+					+ " to " + downStreamComponentName, e);
 		}
 
 		int outputIndex = upStreamComponent.getNumberOfForwardConnections() - 1;
@@ -638,7 +647,7 @@ public class JobGraphBuilder {
 	public <T extends Tuple> void setOutputSelector(String componentName,
 			byte[] serializedOutputSelector) {
 		outputSelectors.put(componentName, serializedOutputSelector);
-		
+
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Outputselector set for " + componentName);
 		}

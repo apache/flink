@@ -23,9 +23,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.MutableReader;
-import org.apache.flink.streaming.api.invokable.DefaultSinkInvokable;
+import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
-import org.apache.flink.streaming.api.invokable.UserSinkInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -62,10 +61,10 @@ public class StreamSink<IN extends Tuple> extends AbstractStreamComponent<IN, IN
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Override
 	protected void setInvokable() {
-		Class<? extends UserSinkInvokable> userFunctionClass = configuration.getClass(
-				"userfunction", DefaultSinkInvokable.class, UserSinkInvokable.class);
-		userFunction = (UserSinkInvokable<IN>) getInvokable(userFunctionClass);
-		userFunction.initialize(collector, inputIter, inTupleSerializer);
+		Class<? extends SinkInvokable> userFunctionClass = configuration.getClass("userfunction",
+				SinkInvokable.class, SinkInvokable.class);
+		userFunction = (SinkInvokable<IN>) getInvokable(userFunctionClass);
+		userFunction.initialize(collector, inputIter, inTupleSerializer, isMutable);
 	}
 
 	@Override

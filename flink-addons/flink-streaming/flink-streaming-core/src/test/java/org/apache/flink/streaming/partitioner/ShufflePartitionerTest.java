@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.junit.Before;
 import org.junit.Test;
@@ -31,6 +32,8 @@ public class ShufflePartitionerTest {
 
 	private ShufflePartitioner<Tuple> shufflePartitioner;
 	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>();
+	private SerializationDelegate<StreamRecord<Tuple>> sd = new SerializationDelegate<StreamRecord<Tuple>>(
+			null);
 
 	@Before
 	public void setPartitioner() {
@@ -39,22 +42,21 @@ public class ShufflePartitionerTest {
 
 	@Test
 	public void testSelectChannelsLength() {
-		assertEquals(1,
-				shufflePartitioner.selectChannels(streamRecord, 1).length);
-		assertEquals(1,
-				shufflePartitioner.selectChannels(streamRecord, 2).length);
-		assertEquals(1,
-				shufflePartitioner.selectChannels(streamRecord, 1024).length);
+		sd.setInstance(streamRecord);
+		assertEquals(1, shufflePartitioner.selectChannels(sd, 1).length);
+		assertEquals(1, shufflePartitioner.selectChannels(sd, 2).length);
+		assertEquals(1, shufflePartitioner.selectChannels(sd, 1024).length);
 	}
 
 	@Test
 	public void testSelectChannelsInterval() {
-		assertEquals(0, shufflePartitioner.selectChannels(streamRecord, 1)[0]);
+		sd.setInstance(streamRecord);
+		assertEquals(0, shufflePartitioner.selectChannels(sd, 1)[0]);
 
-		assertTrue(0 <= shufflePartitioner.selectChannels(streamRecord, 2)[0]);
-		assertTrue(2 > shufflePartitioner.selectChannels(streamRecord, 2)[0]);
+		assertTrue(0 <= shufflePartitioner.selectChannels(sd, 2)[0]);
+		assertTrue(2 > shufflePartitioner.selectChannels(sd, 2)[0]);
 
-		assertTrue(0 <= shufflePartitioner.selectChannels(streamRecord, 1024)[0]);
-		assertTrue(1024 > shufflePartitioner.selectChannels(streamRecord, 1024)[0]);
+		assertTrue(0 <= shufflePartitioner.selectChannels(sd, 1024)[0]);
+		assertTrue(1024 > shufflePartitioner.selectChannels(sd, 1024)[0]);
 	}
 }

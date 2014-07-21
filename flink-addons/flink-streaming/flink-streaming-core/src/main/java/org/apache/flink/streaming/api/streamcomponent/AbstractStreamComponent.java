@@ -76,6 +76,7 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 	protected int instanceID;
 	protected String name;
 	private static int numComponents = 0;
+	protected boolean isMutable;
 
 	protected static int newComponent() {
 		numComponents++;
@@ -259,6 +260,7 @@ public abstract class AbstractStreamComponent<IN extends Tuple, OUT extends Tupl
 		StreamComponentInvokable userFunction = null;
 
 		byte[] userFunctionSerialized = configuration.getBytes("serializedudf", null);
+		this.isMutable = configuration.getBoolean("isMutable", false);
 
 		try {
 			userFunction = deserializeObject(userFunctionSerialized);
