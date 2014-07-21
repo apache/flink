@@ -103,14 +103,17 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 				+ Integer.toString(taskNumber + 1) 
 				+ "_0");
 		
+		this.configuration.set("mapred.task.id", taskAttemptID.toString());
+		this.configuration.setInt("mapred.task.partition", taskNumber + 1);
+		// for hadoop 2.2
+		this.configuration.set("mapreduce.task.attempt.id", taskAttemptID.toString());
+		this.configuration.setInt("mapreduce.task.partition", taskNumber + 1);
+		
 		try {
 			this.context = HadoopUtils.instantiateTaskAttemptContext(this.configuration, taskAttemptID);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-		this.configuration.set("mapred.task.id", taskAttemptID.toString());
-		// for hadoop 2.2
-		this.configuration.set("mapreduce.task.attempt.id", taskAttemptID.toString());
 		
 		this.fileOutputCommitter = new FileOutputCommitter(new Path(this.configuration.get("mapred.output.dir")), context);
 		
@@ -157,11 +160,12 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 		}
 		this.fileOutputCommitter.commitJob(this.context);
 		
-		// rename tmp-* files to final name
-		FileSystem fs = FileSystem.get(this.configuration);
 		
 		Path outputPath = new Path(this.configuration.get("mapred.output.dir"));
-
+		
+		// rename tmp-* files to final name
+		FileSystem fs = FileSystem.get(outputPath.toUri(), this.configuration);
+		
 		final Pattern p = Pattern.compile("tmp-(.)-([0-9]+)");
 		
 		// isDirectory does not work in hadoop 1
