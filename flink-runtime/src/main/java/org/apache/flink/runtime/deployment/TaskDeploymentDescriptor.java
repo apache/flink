@@ -113,7 +113,7 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 	 *        the class containing the task code to be executed
 	 * @param outputGates
 	 *        list of output gate deployment descriptors
-	 * @param inputGateIDs
+	 * @param inputGates
 	 *        list of input gate deployment descriptors
 	 */
 	public TaskDeploymentDescriptor(final JobID jobID, final ExecutionVertexID vertexID, final String taskName,

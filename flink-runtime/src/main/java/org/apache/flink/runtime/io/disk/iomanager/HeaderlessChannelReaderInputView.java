@@ -27,12 +27,11 @@ import org.apache.flink.core.memory.MemorySegment;
 
 
 /**
- * A {@link DataInputView} that is backed by a {@link BlockChannelReader}, making it effectively a data input
- * stream. This view is similar to the {@link ChannelReaderInputView}, but does not expect
- * a header for each block, giving a direct stream abstraction over sequence of written
- * blocks. It therefore requires specification of the number of blocks and the number of
- * bytes in the last block.
- *
+ * A {@link org.apache.flink.core.memory.DataInputView} that is backed by a {@link BlockChannelReader},
+ * making it effectively a data input stream. This view is similar to the {@link ChannelReaderInputView},
+ * but does not expect a header for each block, giving a direct stream abstraction over sequence of
+ * written blocks. It therefore requires specification of the number of blocks and the number of bytes
+ * in the last block.
  */
 public class HeaderlessChannelReaderInputView extends ChannelReaderInputView
 {

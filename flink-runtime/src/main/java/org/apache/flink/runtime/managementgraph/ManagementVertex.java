@@ -314,9 +314,9 @@ public final class ManagementVertex extends ManagementAttachment implements IORe
 	}
 	
 	/**
-	 * Returns Json representation of this ManagementVertex
+	 * Returns the JSON representation of this management vertex.
 	 * 
-	 * @return
+	 * @return the JSON representation of this management vertex
 	 */
 	public String toJson() {
 		StringBuilder json = new StringBuilder("");

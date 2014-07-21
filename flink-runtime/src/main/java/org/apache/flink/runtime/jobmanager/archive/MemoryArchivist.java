@@ -37,13 +37,13 @@ import org.apache.flink.runtime.managementgraph.ManagementVertexID;
 import org.apache.flink.runtime.topology.NetworkTopology;
 
 /**
- * Implementation of the ArchiveListener, that archives old data of the jobmanager in memory
- *
+ * Implementation of the {@link ArchiveListener} that archives old data of the job manager in memory.
  */
 public class MemoryArchivist implements ArchiveListener {
 	
 	
-	private int max_entries;
+	private final int maxEntries;
+	
 	/**
 	 * The map which stores all collected events until they are either
 	 * fetched by the client or discarded.
@@ -67,8 +67,8 @@ public class MemoryArchivist implements ArchiveListener {
 	
 	private final LinkedList<JobID> lru = new LinkedList<JobID>();
 	
-	public MemoryArchivist(int max_entries) {
-		this.max_entries = max_entries;
+	public MemoryArchivist(int maxEntries) {
+		this.maxEntries = maxEntries;
 	}
 	
 	
@@ -83,7 +83,7 @@ public class MemoryArchivist implements ArchiveListener {
 		cleanup(jobId);
 	}
 	
-	public void archiveJobevent(JobID jobId, RecentJobEvent event) {
+	public void archiveJobEvent(JobID jobId, RecentJobEvent event) {
 		
 		oldJobs.put(jobId, event);
 		
@@ -113,7 +113,7 @@ public class MemoryArchivist implements ArchiveListener {
 		if(!lru.contains(jobId)) {
 			lru.addFirst(jobId);
 		}
-		if(lru.size() > this.max_entries) {
+		if(lru.size() > this.maxEntries) {
 			JobID toRemove = lru.removeLast();
 			collectedEvents.remove(toRemove);
 			oldJobs.remove(toRemove);

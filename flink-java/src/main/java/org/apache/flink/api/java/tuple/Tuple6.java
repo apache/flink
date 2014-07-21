@@ -202,7 +202,7 @@ public class Tuple6<T0, T1, T2, T3, T4, T5> extends Tuple {
 
 	/**
 	* Shallow tuple copy.
-	* @returns A new Tuple with the same fields as this.
+	* @return A new Tuple with the same fields as this.
 	 */
 	public Tuple6<T0,T1,T2,T3,T4,T5> copy(){ 
 		return new Tuple6<T0,T1,T2,T3,T4,T5>(this.f0,

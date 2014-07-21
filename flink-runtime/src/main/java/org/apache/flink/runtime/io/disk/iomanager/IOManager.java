@@ -41,7 +41,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	private static final Log LOG = LogFactory.getLog(IOManager.class);
 
 	/**
-	 * The default temp paths for anonymous Channels.
+	 * The default temp paths for anonymous channels.
 	 */
 	private final String[] paths;
 
@@ -85,7 +85,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	/**
 	 * Constructs a new IOManager.
 	 * 
-	 * @param path The base directory path for files underlying channels.
+	 * @param tempDir The base directory path for files underlying channels.
 	 */
 	public IOManager(String tempDir) {
 		this(new String[] {tempDir});
@@ -94,8 +94,8 @@ public final class IOManager implements UncaughtExceptionHandler
 	/**
 	 * Constructs a new IOManager.
 	 * 
-	 * @param path
-	 *        the basic directory path for files underlying anonymous
+	 * @param paths
+	 *        the basic directory paths for files underlying anonymous
 	 *        channels.
 	 */
 	public IOManager(String[] paths)

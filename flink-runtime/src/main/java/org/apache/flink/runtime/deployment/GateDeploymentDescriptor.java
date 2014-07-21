@@ -62,8 +62,6 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	 *        the ID of the gate
 	 * @param channelType
 	 *        the channel type of the gate
-	 * @param compressionLevel
-	 *        the compression level of the gate
 	 * @param channels
 	 *        the list of channel deployment descriptors attached to this gate
 	 */

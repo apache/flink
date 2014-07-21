@@ -44,7 +44,7 @@ import org.apache.flink.types.Value;
 import com.google.common.base.Preconditions;
 
 /**
- * The task responsible for synchronizing all iteration heads, implemented as an {@link AbstractOutputTask}. This task
+ * The task responsible for synchronizing all iteration heads, implemented as an {@link AbstractInvokable}. This task
  * will never see any data.
  * In each superstep, it simply waits until it has receiced a {@link WorkerDoneEvent} from each head and will send back
  * an {@link AllWorkersDoneEvent} to signal that the next superstep can begin.

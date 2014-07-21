@@ -119,7 +119,7 @@ public class JobClient {
 
 	/**
 	 * Constructs a new job client object and instantiates a local
-	 * RPC proxy for the {@link JobSubmissionProtocol}.
+	 * RPC proxy for the {@link JobManagementProtocol}.
 	 * 
 	 * @param jobGraph
 	 *        the job graph to run
@@ -133,7 +133,7 @@ public class JobClient {
 
 	/**
 	 * Constructs a new job client object and instantiates a local
-	 * RPC proxy for the {@link JobSubmissionProtocol}.
+	 * RPC proxy for the {@link JobManagementProtocol}.
 	 * 
 	 * @param jobGraph
 	 *        the job graph to run
@@ -158,7 +158,7 @@ public class JobClient {
 
 	/**
 	 * Constructs a new job client object and instantiates a local
-	 * RPC proxy for the {@link JobSubmissionProtocol}.
+	 * RPC proxy for the {@link JobManagementProtocol}.
 	 * 
 	 * @param jobGraph
 	 *        the job graph to run

@@ -539,7 +539,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 
 				// Check time stamp of last job status update
 				if ((entry.getValue().getTimestamp() + this.timerTaskInterval) < currentTime) {
-					archiveJobevent(entry.getKey(), entry.getValue());
+					archiveJobEvent(entry.getKey(), entry.getValue());
 					it.remove();
 					synchronized (this.recentManagementGraphs) {
 						archiveManagementGraph(entry.getKey(), this.recentManagementGraphs.get(entry.getKey()));
@@ -658,9 +658,9 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		}
 	}
 	
-	private void archiveJobevent(JobID jobId, RecentJobEvent event) {
+	private void archiveJobEvent(JobID jobId, RecentJobEvent event) {
 		for(ArchiveListener al : archivists) {
-			al.archiveJobevent(jobId, event);
+			al.archiveJobEvent(jobId, event);
 		}
 	}
 	

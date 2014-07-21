@@ -68,8 +68,6 @@ public final class ManagementGroupEdge extends ManagementAttachment {
 	 *        the index at the target vertex
 	 * @param channelType
 	 *        the type of the channels represented by the new group edge
-	 * @param compressionLevel
-	 *        the compression level of the channels represented by the new group edge
 	 */
 	public ManagementGroupEdge(final ManagementGroupVertex source, final int sourceIndex,
 			final ManagementGroupVertex target, final int targetIndex, final ChannelType channelType) {

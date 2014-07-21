@@ -82,8 +82,6 @@ public final class ManagementEdge extends ManagementAttachment {
 	 *        the edge's index in the target gate
 	 * @param channelType
 	 *        the type of the channel this edge refers to
-	 * @param compressionLevel
-	 *        the compression level of the channel this edge refers to
 	 */
 	public ManagementEdge(final ManagementEdgeID sourceEdgeID, final ManagementEdgeID targetEdgeID,
 			final ManagementGate source, final int sourceIndex, final ManagementGate target, final int targetIndex,

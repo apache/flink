@@ -23,8 +23,9 @@ import org.apache.flink.core.io.IOReadableWritable;
 
 /**
  * This type of event can be used to exchange notification messages between
- * different {@link TaskManager} objects at runtime using the communication
- * channels Nephele has established between different tasks.
+ * different {@link org.apache.flink.runtime.taskmanager.TaskManager} objects
+ * at runtime using the communication channels Nephele has established between
+ * different tasks.
  * 
  */
 public abstract class AbstractEvent implements IOReadableWritable {

@@ -55,10 +55,10 @@ public class JobEdge {
 	 *        the vertex this edge should connect to
 	 * @param channelType
 	 *        the channel type this edge should be translated to at runtime
-	 * @param compressionLevel
-	 *        the compression level the corresponding channel should have at runtime
 	 * @param indexOfInputGate
 	 *        index of the consuming task's input gate that this edge connects to
+	 * @param distributionPattern
+	 *        the distribution pattern to use
 	 */
 	public JobEdge(final AbstractJobVertex connectedVertex, final ChannelType channelType,
 			final int indexOfInputGate, final DistributionPattern distributionPattern) {
@@ -98,7 +98,7 @@ public class JobEdge {
 	/**
 	 * Returns the distribution pattern used for this edge.
 	 * 
-	 * @return
+	 * @return the distribution pattern used for this edge
 	 */
 	public DistributionPattern getDistributionPattern(){
 		return this.distributionPattern;

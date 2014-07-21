@@ -51,11 +51,12 @@ public final class ManagementGroupVertexID extends AbstractID {
 	}
 	
 	/**
-	 * Constructs a new job ID and initializes it with the given bytes.
+	 * Constructs a new management group vertex ID and initializes it with
+	 * the given hex string.
 	 * 
-	 * @param bytes
-	 *        the bytes to initialize the new job ID with
-	 * @return the new job ID
+	 * @param hexString
+	 *        the hex string to initialize the management group vertex ID
+	 * @return the new management group vertex ID
 	 */
 	public static ManagementGroupVertexID fromHexString(final String hexString) {
 

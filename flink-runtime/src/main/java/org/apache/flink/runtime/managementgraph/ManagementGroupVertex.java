@@ -419,9 +419,9 @@ public final class ManagementGroupVertex extends ManagementAttachment implements
 	}
 	
 	/**
-	 * Returns Json representation of this ManagementGroupVertex
+	 * Returns the JSON representation of this management group vertex. 
 	 * 
-	 * @return
+	 * @return the JSON representation of this management group vertex
 	 */
 	public String toJson() {
 		StringBuilder json = new StringBuilder("");

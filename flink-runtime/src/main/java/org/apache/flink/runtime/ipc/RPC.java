@@ -56,7 +56,7 @@ import org.apache.flink.util.ClassUtils;
  * <li>a primitive type, <code>boolean</code>, <code>byte</code>, <code>char</code>, <code>short</code>,
  * <code>int</code>, <code>long</code>, <code>float</code>, <code>double</code>, or <code>void</code>; or</li>
  * <li>a {@link String}; or</li>
- * <li>a {@link Writable}; or</li>
+ * <li>a {@link IOReadableWritable}; or</li>
  * <li>an array of the above types</li>
  * </ul>
  * All methods in the protocol should throw only IOException. No field data of
@@ -331,7 +331,7 @@ public class RPC {
 	 * 
 	 * @param protocol
 	 * @param addr
-	 * @return
+	 * @return the proxy object
 	 * @throws IOException
 	 */
 	public static <V extends VersionedProtocol> V getProxy(Class<V> protocol, InetSocketAddress addr)
@@ -370,8 +370,6 @@ public class RPC {
 		 * 
 		 * @param instance
 		 *        the instance whose methods will be called
-		 * @param conf
-		 *        the configuration to use
 		 * @param bindAddress
 		 *        the address to bind on to listen for connection
 		 * @param port
@@ -395,8 +393,6 @@ public class RPC {
 		 * 
 		 * @param instance
 		 *        the instance whose methods will be called
-		 * @param conf
-		 *        the configuration to use
 		 * @param bindAddress
 		 *        the address to bind on to listen for connection
 		 * @param port

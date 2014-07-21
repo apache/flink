@@ -35,7 +35,7 @@ import org.apache.flink.runtime.jobgraph.JobID;
 /**
  * This is the default implementation of the {@link InputSplitAssigner} interface. The default input split assigner
  * simply returns all input splits of an input vertex in the order they were originally computed. The default input
- * split assigner is always used when a more specific {@link InputSplitAssigned} could not be found.
+ * split assigner is always used when a more specific {@link InputSplitAssigner} could not be found.
  * <p>
  * This class is thread-safe.
  * 

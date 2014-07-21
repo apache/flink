@@ -57,8 +57,8 @@ import org.apache.flink.util.MutableObjectIterator;
  * The head is responsible for coordinating an iteration and can run a
  * {@link org.apache.flink.runtime.operators.PactDriver} inside. It will read
  * the initial input and establish a {@link BlockingBackChannel} to the iteration's tail. After successfully processing
- * the input, it will send {@link EndOfSuperstepEvent} events to its outputs. It must also be connected to a
- * synchronization task and after each superstep, it will wait
+ * the input, it will send {@link org.apache.flink.runtime.io.network.channels.EndOfSuperstepEvent} events to its outputs.
+ * It must also be connected to a synchronization task and after each superstep, it will wait
  * until it receives an {@link AllWorkersDoneEvent} from the sync, which signals that all other heads have also finished
  * their iteration. Starting with
  * the second iteration, the input for the head is the output of the tail, transmitted through the backchannel. Once the

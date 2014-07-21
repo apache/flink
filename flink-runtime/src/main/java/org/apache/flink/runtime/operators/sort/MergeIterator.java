@@ -48,12 +48,6 @@ public class MergeIterator<E> implements MutableObjectIterator<E>
 	
 	private final TypeSerializer<E> serializer;
 	
-	/**
-	 * @param iterators
-	 * @param accessors The accessors used to establish an order among the elements.
-	 *                  The accessors will not be used directly, but a duplicate will be used.
-	 * @throws IOException
-	 */
 	public MergeIterator(List<MutableObjectIterator<E>> iterators,
 			TypeSerializer<E> serializer, TypeComparator<E> comparator)
 	throws IOException

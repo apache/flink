@@ -26,7 +26,8 @@ import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.io.network.gates.GateID;
 
 /**
- * Objects of this class represent either an {@link InputGate} or {@link OutputGate} within an {@link ExecutionGraph},
+ * Objects of this class represent either an {@link org.apache.flink.runtime.io.network.gates.InputGate}
+ * or {@link org.apache.flink.runtime.io.network.gates.OutputGate} within an {@link ExecutionGraph},
  * Nephele's internal scheduling representation for jobs.
  * <p>
  * This class is thread-safe.

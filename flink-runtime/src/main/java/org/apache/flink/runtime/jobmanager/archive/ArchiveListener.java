@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobmanager.archive;
 
 import java.util.List;
@@ -31,90 +30,124 @@ import org.apache.flink.runtime.managementgraph.ManagementVertexID;
 import org.apache.flink.runtime.topology.NetworkTopology;
 
 /**
- * Interface used to implement Archivists, that store old jobmanager information discarded by the EventCollector.
- * Archivists can decide how to store the data (memory, database, files...)
+ * Interface used to implement Archivists, that store old job manager
+ * information discarded by the EventCollector. Archivists can decide how to
+ * store the data (memory, database, files...)
  */
 public interface ArchiveListener {
-	
+
 	/**
-	 * Stores event in archive
+	 * Stores an {@link AbstractEvent} in the archive.
 	 * 
 	 * @param jobId
+	 *            the ID of the job the event belongs to
 	 * @param event
+	 *            the event to store
 	 */
 	void archiveEvent(JobID jobId, AbstractEvent event);
-	
+
 	/**
-	 * Stores old job in archive
+	 * Stores an {@link RecentJobEvent} in the archive.
 	 * 
 	 * @param jobId
+	 *            the ID of the job the vent belongs to
 	 * @param event
+	 *            the event to store
 	 */
-	void archiveJobevent(JobID jobId, RecentJobEvent event);
-	
+	void archiveJobEvent(JobID jobId, RecentJobEvent event);
+
 	/**
-	 * Stores old ManagementGraph in archive
+	 * Stores an {@link ManagementGraph} in the archive.
 	 * 
 	 * @param jobId
+	 *            the ID of the job the management graph belongs to
 	 * @param graph
+	 *            the management graph to store
 	 */
 	void archiveManagementGraph(JobID jobId, ManagementGraph graph);
-	
+
 	/**
-	 * Stores old NetworkTopology in Archive
+	 * Stores an {@link NetworkTopology} in the archive.
 	 * 
 	 * @param jobId
+	 *            the ID of the job the network topology belongs to
 	 * @param topology
+	 *            the network topology to store
 	 */
 	void archiveNetworkTopology(JobID jobId, NetworkTopology topology);
-	
+
 	/**
-	 * Get all archived Jobs
+	 * Returns a list of all {@link RecentJobEvent} objects stored in the
+	 * archive.
 	 * 
-	 * @return
+	 * @return a list of all {@link RecentJobEvent} objects stored in the
+	 *         archive
 	 */
 	List<RecentJobEvent> getJobs();
-	
+
 	/**
-	 * Return archived job
+	 * Returns the {@link RecentJobEvent} for the given job ID.
 	 * 
-	 * @param JobId
-	 * @return
+	 * @param jobId
+	 *            the ID of the job to retrieve the {@link RecentJobEvent} for
+	 * @return the {@link RecentJobEvent} for the given job ID or
+	 *         <code>null</code> if no such event is stored in the archive
 	 */
-	RecentJobEvent getJob(JobID JobId);
-	
+	RecentJobEvent getJob(JobID jobId);
+
 	/**
-	 * Get archived ManagementGraph for a job
+	 * Returns the archived {@link ManagementGraph} for the job with given ID.
 	 * 
 	 * @param jobID
-	 * @return
+	 *            the ID of the job to retrieve the {@link ManagementGraph} for
+	 * @return the {@link ManagementGraph} for the given job ID or
+	 *         <code>null</code> if no such graph is stored in the archive
 	 */
 	ManagementGraph getManagementGraph(JobID jobID);
-	
+
 	/**
-	 * Get all archived Events for a job
+	 * Returns a list containing all archived {@link AbstractEvent} objects for
+	 * the job with the given ID.
 	 * 
 	 * @param jobID
-	 * @return
+	 *            the ID of the job to retrieve the archived
+	 *            {@link AbstractEvent} objects for
+	 * @return a list of all archived {@link AbstractEvent} objects for the job
+	 *         with the given ID or
+	 *         <code>null<code> if no such events are stored in the archive
 	 */
 	List<AbstractEvent> getEvents(JobID jobID);
-	
+
 	/**
-	 * Returns the time when the status of the given job changed to jobStatus
+	 * Returns the point in time when the job with the given ID transitioned
+	 * into the specified job status.
 	 * 
 	 * @param jobID
+	 *            the ID of the job to retrieve the time of the specified job
+	 *            status transition for
 	 * @param jobStatus
-	 * @return
+	 *            the job status for which the point in time is requested
+	 * @return the point in time when the specified job status transition
+	 *         occurred or <code>0</code> when the point in time could not be
+	 *         retrieved
 	 */
 	long getJobTime(JobID jobID, JobStatus jobStatus);
-	
+
 	/**
-	 * returns the time, when the status of the given vertex changed to executionState
+	 * Returns the point in time when the vertex with the given ID transitioned
+	 * into the specified execution state.
 	 * 
 	 * @param jobID
+	 *            the ID of the job the vertex ID belongs to
 	 * @param jobVertexID
+	 *            the ID of the vertex to retrieve the time of the specified
+	 *            execute state transition for
 	 * @param executionState
-	 * @return
+	 *            the execution state for which the point in time is requested
+	 * @return the point in time when the specified execution state transition
+	 *         occurred or <code>0</code> when the point in time could not be
+	 *         retrieved
 	 */
-	long getVertexTime(JobID jobID, ManagementVertexID jobVertexID, ExecutionState executionState);
+	long getVertexTime(JobID jobID, ManagementVertexID jobVertexID,
+			ExecutionState executionState);
 }

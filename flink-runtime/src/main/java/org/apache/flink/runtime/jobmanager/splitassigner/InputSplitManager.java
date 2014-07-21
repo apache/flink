@@ -35,11 +35,12 @@ import org.apache.flink.runtime.executiongraph.ExecutionGroupVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionGroupVertexIterator;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.splitassigner.file.FileInputSplitAssigner;
 import org.apache.flink.util.StringUtils;
 
 /**
- * The input split manager is responsible for serving input splits to {@link AbstractInputTask} objects at runtime.
+ * The input split manager is responsible for serving input splits to {@link AbstractInvokable} objects at runtime.
  * Before passed on to the {@link org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler}, an {@link ExecutionGraph} is registered with the input split
  * manager and all included input vertices of the graph register their generated input splits with the manager. Each
  * type of input split can be assigned to a specific {@link InputSplitAssigner} which is loaded by the input split

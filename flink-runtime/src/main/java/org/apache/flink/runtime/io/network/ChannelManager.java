@@ -584,7 +584,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 	 * Upon an exception, this method frees the envelope.
 	 * 
 	 * @param envelope
-	 * @return
+	 * @return the receiver list of the envelope
 	 * @throws IOException
 	 */
 	private final EnvelopeReceiverList getReceiverListForEnvelope(Envelope envelope, boolean reportException) throws IOException {

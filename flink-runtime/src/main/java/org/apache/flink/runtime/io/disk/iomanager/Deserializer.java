@@ -24,7 +24,7 @@ import java.io.IOException;
 
 /**
  * <p>
- * Provides a facility for deserializing objects of type <T> from an {@link InputStream}.
+ * Provides a facility for deserializing objects of type <T> from a {@link java.io.DataInput}.
  * </p>
  * <p>
  * Deserializers are stateful, but must not buffer the input since other producers may read from the input between calls
@@ -43,8 +43,8 @@ public interface Deserializer<T> {
 
 	/**
 	 * <p>
-	 * Deserialize the next object from the underlying input stream. If the object <code>t</code> is non-null then this
-	 * deserializer <i>may</i> set its internal state to the next object read from the input stream. Otherwise, if the
+	 * Deserialize the next object from the underlying data input. If the object <code>t</code> is non-null then this
+	 * deserializer <i>may</i> set its internal state to the next object read from the data input. Otherwise, if the
 	 * object <code>t</code> is null a new deserialized object will be created.
 	 * </p>
 	 * 

@@ -272,7 +272,7 @@ public class Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> extends Tuple 
 
 	/**
 	* Shallow tuple copy.
-	* @returns A new Tuple with the same fields as this.
+	* @return A new Tuple with the same fields as this.
 	 */
 	public Tuple11<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10> copy(){ 
 		return new Tuple11<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10>(this.f0,
