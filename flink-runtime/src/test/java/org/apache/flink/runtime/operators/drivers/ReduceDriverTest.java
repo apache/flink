@@ -22,7 +22,9 @@ package org.apache.flink.runtime.operators.drivers;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.GenericReduce;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -33,6 +35,7 @@ import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
 import org.apache.flink.runtime.util.RegularToMutableObjectIterator;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Assert;
 import org.junit.Test;

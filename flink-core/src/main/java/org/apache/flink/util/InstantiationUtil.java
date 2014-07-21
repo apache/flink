@@ -31,7 +31,10 @@ import java.io.ObjectStreamClass;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 
 
 /**
@@ -246,8 +249,8 @@ public class InstantiationUtil {
 		}
 
 		ByteArrayOutputStream bos = new ByteArrayOutputStream(64);
-		OutputViewDataOutputWrapper outputViewWrapper = new OutputViewDataOutputWrapper();
-		outputViewWrapper.setDelegate(new DataOutputStream(bos));
+		OutputViewDataOutputStreamWrapper outputViewWrapper =
+				new OutputViewDataOutputStreamWrapper(new DataOutputStream(bos));
 
 		serializer.serialize(record, outputViewWrapper);
 
@@ -259,8 +262,8 @@ public class InstantiationUtil {
 			throw new NullPointerException("Byte array to deserialize from must not be null.");
 		}
 
-		InputViewDataInputWrapper inputViewWrapper = new InputViewDataInputWrapper();
-		inputViewWrapper.setDelegate(new DataInputStream(new ByteArrayInputStream(buf)));
+		InputViewDataInputStreamWrapper inputViewWrapper =
+				new InputViewDataInputStreamWrapper(new DataInputStream(new ByteArrayInputStream(buf)));
 
 		T record = serializer.createInstance();
 		return serializer.deserialize(record, inputViewWrapper);

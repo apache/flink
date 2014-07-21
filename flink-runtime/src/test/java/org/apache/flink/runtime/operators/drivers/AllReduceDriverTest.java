@@ -16,27 +16,29 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.drivers;
 
-import java.util.Arrays;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.GenericReduce;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.operators.AllReduceDriver;
 import org.apache.flink.runtime.operators.DriverStrategy;
-import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
 import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
 import org.apache.flink.runtime.util.RegularToMutableObjectIterator;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.TypeInformation;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 @SuppressWarnings("serial")
 public class AllReduceDriverTest {
@@ -264,8 +266,8 @@ public class AllReduceDriverTest {
 	}
 
 	private <S, T> void verifyAllReduceDriver(List<Tuple2<S, T>> data, Tuple2<S, T> initialValue,
-											TypeInformation<Tuple2<S, T>> typeInfo, ReduceFunction<Tuple2<S, T>> udf,
-											String expectedString, int expectedInt) throws Exception {
+											  TypeInformation<Tuple2<S, T>> typeInfo, ReduceFunction<Tuple2<S, T>> udf,
+											  String expectedString, int expectedInt) throws Exception {
 
 		TestTaskContext<GenericReduce<Tuple2<S, T>>, Tuple2<S, T>> context =
 				new TestTaskContext<GenericReduce<Tuple2<S, T>>, Tuple2<S, T>>();
