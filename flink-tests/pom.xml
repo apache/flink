@@ -162,7 +162,7 @@ under the License.
 			is properly used.-->
 			<plugin>
 				<artifactId>maven-clean-plugin</artifactId>
-				<version>2.5</version>
+				<version>2.5</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
 						<id>remove-kmeansfortest</id>
@@ -214,6 +214,19 @@ under the License.
 									</pluginExecutionFilter>
 									<action>
 										<ignore></ignore>
+									</action>
+								</pluginExecution>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>org.apache.maven.plugins</groupId>
+										<artifactId>maven-clean-plugin</artifactId>
+										<versionRange>[1,)</versionRange>
+										<goals>
+											<goal>clean</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore/>
 									</action>
 								</pluginExecution>
 							</pluginExecutions>
