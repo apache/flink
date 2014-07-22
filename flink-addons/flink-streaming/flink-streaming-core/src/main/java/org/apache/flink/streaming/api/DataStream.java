@@ -388,6 +388,28 @@ public class DataStream<T extends Tuple> {
 	}
 
 	/**
+	 * Applies a reduce transformation on preset "time" chunks of the
+	 * DataStream. The transformation calls a {@link GroupReduceFunction} on
+	 * records received during the predefined time window. The window shifted
+	 * after each reduce call. Each GroupReduceFunction call can return any
+	 * number of elements including none.
+	 * 
+	 * 
+	 * @param reducer
+	 *            The GroupReduceFunction that is called for each time window.
+	 * @param windowSize
+	 *            The time window to run the reducer on, in milliseconds.
+	 * @param <R>
+	 *            output type
+	 * @return The modified DataStream.
+	 */
+	public <R extends Tuple> StreamOperator<T, R> windowReduce(GroupReduceFunction<T, R> reducer,
+			long windowSize) {
+		return environment.addFunction("batchReduce", new DataStream<T>(this), reducer,
+				new BatchReduceInvokable<T, R>(reducer, windowSize));
+	}
+
+	/**
 	 * Adds the given sink to this environment. Only streams with sinks added
 	 * will be executed once the {@link StreamExecutionEnvironment#execute()}
 	 * method is called.
