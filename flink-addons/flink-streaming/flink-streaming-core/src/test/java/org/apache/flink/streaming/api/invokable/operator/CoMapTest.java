@@ -28,17 +28,49 @@ import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.streaming.util.LogUtils;
+import org.apache.log4j.Level;
 import org.junit.Assert;
 import org.junit.Test;
 
 public class CoMapTest implements Serializable {
 	private static final long serialVersionUID = 1L;
-	
-	private static Set<String> result = new HashSet<String>();
+
+	private static Set<String> result;
 	private static Set<String> expected = new HashSet<String>();
+
+	private final static class EmptySink extends SinkFunction<Tuple1<Boolean>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void invoke(Tuple1<Boolean> tuple) {
+		}
+	}
+
+	private final static class MyCoMap extends
+			CoMapFunction<Tuple1<String>, Tuple1<Integer>, Tuple1<Boolean>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple1<Boolean> map1(Tuple1<String> value) {
+			result.add(value.f0);
+			return new Tuple1<Boolean>(true);
+		}
+
+		@Override
+		public Tuple1<Boolean> map2(Tuple1<Integer> value) {
+			result.add(value.f0.toString());
+			return new Tuple1<Boolean>(false);
+		}
+	}
 
 	@Test
 	public void test() {
+		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
+		
+		result = new HashSet<String>();
+		
 		expected.add("a");
 		expected.add("b");
 		expected.add("c");
@@ -46,31 +78,36 @@ public class CoMapTest implements Serializable {
 		expected.add("2");
 		expected.add("3");
 		expected.add("4");
-		
+
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-		
+
 		DataStream<Tuple1<Integer>> ds1 = env.fromElements(1, 2, 3, 4);
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Boolean>> ds2 = env.fromElements("a", "b", "c").coMapWith(new CoMapFunction<Tuple1<String>, Tuple1<Integer>, Tuple1<Boolean>>() {
-			private static final long serialVersionUID = 1L;
+		DataStream<Tuple1<Boolean>> ds2 = env.fromElements("a", "b", "c")
+				.coMapWith(new MyCoMap(), ds1).addSink(new EmptySink());
 
-			@Override
-			public Tuple1<Boolean> map1(Tuple1<String> value) {
-				System.out.println("1: " + value);
-				result.add(value.f0);
-				return new Tuple1<Boolean>(true);
-			}
+		env.executeTest(32);
+		Assert.assertArrayEquals(expected.toArray(), result.toArray());
+	}
 
-			@Override
-			public Tuple1<Boolean> map2(Tuple1<Integer> value) {
-				System.out.println("2: " +value);
-				result.add(value.f0.toString());
-				return new Tuple1<Boolean>(false);
-			}
-		}, ds1)
-		.print();
+	@Test
+	public void multipleInputTest() {
+		result = new HashSet<String>();
+
+		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+
+		DataStream<Tuple1<Integer>> ds1 = env.fromElements(1, 3);
+		@SuppressWarnings("unchecked")
+		DataStream<Tuple1<Integer>> ds2 = env.fromElements(2, 4).connectWith(ds1);
+
+		DataStream<Tuple1<String>> ds3 = env.fromElements("a", "b");
 		
+		@SuppressWarnings({ "unused", "unchecked" })
+		DataStream<Tuple1<Boolean>> ds4 = env.fromElements("c").connectWith(ds3).coMapWith(new MyCoMap(),
+
+		ds2).addSink(new EmptySink());
+
 		env.executeTest(32);
 		Assert.assertArrayEquals(expected.toArray(), result.toArray());
 	}

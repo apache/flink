@@ -168,8 +168,10 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 		if (inputList.size() == 1) {
 			return inputList.get(0);
 		} else if (inputList.size() > 1) {
-			return new MutableUnionRecordReader<IOReadableWritable>(
-					(MutableRecordReader<IOReadableWritable>[]) inputList.toArray());
+			MutableRecordReader<IOReadableWritable>[] inputArray = inputList
+					.toArray(new MutableRecordReader[inputList.size()]);
+
+			return new MutableUnionRecordReader<IOReadableWritable>(inputArray);
 		}
 		return null;
 	}

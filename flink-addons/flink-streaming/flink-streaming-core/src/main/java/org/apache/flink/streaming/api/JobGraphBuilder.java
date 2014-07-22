@@ -754,17 +754,20 @@ public class JobGraphBuilder {
 		for (String componentName : outEdgeList.keySet()) {
 			createVertex(componentName);
 		}
-		int inputNumber = 0;
+		
 		for (String upStreamComponentName : outEdgeList.keySet()) {
-			
 			int i = 0;
+			
 			ArrayList<Integer> outEdgeTypeList = outEdgeType.get(upStreamComponentName);
 
 			for (String downStreamComponentName : outEdgeList.get(upStreamComponentName)) {
 				Configuration downStreamComponentConfig = components.get(downStreamComponentName)
 						.getConfiguration();
+				
+				int inputNumber = downStreamComponentConfig.getInteger("numberOfInputs", 0);				
 				downStreamComponentConfig.setInteger("inputType_" + inputNumber++, outEdgeTypeList.get(i));
-
+				downStreamComponentConfig.setInteger("numberOfInputs", inputNumber);
+				
 				connect(upStreamComponentName, downStreamComponentName,
 						connectionTypes.get(upStreamComponentName).get(i));
 				i++;
