@@ -314,6 +314,21 @@ public class DataStream<T extends Tuple> {
 		}
 		return returnStream;
 	}
+	
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output tuples
+	 * are distributed evenly to the next component.
+	 * 
+	 * @return The DataStream with shuffle partitioning set.
+	 */
+	public DataStream<T> distribute() {
+		DataStream<T> returnStream = new DataStream<T>(this);
+
+		for (int i = 0; i < returnStream.ctypes.size(); i++) {
+			returnStream.ctypes.set(i, ConnectionType.DISTRIBUTE);
+		}
+		return returnStream;
+	}
 
 	/**
 	 * Applies a Map transformation on a {@link DataStream}. The transformation
