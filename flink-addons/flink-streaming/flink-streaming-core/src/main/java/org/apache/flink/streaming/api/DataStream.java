@@ -29,6 +29,7 @@ import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment.ConnectionType;
 import org.apache.flink.streaming.api.collector.OutputSelector;
+import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.sink.WriteFormatAsCsv;
 import org.apache.flink.streaming.api.function.sink.WriteFormatAsText;
@@ -36,6 +37,7 @@ import org.apache.flink.streaming.api.invokable.operator.BatchReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
+import org.apache.flink.streaming.api.invokable.operator.co.CoMapInvokable;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -387,6 +389,11 @@ public class DataStream<T extends Tuple> {
 				new BatchReduceInvokable<T, R>(reducer, batchSize));
 	}
 
+	public <T2 extends Tuple, R extends Tuple> DataStream<R> coMapWith(CoMapFunction<T, T2, R> coMapper, DataStream<T2> otherStream) {
+		return environment.addCoFunction("coMap", new DataStream<T>(this), new DataStream<T2>(otherStream), coMapper, new CoMapInvokable<T, T2, R>(coMapper));
+	}
+	
+	
 	/**
 	 * Applies a reduce transformation on preset "time" chunks of the
 	 * DataStream. The transformation calls a {@link GroupReduceFunction} on

@@ -42,6 +42,7 @@ import org.apache.flink.streaming.api.function.source.GenSequenceFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
+import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 
 /**
  * {@link ExecutionEnvironment} for streaming jobs. An instance of it is
@@ -310,7 +311,7 @@ public abstract class StreamExecutionEnvironment {
 			throw new RuntimeException("Cannot serialize user defined function");
 		}
 
-		connectGraph(inputStream, returnStream.getId());
+		connectGraph(inputStream, returnStream.getId(), 0);
 
 		if (inputStream.iterationflag) {
 			returnStream.addIterationSource(inputStream.iterationID.toString());
@@ -318,6 +319,30 @@ public abstract class StreamExecutionEnvironment {
 		}
 
 		return returnStream;
+	}
+	
+	protected <T1 extends Tuple, T2 extends Tuple, R extends Tuple> DataStream<R> addCoFunction(String functionName, DataStream<T1> inputStream1, DataStream<T2> inputStream2, final AbstractFunction function,
+			CoInvokable<T1, T2, R> functionInvokable) {
+		
+		DataStream<R> returnStream = new DataStream<R>(this, functionName);
+		
+		try {
+			jobGraphBuilder.addCoTask(returnStream.getId(), functionInvokable, functionName,
+					SerializationUtils.serialize(function), degreeOfParallelism);
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize user defined function");
+		}
+
+		connectGraph(inputStream1, returnStream.getId(), 1);
+		connectGraph(inputStream2, returnStream.getId(), 2);
+
+		// TODO consider iteration
+//		if (inputStream.iterationflag) {
+//			returnStream.addIterationSource(inputStream.iterationID.toString());
+//			inputStream.iterationflag = false;
+//		}
+
+		return returnStream; 
 	}
 
 	protected <T extends Tuple, R extends Tuple> void addIterationSource(DataStream<T> inputStream,
@@ -340,7 +365,7 @@ public abstract class StreamExecutionEnvironment {
 
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
 			String input = inputStream.connectIDs.get(i);
-			jobGraphBuilder.forwardConnect(inputStream, input, returnStream.getId());
+			jobGraphBuilder.forwardConnect(inputStream, input, returnStream.getId(), 0);
 
 		}
 	}
@@ -368,7 +393,7 @@ public abstract class StreamExecutionEnvironment {
 			throw new RuntimeException("Cannot serialize SinkFunction");
 		}
 
-		connectGraph(inputStream, returnStream.getId());
+		connectGraph(inputStream, returnStream.getId(), 0);
 
 		return returnStream;
 	}
@@ -523,8 +548,10 @@ public abstract class StreamExecutionEnvironment {
 	 *            ID of the output
 	 * @param <T>
 	 *            type of the input stream
+	 * @param typeNumber
+	 *            Number of the type (used at co-functions)
 	 */
-	private <T extends Tuple> void connectGraph(DataStream<T> inputStream, String outputID) {
+	private <T extends Tuple> void connectGraph(DataStream<T> inputStream, String outputID, int typeNumber) {
 
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
 			ConnectionType type = inputStream.ctypes.get(i);
@@ -533,16 +560,16 @@ public abstract class StreamExecutionEnvironment {
 
 			switch (type) {
 			case SHUFFLE:
-				jobGraphBuilder.shuffleConnect(inputStream, input, outputID);
+				jobGraphBuilder.shuffleConnect(inputStream, input, outputID, typeNumber);
 				break;
 			case BROADCAST:
-				jobGraphBuilder.broadcastConnect(inputStream, input, outputID);
+				jobGraphBuilder.broadcastConnect(inputStream, input, outputID, typeNumber);
 				break;
 			case FIELD:
-				jobGraphBuilder.fieldsConnect(inputStream, input, outputID, param);
+				jobGraphBuilder.fieldsConnect(inputStream, input, outputID, param, typeNumber);
 				break;
 			case FORWARD:
-				jobGraphBuilder.forwardConnect(inputStream, input, outputID);
+				jobGraphBuilder.forwardConnect(inputStream, input, outputID, typeNumber);
 				break;
 			}
 

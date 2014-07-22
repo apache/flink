@@ -35,7 +35,7 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.MutableObjectIterator;
 
 public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
-		AbstractStreamComponent<IN, OUT> {
+		SingleInputAbstractStreamComponent<IN, OUT> {
 
 	private static final Log LOG = LogFactory.getLog(StreamTask.class);
 
