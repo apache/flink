@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.invokable.DefaultSourceInvokable;
 import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-public class StreamSource<OUT extends Tuple> extends AbstractStreamComponent<Tuple, OUT> {
+public class StreamSource<OUT extends Tuple> extends SingleInputAbstractStreamComponent<Tuple, OUT> {
 
 	private static final Log LOG = LogFactory.getLog(StreamSource.class);
 

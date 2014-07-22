@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.invokable.UserSinkInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.MutableObjectIterator;
 
-public class StreamSink<IN extends Tuple> extends AbstractStreamComponent<IN, IN> {
+public class StreamSink<IN extends Tuple> extends SingleInputAbstractStreamComponent<IN, IN> {
 
 	private static final Log LOG = LogFactory.getLog(StreamSink.class);
 
