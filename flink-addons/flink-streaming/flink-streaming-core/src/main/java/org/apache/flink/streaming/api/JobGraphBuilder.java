@@ -53,6 +53,7 @@ import org.apache.flink.streaming.api.streamcomponent.StreamSink;
 import org.apache.flink.streaming.api.streamcomponent.StreamSource;
 import org.apache.flink.streaming.api.streamcomponent.StreamTask;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
+import org.apache.flink.streaming.partitioner.DistributePartitioner;
 import org.apache.flink.streaming.partitioner.FieldsPartitioner;
 import org.apache.flink.streaming.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.partitioner.GlobalPartitioner;
@@ -546,6 +547,24 @@ public class JobGraphBuilder {
 	public <T extends Tuple> void forwardConnect(DataStream<T> inputStream,
 			String upStreamComponentName, String downStreamComponentName) {
 		setEdge(upStreamComponentName, downStreamComponentName, new ForwardPartitioner<T>());
+	}
+	
+	/**
+	 * Connects two components with the given names by distribute partitioning.
+	 * <p>
+	 * Distribute partitioning: sends the output tuples evenly distributed
+	 * along the selected channels
+	 * 
+	 * @param inputStream
+	 *            The DataStream object of the input
+	 * @param upStreamComponentName
+	 *            Name of the upstream component, that will emit the tuples
+	 * @param downStreamComponentName
+	 *            Name of the downstream component, that will receive the tuples
+	 */
+	public <T extends Tuple> void distributeConnect(DataStream<T> inputStream,
+			String upStreamComponentName, String downStreamComponentName) {
+		setEdge(upStreamComponentName, downStreamComponentName, new DistributePartitioner<T>());
 	}
 
 	/**
