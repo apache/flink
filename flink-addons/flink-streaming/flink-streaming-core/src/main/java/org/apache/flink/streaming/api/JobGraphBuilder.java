@@ -583,12 +583,12 @@ public class JobGraphBuilder {
 		setEdge(upStreamComponentName, downStreamComponentName, new ForwardPartitioner<T>(),
 				typeNumber);
 	}
-	
+
 	/**
 	 * Connects two components with the given names by distribute partitioning.
 	 * <p>
-	 * Distribute partitioning: sends the output tuples evenly distributed
-	 * along the selected channels
+	 * Distribute partitioning: sends the output tuples evenly distributed along
+	 * the selected channels
 	 * 
 	 * @param inputStream
 	 *            The DataStream object of the input
@@ -596,10 +596,13 @@ public class JobGraphBuilder {
 	 *            Name of the upstream component, that will emit the tuples
 	 * @param downStreamComponentName
 	 *            Name of the downstream component, that will receive the tuples
+	 * @param typeNumber
+	 *            Number of the type (used at co-functions)
 	 */
 	public <T extends Tuple> void distributeConnect(DataStream<T> inputStream,
-			String upStreamComponentName, String downStreamComponentName) {
-		setEdge(upStreamComponentName, downStreamComponentName, new DistributePartitioner<T>());
+			String upStreamComponentName, String downStreamComponentName, int typeNumber) {
+		setEdge(upStreamComponentName, downStreamComponentName, new DistributePartitioner<T>(),
+				typeNumber);
 	}
 
 	/**
@@ -782,20 +785,21 @@ public class JobGraphBuilder {
 		for (String componentName : outEdgeList.keySet()) {
 			createVertex(componentName);
 		}
-		
+
 		for (String upStreamComponentName : outEdgeList.keySet()) {
 			int i = 0;
-			
+
 			ArrayList<Integer> outEdgeTypeList = outEdgeType.get(upStreamComponentName);
 
 			for (String downStreamComponentName : outEdgeList.get(upStreamComponentName)) {
 				Configuration downStreamComponentConfig = components.get(downStreamComponentName)
 						.getConfiguration();
-				
-				int inputNumber = downStreamComponentConfig.getInteger("numberOfInputs", 0);				
-				downStreamComponentConfig.setInteger("inputType_" + inputNumber++, outEdgeTypeList.get(i));
+
+				int inputNumber = downStreamComponentConfig.getInteger("numberOfInputs", 0);
+				downStreamComponentConfig.setInteger("inputType_" + inputNumber++,
+						outEdgeTypeList.get(i));
 				downStreamComponentConfig.setInteger("numberOfInputs", inputNumber);
-				
+
 				connect(upStreamComponentName, downStreamComponentName,
 						connectionTypes.get(upStreamComponentName).get(i));
 				i++;
