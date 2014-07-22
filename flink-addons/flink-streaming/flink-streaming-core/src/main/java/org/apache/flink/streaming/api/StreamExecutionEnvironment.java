@@ -572,7 +572,7 @@ public abstract class StreamExecutionEnvironment {
 				jobGraphBuilder.forwardConnect(inputStream, input, outputID, typeNumber);
 				break;
 			case DISTRIBUTE:
-				jobGraphBuilder.distributeConnect(inputStream, input, outputID);
+				jobGraphBuilder.distributeConnect(inputStream, input, outputID, typeNumber);
 				break;
 			}
 
