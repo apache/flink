@@ -40,16 +40,6 @@ public class CoMapTest implements Serializable {
 	private static Set<String> result;
 	private static Set<String> expected = new HashSet<String>();
 
-	public CoMapTest() {
-		expected.add("a");
-		expected.add("b");
-		expected.add("c");
-		expected.add("1");
-		expected.add("2");
-		expected.add("3");
-		expected.add("4");
-	}
-
 	private final static class EmptySink extends SinkFunction<Tuple1<Boolean>> {
 		private static final long serialVersionUID = 1L;
 
@@ -76,26 +66,15 @@ public class CoMapTest implements Serializable {
 	}
 
 	@Test
-	public void test() {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
-
-		result = new HashSet<String>();
-
-		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-
-		DataStream<Tuple1<Integer>> ds1 = env.fromElements(1, 2, 3, 4);
-
-		@SuppressWarnings("unused")
-		DataStream<Tuple1<Boolean>> ds2 = env.fromElements("a", "b", "c")
-				.coMapWith(new MyCoMap(), ds1).addSink(new EmptySink());
-
-		env.executeTest(32);
-		Assert.assertArrayEquals(expected.toArray(), result.toArray());
-	}
-
-	@Test
 	public void multipleInputTest() {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
+		expected.add("a");
+		expected.add("b");
+		expected.add("c");
+		expected.add("1");
+		expected.add("2");
+		expected.add("3");
+		expected.add("4");
 
 		result = new HashSet<String>();
 
@@ -114,6 +93,6 @@ public class CoMapTest implements Serializable {
 				ds2).addSink(new EmptySink());
 
 		env.executeTest(32);
-		Assert.assertArrayEquals(expected.toArray(), result.toArray());
+		Assert.assertEquals(expected, result);
 	}
 }
