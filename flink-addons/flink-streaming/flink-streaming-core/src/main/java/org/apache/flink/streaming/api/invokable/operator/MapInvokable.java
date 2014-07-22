@@ -34,8 +34,15 @@ public class MapInvokable<IN extends Tuple, OUT extends Tuple> extends UserTaskI
 
 	@Override
 	public void invoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
-			collector.collect(mapper.map(reuse.getTuple()));
+		if (this.isMutable) {
+			while (recordIterator.next(reuse) != null) {
+				collector.collect(mapper.map(reuse.getTuple()));
+			}
+		} else {
+			while (recordIterator.next(reuse) != null) {
+				collector.collect(mapper.map(reuse.getTuple()));
+				resetReuse();
+			}
 		}
 	}
 }

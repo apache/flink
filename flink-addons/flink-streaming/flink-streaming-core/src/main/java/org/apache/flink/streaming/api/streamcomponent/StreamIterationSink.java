@@ -79,7 +79,7 @@ public class StreamIterationSink<IN extends Tuple> extends SingleInputAbstractSt
 		while ((reuse = inputIter.next(reuse)) != null) {
 			pushToQueue(reuse);
 			// TODO: Fix object reuse for iteration
-			reuse = inTupleSerializer.createInstance().setId(0);
+			reuse = inTupleSerializer.createInstance();
 		}
 	}
 

@@ -133,6 +133,21 @@ public class DataStream<T extends Tuple> {
 	}
 
 	/**
+	 * Sets the mutability of the operator represented by the DataStream. If the
+	 * operator is set to mutable, the tuples received in the user defined
+	 * functions, will be reused after the function call. Setting an operator to
+	 * mutable greatly reduces garbage collection overhead and thus scalability.
+	 * 
+	 * @param isMutable
+	 *            The mutability of the operator.
+	 * @return The DataStream with mutability set.
+	 */
+	public DataStream<T> setMutability(boolean isMutable) {
+		environment.setMutability(this, isMutable);
+		return this;
+	}
+
+	/**
 	 * Sets the degree of parallelism for this operator. The degree must be 1 or
 	 * more.
 	 * 
@@ -402,7 +417,7 @@ public class DataStream<T extends Tuple> {
 	public DataStream<T> print() {
 		return environment.print(new DataStream<T>(this));
 	}
-	
+
 	/**
 	 * Writes a DataStream to the file specified by path in text format. For
 	 * every element of the DataStream the result of {@link Object#toString()}
@@ -597,6 +612,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsCsv(String path, int batchSize, T endTuple) {
+		setMutability(false);
 		environment.writeAsCsv(this, path, new WriteFormatAsCsv<T>(), batchSize, endTuple);
 		return new DataStream<T>(this);
 	}

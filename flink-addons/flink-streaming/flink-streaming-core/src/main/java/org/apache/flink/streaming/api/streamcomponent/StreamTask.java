@@ -29,7 +29,6 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.invokable.DefaultTaskInvokable;
 import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -79,9 +78,9 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
 	protected void setInvokable() {
 		// Default value is a TaskInvokable even if it was called from a source
 		Class<? extends UserTaskInvokable> userFunctionClass = configuration.getClass(
-				"userfunction", DefaultTaskInvokable.class, UserTaskInvokable.class);
+				"userfunction", UserTaskInvokable.class, UserTaskInvokable.class);
 		userFunction = (UserTaskInvokable<IN, OUT>) getInvokable(userFunctionClass);
-		userFunction.initialize(collector, inputIter, inTupleSerializer);
+		userFunction.initialize(collector, inputIter, inTupleSerializer, isMutable);
 	}
 
 	@Override

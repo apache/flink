@@ -122,6 +122,10 @@ public abstract class StreamExecutionEnvironment {
 		this.degreeOfParallelism = degreeOfParallelism;
 	}
 
+	protected void setMutability(DataStream<?> stream, boolean isMutable) {
+		jobGraphBuilder.setMutability(stream.getId(), isMutable);
+	}
+
 	/**
 	 * Sets the number of hardware contexts (CPU cores / threads) used when
 	 * executed in {@link LocalStreamEnvironment}.
@@ -227,7 +231,7 @@ public abstract class StreamExecutionEnvironment {
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize collection");
 		}
-		
+
 		return returnStream;
 	}
 
@@ -356,7 +360,7 @@ public abstract class StreamExecutionEnvironment {
 
 		jobGraphBuilder.addIterationSink(returnStream.getId(), inputStream.getId(), iterationID,
 				inputStream.getParallelism(), iterationName);
-		
+
 		jobGraphBuilder.setIterationSourceParallelism(iterationID, inputStream.getParallelism());
 
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
@@ -421,7 +425,7 @@ public abstract class StreamExecutionEnvironment {
 
 		return returnStream;
 	}
-	
+
 	/**
 	 * Writes a DataStream to the file specified by path in text format. The
 	 * writing is performed periodically, in every millis milliseconds. For
@@ -445,6 +449,7 @@ public abstract class StreamExecutionEnvironment {
 		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<T>(path,
 				format, millis, endTuple));
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
 	}
 
@@ -472,6 +477,7 @@ public abstract class StreamExecutionEnvironment {
 		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByBatches<T>(path,
 				format, batchSize, endTuple));
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
 	}
 
@@ -498,6 +504,7 @@ public abstract class StreamExecutionEnvironment {
 		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<T>(path,
 				format, millis, endTuple));
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
 	}
 
@@ -525,6 +532,7 @@ public abstract class StreamExecutionEnvironment {
 		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByBatches<T>(path,
 				format, batchSize, endTuple));
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
 	}
 
@@ -585,25 +593,25 @@ public abstract class StreamExecutionEnvironment {
 		jobGraphBuilder.setParallelism(inputStream.getId(), inputStream.degreeOfParallelism);
 	}
 
-//	/**
-//	 * Converts object to byte array using default java serialization
-//	 * 
-//	 * @param object
-//	 *            Object to be serialized
-//	 * @return Serialized object
-//	 */
-//	static byte[] serializeToByteArray(Serializable object) {
-//		SerializationUtils.serialize(object);
-//		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//		ObjectOutputStream oos;
-//		try {
-//			oos = new ObjectOutputStream(baos);
-//			oos.writeObject(object);
-//		} catch (IOException e) {
-//			throw new RuntimeException("Cannot serialize object: " + object);
-//		}
-//		return baos.toByteArray();
-//	}
+	// /**
+	// * Converts object to byte array using default java serialization
+	// *
+	// * @param object
+	// * Object to be serialized
+	// * @return Serialized object
+	// */
+	// static byte[] serializeToByteArray(Serializable object) {
+	// SerializationUtils.serialize(object);
+	// ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	// ObjectOutputStream oos;
+	// try {
+	// oos = new ObjectOutputStream(baos);
+	// oos.writeObject(object);
+	// } catch (IOException e) {
+	// throw new RuntimeException("Cannot serialize object: " + object);
+	// }
+	// return baos.toByteArray();
+	// }
 
 	// --------------------------------------------------------------------------------------------
 	// Instantiation of Execution Contexts

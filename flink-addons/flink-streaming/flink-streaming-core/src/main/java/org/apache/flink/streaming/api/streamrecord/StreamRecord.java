@@ -31,13 +31,13 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 public class StreamRecord<T extends Tuple> implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	protected UID uid;
+	private UID uid;
 	private T tuple;
 
 	protected TupleSerializer<T> tupleSerializer;
 
 	public StreamRecord() {
-
+		uid = new UID();
 	}
 
 	/**

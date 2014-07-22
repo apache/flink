@@ -42,8 +42,8 @@ import org.apache.flink.runtime.jobgraph.JobOutputVertex;
 import org.apache.flink.runtime.jobgraph.JobTaskVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.OutputSelector;
+import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
-import org.apache.flink.streaming.api.invokable.UserSinkInvokable;
 import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
@@ -73,6 +73,7 @@ public class JobGraphBuilder {
 	private Map<String, Integer> componentParallelism;
 	private Map<String, ArrayList<String>> outEdgeList;
 	private Map<String, ArrayList<Integer>> outEdgeType;
+	private Map<String, Boolean> mutability;
 	private Map<String, List<String>> inEdgeList;
 	private Map<String, List<StreamPartitioner<? extends Tuple>>> connectionTypes;
 	private Map<String, String> userDefinedNames;
@@ -104,6 +105,7 @@ public class JobGraphBuilder {
 		componentParallelism = new HashMap<String, Integer>();
 		outEdgeList = new HashMap<String, ArrayList<String>>();
 		outEdgeType = new HashMap<String, ArrayList<Integer>>();
+		mutability = new HashMap<String, Boolean>();
 		inEdgeList = new HashMap<String, List<String>>();
 		connectionTypes = new HashMap<String, List<StreamPartitioner<? extends Tuple>>>();
 		userDefinedNames = new HashMap<String, String>();
@@ -231,7 +233,7 @@ public class JobGraphBuilder {
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
-	public void addSink(String componentName, UserSinkInvokable<? extends Tuple> InvokableObject,
+	public void addSink(String componentName, SinkInvokable<? extends Tuple> InvokableObject,
 			String operatorName, byte[] serializedFunction, int parallelism) {
 
 		addComponent(componentName, StreamSink.class, InvokableObject, operatorName,
@@ -301,6 +303,7 @@ public class JobGraphBuilder {
 
 		componentClasses.put(componentName, componentClass);
 		setParallelism(componentName, parallelism);
+		mutability.put(componentName, false);
 		invokableObjects.put(componentName, invokableObject);
 		operatorNames.put(componentName, operatorName);
 		serializedFunctions.put(componentName, serializedFunction);
@@ -349,6 +352,8 @@ public class JobGraphBuilder {
 		}
 
 		Configuration config = component.getConfiguration();
+
+		config.setBoolean("isMutable", mutability.get(componentName));
 
 		// Set vertex config
 		if (invokableObject != null) {
@@ -438,6 +443,10 @@ public class JobGraphBuilder {
 	 */
 	public void setParallelism(String componentName, int parallelism) {
 		componentParallelism.put(componentName, parallelism);
+	}
+
+	public void setMutability(String componentName, boolean isMutable) {
+		mutability.put(componentName, isMutable);
 	}
 
 	/**

@@ -78,7 +78,7 @@ public class PrintTest {
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		env.generateSequence(1, 10).print();
-		env.execute();
+		env.executeTest(MEMORYSIZE);
 
 	}
 

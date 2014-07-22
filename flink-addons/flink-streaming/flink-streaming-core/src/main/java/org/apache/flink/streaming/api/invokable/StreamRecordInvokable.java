@@ -32,13 +32,21 @@ public abstract class StreamRecordInvokable<IN extends Tuple, OUT extends Tuple>
 
 	protected Collector<OUT> collector;
 	protected MutableObjectIterator<StreamRecord<IN>> recordIterator;
+	StreamRecordSerializer<IN> serializer;
 	protected StreamRecord<IN> reuse;
+	protected boolean isMutable;
 
 	public void initialize(Collector<OUT> collector,
 			MutableObjectIterator<StreamRecord<IN>> recordIterator,
-			StreamRecordSerializer<IN> serializer) {
+			StreamRecordSerializer<IN> serializer, boolean isMutable) {
 		this.collector = collector;
 		this.recordIterator = recordIterator;
+		this.serializer = serializer;
+		this.reuse = serializer.createInstance();
+		this.isMutable = isMutable;
+	}
+
+	protected void resetReuse() {
 		this.reuse = serializer.createInstance();
 	}
 
