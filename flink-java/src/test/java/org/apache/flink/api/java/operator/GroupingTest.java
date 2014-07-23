@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.operator;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,6 +33,8 @@ import org.junit.Test;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operator.JoinOperatorTest.CustomType;
+
 
 public class GroupingTest {
 
@@ -147,7 +148,7 @@ public class GroupingTest {
 		this.customTypeData.add(new CustomType());
 
 		DataSet<CustomType> customDs = env.fromCollection(customTypeData);
-		// should not work: groups on custom type
+		// should not work: tuple selector on custom type
 		customDs.groupBy(0);
 
 	}
@@ -162,6 +163,33 @@ public class GroupingTest {
 		ds.groupBy("myNonExistent");
 	}
 
+	@Test
+	public void testGroupByKeyExpressions1Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		this.customTypeData.add(new CustomType());
+
+		DataSet<CustomType> ds = env.fromCollection(customTypeData);
+
+		// should work
+		try {
+			ds.groupBy("nested.myInt");
+		} catch(Exception e) {
+			Assert.fail();
+		}
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testGroupByKeyExpressions2Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds = env.fromCollection(customTypeData);
+
+		// should not work, key out of tuple bounds
+		ds.groupBy("nested.myNonExistent");
+	}
+
 	
 	@Test
 	@SuppressWarnings("serial")
@@ -174,7 +202,7 @@ public class GroupingTest {
 			DataSet<CustomType> customDs = env.fromCollection(customTypeData);
 			// should work
 			customDs.groupBy(
-					new KeySelector<GroupingTest.CustomType, Long>() {
+					new KeySelector<CustomType, Long>() {
 	
 						@Override
 						public Long getKey(CustomType value) {
@@ -242,29 +270,6 @@ public class GroupingTest {
 			tupleDs.groupBy(0).sortGroup(0, Order.ASCENDING).sortGroup(2, Order.DESCENDING);
 		} catch(Exception e) {
 			Assert.fail();
-		}
-	}
-	
-
-	public static class CustomType implements Serializable {
-		
-		private static final long serialVersionUID = 1L;
-		
-		public int myInt;
-		public long myLong;
-		public String myString;
-		
-		public CustomType() {};
-		
-		public CustomType(int i, long l, String s) {
-			myInt = i;
-			myLong = l;
-			myString = s;
-		}
-		
-		@Override
-		public String toString() {
-			return myInt+","+myLong+","+myString;
 		}
 	}
 }

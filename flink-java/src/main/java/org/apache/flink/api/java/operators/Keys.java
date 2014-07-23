@@ -22,7 +22,6 @@ import java.util.Arrays;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.TypeInformation;
@@ -191,20 +190,9 @@ public abstract class Keys<T> {
 
 		private final TypeInformation<?>[] types;
 
-		@SuppressWarnings("unused")
-		private PojoTypeInfo<?> type;
-
 		public ExpressionKeys(String[] expressions, TypeInformation<T> type) {
-			if (!(type instanceof PojoTypeInfo<?>)) {
-				throw new UnsupportedOperationException("Key expressions can only be used on POJOs." + " " +
-						"A POJO must have a default constructor without arguments and not have readObject" +
-						" and/or writeObject methods. A current restriction is that it can only have nested POJOs or primitive (also boxed)" +
-						" fields.");
-			}
-			PojoTypeInfo<?> pojoType = (PojoTypeInfo<?>) type;
-			this.type = pojoType;
-			logicalPositions = pojoType.getLogicalPositions(expressions);
-			types = pojoType.getTypes(expressions);
+			logicalPositions = type.getLogicalPositions(expressions);
+			types = type.getTypes(expressions);
 
 			for (int i = 0; i < logicalPositions.length; i++) {
 				if (logicalPositions[i] < 0) {

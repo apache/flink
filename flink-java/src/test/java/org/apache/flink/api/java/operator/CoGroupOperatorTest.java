@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.operator;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,6 +33,7 @@ import org.junit.Test;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operator.JoinOperatorTest.CustomType;
 
 @SuppressWarnings("serial")
 public class CoGroupOperatorTest {
@@ -177,6 +177,54 @@ public class CoGroupOperatorTest {
 	}
 	
 	@Test
+	public void testCoGroupKeyExpressions1Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should work
+		try {
+			ds1.coGroup(ds2).where("nested.myInt").equalTo("nested.myInt");
+		} catch(Exception e) {
+			Assert.fail();
+		}
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyExpressions2Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, incompatible cogroup key types
+		ds1.coGroup(ds2).where("nested.myInt").equalTo("nested.myString");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyExpressions3Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, incompatible number of cogroup keys
+		ds1.coGroup(ds2).where("nested.myInt", "nested.myString").equalTo("nested.myString");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testCoGroupKeyExpressions4Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, cogroup key non-existent
+		ds1.coGroup(ds2).where("nested.myNonExistent").equalTo("nested.myInt");
+	}
+	
+	@Test
 	public void testCoGroupKeySelectors1() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -300,27 +348,5 @@ public class CoGroupOperatorTest {
 						}
 					}
 				);
-	}
-		
-	public static class CustomType implements Serializable {
-		
-		private static final long serialVersionUID = 1L;
-		
-		public int myInt;
-		public long myLong;
-		public String myString;
-		
-		public CustomType() {};
-		
-		public CustomType(int i, long l, String s) {
-			myInt = i;
-			myLong = l;
-			myString = s;
-		}
-		
-		@Override
-		public String toString() {
-			return myInt+","+myLong+","+myString;
-		}
 	}
 }

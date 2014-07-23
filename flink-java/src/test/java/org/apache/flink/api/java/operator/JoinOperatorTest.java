@@ -176,6 +176,54 @@ public class JoinOperatorTest {
 		ds1.join(ds2).where("myNonExistent").equalTo("myInt");
 	}
 
+	@Test
+	public void testJoinKeyExpressions1Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should work
+		try {
+			ds1.join(ds2).where("nested.myInt").equalTo("nested.myInt");
+		} catch(Exception e) {
+			Assert.fail();
+		}
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyExpressions2Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, incompatible join key types
+		ds1.join(ds2).where("nested.myInt").equalTo("nested.myString");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyExpressions3Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, incompatible number of join keys
+		ds1.join(ds2).where("nested.myInt", "nested.myString").equalTo("nested.myString");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testJoinKeyExpressions4Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, join key non-existent
+		ds1.join(ds2).where("nested.myNonExistent").equalTo("nested.myInt");
+	}
+
 	
 	@Test
 	public void testJoinKeySelectors1() {
@@ -547,12 +595,35 @@ public class JoinOperatorTest {
 	 * ####################################################################
 	 */
 
+	public static class NestedCustomType implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		public int myInt;
+		public long myLong;
+		public String myString;
+
+		public NestedCustomType() {};
+
+		public NestedCustomType(int i, long l, String s) {
+			myInt = i;
+			myLong = l;
+			myString = s;
+		}
+
+		@Override
+		public String toString() {
+			return myInt+","+myLong+","+myString;
+		}
+	}
+
 	public static class CustomType implements Serializable {
 		
 		private static final long serialVersionUID = 1L;
 		
 		public int myInt;
 		public long myLong;
+		public NestedCustomType nested;
 		public String myString;
 		
 		public CustomType() {};
@@ -561,6 +632,7 @@ public class JoinOperatorTest {
 			myInt = i;
 			myLong = l;
 			myString = s;
+			nested = new NestedCustomType(i, l, s);
 		}
 		
 		@Override

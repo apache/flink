@@ -178,7 +178,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			po.setCombinable(combinable);
 			po.setInput(input);
 			po.setDegreeOfParallelism(this.getParallelism());
-			
+
 			return po;
 		}
 		else {

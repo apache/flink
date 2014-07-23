@@ -22,6 +22,10 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.google.common.base.Joiner;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -36,7 +40,9 @@ public final class PojoComparator<T> extends TypeComparator<T> implements java.i
 
 	private static final long serialVersionUID = 1L;
 
-	private transient Field[] keyFields;
+	// for each "field" we have a list of fields, since we might access fields
+	// in nested objects
+	private transient List<Field>[] keyFields;
 
 	private final TypeComparator<Object>[] comparators;
 
@@ -54,7 +60,7 @@ public final class PojoComparator<T> extends TypeComparator<T> implements java.i
 
 
 	@SuppressWarnings("unchecked")
-	public PojoComparator(Field[] keyFields, TypeComparator<?>[] comparators, TypeSerializer<T> serializer, Class<T> type) {
+	public PojoComparator(List<Field>[] keyFields, TypeComparator<?>[] comparators, TypeSerializer<T> serializer, Class<T> type) {
 		this.keyFields = keyFields;
 		this.comparators = (TypeComparator<Object>[]) comparators;
 
@@ -135,9 +141,12 @@ public final class PojoComparator<T> extends TypeComparator<T> implements java.i
 			throws IOException, ClassNotFoundException {
 		out.defaultWriteObject();
 		out.writeInt(keyFields.length);
-		for (Field field: keyFields) {
-			out.writeObject(field.getDeclaringClass());
-			out.writeUTF(field.getName());
+		for (List<Field> fieldAccessors: keyFields) {
+			out.writeInt(fieldAccessors.size());
+			for (Field field: fieldAccessors) {
+				out.writeObject(field.getDeclaringClass());
+				out.writeUTF(field.getName());
+			}
 		}
 	}
 
@@ -145,30 +154,34 @@ public final class PojoComparator<T> extends TypeComparator<T> implements java.i
 			throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
 		int numKeyFields = in.readInt();
-		keyFields = new Field[numKeyFields];
+		keyFields = new List[numKeyFields];
 		for (int i = 0; i < numKeyFields; i++) {
-			Class<?> clazz = (Class<?>)in.readObject();
-			String fieldName = in.readUTF();
-			keyFields[i] = null;
-			// try superclasses as well
-			while (clazz != null) {
-				try {
-					keyFields[i] = clazz.getDeclaredField(fieldName);
-					keyFields[i].setAccessible(true);
-					break;
-				} catch (NoSuchFieldException e) {
-					clazz = clazz.getSuperclass();
+			int numAccessors = in.readInt();
+			keyFields[i] = new ArrayList<Field>();
+			for (int j = 0; j < numAccessors; j++) {
+				Class<?> clazz = (Class<?>) in.readObject();
+				String fieldName = in.readUTF();
+				// try superclasses as well
+				while (clazz != null) {
+					try {
+						Field field = clazz.getDeclaredField(fieldName);
+						field.setAccessible(true);
+						keyFields[i].add(field);
+						break;
+					} catch (NoSuchFieldException e) {
+						clazz = clazz.getSuperclass();
+					}
 				}
-			}
-			if (keyFields[i] == null) {
-				throw new RuntimeException("Class resolved at TaskManager is not compatible with class read during Plan setup."
-						+ " (" + fieldName + ")");
+				if (keyFields[i] == null || keyFields[i].isEmpty()) {
+					throw new RuntimeException("Class resolved at TaskManager is not compatible with class read during Plan setup."
+							+ " (" + fieldName + ")");
+				}
 			}
 		}
 	}
 
 
-	public Field[] getKeyFields() {
+	public List<Field>[] getKeyFields() {
 		return this.keyFields;
 	}
 
@@ -176,58 +189,58 @@ public final class PojoComparator<T> extends TypeComparator<T> implements java.i
 		return this.comparators;
 	}
 
+	private final Object accessField(List<Field> fieldAccessors, Object object) {
+		// We could have another indirection where we have an AccessorProxy for fields with only
+		// one element in the accessor chain and another MultiAccessorProxy for fields with several
+		// fields to access the final key field. This would add another level of abstraction with additional
+		// objects and additional calls per key field so go with this simple version for now.
+		for (Field accessor : fieldAccessors) {
+			try {
+				object = accessor.get(object);
+			} catch (NullPointerException npex) {
+				List<String> accessorNames = new ArrayList<String>();
+				for (Field f : fieldAccessors) {
+					accessorNames.add(f.getName());
+				}
+				Joiner join = Joiner.on('.');
+				throw new NullKeyFieldException(join.join(accessorNames));
+			} catch (IllegalAccessException iaex) {
+				throw new RuntimeException("This should not happen since we call setAccesssible(true) in PojoTypeInfo."
+				+ " ACC: " + accessor + " obj: " + object);
+			}
+		}
+		return object;
+	}
+
 	@Override
 	public int hash(T value) {
 		int i = 0;
-		try {
-			int code = 0;
-			for (; i < this.keyFields.length; i++) {
-				code ^= this.comparators[i].hash(this.keyFields[i].get(value));
-				code *= HASH_SALT[i & 0x1F]; // salt code with (i % HASH_SALT.length)-th salt component
-			}
-			return code;
+		int code = 0;
+		for (; i < this.keyFields.length; i++) {
+			code ^= this.comparators[i].hash(accessField(keyFields[i], value));
+			code *= HASH_SALT[i & 0x1F]; // salt code with (i % HASH_SALT.length)-th salt component
 		}
-		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(this.keyFields[i].toString());
-		}
-		catch (IllegalAccessException iaex) {
-			throw new RuntimeException("This should not happen since we call setAccesssible(true) in PojoTypeInfo.");
-		}
+		return code;
+
 	}
 
 	@Override
 	public void setReference(T toCompare) {
 		int i = 0;
-		try {
-			for (; i < this.keyFields.length; i++) {
-				this.comparators[i].setReference(this.keyFields[i].get(toCompare));
-			}
-		}
-		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(this.keyFields[i].toString());
-		}
-		catch (IllegalAccessException iaex) {
-			throw new RuntimeException("This should not happen since we call setAccesssible(true) in PojoTypeInfo.");
+		for (; i < this.keyFields.length; i++) {
+			this.comparators[i].setReference(accessField(keyFields[i], toCompare));
 		}
 	}
 
 	@Override
 	public boolean equalToReference(T candidate) {
 		int i = 0;
-		try {
-			for (; i < this.keyFields.length; i++) {
-				if (!this.comparators[i].equalToReference(this.keyFields[i].get(candidate))) {
-					return false;
-				}
+		for (; i < this.keyFields.length; i++) {
+			if (!this.comparators[i].equalToReference(accessField(keyFields[i], candidate))) {
+				return false;
 			}
-			return true;
 		}
-		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(this.keyFields[i].toString());
-		}
-		catch (IllegalAccessException iaex) {
-			throw new RuntimeException("This should not happen since we call setAccesssible(true) in PojoTypeInfo.");
-		}
+		return true;
 	}
 
 	@Override
@@ -252,20 +265,14 @@ public final class PojoComparator<T> extends TypeComparator<T> implements java.i
 	@Override
 	public int compare(T first, T second) {
 		int i = 0;
-		try {
-			for (; i < keyFields.length; i++) {
-				int cmp = comparators[i].compare(keyFields[i].get(first),keyFields[i].get(second));
-				if (cmp != 0) {
-					return cmp;
-				}
+		for (; i < keyFields.length; i++) {
+			int cmp = comparators[i].compare(accessField(keyFields[i], first), accessField(keyFields[i], second));
+			if (cmp != 0) {
+				return cmp;
 			}
-
-			return 0;
-		} catch (NullPointerException npex) {
-			throw new NullKeyFieldException(keyFields[i].toString() + " " + first.toString() + " " + second.toString());
-		} catch (IllegalAccessException iaex) {
-			throw new RuntimeException("This should not happen since we call setAccesssible(true) in PojoTypeInfo.");
 		}
+
+		return 0;
 	}
 
 	@Override
@@ -299,21 +306,13 @@ public final class PojoComparator<T> extends TypeComparator<T> implements java.i
 	@Override
 	public void putNormalizedKey(T value, MemorySegment target, int offset, int numBytes) {
 		int i = 0;
-		try {
-			for (; i < this.numLeadingNormalizableKeys & numBytes > 0; i++)
-			{
-				int len = this.normalizedKeyLengths[i];
-				len = numBytes >= len ? len : numBytes;
-				this.comparators[i].putNormalizedKey(this.keyFields[i].get(value), target, offset, len);
-				numBytes -= len;
-				offset += len;
-			}
-		}
-		catch (IllegalAccessException iaex) {
-			throw new RuntimeException("This should not happen since we call setAccesssible(true) in PojoTypeInfo.");
-		}
-		catch (NullPointerException npex) {
-			throw new NullKeyFieldException(this.keyFields[i].toString());
+		for (; i < this.numLeadingNormalizableKeys & numBytes > 0; i++)
+		{
+			int len = this.normalizedKeyLengths[i];
+			len = numBytes >= len ? len : numBytes;
+			this.comparators[i].putNormalizedKey(accessField(keyFields[i], value), target, offset, len);
+			numBytes -= len;
+			offset += len;
 		}
 	}
 
