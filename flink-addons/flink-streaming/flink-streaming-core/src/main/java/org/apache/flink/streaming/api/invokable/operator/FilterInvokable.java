@@ -34,21 +34,21 @@ public class FilterInvokable<IN extends Tuple> extends UserTaskInvokable<IN, IN>
 	}
 
 	@Override
-	public void invoke() throws Exception {
-		if (this.isMutable) {
-			while (recordIterator.next(reuse) != null) {
-				if (filterFunction.filter(reuse.getTuple())) {
-					collector.collect(reuse.getTuple());
-				}
+	protected void immutableInvoke() throws Exception {
+		while (recordIterator.next(reuse) != null) {
+			if (filterFunction.filter(reuse.getTuple())) {
+				collector.collect(reuse.getTuple());
 			}
-		} else {
-			while (recordIterator.next(reuse) != null) {
-				if (filterFunction.filter(reuse.getTuple())) {
-					collector.collect(reuse.getTuple());
-				}
-				resetReuse();
+			resetReuse();
+		}
+	}
+
+	@Override
+	protected void mutableInvoke() throws Exception {
+		while (recordIterator.next(reuse) != null) {
+			if (filterFunction.filter(reuse.getTuple())) {
+				collector.collect(reuse.getTuple());
 			}
 		}
-
 	}
 }

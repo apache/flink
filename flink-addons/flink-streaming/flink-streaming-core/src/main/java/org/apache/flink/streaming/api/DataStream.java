@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.invokable.operator.BatchReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
+import org.apache.flink.streaming.api.invokable.operator.WindowReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoMapInvokable;
 
 /**
@@ -314,7 +315,7 @@ public class DataStream<T extends Tuple> {
 		}
 		return returnStream;
 	}
-	
+
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
 	 * are distributed evenly to the next component.
@@ -346,6 +347,27 @@ public class DataStream<T extends Tuple> {
 		return environment.addFunction("map", new DataStream<T>(this), mapper,
 				new MapInvokable<T, R>(mapper));
 
+	}
+
+	/**
+	 * Applies a CoMap transformation on two separate {@link DataStream}s. The
+	 * transformation calls a {@link CoMapFunction#map1(Tuple)} for each element
+	 * of the first DataStream (on which .coMapWith was called) and
+	 * {@link CoMapFunction#map2(Tuple)} for each element of the second
+	 * DataStream. Each CoMapFunction call returns exactly one element.
+	 * 
+	 * @param coMapper
+	 *            The CoMapFunction used to jointly transform the two input
+	 *            DataStreams
+	 * @param otherStream
+	 *            The DataStream that will be transformed with
+	 *            {@link CoMapFunction#map2(Tuple)}
+	 * @return The transformed DataStream
+	 */
+	public <T2 extends Tuple, R extends Tuple> DataStream<R> coMapWith(
+			CoMapFunction<T, T2, R> coMapper, DataStream<T2> otherStream) {
+		return environment.addCoFunction("coMap", new DataStream<T>(this), new DataStream<T2>(
+				otherStream), coMapper, new CoMapInvokable<T, T2, R>(coMapper));
 	}
 
 	/**
@@ -404,11 +426,6 @@ public class DataStream<T extends Tuple> {
 				new BatchReduceInvokable<T, R>(reducer, batchSize));
 	}
 
-	public <T2 extends Tuple, R extends Tuple> DataStream<R> coMapWith(CoMapFunction<T, T2, R> coMapper, DataStream<T2> otherStream) {
-		return environment.addCoFunction("coMap", new DataStream<T>(this), new DataStream<T2>(otherStream), coMapper, new CoMapInvokable<T, T2, R>(coMapper));
-	}
-	
-	
 	/**
 	 * Applies a reduce transformation on preset "time" chunks of the
 	 * DataStream. The transformation calls a {@link GroupReduceFunction} on
@@ -428,7 +445,7 @@ public class DataStream<T extends Tuple> {
 	public <R extends Tuple> StreamOperator<T, R> windowReduce(GroupReduceFunction<T, R> reducer,
 			long windowSize) {
 		return environment.addFunction("batchReduce", new DataStream<T>(this), reducer,
-				new BatchReduceInvokable<T, R>(reducer, windowSize));
+				new WindowReduceInvokable<T, R>(reducer, windowSize));
 	}
 
 	/**

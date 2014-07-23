@@ -32,16 +32,17 @@ public class SinkInvokable<IN extends Tuple> extends StreamRecordInvokable<IN, I
 	}
 
 	@Override
-	public void invoke() throws Exception {
-		if (this.isMutable) {
-			while (recordIterator.next(reuse) != null) {
-				sinkFunction.invoke((IN) reuse.getTuple());
-			}
-		} else {
-			while (recordIterator.next(reuse) != null) {
-				sinkFunction.invoke((IN) reuse.getTuple());
-				resetReuse();
-			}
+	protected void immutableInvoke() throws Exception {
+		while (recordIterator.next(reuse) != null) {
+			sinkFunction.invoke((IN) reuse.getTuple());
+			resetReuse();
+		}
+	}
+
+	@Override
+	protected void mutableInvoke() throws Exception {
+		while (recordIterator.next(reuse) != null) {
+			sinkFunction.invoke((IN) reuse.getTuple());
 		}
 	}
 }
