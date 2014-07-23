@@ -224,16 +224,16 @@ under the Apache License (v 2.0):
  - Apache Commons FileUpload (http://commons.apache.org/fileupload/)
  - Apache Commons IO (http://commons.apache.org/io/)
  - Apache Log4J (http://logging.apache.org/log4j/1.2/)
- - Apache Avro (http://avro.apache.org/)
+ - Apache Avro (http://avro.apache.org)
  - Apache Hadoop (http://hadoop.apache.org)
  - Apache Derby (http://db.apache.org/derby/)
  - Google Guava (https://code.google.com/p/guava-libraries/)
- - Netty (http://netty.io/)
+ - Netty (http://netty.io)
  - Powermock (http://www.powermock.org)
  - Javassist (http://www.javassist.org)
- - Jetty Web Container (http://www.eclipse.org/jetty)
- - Amazon Web Services SDK for Java (http://aws.amazon.com/sdkforjava)
-
+ - Jetty Web Container (http://www.eclipse.org/jetty/)
+ - Amazon Web Services SDK for Java (http://aws.amazon.com/sdkforjava/)
+ - ScalaTest (http://www.scalatest.org)
 
 -----------------------------------------------------------------------
  Eclipse Public License  - v 1.0
