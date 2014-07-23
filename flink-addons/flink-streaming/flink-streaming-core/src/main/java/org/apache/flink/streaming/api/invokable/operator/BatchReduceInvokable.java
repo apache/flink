@@ -20,6 +20,8 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -47,8 +49,73 @@ public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
 		this.window = true;
 	}
 
+	private StreamRecord<IN> loadNextRecord() {
+		try {
+			reuse = recordIterator.next(reuse);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return reuse;
+	}
+
 	@Override
 	public void invoke() throws Exception {
+		if (this.isMutable) {
+			mutableInvoke();
+		} else {
+			immutableInvoke();
+		}
+	}
+
+	private void immutableInvoke() throws Exception {
+		List<IN> tupleBatch = new ArrayList<IN>();
+		boolean batchStart;
+
+		if (window) {
+			long startTime = System.currentTimeMillis();
+			while (loadNextRecord() != null) {
+				batchStart = true;
+				do {
+					if (batchStart) {
+						batchStart = false;
+					} else {
+						reuse = loadNextRecord();
+						if (reuse == null) {
+							break;
+						}
+					}
+					tupleBatch.add(reuse.getTuple());
+					resetReuse();
+				} while (System.currentTimeMillis() - startTime < windowSize);
+				reducer.reduce(tupleBatch.iterator(), collector);
+				tupleBatch.clear();
+				startTime = System.currentTimeMillis();
+			}
+		} else {
+			int counter = 0;
+			while (loadNextRecord() != null) {
+				batchStart = true;
+				do {
+					if (batchStart) {
+						batchStart = false;
+					} else {
+						reuse = loadNextRecord();
+						if (reuse == null) {
+							break;
+						}
+					}
+					counter++;
+					tupleBatch.add(reuse.getTuple());
+					resetReuse();
+				} while (counter < batchSize);
+				reducer.reduce(tupleBatch.iterator(), collector);
+				tupleBatch.clear();
+				counter = 0;
+			}
+		}
+	}
+
+	private void mutableInvoke() throws Exception {
 		BatchIterator<IN> userIterator;
 		if (window) {
 			userIterator = new WindowIterator();
@@ -62,18 +129,6 @@ public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
 				userIterator.reset();
 			}
 		} while (reuse != null);
-	}
-
-	private StreamRecord<IN> loadNextRecord() {
-		if (!isMutable) {
-			resetReuse();
-		}
-		try {
-			reuse = recordIterator.next(reuse);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return reuse;
 	}
 
 	public class CounterIterator implements BatchIterator<IN> {

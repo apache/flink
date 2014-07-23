@@ -35,19 +35,24 @@ public class CoMapInvokable<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tu
 	// TODO rework this as UnionRecordReader
 	@Override
 	public void invoke() throws Exception {
-		boolean noMoreRecordOnInput1;
-		boolean noMoreRecordOnInput2;
-		
+		boolean noMoreRecordOnInput1 = false;
+		boolean noMoreRecordOnInput2 = false;
+
 		do {
 			noMoreRecordOnInput1 = recordIterator1.next(reuse1) == null;
 			if (!noMoreRecordOnInput1) {
 				collector.collect(mapper.map1(reuse1.getTuple()));
 			}
-			
+
 			noMoreRecordOnInput2 = recordIterator2.next(reuse2) == null;
 			if (!noMoreRecordOnInput2) {
 				collector.collect(mapper.map2(reuse2.getTuple()));
 			}
+
+			if (!this.isMutable) {
+				resetReuse();
+			}
 		} while (!noMoreRecordOnInput1 && !noMoreRecordOnInput2);
 	}
+
 }

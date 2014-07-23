@@ -36,18 +36,30 @@ public abstract class CoInvokable<IN1 extends Tuple, IN2 extends Tuple, OUT exte
 	protected MutableObjectIterator<StreamRecord<IN2>> recordIterator2;
 	protected StreamRecord<IN1> reuse1;
 	protected StreamRecord<IN2> reuse2;
+	protected StreamRecordSerializer<IN1> serializer1;
+	protected StreamRecordSerializer<IN2> serializer2;
+	protected boolean isMutable;
 
 	public void initialize(Collector<OUT> collector,
 			MutableObjectIterator<StreamRecord<IN1>> recordIterator1,
 			StreamRecordSerializer<IN1> serializer1,
 			MutableObjectIterator<StreamRecord<IN2>> recordIterator2,
-			StreamRecordSerializer<IN2> serializer2) {
+			StreamRecordSerializer<IN2> serializer2, boolean isMutable) {
 		this.collector = collector;
-	
+
 		this.recordIterator1 = recordIterator1;
 		this.reuse1 = serializer1.createInstance();
-		
+
 		this.recordIterator2 = recordIterator2;
+		this.reuse2 = serializer2.createInstance();
+
+		this.serializer1 = serializer1;
+		this.serializer2 = serializer2;
+		this.isMutable = isMutable;
+	}
+
+	public void resetReuse() {
+		this.reuse1 = serializer1.createInstance();
 		this.reuse2 = serializer2.createInstance();
 	}
 
