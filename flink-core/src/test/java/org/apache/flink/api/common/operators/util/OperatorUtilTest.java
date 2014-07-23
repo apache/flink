@@ -21,11 +21,11 @@ package org.apache.flink.api.common.operators.util;
 
 import static org.junit.Assert.assertEquals;
 
+import org.apache.flink.api.common.functions.GroupReducible;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.GenericCoGrouper;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
 import org.apache.flink.api.common.functions.GenericCrosser;
-import org.apache.flink.api.common.functions.GenericGroupReduce;
 import org.apache.flink.api.common.functions.GenericJoiner;
 import org.apache.flink.api.common.io.DelimitedInputFormat;
 import org.apache.flink.api.common.io.FileOutputFormat;
@@ -123,5 +123,5 @@ public class OperatorUtilTest {
 
 	static abstract class Matcher implements GenericJoiner<IntValue, IntValue, IntValue> {}
 
-	static abstract class Reducer implements GenericGroupReduce<IntValue, IntValue> {}
+	static abstract class Reducer implements GroupReducible<IntValue, IntValue> {}
 }

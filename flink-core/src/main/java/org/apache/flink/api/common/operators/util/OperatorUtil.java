@@ -28,7 +28,7 @@ import java.util.Map.Entry;
 import org.apache.flink.api.common.functions.GenericCoGrouper;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
 import org.apache.flink.api.common.functions.GenericCrosser;
-import org.apache.flink.api.common.functions.GenericGroupReduce;
+import org.apache.flink.api.common.functions.GroupReducible;
 import org.apache.flink.api.common.functions.GenericJoiner;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FileOutputFormat;
@@ -56,7 +56,7 @@ public class OperatorUtil {
 
 	static {
 		STUB_CONTRACTS.put(GenericCollectorMap.class, CollectorMapOperatorBase.class);
-		STUB_CONTRACTS.put(GenericGroupReduce.class, GroupReduceOperatorBase.class);
+		STUB_CONTRACTS.put(GroupReducible.class, GroupReduceOperatorBase.class);
 		STUB_CONTRACTS.put(GenericCoGrouper.class, CoGroupOperatorBase.class);
 		STUB_CONTRACTS.put(GenericCrosser.class, CrossOperatorBase.class);
 		STUB_CONTRACTS.put(GenericJoiner.class, JoinOperatorBase.class);

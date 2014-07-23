@@ -19,10 +19,26 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
-public interface ReduceFunctional<T> extends Function, Serializable {
+
+/**
+ *
+ * @param <T>
+ * @param <O>
+ */
+public interface FlatMappable<T, O> extends Function, Serializable {
 	
-	T reduce(T value1, T value2) throws Exception;
+	/**
+	 * User defined function to perform transformations on records.
+	 * This method allows to submit an arbitrary number of records
+	 * per incoming tuple.
+	 * 
+	 * @param record incoming record
+	 * @param out outgoing collector to return none, one or more records
+	 * @throws Exception
+	 */
+	void flatMap(T record, Collector<O> out) throws Exception;
 }

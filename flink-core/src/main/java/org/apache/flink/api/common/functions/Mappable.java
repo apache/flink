@@ -18,16 +18,15 @@
 
 
 package org.apache.flink.api.common.functions;
+
+
 import java.io.Serializable;
 
-public interface FilterFunctional<T> extends Function, Serializable {
+public interface Mappable<T, O> extends Function, Serializable {
 	
 	/**
-	 * User defined function for a filter.
-	 * 
-	 * @param value Incoming tuples
-	 * @return true for tuples that are allowed to pass the filter
-	 * @throws Exception
+	 * A user-implemented function that modifies or transforms an incoming object and
+	 * returns the result.
 	 */
-	boolean filter(T value) throws Exception;
+	O map(T record) throws Exception;
 }

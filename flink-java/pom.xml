@@ -42,8 +42,8 @@ under the License.
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.1</version><!--$NO-MVN-MAN-VER$-->
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>1.6</source>
+                    <target>1.6</target>
                     <!-- High optimization, no debugging <compilerArgument>-g:none -O</compilerArgument> -->
                 </configuration>
             </plugin>
