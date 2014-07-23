@@ -135,7 +135,7 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 				CoMapInvokable.class, CoInvokable.class);
 		userFunction = (CoInvokable<IN1, IN2, OUT>) getInvokable(userFunctionClass);
 		userFunction.initialize(collector, inputIter1, inTupleSerializer1, inputIter2,
-				inTupleSerializer2);
+				inTupleSerializer2, isMutable);
 	}
 
 	protected void setConfigInputs() throws StreamComponentException {
