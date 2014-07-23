@@ -25,22 +25,24 @@ import java.util.List;
 import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 
-public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
+public class WindowReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
 		StreamReduceInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
-	private int batchSize;
+	private long windowSize;
+	volatile boolean isRunning;
+	boolean window;
 
-	public BatchReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, int batchSize) {
+	public WindowReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize) {
 		this.reducer = reduceFunction;
-		this.batchSize = batchSize;
+		this.windowSize = windowSize;
+		this.window = true;
 	}
 
-	@Override
 	protected void immutableInvoke() throws Exception {
 		List<IN> tupleBatch = new ArrayList<IN>();
 		boolean batchStart;
-		int counter = 0;
 
+		long startTime = System.currentTimeMillis();
 		while (loadNextRecord() != null) {
 			batchStart = true;
 			do {
@@ -52,20 +54,18 @@ public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
 						break;
 					}
 				}
-				counter++;
 				tupleBatch.add(reuse.getTuple());
 				resetReuse();
-			} while (counter < batchSize);
+			} while (System.currentTimeMillis() - startTime < windowSize);
 			reducer.reduce(tupleBatch.iterator(), collector);
 			tupleBatch.clear();
-			counter = 0;
+			startTime = System.currentTimeMillis();
 		}
 
 	}
 
-	@Override
 	protected void mutableInvoke() throws Exception {
-		BatchIterator<IN> userIterator = new CounterIterator();
+		BatchIterator<IN> userIterator = new WindowIterator();
 
 		do {
 			if (userIterator.hasNext()) {
@@ -75,17 +75,18 @@ public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
 		} while (reuse != null);
 	}
 
-	private class CounterIterator implements BatchIterator<IN> {
-		private int counter;
-		private boolean loadedNext;
+	private class WindowIterator implements BatchIterator<IN> {
 
-		public CounterIterator() {
-			counter = 1;
+		private boolean loadedNext;
+		private long startTime;
+
+		public WindowIterator() {
+			startTime = System.currentTimeMillis();
 		}
 
 		@Override
 		public boolean hasNext() {
-			if (counter > batchSize) {
+			if (System.currentTimeMillis() - startTime > windowSize) {
 				return false;
 			} else if (!loadedNext) {
 				loadNextRecord();
@@ -97,23 +98,21 @@ public class BatchReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
 		@Override
 		public IN next() {
 			if (hasNext()) {
-				counter++;
 				loadedNext = false;
 				return reuse.getTuple();
 			} else {
-				counter++;
 				loadedNext = false;
-				return null;
+				return reuse.getTuple();
 			}
 		}
 
 		public void reset() {
-			for (int i = 0; i < (batchSize - counter); i++) {
+			while (System.currentTimeMillis() - startTime < windowSize) {
 				loadNextRecord();
 			}
 			loadNextRecord();
 			loadedNext = true;
-			counter = 1;
+			startTime = System.currentTimeMillis();
 		}
 
 		@Override
