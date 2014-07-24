@@ -16,32 +16,25 @@
  * limitations under the License.
  */
 
+package org.apache.flink.api.common.typeutils;
 
-package org.apache.flink.runtime.io.network.serialization.types;
+import org.apache.flink.core.memory.DataInputView;
 
-public enum SerializationTestTypeFactory {
-	BOOLEAN(new BooleanType()),
-	BYTE_ARRAY(new ByteArrayType()),
-	BYTE_SUB_ARRAY(new ByteSubArrayType()),
-	BYTE(new ByteType()),
-	CHAR(new CharType()),
-	DOUBLE(new DoubleType()),
-	FLOAT(new FloatType()),
-	INT(new IntType()),
-	LONG(new LongType()),
-	SHORT(new ShortType()),
-	UNSIGNED_BYTE(new UnsignedByteType()),
-	UNSIGNED_SHORT(new UnsignedShortType()),
-	STRING(new AsciiStringType()),
-	LONG_STRING(new LongAsciiStringType());
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
 
-	private final SerializationTestType factory;
+final class TestInputView extends DataInputStream implements DataInputView {
 
-	SerializationTestTypeFactory(SerializationTestType type) {
-		this.factory = type;
+	public TestInputView(byte[] data) {
+		super(new ByteArrayInputStream(data));
 	}
 
-	public SerializationTestType factory() {
-		return this.factory;
+	@Override
+	public void skipBytesToRead(int numBytes) throws IOException {
+		while (numBytes > 0) {
+			int skipped = skipBytes(numBytes);
+			numBytes -= skipped;
+		}
 	}
 }

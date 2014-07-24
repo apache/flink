@@ -44,7 +44,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.PactDriver;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
@@ -543,7 +543,7 @@ public class TaskConfig {
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		final DataOutputStream dos = new DataOutputStream(baos);
 		try {
-			distribution.write(new OutputViewDataOutputStreamWrapper(dos));
+			distribution.write(new OutputViewDataOutputWrapper(dos));
 		} catch (IOException e) {
 			throw new RuntimeException("Error serializing the DataDistribution: " + e.getMessage(), e);
 		}

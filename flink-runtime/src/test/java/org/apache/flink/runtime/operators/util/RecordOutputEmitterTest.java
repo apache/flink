@@ -33,7 +33,7 @@ import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.distributions.UniformIntegerDistribution;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 import org.apache.flink.runtime.io.network.api.ChannelSelector;
 import org.apache.flink.runtime.operators.shipping.RecordOutputEmitter;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -305,7 +305,7 @@ public class RecordOutputEmitterTest extends TestCase {
 			rec = new Record(1);
 			rec.setField(0, new IntValue());
 			
-			rec.write(new OutputViewDataOutputStreamWrapper(out));
+			rec.write(new OutputViewDataOutputWrapper(out));
 			rec = new Record();
 			rec.read(new InputViewDataInputStreamWrapper(in));
 		

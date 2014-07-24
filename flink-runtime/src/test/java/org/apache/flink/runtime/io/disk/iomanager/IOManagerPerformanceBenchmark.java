@@ -38,7 +38,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
 import org.apache.flink.runtime.io.disk.iomanager.Channel;
@@ -264,7 +264,7 @@ public class IOManagerPerformanceBenchmark
 			int valsLeft = NUM_INTS_WRITTEN;
 			while (valsLeft-- > 0) {
 				rec.setValue(valsLeft);
-				rec.write(new OutputViewDataOutputStreamWrapper(daos));
+				rec.write(new OutputViewDataOutputWrapper(daos));
 			}
 			daos.close();
 			daos = null;

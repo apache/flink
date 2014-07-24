@@ -28,7 +28,7 @@ import java.io.PipedOutputStream;
 import junit.framework.Assert;
 
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.NullValue;
@@ -68,9 +68,9 @@ public class PrimitiveDataTypeTest {
 		Assert.assertEquals(int0.compareTo(int3), -1);
 		// test stream output and retrieval
 		try {
-			int0.write(new OutputViewDataOutputStreamWrapper(mOut));
-			int2.write(new OutputViewDataOutputStreamWrapper(mOut));
-			int3.write(new OutputViewDataOutputStreamWrapper(mOut));
+			int0.write(new OutputViewDataOutputWrapper(mOut));
+			int2.write(new OutputViewDataOutputWrapper(mOut));
+			int3.write(new OutputViewDataOutputWrapper(mOut));
 			IntValue int1n = new IntValue();
 			IntValue int2n = new IntValue();
 			IntValue int3n = new IntValue();
@@ -104,9 +104,9 @@ public class PrimitiveDataTypeTest {
 		Assert.assertEquals(double0.compareTo(double3), -1);
 		// test stream output and retrieval
 		try {
-			double0.write(new OutputViewDataOutputStreamWrapper(mOut));
-			double2.write(new OutputViewDataOutputStreamWrapper(mOut));
-			double3.write(new OutputViewDataOutputStreamWrapper(mOut));
+			double0.write(new OutputViewDataOutputWrapper(mOut));
+			double2.write(new OutputViewDataOutputWrapper(mOut));
+			double3.write(new OutputViewDataOutputWrapper(mOut));
 			DoubleValue double1n = new DoubleValue();
 			DoubleValue double2n = new DoubleValue();
 			DoubleValue double3n = new DoubleValue();
@@ -168,11 +168,11 @@ public class PrimitiveDataTypeTest {
 		
 		// test stream out/input
 		try {
-			string0.write(new OutputViewDataOutputStreamWrapper(mOut));
-			string4.write(new OutputViewDataOutputStreamWrapper(mOut));
-			string2.write(new OutputViewDataOutputStreamWrapper(mOut));
-			string3.write(new OutputViewDataOutputStreamWrapper(mOut));
-			string7.write(new OutputViewDataOutputStreamWrapper(mOut));
+			string0.write(new OutputViewDataOutputWrapper(mOut));
+			string4.write(new OutputViewDataOutputWrapper(mOut));
+			string2.write(new OutputViewDataOutputWrapper(mOut));
+			string3.write(new OutputViewDataOutputWrapper(mOut));
+			string7.write(new OutputViewDataOutputWrapper(mOut));
 			StringValue string1n = new StringValue();
 			StringValue string2n = new StringValue();
 			StringValue string3n = new StringValue();
@@ -221,7 +221,7 @@ public class PrimitiveDataTypeTest {
 		try {
 			// write it multiple times
 			for (int i = 0; i < numWrites; i++) {
-				pn.write(new OutputViewDataOutputStreamWrapper(mOut));
+				pn.write(new OutputViewDataOutputWrapper(mOut));
 			}
 			
 			// read it multiple times

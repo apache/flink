@@ -29,7 +29,7 @@ import junit.framework.Assert;
 
 import org.apache.flink.api.common.distributions.SimpleDistribution;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Key;
@@ -114,7 +114,7 @@ public class SimpleDataDistributionTest {
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		final DataOutputStream dos = new DataOutputStream(baos);
 		try {
-			ddWrite.write(new OutputViewDataOutputStreamWrapper(dos));
+			ddWrite.write(new OutputViewDataOutputWrapper(dos));
 		} catch (IOException e) {
 			Assert.fail("Error serializing the DataDistribution: " + e.getMessage());
 		}

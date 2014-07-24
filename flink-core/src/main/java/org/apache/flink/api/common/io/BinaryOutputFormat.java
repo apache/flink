@@ -26,7 +26,8 @@ import java.io.OutputStream;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 
 
 public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends FileOutputFormat<T> {
@@ -91,7 +92,7 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 	@Override
 	public void writeRecord(T record) throws IOException {
 		this.blockBasedInput.startRecord();
-		this.serialize(record, new OutputViewDataOutputStreamWrapper(this.dataOutputStream));
+		this.serialize(record, new OutputViewDataOutputWrapper(this.dataOutputStream));
 	}
 
 	/**
@@ -172,7 +173,7 @@ public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends F
 			this.blockInfo.setAccumulatedRecordCount(this.totalCount);
 			this.blockInfo.setFirstRecordStart(this.firstRecordStartPos == NO_RECORD ? 0 : this.firstRecordStartPos);
 			BinaryOutputFormat.this.complementBlockInfo(this.blockInfo);
-			this.blockInfo.write(new OutputViewDataOutputStreamWrapper(this.headerStream));
+			this.blockInfo.write(new OutputViewDataOutputWrapper(this.headerStream));
 			this.blockPos = 0;
 			this.blockCount = 0;
 			this.firstRecordStartPos = NO_RECORD;

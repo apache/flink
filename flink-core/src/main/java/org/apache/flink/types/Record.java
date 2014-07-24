@@ -1804,5 +1804,25 @@ public final class Record implements Value, CopyableValue<Record> {
 			source.read(this.memory,this.position, numBytes);
 			this.position += numBytes;
 		}
+
+		@Override
+		public void lock() {
+			throw new UnsupportedOperationException("Not supported since Record writing does not use this feature.");
+		}
+
+		@Override
+		public long tell() throws IOException {
+			throw new UnsupportedOperationException("Not supported since Record writing does not use this feature.");
+		}
+
+		@Override
+		public void seek(long position) throws IOException {
+			throw new UnsupportedOperationException("Not supported since Record writing does not use this feature.");
+		}
+
+		@Override
+		public void unlock() throws IOException {
+			throw new UnsupportedOperationException("Not supported since Record writing does not use this feature.");
+		}
 	}
 }

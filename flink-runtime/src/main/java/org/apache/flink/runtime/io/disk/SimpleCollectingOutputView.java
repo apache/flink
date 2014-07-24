@@ -67,9 +67,9 @@ public class SimpleCollectingOutputView extends AbstractPagedOutputView {
 		}
 		this.segmentNum = 0;
 	}
-	
+
 	@Override
-	protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws EOFException {
+	protected MemorySegment requestSegment() throws EOFException {
 		final MemorySegment next = this.memorySource.nextSegment();
 		if (next != null) {
 			this.fullSegments.add(next);
@@ -78,6 +78,9 @@ public class SimpleCollectingOutputView extends AbstractPagedOutputView {
 		} else {
 			throw new EOFException();
 		}
+	}
+	@Override
+	protected void returnSegment(MemorySegment segment, int bytesWritten) {
 	}
 	
 	public long getCurrentOffset() {

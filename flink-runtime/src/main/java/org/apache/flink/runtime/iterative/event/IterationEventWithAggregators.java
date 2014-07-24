@@ -30,7 +30,7 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 import org.apache.flink.runtime.event.task.AbstractTaskEvent;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
@@ -130,7 +130,7 @@ public abstract class IterationEventWithAggregators extends AbstractTaskEvent {
 			out.writeUTF(this.aggregates[i].getClass().getName());
 			
 			// aggregator value indirect as a byte array
-			this.aggregates[i].write(new OutputViewDataOutputStreamWrapper(bufferStream));
+			this.aggregates[i].write(new OutputViewDataOutputWrapper(bufferStream));
 			bufferStream.flush();
 			byte[] bytes = boas.toByteArray();
 			out.writeInt(bytes.length);

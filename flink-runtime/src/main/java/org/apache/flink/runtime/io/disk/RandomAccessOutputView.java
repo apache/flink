@@ -20,10 +20,10 @@
 package org.apache.flink.runtime.io.disk;
 
 import java.io.EOFException;
+import java.io.IOException;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.SeekableDataOutputView;
-import org.apache.flink.runtime.memorymanager.AbstractPagedOutputView;
+import org.apache.flink.runtime.memorymanager.AbstractMemorySegmentOutputView;
 import org.apache.flink.runtime.util.MathUtils;
 
 
@@ -31,8 +31,7 @@ import org.apache.flink.runtime.util.MathUtils;
  *
  *
  */
-public class RandomAccessOutputView extends AbstractPagedOutputView implements SeekableDataOutputView
-{
+public class RandomAccessOutputView extends AbstractMemorySegmentOutputView {
 	private final MemorySegment[] segments;
 	
 	private int currentSegmentIndex;
@@ -58,22 +57,28 @@ public class RandomAccessOutputView extends AbstractPagedOutputView implements S
 		this.segmentSizeMask = segmentSize - 1;
 	}
 
-
 	@Override
-	protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws EOFException {
+	protected void advance() throws IOException {
 		if (++this.currentSegmentIndex < this.segments.length) {
-			return this.segments[this.currentSegmentIndex];
+			currentSegment = segments[currentSegmentIndex];
+			positionInSegment = headerLength;
 		} else {
 			throw new EOFException();
 		}
 	}
 
 	@Override
-	public void setWritePosition(long position) {
+	public long tell() {
+		return currentSegmentIndex * segmentSize + positionInSegment;
+	}
+
+	@Override
+	public void seek(long position) {
 		final int bufferNum = (int) (position >>> this.segmentSizeBits);
 		final int offset = (int) (position & this.segmentSizeMask);
-		
+
 		this.currentSegmentIndex = bufferNum;
-		seekOutput(this.segments[bufferNum], offset);
+		currentSegment = segments[currentSegmentIndex];
+		positionInSegment = offset;
 	}
 }

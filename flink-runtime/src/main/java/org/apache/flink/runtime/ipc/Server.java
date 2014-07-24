@@ -63,7 +63,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 import org.apache.flink.core.protocols.VersionedProtocol;
 import org.apache.flink.util.ClassUtils;
 
@@ -1055,7 +1055,7 @@ public abstract class Server {
 			} else {
 				out.writeBoolean(true);
 				StringRecord.writeString(out, rv.getClass().getName());
-				rv.write(new OutputViewDataOutputStreamWrapper(out));
+				rv.write(new OutputViewDataOutputWrapper(out));
 			}
 
 		} else {

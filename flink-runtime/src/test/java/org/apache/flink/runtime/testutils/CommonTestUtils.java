@@ -32,7 +32,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 
 /**
  * This class contains auxiliary methods for unit tests in the Nephele common module.
@@ -103,7 +103,7 @@ public class CommonTestUtils {
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		final DataOutputStream dos = new DataOutputStream(baos);
 
-		original.write(new OutputViewDataOutputStreamWrapper(dos));
+		original.write(new OutputViewDataOutputWrapper(dos));
 
 		final String className = original.getClass().getName();
 		if (className == null) {

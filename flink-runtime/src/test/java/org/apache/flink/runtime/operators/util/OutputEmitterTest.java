@@ -37,7 +37,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 import org.apache.flink.runtime.io.network.api.ChannelSelector;
 import org.apache.flink.runtime.operators.shipping.OutputEmitter;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -363,7 +363,7 @@ public class OutputEmitterTest extends TestCase {
 			rec = new Record(1);
 			rec.setField(0, new IntValue());
 			
-			rec.write(new OutputViewDataOutputStreamWrapper(out));
+			rec.write(new OutputViewDataOutputWrapper(out));
 			rec = new Record();
 			rec.read(new InputViewDataInputStreamWrapper(in));
 		

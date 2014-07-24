@@ -38,7 +38,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputWrapper;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
@@ -104,7 +104,7 @@ public class SequentialFormatTest {
 			ByteCounter byteCounter = new ByteCounter();
 			DataOutputStream out = new DataOutputStream(byteCounter);
 			for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++) {
-				this.getRecord(recordIndex).write(new OutputViewDataOutputStreamWrapper(out));
+				this.getRecord(recordIndex).write(new OutputViewDataOutputWrapper(out));
 			}
 			this.rawDataSizes[fileIndex] = byteCounter.getLength();
 		}

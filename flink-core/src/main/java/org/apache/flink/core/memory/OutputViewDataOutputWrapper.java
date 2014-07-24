@@ -18,15 +18,72 @@
 
 package org.apache.flink.core.memory;
 
+import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.util.Arrays;
 
-public class OutputViewObjectOutputStreamWrapper implements DataOutputView {
-	private final ObjectOutputStream out;
+public class OutputViewDataOutputWrapper implements DataOutputView {
+	private static final int INITIAL_LOCK_BUFFER_SIZE = 4096;
 
-	public OutputViewObjectOutputStreamWrapper(ObjectOutputStream out){
+	private DataOutput out;
+
+	private DataOutput originalOut = null;
+	private SeekableByteArrayOutputStream seekableBuffer = null;
+	private DataOutputStream seekableOut = null;
+
+	// We need to keep track of stacked locking, i.e. when child serializers also lock and unlock.
+	private int lockCount = 0;
+
+	public OutputViewDataOutputWrapper(DataOutput out) throws IOException {
 		this.out = out;
+
+		this.originalOut = out;
+		this.seekableBuffer = new SeekableByteArrayOutputStream(INITIAL_LOCK_BUFFER_SIZE);
+		this.seekableOut = new DataOutputStream(this.seekableBuffer);
+	}
+
+	@Override
+	public void lock() {
+		lockCount++;
+		out = seekableOut;
+
+		if (lockCount == 1) {
+			// first lock
+			seekableBuffer.reset();
+		}
+	}
+
+	@Override
+	public void unlock() throws IOException {
+		lockCount--;
+
+		if (lockCount < 0) {
+			throw new RuntimeException("More unlock calls than previous lock calls.");
+		}
+
+		if (lockCount == 0) {
+			out = originalOut;
+			byte[] bytes = seekableBuffer.toByteArray();
+			originalOut.write(bytes);
+			seekableBuffer.reset();
+		}
+	}
+
+	@Override
+	public long tell() throws IOException {
+		if (lockCount <= 0) {
+			throw new RuntimeException("Buffer must be locked.");
+		}
+		return seekableBuffer.tell();
+	}
+
+	@Override
+	public void seek(long position) throws IOException {
+		if (lockCount <= 0) {
+			throw new RuntimeException("Buffer must be locked.");
+		}
+		seekableBuffer.seek((int)position);
 	}
 
 	@Override

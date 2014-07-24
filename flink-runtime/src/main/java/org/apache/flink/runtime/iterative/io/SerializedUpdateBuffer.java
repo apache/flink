@@ -108,13 +108,22 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 	}
 
 	@Override
-	protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws IOException {
-		current.putInt(0, positionInCurrent);
+	protected MemorySegment requestSegment() throws IOException {
+		try {
+			return emptyBuffers.take();
+		} catch (InterruptedException iex) {
+			throw new RuntimeException("Spilling Fifo Queue was interrupted while waiting for next buffer.");
+		}
+	}
+
+	@Override
+	protected void returnSegment(MemorySegment segment, int bytesWritten) throws IOException {
+		segment.putInt(0, bytesWritten);
 
 		// check if we keep the segment in memory, or if we spill it
 		if (emptyBuffers.size() > numSegmentsSpillingThreshold) {
 			// keep buffer in memory
-			fullBuffers.addLast(current);
+			fullBuffers.addLast(segment);
 		} else {
 			// spill all buffers up to now
 			// check, whether we have a channel already
@@ -127,14 +136,8 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 			while (fullBuffers.size() > 0) {
 				currentWriter.writeBlock(fullBuffers.removeFirst());
 			}
-			currentWriter.writeBlock(current);
+			currentWriter.writeBlock(segment);
 			numBuffersSpilled++;
-		}
-
-		try {
-			return emptyBuffers.take();
-		} catch (InterruptedException iex) {
-			throw new RuntimeException("Spilling Fifo Queue was interrupted while waiting for next buffer.");
 		}
 	}
 
@@ -143,6 +146,9 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 	}
 
 	public ReadEnd switchBuffers() throws IOException {
+		if (lockCount > 0) {
+			throw new RuntimeException("Buffer is still locked.");
+		}
 		// remove exhausted read ends
 		for (int i = readEnds.size() - 1; i >= 0; --i) {
 			final ReadEnd re = readEnds.get(i);
@@ -209,7 +215,8 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 		currentWriter = null;
 		numBuffersSpilled = 0;
 		try {
-			seekOutput(emptyBuffers.take(), HEADER_LENGTH);
+			currentSegment = emptyBuffers.take();
+			positionInSegment = HEADER_LENGTH;
 		} catch (InterruptedException e) {
 			throw new RuntimeException("SerializedUpdateBuffer was interrupted while reclaiming memory by spilling.", e);
 		}

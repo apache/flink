@@ -27,10 +27,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentSource;
 import org.apache.flink.core.memory.SeekableDataInputView;
-import org.apache.flink.core.memory.SeekableDataOutputView;
 import org.apache.flink.runtime.io.disk.RandomAccessOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
 import org.apache.flink.runtime.io.disk.iomanager.Channel;
@@ -44,8 +44,8 @@ import org.apache.flink.util.MutableObjectIterator;
 
 /**
  * 
- * @param BT The type of the build side records.
- * @param PT The type of the probe side records.
+ * @param <BT></BT> The type of the build side records.
+ * @param <PT></PT> The type of the probe side records.
  */
 public class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDataInputView
 {
@@ -112,12 +112,15 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	/**
 	 * Creates a new partition, initially in memory, with one buffer for the build side. The partition is
 	 * initialized to expect record insertions for the build side.
-	 * 
+	 *
+	 * @param buildSideAccessors Type serializer for the build side
+	 * @param probeSideAccessors Type serializer for the probe side
 	 * @param partitionNumber The number of the partition.
 	 * @param recursionLevel The recursion level - zero for partitions from the initial build, <i>n + 1</i> for
 	 *                       partitions that are created from spilled partition with recursion level <i>n</i>. 
 	 * @param initialBuffer The initial buffer for this partition.
-	 * @param writeBehindBuffers The queue from which to pop buffers for writing, once the partition is spilled.
+	 * @param memSource The source of new memory segments.
+	 * @param segmentSize The segment size
 	 */
 	HashPartition(TypeSerializer<BT> buildSideAccessors, TypeSerializer<PT> probeSideAccessors,
 			int partitionNumber, int recursionLevel, MemorySegment initialBuffer, MemorySegmentSource memSource,
@@ -261,7 +264,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	 * <p>
 	 * If this method is invoked when the partition is still being built, it has undefined behavior.
 	 *   
-	 * @param object The record to be inserted into the probe side buffers.
+	 * @param record The record to be inserted into the probe side buffers.
 	 * @throws IOException Thrown, if the buffer is full, needs to be spilled, and spilling causes an error.
 	 */
 	public final void insertIntoProbeBuffer(PT record) throws IOException
@@ -312,9 +315,6 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	}
 	
 	/**
-	 * @param spilledPartitions
-	 * @param ioAccess
-	 * @param probeChannelEnumerator
 	 * @throws IOException
 	 */
 	public void finalizeBuildPhase(IOManager ioAccess, Channel.Enumerator probeChannelEnumerator,
@@ -444,7 +444,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		return this.finalBufferLimit;
 	}
 	
-	final SeekableDataOutputView getWriteView() {
+	final DataOutputView getWriteView() {
 		if (this.overwriteBuffer == null) {
 			this.overwriteBuffer = new RandomAccessOutputView(this.partitionBuffers, this.memorySegmentSize);
 		}
@@ -531,25 +531,33 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		
 
 		@Override
-		protected MemorySegment nextSegment(MemorySegment current, int bytesUsed) throws IOException
-		{
-			finalizeSegment(current, bytesUsed);
-			
+		protected MemorySegment requestSegment() throws IOException{
+
 			final MemorySegment next;
 			if (this.writer == null) {
-				this.targetList.add(current);
 				next = this.memSource.nextSegment();
 			} else {
-				this.writer.writeBlock(current);
 				try {
 					next = this.writer.getReturnQueue().take();
 				} catch (InterruptedException iex) {
 					throw new IOException("Hash Join Partition was interrupted while grabbing a new write-behind buffer.");
 				}
 			}
-			
+
 			this.currentBlockNumber++;
 			return next;
+		}
+
+		@Override
+		protected void returnSegment(MemorySegment segment, int bytesUsed) throws IOException
+		{
+			finalizeSegment(segment, bytesUsed);
+
+			if (this.writer == null) {
+				this.targetList.add(segment);
+			} else {
+				this.writer.writeBlock(segment);
+			}
 		}
 		
 		long getCurrentPointer() {

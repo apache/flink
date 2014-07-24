@@ -31,9 +31,9 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentSource;
-import org.apache.flink.core.memory.SeekableDataOutputView;
 import org.apache.flink.runtime.io.disk.ChannelReaderInputViewIterator;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
 import org.apache.flink.runtime.io.disk.iomanager.BulkBlockChannelReader;
@@ -1405,8 +1405,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		}
 		
 		public void writeBack(BT value) throws IOException {
-			final SeekableDataOutputView outView = this.partition.getWriteView();
-			outView.setWritePosition(this.lastPointer);
+			final DataOutputView outView = this.partition.getWriteView();
+			outView.seek(this.lastPointer);
 			this.accessor.serialize(value, outView);
 		}
 		

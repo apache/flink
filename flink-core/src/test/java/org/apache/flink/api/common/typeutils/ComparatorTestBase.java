@@ -18,21 +18,13 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-
-import static org.junit.Assert.*;
-
-import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.io.IOException;
+
+import static org.junit.Assert.*;
 
 /**
  * Abstract test base for comparators.
@@ -447,47 +439,5 @@ public abstract class ComparatorTestBase<T> {
 		T deserialized = serializer.deserialize(serializer.createInstance(), in);
 		deepEquals("Deserialized value is wrong.", value, deserialized);
 
-	}
-
-	// --------------------------------------------------------------------------------------------
-	protected static final class TestOutputView extends DataOutputStream implements DataOutputView {
-
-		public TestOutputView() {
-			super(new ByteArrayOutputStream(4096));
-		}
-
-		public TestInputView getInputView() {
-			ByteArrayOutputStream baos = (ByteArrayOutputStream) out;
-			return new TestInputView(baos.toByteArray());
-		}
-
-		@Override
-		public void skipBytesToWrite(int numBytes) throws IOException {
-			for (int i = 0; i < numBytes; i++) {
-				write(0);
-			}
-		}
-
-		@Override
-		public void write(DataInputView source, int numBytes) throws IOException {
-			byte[] buffer = new byte[numBytes];
-			source.readFully(buffer);
-			write(buffer);
-		}
-	}
-
-	protected static final class TestInputView extends DataInputStream implements DataInputView {
-
-		public TestInputView(byte[] data) {
-			super(new ByteArrayInputStream(data));
-		}
-
-		@Override
-		public void skipBytesToRead(int numBytes) throws IOException {
-			while (numBytes > 0) {
-				int skipped = skipBytes(numBytes);
-				numBytes -= skipped;
-			}
-		}
 	}
 }

@@ -28,14 +28,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentSource;
 import org.apache.flink.core.memory.SeekableDataInputView;
+import org.apache.flink.runtime.memorymanager.AbstractMemorySegmentOutputView;
 import org.apache.flink.runtime.memorymanager.AbstractPagedInputView;
-import org.apache.flink.runtime.memorymanager.AbstractPagedOutputView;
 import org.apache.flink.runtime.memorymanager.ListMemorySegmentSource;
 
 /**
  * In-memory partition with overflow buckets for {@link CompactingHashTable}
  * 
- * @param T record type
+ * @param <T></T> record type
  */
 public class InMemoryPartition<T> {
 	
@@ -159,7 +159,7 @@ public class InMemoryPartition<T> {
 	 * resets read and write views and should only be used on compaction partition
 	 */
 	public void resetRWViews() {
-		this.writeView.resetTo(0L);
+		this.writeView.seek(0L);
 		this.readView.setReadPosition(0L);
 	}
 	
@@ -214,7 +214,7 @@ public class InMemoryPartition<T> {
 	 * @throws IOException Thrown when the write failed.
 	 */
 	public final long appendRecord(T record) throws IOException {
-		long pointer = this.writeView.getCurrentPointer();
+		long pointer = this.writeView.tell();
 		try {
 			this.serializer.serialize(record, this.writeView);
 			this.recordCounter++;
@@ -223,7 +223,7 @@ public class InMemoryPartition<T> {
 			// we ran out of pages. 
 			// first, reset the pages and then we need to trigger a compaction
 			//int oldCurrentBuffer = 
-			this.writeView.resetTo(pointer);
+			this.writeView.seek(pointer);
 			//for (int bufNum = this.partitionPages.size() - 1; bufNum > oldCurrentBuffer; bufNum--) {
 			//	this.availableMemory.addMemorySegment(this.partitionPages.remove(bufNum));
 			//}
@@ -246,10 +246,11 @@ public class InMemoryPartition<T> {
 	 */
 	@Deprecated
 	public void overwriteRecordAt(long pointer, T record) throws IOException {
-		long tmpPointer = this.writeView.getCurrentPointer();
-		this.writeView.resetTo(pointer);
+		// No need for lock/unlock since we know that WriteView does not need it
+		long tmpPointer = this.writeView.tell();
+		this.writeView.seek(pointer);
 		this.serializer.serialize(record, this.writeView);
-		this.writeView.resetTo(tmpPointer);
+		this.writeView.seek(tmpPointer);
 	}
 	
 	/**
@@ -293,7 +294,7 @@ public class InMemoryPartition<T> {
 	
 	// ============================================================================================
 	
-	private static final class WriteView extends AbstractPagedOutputView {
+	private static final class WriteView extends AbstractMemorySegmentOutputView {
 		
 		private final ArrayList<MemorySegment> pages;
 		
@@ -304,10 +305,7 @@ public class InMemoryPartition<T> {
 		private final int sizeMask;
 		
 		private int currentPageNumber;
-		
-		private int segmentNumberOffset;
-		
-		
+
 		private WriteView(ArrayList<MemorySegment> pages, MemorySegmentSource memSource,
 				int pageSize, int pageSizeBits)
 		{
@@ -317,41 +315,39 @@ public class InMemoryPartition<T> {
 			this.memSource = memSource;
 			this.sizeBits = pageSizeBits;
 			this.sizeMask = pageSize - 1;
-			this.segmentNumberOffset = 0;
 		}
-		
 
 		@Override
-		protected MemorySegment nextSegment(MemorySegment current, int bytesUsed) throws IOException {
-			MemorySegment next = this.memSource.nextSegment();
-			if(next == null) {
-				throw new EOFException();
+		protected void advance() throws IOException {
+			if (currentPageNumber < pages.size() - 1) {
+				currentPageNumber++;
+				currentSegment = pages.get(currentPageNumber);
+				positionInSegment = 0;
+			} else {
+				currentSegment = memSource.nextSegment();
+				if(currentSegment == null) {
+					throw new EOFException();
+				}
+				pages.add(currentSegment);
+				currentPageNumber++;
+				positionInSegment = 0;
 			}
-			this.pages.add(next);
-			
-			this.currentPageNumber++;
-			return next;
 		}
-		
-		private long getCurrentPointer() {
-			return (((long) this.currentPageNumber) << this.sizeBits) + getCurrentPositionInSegment();
+
+		@Override
+		public long tell() {
+			return (((long) this.currentPageNumber) << this.sizeBits) + positionInSegment;
 		}
-		
-		private int resetTo(long pointer) {
-			final int pageNum  = (int) (pointer >>> this.sizeBits);
-			final int offset = (int) (pointer & this.sizeMask);
-			
+
+		@Override
+		public void seek(long position) {
+			final int pageNum  = (int) (position >>> this.sizeBits);
+			final int offset = (int) (position & this.sizeMask);
+
 			this.currentPageNumber = pageNum;
-			
-			int posInArray = pageNum - this.segmentNumberOffset;
-			seekOutput(this.pages.get(posInArray), offset);
-			
-			return posInArray;
-		}
-		
-		@SuppressWarnings("unused")
-		public void setSegmentNumberOffset(int offset) {
-			this.segmentNumberOffset = offset;
+
+			currentSegment = pages.get(pageNum);
+			positionInSegment = offset;
 		}
 	}
 	
