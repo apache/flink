@@ -43,6 +43,8 @@ import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
+import org.apache.flink.streaming.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.partitioner.StreamPartitioner;
 
 /**
  * {@link ExecutionEnvironment} for streaming jobs. An instance of it is
@@ -364,9 +366,8 @@ public abstract class StreamExecutionEnvironment {
 		jobGraphBuilder.setIterationSourceParallelism(iterationID, inputStream.getParallelism());
 
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
-			String input = inputStream.connectIDs.get(i);
-			jobGraphBuilder.forwardConnect(inputStream, input, returnStream.getId(), 0);
-
+			String inputID = inputStream.connectIDs.get(i);
+			jobGraphBuilder.setEdge(inputID, returnStream.getId(), new ForwardPartitioner<T>(), 0);
 		}
 	}
 
@@ -552,32 +553,14 @@ public abstract class StreamExecutionEnvironment {
 	 *            Number of the type (used at co-functions)
 	 */
 	private <T extends Tuple> void connectGraph(DataStream<T> inputStream, String outputID, int typeNumber) {
-
+		
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
-			ConnectionType type = inputStream.ctypes.get(i);
-			String input = inputStream.connectIDs.get(i);
-			int param = inputStream.cparams.get(i);
-
-			switch (type) {
-			case SHUFFLE:
-				jobGraphBuilder.shuffleConnect(inputStream, input, outputID, typeNumber);
-				break;
-			case BROADCAST:
-				jobGraphBuilder.broadcastConnect(inputStream, input, outputID, typeNumber);
-				break;
-			case FIELD:
-				jobGraphBuilder.fieldsConnect(inputStream, input, outputID, param, typeNumber);
-				break;
-			case FORWARD:
-				jobGraphBuilder.forwardConnect(inputStream, input, outputID, typeNumber);
-				break;
-			case DISTRIBUTE:
-				jobGraphBuilder.distributeConnect(inputStream, input, outputID, typeNumber);
-				break;
-			}
-
+			String inputID = inputStream.connectIDs.get(i);
+			StreamPartitioner<T> partitioner = inputStream.partitioners.get(i);
+			
+			jobGraphBuilder.setEdge(inputID, outputID, partitioner,
+					typeNumber);
 		}
-
 	}
 
 	protected <T extends Tuple> void setName(DataStream<T> stream, String name) {
