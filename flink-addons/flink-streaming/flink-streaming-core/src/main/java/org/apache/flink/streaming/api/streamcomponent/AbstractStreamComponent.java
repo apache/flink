@@ -48,7 +48,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 public abstract class AbstractStreamComponent<OUT extends Tuple> extends AbstractInvokable {
-	
+
 	private static final Log LOG = LogFactory.getLog(AbstractStreamComponent.class);
 
 	protected TupleTypeInfo<OUT> outTupleTypeInfo = null;
@@ -89,7 +89,6 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 		}
 		return collector;
 	}
-	
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	protected void setSerializer(Object function, Class<?> clazz, int typeParameter) {
@@ -99,9 +98,9 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 		outTupleSerializer = new StreamRecordSerializer(outTupleTypeInfo.createSerializer());
 		outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(outTupleSerializer);
 	}
-	
 
-	protected void setConfigOutputs(List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs) {
+	protected void setConfigOutputs(
+			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs) {
 
 		int numberOfOutputs = configuration.getInteger("numberOfOutputs", 0);
 
@@ -109,7 +108,7 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 			setPartitioner(i, outputs);
 		}
 	}
-	
+
 	private void setPartitioner(int outputNumber,
 			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs) {
 
@@ -120,8 +119,18 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 		try {
 			outputPartitioner = deserializeObject(serializedPartitioner);
 
-			RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(
-					this, outputPartitioner);
+			RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output;
+
+			long bufferTimeout = configuration.getLong("bufferTimeout", 0);
+
+			if (bufferTimeout > 0) {
+				output = new StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>(this,
+						outputPartitioner, bufferTimeout);
+			} else {
+				output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(this,
+						outputPartitioner);
+			}
+
 			outputs.add(output);
 			String outputName = configuration.getString("outputName_" + outputNumber, null);
 
@@ -134,12 +143,12 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 						+ " with " + outputNumber + " outputs");
 			}
 		} catch (Exception e) {
-			throw new StreamComponentException("Cannot deserialize " + outputPartitioner.getClass().getSimpleName() + " of " + 
-					name + " with " + outputNumber
-					+ " outputs", e);
+			throw new StreamComponentException("Cannot deserialize "
+					+ outputPartitioner.getClass().getSimpleName() + " of " + name + " with "
+					+ outputNumber + " outputs", e);
 		}
 	}
-	
+
 	/**
 	 * Reads and creates a StreamComponent from the config.
 	 * 
@@ -166,9 +175,9 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 
 		return userFunction;
 	}
-	
-	protected <IN extends Tuple> MutableObjectIterator<StreamRecord<IN>> createInputIterator(MutableReader<?> inputReader,
-			TypeSerializer<?> serializer) {
+
+	protected <IN extends Tuple> MutableObjectIterator<StreamRecord<IN>> createInputIterator(
+			MutableReader<?> inputReader, TypeSerializer<?> serializer) {
 
 		// generic data type serialization
 		@SuppressWarnings("unchecked")
@@ -177,13 +186,13 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 		final MutableObjectIterator<StreamRecord<IN>> iter = new ReaderIterator(reader, serializer);
 		return iter;
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	protected static <T> T deserializeObject(byte[] serializedObject) throws IOException,
 			ClassNotFoundException {
 		return (T) SerializationUtils.deserialize(serializedObject);
 	}
-	
+
 	protected abstract void setInvokable();
 
 }

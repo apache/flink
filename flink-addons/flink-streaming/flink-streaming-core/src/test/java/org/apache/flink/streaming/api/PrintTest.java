@@ -19,57 +19,15 @@
 
 package org.apache.flink.streaming.api;
 
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.util.LogUtils;
-import org.apache.flink.util.Collector;
 import org.apache.log4j.Level;
 import org.junit.Test;
 
 public class PrintTest {
 
-	public static final class MyFlatMap extends
-			FlatMapFunction<Tuple2<Integer, String>, Tuple2<Integer, String>> {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void flatMap(Tuple2<Integer, String> value, Collector<Tuple2<Integer, String>> out)
-				throws Exception {
-			out.collect(new Tuple2<Integer, String>(value.f0 * value.f0, value.f1));
-
-		}
-
-	}
-
+	
 	private static final long MEMORYSIZE = 32;
 
-	public static final class Increment extends FlatMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void flatMap(Tuple1<Integer> value, Collector<Tuple1<Integer>> out) throws Exception {
-			if (value.f0 < 5) {
-				out.collect(new Tuple1<Integer>(value.f0 + 1));
-			}
-
-		}
-
-	}
-
-	public static final class Forward extends FlatMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void flatMap(Tuple1<Integer> value, Collector<Tuple1<Integer>> out) throws Exception {
-			out.collect(value);
-
-		}
-
-	}
 
 	@Test
 	public void test() throws Exception {
@@ -82,7 +40,4 @@ public class PrintTest {
 
 	}
 
-	
-
-	
 }
