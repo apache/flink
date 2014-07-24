@@ -67,6 +67,7 @@ public class JobGraphBuilder {
 	// Graph attributes
 	private Map<String, AbstractJobVertex> components;
 	private Map<String, Integer> componentParallelism;
+	private Map<String, Long> bufferTimeout;
 	private Map<String, ArrayList<String>> outEdgeList;
 	private Map<String, ArrayList<Integer>> outEdgeType;
 	private Map<String, Boolean> mutability;
@@ -99,6 +100,7 @@ public class JobGraphBuilder {
 
 		components = new HashMap<String, AbstractJobVertex>();
 		componentParallelism = new HashMap<String, Integer>();
+		bufferTimeout = new HashMap<String, Long>();
 		outEdgeList = new HashMap<String, ArrayList<String>>();
 		outEdgeType = new HashMap<String, ArrayList<Integer>>();
 		mutability = new HashMap<String, Boolean>();
@@ -299,6 +301,7 @@ public class JobGraphBuilder {
 
 		componentClasses.put(componentName, componentClass);
 		setParallelism(componentName, parallelism);
+		bufferTimeout.put(componentName, 0L);
 		mutability.put(componentName, false);
 		invokableObjects.put(componentName, invokableObject);
 		operatorNames.put(componentName, operatorName);
@@ -350,6 +353,7 @@ public class JobGraphBuilder {
 		Configuration config = component.getConfiguration();
 
 		config.setBoolean("isMutable", mutability.get(componentName));
+		config.setLong("bufferTimeout", bufferTimeout.get(componentName));
 
 		// Set vertex config
 		if (invokableObject != null) {
@@ -443,6 +447,10 @@ public class JobGraphBuilder {
 
 	public void setMutability(String componentName, boolean isMutable) {
 		mutability.put(componentName, isMutable);
+	}
+
+	public void setBufferTimeout(String componentName, long bufferTimeout) {
+		this.bufferTimeout.put(componentName, bufferTimeout);
 	}
 
 	/**

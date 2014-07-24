@@ -19,6 +19,8 @@
 
 package org.apache.flink.streaming.api.invokable;
 
+import java.io.IOException;
+
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
@@ -49,6 +51,25 @@ public abstract class StreamRecordInvokable<IN extends Tuple, OUT extends Tuple>
 	protected void resetReuse() {
 		this.reuse = serializer.createInstance();
 	}
+	
+	protected StreamRecord<IN> loadNextRecord() {
+		try {
+			reuse = recordIterator.next(reuse);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return reuse;
+	}
 
-	public abstract void invoke() throws Exception;
+	protected abstract void immutableInvoke() throws Exception;
+
+	protected abstract void mutableInvoke() throws Exception;
+
+	public void invoke() throws Exception {
+		if (this.isMutable) {
+			mutableInvoke();
+		} else {
+			immutableInvoke();
+		}
+	}
 }

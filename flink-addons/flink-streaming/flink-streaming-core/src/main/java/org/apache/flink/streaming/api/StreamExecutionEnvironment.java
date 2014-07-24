@@ -127,6 +127,10 @@ public abstract class StreamExecutionEnvironment {
 	protected void setMutability(DataStream<?> stream, boolean isMutable) {
 		jobGraphBuilder.setMutability(stream.getId(), isMutable);
 	}
+	
+	protected void setBufferTimeout(DataStream<?> stream, long bufferTimeout) {
+		jobGraphBuilder.setBufferTimeout(stream.getId(), bufferTimeout);
+	}
 
 	/**
 	 * Sets the number of hardware contexts (CPU cores / threads) used when
