@@ -27,7 +27,6 @@ import org.apache.flink.api.java.functions.FlatMapFunction;
 import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.streaming.api.StreamExecutionEnvironment.ConnectionType;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
@@ -38,6 +37,12 @@ import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoMapInvokable;
+import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
+import org.apache.flink.streaming.partitioner.DistributePartitioner;
+import org.apache.flink.streaming.partitioner.FieldsPartitioner;
+import org.apache.flink.streaming.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.partitioner.ShufflePartitioner;
+import org.apache.flink.streaming.partitioner.StreamPartitioner;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -62,8 +67,7 @@ public class DataStream<T extends Tuple> {
 	protected String userDefinedName;
 	protected OutputSelector<T> outputSelector;
 	protected List<String> connectIDs;
-	protected List<ConnectionType> ctypes;
-	protected List<Integer> cparams;
+	protected List<StreamPartitioner<T>> partitioners;
 	protected boolean iterationflag;
 	protected Integer iterationID;
 
@@ -103,8 +107,7 @@ public class DataStream<T extends Tuple> {
 		this.userDefinedName = dataStream.userDefinedName;
 		this.outputSelector = dataStream.outputSelector;
 		this.connectIDs = new ArrayList<String>(dataStream.connectIDs);
-		this.ctypes = new ArrayList<StreamExecutionEnvironment.ConnectionType>(dataStream.ctypes);
-		this.cparams = new ArrayList<Integer>(dataStream.cparams);
+		this.partitioners = new ArrayList<StreamPartitioner<T>>(dataStream.partitioners);
 		this.iterationflag = dataStream.iterationflag;
 		this.iterationID = dataStream.iterationID;
 	}
@@ -116,11 +119,8 @@ public class DataStream<T extends Tuple> {
 	private void initConnections() {
 		connectIDs = new ArrayList<String>();
 		connectIDs.add(getId());
-		ctypes = new ArrayList<StreamExecutionEnvironment.ConnectionType>();
-		ctypes.add(ConnectionType.SHUFFLE);
-		cparams = new ArrayList<Integer>();
-		cparams.add(0);
-
+		partitioners = new ArrayList<StreamPartitioner<T>>();
+		partitioners.add(new ShufflePartitioner<T>());
 	}
 
 	/**
@@ -226,8 +226,7 @@ public class DataStream<T extends Tuple> {
 	 */
 	private DataStream<T> addConnection(DataStream<T> returnStream, DataStream<T> stream) {
 		returnStream.connectIDs.addAll(stream.connectIDs);
-		returnStream.ctypes.addAll(stream.ctypes);
-		returnStream.cparams.addAll(stream.cparams);
+		returnStream.partitioners.addAll(stream.partitioners);
 
 		return returnStream;
 	}
@@ -261,13 +260,7 @@ public class DataStream<T extends Tuple> {
 			throw new IllegalArgumentException("The position of the field must be non-negative");
 		}
 
-		DataStream<T> returnStream = new DataStream<T>(this);
-
-		for (int i = 0; i < returnStream.ctypes.size(); i++) {
-			returnStream.ctypes.set(i, ConnectionType.FIELD);
-			returnStream.cparams.set(i, keyposition);
-		}
-		return returnStream;
+		return setConnectionType(new FieldsPartitioner<T>(keyposition));
 	}
 
 	/**
@@ -277,12 +270,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The DataStream with broadcast partitioning set.
 	 */
 	public DataStream<T> broadcast() {
-		DataStream<T> returnStream = new DataStream<T>(this);
-
-		for (int i = 0; i < returnStream.ctypes.size(); i++) {
-			returnStream.ctypes.set(i, ConnectionType.BROADCAST);
-		}
-		return returnStream;
+		return setConnectionType(new BroadcastPartitioner<T>());
 	}
 
 	/**
@@ -292,12 +280,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The DataStream with shuffle partitioning set.
 	 */
 	public DataStream<T> shuffle() {
-		DataStream<T> returnStream = new DataStream<T>(this);
-
-		for (int i = 0; i < returnStream.ctypes.size(); i++) {
-			returnStream.ctypes.set(i, ConnectionType.SHUFFLE);
-		}
-		return returnStream;
+		return setConnectionType(new ShufflePartitioner<T>());
 	}
 
 	/**
@@ -307,12 +290,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The DataStream with shuffle partitioning set.
 	 */
 	public DataStream<T> forward() {
-		DataStream<T> returnStream = new DataStream<T>(this);
-
-		for (int i = 0; i < returnStream.ctypes.size(); i++) {
-			returnStream.ctypes.set(i, ConnectionType.FORWARD);
-		}
-		return returnStream;
+		return setConnectionType(new ForwardPartitioner<T>());
 	}
 	
 	/**
@@ -322,14 +300,19 @@ public class DataStream<T extends Tuple> {
 	 * @return The DataStream with shuffle partitioning set.
 	 */
 	public DataStream<T> distribute() {
-		DataStream<T> returnStream = new DataStream<T>(this);
-
-		for (int i = 0; i < returnStream.ctypes.size(); i++) {
-			returnStream.ctypes.set(i, ConnectionType.DISTRIBUTE);
-		}
-		return returnStream;
+		return setConnectionType(new DistributePartitioner<T>());
 	}
 
+	private DataStream<T> setConnectionType(StreamPartitioner<T> partitioner) {
+		DataStream<T> returnStream = new DataStream<T>(this);
+
+		for (int i = 0; i < returnStream.partitioners.size(); i++) {
+			returnStream.partitioners.set(i, partitioner);
+		}
+		
+		return returnStream;
+	}
+	
 	/**
 	 * Applies a Map transformation on a {@link DataStream}. The transformation
 	 * calls a {@link MapFunction} for each element of the DataStream. Each
