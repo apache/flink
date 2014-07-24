@@ -22,10 +22,12 @@ package org.apache.flink.api.common.functions;
 import java.io.Serializable;
 import java.util.Iterator;
 
+import org.apache.flink.util.Collector;
+
 /**
  * Generic interface used for combiners.
  */
 public interface Combinable<T> extends Function, Serializable {
 
-	T combine(Iterator<T> records) throws Exception;
+	void combine(Iterator<T> records, Collector<T> out) throws Exception;
 }
