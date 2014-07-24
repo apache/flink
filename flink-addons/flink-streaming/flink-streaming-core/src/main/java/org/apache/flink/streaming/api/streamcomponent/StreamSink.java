@@ -61,8 +61,8 @@ public class StreamSink<IN extends Tuple> extends SingleInputAbstractStreamCompo
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Override
 	protected void setInvokable() {
-		Class<? extends SinkInvokable> userFunctionClass = configuration.getClass("userfunction",
-				SinkInvokable.class, SinkInvokable.class);
+		Class<? extends SinkInvokable> userFunctionClass = configuration.getUserInvokableClass();
+		
 		userFunction = (SinkInvokable<IN>) getInvokable(userFunctionClass);
 		userFunction.initialize(collector, inputIter, inTupleSerializer, isMutable);
 	}
