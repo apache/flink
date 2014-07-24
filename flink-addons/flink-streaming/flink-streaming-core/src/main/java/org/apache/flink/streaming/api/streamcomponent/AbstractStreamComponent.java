@@ -29,20 +29,19 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.collector.DirectedStreamCollector;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.collector.StreamCollector;
 import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
@@ -55,7 +54,7 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 	protected StreamRecordSerializer<OUT> outTupleSerializer = null;
 	protected SerializationDelegate<StreamRecord<OUT>> outSerializationDelegate = null;
 
-	protected Configuration configuration;
+	protected StreamConfig configuration;
 	protected StreamCollector<OUT> collector;
 	protected int instanceID;
 	protected String name;
@@ -68,19 +67,13 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 	}
 
 	protected void initialize() {
-		configuration = getTaskConfiguration();
-		name = configuration.getString("componentName", "MISSING_COMPONENT_NAME");
+		configuration = new StreamConfig(getTaskConfiguration());
+		name = configuration.getComponentName();
 	}
 
 	protected Collector<OUT> setCollector() {
-		if (configuration.getBoolean("directedEmit", false)) {
-			OutputSelector<OUT> outputSelector = null;
-			try {
-				outputSelector = deserializeObject(configuration.getBytes("outputSelector", null));
-			} catch (Exception e) {
-				throw new StreamComponentException(
-						"Cannot deserialize and instantiate OutputSelector", e);
-			}
+		if (configuration.getDirectedEmit()) {
+			OutputSelector<OUT> outputSelector = configuration.getOutputSelector();
 
 			collector = new DirectedStreamCollector<OUT>(instanceID, outSerializationDelegate,
 					outputSelector);
@@ -102,7 +95,7 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 	protected void setConfigOutputs(
 			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs) {
 
-		int numberOfOutputs = configuration.getInteger("numberOfOutputs", 0);
+		int numberOfOutputs = configuration.getNumberOfOutputs();
 
 		for (int i = 0; i < numberOfOutputs; i++) {
 			setPartitioner(i, outputs);
@@ -111,17 +104,14 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 
 	private void setPartitioner(int outputNumber,
 			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs) {
-
-		byte[] serializedPartitioner = configuration.getBytes("partitionerObject_" + outputNumber,
-				SerializationUtils.serialize((new ShufflePartitioner<OUT>())));
 		StreamPartitioner<OUT> outputPartitioner = null;
-
+		
 		try {
-			outputPartitioner = deserializeObject(serializedPartitioner);
+			outputPartitioner = configuration.getPartitioner(outputNumber);
 
 			RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output;
 
-			long bufferTimeout = configuration.getLong("bufferTimeout", 0);
+			long bufferTimeout = configuration.getBufferTimeout();
 
 			if (bufferTimeout > 0) {
 				output = new StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>(this,
@@ -132,7 +122,7 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 			}
 
 			outputs.add(output);
-			String outputName = configuration.getString("outputName_" + outputNumber, null);
+			String outputName = configuration.getOutputName(outputNumber);
 
 			if (collector != null) {
 				collector.addOutput(output, outputName);
@@ -143,7 +133,7 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 						+ " with " + outputNumber + " outputs");
 			}
 		} catch (Exception e) {
-			throw new StreamComponentException("Cannot deserialize "
+			throw new StreamComponentException("Cannot deserialize partitioner "
 					+ outputPartitioner.getClass().getSimpleName() + " of " + name + " with "
 					+ outputNumber + " outputs", e);
 		}
@@ -158,22 +148,9 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 	 */
 	protected StreamComponentInvokable getInvokable(
 			Class<? extends StreamComponentInvokable> userFunctionClass) {
-		StreamComponentInvokable userFunction = null;
-
-		byte[] userFunctionSerialized = configuration.getBytes("serializedudf", null);
-		this.isMutable = configuration.getBoolean("isMutable", false);
-
-		try {
-			userFunction = deserializeObject(userFunctionSerialized);
-		} catch (ClassNotFoundException e) {
-			new StreamComponentException("Cannot instantiate user function: "
-					+ userFunctionClass.getSimpleName());
-		} catch (IOException e) {
-			new StreamComponentException("Cannot instantiate user function: "
-					+ userFunctionClass.getSimpleName());
-		}
-
-		return userFunction;
+		
+		this.isMutable = configuration.getMutability();
+		return configuration.getUserInvokableObject();
 	}
 
 	protected <IN extends Tuple> MutableObjectIterator<StreamRecord<IN>> createInputIterator(

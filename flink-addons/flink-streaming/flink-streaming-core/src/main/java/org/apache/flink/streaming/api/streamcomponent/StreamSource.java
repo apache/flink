@@ -37,7 +37,7 @@ public class StreamSource<OUT extends Tuple> extends SingleInputAbstractStreamCo
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
 	private UserSourceInvokable<OUT> userFunction;
 	private static int numSources;
-	private int[] numberOfOutputChannels;
+//	private int[] numberOfOutputChannels;
 
 	public StreamSource() {
 
@@ -60,10 +60,10 @@ public class StreamSource<OUT extends Tuple> extends SingleInputAbstractStreamCo
 					+ getClass().getSimpleName(), e);
 		}
 
-		numberOfOutputChannels = new int[outputs.size()];
-		for (int i = 0; i < numberOfOutputChannels.length; i++) {
-			numberOfOutputChannels[i] = configuration.getInteger("channels_" + i, 0);
-		}
+//		numberOfOutputChannels = new int[outputs.size()];
+//		for (int i = 0; i < numberOfOutputChannels.length; i++) {
+//			numberOfOutputChannels[i] = configuration.getInteger("channels_" + i, 0);
+//		}
 
 		setInvokable();
 	}
@@ -72,8 +72,8 @@ public class StreamSource<OUT extends Tuple> extends SingleInputAbstractStreamCo
 	@Override
 	protected void setInvokable() {
 		// Default value is a TaskInvokable even if it was called from a source
-		Class<? extends UserSourceInvokable> userFunctionClass = configuration.getClass(
-				"userfunction", UserSourceInvokable.class, UserSourceInvokable.class);
+		Class<? extends UserSourceInvokable> userFunctionClass = configuration.getUserInvokableClass();
+//				.getClass("userfunction", UserSourceInvokable.class, UserSourceInvokable.class);
 		userFunction = (UserSourceInvokable<OUT>) getInvokable(userFunctionClass);
 	}
 

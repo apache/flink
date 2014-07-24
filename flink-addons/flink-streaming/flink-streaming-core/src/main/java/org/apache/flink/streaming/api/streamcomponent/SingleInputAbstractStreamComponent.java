@@ -19,9 +19,6 @@
 
 package org.apache.flink.streaming.api.streamcomponent;
 
-import java.io.ByteArrayInputStream;
-import java.io.ObjectInputStream;
-
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.java.functions.FilterFunction;
 import org.apache.flink.api.java.functions.FlatMapFunction;
@@ -47,14 +44,10 @@ public abstract class SingleInputAbstractStreamComponent<IN extends Tuple, OUT e
 	protected StreamRecordSerializer<IN> inTupleSerializer = null;
 
 	protected void setSerializers() {
-		byte[] operatorBytes = configuration.getBytes("operator", null);
-		String operatorName = configuration.getString("operatorName", "");
+		String operatorName = configuration.getFunctionName();
 
-		Object function = null;
+		Object function = configuration.getFunction();
 		try {
-			ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(operatorBytes));
-			function = in.readObject();
-
 			if (operatorName.equals("flatMap")) {
 				setSerializerDeserializer(function, FlatMapFunction.class);
 			} else if (operatorName.equals("map")) {
@@ -110,7 +103,7 @@ public abstract class SingleInputAbstractStreamComponent<IN extends Tuple, OUT e
 
 	@SuppressWarnings("unchecked")
 	protected MutableReader<IOReadableWritable> getConfigInputs() throws StreamComponentException {
-		int numberOfInputs = configuration.getInteger("numberOfInputs", 0);
+		int numberOfInputs = configuration.getNumberOfInputs();
 
 		if (numberOfInputs < 2) {
 

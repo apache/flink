@@ -53,7 +53,7 @@ public class StreamIterationSink<IN extends Tuple> extends SingleInputAbstractSt
 			setSinkSerializer();
 			inputs = getConfigInputs();
 			inputIter = createInputIterator(inputs, inTupleSerializer);
-			iterationId = configuration.getString("iteration-id", "iteration-0");
+			iterationId = configuration.getIterationId();
 			dataChannel = BlockingQueueBroker.instance().get(iterationId);
 		} catch (Exception e) {
 			throw new StreamComponentException(String.format(

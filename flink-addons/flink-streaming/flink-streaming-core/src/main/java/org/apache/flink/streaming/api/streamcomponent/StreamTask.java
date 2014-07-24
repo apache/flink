@@ -43,7 +43,7 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
 	MutableObjectIterator<StreamRecord<IN>> inputIter;
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
 	private StreamRecordInvokable<IN, OUT> userFunction;
-	private int[] numberOfOutputChannels;
+//	private int[] numberOfOutputChannels;
 	private static int numTasks;
 
 	public StreamTask() {
@@ -65,10 +65,10 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
 
 		inputIter = createInputIterator(inputs, inTupleSerializer);
 
-		numberOfOutputChannels = new int[outputs.size()];
-		for (int i = 0; i < numberOfOutputChannels.length; i++) {
-			numberOfOutputChannels[i] = configuration.getInteger("channels_" + i, 0);
-		}
+//		numberOfOutputChannels = new int[outputs.size()];
+//		for (int i = 0; i < numberOfOutputChannels.length; i++) {
+//			numberOfOutputChannels[i] = configuration.getInteger("channels_" + i, 0);
+//		}
 
 		setInvokable();
 	}
@@ -77,8 +77,7 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
 	@Override
 	protected void setInvokable() {
 		// Default value is a TaskInvokable even if it was called from a source
-		Class<? extends UserTaskInvokable> userFunctionClass = configuration.getClass(
-				"userfunction", UserTaskInvokable.class, UserTaskInvokable.class);
+		Class<? extends UserTaskInvokable> userFunctionClass = configuration.getUserInvokableClass();
 		userFunction = (UserTaskInvokable<IN, OUT>) getInvokable(userFunctionClass);
 		userFunction.initialize(collector, inputIter, inTupleSerializer, isMutable);
 	}

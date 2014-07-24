@@ -19,8 +19,6 @@
 
 package org.apache.flink.streaming.api.streamcomponent;
 
-import java.io.ByteArrayInputStream;
-import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -39,7 +37,6 @@ import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoMapInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.util.MutableObjectIterator;
@@ -58,7 +55,7 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
 	private CoInvokable<IN1, IN2, OUT> userFunction;
-	private int[] numberOfOutputChannels;
+//	private int[] numberOfOutputChannels;
 	private static int numTasks;
 
 	public CoStreamTask() {
@@ -70,21 +67,16 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 	}
 
 	protected void setSerializers() {
-		byte[] operatorBytes = configuration.getBytes("operator", null);
-		String operatorName = configuration.getString("operatorName", "");
+		String operatorName = configuration.getFunctionName();
 
-		Object function = null;
+		Object function = configuration.getFunction();
 		try {
-			ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(operatorBytes));
-			function = in.readObject();
-
 			if (operatorName.equals("coMap")) {
 				setSerializer(function, CoMapFunction.class, 2);
 				setDeserializers(function, CoMapFunction.class);
 			} else {
 				throw new Exception("Wrong operator name!");
 			}
-
 		} catch (Exception e) {
 			throw new StreamComponentException(e);
 		}
@@ -119,10 +111,10 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 
 		setConfigOutputs(outputs);
 
-		numberOfOutputChannels = new int[outputs.size()];
-		for (int i = 0; i < numberOfOutputChannels.length; i++) {
-			numberOfOutputChannels[i] = configuration.getInteger("channels_" + i, 0);
-		}
+//		numberOfOutputChannels = new int[outputs.size()];
+//		for (int i = 0; i < numberOfOutputChannels.length; i++) {
+//			numberOfOutputChannels[i] = configuration.getInteger("channels_" + i, 0);
+//		}
 
 		setInvokable();
 	}
@@ -131,21 +123,21 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 	@Override
 	protected void setInvokable() {
 		// Default value is a CoMapInvokable
-		Class<? extends CoInvokable> userFunctionClass = configuration.getClass("userfunction",
-				CoMapInvokable.class, CoInvokable.class);
+		Class<? extends CoInvokable> userFunctionClass = configuration.getUserInvokableClass();
+		
 		userFunction = (CoInvokable<IN1, IN2, OUT>) getInvokable(userFunctionClass);
 		userFunction.initialize(collector, inputIter1, inTupleSerializer1, inputIter2,
 				inTupleSerializer2, isMutable);
 	}
 
 	protected void setConfigInputs() throws StreamComponentException {
-		int numberOfInputs = configuration.getInteger("numberOfInputs", 0);
+		int numberOfInputs = configuration.getNumberOfInputs();
 
 		ArrayList<MutableRecordReader<IOReadableWritable>> inputList1 = new ArrayList<MutableRecordReader<IOReadableWritable>>();
 		ArrayList<MutableRecordReader<IOReadableWritable>> inputList2 = new ArrayList<MutableRecordReader<IOReadableWritable>>();
 
 		for (int i = 0; i < numberOfInputs; i++) {
-			int inputType = configuration.getInteger("inputType_" + i, 0);
+			int inputType = configuration.getInputType(i);
 			switch (inputType) {
 			case 1:
 				inputList1.add(new MutableRecordReader<IOReadableWritable>(this));

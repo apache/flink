@@ -19,19 +19,14 @@
 
 package org.apache.flink.streaming.api;
 
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -350,34 +345,34 @@ public class JobGraphBuilder {
 			LOG.debug("Parallelism set: " + parallelism + " for " + componentName);
 		}
 
-		Configuration config = component.getConfiguration();
+		StreamConfig config = new StreamConfig(component.getConfiguration());
 
-		config.setBoolean("isMutable", mutability.get(componentName));
-		config.setLong("bufferTimeout", bufferTimeout.get(componentName));
+		config.setMutability(mutability.get(componentName));
+		config.setBufferTimeout(bufferTimeout.get(componentName));
 
 		// Set vertex config
 		if (invokableObject != null) {
-			config.setClass("userfunction", invokableObject.getClass());
-			addSerializedObject(invokableObject, config);
-		}
-		config.setString("componentName", componentName);
-		if (serializedFunction != null) {
-			config.setBytes("operator", serializedFunction);
-			config.setString("operatorName", operatorName);
+			config.setUserInvokableClass(invokableObject.getClass());
+			config.setUserInvokableObject(invokableObject);
 		}
 
-		if (userDefinedName != null) {
-			config.setString("userDefinedName", userDefinedName);
+		config.setComponentName(componentName);
+
+		if (serializedFunction != null) {
+			config.setFunction(serializedFunction);
+			config.setFunctionName(operatorName);
 		}
+
+		config.setUserDefinedName(userDefinedName);
 
 		if (outputSelector != null) {
-			config.setBoolean("directedEmit", true);
-			config.setBytes("outputSelector", outputSelector);
+			config.setDirectedEmit(true);
+			config.setOutputSelector(outputSelector);
 		}
 
 		if (componentClass.equals(StreamIterationSource.class)
 				|| componentClass.equals(StreamIterationSink.class)) {
-			config.setString("iteration-id", iterationIds.get(componentName));
+			config.setIterationId(iterationIds.get(componentName));
 		}
 
 		components.put(componentName, component);
@@ -386,34 +381,6 @@ public class JobGraphBuilder {
 			maxParallelism = parallelism;
 			maxParallelismVertexName = componentName;
 		}
-	}
-
-	/**
-	 * Adds serialized invokable object to the JobVertex configuration
-	 * 
-	 * @param invokableObject
-	 *            Invokable object to serialize
-	 * @param config
-	 *            JobVertex configuration to which the serialized invokable will
-	 *            be added
-	 */
-	private void addSerializedObject(Serializable invokableObject, Configuration config) {
-
-		ByteArrayOutputStream baos = null;
-		ObjectOutputStream oos = null;
-		try {
-			baos = new ByteArrayOutputStream();
-
-			oos = new ObjectOutputStream(baos);
-
-			oos.writeObject(invokableObject);
-
-			config.setBytes("serializedudf", baos.toByteArray());
-		} catch (Exception e) {
-			throw new RuntimeException("Cannot serialize invokable object "
-					+ invokableObject.getClass(), e);
-		}
-
 	}
 
 	/**
@@ -491,7 +458,7 @@ public class JobGraphBuilder {
 		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
 		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
 
-		Configuration config = upStreamComponent.getConfiguration();
+		StreamConfig config = new StreamConfig(upStreamComponent.getConfiguration());
 
 		try {
 			if (partitionerObject.getClass().equals(ForwardPartitioner.class)) {
@@ -514,35 +481,10 @@ public class JobGraphBuilder {
 
 		int outputIndex = upStreamComponent.getNumberOfForwardConnections() - 1;
 
-		putOutputNameToConfig(upStreamComponentName, downStreamComponentName, outputIndex, config);
-
-		config.setBytes("partitionerObject_" + outputIndex,
-				SerializationUtils.serialize(partitionerObject));
-
-		config.setInteger("numOfOutputs_" + outputIndex,
+		config.setOutputName(outputIndex, userDefinedNames.get(downStreamComponentName));
+		config.setPartitioner(outputIndex, partitionerObject);
+		config.setNumberOfOutputChannels(outputIndex,
 				componentParallelism.get(downStreamComponentName));
-
-	}
-
-	/**
-	 * Sets the user defined name for an output edge in the graph
-	 * 
-	 * @param upStreamComponentName
-	 *            The name of the component to which the output name will be set
-	 * @param downStreamComponentName
-	 *            The name of the component representing the output
-	 * @param index
-	 *            Index of the output channel
-	 * @param config
-	 *            Config of the upstream component
-	 */
-	private void putOutputNameToConfig(String upStreamComponentName,
-			String downStreamComponentName, int index, Configuration config) {
-
-		String outputName = userDefinedNames.get(downStreamComponentName);
-		if (outputName != null) {
-			config.setString("outputName_" + (index), outputName);
-		}
 	}
 
 	/**
@@ -629,8 +571,8 @@ public class JobGraphBuilder {
 	 */
 	private void setNumberOfJobInputs() {
 		for (AbstractJobVertex component : components.values()) {
-			component.getConfiguration().setInteger("numberOfInputs",
-					component.getNumberOfBackwardConnections());
+			(new StreamConfig(component.getConfiguration())).setNumberOfInputs(component
+					.getNumberOfBackwardConnections());
 		}
 	}
 
@@ -640,8 +582,8 @@ public class JobGraphBuilder {
 	 */
 	private void setNumberOfJobOutputs() {
 		for (AbstractJobVertex component : components.values()) {
-			component.getConfiguration().setInteger("numberOfOutputs",
-					component.getNumberOfForwardConnections());
+			(new StreamConfig(component.getConfiguration())).setNumberOfOutputs(component
+					.getNumberOfForwardConnections());
 		}
 	}
 
@@ -661,14 +603,14 @@ public class JobGraphBuilder {
 			ArrayList<Integer> outEdgeTypeList = outEdgeType.get(upStreamComponentName);
 
 			for (String downStreamComponentName : outEdgeList.get(upStreamComponentName)) {
-				Configuration downStreamComponentConfig = components.get(downStreamComponentName)
-						.getConfiguration();
+				StreamConfig downStreamComponentConfig = new StreamConfig(components.get(
+						downStreamComponentName).getConfiguration());
 
-				int inputNumber = downStreamComponentConfig.getInteger("numberOfInputs", 0);
-				downStreamComponentConfig.setInteger("inputType_" + inputNumber++,
-						outEdgeTypeList.get(i));
-				downStreamComponentConfig.setInteger("numberOfInputs", inputNumber);
-
+				int inputNumber = downStreamComponentConfig.getNumberOfInputs();
+						
+				downStreamComponentConfig.setInputType(inputNumber++, outEdgeTypeList.get(i));
+				downStreamComponentConfig.setNumberOfInputs(inputNumber);
+				
 				connect(upStreamComponentName, downStreamComponentName,
 						connectionTypes.get(upStreamComponentName).get(i));
 				i++;
@@ -678,7 +620,6 @@ public class JobGraphBuilder {
 		setAutomaticInstanceSharing();
 		setNumberOfJobInputs();
 		setNumberOfJobOutputs();
-
 	}
 
 	/**
