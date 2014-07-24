@@ -149,6 +149,19 @@ public class DataStream<T extends Tuple> {
 	}
 
 	/**
+	 * Sets the maximum time frequency (ms) for the flushing of the output
+	 * buffer. By default the output buffers flush only when they are full.
+	 * 
+	 * @param timeoutMillis
+	 *            The maximum time between two output flushes.
+	 * @return The DataStream with buffer timeout set.
+	 */
+	public DataStream<T> setBufferTimeout(long timeoutMillis) {
+		environment.setBufferTimeout(this, timeoutMillis);
+		return this;
+	}
+
+	/**
 	 * Sets the degree of parallelism for this operator. The degree must be 1 or
 	 * more.
 	 * 
