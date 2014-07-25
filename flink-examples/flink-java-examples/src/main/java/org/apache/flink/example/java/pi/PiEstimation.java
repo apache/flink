@@ -1,20 +1,29 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.example.java.pi;
 
-import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
-
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.IterativeDataSet;
-import org.apache.flink.api.java.operators.ReduceGroupOperator;
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.functions.*;
-import org.apache.flink.example.java.graph.util.PageRankData;
-import org.apache.flink.util.Collector;
 
 
 /** 
@@ -45,18 +54,20 @@ public class PiEstimation {
 	  	n = 100000 * blocks;
 	  	List<Integer> l = new ArrayList<Integer>(n);
 	  	for (int i = 0; i < n; i++) {
-	  		l.add(i);
+	  		l.add(1);
 	  	}
 	  	
 	  	//Sets up the execution environment
 	  	final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 	  	DataSet<Integer> dataSet = env.fromCollection(l);
 
-	  	DataSet<Double> count = dataSet
-    		.map(new PiMapper())
-    		.setParallelism(blocks)
-    		.reduceGroup(new PiReducer());
 	  	
+	  	DataSet<Double> count = dataSet
+	  			.filter(new PiFilter())
+	  			.setParallelism(blocks)
+	  			.reduce(new PiReducer())
+	  			.map(new PiMapper());
+	  			
 	  	System.out.println("We estimate Pi to be:");
 	  	count.print();
 	  	
@@ -68,34 +79,49 @@ public class PiEstimation {
   //     USER FUNCTIONS
   //*************************************************************************
 	
+	// FilterFunction that filters out all Integers smaller than zero.
+	
 	/** 
-	 * PiMapper randomly collects points that fall within a square of edge 2*x = 2*y = 2.
+	 * PiFilter randomly emits points that fall within a square of edge 2*x = 2*y = 2.
 	 * It calculates the distance to the center of a virtually centered circle of radius x = y = 1
-	 * It returns 1 if the distance is less than 1, else 0, meaning that the point is not outside the circle.
+	 * If the distance is less than 1, then and only then does it return a value (in this case 1, a list's value)
 	 */
-	public static final class PiMapper extends MapFunction<Integer,Integer> {
+	public static class PiFilter extends FilterFunction<Integer> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Integer map(Integer value) throws Exception {
+		public boolean filter(Integer value) throws Exception{
 			double x = Math.random() * 2 - 1;
 			double y = Math.random() * 2 - 1;
-			return (x * x + y * y < 1) ? 1 : 0;
+			return (x * x + y * y) < 1;
+		}
+	}
+
+	
+	/** 
+	 * PiReducer takes over the filter. It goes through the selected 1s and returns the sum.
+	 */
+	public static final class PiReducer extends ReduceFunction<Integer>{
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Integer reduce(Integer value1, Integer value2) throws Exception {
+			return value1 + value2;
 		}
 	}
 	
+	
 	/** 
-	 * PiReducer takes over the mapper. It goes through the produced 0s and 1s and returns the sum.
-	 * The final operation takes place in the collector which returns the final Pi value.
+	 * The PiMapper's role is to apply one final operation on the count thus returning the estimated Pi value.
 	 */
-	public static final class PiReducer extends GroupReduceFunction<Integer,Double> {
+	public static final class PiMapper extends MapFunction<Integer,Double> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterator<Integer> values, Collector<Double> out) throws Exception {
-			int intSum = 0;
-			while(values.hasNext()){
-				intSum += values.next();
-			}
-			out.collect((double) (intSum*4.0 / n));
+		public Double map(Integer intSum) throws Exception {
+			return intSum*4.0 / n;
 		}
 	}
+	
+	
 }
