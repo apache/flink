@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.execution;
 
 import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
@@ -25,18 +24,8 @@ import org.apache.flink.runtime.jobgraph.JobID;
 /**
  * This interface must be implemented by classes which should be able to receive notifications about
  * changes of a task's execution state.
- * 
  */
 public interface ExecutionListener {
-
-	/**
-	 * Returns the priority of the execution listener object. If multiple execution listener objects are registered for
-	 * a given vertex, the priority determines in which order they will be called. Priorities are expressed as
-	 * non-negative integer values. The lower the integer value, the higher the call priority.
-	 * 
-	 * @return the priority of this execution listener
-	 */
-	int getPriority();
 
 	/**
 	 * Called when the execution state of the associated task has changed. It is important to point out that multiple

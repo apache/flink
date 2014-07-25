@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.client;
 
 import static org.junit.Assert.assertTrue;
@@ -28,7 +27,6 @@ import java.util.List;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.flink.client.CliFrontend;
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.runtime.client.JobCancelResult;
 import org.apache.flink.runtime.client.JobProgressResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
@@ -193,11 +191,6 @@ public class CliFrontendListCancelTest {
 
 		@Override
 		public void killTask(JobID jobID, ManagementVertexID id) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public void killInstance(StringRecord instanceName) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 

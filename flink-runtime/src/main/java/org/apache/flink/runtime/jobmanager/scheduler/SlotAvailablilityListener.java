@@ -16,26 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager.runtime;
+package org.apache.flink.runtime.jobmanager.scheduler;
 
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.flink.runtime.instance.Instance;
 
-public class ExecutorThreadFactory implements ThreadFactory {
-	
-	public static final ExecutorThreadFactory INSTANCE = new ExecutorThreadFactory();
+/**
+ * A SlotRecycler handles allocated slots that have been released.
+ */
+public interface SlotAvailablilityListener {
 
-	private static final String THREAD_NAME = "Flink Executor Thread ";
-	
-	private final AtomicInteger threadNumber = new AtomicInteger(1);
-	
-	
-	private ExecutorThreadFactory() {}
-	
-	
-	public Thread newThread(Runnable target) {
-		Thread t = new Thread(target, THREAD_NAME + threadNumber.getAndIncrement());
-		t.setDaemon(true);
-		return t;
-	}
+	void newSlotAvailable(Instance instance);
 }

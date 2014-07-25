@@ -70,11 +70,11 @@ import org.apache.flink.runtime.executiongraph.GraphConversionException;
 import org.apache.flink.runtime.executiongraph.InternalJobStatus;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.instance.DefaultInstanceManager;
-import org.apache.flink.runtime.instance.DummyInstance;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceManager;
+import org.apache.flink.runtime.instance.LocalInstanceManager;
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
 import org.apache.flink.runtime.io.network.RemoteReceiver;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
@@ -87,8 +87,6 @@ import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager;
 import org.apache.flink.runtime.jobmanager.archive.ArchiveListener;
 import org.apache.flink.runtime.jobmanager.archive.MemoryArchivist;
 import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
-import org.apache.flink.runtime.jobmanager.scheduler.SchedulingException;
-import org.apache.flink.runtime.jobmanager.splitassigner.InputSplitManager;
 import org.apache.flink.runtime.jobmanager.splitassigner.InputSplitWrapper;
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer;
 import org.apache.flink.runtime.managementgraph.ManagementGraph;
@@ -101,14 +99,13 @@ import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
 import org.apache.flink.runtime.protocols.InputSplitProviderProtocol;
 import org.apache.flink.runtime.protocols.JobManagerProtocol;
 import org.apache.flink.runtime.taskmanager.AbstractTaskResult;
-import org.apache.flink.runtime.taskmanager.ExecutorThreadFactory;
 import org.apache.flink.runtime.taskmanager.TaskCancelResult;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskKillResult;
 import org.apache.flink.runtime.taskmanager.TaskSubmissionResult;
-import org.apache.flink.runtime.taskmanager.transferenvelope.RegisterTaskManagerResult;
 import org.apache.flink.runtime.types.IntegerRecord;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.SerializableArrayList;
 import org.apache.flink.util.StringUtils;
 import org.apache.log4j.ConsoleAppender;
@@ -130,31 +127,31 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private static final Log LOG = LogFactory.getLog(JobManager.class);
 
+	private final static int FAILURE_RETURN_CODE = 1;
+	
+	
+	private final ExecutorService executorService = Executors.newCachedThreadPool(ExecutorThreadFactory.INSTANCE);
+	
 	private final Server jobManagerServer;
-
-	private final JobManagerProfiler profiler;
 
 	private final EventCollector eventCollector;
 	
 	private final ArchiveListener archive;
 
-	private final InputSplitManager inputSplitManager;
-
+	private final InstanceManager instanceManager;
+	
 	private final DefaultScheduler scheduler;
 	
-	private AccumulatorManager accumulatorManager;
+	private final AccumulatorManager accumulatorManager;
 
-	private InstanceManager instanceManager;
-
+	
 	private final int recommendedClientPollingInterval;
 
-	private final ExecutorService executorService = Executors.newCachedThreadPool(ExecutorThreadFactory.INSTANCE);
-
-	private final static int FAILURE_RETURN_CODE = 1;
-
+	
 	private final AtomicBoolean isShutdownInProgress = new AtomicBoolean(false);
 
 	private volatile boolean isShutDown;
+	
 	
 	private WebInfoServer server;
 	
@@ -199,8 +196,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// accumulator results.
 		this.accumulatorManager = new AccumulatorManager(Math.min(1, archived_items));
 
-		// Load the input split manager
-		this.inputSplitManager = new InputSplitManager();
 
 		// Determine own RPC address
 		final InetSocketAddress rpcServerAddress = new InetSocketAddress(ipcAddress, ipcPort);
@@ -219,7 +214,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Try to load the instance manager for the given execution mode
 		if (executionMode == ExecutionMode.LOCAL) {
-			this.instanceManager = new Lo
+			final int numTaskManagers = GlobalConfiguration.getInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1);
+			this.instanceManager = new LocalInstanceManager(numTaskManagers);
 		}
 		else if (executionMode == ExecutionMode.CLUSTER) {
 			this.instanceManager = new DefaultInstanceManager();
@@ -237,19 +233,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		if (this.scheduler == null) {
 			throw new Exception("Unable to load scheduler " + schedulerClassName);
 		}
-
-		// Load profiler if it should be used
-		if (GlobalConfiguration.getBoolean(ProfilingUtils.ENABLE_PROFILING_KEY, false)) {
-			final String profilerClassName = GlobalConfiguration.getString(ProfilingUtils.JOBMANAGER_CLASSNAME_KEY,
-				"org.apache.flink.runtime.profiling.impl.JobManagerProfilerImpl");
-			this.profiler = ProfilingUtils.loadJobManagerProfiler(profilerClassName, ipcAddress);
-			if (this.profiler == null) {
-				throw new Exception("Cannot load profiler");
-			}
-		} else {
-			this.profiler = null;
-			LOG.debug("Profiler disabled");
-		}
 	}
 
 	public void shutdown() {
@@ -261,11 +244,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// Stop instance manager
 		if (this.instanceManager != null) {
 			this.instanceManager.shutdown();
-		}
-
-		// Stop profiling if enabled
-		if (this.profiler != null) {
-			this.profiler.shutdown();
 		}
 
 		// Stop RPC server
@@ -458,12 +436,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				LOG.debug("The dependency chain for instance sharing is acyclic");
 			}
 	
-			// Check if the job will be executed with profiling enabled
-			boolean jobRunsWithProfiling = false;
-			if (this.profiler != null && job.getJobConfiguration().getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
-				jobRunsWithProfiling = true;
-			}
-	
 			// Try to create initial execution graph from job graph
 			LOG.info("Creating initial execution graph from job graph " + job.getName());
 			ExecutionGraph eg;
@@ -485,21 +457,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	
 			// Register job with the progress collector
 			if (this.eventCollector != null) {
-				this.eventCollector.registerJob(eg, jobRunsWithProfiling, System.currentTimeMillis());
+				this.eventCollector.registerJob(eg, false, System.currentTimeMillis());
 			}
-	
-			// Check if profiling should be enabled for this job
-			if (jobRunsWithProfiling) {
-				this.profiler.registerProfilingJob(eg);
-	
-				if (this.eventCollector != null) {
-					this.profiler.registerForProfilingData(eg.getJobID(), this.eventCollector);
-				}
-	
-			}
-	
-			// Register job with the dynamic input split assigner
-			this.inputSplitManager.registerJob(eg);
 	
 			// Register for updates on the job status
 			eg.registerJobStatusListener(this);
@@ -902,41 +861,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		eg.executeCommand(runnable);
 	}
 
-
-	@Override
-	public void killInstance(final StringRecord instanceName) throws IOException {
-
-		final Instance instance = this.instanceManager.getInstanceByName(instanceName.toString());
-		if (instance == null) {
-			LOG.error("Cannot find instance with name " + instanceName + " to kill it");
-			return;
-		}
-
-		LOG.info("Killing task manager on instance " + instance);
-
-		final Runnable runnable = new Runnable() {
-
-			@Override
-			public void run() {
-				try {
-					instance.killTaskManager();
-				} catch (IOException ioe) {
-					LOG.error(ioe);
-				}
-			}
-		};
-
-		// Hand it over to the executor service
-		this.executorService.execute(runnable);
-	}
-
 	/**
 	 * Tests whether the job manager has been shut down completely.
 	 * 
 	 * @return <code>true</code> if the job manager has been shut down completely, <code>false</code> otherwise
 	 */
 	public boolean isShutDown() {
-
 		return this.isShutDown;
 	}
 

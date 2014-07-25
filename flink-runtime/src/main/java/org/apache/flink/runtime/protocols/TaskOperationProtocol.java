@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.protocols;
 
 import java.io.IOException;
@@ -38,7 +37,6 @@ import org.apache.flink.runtime.taskmanager.TaskSubmissionResult;
  * The task submission protocol is implemented by the task manager and allows the job manager
  * to submit and cancel tasks, as well as to query the task manager for cached libraries and submit
  * these if necessary.
- * 
  */
 public interface TaskOperationProtocol extends VersionedProtocol {
 
@@ -111,9 +109,6 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 	/**
 	 * Triggers the task manager write the current utilization of its read and write buffers to its logs.
 	 * This method is primarily for debugging purposes.
-	 * 
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the request
 	 */
 	void logBufferUtilization();
 

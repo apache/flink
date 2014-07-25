@@ -16,26 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.runtime.jobmanager.scheduler;
 
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.flink.runtime.instance.AllocatedSlot;
 
-public class ExecutorThreadFactory implements ThreadFactory {
-	
-	public static final ExecutorThreadFactory INSTANCE = new ExecutorThreadFactory();
+/**
+ * An action that is invoked once a {@link SlotAllocationFuture} is triggered.
+ */
+public interface SlotAllocationFutureAction {
 
-	private static final String THREAD_NAME = "Nephele Executor Thread ";
-	
-	private final AtomicInteger threadNumber = new AtomicInteger(1);
-	
-	
-	private ExecutorThreadFactory() {}
-	
-	
-	public Thread newThread(Runnable target) {
-		Thread t = new Thread(target, THREAD_NAME + threadNumber.getAndIncrement());
-		t.setDaemon(true);
-		return t;
-	}
+	/**
+	 * This method is called as soon as the SlotAllocationFuture is triggered.
+	 * 
+	 * @param slot The slot that has been allocated.
+	 */
+	void slotAllocated(AllocatedSlot slot);
 }

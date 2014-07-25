@@ -18,58 +18,52 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
+import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
-public class ScheduledUnit {
-	
-	private final ExecutionVertex2 taskVertex;
-	
-	private final SlotSharingGroup sharingGroup;
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public ScheduledUnit(ExecutionVertex2 taskVertex) {
-		if (taskVertex == null) {
-			throw new NullPointerException();
-		}
-		
-		this.taskVertex = taskVertex;
-		this.sharingGroup = null;
-	}
-	
-	public ScheduledUnit(ExecutionVertex2 taskVertex, SlotSharingGroup sharingUnit) {
-		if (taskVertex == null) {
-			throw new NullPointerException();
-		}
-		
-		this.taskVertex = taskVertex;
-		this.sharingGroup = sharingUnit;
-	}
-	
-	ScheduledUnit() {
-		this.taskVertex = null;
-		this.sharingGroup = null;
-	}
+public class SubSlot extends AllocatedSlot {
 
+	private final SharedSlot sharedSlot;
+	
+	private final JobVertexID jid;
+	
+	private final int subSlotNumber;
+	
+	
+	public SubSlot(SharedSlot sharedSlot, int subSlotNumber, JobVertexID jid) {
+		super(sharedSlot.getAllocatedSlot().getJobID(),
+				sharedSlot.getAllocatedSlot().getInstance(),
+				sharedSlot.getAllocatedSlot().getSlotNumber());
+		
+		this.sharedSlot = sharedSlot;
+		this.jid = jid;
+		this.subSlotNumber = subSlotNumber;
+	}
+	
 	// --------------------------------------------------------------------------------------------
+	
+	public void releaseSlot() {
+		// cancel everything, if there is something. since this is atomically status based,
+		// it will not happen twice if another attempt happened before or concurrently
+		cancel();
+		
+		if (markReleased()) {
+			this.sharedSlot.returnAllocatedSlot(this);
+		}
+	}
+	
+	public SharedSlot getSharedSlot() {
+		return this.sharedSlot;
+	}
 	
 	public JobVertexID getJobVertexId() {
-		return this.taskVertex.getJobvertexId();
+		return jid;
 	}
 	
-	public ExecutionVertex2 getTaskVertex() {
-		return taskVertex;
-	}
-	
-	public SlotSharingGroup getSlotSharingGroup() {
-		return sharingGroup;
-	}
-
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	public String toString() {
-		return "{vertex=" + taskVertex.getSimpleName() + ", sharingUnit=" + sharingGroup + '}';
+		return "SubSlot " + subSlotNumber + " (" + super.toString() + ')';
 	}
 }

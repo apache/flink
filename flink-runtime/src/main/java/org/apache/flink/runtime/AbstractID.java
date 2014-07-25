@@ -32,7 +32,7 @@ import io.netty.buffer.ByteBuf;
 /**
  * A statistically unique identification number.
  */
-public class AbstractID implements IOReadableWritable {
+public class AbstractID implements IOReadableWritable, Comparable<AbstractID> {
 
 	/** The size of a long in bytes */
 	private static final int SIZE_OF_LONG = 8;
@@ -139,24 +139,8 @@ public class AbstractID implements IOReadableWritable {
 		this.lowerPart = src.lowerPart;
 		this.upperPart = src.upperPart;
 	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof AbstractID) {
-			AbstractID src = (AbstractID) obj;
-			return src.lowerPart == this.lowerPart && src.upperPart == this.upperPart;
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public int hashCode() {
-		return ((int)  this.lowerPart) ^
-				((int) (this.lowerPart >>> 32)) ^
-				((int)  this.upperPart) ^
-				((int) (this.upperPart >>> 32));
-	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void read(DataInputView in) throws IOException {
@@ -180,11 +164,38 @@ public class AbstractID implements IOReadableWritable {
 		buf.writeLong(this.upperPart);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj != null && obj instanceof AbstractID) {
+			AbstractID src = (AbstractID) obj;
+			return src.lowerPart == this.lowerPart && src.upperPart == this.upperPart;
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return ((int)  this.lowerPart) ^
+				((int) (this.lowerPart >>> 32)) ^
+				((int)  this.upperPart) ^
+				((int) (this.upperPart >>> 32));
+	}
+	
 	@Override
 	public String toString() {
 		final byte[] ba = new byte[SIZE];
 		longToByteArray(this.lowerPart, ba, 0);
 		longToByteArray(this.upperPart, ba, SIZE_OF_LONG);
 		return StringUtils.byteToHexString(ba);
+	}
+	
+	@Override
+	public int compareTo(AbstractID o) {
+		int diff1 = Long.compare(this.upperPart, o.upperPart);
+		int diff2 = Long.compare(this.lowerPart, o.lowerPart);
+		return diff1 == 0 ? diff2 : diff1;
 	}
 }

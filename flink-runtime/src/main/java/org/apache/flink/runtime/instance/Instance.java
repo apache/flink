@@ -21,13 +21,15 @@ package org.apache.flink.runtime.instance;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
 import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.jobmanager.scheduler.ResourceId;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailablilityListener;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.protocols.TaskOperationProtocol;
 import org.eclipse.jetty.util.log.Log;
@@ -52,14 +54,19 @@ public class Instance {
 	/** The number of task slots available on the node */
 	private final int numberOfSlots;
 
-	
+	/** A list of available slot positons */
 	private final Queue<Integer> availableSlots;
 	
 	/** Allocated slots on this instance */
 	private final Set<AllocatedSlot> allocatedSlots = new HashSet<AllocatedSlot>();
 
+	
+	/** A listener to be notified upon new slot availability */
+	private SlotAvailablilityListener slotListener;
+	
+	
 	/** The RPC proxy to send calls to the task manager represented by this instance */
-	private volatile TaskOperationProtocol taskManager ;
+	private volatile TaskOperationProtocol taskManager;
 
 	/**
 	 * Time when last heat beat has been received from the task manager running on this instance.
@@ -68,6 +75,8 @@ public class Instance {
 	
 	private volatile boolean isDead;
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Constructs an abstract instance object.
 	 * 
@@ -82,12 +91,71 @@ public class Instance {
 		this.resources = resources;
 		this.numberOfSlots = numberOfSlots;
 		
-		this.availableSlots = new ArrayDeque<Integer>();
+		this.availableSlots = new ArrayDeque<Integer>(numberOfSlots);
 		for (int i = 0; i < numberOfSlots; i++) {
 			this.availableSlots.add(i);
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Properties
+	// --------------------------------------------------------------------------------------------
+	
+	public InstanceID getId() {
+		return instanceId;
+	}
+	
+	public HardwareDescription getResources() {
+		return this.resources;
+	}
+	
+	public int getTotalNumberOfSlots() {
+		return numberOfSlots;
+	}
+	
+	/**
+	 * Returns the instance's connection information object.
+	 * 
+	 * @return the instance's connection information object
+	 */
+	public InstanceConnectionInfo getInstanceConnectionInfo() {
+		return this.instanceConnectionInfo;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// Life and Death
+	// --------------------------------------------------------------------------------------------
+	
+	public boolean isAlive() {
+		return !isDead;
+	}
+	
+	public void markDead() {
+		if (isDead) {
+			return;
+		}
+		
+		isDead = true;
+		
+		synchronized (instanceLock) {
+			
+			// no more notifications for the slot releasing
+			this.slotListener = null;
+			
+			for (AllocatedSlot slot : allocatedSlots) {
+				slot.releaseSlot();
+			}
+			allocatedSlots.clear();
+			availableSlots.clear();
+		}
+		
+		destroyTaskManagerProxy();
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Connection to the TaskManager
+	// --------------------------------------------------------------------------------------------
+	
 	public TaskOperationProtocol getTaskManagerProxy() throws IOException {
 		TaskOperationProtocol tm = this.taskManager;
 		
@@ -116,58 +184,6 @@ public class Instance {
 				}
 			}
 		}
-	}
-
-
-	
-	// --------------------------------------------------------------------------------------------
-	// Life and Death
-	// --------------------------------------------------------------------------------------------
-	
-	public boolean isAlive() {
-		return !isDead;
-	}
-	
-	public void markDead() {
-		if (isDead) {
-			return;
-		}
-		
-		isDead = true;
-		
-		synchronized (instanceLock) {
-			this.allocatedSlots.clear();
-			for (AllocatedSlot slot : allocatedSlots) {
-				slot.cancelResource();
-			}
-		}
-		
-		destroyTaskManagerProxy();
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	// Properties
-	// --------------------------------------------------------------------------------------------
-	
-	public InstanceID getId() {
-		return instanceId;
-	}
-	
-	public HardwareDescription getResources() {
-		return this.resources;
-	}
-	
-	public int getTotalNumberOfSlots() {
-		return numberOfSlots;
-	}
-	
-	/**
-	 * Returns the instance's connection information object.
-	 * 
-	 * @return the instance's connection information object
-	 */
-	public InstanceConnectionInfo getInstanceConnectionInfo() {
-		return this.instanceConnectionInfo;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -206,7 +222,11 @@ public class Instance {
 	// Resource allocation
 	// --------------------------------------------------------------------------------------------
 	
-	public AllocatedSlot allocateSlot(JobID jobID, ResourceId resourceId) throws InstanceDiedException {
+	public AllocatedSlot allocateSlot(JobID jobID) throws InstanceDiedException {
+		if (jobID == null) {
+			throw new IllegalArgumentException();
+		}
+		
 		synchronized (instanceLock) {
 			if (isDead) {
 				throw new InstanceDiedException(this);
@@ -216,10 +236,54 @@ public class Instance {
 			if (nextSlot == null) {
 				return null;
 			} else {
-				AllocatedSlot slot = new AllocatedSlot(jobID, resourceId, this, nextSlot);
+				AllocatedSlot slot = new AllocatedSlot(jobID, this, nextSlot);
 				allocatedSlots.add(slot);
 				return slot;
 			}
+		}
+	}
+	
+	public boolean returnAllocatedSlot(AllocatedSlot slot) {
+		// the slot needs to be in the returned to instance state
+		if (slot == null || slot.getInstance() != this) {
+			throw new IllegalArgumentException("Slot is null or belongs to the wrong instance.");
+		}
+		if (slot.isAlive()) {
+			throw new IllegalArgumentException("Slot is still alive");
+		}
+		
+		if (slot.markReleased()) { 
+			synchronized (instanceLock) {
+				if (isDead) {
+					return false;
+				}
+			
+				if (this.allocatedSlots.remove(slot)) {
+					this.availableSlots.add(slot.getSlotNumber());
+					
+					if (this.slotListener != null) {
+						this.slotListener.newSlotAvailable(this);
+					}
+					
+					return true;
+				} else {
+					throw new IllegalArgumentException("Slot was not allocated from the instance.");
+				}
+			}
+		} else {
+			return false;
+		}
+	}
+	
+	public void cancelAndReleaseAllSlots() {
+		synchronized (instanceLock) {
+			// we need to do this copy because of concurrent modification exceptions
+			List<AllocatedSlot> copy = new ArrayList<AllocatedSlot>(this.allocatedSlots);
+			
+			for (AllocatedSlot slot : copy) {
+				slot.releaseSlot();
+			}
+			allocatedSlots.clear();
 		}
 	}
 	
@@ -227,8 +291,32 @@ public class Instance {
 		return this.availableSlots.size();
 	}
 	
+	public int getNumberOfAllocatedSlots() {
+		return this.allocatedSlots.size();
+	}
+	
 	public boolean hasResourcesAvailable() {
 		return !isDead && getNumberOfAvailableSlots() > 0;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// Listeners
+	// --------------------------------------------------------------------------------------------
+	
+	public void setSlotAvailabilityListener(SlotAvailablilityListener slotListener) {
+		synchronized (instanceLock) {
+			if (this.slotListener != null) {
+				throw new IllegalStateException("Instance has already a slot listener.");
+			} else {
+				this.slotListener = slotListener;
+			}
+		}
+	}
+	
+	public void removeSlotListener() {
+		synchronized (instanceLock) {
+			this.slotListener = null;
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -237,6 +325,6 @@ public class Instance {
 	
 	@Override
 	public String toString() {
-		return "Instance (" + this.instanceConnectionInfo + "), resources: " + this.resources + ", numberOfSlots=" + numberOfSlots;
+		return instanceId + " @" + this.instanceConnectionInfo + ' ' + numberOfSlots + " slots";
 	}
 }

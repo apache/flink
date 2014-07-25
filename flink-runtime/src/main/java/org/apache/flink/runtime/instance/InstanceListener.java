@@ -24,7 +24,17 @@ package org.apache.flink.runtime.instance;
  */
 public interface InstanceListener {
 
+	/**
+	 * Called when a new instance becomes available.
+	 * 
+	 * @param instance The instance that became available.
+	 */
 	void newInstanceAvailable(Instance instance);
 	
+	/**
+	 * Called when an instance died.
+	 * 
+	 * @param instance The instance that died.
+	 */
 	void instanceDied(Instance instance);
 }

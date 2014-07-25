@@ -76,7 +76,7 @@ public class Hardware {
 				return -1;
 				
 			default:
-				LOG.error("Unrecognized OS");
+				LOG.error("Unrecognized OS: " + OperatingSystem.getCurrentOperatingSystem());
 				return -1;
 		}
 	}

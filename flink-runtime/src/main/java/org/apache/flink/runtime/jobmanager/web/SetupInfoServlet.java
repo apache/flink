@@ -123,7 +123,7 @@ public class SetupInfoServlet extends HttpServlet {
 				objInner.put("ipcPort", k.ipcPort());
 				objInner.put("dataPort", k.dataPort());
 				objInner.put("timeSinceLastHeartbeat", time / 1000);
-				objInner.put("slotsNumber", instance.getNumberOfSlots());
+				objInner.put("slotsNumber", instance.getTotalNumberOfSlots());
 				objInner.put("freeSlots", instance.getNumberOfAvailableSlots());
 				objInner.put("cpuCores", instance.getResources().getNumberOfCPUCores());
 				objInner.put("physicalMemory", instance.getResources().getSizeOfPhysicalMemory() >>> 20);

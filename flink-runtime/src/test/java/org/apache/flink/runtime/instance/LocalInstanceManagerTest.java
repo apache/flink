@@ -25,7 +25,6 @@ import java.util.List;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.accumulators.AccumulatorEvent;
 import org.apache.flink.runtime.client.JobCancelResult;
@@ -237,9 +236,6 @@ public class LocalInstanceManagerTest {
 
 		@Override
 		public void killTask(JobID jobID, ManagementVertexID id) {}
-
-		@Override
-		public void killInstance(StringRecord instanceName) {}
 
 		@Override
 		public void logBufferUtilization(JobID jobID) {}

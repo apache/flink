@@ -16,17 +16,23 @@
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.util;
 
-package org.apache.flink.runtime.instance;
+import java.util.concurrent.ThreadFactory;
 
-import org.apache.flink.runtime.AbstractID;
+public class ExecutorThreadFactory implements ThreadFactory {
+	
+	public static final ExecutorThreadFactory INSTANCE = new ExecutorThreadFactory();
 
-/**
- * An allocation ID unambiguously identifies the allocated resources
- * within an {@link Instance}. The ID is necessary if an {@link InstanceManager} decides to partition
- * {@link Instance}s
- * without the knowledge of Nephele's scheduler.
- * 
- */
-public class AllocationID extends AbstractID {
+	private static final String THREAD_NAME = "Flink Executor Thread";
+	
+	
+	private ExecutorThreadFactory() {}
+	
+	
+	public Thread newThread(Runnable target) {
+		Thread t = new Thread(target, THREAD_NAME);
+		t.setDaemon(true);
+		return t;
+	}
 }

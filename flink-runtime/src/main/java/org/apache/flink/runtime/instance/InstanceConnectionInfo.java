@@ -67,17 +67,17 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 *        the port instance's task manager expects to receive transfer envelopes on
 	 */
 	public InstanceConnectionInfo(InetAddress inetAddress, int ipcPort, int dataPort) {
-
 		if (inetAddress == null) {
 			throw new IllegalArgumentException("Argument inetAddress must not be null");
 		}
-
 		if (ipcPort <= 0) {
 			throw new IllegalArgumentException("Argument ipcPort must be greater than zero");
 		}
-
 		if (dataPort <= 0) {
 			throw new IllegalArgumentException("Argument dataPort must be greater than zero");
+		}
+		if (ipcPort == dataPort) {
+			throw new IllegalArgumentException("IPC and data port must be different");
 		}
 
 		this.ipcPort = ipcPort;

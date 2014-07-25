@@ -83,16 +83,6 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	void killTask(JobID jobID, ManagementVertexID id) throws IOException;
 
 	/**
-	 * Kills the instance with the given name (i.e. shuts down its task manager).
-	 * 
-	 * @param instanceName
-	 *        the name of the instance to be killed
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the kill request
-	 */
-	void killInstance(StringRecord instanceName) throws IOException;
-
-	/**
 	 * Triggers all task managers involved in processing the job with the given job ID to write the utilization of
 	 * their read and write buffers to their log files. This method is primarily for debugging purposes.
 	 * 

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.executiongraph;
 
 import java.util.ArrayList;
@@ -43,8 +42,6 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.execution.ExecutionListener;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.instance.AllocatedResource;
-import org.apache.flink.runtime.instance.DummyInstance;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
 import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.io.network.gates.GateID;
@@ -57,7 +54,7 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobInputVertex;
 import org.apache.flink.runtime.jobgraph.JobOutputVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.taskmanager.ExecutorThreadFactory;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.StringUtils;
 
 /**
@@ -1289,12 +1286,6 @@ public class ExecutionGraph implements ExecutionListener {
 	 */
 	public Iterator<ExecutionStage> iterator() {
 		return this.stages.iterator();
-	}
-
-
-	@Override
-	public int getPriority() {
-		return 1;
 	}
 
 	/**

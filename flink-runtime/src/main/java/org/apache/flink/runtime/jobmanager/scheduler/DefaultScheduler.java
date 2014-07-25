@@ -18,169 +18,292 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.ArrayDeque;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceDiedException;
 import org.apache.flink.runtime.instance.InstanceListener;
-import org.apache.flink.runtime.jobgraph.JobID;
-
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 
 /**
  * The scheduler is responsible for distributing the ready-to-run tasks and assigning them to instances and
  * slots.
- * <p>
- * The scheduler's bookkeeping on the available instances is lazy: It is not modified once an
- * instance is dead, but it will lazily remove the instance from its pool as soon as it tries
- * to allocate a resource on that instance and it fails with an {@link InstanceDiedException}.
  */
-public class DefaultScheduler implements InstanceListener {
+public class DefaultScheduler implements InstanceListener, SlotAvailablilityListener {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(DefaultScheduler.class);
-
 	
-	private final Object lock = new Object();
+	
+	private final Object globalLock = new Object();
+	
 	
 	/** All instances that the scheduler can deploy to */
 	private final Set<Instance> allInstances = new HashSet<Instance>();
 	
 	/** All instances that still have available resources */
-	private final Queue<Instance> instancesWithAvailableResources = new LifoSetQueue<Instance>();
-
-	
-	private final ConcurrentHashMap<ResourceId, AllocatedSlot> allocatedSlots = new ConcurrentHashMap<ResourceId, AllocatedSlot>();
-	
-//	/** A cache that remembers the last resource IDs it has seen, to co-locate future
-//	 *  deployments of tasks with the same resource ID to the same instance.
-//	 */
-//	private final Cache<ResourceId, Instance> ghostCache;
+	private final Queue<Instance> instancesWithAvailableResources = new SetQueue<Instance>();
 	
 	/** All tasks pending to be scheduled */
-	private final Queue<ScheduledUnit> taskQueue = new ArrayDeque<ScheduledUnit>();
-
-	
-	/** The thread that runs the scheduling loop, picking up tasks to be scheduled and scheduling them. */
-	private final Thread schedulerThread;
+	private final Queue<QueuedTask> taskQueue = new ArrayDeque<QueuedTask>();
 	
 	
-	/** Atomic flag to safely control the shutdown */
-	private final AtomicBoolean shutdown = new AtomicBoolean(false);
+	private int unconstrainedAssignments = 0;
 	
-	/** Flag indicating whether the scheduler should reject a unit if it cannot find a resource
-	 * for it at the time of scheduling */
-	private final boolean rejectIfNoResourceAvailable;
+	private int localizedAssignments = 0;
 	
-
+	private int nonLocalizedAssignments = 0;
+	
 	
 	public DefaultScheduler() {
-		this(true);
-	}
-	
-	public DefaultScheduler(boolean rejectIfNoResourceAvailable) {
-		this.rejectIfNoResourceAvailable = rejectIfNoResourceAvailable;
-		
-//		this.ghostCache = CacheBuilder.newBuilder()
-//				.initialCapacity(64)	// easy start
-//				.maximumSize(1024)		// retain some history
-//				.weakValues()			// do not prevent dead instances from being collected
-//				.build();
-		
-		// set up (but do not start) the scheduling thread
-		Runnable loopRunner = new Runnable() {
-			@Override
-			public void run() {
-				runSchedulerLoop();
-			}
-		};
-		this.schedulerThread = new Thread(loopRunner, "Scheduling Thread");
-	}
-	
-	public void start() {
-		if (shutdown.get()) {
-			throw new IllegalStateException("Scheduler has been shut down.");
-		}
-		
-		try {
-			this.schedulerThread.start();
-		}
-		catch (IllegalThreadStateException e) {
-			throw new IllegalStateException("The scheduler has already been started.");
-		}
 	}
 	
 	/**
 	 * Shuts the scheduler down. After shut down no more tasks can be added to the scheduler.
 	 */
 	public void shutdown() {
-		if (this.shutdown.compareAndSet(false, true)) {
-			// clear the task queue and add the termination signal, to let
-			// the scheduling loop know that things are done
-			this.taskQueue.clear();
-			this.taskQueue.add(TERMINATION_SIGNAL);
-			
-			// interrupt the scheduling thread, in case it was waiting for resources to
-			// show up to deploy a task
-			this.schedulerThread.interrupt();
+		synchronized (globalLock) {
+			for (Instance i : allInstances) {
+				i.removeSlotListener();
+				i.cancelAndReleaseAllSlots();
+			}
+			allInstances.clear();
+			instancesWithAvailableResources.clear();
+			taskQueue.clear();
 		}
-	}
-	
-	public void setUncaughtExceptionHandler(UncaughtExceptionHandler handler) {
-		if (this.schedulerThread.getState() != Thread.State.NEW) {
-			throw new IllegalStateException("Can only add exception handler before starting the scheduler.");
-		}
-		this.schedulerThread.setUncaughtExceptionHandler(handler);
 	}
 
+	/**
+	 * 
+	 * NOTE: In the presence of multi-threaded operations, this number may be inexact.
+	 * 
+	 * @return The number of empty slots, for tasks.
+	 */
+	public int getNumberOfAvailableSlots() {
+		int count = 0;
+		
+		synchronized (globalLock) {
+			for (Instance instance : instancesWithAvailableResources) {
+				count += instance.getNumberOfAvailableSlots();
+			}
+		}
+		
+		return count;
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	//  Scheduling
 	// --------------------------------------------------------------------------------------------
 	
+	public AllocatedSlot scheduleImmediately(ScheduledUnit task) throws NoResourceAvailableException {
+		Object ret = scheduleTask(task, false);
+		if (ret instanceof AllocatedSlot) {
+			return (AllocatedSlot) ret;
+		}
+		else {
+			throw new RuntimeException();
+		}
+	}
+	
+	public SlotAllocationFuture scheduleQueued(ScheduledUnit task) throws NoResourceAvailableException {
+		Object ret = scheduleTask(task, true);
+		if (ret instanceof AllocatedSlot) {
+			return new SlotAllocationFuture((AllocatedSlot) ret);
+		}
+		if (ret instanceof SlotAllocationFuture) {
+			return (SlotAllocationFuture) ret;
+		}
+		else {
+			throw new RuntimeException();
+		}
+	}
+	
 	/**
-	 * @param task
-	 * @param queueIfNoResource If true, this call will queue the request if no resource is immediately
-	 *                          available. If false, it will throw a {@link NoResourceAvailableException}
-	 *                          if no resource is immediately available.
+	 * Returns either an {@link AllocatedSlot}, or an {@link SlotAllocationFuture}.
 	 */
-	public void scheduleTask(ScheduledUnit task, boolean queueIfNoResource) {
+	private Object scheduleTask(ScheduledUnit task, boolean queueIfNoResource) throws NoResourceAvailableException {
 		if (task == null) {
 			throw new IllegalArgumentException();
 		}
 		
-		// if there is already a slot for that resource
-		AllocatedSlot existing = this.allocatedSlots.get(task.getSharedResourceId());
-		if (existing != null) {
-			// try to attach to the existing slot
-			if (existing.runTask(task.getTaskVertex())) {
-				// all good, we are done
-				return;
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Scheduling task " + task);
+		}
+	
+		synchronized (globalLock) {
+			// 1) If the task has a strict co-schedule hint, obey it, if it has been assigned.
+//			CoLocationHint hint = task.getCoScheduleHint();
+//			if (hint != null) {
+//				
+//				// try to add to the slot, or make it wait on the hint and schedule the hint itself
+//				if () {
+//					return slot;
+//				}
+//			}
+		
+			// 2) See if we can place the task somewhere together with another existing task.
+			//    This is defined by the slot sharing groups
+			SlotSharingGroup sharingUnit = task.getSlotSharingGroup();
+			if (sharingUnit != null) {
+				// see if we can add the task to the current sharing group.
+				SlotSharingGroupAssignment assignment = sharingUnit.getTaskAssignment();
+				AllocatedSlot slot = assignment.getSlotForTask(task.getJobVertexId(), task.getTaskVertex());
+				if (slot != null) {
+					return slot;
+				}
 			}
-			// else: the slot was deallocated, we need to proceed as if there was none
+		
+			// 3) We could not schedule it to an existing slot, so we need to get a new one or queue the task
+			
+			// we need potentially to loop multiple times, because there may be false positives
+			// in the set-with-available-instances
+			while (true) {
+				Instance instanceToUse = getFreeInstanceForTask(task.getTaskVertex());
+			
+				if (instanceToUse != null) {
+					try {
+						AllocatedSlot slot = instanceToUse.allocateSlot(task.getTaskVertex().getJobId());
+						
+						// if the instance has further available slots, re-add it to the set of available resources.
+						if (instanceToUse.hasResourcesAvailable()) {
+							this.instancesWithAvailableResources.add(instanceToUse);
+						}
+						
+						if (slot != null) {
+							
+							// if the task is in a shared group, assign the slot to that group
+							// and get a sub slot in turn
+							if (sharingUnit != null) {
+								slot = sharingUnit.getTaskAssignment().addSlotWithTask(slot, task.getJobVertexId());
+							}
+							
+							// try to run the task 
+							if (slot.runTask(task.getTaskVertex())) {
+								return slot;
+							} else {
+								// did not assign, so we recycle the resource
+								slot.releaseSlot();
+							}
+						}
+					}
+					catch (InstanceDiedException e) {
+						// the instance died it has not yet been propagated to this scheduler
+						// remove the instance from the set of available instances
+						this.allInstances.remove(instanceToUse);
+						this.instancesWithAvailableResources.remove(instanceToUse);
+					}
+				}
+				else {
+					// no resource available now, so queue the request
+					if (queueIfNoResource) {
+						SlotAllocationFuture future = new SlotAllocationFuture();
+						this.taskQueue.add(new QueuedTask(task, future));
+						return future;
+					}
+					else {
+						throw new NoResourceAvailableException(task);
+					}
+				}
+			}
+		}
+	}
+		
+	/**
+	 * Gets a suitable instance to schedule the vertex execution to.
+	 * <p>
+	 * NOTE: This method does is not thread-safe, it needs to be synchronized by the caller.
+	 * 
+	 * @param vertex The task to run. 
+	 * @return The instance to run the vertex on, it {@code null}, if no instance is available.
+	 */
+	protected Instance getFreeInstanceForTask(ExecutionVertex2 vertex) {
+		if (this.instancesWithAvailableResources.isEmpty()) {
+			return null;
 		}
 		
-		// check if there is a slot that has an available sub-slot for that group-vertex
-		// TODO
+		Iterable<Instance> locationsIterable = vertex.getPreferredLocations();
+		Iterator<Instance> locations = locationsIterable == null ? null : locationsIterable.iterator();
 		
+		if (locations != null && locations.hasNext()) {
+			
+			while (locations.hasNext()) {
+				Instance location = locations.next();
+				
+				if (location != null && this.instancesWithAvailableResources.remove(location)) {
+					
+					localizedAssignments++;
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Local assignment: " + vertex.getSimpleName() + " --> " + location);
+					}
+					
+					return location;
+				}
+			}
+			
+			Instance instance = this.instancesWithAvailableResources.poll();
+			nonLocalizedAssignments++;
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Non-local assignment: " + vertex.getSimpleName() + " --> " + instance);
+			}
+			return instance;
+		}
+		else {
+			Instance instance = this.instancesWithAvailableResources.poll();
+			unconstrainedAssignments++;
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Unconstrained assignment: " + vertex.getSimpleName() + " --> " + instance);
+			}
+			
+			return instance;
+		}
+	}
+	
+	@Override
+	public void newSlotAvailable(Instance instance) {
 		
+		// global lock before instance lock, so that the order of acquiring locks is always 1) global, 2) instance
+		synchronized (globalLock) {
+			QueuedTask queued = taskQueue.peek();
+			
+			// the slot was properly released, we can allocate a new one from that instance
+			
+			if (queued != null) {
+				ScheduledUnit task = queued.getTask();
+				
+				try {
+					AllocatedSlot newSlot = instance.allocateSlot(task.getTaskVertex().getJobId());
+					if (newSlot != null && newSlot.runTask(task.getTaskVertex())) {
+						
+						// success, remove from the task queue and notify the future
+						taskQueue.poll();
+						if (queued.getFuture() != null) {
+							queued.getFuture().setSlot(newSlot);
+						}
+					}
+				}
+				catch (InstanceDiedException e) {
+					this.allInstances.remove(instance);
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Instance " + instance + " was marked dead asynchronously.");
+					}
+				}
+			}
+			else {
+				this.instancesWithAvailableResources.add(instance);
+			}
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
 	//  Instance Availability
 	// --------------------------------------------------------------------------------------------
-	
 	
 	@Override
 	public void newInstanceAvailable(Instance instance) {
@@ -195,15 +318,28 @@ public class DefaultScheduler implements InstanceListener {
 		}
 		
 		// synchronize globally for instance changes
-		synchronized (this.lock) {
+		synchronized (this.globalLock) {
+			
 			// check we do not already use this instance
 			if (!this.allInstances.add(instance)) {
 				throw new IllegalArgumentException("The instance is already contained.");
 			}
 			
+			try {
+				instance.setSlotAvailabilityListener(this);
+			}
+			catch (IllegalStateException e) {
+				this.allInstances.remove(instance);
+				LOG.error("Scheduler could not attach to the instance as a listener.");
+			}
+			
+			
 			// add it to the available resources and let potential waiters know
 			this.instancesWithAvailableResources.add(instance);
-			this.lock.notifyAll();
+			
+			for (int i = 0; i < instance.getNumberOfAvailableSlots(); i++) {
+				newSlotAvailable(instance);
+			}
 		}
 	}
 	
@@ -216,173 +352,57 @@ public class DefaultScheduler implements InstanceListener {
 		instance.markDead();
 		
 		// we only remove the instance from the pools, we do not care about the 
-		synchronized (this.lock) {
+		synchronized (this.globalLock) {
 			// the instance must not be available anywhere any more
 			this.allInstances.remove(instance);
 			this.instancesWithAvailableResources.remove(instance);
 		}
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	//  Status reporting
+	// --------------------------------------------------------------------------------------------
+
 	public int getNumberOfAvailableInstances() {
-		synchronized (lock) {
-			return allInstances.size();
-		}
+		return allInstances.size();
+	}
+	
+	public int getNumberOfInstancesWithAvailableSlots() {
+		return instancesWithAvailableResources.size();
+	}
+	
+	public int getNumberOfUnconstrainedAssignments() {
+		return unconstrainedAssignments;
+	}
+	
+	public int getNumberOfLocalizedAssignments() {
+		return localizedAssignments;
+	}
+	
+	public int getNumberOfNonLocalizedAssignments() {
+		return nonLocalizedAssignments;
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	//  Scheduling
-	// --------------------------------------------------------------------------------------------
 	
-//	/**
-//	 * Schedules the given unit to an available resource. This call blocks if no resource
-//	 * is currently available
-//	 * 
-//	 * @param unit The unit to be scheduled.
-//	 */
-//	protected void scheduleQueuedUnit(ScheduledUnit unit) {
-//		if (unit == null) {
-//			throw new IllegalArgumentException("Unit to schedule must not be null.");
-//		}
-//		
-//		// see if the resource Id has already an assigned resource
-//		AllocatedSlot resource = this.allocatedSlots.get(unit.getSharedResourceId());
-//		
-//		if (resource == null) {
-//			// not yet allocated. find a slot to schedule to
-//			try {
-//				resource = getResourceToScheduleUnit(unit, this.rejectIfNoResourceAvailable);
-//				if (resource == null) {
-//					throw new RuntimeException("Error: The resource to schedule to is null.");
-//				}
-//			}
-//			catch (Exception e) {
-//				// we cannot go on, the task needs to know what to do now.
-//				unit.getTaskVertex().handleException(e);
-//				return;
-//			}
-//		}
-//		
-//		resource.runTask(unit.getTaskVertex());
-//	}
-	
-	/**
-	 * Acquires a resource to schedule the given unit to. This call may block if no
-	 * resource is currently available, or throw an exception, based on the given flag.
-	 * 
-	 * @param unit The unit to find a resource for.
-	 * @return The resource to schedule the execution of the given unit on.
-	 * 
-	 * @throws NoResourceAvailableException If the {@code exceptionOnNoAvailability} flag is true and the scheduler
-	 *                                      has currently no resources available.
-	 */
-	protected AllocatedSlot getNewSlotForTask(ScheduledUnit unit, boolean queueIfNoResource) 
-		throws NoResourceAvailableException
-	{
-		synchronized (this.lock) {
-			Instance instanceToUse = this.instancesWithAvailableResources.poll();
-			
-			// if there is nothing, throw an exception or wait, depending on what is configured
-			if (instanceToUse != null) {
-				try {
-					AllocatedSlot slot = instanceToUse.allocateSlot(unit.getJobId(), unit.getSharedResourceId());
-					
-					// if the instance has further available slots, re-add it to the set of available resources.
-					if (instanceToUse.hasResourcesAvailable()) {
-						this.instancesWithAvailableResources.add(instanceToUse);
-					}
-					
-					if (slot != null) {
-						AllocatedSlot previous = this.allocatedSlots.putIfAbsent(unit.getSharedResourceId(), slot);
-						if (previous != null) {
-							// concurrently, someone allocated a slot for that ID
-							// release the new one
-							slot.cancelResource();
-							slot = previous;
-						}
-					}
-					// else fall through the loop
-				}
-				catch (InstanceDiedException e) {
-					// the instance died it has not yet been propagated to this scheduler
-					// remove the instance from the set of available instances
-					this.allInstances.remove(instanceToUse);
-				}
-			}
-				
-			
-			if (queueIfNoResource) {
-				this.taskQueue.add(unit);
-			}
-			else {
-				throw new NoResourceAvailableException(unit);
-			}
-				// at this point, we have an instance. request a slot from the instance
-				
-				
-				// if the instance has further available slots, re-add it to the set of available
-				// resources.
-				// if it does not, but asynchronously a slot became available, we may attempt to add the
-				// instance twice, which does not matter because of the set semantics of the "instancesWithAvailableResources"
-				if (instanceToUse.hasResourcesAvailable()) {
-					this.instancesWithAvailableResources.add(instanceToUse);
-				}
-				
-				if (slot != null) {
-					AllocatedSlot previous = this.allocatedSlots.putIfAbsent(unit.getSharedResourceId(), slot);
-					if (previous != null) {
-						// concurrently, someone allocated a slot for that ID
-						// release the new one
-						slot.cancelResource();
-						slot = previous;
-					}
-				}
-				// else fall through the loop
-			}
-		}
+	private static final class QueuedTask {
 		
-		return slot;
-	}
-	
-	protected void runSchedulerLoop() {
-		// while the scheduler is alive
-		while (!shutdown.get()) {
-			
-			// get the next unit
-			ScheduledUnit next = null;
-			try {
-				next = this.taskQueue.take();
-			}
-			catch (InterruptedException e) {
-				if (shutdown.get()) {
-					return;
-				} else {
-					LOG.error("Scheduling loop was interrupted.");
-				}
-			}
-			
-			// if we see this special unit, it means we are done
-			if (next == TERMINATION_SIGNAL) {
-				return;
-			}
-			
-			// deploy the next scheduling unit
-			try {
-				scheduleNextUnit(next);
-			}
-			catch (Throwable t) {
-				// ignore the errors in the presence of a shutdown
-				if (!shutdown.get()) {
-					if (t instanceof Error) {
-						throw (Error) t;
-					} else if (t instanceof RuntimeException) {
-						throw (RuntimeException) t;
-					} else {
-						throw new RuntimeException("Critical error in scheduler thread.", t);
-					}
-				}
-			}
+		private final ScheduledUnit task;
+		
+		private final SlotAllocationFuture future;
+		
+		
+		public QueuedTask(ScheduledUnit task, SlotAllocationFuture future) {
+			this.task = task;
+			this.future = future;
+		}
+
+		public ScheduledUnit getTask() {
+			return task;
+		}
+
+		public SlotAllocationFuture getFuture() {
+			return future;
 		}
 	}
-	
-	private static final ScheduledUnit TERMINATION_SIGNAL = new ScheduledUnit();
 }

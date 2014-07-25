@@ -16,15 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.AbstractID;
 
 /**
  * Class for statistically unique instance IDs.
- * 
  */
-public class InstanceID extends AbstractID {
-
-}
+public class InstanceID extends AbstractID {}

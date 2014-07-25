@@ -97,6 +97,7 @@ import org.apache.flink.runtime.protocols.JobManagerProtocol;
 import org.apache.flink.runtime.protocols.TaskOperationProtocol;
 import org.apache.flink.runtime.types.IntegerRecord;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.SerializableArrayList;
 import org.apache.flink.util.StringUtils;
 

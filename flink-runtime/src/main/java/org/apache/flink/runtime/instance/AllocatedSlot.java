@@ -18,20 +18,24 @@
 
 package org.apache.flink.runtime.instance;
 
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.jobmanager.scheduler.ResourceId;
 
 /**
  * An allocated slot is the unit in which resources are allocated on instances.
  */
 public class AllocatedSlot {
+	
+	private static final AtomicIntegerFieldUpdater<AllocatedSlot> STATUS_UPDATER = 
+			AtomicIntegerFieldUpdater.newUpdater(AllocatedSlot.class, "status");
+	 
+	private static final int ALLOCATED_AND_ALIVE = 0;		// tasks may be added and might be running
+	private static final int CANCELLED = 1;					// no more tasks may run
+	private static final int RELEASED = 2;					// has been given back to the instance
 
-	/** The ID which identifies the resources occupied by this slot. */
-	private final ResourceId resourceId;
-
+	
 	/** The ID of the job this slice belongs to. */
 	private final JobID jobID;
 	
@@ -41,12 +45,15 @@ public class AllocatedSlot {
 	/** The number of the slot on which the task is deployed */
 	private final int slotNumber;
 	
-	/** Flag that marks the schedule as active */
-	private final AtomicBoolean active = new AtomicBoolean(true);
+	private volatile int status = ALLOCATED_AND_ALIVE;
+	
 
 
-	public AllocatedSlot(JobID jobID, ResourceId resourceId, Instance instance, int slotNumber) {
-		this.resourceId = resourceId;
+	public AllocatedSlot(JobID jobID, Instance instance, int slotNumber) {
+		if (jobID == null || instance == null || slotNumber < 0) {
+			throw new IllegalArgumentException();
+		}
+		
 		this.jobID = jobID;
 		this.instance = instance;
 		this.slotNumber = slotNumber;
@@ -61,10 +68,6 @@ public class AllocatedSlot {
 	 */
 	public JobID getJobID() {
 		return this.jobID;
-	}
-	
-	public ResourceId getResourceId() {
-		return resourceId;
 	}
 	
 	public Instance getInstance() {
@@ -87,7 +90,60 @@ public class AllocatedSlot {
 		return true;
 	}
 	
-	public void cancelResource() {
+	// --------------------------------------------------------------------------------------------
+	//  Status and life cycle
+	// --------------------------------------------------------------------------------------------
+	
+	public boolean isAlive() {
+		return status == ALLOCATED_AND_ALIVE;
+	}
+	
+	public boolean isCanceled() {
+		return status != ALLOCATED_AND_ALIVE;
+	}
+	
+	public boolean isReleased() {
+		return status == RELEASED;
+	}
+	
+	
+	public void cancel() {
+		if (STATUS_UPDATER.compareAndSet(this, ALLOCATED_AND_ALIVE, CANCELLED)) {
+			// kill all tasks currently running in this slot
+		}
+	}
+	
+	public void releaseSlot() {
+		// cancel everything, if there is something. since this is atomically status based,
+		// it will not happen twice if another attempt happened before or concurrently
+		cancel();
 		
+		this.instance.returnAllocatedSlot(this);
+	}
+	
+	protected boolean markReleased() {
+		return STATUS_UPDATER.compareAndSet(this, CANCELLED, RELEASED);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Utilities
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public String toString() {
+		return instance.getId() + " (" + slotNumber + ") - " + getStateName(status);
+	}
+	
+	private static final String getStateName(int state) {
+		switch (state) {
+		case ALLOCATED_AND_ALIVE:
+			return "ALLOCATED/ALIVE";
+		case CANCELLED:
+			return "CANCELLED";
+		case RELEASED:
+			return "RELEASED";
+		default:
+			return "(unknown)";
+		}
 	}
 }
