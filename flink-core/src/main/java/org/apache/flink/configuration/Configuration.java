@@ -26,11 +26,12 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import com.google.common.io.BaseEncoding;
 
 /**
  * Lightweight configuration object which can store key/value pairs. Configuration objects
@@ -337,11 +338,11 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 * @return the (default) value associated with the given key.
 	 */
 	public byte[] getBytes(String key, byte[] defaultValue) {
-		String encoded = getStringInternal(key);
+		final String encoded = getStringInternal(key);
 		if (encoded == null) {
 			return defaultValue;
 		} else {
-			return Base64.decodeBase64(encoded.getBytes());
+			return BaseEncoding.base64().decode(encoded);
 		}
 	}
 	
@@ -354,7 +355,7 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 *        The bytes to be added.
 	 */
 	public void setBytes(String key, byte[] bytes) {
-		String encoded = new String(Base64.encodeBase64(bytes));
+		final String encoded = BaseEncoding.base64().encode(bytes);
 		setStringInternal(key, encoded);
 	}
 
