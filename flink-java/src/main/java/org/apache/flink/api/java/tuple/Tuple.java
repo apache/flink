@@ -18,6 +18,9 @@
 
 package org.apache.flink.api.java.tuple;
 
+import org.apache.flink.types.NullFieldException;
+
+
 /**
  * The base class of all tuples. Tuples have a fix length and contain a set of fields,
  * which may all be of different types. Because Tuples are strongly typed, each distinct
@@ -46,6 +49,23 @@ public abstract class Tuple implements java.io.Serializable {
 	 */
 	public abstract <T> T getField(int pos);
 	
+	/**
+	 * Gets the field at the specified position, throws NullFieldException if the field is null. Used for comparing key fields.
+	 * 
+	 * @param pos The position of the field, zero indexed. 
+	 * @returnThe field at the specified position.
+	 * @throws IndexOutOfBoundsException Thrown, if the position is negative, or equal to, or larger than the number of fields.
+	 * @throws NullFieldException Thrown, if the field at pos is null.
+	 */
+	public <T> T getFieldNotNull(int pos){
+		T field = getField(pos);
+		if (field != null) {
+			return field;
+		} else {
+			throw new NullFieldException(pos);
+		}
+	}
+
 	/**
 	 * Sets the field at the specified position.
 	 *

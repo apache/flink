@@ -21,55 +21,44 @@ package org.apache.flink.types;
 
 
 /**
- * An exception specifying that a required key field was not set in a record, i.e. was <code>null</code>.
+ * An exception specifying that a required field was not set in a record, i.e. was <code>null</code>.
  */
-public class NullKeyFieldException extends RuntimeException
+public class NullFieldException extends RuntimeException
 {
 	/**
 	 * UID for serialization interoperability. 
 	 */
-	private static final long serialVersionUID = -3254501285363420762L;
+	private static final long serialVersionUID = -8820467525772321173L;
 	
 	private final int fieldNumber;
 
 	/**
-	 * Constructs an {@code NullKeyFieldException} with {@code null}
+	 * Constructs an {@code NullFieldException} with {@code null}
 	 * as its error detail message.
 	 */
-	public NullKeyFieldException() {
+	public NullFieldException() {
 		super();
 		this.fieldNumber = -1;
 	}
 
 	/**
-	 * Constructs an {@code NullKeyFieldException} with a default message, referring to
-	 * the field number given in the {@code NullFieldException}.
-	 *
-	 * @param nfex The base exception.
-	 */
-	public NullKeyFieldException(NullFieldException nfex) {
-		super();
-		this.fieldNumber = nfex.getFieldNumber();
-	}
-	
-	/**
-	 * Constructs an {@code NullKeyFieldException} with the specified detail message.
+	 * Constructs an {@code NullFieldException} with the specified detail message.
 	 *
 	 * @param message The detail message.
 	 */
-	public NullKeyFieldException(String message) {
+	public NullFieldException(String message) {
 		super(message);
 		this.fieldNumber = -1;
 	}
 	
 	/**
-	 * Constructs an {@code NullKeyFieldException} with a default message, referring to
-	 * given field number as the null key field.
+	 * Constructs an {@code NullFieldException} with a default message, referring to
+	 * given field number as the null field.
 	 *
-	 * @param fieldNumber The index of the field that was null, bit expected to hold a key.
+	 * @param fieldNumber The index of the field that was null, bit expected to hold a value.
 	 */
-	public NullKeyFieldException(int fieldNumber) {
-		super("Field " + fieldNumber + " is null, but expected to hold a key.");
+	public NullFieldException(int fieldNumber) {
+		super("Field " + fieldNumber + " is null, but expected to hold a value.");
 		this.fieldNumber = fieldNumber;
 	}
 	
