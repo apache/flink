@@ -22,7 +22,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.java.functions.KeySelector;

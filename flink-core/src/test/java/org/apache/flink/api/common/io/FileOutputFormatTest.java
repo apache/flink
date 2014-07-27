@@ -22,7 +22,7 @@ package org.apache.flink.api.common.io;
 import java.io.File;
 import java.io.IOException;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.FileOutputFormat.OutputDirectoryMode;

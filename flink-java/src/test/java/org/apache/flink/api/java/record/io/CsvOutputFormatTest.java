@@ -28,7 +28,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.java.record.io.CsvOutputFormat;
 import org.apache.flink.configuration.Configuration;

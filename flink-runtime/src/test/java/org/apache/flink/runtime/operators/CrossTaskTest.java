@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.common.functions.GenericCrosser;
 import org.apache.flink.api.java.record.functions.CrossFunction;

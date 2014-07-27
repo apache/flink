@@ -26,7 +26,7 @@ import static org.junit.Assert.fail;
 
 import java.util.Random;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;

@@ -21,7 +21,7 @@ package org.apache.flink.api.java.record.io;
 
 import java.io.IOException;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.record.io.ExternalProcessFixedLengthInputFormat;

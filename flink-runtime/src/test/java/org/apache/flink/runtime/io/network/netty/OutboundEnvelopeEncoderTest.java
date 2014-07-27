@@ -21,7 +21,8 @@ package org.apache.flink.runtime.io.network.netty;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.embedded.EmbeddedChannel;
-import junit.framework.Assert;
+
+import org.junit.Assert;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.Buffer;

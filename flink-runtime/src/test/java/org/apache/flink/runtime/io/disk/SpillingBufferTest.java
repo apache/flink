@@ -22,7 +22,7 @@ package org.apache.flink.runtime.io.disk;
 import java.io.EOFException;
 import java.util.ArrayList;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;

@@ -30,7 +30,6 @@ import java.net.UnknownHostException;
 import java.util.*;
 
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.runtime.instance.*;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.topology.NetworkTopology;
 import org.junit.Test;
