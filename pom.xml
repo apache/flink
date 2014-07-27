@@ -303,6 +303,17 @@ under the License.
 	<dependencyManagement>
 		<!-- this section defines the module versions that are used if nothing else is specified. -->
 		<dependencies>
+			<!-- Make sure we use a consistent avro version throughout the project -->
+			<dependency>
+				<groupId>org.apache.avro</groupId>
+				<artifactId>avro</artifactId>
+				<version>1.7.6</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.avro</groupId>
+				<artifactId>avro-mapred</artifactId>
+				<version>1.7.6</version>
+			</dependency>
 			<!-- Managed dependency required for HBase in pact-hbase  -->
 			<dependency>
 				<groupId>org.slf4j</groupId>
