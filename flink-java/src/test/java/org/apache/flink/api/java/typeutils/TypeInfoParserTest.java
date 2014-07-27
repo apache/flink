@@ -22,7 +22,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.java.typeutils.BasicArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.BasicTypeInfo;

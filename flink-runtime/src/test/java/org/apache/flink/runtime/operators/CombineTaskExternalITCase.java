@@ -22,7 +22,7 @@ package org.apache.flink.runtime.operators;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.common.functions.GenericGroupReduce;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;

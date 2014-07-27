@@ -77,7 +77,7 @@ under the License.
 		<dependency>
 			<groupId>commons-logging</groupId>
 			<artifactId>commons-logging</artifactId>
-			<version>1.1.1</version>
+			<version>1.1.3</version>
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
@@ -85,15 +85,7 @@ under the License.
 		<dependency>
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
-			<version>1.2.16</version>
-			<type>jar</type>
-			<scope>compile</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>commons-codec</groupId>
-			<artifactId>commons-codec</artifactId>
-			<version>1.3</version>
+			<version>1.2.17</version>
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
@@ -101,7 +93,7 @@ under the License.
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
-			<version>14.0.1</version>
+			<version>17.0</version>
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
@@ -109,7 +101,7 @@ under the License.
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.7</version>
+			<version>4.11</version>
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -117,7 +109,7 @@ under the License.
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-all</artifactId>
-			<version>1.8.5</version>
+			<version>1.9.5</version>
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -125,7 +117,7 @@ under the License.
 		<dependency>
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-module-junit4</artifactId>
-			<version>1.4.9</version>
+			<version>1.5.5</version>
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -133,7 +125,7 @@ under the License.
 		<dependency>
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-api-mockito</artifactId>
-			<version>1.4.9</version>
+			<version>1.5.5</version>
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -141,7 +133,7 @@ under the License.
 		<dependency>
 			<groupId>org.hamcrest</groupId>
 			<artifactId>hamcrest-all</artifactId>
-			<version>1.1</version>
+			<version>1.3</version>
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -311,6 +303,33 @@ under the License.
 	<dependencyManagement>
 		<!-- this section defines the module versions that are used if nothing else is specified. -->
 		<dependencies>
+			<!-- Make sure we use a consistent jetty version throughout the project -->
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-server</artifactId>
+				<version>8.0.0.M1</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-security</artifactId>
+				<version>8.0.0.M1</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-servlet</artifactId>
+				<version>8.0.0.M1</version>
+			</dependency>
+			<!-- Make sure we use a consistent avro version throughout the project -->
+			<dependency>
+				<groupId>org.apache.avro</groupId>
+				<artifactId>avro</artifactId>
+				<version>1.7.6</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.avro</groupId>
+				<artifactId>avro-mapred</artifactId>
+				<version>1.7.6</version>
+			</dependency>
 			<!-- Managed dependency required for HBase in pact-hbase  -->
 			<dependency>
 				<groupId>org.slf4j</groupId>

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators;
 
 import java.util.Iterator;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.common.functions.GenericCoGrouper;
 import org.apache.flink.api.java.record.functions.CoGroupFunction;
