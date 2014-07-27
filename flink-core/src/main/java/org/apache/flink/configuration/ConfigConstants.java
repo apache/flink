@@ -39,6 +39,11 @@ public final class ConfigConstants {
 	// -------------------------------- Runtime -------------------------------
 
 	/**
+	 * The config parameter defining the storage directory to be used by the blob server.
+	 */
+	public static final String BLOB_STORAGE_DIRECTORY_KEY = "blob.storage.directory";
+	
+	/**
 	 * The config parameter defining the network address to connect to
 	 * for communication with the job manager.
 	 */
