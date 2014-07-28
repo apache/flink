@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.io;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
@@ -38,6 +39,10 @@ public class TextOutputFormat<T> extends FileOutputFormat<T> {
 	private transient Charset charset;
 
 	// --------------------------------------------------------------------------------------------
+
+	public static interface TextFormatter<IN> extends Serializable {
+		public String format(IN value);
+	}
 
 	public TextOutputFormat(Path outputPath) {
 		this(outputPath, "UTF-8");

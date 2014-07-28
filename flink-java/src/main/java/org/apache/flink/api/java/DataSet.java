@@ -29,11 +29,13 @@ import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.functions.FormattingMapper;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
+import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
 import org.apache.flink.api.java.operators.AggregateOperator;
 import org.apache.flink.api.java.operators.CoGroupOperator;
 import org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
@@ -820,6 +822,35 @@ public abstract class DataSet<T> {
 		TextOutputFormat<T> tof = new TextOutputFormat<T>(new Path(filePath));
 		tof.setWriteMode(writeMode);
 		return output(tof);
+	}
+	
+/**
+	 * Writes a DataSet as a text file to the specified location.<br/>
+	 * For each element of the DataSet the result of {@link TextFormatter#format(Object)} is written.
+	 *
+	 * @param filePath The path pointing to the location the text file is written to.
+	 * @param formatter formatter that is applied on every element of the DataSet.
+	 * @return The DataSink that writes the DataSet.
+	 *
+	 * @see TextOutputFormat
+	 */
+	public DataSink<String> writeAsFormattedText(String filePath, TextFormatter<T> formatter) {
+		return this.map(new FormattingMapper<T>(formatter)).writeAsText(filePath);
+	}
+
+	/**
+	 * Writes a DataSet as a text file to the specified location.<br/>
+	 * For each element of the DataSet the result of {@link TextFormatter#format(Object)} is written.
+	 *
+	 * @param filePath The path pointing to the location the text file is written to.
+	 * @param writeMode Control the behavior for existing files. Options are NO_OVERWRITE and OVERWRITE.
+	 * @param formatter formatter that is applied on every element of the DataSet.
+	 * @return The DataSink that writes the DataSet.
+	 *
+	 * @see TextOutputFormat
+	 */
+	public DataSink<String> writeAsFormattedText(String filePath, WriteMode writeMode, final TextFormatter<T> formatter) {
+		return this.map(new FormattingMapper<T>(formatter)).writeAsText(filePath, writeMode);
 	}
 	
 	/**

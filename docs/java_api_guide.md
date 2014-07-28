@@ -802,7 +802,8 @@ Data Sinks
 Data sinks consume DataSets and are used to store or return them. Data sink operations are described using an {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/io/OutputFormat.java "OutputFormat" %}. Flink comes with a variety of built-in output formats that
 are encapsulated behind operations on the DataSet type:
 
-- `writeAsText()` / `TextOuputFormat` - Writes for each element as a String in a line. The String are obtained by calling the *toString()* method.
+- `writeAsText()` / `TextOuputFormat` - Writes elements line-wise as Strings. The Strings are obtained by calling the *toString()* method of each element.
+- `writeAsFormattedText()` / `TextOutputFormat` - Write elements line-wise as Strings. The Strings are obtained by calling a user-defined *format()* method for each element.
 - `writeAsCsv` / `CsvOutputFormat` - Writes tuples as comma-separated value files. Row and field delimiters are configurable. The value for each field comes from the *toString()* method of the objects.
 - `print()` / `printToErr()` - Prints the *toString()* value of each element on the standard out / strandard error stream.
 - `write()` / `FileOutputFormat` - Method and base class for custom file outputs. Supports custom object-to-bytes conversion.
@@ -832,7 +833,13 @@ DataSet<Tuple3<String, Integer, Double>> values = // [...]
 values.writeAsCsv("file:///path/to/the/result/file", "\n", "|");
 
 // this writes tuples in the text formatting "(a, b, c)", rather than as CSV lines
-value.writeAsText("file:///path/to/the/result/file");
+values.writeAsText("file:///path/to/the/result/file");
+
+// this wites values as strings using a user-defined TextFormatter object
+values.writeAsFormattedText("file:///path/to/the/result/file", new TextFormatter<Tuple2<Integer, Integer>>() {
+    public String format (Tuple2<Integer, Integer> value) {
+        return value.f1 + " - " + value.f0;
+    }});
 ```
 
 Using a custom output format:
