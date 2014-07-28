@@ -22,9 +22,11 @@ package org.apache.flink.runtime.operators;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.GenericReduce;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
@@ -45,8 +47,10 @@ public class AllReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
 	
 	private MutableObjectIterator<T> input;
 
+	private T initialValue;
+
 	private TypeSerializer<T> serializer;
-	
+
 	private boolean running;
 
 	// ------------------------------------------------------------------------
@@ -74,18 +78,30 @@ public class AllReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
 		return false;
 	}
 
-	// --------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
 
 	@Override
 	public void prepare() throws Exception {
 		final TaskConfig config = this.taskContext.getTaskConfig();
-		if (config.getDriverStrategy() != DriverStrategy.ALL_REDUCE) {
+		final DriverStrategy driverStrategy = config.getDriverStrategy();
+
+		if (driverStrategy != DriverStrategy.ALL_REDUCE && driverStrategy != DriverStrategy.ALL_REDUCE_COMBINE) {
 			throw new Exception("Unrecognized driver strategy for AllReduce driver: " + config.getDriverStrategy().name());
 		}
 		
 		TypeSerializerFactory<T> serializerFactory = this.taskContext.getInputSerializer(0);
 		this.serializer = serializerFactory.getSerializer();
 		this.input = this.taskContext.getInput(0);
+
+		if (driverStrategy == DriverStrategy.ALL_REDUCE_COMBINE) {
+			// don't use the initial value with the combiners
+			initialValue = null;
+		} else {
+			byte[] initialValBuf = config.getStubParameters().getBytes(ReduceOperatorBase.INITIAL_VALUE_KEY, null);
+			initialValue = (initialValBuf != null)
+					? InstantiationUtil.deserializeFromByteArray(serializer, initialValBuf)
+					: null;
+		}
 	}
 
 	@Override
@@ -94,21 +110,28 @@ public class AllReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
 			LOG.debug(this.taskContext.formatLogString("AllReduce preprocessing done. Running Reducer code."));
 		}
 
+		// cache references on the stack
 		final GenericReduce<T> stub = this.taskContext.getStub();
 		final MutableObjectIterator<T> input = this.input;
 		final TypeSerializer<T> serializer = this.serializer;
-		
+
 		T val1 = serializer.createInstance();
-		
+
 		if ((val1 = input.next(val1)) == null) {
-			return;
+			if (initialValue == null) {
+				return;
+			}
+
+			val1 = initialValue;
+		} else if (running && initialValue != null) {
+			val1 = stub.reduce(initialValue, val1);
 		}
-		
+
 		T val2;
 		while (running && (val2 = input.next(serializer.createInstance())) != null) {
 			val1 = stub.reduce(val1, val2);
 		}
-		
+
 		this.taskContext.getOutputCollector().collect(val1);
 	}
 

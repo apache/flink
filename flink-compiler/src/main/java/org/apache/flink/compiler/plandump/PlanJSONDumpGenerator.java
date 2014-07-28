@@ -412,6 +412,7 @@ public class PlanJSONDumpGenerator {
 				break;
 			
 			case ALL_REDUCE:
+			case ALL_REDUCE_COMBINE:
 				locString = "Reduce All";
 				break;
 			

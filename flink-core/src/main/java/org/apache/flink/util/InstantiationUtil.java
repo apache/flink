@@ -21,6 +21,8 @@ package org.apache.flink.util;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -29,7 +31,10 @@ import java.io.ObjectStreamClass;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 
 
 /**
@@ -236,6 +241,32 @@ public class InstantiationUtil {
 	public static void writeObjectToConfig(Object o, Configuration config, String key) throws IOException {
 		byte[] bytes = serializeObject(o);
 		config.setBytes(key, bytes);
+	}
+
+	public static <T> byte[] serializeToByteArray(TypeSerializer<T> serializer, T record) throws IOException {
+		if (record == null) {
+			throw new NullPointerException("Record to serialize to byte array must not be null.");
+		}
+
+		ByteArrayOutputStream bos = new ByteArrayOutputStream(64);
+		OutputViewDataOutputStreamWrapper outputViewWrapper =
+				new OutputViewDataOutputStreamWrapper(new DataOutputStream(bos));
+
+		serializer.serialize(record, outputViewWrapper);
+
+		return bos.toByteArray();
+	}
+
+	public static <T> T deserializeFromByteArray(TypeSerializer<T> serializer, byte[] buf) throws IOException {
+		if (buf == null) {
+			throw new NullPointerException("Byte array to deserialize from must not be null.");
+		}
+
+		InputViewDataInputStreamWrapper inputViewWrapper =
+				new InputViewDataInputStreamWrapper(new DataInputStream(new ByteArrayInputStream(buf)));
+
+		T record = serializer.createInstance();
+		return serializer.deserialize(record, inputViewWrapper);
 	}
 	
 	public static Object deserializeObject(byte[] bytes, ClassLoader cl) throws IOException, ClassNotFoundException {

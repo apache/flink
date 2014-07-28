@@ -18,16 +18,20 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.api.common.typeutils.base.DoubleValueSerializer;
+import org.apache.flink.types.DoubleValue;
+import org.apache.flink.types.StringValue;
+import org.apache.flink.types.Value;
+import org.junit.Assert;
+import org.junit.Test;
+
+import java.io.IOException;
+
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.flink.types.StringValue;
-import org.apache.flink.types.Value;
-import org.apache.flink.util.InstantiationUtil;
-import org.junit.Test;
-
-public class InstantiationUtilsTest {
+public class InstantiationUtilTest {
 
 	@Test
 	public void testInstatiationOfStringValue() {
@@ -64,5 +68,19 @@ public class InstantiationUtilsTest {
 		InstantiationUtil.checkForInstantiation(TestClass.class);
 	}
 
-	private class TestClass {}
+	@Test
+	public void testSerializationToByteArray() throws IOException {
+		final DoubleValue toSerialize = new DoubleValue(Math.random());
+		final DoubleValueSerializer serializer = new DoubleValueSerializer();
+
+		byte[] serialized = InstantiationUtil.serializeToByteArray(serializer, toSerialize);
+
+		DoubleValue deserialized = InstantiationUtil.deserializeFromByteArray(serializer, serialized);
+
+		Assert.assertEquals("Serialized record is not equal after serialization.", toSerialize, deserialized);
+	}
+
+
+	private class TestClass {
+	}
 }

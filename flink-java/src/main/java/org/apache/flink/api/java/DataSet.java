@@ -34,6 +34,7 @@ import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.operators.AggregateOperator;
 import org.apache.flink.api.java.operators.CoGroupOperator;
+import org.apache.flink.api.java.operators.CountOperator;
 import org.apache.flink.api.java.operators.CrossOperator;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
 import org.apache.flink.api.java.operators.DataSink;
@@ -188,13 +189,13 @@ public abstract class DataSet<T> {
 	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
 	 * <b>Note: Only Tuple DataSets can be projected.</b></br>
 	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
-	 * This method returns a {@link Projection} on which {@link Projection#types()} needs to
+	 * This method returns a {@link Projection} on which {@link Projection#types} needs to
 	 *   be called to completed the transformation.
 	 * 
 	 * @param fieldIndexes The field indexes of the input tuples that are retained.
 	 * 					   The order of fields in the output tuple corresponds to the order of field indexes.
 	 * @return A Projection that needs to be converted into a {@link ProjectOperator} to complete the 
-	 *           Project transformation by calling {@link Projection#types()}.
+	 *           Project transformation by calling {@link Projection#types}.
 	 * 
 	 * @see Tuple
 	 * @see DataSet
@@ -281,6 +282,31 @@ public abstract class DataSet<T> {
 		}
 		return new ReduceOperator<T>(this, reducer);
 	}
+
+	/**
+	 * Applies a reduce transformation with an initial value on a non-grouped {@link DataSet}.
+	 * <p/>
+	 * The transformation consecutively calls a {@link ReduceFunction} until only a single element remains, which is the
+	 * result of the transformation. A ReduceFunction combines two elements into one new element of the same type.
+	 * <p/>
+	 * The specified initial value is an extra input to the ReduceFunction. In cases, where the input data set is empty
+	 * the reduce function will only be called with the initial value.
+	 *
+	 * @param reducer The ReduceFunction that is applied on the DataSet.
+	 * @param initialValue The initial value to use with the ReduceFunction.
+	 * @return A ReduceOperator that represents the reduced DataSet.
+	 *
+	 * @see ReduceFunction
+	 */
+	public ReduceOperator<T> reduce(ReduceFunction<T> reducer, T initialValue) {
+		if (reducer == null) {
+			throw new NullPointerException("Reduce function must not be null.");
+		}
+		if (initialValue == null) {
+			throw new NullPointerException("Initial value of reduce function must not be null.");
+		}
+		return new ReduceOperator<T>(this, reducer, initialValue);
+	}
 	
 	/**
 	 * Applies a GroupReduce transformation on a non-grouped {@link DataSet}.<br/>
@@ -292,7 +318,6 @@ public abstract class DataSet<T> {
 	 * @return A GroupReduceOperator that represents the reduced DataSet.
 	 * 
 	 * @see GroupReduceFunction
-	 * @see ReduceGroupOperator
 	 * @see DataSet
 	 */
 	public <R> ReduceGroupOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
@@ -301,7 +326,18 @@ public abstract class DataSet<T> {
 		}
 		return new ReduceGroupOperator<T, R>(this, reducer);
 	}
-	
+
+	/**
+	 * Counts the number of elements in the DataSet.
+	 * <p>
+	 * The transformation results in a new data set of type DataSet<Long> with the count of elements.
+	 *
+	 * @return A CountOperator that represents a counted DataSet.
+	 */
+	public CountOperator<T> count() {
+		return new CountOperator<T>(this);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  distinct
 	// --------------------------------------------------------------------------------------------
@@ -357,7 +393,7 @@ public abstract class DataSet<T> {
 	 * This method returns an {@link UnsortedGrouping} on which one of the following grouping transformation 
 	 *   can be applied. 
 	 * <ul>
-	 *   <li>{@link UnsortedGrouping#sortGroup(int, org.apache.flink.api.common.operators.Order)} to get a {@link SortedGrouping}. 
+	 *   <li>{@link UnsortedGrouping#sortGroup(int, org.apache.flink.api.common.operators.Order)} to get a {@link SortedGrouping}.
 	 *   <li>{@link UnsortedGrouping#aggregate(Aggregations, int)} to apply an Aggregate transformation.
 	 *   <li>{@link UnsortedGrouping#reduce(ReduceFunction)} to apply a Reduce transformation.
 	 *   <li>{@link UnsortedGrouping#reduceGroup(GroupReduceFunction)} to apply a GroupReduce transformation.
@@ -386,7 +422,7 @@ public abstract class DataSet<T> {
 	 * This method returns an {@link UnsortedGrouping} on which one of the following grouping transformation 
 	 *   can be applied. 
 	 * <ul>
-	 *   <li>{@link UnsortedGrouping#sortGroup(int, org.apache.flink.api.common.operators.Order)} to get a {@link SortedGrouping}. 
+	 *   <li>{@link UnsortedGrouping#sortGroup(int, org.apache.flink.api.common.operators.Order)} to get a {@link SortedGrouping}.
 	 *   <li>{@link UnsortedGrouping#aggregate(Aggregations, int)} to apply an Aggregate transformation.
 	 *   <li>{@link UnsortedGrouping#reduce(ReduceFunction)} to apply a Reduce transformation.
 	 *   <li>{@link UnsortedGrouping#reduceGroup(GroupReduceFunction)} to apply a GroupReduce transformation.
@@ -448,7 +484,7 @@ public abstract class DataSet<T> {
 	 *   joining elements into one DataSet.</br>
 	 * 
 	 * This method returns a {@link JoinOperatorSets} on which 
-	 *   {@link JoinOperatorSets#where()} needs to be called to define the join key of the first 
+	 *   {@link JoinOperatorSets#where} needs to be called to define the join key of the first
 	 *   joining (i.e., this) DataSet.
 	 *  
 	 * @param other The other DataSet with which this DataSet is joined.
@@ -470,7 +506,7 @@ public abstract class DataSet<T> {
 	 * This method also gives the hint to the optimizer that the second DataSet to join is much
 	 *   smaller than the first one.</br>
 	 * This method returns a {@link JoinOperatorSets} on which 
-	 *   {@link JoinOperatorSets#where()} needs to be called to define the join key of the first 
+	 *   {@link JoinOperatorSets#where} needs to be called to define the join key of the first
 	 *   joining (i.e., this) DataSet.
 	 *  
 	 * @param other The other DataSet with which this DataSet is joined.
@@ -492,7 +528,7 @@ public abstract class DataSet<T> {
 	 * This method also gives the hint to the optimizer that the second DataSet to join is much
 	 *   larger than the first one.</br>
 	 * This method returns a {@link JoinOperatorSets JoinOperatorSet} on which 
-	 *   {@link JoinOperatorSets#where()} needs to be called to define the join key of the first 
+	 *   {@link JoinOperatorSets#where} needs to be called to define the join key of the first
 	 *   joining (i.e., this) DataSet.
 	 *  
 	 * @param other The other DataSet with which this DataSet is joined.
@@ -520,7 +556,7 @@ public abstract class DataSet<T> {
 	 * The CoGroupFunction can iterate over the elements of both groups and return any number 
 	 *   of elements including none.</br>
 	 * This method returns a {@link CoGroupOperatorSets} on which 
-	 *   {@link CoGroupOperatorSets#where()} needs to be called to define the grouping key of the first 
+	 *   {@link CoGroupOperatorSets#where} needs to be called to define the grouping key of the first
 	 *   (i.e., this) DataSet.
 	 * 
 	 * @param other The other DataSet of the CoGroup transformation.
@@ -563,7 +599,7 @@ public abstract class DataSet<T> {
 	 * second input being the second field of the tuple.
 	 * 
 	 * <p>
-	 * Call {@link DefaultCross.with(CrossFunction)} to define a {@link CrossFunction} which is called for
+	 * Call {@link DefaultCross#with} to define a {@link CrossFunction} which is called for
 	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
@@ -592,7 +628,7 @@ public abstract class DataSet<T> {
 	 * second input being the second field of the tuple.
 	 *   
 	 * <p>
-	 * Call {@link DefaultCross.with(CrossFunction)} to define a {@link CrossFunction} which is called for
+	 * Call {@link DefaultCross#with} to define a {@link CrossFunction} which is called for
 	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
@@ -621,7 +657,7 @@ public abstract class DataSet<T> {
 	 * second input being the second field of the tuple.
 	 *   
 	 * <p>
-	 * Call {@link DefaultCross.with(CrossFunction)} to define a {@link CrossFunction} which is called for
+	 * Call {@link DefaultCross#with} to define a {@link CrossFunction} which is called for
 	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
@@ -699,7 +735,7 @@ public abstract class DataSet<T> {
 	 * <pre>
 	 * {@code
 	 * DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
-	 *                                                  initialState.iterateDelta(initialFeedbakSet, 100, 0);
+	 *                                                  initialState.iterateDelta(initialFeedbackSet, 100, 0);
 	 * 
 	 * DataSet<Tuple2<Long, Long>> delta = iteration.groupBy(0).aggregate(Aggregations.AVG, 1)
 	 *                                              .join(iteration.getSolutionSet()).where(0).equalTo(0)
@@ -798,8 +834,8 @@ public abstract class DataSet<T> {
 	 * Writes a {@link Tuple} DataSet as a CSV file to the specified location.<br/>
 	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br/>
 	 * For each Tuple field the result of {@link Object#toString()} is written.
-	 * Tuple fields are separated by the default field delimiter {@code "comma" (,)}.<br/>
-	 * Tuples are are separated by the newline character ({@code \n}).
+	 * Tuple fields are separated by the default field delimiter {@link CsvOutputFormat#DEFAULT_FIELD_DELIMITER}.<br/>
+	 * Tuples are are separated by the default line delimiter {@link CsvOutputFormat#DEFAULT_LINE_DELIMITER}.
 	 * 
 	 * @param filePath The path pointing to the location the CSV file is written to.
 	 * @return The DataSink that writes the DataSet.

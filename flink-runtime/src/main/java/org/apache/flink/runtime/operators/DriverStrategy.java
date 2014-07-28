@@ -49,6 +49,8 @@ public enum DriverStrategy {
 
 	// group everything together into one group and apply the Reduce function
 	ALL_REDUCE(AllReduceDriver.class, null, PIPELINED, false),
+	// group everything together into one group and apply the Reduce function
+	ALL_REDUCE_COMBINE(AllReduceDriver.class, null, PIPELINED, false),
 	// group everything together into one group and apply the GroupReduce function
 	ALL_GROUP_REDUCE(AllGroupReduceDriver.class, null, PIPELINED, false),
 	// group everything together into one group and apply the GroupReduce's combine function
