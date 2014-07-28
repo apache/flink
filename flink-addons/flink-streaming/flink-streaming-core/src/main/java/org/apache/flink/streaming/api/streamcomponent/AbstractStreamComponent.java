@@ -26,6 +26,10 @@ import org.apache.commons.lang.SerializationUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.FilterFunction;
+import org.apache.flink.api.java.functions.FlatMapFunction;
+import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -39,7 +43,9 @@ import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.collector.DirectedStreamCollector;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.collector.StreamCollector;
+import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
+import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
@@ -60,15 +66,21 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 	protected String name;
 	private static int numComponents = 0;
 	protected boolean isMutable;
-
+	protected Object function;
+	protected String functionName;
+	
 	protected static int newComponent() {
 		numComponents++;
 		return numComponents;
 	}
 
 	protected void initialize() {
-		configuration = new StreamConfig(getTaskConfiguration());
-		name = configuration.getComponentName();
+		this.configuration = new StreamConfig(getTaskConfiguration());
+		this.name = configuration.getComponentName();
+		this.isMutable = configuration.getMutability();
+		this.functionName = configuration.getFunctionName();
+		this.function = configuration.getFunction();
+
 	}
 
 	protected Collector<OUT> setCollector() {
@@ -83,6 +95,35 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 		return collector;
 	}
 
+	protected void setSerializers() {
+		try {
+			if (functionName.equals("flatMap")) {
+				setSerializer(function, FlatMapFunction.class, 1);
+			} else if (functionName.equals("map")) {
+				setSerializer(function, MapFunction.class, 1);
+			} else if (functionName.equals("batchReduce")) {
+				setSerializer(function, GroupReduceFunction.class, 1);
+			} else if (functionName.equals("filter")) {
+				setSerializer(function, FilterFunction.class, 0);
+			} else if (functionName.equals("source")) {
+				setSerializer(function, UserSourceInvokable.class, 0);
+			} else if (functionName.equals("coMap")) {
+				setSerializer(function, CoMapFunction.class, 2);
+			} else if (functionName.equals("elements")) {
+				outTupleTypeInfo = new TupleTypeInfo<OUT>(TypeExtractor.getForObject(function));
+
+				outTupleSerializer = new StreamRecordSerializer<OUT>(outTupleTypeInfo.createSerializer());
+				outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(
+						outTupleSerializer);
+			} else {
+				throw new Exception("Wrong operator name: " + functionName);
+			}
+		} catch (Exception e) {
+			throw new StreamComponentException(e);
+		}
+	
+	}
+	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	protected void setSerializer(Object function, Class<?> clazz, int typeParameter) {
 		outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(clazz, function.getClass(),
@@ -94,7 +135,9 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 
 	protected void setConfigOutputs(
 			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs) {
-
+		setSerializers();
+		setCollector();
+		
 		int numberOfOutputs = configuration.getNumberOfOutputs();
 
 		for (int i = 0; i < numberOfOutputs; i++) {
@@ -146,10 +189,7 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 	 *            Class of the invokable function
 	 * @return The StreamComponent object
 	 */
-	protected StreamComponentInvokable getInvokable(
-			Class<? extends StreamComponentInvokable> userFunctionClass) {
-		
-		this.isMutable = configuration.getMutability();
+	protected <T extends StreamComponentInvokable> T getInvokable() {
 		return configuration.getUserInvokableObject();
 	}
 
@@ -170,6 +210,16 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 		return (T) SerializationUtils.deserialize(serializedObject);
 	}
 
+
+	@Override
+	public void registerInputOutput() {
+		initialize();
+		setInputsOutputs();		
+		setInvokable();
+	}
+	
+	protected abstract void setInputsOutputs();
+	
 	protected abstract void setInvokable();
 
 }

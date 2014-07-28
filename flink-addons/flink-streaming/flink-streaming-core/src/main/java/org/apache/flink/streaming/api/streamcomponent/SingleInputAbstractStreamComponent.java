@@ -31,57 +31,40 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.MutableUnionRecordReader;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
+import org.apache.flink.util.MutableObjectIterator;
 
 public abstract class SingleInputAbstractStreamComponent<IN extends Tuple, OUT extends Tuple> extends
 		AbstractStreamComponent<OUT> {
 
 	protected StreamRecordSerializer<IN> inTupleSerializer = null;
+	protected MutableObjectIterator<StreamRecord<IN>> inputIter;
+	protected MutableReader<IOReadableWritable> inputs;
 
-	protected void setSerializers() {
-		String operatorName = configuration.getFunctionName();
-
-		Object function = configuration.getFunction();
+	protected void setDeserializers() {
 		try {
-			if (operatorName.equals("flatMap")) {
-				setSerializerDeserializer(function, FlatMapFunction.class);
-			} else if (operatorName.equals("map")) {
-				setSerializerDeserializer(function, MapFunction.class);
-			} else if (operatorName.equals("batchReduce")) {
-				setSerializerDeserializer(function, GroupReduceFunction.class);
-			} else if (operatorName.equals("filter")) {
+			if (functionName.equals("flatMap")) {
+				setDeserializer(function, FlatMapFunction.class);
+			} else if (functionName.equals("map")) {
+				setDeserializer(function, MapFunction.class);
+			} else if (functionName.equals("batchReduce")) {
+				setDeserializer(function, GroupReduceFunction.class);
+			} else if (functionName.equals("filter")) {
 				setDeserializer(function, FilterFunction.class);
-				setSerializer(function, FilterFunction.class, 0);
-			} else if (operatorName.equals("sink")) {
-				setDeserializer(function, SinkFunction.class);
-			} else if (operatorName.equals("source")) {
+			} else if (functionName.equals("source")) {
 				setSerializer(function, UserSourceInvokable.class, 0);
-			} else if (operatorName.equals("coMap")) {
-				setSerializer(function, CoMapFunction.class, 2);
-				//setDeserializers(function, CoMapFunction.class);
-			} else if (operatorName.equals("elements")) {
-				outTupleTypeInfo = new TupleTypeInfo<OUT>(TypeExtractor.getForObject(function));
-
-				outTupleSerializer = new StreamRecordSerializer<OUT>(outTupleTypeInfo.createSerializer());
-				outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(
-						outTupleSerializer);
+			} else if (functionName.equals("sink")) {
+				setDeserializer(function, SinkFunction.class);
 			} else {
-				throw new Exception("Wrong operator name: " + operatorName);
+				throw new Exception("Wrong operator name: " + functionName);
 			}
 
 		} catch (Exception e) {
 			throw new StreamComponentException(e);
 		}
-	}
-
-	private void setSerializerDeserializer(Object function, Class<? extends AbstractFunction> clazz) {
-		setDeserializer(function, clazz);
-		setSerializer(function, clazz, 1);
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -102,12 +85,14 @@ public abstract class SingleInputAbstractStreamComponent<IN extends Tuple, OUT e
 	}
 
 	@SuppressWarnings("unchecked")
-	protected MutableReader<IOReadableWritable> getConfigInputs() throws StreamComponentException {
+	protected void setConfigInputs() throws StreamComponentException {
+		setDeserializers();
+		
 		int numberOfInputs = configuration.getNumberOfInputs();
 
 		if (numberOfInputs < 2) {
 
-			return new MutableRecordReader<IOReadableWritable>(this);
+			inputs = new MutableRecordReader<IOReadableWritable>(this);
 
 		} else {
 			MutableRecordReader<IOReadableWritable>[] recordReaders = (MutableRecordReader<IOReadableWritable>[]) new MutableRecordReader<?>[numberOfInputs];
@@ -115,7 +100,7 @@ public abstract class SingleInputAbstractStreamComponent<IN extends Tuple, OUT e
 			for (int i = 0; i < numberOfInputs; i++) {
 				recordReaders[i] = new MutableRecordReader<IOReadableWritable>(this);
 			}
-			return new MutableUnionRecordReader<IOReadableWritable>(recordReaders);
+			inputs = new MutableUnionRecordReader<IOReadableWritable>(recordReaders);
 		}
 	}
 

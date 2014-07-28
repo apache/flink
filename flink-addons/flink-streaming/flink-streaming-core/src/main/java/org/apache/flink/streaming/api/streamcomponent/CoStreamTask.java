@@ -55,7 +55,6 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
 	private CoInvokable<IN1, IN2, OUT> userFunction;
-//	private int[] numberOfOutputChannels;
 	private static int numTasks;
 
 	public CoStreamTask() {
@@ -84,7 +83,6 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void setDeserializers(Object function, Class<? extends AbstractFunction> clazz) {
-
 		TupleTypeInfo<IN1> inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(clazz,
 				function.getClass(), 0, null, null);
 		inTupleSerializer1 = new StreamRecordSerializer(inTupleTypeInfo.createSerializer());
@@ -95,37 +93,17 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 	}
 
 	@Override
-	public void registerInputOutput() {
-		initialize();
-
-		setSerializers();
-		setCollector();
-
-		// inputs1 = setConfigInputs();
+	public void setInputsOutputs() {
+		setConfigOutputs(outputs);
 		setConfigInputs();
 
 		inputIter1 = createInputIterator(inputs1, inTupleSerializer1);
-
-		// inputs2 = setConfigInputs();
 		inputIter2 = createInputIterator(inputs2, inTupleSerializer2);
-
-		setConfigOutputs(outputs);
-
-//		numberOfOutputChannels = new int[outputs.size()];
-//		for (int i = 0; i < numberOfOutputChannels.length; i++) {
-//			numberOfOutputChannels[i] = configuration.getInteger("channels_" + i, 0);
-//		}
-
-		setInvokable();
 	}
-
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	
 	@Override
 	protected void setInvokable() {
-		// Default value is a CoMapInvokable
-		Class<? extends CoInvokable> userFunctionClass = configuration.getUserInvokableClass();
-		
-		userFunction = (CoInvokable<IN1, IN2, OUT>) getInvokable(userFunctionClass);
+		userFunction = getInvokable();
 		userFunction.initialize(collector, inputIter1, inTupleSerializer1, inputIter2,
 				inTupleSerializer2, isMutable);
 	}
