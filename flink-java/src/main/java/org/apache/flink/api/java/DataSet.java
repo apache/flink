@@ -50,6 +50,7 @@ import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.operators.FilterOperator;
+import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.operators.JoinOperator.JoinHint;
@@ -397,6 +398,15 @@ public abstract class DataSet<T> {
 				(TupleTypeInfo) this.type, fields));
 	}
 
+	/**
+	 * Returns a new set containing the first n elements in this {@link DataSet}.<br/>
+	 * @param n The desired number of elements.
+	 * @return A ReduceGroupOperator that represents the DataSet containing the elements.
+	*/
+	public GroupReduceOperator<T, T> first(int n) {
+		return reduceGroup(new FirstReducer<T>(n));
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  distinct
 	// --------------------------------------------------------------------------------------------
