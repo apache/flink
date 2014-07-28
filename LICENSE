@@ -234,6 +234,8 @@ under the Apache License (v 2.0):
  - Jetty Web Container (http://www.eclipse.org/jetty/)
  - Amazon Web Services SDK for Java (http://aws.amazon.com/sdkforjava/)
  - ScalaTest (http://www.scalatest.org)
+ - StartBootstrap (http://startbootstrap.com)
+ - CHAP Links Library Timeline (http://almende.github.io/chap-links-library/)
 
 -----------------------------------------------------------------------
  Eclipse Public License  - v 1.0
@@ -256,10 +258,13 @@ The Apache Flink project depends on and/or bundles the following components
 under the The MIT License
 
  - Mockito (http://www.mockito.org) - Copyright (c) 2007 Mockito contributors
- - SLF4J (http://www.slf4j.org/) - Copyright (c) 2004-2013 QOS.ch
- - jQuery 1.4.2 (http://jquery.com/) - Copyright 2014 jQuery Foundation and other contributors
+ - SLF4J (http://www.slf4j.org) - Copyright (c) 2004-2013 QOS.ch
+ - jQuery 1.4.2 (http://jquery.com) - Copyright 2014 jQuery Foundation and other contributors
  - jCanvas 13.11.21 (http://calebevans.me/projects/jcanvas/) - Copyright 2014 Caleb Evans
- - Flot 0.8.1 (http://www.flotcharts.org/) - Copyright (c) 2007-2013 IOLA and Ole Laursen
+ - Flot 0.8.1 (http://www.flotcharts.org) - Copyright (c) 2007-2013 IOLA and Ole Laursen
+ - Bootstrap (http://getbootstrap.com) - Copyright (c) 2011-2014 Twitter, Inc
+ - Font Awesome - Code (http://fortawesome.github.io/Font-Awesome/) - Copyright (c) 2014 Dave Gandy
+
 
 All rights reserved.
 
@@ -329,6 +334,17 @@ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY
 WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
+
+
+-----------------------------------------------------------------------
+ The Open Font License
+-----------------------------------------------------------------------
+
+The Apache Flink project packages the following fonts under the
+Open Font License (OFT) - http://scripts.sil.org/OFL/
+
+ - Font Awesome (http://fortawesome.github.io/Font-Awesome/) - Created by Dave Gandy
+   -> fonts in "flink-runtime/resources/web-docs-infoserver/font-awesome/fonts"
 
 
 -----------------------------------------------------------------------
