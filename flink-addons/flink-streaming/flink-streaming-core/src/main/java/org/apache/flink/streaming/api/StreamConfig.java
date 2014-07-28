@@ -105,7 +105,7 @@ public class StreamConfig {
 		}
 	}
 
-	public StreamComponentInvokable getUserInvokableObject() {
+	public <T extends StreamComponentInvokable> T getUserInvokableObject() {
 		try {
 			return deserializeObject(config.getBytes(SERIALIZEDUDF, null));
 		} catch (Exception e) {

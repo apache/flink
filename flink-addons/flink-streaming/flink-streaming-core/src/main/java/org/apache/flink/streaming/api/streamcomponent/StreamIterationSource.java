@@ -38,7 +38,6 @@ public class StreamIterationSource<OUT extends Tuple> extends SingleInputAbstrac
 
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
 	private static int numSources;
-//	private int[] numberOfOutputChannels;
 	private String iterationId;
 	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;
@@ -53,20 +52,13 @@ public class StreamIterationSource<OUT extends Tuple> extends SingleInputAbstrac
 	}
 
 	@Override
-	public void registerInputOutput() {
-		initialize();
-
+	public void setInputsOutputs() {
 		try {
-			setSerializers();
 			setConfigOutputs(outputs);
+			setSinkSerializer();
 		} catch (StreamComponentException e) {
 			throw new StreamComponentException("Cannot register outputs", e);
 		}
-
-//		numberOfOutputChannels = new int[outputs.size()];
-//		for (int i = 0; i < numberOfOutputChannels.length; i++) {
-//			numberOfOutputChannels[i] = configuration.getInteger("channels_" + i, 0);
-//		}
 
 		iterationId = configuration.getIterationId();
 		try {
@@ -74,8 +66,9 @@ public class StreamIterationSource<OUT extends Tuple> extends SingleInputAbstrac
 		} catch (Exception e) {
 
 		}
-	}
 
+	}
+	
 	@Override
 	public void invoke() throws Exception {
 		if (LOG.isDebugEnabled()) {

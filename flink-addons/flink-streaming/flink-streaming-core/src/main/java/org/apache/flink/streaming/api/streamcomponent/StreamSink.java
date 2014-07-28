@@ -22,19 +22,12 @@ package org.apache.flink.streaming.api.streamcomponent;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.io.network.api.MutableReader;
-import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.util.MutableObjectIterator;
 
 public class StreamSink<IN extends Tuple> extends SingleInputAbstractStreamComponent<IN, IN> {
 
 	private static final Log LOG = LogFactory.getLog(StreamSink.class);
 
-	@SuppressWarnings("rawtypes")
-	private MutableReader inputs;
-	private MutableObjectIterator<StreamRecord<IN>> inputIter;
 	private StreamRecordInvokable<IN, IN> userFunction;
 
 	public StreamSink() {
@@ -42,28 +35,21 @@ public class StreamSink<IN extends Tuple> extends SingleInputAbstractStreamCompo
 	}
 
 	@Override
-	public void registerInputOutput() {
-		initialize();
-
+	public void setInputsOutputs() {
 		try {
-			setSerializers();
+			setConfigInputs();
 			setSinkSerializer();
-			inputs = getConfigInputs();
+			
 			inputIter = createInputIterator(inputs, inTupleSerializer);
 		} catch (Exception e) {
 			throw new StreamComponentException("Cannot register inputs for "
 					+ getClass().getSimpleName(), e);
 		}
-
-		setInvokable();
 	}
-
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	
 	@Override
-	protected void setInvokable() {
-		Class<? extends SinkInvokable> userFunctionClass = configuration.getUserInvokableClass();
-		
-		userFunction = (SinkInvokable<IN>) getInvokable(userFunctionClass);
+	protected void setInvokable() {		
+		userFunction = getInvokable();
 		userFunction.initialize(collector, inputIter, inTupleSerializer, isMutable);
 	}
 

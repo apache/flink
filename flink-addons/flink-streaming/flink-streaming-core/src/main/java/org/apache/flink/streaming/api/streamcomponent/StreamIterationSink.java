@@ -25,7 +25,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.StringUtils;
@@ -34,8 +33,6 @@ public class StreamIterationSink<IN extends Tuple> extends SingleInputAbstractSt
 
 	private static final Log LOG = LogFactory.getLog(StreamIterationSink.class);
 
-	@SuppressWarnings("rawtypes")
-	private MutableReader inputs;
 	MutableObjectIterator<StreamRecord<IN>> inputIter;
 	private String iterationId;
 	@SuppressWarnings("rawtypes")
@@ -45,22 +42,22 @@ public class StreamIterationSink<IN extends Tuple> extends SingleInputAbstractSt
 	}
 
 	@Override
-	public void registerInputOutput() {
-		initialize();
-
+	public void setInputsOutputs() {
 		try {
-			setSerializers();
+			setConfigInputs();
 			setSinkSerializer();
-			inputs = getConfigInputs();
+
 			inputIter = createInputIterator(inputs, inTupleSerializer);
+
 			iterationId = configuration.getIterationId();
 			dataChannel = BlockingQueueBroker.instance().get(iterationId);
+			
 		} catch (Exception e) {
 			throw new StreamComponentException(String.format(
 					"Cannot register inputs of StreamIterationSink %s", iterationId), e);
 		}
 	}
-
+	
 	@Override
 	public void invoke() throws Exception {
 		if (LOG.isDebugEnabled()) {
