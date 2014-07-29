@@ -23,8 +23,9 @@ import java.util.List;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.functions.*;
-
+import org.apache.flink.api.java.functions.FilterFunction;
+import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.ReduceFunction;
 
 /** 
  * Estimates the value of Pi using the Monte Carlo method.
@@ -46,38 +47,35 @@ import org.apache.flink.api.java.functions.*;
  */
 public class PiEstimation {
 	
-	static int n;
-	
 	public static void main(String[] args) throws Exception {
 		
-	  	int blocks = (args.length == 1) ? Integer.parseInt(args[0]) : 2;
-	  	n = 100000 * blocks;
-	  	List<Integer> l = new ArrayList<Integer>(n);
-	  	for (int i = 0; i < n; i++) {
-	  		l.add(1);
-	  	}
-	  	
-	  	//Sets up the execution environment
-	  	final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-	  	DataSet<Integer> dataSet = env.fromCollection(l);
+		int blocks = (args.length == 1) ? Integer.parseInt(args[0]) : 2;
+		int n = 100000 * blocks;
+		List<Integer> l = new ArrayList<Integer>(n);
+		for (int i = 0; i < n; i++) {
+			l.add(1);
+		}
 
-	  	
-	  	DataSet<Double> count = dataSet
-	  			.filter(new PiFilter())
-	  			.setParallelism(blocks)
-	  			.reduce(new PiReducer())
-	  			.map(new PiMapper());
-	  			
-	  	System.out.println("We estimate Pi to be:");
-	  	count.print();
-	  	
-	  	env.execute();
-  }
-  
-  
-  //*************************************************************************
-  //     USER FUNCTIONS
-  //*************************************************************************
+		//Sets up the execution environment
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> dataSet = env.fromCollection(l);
+
+		DataSet<Double> count = dataSet
+				.filter(new PiFilter())
+				.setParallelism(blocks)
+				.reduce(new PiReducer())
+				.map(new PiMapper(n));
+
+		System.out.println("We estimate Pi to be:");
+		count.print();
+
+		env.execute();
+	}
+
+
+	//*************************************************************************
+	//     USER FUNCTIONS
+	//*************************************************************************
 	
 	// FilterFunction that filters out all Integers smaller than zero.
 	
@@ -116,10 +114,15 @@ public class PiEstimation {
 	 */
 	public static final class PiMapper extends MapFunction<Integer,Double> {
 		private static final long serialVersionUID = 1L;
-
+		private int n;
+		
+		public PiMapper(int n) {
+			this.n = n;
+		}
+		
 		@Override
 		public Double map(Integer intSum) throws Exception {
-			return intSum*4.0 / n;
+			return intSum*4.0 / this.n;
 		}
 	}
 	
