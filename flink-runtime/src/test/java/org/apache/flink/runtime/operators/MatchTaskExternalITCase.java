@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.common.functions.GenericJoiner;
 import org.apache.flink.api.java.record.functions.JoinFunction;

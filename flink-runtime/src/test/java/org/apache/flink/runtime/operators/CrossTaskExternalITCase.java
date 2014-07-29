@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.common.functions.GenericCrosser;
 import org.apache.flink.runtime.operators.CrossDriver;

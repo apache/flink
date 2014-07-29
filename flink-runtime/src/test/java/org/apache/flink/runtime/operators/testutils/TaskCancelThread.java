@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 public class TaskCancelThread extends Thread
 {

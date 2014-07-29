@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.io.network.serialization;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.serialization.DataInputDeserializer;

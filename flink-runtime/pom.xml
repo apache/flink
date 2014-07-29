@@ -51,25 +51,25 @@ under the License.
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-server</artifactId>
-			<version>8.0.0.M1</version>
+			<!-- version is derived from base module -->
 		</dependency>
 
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-security</artifactId>
-			<version>8.0.0.M1</version>
+			<!-- version is derived from base module -->
 		</dependency>
 
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-servlet</artifactId>
-			<version>8.0.0.M1</version>
+			<!-- version is derived from base module -->
 		</dependency>
 
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk</artifactId>
-			<version>1.2.1</version>
+			<version>1.8.1</version>
 		</dependency>
 
 		<dependency>

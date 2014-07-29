@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.runtime.io.network.ChannelManager;
 import org.apache.flink.runtime.io.network.Envelope;

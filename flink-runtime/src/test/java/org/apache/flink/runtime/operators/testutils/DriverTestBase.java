@@ -22,7 +22,7 @@ package org.apache.flink.runtime.operators.testutils;
 import java.util.ArrayList;
 import java.util.List;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeutils.TypeComparator;
