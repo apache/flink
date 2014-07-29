@@ -68,8 +68,7 @@ public class RMQTopology {
 
 	public static void main(String[] args) throws Exception {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(1);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		@SuppressWarnings("unused")
 		DataStream<Tuple1<String>> dataStream1 = env
@@ -78,7 +77,7 @@ public class RMQTopology {
 
 		@SuppressWarnings("unused")
 		DataStream<Tuple1<String>> dataStream2 = env
-			.fromElements("one", "two",	"three", "four", "five", "q")
+			.fromElements("one", "two", "three", "four", "five", "q")
 			.addSink(new MyRMQSink("localhost", "hello"));
 
 		env.execute();

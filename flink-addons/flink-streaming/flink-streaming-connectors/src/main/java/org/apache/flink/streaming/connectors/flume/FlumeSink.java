@@ -19,19 +19,23 @@
 
 package org.apache.flink.streaming.connectors.flume;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.flume.Event;
 import org.apache.flume.EventDeliveryException;
 import org.apache.flume.FlumeException;
 import org.apache.flume.api.RpcClient;
 import org.apache.flume.api.RpcClientFactory;
 import org.apache.flume.event.EventBuilder;
-
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.streaming.connectors.rabbitmq.RMQSource;
 
 public abstract class FlumeSink<IN extends Tuple> extends SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
+	private static final Log LOG = LogFactory.getLog(RMQSource.class);
+	
 	private transient FlinkRpcClientFacade client;
 	boolean initDone = false;
 	String host;
@@ -53,7 +57,7 @@ public abstract class FlumeSink<IN extends Tuple> extends SinkFunction<IN> {
 		}
 
 		byte[] data = serialize(tuple);
-		if(!closeWithoutSend){
+		if (!closeWithoutSend) {
 			client.sendDataToFlume(data);
 		}
 		if (sendAndClose) {
@@ -74,22 +78,23 @@ public abstract class FlumeSink<IN extends Tuple> extends SinkFunction<IN> {
 			this.hostname = hostname;
 			this.port = port;
 			int initCounter = 0;
-			while(true){
-				if(initCounter >= 90){
+			while (true) {
+				if (initCounter >= 90) {
 					System.exit(1);
 				}
-				try{
+				try {
 					this.client = RpcClientFactory.getDefaultInstance(hostname, port);
-				}
-				catch(FlumeException e){
+				} catch (FlumeException e) {
 					// Wait one second if the connection failed before the next try
 					try {
 						Thread.sleep(1000);
 					} catch (InterruptedException e1) {
-						e1.printStackTrace();
+						if (LOG.isErrorEnabled()) {
+							LOG.error("Interrupted while trying to connect " + port + " at " + host);
+						}
 					}
 				}
-				if(client != null){
+				if (client != null) {
 					break;
 				}
 				initCounter++;
@@ -120,10 +125,10 @@ public abstract class FlumeSink<IN extends Tuple> extends SinkFunction<IN> {
 	public void sendAndClose() {
 		sendAndClose = true;
 	}
-	
-	public void closeWithoutSend(){
+
+	public void closeWithoutSend() {
 		client.close();
-		closeWithoutSend=true;
+		closeWithoutSend = true;
 	}
 
 }

@@ -25,11 +25,16 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 
 public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
+
+	private static final Log LOG = LogFactory.getLog(RMQSource.class);
+
 	private boolean sendAndClose = false;
 	private boolean closeWithoutSend = false;
 
@@ -72,7 +77,9 @@ public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 				channel.basicPublish("", QUEUE_NAME, null, msg);
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			if (LOG.isErrorEnabled()) {
+				LOG.error("Cannot send RMQ message " + QUEUE_NAME + " at " + HOST_NAME);
+			}
 		}
 
 		if (sendAndClose) {
@@ -87,7 +94,8 @@ public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 			channel.close();
 			connection.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			new RuntimeException("Error while closing RMQ connection with " + QUEUE_NAME + " at "
+					+ HOST_NAME, e);
 		}
 
 	}

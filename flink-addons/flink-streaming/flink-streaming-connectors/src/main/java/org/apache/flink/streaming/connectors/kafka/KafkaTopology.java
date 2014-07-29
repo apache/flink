@@ -31,8 +31,7 @@ public class KafkaTopology {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Collector<Tuple1<String>> collector)
-				throws Exception {
+		public void invoke(Collector<Tuple1<String>> collector) throws Exception {
 			for (int i = 0; i < 10; i++) {
 				collector.collect(new Tuple1<String>(Integer.toString(i)));
 			}
@@ -44,8 +43,7 @@ public class KafkaTopology {
 	public static final class MyKafkaSource extends KafkaSource<Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
-		public MyKafkaSource(String zkQuorum, String groupId, String topicId,
-				int numThreads) {
+		public MyKafkaSource(String zkQuorum, String groupId, String topicId, int numThreads) {
 			super(zkQuorum, groupId, topicId, numThreads);
 		}
 
@@ -60,8 +58,7 @@ public class KafkaTopology {
 
 	}
 
-	public static final class MyKafkaSink extends
-			KafkaSink<Tuple1<String>, String> {
+	public static final class MyKafkaSink extends KafkaSink<Tuple1<String>, String> {
 		private static final long serialVersionUID = 1L;
 
 		public MyKafkaSink(String topicId, String brokerAddr) {
@@ -82,19 +79,18 @@ public class KafkaTopology {
 
 	public static void main(String[] args) {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(1);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		@SuppressWarnings("unused")
 		DataStream<Tuple1<String>> stream1 = env
-			.addSource(new MyKafkaSource("localhost:2181", "group", "test", 1),	SOURCE_PARALELISM)
+			.addSource(new MyKafkaSource("localhost:2181", "group", "test", 1), SOURCE_PARALELISM)
 			.print();
 
 		@SuppressWarnings("unused")
 		DataStream<Tuple1<String>> stream2 = env
 			.addSource(new MySource())
 			.addSink(new MyKafkaSink("test", "localhost:9092"));
-		
+
 		env.execute();
 	}
 }
