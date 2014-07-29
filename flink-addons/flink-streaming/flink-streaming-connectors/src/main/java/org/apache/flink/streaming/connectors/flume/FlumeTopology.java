@@ -20,7 +20,6 @@
 package org.apache.flink.streaming.connectors.flume;
 
 import org.apache.commons.lang.SerializationUtils;
-
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
@@ -40,7 +39,8 @@ public class FlumeTopology {
 				try {
 					sendAndClose();
 				} catch (Exception e) {
-					e.printStackTrace();
+					new RuntimeException("Error while closing RMQ connection with " + port + " at "
+							+ host, e);
 				}
 			}
 			return SerializationUtils.serialize((String) tuple.getField(0));
@@ -70,8 +70,7 @@ public class FlumeTopology {
 
 	public static void main(String[] args) throws Exception {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(1);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		@SuppressWarnings("unused")
 		DataStream<Tuple1<String>> dataStream1 = env

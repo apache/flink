@@ -36,15 +36,15 @@ public abstract class FlumeSource<IN extends Tuple> extends SourceFunction<IN> {
 
 	String host;
 	String port;
-	
-	FlumeSource(String host, int port){
+
+	FlumeSource(String host, int port) {
 		this.host = host;
 		this.port = Integer.toString(port);
 	}
-	
+
 	public class MyAvroSource extends AvroSource {
 		Collector<IN> collector;
-		
+
 		@Override
 		public Status append(AvroFlumeEvent avroEvent) {
 			collect(avroEvent);
@@ -59,30 +59,31 @@ public abstract class FlumeSource<IN extends Tuple> extends SourceFunction<IN> {
 
 			return Status.OK;
 		}
-		
-		private void collect(AvroFlumeEvent avroEvent){
+
+		private void collect(AvroFlumeEvent avroEvent) {
 			byte[] b = avroEvent.getBody().array();
 			IN tuple = FlumeSource.this.deserialize(b);
-			if(!closeWithoutSend){
+			if (!closeWithoutSend) {
 				collector.collect(tuple);
 			}
-			if(sendAndClose){
+			if (sendAndClose) {
 				sendDone = true;
 			}
 		}
-		
+
 	}
 
 	MyAvroSource avroSource;
 	private volatile boolean closeWithoutSend = false;
 	private boolean sendAndClose = false;
 	private volatile boolean sendDone = false;
+
 	public abstract IN deserialize(byte[] msg);
-	
-	public void configureAvroSource(Collector<IN> collector){
+
+	public void configureAvroSource(Collector<IN> collector) {
 
 		avroSource = new MyAvroSource();
-		avroSource.collector=collector;
+		avroSource.collector = collector;
 		Context context = new Context();
 		context.put("port", port);
 		context.put("bind", host);
@@ -90,24 +91,24 @@ public abstract class FlumeSource<IN extends Tuple> extends SourceFunction<IN> {
 		ChannelProcessor cp = new ChannelProcessor(null);
 		avroSource.setChannelProcessor(cp);
 	}
-	
+
 	@Override
 	public void invoke(Collector<IN> collector) throws Exception {
 		configureAvroSource(collector);
 		avroSource.start();
-		while(true){
-			if(closeWithoutSend || sendDone){
+		while (true) {
+			if (closeWithoutSend || sendDone) {
 				break;
 			}
 		}
 		avroSource.stop();
 	}
-	
-	public void sendAndClose(){
+
+	public void sendAndClose() {
 		sendAndClose = true;
 	}
-	
-	public void closeWithoutSend(){
+
+	public void closeWithoutSend() {
 		closeWithoutSend = true;
 	}
 

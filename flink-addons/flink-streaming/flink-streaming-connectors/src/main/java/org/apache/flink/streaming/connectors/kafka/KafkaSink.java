@@ -64,8 +64,7 @@ public abstract class KafkaSink<IN extends Tuple, OUT> extends SinkFunction<IN> 
 		}
 
 		OUT out = serialize(tuple);
-		KeyedMessage<Integer, OUT> data = new KeyedMessage<Integer, OUT>(
-				topicId, out);
+		KeyedMessage<Integer, OUT> data = new KeyedMessage<Integer, OUT>(topicId, out);
 
 		if (!closeWithoutSend) {
 			producer.send(data);
