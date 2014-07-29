@@ -19,10 +19,10 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
 
 public class KafkaTopology {
@@ -32,7 +32,6 @@ public class KafkaTopology {
 
 		@Override
 		public void invoke(Collector<Tuple1<String>> collector) throws Exception {
-			// TODO Auto-generated method stub
 			for (int i = 0; i < 10; i++) {
 				collector.collect(new Tuple1<String>(Integer.toString(i)));
 			}
@@ -41,20 +40,18 @@ public class KafkaTopology {
 		}
 	}
 
-	public static final class MyKafkaSource extends KafkaSource<Tuple1<String>, String> {
+	public static final class MyKafkaSource extends KafkaSource<Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
 		public MyKafkaSource(String zkQuorum, String groupId, String topicId, int numThreads) {
 			super(zkQuorum, groupId, topicId, numThreads);
-			// TODO Auto-generated constructor stub
 		}
 
 		@Override
 		public Tuple1<String> deserialize(byte[] msg) {
-			// TODO Auto-generated method stub
 			String s = new String(msg);
 			if (s.equals("q")) {
-				close();
+				closeWithoutSend();
 			}
 			return new Tuple1<String>(s);
 		}
@@ -66,14 +63,12 @@ public class KafkaTopology {
 
 		public MyKafkaSink(String topicId, String brokerAddr) {
 			super(topicId, brokerAddr);
-			// TODO Auto-generated constructor stub
 		}
 
 		@Override
 		public String serialize(Tuple1<String> tuple) {
-			// TODO Auto-generated method stub
 			if (tuple.f0.equals("q")) {
-				close();
+				sendAndClose();
 			}
 			return tuple.f0;
 		}
@@ -87,12 +82,15 @@ public class KafkaTopology {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<String>> stream1 = env.addSource(
-				new MyKafkaSource("localhost:2181", "group", "test", 1), SOURCE_PARALELISM).print();
+		DataStream<Tuple1<String>> stream1 = env
+			.addSource(new MyKafkaSource("localhost:2181", "group", "test", 1), SOURCE_PARALELISM)
+			.print();
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<String>> stream2 = env.addSource(new MySource()).addSink(
-				new MyKafkaSink("test", "localhost:9092"));
+		DataStream<Tuple1<String>> stream2 = env
+			.addSource(new MySource())
+			.addSink(new MyKafkaSink("test", "localhost:9092"));
+
 		env.execute();
 	}
 }

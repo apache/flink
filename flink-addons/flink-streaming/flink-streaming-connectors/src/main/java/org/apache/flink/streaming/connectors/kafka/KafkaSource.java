@@ -24,21 +24,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.flink.streaming.api.function.source.SourceFunction;
-
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
-
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
 /**
- * Source for reading messages from a Kafka queue. 
- * The source currently only support string messages.
+ * Source for reading messages from a Kafka queue. The source currently only
+ * support string messages.
  */
-public abstract class KafkaSource<IN extends Tuple, OUT> extends SourceFunction<IN>{
+public abstract class KafkaSource<IN extends Tuple> extends SourceFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
 	private final String zkQuorum;
@@ -46,7 +44,8 @@ public abstract class KafkaSource<IN extends Tuple, OUT> extends SourceFunction<
 	private final String topicId;
 	private final int numThreads;
 	private ConsumerConnector consumer;
-	private boolean close = false;
+	private boolean closeWithoutSend = false;
+	private boolean sendAndClose = false;
 
 	IN outTuple;
 
@@ -81,20 +80,25 @@ public abstract class KafkaSource<IN extends Tuple, OUT> extends SourceFunction<
 		ConsumerIterator<byte[], byte[]> it = stream.iterator();
 
 		while (it.hasNext()) {
-			IN out=deserialize(it.next().message());
-			if(!close){
-				collector.collect(out);
+			IN out = deserialize(it.next().message());
+			if (closeWithoutSend) {
+				break;
 			}
-			else {
+			collector.collect(out);
+			if (sendAndClose) {
 				break;
 			}
 		}
 		consumer.shutdown();
 	}
-	
+
 	public abstract IN deserialize(byte[] msg);
-	
-	public void close(){
-		close=true;
+
+	public void closeWithoutSend() {
+		closeWithoutSend = true;
+	}
+
+	public void sendAndClose() {
+		sendAndClose = true;
 	}
 }
