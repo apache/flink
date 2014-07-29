@@ -27,7 +27,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.invokable.UserSourceInvokable;
+import org.apache.flink.streaming.api.invokable.SourceInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class StreamSource<OUT extends Tuple> extends SingleInputAbstractStreamComponent<Tuple, OUT> {
@@ -35,13 +35,13 @@ public class StreamSource<OUT extends Tuple> extends SingleInputAbstractStreamCo
 	private static final Log LOG = LogFactory.getLog(StreamSource.class);
 
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
-	private UserSourceInvokable<OUT> userFunction;
+	private SourceInvokable<OUT> userInvokable;
 	private static int numSources;
 
 	public StreamSource() {
 
 		outputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
-		userFunction = null;
+		userInvokable = null;
 		numSources = newComponent();
 		instanceID = numSources;
 	}
@@ -53,13 +53,14 @@ public class StreamSource<OUT extends Tuple> extends SingleInputAbstractStreamCo
 		} catch (StreamComponentException e) {
 			throw new StreamComponentException("Cannot register outputs for "
 					+ getClass().getSimpleName(), e);
-		}		
+		}
 	}
-	
+
 	@Override
 	protected void setInvokable() {
-		// Default value is a TaskInvokable even if it was called from a source
-		userFunction = getInvokable();
+		userInvokable = getInvokable();
+		// setCollector();
+		userInvokable.setCollector(collector);
 	}
 
 	@Override
@@ -72,7 +73,7 @@ public class StreamSource<OUT extends Tuple> extends SingleInputAbstractStreamCo
 			output.initializeSerializers();
 		}
 
-		userFunction.invoke(collector);
+		userInvokable.invoke();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("SOURCE " + name + " invoke finished with instance id " + instanceID);

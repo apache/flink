@@ -60,7 +60,7 @@ public class FilterTest implements Serializable {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
 		
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-
+		
 		env.fromElements(1, 2, 3, 4, 5, 6, 7).filter(new MyFilter()).addSink(new SetSink());
 
 		env.execute();

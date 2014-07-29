@@ -24,27 +24,17 @@ import java.util.Collection;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.streaming.api.collector.OutputSelector;
-import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.api.function.sink.WriteFormatAsCsv;
-import org.apache.flink.streaming.api.function.sink.WriteFormatAsText;
-import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByBatches;
-import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByMillis;
 import org.apache.flink.streaming.api.function.source.FileSourceFunction;
 import org.apache.flink.streaming.api.function.source.FileStreamFunction;
 import org.apache.flink.streaming.api.function.source.FromElementsFunction;
 import org.apache.flink.streaming.api.function.source.GenSequenceFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.streaming.api.invokable.SinkInvokable;
-import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
-import org.apache.flink.streaming.partitioner.ForwardPartitioner;
-import org.apache.flink.streaming.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.api.invokable.SourceInvokable;
+import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
+import org.apache.flink.streaming.util.serialization.ObjectTypeWrapper;
 
 /**
  * {@link ExecutionEnvironment} for streaming jobs. An instance of it is
@@ -124,13 +114,14 @@ public abstract class StreamExecutionEnvironment {
 		this.degreeOfParallelism = degreeOfParallelism;
 	}
 
-	protected void setMutability(DataStream<?> stream, boolean isMutable) {
-		jobGraphBuilder.setMutability(stream.getId(), isMutable);
-	}
-	
-	protected void setBufferTimeout(DataStream<?> stream, long bufferTimeout) {
-		jobGraphBuilder.setBufferTimeout(stream.getId(), bufferTimeout);
-	}
+	// protected void setMutability(DataStream<?> stream, boolean isMutable) {
+	// jobGraphBuilder.setMutability(stream.getId(), isMutable);
+	// }
+	//
+	// protected void setBufferTimeout(DataStream<?> stream, long bufferTimeout)
+	// {
+	// jobGraphBuilder.setBufferTimeout(stream.getId(), bufferTimeout);
+	// }
 
 	/**
 	 * Sets the number of hardware contexts (CPU cores / threads) used when
@@ -204,8 +195,11 @@ public abstract class StreamExecutionEnvironment {
 		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
 
 		try {
-			jobGraphBuilder.addSource(returnStream.getId(), new FromElementsFunction<X>(data),
-					"elements", SerializationUtils.serialize(data[0]), 1);
+			SourceFunction<Tuple1<X>> function = new FromElementsFunction<X>(data);
+			jobGraphBuilder.addSource(returnStream.getId(),
+					new SourceInvokable<Tuple1<X>>(function),
+					new ObjectTypeWrapper<Tuple1<X>, Tuple, Tuple1<X>>(data[0], null, data[0]),
+					"source", SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize elements");
 		}
@@ -232,8 +226,14 @@ public abstract class StreamExecutionEnvironment {
 		}
 
 		try {
-			jobGraphBuilder.addSource(returnStream.getId(), new FromElementsFunction<X>(data),
-					"elements", SerializationUtils.serialize((Serializable) data.toArray()[0]), 1);
+			SourceFunction<Tuple1<X>> function = new FromElementsFunction<X>(data);
+
+			jobGraphBuilder
+					.addSource(returnStream.getId(), new SourceInvokable<Tuple1<X>>(
+							new FromElementsFunction<X>(data)),
+							new ObjectTypeWrapper<Tuple1<X>, Tuple, Tuple1<X>>(data.toArray()[0],
+									null, data.toArray()[0]), "source", SerializationUtils
+									.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize collection");
 		}
@@ -257,7 +257,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Ads a data source thus opening a {@link DataStream}.
 	 * 
-	 * @param sourceFunction
+	 * @param function
 	 *            the user defined function
 	 * @param parallelism
 	 *            number of parallel instances of the function
@@ -265,13 +265,13 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
-	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction,
-			int parallelism) {
+	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> function, int parallelism) {
 		DataStream<T> returnStream = new DataStream<T>(this, "source");
 
 		try {
-			jobGraphBuilder.addSource(returnStream.getId(), sourceFunction, "source",
-					SerializationUtils.serialize(sourceFunction), parallelism);
+			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<T>(function),
+					new FunctionTypeWrapper<T, Tuple, T>(function, SourceFunction.class, 0, -1, 0),
+					"source", SerializationUtils.serialize(function), parallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SourceFunction");
 		}
@@ -282,326 +282,6 @@ public abstract class StreamExecutionEnvironment {
 	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction) {
 		return addSource(sourceFunction, 1);
 	}
-
-	// --------------------------------------------------------------------------------------------
-	// Data stream operators and sinks
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Internal function for passing the user defined functions to the JobGraph
-	 * of the job.
-	 * 
-	 * @param functionName
-	 *            name of the function
-	 * @param inputStream
-	 *            input data stream
-	 * @param function
-	 *            the user defined function
-	 * @param functionInvokable
-	 *            the wrapping JobVertex instance
-	 * @param <T>
-	 *            type of the input stream
-	 * @param <R>
-	 *            type of the return stream
-	 * @return the data stream constructed
-	 */
-	protected <T extends Tuple, R extends Tuple> StreamOperator<T, R> addFunction(
-			String functionName, DataStream<T> inputStream, final AbstractFunction function,
-			UserTaskInvokable<T, R> functionInvokable) {
-		StreamOperator<T, R> returnStream = new StreamOperator<T, R>(this, functionName);
-
-		try {
-			jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, functionName,
-					SerializationUtils.serialize(function), degreeOfParallelism);
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize user defined function");
-		}
-
-		connectGraph(inputStream, returnStream.getId(), 0);
-
-		if (inputStream.iterationflag) {
-			returnStream.addIterationSource(inputStream.iterationID.toString());
-			inputStream.iterationflag = false;
-		}
-
-		return returnStream;
-	}
-	
-	protected <T1 extends Tuple, T2 extends Tuple, R extends Tuple> DataStream<R> addCoFunction(String functionName, DataStream<T1> inputStream1, DataStream<T2> inputStream2, final AbstractFunction function,
-			CoInvokable<T1, T2, R> functionInvokable) {
-		
-		DataStream<R> returnStream = new DataStream<R>(this, functionName);
-		
-		try {
-			jobGraphBuilder.addCoTask(returnStream.getId(), functionInvokable, functionName,
-					SerializationUtils.serialize(function), degreeOfParallelism);
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize user defined function");
-		}
-
-		connectGraph(inputStream1, returnStream.getId(), 1);
-		connectGraph(inputStream2, returnStream.getId(), 2);
-
-		// TODO consider iteration
-//		if (inputStream.iterationflag) {
-//			returnStream.addIterationSource(inputStream.iterationID.toString());
-//			inputStream.iterationflag = false;
-//		}
-
-		return returnStream; 
-	}
-
-	protected <T extends Tuple, R extends Tuple> void addIterationSource(DataStream<T> inputStream,
-			String iterationID) {
-		DataStream<R> returnStream = new DataStream<R>(this, "iterationSource");
-
-		jobGraphBuilder.addIterationSource(returnStream.getId(), inputStream.getId(), iterationID,
-				degreeOfParallelism);
-
-	}
-
-	protected <T extends Tuple, R extends Tuple> void addIterationSink(DataStream<T> inputStream,
-			String iterationID, String iterationName) {
-		DataStream<R> returnStream = new DataStream<R>(this, "iterationSink");
-
-		jobGraphBuilder.addIterationSink(returnStream.getId(), inputStream.getId(), iterationID,
-				inputStream.getParallelism(), iterationName);
-
-		jobGraphBuilder.setIterationSourceParallelism(iterationID, inputStream.getParallelism());
-
-		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
-			String inputID = inputStream.connectIDs.get(i);
-			jobGraphBuilder.setEdge(inputID, returnStream.getId(), new ForwardPartitioner<T>(), 0);
-		}
-	}
-
-	/**
-	 * Adds the given sink to this environment. Only streams with sinks added
-	 * will be executed once the {@link #execute()} method is called.
-	 * 
-	 * @param inputStream
-	 *            input data stream
-	 * @param sinkFunction
-	 *            the user defined function
-	 * @param <T>
-	 *            type of the returned stream
-	 * @return the data stream constructed
-	 */
-	protected <T extends Tuple> DataStream<T> addSink(DataStream<T> inputStream,
-			SinkFunction<T> sinkFunction) {
-		DataStream<T> returnStream = new DataStream<T>(this, "sink");
-
-		try {
-			jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction),
-					"sink", SerializationUtils.serialize(sinkFunction), degreeOfParallelism);
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize SinkFunction");
-		}
-
-		connectGraph(inputStream, returnStream.getId(), 0);
-
-		return returnStream;
-	}
-
-	<T extends Tuple> void addDirectedEmit(String id, OutputSelector<T> outputSelector) {
-		try {
-			jobGraphBuilder.setOutputSelector(id, SerializationUtils.serialize(outputSelector));
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize OutputSelector");
-		}
-	}
-
-	/**
-	 * Writes a DataStream to the standard output stream (stdout). For each
-	 * element of the DataStream the result of {@link Object#toString()} is
-	 * written.
-	 * 
-	 * @param inputStream
-	 *            the input data stream
-	 * 
-	 * @param <T>
-	 *            type of the returned stream
-	 * @return the data stream constructed
-	 */
-	protected <T extends Tuple> DataStream<T> print(DataStream<T> inputStream) {
-		DataStream<T> returnStream = addSink(inputStream, new PrintSinkFunction<T>());
-
-		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
-
-		return returnStream;
-	}
-
-	/**
-	 * Writes a DataStream to the file specified by path in text format. The
-	 * writing is performed periodically, in every millis milliseconds. For
-	 * every element of the DataStream the result of {@link Object#toString()}
-	 * is written.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param millis
-	 *            is the file update frequency
-	 * @param endTuple
-	 *            is a special tuple indicating the end of the stream. If an
-	 *            endTuple is caught, the last pending batch of tuples will be
-	 *            immediately appended to the target file regardless of the
-	 *            system time.
-	 * 
-	 * @return the data stream constructed
-	 */
-	protected <T extends Tuple> DataStream<T> writeAsText(DataStream<T> inputStream, String path,
-			WriteFormatAsText<T> format, long millis, T endTuple) {
-		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<T>(path,
-				format, millis, endTuple));
-		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
-		jobGraphBuilder.setMutability(returnStream.getId(), false);
-		return returnStream;
-	}
-
-	/**
-	 * Writes a DataStream to the file specified by path in text format. The
-	 * writing is performed periodically in equally sized batches. For every
-	 * element of the DataStream the result of {@link Object#toString()} is
-	 * written.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param batchSize
-	 *            is the size of the batches, i.e. the number of tuples written
-	 *            to the file at a time
-	 * @param endTuple
-	 *            is a special tuple indicating the end of the stream. If an
-	 *            endTuple is caught, the last pending batch of tuples will be
-	 *            immediately appended to the target file regardless of the
-	 *            batchSize.
-	 * 
-	 * @return the data stream constructed
-	 */
-	protected <T extends Tuple> DataStream<T> writeAsText(DataStream<T> inputStream, String path,
-			WriteFormatAsText<T> format, int batchSize, T endTuple) {
-		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByBatches<T>(path,
-				format, batchSize, endTuple));
-		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
-		jobGraphBuilder.setMutability(returnStream.getId(), false);
-		return returnStream;
-	}
-
-	/**
-	 * Writes a DataStream to the file specified by path in csv format. The
-	 * writing is performed periodically, in every millis milliseconds. For
-	 * every element of the DataStream the result of {@link Object#toString()}
-	 * is written.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param millis
-	 *            is the file update frequency
-	 * @param endTuple
-	 *            is a special tuple indicating the end of the stream. If an
-	 *            endTuple is caught, the last pending batch of tuples will be
-	 *            immediately appended to the target file regardless of the
-	 *            system time.
-	 * 
-	 * @return the data stream constructed
-	 */
-	protected <T extends Tuple> DataStream<T> writeAsCsv(DataStream<T> inputStream, String path,
-			WriteFormatAsCsv<T> format, long millis, T endTuple) {
-		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<T>(path,
-				format, millis, endTuple));
-		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
-		jobGraphBuilder.setMutability(returnStream.getId(), false);
-		return returnStream;
-	}
-
-	/**
-	 * Writes a DataStream to the file specified by path in csv format. The
-	 * writing is performed periodically in equally sized batches. For every
-	 * element of the DataStream the result of {@link Object#toString()} is
-	 * written.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param batchSize
-	 *            is the size of the batches, i.e. the number of tuples written
-	 *            to the file at a time
-	 * @param endTuple
-	 *            is a special tuple indicating the end of the stream. If an
-	 *            endTuple is caught, the last pending batch of tuples will be
-	 *            immediately appended to the target file regardless of the
-	 *            batchSize.
-	 * 
-	 * @return the data stream constructed
-	 */
-	protected <T extends Tuple> DataStream<T> writeAsCsv(DataStream<T> inputStream, String path,
-			WriteFormatAsCsv<T> format, int batchSize, T endTuple) {
-		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByBatches<T>(path,
-				format, batchSize, endTuple));
-		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
-		jobGraphBuilder.setMutability(returnStream.getId(), false);
-		return returnStream;
-	}
-
-	/**
-	 * Internal function for assembling the underlying
-	 * {@link org.apache.flink.nephele.jobgraph.JobGraph} of the job. Connects
-	 * the outputs of the given input stream to the specified output stream
-	 * given by the outputID.
-	 * 
-	 * @param inputStream
-	 *            input data stream
-	 * @param outputID
-	 *            ID of the output
-	 * @param <T>
-	 *            type of the input stream
-	 * @param typeNumber
-	 *            Number of the type (used at co-functions)
-	 */
-	private <T extends Tuple> void connectGraph(DataStream<T> inputStream, String outputID, int typeNumber) {
-		
-		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
-			String inputID = inputStream.connectIDs.get(i);
-			StreamPartitioner<T> partitioner = inputStream.partitioners.get(i);
-			
-			jobGraphBuilder.setEdge(inputID, outputID, partitioner,
-					typeNumber);
-		}
-	}
-
-	protected <T extends Tuple> void setName(DataStream<T> stream, String name) {
-		jobGraphBuilder.setUserDefinedName(stream.getId(), name);
-	}
-
-	/**
-	 * Sets the proper parallelism for the given operator in the JobGraph
-	 * 
-	 * @param inputStream
-	 *            DataStream corresponding to the operator
-	 * @param <T>
-	 *            type of the operator
-	 */
-	protected <T extends Tuple> void setOperatorParallelism(DataStream<T> inputStream) {
-		jobGraphBuilder.setParallelism(inputStream.getId(), inputStream.degreeOfParallelism);
-	}
-
-	// /**
-	// * Converts object to byte array using default java serialization
-	// *
-	// * @param object
-	// * Object to be serialized
-	// * @return Serialized object
-	// */
-	// static byte[] serializeToByteArray(Serializable object) {
-	// SerializationUtils.serialize(object);
-	// ByteArrayOutputStream baos = new ByteArrayOutputStream();
-	// ObjectOutputStream oos;
-	// try {
-	// oos = new ObjectOutputStream(baos);
-	// oos.writeObject(object);
-	// } catch (IOException e) {
-	// throw new RuntimeException("Cannot serialize object: " + object);
-	// }
-	// return baos.toByteArray();
-	// }
 
 	// --------------------------------------------------------------------------------------------
 	// Instantiation of Execution Contexts
@@ -741,7 +421,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @return jobgraph
 	 */
-	public JobGraphBuilder jobGB() {
+	public JobGraphBuilder getJobGraphBuilder() {
 		return jobGraphBuilder;
 	}
 

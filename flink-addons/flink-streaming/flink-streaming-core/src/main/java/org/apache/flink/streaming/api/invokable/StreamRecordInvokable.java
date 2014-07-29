@@ -28,11 +28,10 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 public abstract class StreamRecordInvokable<IN extends Tuple, OUT extends Tuple> extends
-		StreamComponentInvokable {
+		StreamComponentInvokable<OUT> {
 
 	private static final long serialVersionUID = 1L;
 
-	protected Collector<OUT> collector;
 	protected MutableObjectIterator<StreamRecord<IN>> recordIterator;
 	StreamRecordSerializer<IN> serializer;
 	protected StreamRecord<IN> reuse;
@@ -41,7 +40,7 @@ public abstract class StreamRecordInvokable<IN extends Tuple, OUT extends Tuple>
 	public void initialize(Collector<OUT> collector,
 			MutableObjectIterator<StreamRecord<IN>> recordIterator,
 			StreamRecordSerializer<IN> serializer, boolean isMutable) {
-		this.collector = collector;
+		setCollector(collector);
 		this.recordIterator = recordIterator;
 		this.serializer = serializer;
 		this.reuse = serializer.createInstance();
@@ -51,7 +50,7 @@ public abstract class StreamRecordInvokable<IN extends Tuple, OUT extends Tuple>
 	protected void resetReuse() {
 		this.reuse = serializer.createInstance();
 	}
-	
+
 	protected StreamRecord<IN> loadNextRecord() {
 		try {
 			reuse = recordIterator.next(reuse);

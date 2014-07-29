@@ -28,7 +28,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
@@ -45,8 +44,8 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 		AbstractStreamComponent<OUT> {
 	private static final Log LOG = LogFactory.getLog(CoStreamTask.class);
 
-	protected StreamRecordSerializer<IN1> inTupleSerializer1 = null;
-	protected StreamRecordSerializer<IN2> inTupleSerializer2 = null;
+	protected StreamRecordSerializer<IN1> inTupleDeserializer1 = null;
+	protected StreamRecordSerializer<IN2> inTupleDeserializer2 = null;
 
 	private MutableReader<IOReadableWritable> inputs1;
 	private MutableReader<IOReadableWritable> inputs2;
@@ -54,24 +53,25 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 	MutableObjectIterator<StreamRecord<IN2>> inputIter2;
 
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
-	private CoInvokable<IN1, IN2, OUT> userFunction;
+	private CoInvokable<IN1, IN2, OUT> userInvokable;
 	private static int numTasks;
 
 	public CoStreamTask() {
 
 		outputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
-		userFunction = null;
+		userInvokable = null;
 		numTasks = newComponent();
 		instanceID = numTasks;
 	}
 
+	@Override
 	protected void setSerializers() {
 		String operatorName = configuration.getFunctionName();
 
 		Object function = configuration.getFunction();
 		try {
 			if (operatorName.equals("coMap")) {
-				setSerializer(function, CoMapFunction.class, 2);
+				setSerializer();
 				setDeserializers(function, CoMapFunction.class);
 			} else {
 				throw new Exception("Wrong operator name!");
@@ -83,13 +83,11 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void setDeserializers(Object function, Class<? extends AbstractFunction> clazz) {
-		TupleTypeInfo<IN1> inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(clazz,
-				function.getClass(), 0, null, null);
-		inTupleSerializer1 = new StreamRecordSerializer(inTupleTypeInfo.createSerializer());
+		TupleTypeInfo<IN1> inTupleTypeInfo = (TupleTypeInfo<IN1>) typeWrapper.getInputTupleTypeInfo1();
+		inTupleDeserializer1 = new StreamRecordSerializer<IN1>(inTupleTypeInfo.createSerializer());
 
-		inTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(clazz, function.getClass(),
-				1, null, null);
-		inTupleSerializer2 = new StreamRecordSerializer(inTupleTypeInfo.createSerializer());
+		inTupleTypeInfo = (TupleTypeInfo<IN1>) typeWrapper.getInputTupleTypeInfo2();
+		inTupleDeserializer2 = new StreamRecordSerializer(inTupleTypeInfo.createSerializer());
 	}
 
 	@Override
@@ -97,15 +95,15 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 		setConfigOutputs(outputs);
 		setConfigInputs();
 
-		inputIter1 = createInputIterator(inputs1, inTupleSerializer1);
-		inputIter2 = createInputIterator(inputs2, inTupleSerializer2);
+		inputIter1 = createInputIterator(inputs1, inTupleDeserializer1);
+		inputIter2 = createInputIterator(inputs2, inTupleDeserializer2);
 	}
-	
+
 	@Override
 	protected void setInvokable() {
-		userFunction = getInvokable();
-		userFunction.initialize(collector, inputIter1, inTupleSerializer1, inputIter2,
-				inTupleSerializer2, isMutable);
+		userInvokable = getInvokable();
+		userInvokable.initialize(collector, inputIter1, inTupleDeserializer1, inputIter2,
+				inTupleDeserializer2, isMutable);
 	}
 
 	protected void setConfigInputs() throws StreamComponentException {
@@ -156,7 +154,7 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 			output.initializeSerializers();
 		}
 
-		userFunction.invoke();
+		userInvokable.invoke();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("TASK " + name + " invoke finished with instance id " + instanceID);

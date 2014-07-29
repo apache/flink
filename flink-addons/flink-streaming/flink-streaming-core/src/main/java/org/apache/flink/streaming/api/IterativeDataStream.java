@@ -20,6 +20,7 @@
 package org.apache.flink.streaming.api;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.streaming.partitioner.ForwardPartitioner;
 
 /**
  * The iterative data stream represents the start of an iteration in a
@@ -63,14 +64,26 @@ public class IterativeDataStream<T extends Tuple> extends StreamOperator<T, T> {
 	 * 
 	 * @param iterationResult
 	 *            The data stream that can be fed back to the next iteration.
-	 * @param directName
+	 * @param iterationName
 	 *            Name of the iteration edge (backward edge to iteration head)
 	 *            when used with directed emits
 	 * 
 	 */
-	public DataStream<T> closeWith(DataStream<T> iterationResult, String directName) {
-		environment.addIterationSink(iterationResult, iterationID.toString(), directName);
+	public <R extends Tuple> DataStream<T> closeWith(DataStream<T> iterationResult,
+			String iterationName) {
+		DataStream<R> returnStream = new DataStream<R>(environment, "iterationSink");
+
+		jobGraphBuilder.addIterationSink(returnStream.getId(), iterationResult.getId(),
+				iterationID.toString(), iterationResult.getParallelism(), iterationName);
+
+		jobGraphBuilder.setIterationSourceParallelism(iterationID.toString(),
+				iterationResult.getParallelism());
+
+		for (int i = 0; i < iterationResult.connectIDs.size(); i++) {
+			String inputID = iterationResult.connectIDs.get(i);
+			jobGraphBuilder.setEdge(inputID, returnStream.getId(), new ForwardPartitioner<T>(), 0);
+		}
+
 		return iterationResult;
 	}
-
 }

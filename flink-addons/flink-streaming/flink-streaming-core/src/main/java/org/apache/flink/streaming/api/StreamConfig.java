@@ -23,6 +23,7 @@ import java.io.IOException;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.collector.OutputSelector;
@@ -30,6 +31,7 @@ import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
 import org.apache.flink.streaming.api.streamcomponent.StreamComponentException;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
 
 public class StreamConfig {
 	private static final String INPUT_TYPE = "inputType_";
@@ -71,6 +73,23 @@ public class StreamConfig {
 
 	// CONFIGS
 
+	public void setTypeWrapper(
+			TypeSerializerWrapper<? extends Tuple, ? extends Tuple, ? extends Tuple> typeWrapper) {
+		config.setBytes("typeWrapper", SerializationUtils.serialize(typeWrapper));
+	}
+
+	@SuppressWarnings("unchecked")
+	public <IN1 extends Tuple, IN2 extends Tuple, OUT extends Tuple> TypeSerializerWrapper<IN1, IN2, OUT> getTypeWrapper() {
+		byte[] serializedWrapper = config.getBytes("typeWrapper", null);
+
+		if (serializedWrapper == null) {
+			throw new RuntimeException("TypeSerializationWrapper must be set");
+		}
+
+		return (TypeSerializerWrapper<IN1, IN2, OUT>) SerializationUtils
+				.deserialize(serializedWrapper);
+	}
+
 	public void setMutability(boolean isMutable) {
 		config.setBoolean(MUTABILITY, isMutable);
 	}
@@ -87,25 +106,26 @@ public class StreamConfig {
 		return config.getLong(BUFFER_TIMEOUT, DEFAULT_TIMEOUT);
 	}
 
-	public void setUserInvokableClass(Class<? extends StreamComponentInvokable> clazz) {
-		config.setClass(USER_FUNCTION, clazz);
-	}
+	public void setUserInvokable(StreamComponentInvokable<? extends Tuple> invokableObject) {
+		if (invokableObject != null) {
+			config.setClass(USER_FUNCTION, invokableObject.getClass());
 
-	@SuppressWarnings("unchecked")
-	public <T extends StreamComponentInvokable> Class<? extends T> getUserInvokableClass() {
-		return (Class<? extends T>) config.getClass(USER_FUNCTION, null);
-	}
-
-	public void setUserInvokableObject(StreamComponentInvokable invokableObject) {
-		try {
-			config.setBytes(SERIALIZEDUDF, SerializationUtils.serialize(invokableObject));
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize invokable object "
-					+ invokableObject.getClass(), e);
+			try {
+				config.setBytes(SERIALIZEDUDF, SerializationUtils.serialize(invokableObject));
+			} catch (SerializationException e) {
+				throw new RuntimeException("Cannot serialize invokable object "
+						+ invokableObject.getClass(), e);
+			}
 		}
 	}
 
-	public <T extends StreamComponentInvokable> T getUserInvokableObject() {
+	// @SuppressWarnings("unchecked")
+	// public <T extends StreamComponentInvokable> Class<? extends T>
+	// getUserInvokableClass() {
+	// return (Class<? extends T>) config.getClass(USER_FUNCTION, null);
+	// }
+
+	public <T extends Tuple> StreamComponentInvokable<T> getUserInvokableObject() {
 		try {
 			return deserializeObject(config.getBytes(SERIALIZEDUDF, null));
 		} catch (Exception e) {
@@ -122,27 +142,29 @@ public class StreamConfig {
 		return config.getString(COMPONENT_NAME, null);
 	}
 
-	public void setFunction(byte[] serializedFunction) {
-		config.setBytes(FUNCTION, serializedFunction);
+	public void setFunction(byte[] serializedFunction, String functionName) {
+		if (serializedFunction != null) {
+			config.setBytes(FUNCTION, serializedFunction);
+			config.setString(FUNCTION_NAME, functionName);
+		}
 	}
 
 	public Object getFunction() {
 		try {
-			return SerializationUtils.deserialize(config
-					.getBytes(FUNCTION, null));
+			return SerializationUtils.deserialize(config.getBytes(FUNCTION, null));
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot deserialize invokable object", e);
 		}
 	}
 
-	public void setFunctionName(String functionName) {
-		config.setString(FUNCTION_NAME, functionName);
-	}
+	// public void setFunctionName(String functionName) {
+	// config.setString(FUNCTION_NAME, functionName);
+	// }
 
 	public String getFunctionName() {
 		return config.getString(FUNCTION_NAME, "");
 	}
-	
+
 	public void setUserDefinedName(String userDefinedName) {
 		if (userDefinedName != null) {
 			config.setString(USER_DEFINED_NAME, userDefinedName);
@@ -158,8 +180,10 @@ public class StreamConfig {
 	}
 
 	public void setOutputSelector(byte[] outputSelector) {
-		config.setBytes(OUTPUT_SELECTOR, outputSelector);
-
+		if (outputSelector != null) {
+			setDirectedEmit(true);
+			config.setBytes(OUTPUT_SELECTOR, outputSelector);
+		}
 	}
 
 	public <T extends Tuple> OutputSelector<T> getOutputSelector() {
@@ -174,7 +198,7 @@ public class StreamConfig {
 	public void setIterationId(String iterationId) {
 		config.setString(ITERATION_ID, iterationId);
 	}
-	
+
 	public String getIterationId() {
 		return config.getString(ITERATION_ID, "iteration-0");
 	}
@@ -233,7 +257,16 @@ public class StreamConfig {
 	public int getInputType(int inputNumber) {
 		return config.getInteger(INPUT_TYPE + inputNumber, 0);
 	}
-	
+
+	public void setFunctionClass(Class<? extends AbstractFunction> functionClass) {
+		config.setClass("functionClass", functionClass);
+	}
+
+	@SuppressWarnings("unchecked")
+	public Class<? extends AbstractFunction> getFunctionClass() {
+		return (Class<? extends AbstractFunction>) config.getClass("functionClass", null);
+	}
+
 	@SuppressWarnings("unchecked")
 	protected static <T> T deserializeObject(byte[] serializedObject) throws IOException,
 			ClassNotFoundException {
