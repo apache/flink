@@ -38,8 +38,7 @@ public class GroupReduceITCase implements Serializable {
 			DataSet<String> stringDs = env.fromElements("aa", "ab", "ac", "ad");
 			DataSet<String> concatDs = stringDs.reduceGroup((values, out) -> {
 				String conc = "";
-				while (values.hasNext()) {
-					String s = values.next();
+				for (String s : values) {
 					conc = conc.concat(s);
 				}
 				out.collect(conc);
@@ -68,9 +67,8 @@ public class GroupReduceITCase implements Serializable {
 					.groupBy(0)
 					.reduceGroup((values, out) -> {
 						String conc = "";
-						while (values.hasNext()) {
-							String s = values.next().f1;
-							conc = conc.concat(s);
+						for (Tuple2<Integer,String> next : values) {
+							conc = conc.concat(next.f1);
 						}
 						out.collect(conc);
 					});

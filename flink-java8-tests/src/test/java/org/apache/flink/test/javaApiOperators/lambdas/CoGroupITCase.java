@@ -48,14 +48,11 @@ public class CoGroupITCase implements Serializable {
 			DataSet<Tuple2<Integer,String>> joined = left.coGroup(right).where(0).equalTo(0)
 					.with((values1, values2, out) -> {
 						int sum = 0;
-						String conc = "";
-						while (values1.hasNext()) {
-							sum += values1.next().f0;
-							conc += values1.next().f1;
+						for (Tuple2<Integer, String> next : values1) {
+							sum += next.f0;
 						}
-						while (values2.hasNext()) {
-							sum += values2.next().f0;
-							conc += values2.next().f1;
+						for (Tuple2<Integer, String> next : values2) {
+							sum += next.f0;
 						}
 					});
 			env.execute();

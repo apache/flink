@@ -16,27 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.functions;
+package org.apache.flink.util;
 
-import java.util.Iterator;
+public class TraversableOnceException extends RuntimeException {
 
-import org.apache.flink.util.Collector;
+	private static final long serialVersionUID = 7636881584773577290L;
 
-
-public abstract class GroupReduceIterator<IN, OUT> extends RichGroupReduceFunction<IN, OUT> {
-	
-	private static final long serialVersionUID = 1L;
-
-
-	public abstract Iterator<OUT> reduceGroup(Iterable<IN> values) throws Exception;
-	
-	
-	// -------------------------------------------------------------------------------------------
-	
-	@Override
-	public final void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception {
-		for (Iterator<OUT> iter = reduceGroup(values); iter.hasNext(); ) {
-			out.collect(iter.next());
-		}
+	public TraversableOnceException() {
+		super("The Iterable can be iterated over only once. Only the first call to 'iterator()' will succeed.");
 	}
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.functions;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 import org.apache.flink.util.Collector;
 
@@ -53,5 +52,5 @@ public interface GroupReduceFunction<T, O> extends Function, Serializable {
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
 	 *                   to fail and may trigger recovery.
 	 */
-	void reduce(Iterator<T> values, Collector<O> out) throws Exception;
+	void reduce(Iterable<T> values, Collector<O> out) throws Exception;
 }

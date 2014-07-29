@@ -38,7 +38,7 @@ import org.apache.flink.example.java.graph.util.EnumTrianglesDataTypes.EdgeWithD
 import org.apache.flink.example.java.graph.util.EnumTrianglesDataTypes.Triad;
 
 /**
- * Triangle enumeration is a preprocessing step to find closely connected parts in graphs.
+ * Triangle enumeration is a pre-processing step to find closely connected parts in graphs.
  * A triangle consists of three edges that connect three vertices with each other.
  * 
  * <p>
@@ -166,8 +166,9 @@ public class EnumTrianglesOpt {
 		final EdgeWithDegrees outputEdge = new EdgeWithDegrees();
 		
 		@Override
-		public void reduce(Iterator<Edge> edges, Collector<EdgeWithDegrees> out) throws Exception {
+		public void reduce(Iterable<Edge> edgesIter, Collector<EdgeWithDegrees> out) {
 			
+			Iterator<Edge> edges = edgesIter.iterator();
 			otherVertices.clear();
 			
 			// get first edge
@@ -176,7 +177,7 @@ public class EnumTrianglesOpt {
 			this.otherVertices.add(edge.getSecondVertex());
 			
 			// get all other edges (assumes edges are sorted by second vertex)
-			while(edges.hasNext()) {
+			while (edges.hasNext()) {
 				edge = edges.next();
 				Integer otherVertex = edge.getSecondVertex();
 				// collect unique vertices
@@ -274,7 +275,8 @@ public class EnumTrianglesOpt {
 		private final Triad outTriad = new Triad();
 		
 		@Override
-		public void reduce(Iterator<Edge> edges, Collector<Triad> out) throws Exception {
+		public void reduce(Iterable<Edge> edgesIter, Collector<Triad> out) throws Exception {
+			final Iterator<Edge> edges = edgesIter.iterator();
 			
 			// clear vertex list
 			vertices.clear();
@@ -285,7 +287,7 @@ public class EnumTrianglesOpt {
 			vertices.add(firstEdge.getSecondVertex());
 			
 			// build and emit triads
-			while(edges.hasNext()) {
+			while (edges.hasNext()) {
 				Integer higherVertexId = edges.next().getSecondVertex();
 				
 				// combine vertex with all previously read vertices

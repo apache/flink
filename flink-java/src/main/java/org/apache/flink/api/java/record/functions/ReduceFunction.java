@@ -16,14 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.record.functions;
 
 import java.util.Iterator;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
@@ -31,7 +28,7 @@ import org.apache.flink.util.Collector;
  * The ReduceFunction must be extended to provide a reducer implementation, as invoked by a
  * {@link org.apache.flink.api.java.record.operators.ReduceOperator}.
  */
-public abstract class ReduceFunction extends AbstractRichFunction implements GroupReduceFunction<Record, Record>, FlatCombineFunction<Record> {
+public abstract class ReduceFunction extends AbstractRichFunction {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -47,7 +44,6 @@ public abstract class ReduceFunction extends AbstractRichFunction implements Gro
 	 *                   runtime catches an exception, it aborts the reduce task and lets the fail-over logic
 	 *                   decide whether to retry the reduce execution.
 	 */
-	@Override
 	public abstract void reduce(Iterator<Record> records, Collector<Record> out) throws Exception;
 
 	/**
@@ -71,7 +67,6 @@ public abstract class ReduceFunction extends AbstractRichFunction implements Gro
 	 *                   runtime catches an exception, it aborts the combine task and lets the fail-over logic
 	 *                   decide whether to retry the combiner execution.
 	 */
-	@Override
 	public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
 		// to be implemented, if the reducer should use a combiner. Note that the combining method
 		// is only used, if the stub class is further annotated with the annotation

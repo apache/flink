@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.functions;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 import org.apache.flink.util.Collector;
 
@@ -41,11 +40,11 @@ import org.apache.flink.util.Collector;
  * Some keys may only be contained in one of the two original data sets. In that case, the CoGroup function is invoked
  * with in empty input for the side of the data set that did not contain elements with that specific key.
  * 
- * @param <V1> The data type of the first input data set.
- * @param <V2> The data type of the second input data set.
+ * @param <IN1> The data type of the first input data set.
+ * @param <IN2> The data type of the second input data set.
  * @param <O> The data type of the returned elements.
  */
-public interface CoGroupFunction<V1, V2, O> extends Function, Serializable {
+public interface CoGroupFunction<IN1, IN2, O> extends Function, Serializable {
 	
 	/**
 	 * This method must be implemented to provide a user implementation of a
@@ -59,5 +58,5 @@ public interface CoGroupFunction<V1, V2, O> extends Function, Serializable {
 	 * @throws Exception The function may throw Exceptions, which will cause the program to cancel,
 	 *                   and may trigger the recovery logic.
 	 */
-	void coGroup(Iterator<V1> first, Iterator<V2> second, Collector<O> out) throws Exception;
+	public void coGroup(Iterable<IN1> first, Iterable<IN2> second, Collector<O> out) throws Exception;
 }

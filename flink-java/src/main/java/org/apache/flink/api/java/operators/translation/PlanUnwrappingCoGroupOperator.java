@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.java.operators.translation;
 
-import java.util.Iterator;
-
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
@@ -78,46 +76,10 @@ public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>
 
 
 		@Override
-		public void coGroup(Iterator<Tuple2<K, I1>> records1, Iterator<Tuple2<K, I2>> records2, Collector<OUT> out) throws Exception {
-			iter1.set(records1);
-			iter2.set(records2);
+		public void coGroup(Iterable<Tuple2<K, I1>> records1, Iterable<Tuple2<K, I2>> records2, Collector<OUT> out) throws Exception {
+			iter1.set(records1.iterator());
+			iter2.set(records2.iterator());
 			this.wrappedFunction.coGroup(iter1, iter2, out);
-		}
-		
-	}
-	
-	public static class UnwrappingKeyIterator<K, I1> implements Iterator<I1> {
-
-		private Iterator<Tuple2<K, I1>> outerIterator;
-		I1 firstValue;
-		
-		public UnwrappingKeyIterator(Iterator<Tuple2<K, I1>> records1) {
-			this.outerIterator = records1;
-			this.firstValue = null;
-		}
-		
-		public UnwrappingKeyIterator(Iterator<Tuple2<K, I1>> records1, I1 firstValue ) {
-			this.outerIterator = records1;
-			this.firstValue = firstValue;
-		}
-		
-		@Override
-		public boolean hasNext() {
-			return firstValue != null || outerIterator.hasNext();
-		}
-
-		@Override
-		public I1 next() {
-			if(firstValue != null) {
-				firstValue = null;
-				return firstValue;
-			}
-			return outerIterator.next().getField(1);
-		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
 		}
 		
 	}

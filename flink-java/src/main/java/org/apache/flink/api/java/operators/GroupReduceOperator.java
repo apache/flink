@@ -37,7 +37,6 @@ import org.apache.flink.types.TypeInformation;
 
 import org.apache.flink.api.java.DataSet;
 
-
 /**
  * This operator represents the application of a "reduceGroup" function on a data set, and the
  * result data set produced by the function.
@@ -185,7 +184,6 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		else {
 			throw new UnsupportedOperationException("Unrecognized key type.");
 		}
-		
 	}
 	
 	
@@ -215,7 +213,4 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		
 		return reducer;
 	}
-
-
-
 }

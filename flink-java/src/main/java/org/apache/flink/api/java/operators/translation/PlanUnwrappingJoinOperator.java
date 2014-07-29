@@ -68,18 +68,10 @@ public class PlanUnwrappingJoinOperator<I1, I2, OUT, K>
 			super(wrapped);
 		}
 
-		//@SuppressWarnings("unchecked")
-		//@Override
-		//public OUT join(Tuple2<K, I1> value1, Tuple2<K, I2> value2) throws Exception {
-		//	return wrappedFunction.join((I1)(value1.getField(1)), (I2)(value2.getField(1)));
-		//}
-
 		@SuppressWarnings("unchecked")
 		@Override
 		public void join (Tuple2<K, I1> value1, Tuple2<K, I2> value2, Collector<OUT> collector) throws Exception {
 			wrappedFunction.join ((I1)(value1.getField(1)), (I2)(value2.getField(1)), collector);
 		}
-		
 	}
-
 }

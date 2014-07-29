@@ -271,13 +271,14 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 		}
 		
 		@Override
-		public void reduce(Iterator<T> values, Collector<T> out) {
+		public void reduce(Iterable<T> records, Collector<T> out) {
 			final AggregationFunction<Object>[] aggFunctions = this.aggFunctions;
 			final int[] fieldPositions = this.fieldPositions;
 
 			// aggregators are initialized from before
 			
 			T current = null;
+			final Iterator<T> values = records.iterator();
 			while (values.hasNext()) {
 				current = values.next();
 				

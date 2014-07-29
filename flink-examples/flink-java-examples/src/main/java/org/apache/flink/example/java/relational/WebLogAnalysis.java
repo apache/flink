@@ -16,10 +16,8 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.example.java.relational;
 
-import java.util.Iterator;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -249,12 +247,12 @@ public class WebLogAnalysis {
 		 * 2: AVG_DURATION
 		 */
 		@Override
-		public void coGroup(Iterator<Tuple3<Integer, String, Integer>> ranks, Iterator<Tuple1<String>> visits, Collector<Tuple3<Integer, String, Integer>> out) {
+		public void coGroup(Iterable<Tuple3<Integer, String, Integer>> ranks, Iterable<Tuple1<String>> visits, Collector<Tuple3<Integer, String, Integer>> out) {
 			// Check if there is a entry in the visits relation
-			if (!visits.hasNext()) {
-				while (ranks.hasNext()) {
+			if (!visits.iterator().hasNext()) {
+				for (Tuple3<Integer, String, Integer> next : ranks) {
 					// Emit all rank pairs
-					out.collect(ranks.next());
+					out.collect(next);
 				}
 			}
 		}

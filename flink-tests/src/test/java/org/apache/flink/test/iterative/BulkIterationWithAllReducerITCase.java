@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.java.functions.RichGroupReduceFunction;
@@ -72,15 +70,13 @@ public class BulkIterationWithAllReducerITCase extends JavaProgramTestBase {
 		}
 
 		@Override
-		public void reduce(Iterator<Integer> records, Collector<Integer> out) {
+		public void reduce(Iterable<Integer> records, Collector<Integer> out) {
 			if (bcValue == null) {
 				return;
 			}
 			final int x = bcValue;
 			
-			while (records.hasNext()) { 
-				int y = records.next();
-
+			for (Integer y : records) { 
 				if (y > x) {
 					out.collect(y);
 					return;

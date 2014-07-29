@@ -42,7 +42,7 @@ public abstract class WrappingFunction<T extends Function> extends AbstractRichF
 	
 	private static final long serialVersionUID = 1L;
 
-	protected final T wrappedFunction;
+	protected T wrappedFunction;
 
 	protected WrappingFunction(T wrappedFunction) {
 		this.wrappedFunction = wrappedFunction;
@@ -174,6 +174,5 @@ public abstract class WrappingFunction<T extends Function> extends AbstractRichF
 		public <T extends Value> T getPreviousIterationAggregate(String name) {
 			return ((IterationRuntimeContext) context).<T>getPreviousIterationAggregate(name);
 		}
-		
 	}
 }

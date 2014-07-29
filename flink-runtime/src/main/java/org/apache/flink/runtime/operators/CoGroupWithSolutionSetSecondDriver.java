@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
-
-import java.util.Iterator;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -132,7 +129,7 @@ public class CoGroupWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resetta
 		
 		final KeyGroupedIterator<IT1> probeSideInput = new KeyGroupedIterator<IT1>(taskContext.<IT1>getInput(0), probeSideSerializer, probeSideComparator);
 		final SingleElementIterator<IT2> siIter = new SingleElementIterator<IT2>();
-		final Iterator<IT2> emptySolutionSide = EmptyIterator.<IT2>get();
+		final Iterable<IT2> emptySolutionSide = EmptyIterator.<IT2>get();
 		
 		final CompactingHashTable<IT2>.HashTableProber<IT1> prober = join.getProber(this.probeSideComparator, this.pairComparator);
 		

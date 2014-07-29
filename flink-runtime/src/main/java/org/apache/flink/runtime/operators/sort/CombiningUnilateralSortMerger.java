@@ -48,6 +48,7 @@ import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
 import org.apache.flink.runtime.util.KeyGroupedIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.TraversableOnceException;
 
 
 /**
@@ -503,7 +504,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * This class implements an iterator over values from a sort buffer. The iterator returns the values of a given
 	 * interval.
 	 */
-	private static final class CombineValueIterator<E> implements Iterator<E> {
+	private static final class CombineValueIterator<E> implements Iterator<E>, Iterable<E> {
 		
 		private final InMemorySorter<E> buffer; // the buffer from which values are returned
 		
@@ -512,6 +513,8 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 		private int last; // the position of the last value to be returned
 
 		private int position; // the position of the next value to be returned
+		
+		private boolean iteratorAvailable;
 
 		/**
 		 * Creates an iterator over the values in a <tt>BufferSortable</tt>.
@@ -535,6 +538,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 		public void set(int first, int last) {
 			this.last = last;
 			this.position = first;
+			this.iteratorAvailable = true;
 		}
 
 		@Override
@@ -563,6 +567,16 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 		@Override
 		public void remove() {
 			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Iterator<E> iterator() {
+			if (iteratorAvailable) {
+				iteratorAvailable = false;
+				return this;
+			} else {
+				throw new TraversableOnceException();
+			}
 		}
 	};
 

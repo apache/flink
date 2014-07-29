@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.java.functions;
 
-import java.util.Iterator;
-
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.RichFunction;
@@ -40,6 +38,6 @@ public abstract class RichCoGroupFunction<IN1, IN2, OUT> extends AbstractRichFun
 	private static final long serialVersionUID = 1L;
 	
 	@Override
-	public abstract void coGroup(Iterator<IN1> first, Iterator<IN2> second, Collector<OUT> out) throws Exception;
+	public abstract void coGroup(Iterable<IN1> first, Iterable<IN2> second, Collector<OUT> out) throws Exception;
 
 }

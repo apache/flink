@@ -16,17 +16,17 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
-import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Assert;
-
 import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.java.functions.RichCoGroupFunction;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
+import org.apache.flink.runtime.operators.CoGroupDriver;
+import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.CoGroupTaskExternalITCase.MockCoGroupStub;
 import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
@@ -400,24 +400,20 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
 		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
-	public static class MockFailingCoGroupStub extends org.apache.flink.api.java.record.functions.CoGroupFunction {
+	public static class MockFailingCoGroupStub extends RichCoGroupFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;
 		
 		@Override
-		public void coGroup(Iterator<Record> records1,
-				Iterator<Record> records2, Collector<Record> out) throws RuntimeException
-		{
+		public void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) {
 			int val1Cnt = 0;
 			
-			while (records1.hasNext()) {
+			for (@SuppressWarnings("unused") Record r : records1) { 
 				val1Cnt++;
-				records1.next();
 			}
 			
-			while (records2.hasNext()) {
-				Record record2 = records2.next();
+			for (Record record2 : records2) { 
 				if (val1Cnt == 0) {
 					
 					if(++this.cnt>=10) {
@@ -440,25 +436,23 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
 	
 	}
 	
-	public static final class MockDelayingCoGroupStub extends org.apache.flink.api.java.record.functions.CoGroupFunction {
+	public static final class MockDelayingCoGroupStub extends RichCoGroupFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
+		@SuppressWarnings("unused")
 		@Override
-		public void coGroup(Iterator<Record> records1,
-				Iterator<Record> records2, Collector<Record> out) {
+		public void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) {
 			
-			while (records1.hasNext()) {
+			for (Record r : records1) { 
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e) { }
-				records1.next();
 			}
 			
-			while (records2.hasNext()) {
+			for (Record r : records2) { 
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e) { }
-				records2.next();
 			}
 		}
 	}

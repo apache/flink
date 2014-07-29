@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.java.operators.translation;
 
-import java.util.Iterator;
-
 import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -65,14 +63,14 @@ public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOp
 
 
 		@Override
-		public void reduce(Iterator<Tuple2<K, IN>> values, Collector<OUT> out) throws Exception {
-			iter.set(values);
+		public void reduce(Iterable<Tuple2<K, IN>> values, Collector<OUT> out) throws Exception {
+			iter.set(values.iterator());
 			this.wrappedFunction.reduce(iter, out);
 		}
 
 		@Override
-		public void combine(Iterator<Tuple2<K, IN>> values, Collector<Tuple2<K, IN>> out) throws Exception {
-				iter.set(values);
+		public void combine(Iterable<Tuple2<K, IN>> values, Collector<Tuple2<K, IN>> out) throws Exception {
+				iter.set(values.iterator());
 				coll.set(out);
 				this.wrappedFunction.combine(iter, coll);
 		}
@@ -98,8 +96,8 @@ public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOp
 	
 	
 		@Override
-		public void reduce(Iterator<Tuple2<K, IN>> values, Collector<OUT> out) throws Exception {
-			iter.set(values);
+		public void reduce(Iterable<Tuple2<K, IN>> values, Collector<OUT> out) throws Exception {
+			iter.set(values.iterator());
 			this.wrappedFunction.reduce(iter, out);
 		}
 		

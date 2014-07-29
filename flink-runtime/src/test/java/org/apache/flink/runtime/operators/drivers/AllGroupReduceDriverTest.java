@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.drivers;
 
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
@@ -155,11 +153,10 @@ public class AllGroupReduceDriverTest {
 	public static final class ConcatSumReducer extends RichGroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> {
 
 		@Override
-		public void reduce(Iterator<Tuple2<String, Integer>> values, Collector<Tuple2<String, Integer>> out) {
-			Tuple2<String, Integer> current = values.next();
+		public void reduce(Iterable<Tuple2<String, Integer>> values, Collector<Tuple2<String, Integer>> out) {
+			Tuple2<String, Integer> current = new Tuple2<String, Integer>("", 0);
 			
-			while (values.hasNext()) {
-				Tuple2<String, Integer> next = values.next();
+			for (Tuple2<String, Integer> next : values) {
 				next.f0 = current.f0 + next.f0;
 				next.f1 = current.f1 + next.f1;
 				current = next;
@@ -172,11 +169,10 @@ public class AllGroupReduceDriverTest {
 	public static final class ConcatSumMutableReducer extends RichGroupReduceFunction<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>> {
 
 		@Override
-		public void reduce(Iterator<Tuple2<StringValue, IntValue>> values, Collector<Tuple2<StringValue, IntValue>> out) {
-			Tuple2<StringValue, IntValue> current = values.next();
+		public void reduce(Iterable<Tuple2<StringValue, IntValue>> values, Collector<Tuple2<StringValue, IntValue>> out) {
+			Tuple2<StringValue, IntValue> current = new Tuple2<StringValue, IntValue>(new StringValue(""), new IntValue(0));
 			
-			while (values.hasNext()) {
-				Tuple2<StringValue, IntValue> next = values.next();
+			for (Tuple2<StringValue, IntValue> next : values) {
 				next.f0.append(current.f0);
 				next.f1.setValue(current.f1.getValue() + next.f1.getValue());
 				current = next;

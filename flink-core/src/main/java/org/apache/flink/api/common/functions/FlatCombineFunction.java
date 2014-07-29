@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.functions;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 import org.apache.flink.util.Collector;
 
@@ -47,5 +46,5 @@ public interface FlatCombineFunction<T> extends Function, Serializable {
 	 * @throws Exception The function may throw Exceptions, which will cause the program to cancel,
 	 *                   and may trigger the recovery logic.
 	 */
-	void combine(Iterator<T> values, Collector<T> out) throws Exception;
+	void combine(Iterable<T> values, Collector<T> out) throws Exception;
 }

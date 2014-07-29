@@ -33,6 +33,7 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
+import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.io.CsvReader;
@@ -252,6 +253,26 @@ public abstract class ExecutionEnvironment {
 	 */
 	public CsvReader readCsvFile(String filePath) {
 		return new CsvReader(filePath, this);
+	}
+
+	// ------------------------------------ File Input Format -----------------------------------------
+	
+	public <X> DataSource<X> readFile(FileInputFormat<X> inputFormat, String filePath) {
+		if (inputFormat == null) {
+			throw new IllegalArgumentException("InputFormat must not be null.");
+		}
+		if (filePath == null) {
+			throw new IllegalArgumentException("The file path must not be null.");
+		}
+		
+		inputFormat.setFilePath(new Path(filePath));
+		try {
+			return createInput(inputFormat, TypeExtractor.getInputFormatTypes(inputFormat));
+		}
+		catch (Exception e) {
+			throw new InvalidProgramException("The type returned by the input format could not be automatically determined. " +
+					"Please specify the TypeInformation of the produced type explicitly.");
+		}
 	}
 	
 	// ----------------------------------- Generic Input Format ---------------------------------------

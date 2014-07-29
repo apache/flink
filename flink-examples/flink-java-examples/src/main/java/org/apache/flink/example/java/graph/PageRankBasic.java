@@ -21,7 +21,6 @@ package org.apache.flink.example.java.graph;
 import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -163,12 +162,11 @@ public class PageRankBasic {
 		private final ArrayList<Long> neighbors = new ArrayList<Long>();
 		
 		@Override
-		public void reduce(Iterator<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long[]>> out) {
+		public void reduce(Iterable<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long[]>> out) {
 			neighbors.clear();
 			Long id = 0L;
 			
-			while (values.hasNext()) {
-				Tuple2<Long, Long> n = values.next();
+			for (Tuple2<Long, Long> n : values) {
 				id = n.f0;
 				neighbors.add(n.f1);
 			}

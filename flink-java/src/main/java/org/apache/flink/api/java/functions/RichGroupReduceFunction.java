@@ -22,7 +22,6 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.Iterator;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
@@ -44,7 +43,7 @@ public abstract class RichGroupReduceFunction<IN, OUT> extends AbstractRichFunct
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public abstract void reduce(Iterator<IN> values, Collector<OUT> out) throws Exception;
+	public abstract void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception;
 	
 	/**
 	 * The combine methods pre-reduces elements. It may be called on subsets of the data
@@ -59,7 +58,7 @@ public abstract class RichGroupReduceFunction<IN, OUT> extends AbstractRichFunct
 	 * <p>
 	 * Since the reduce function will be called on the result of this method, it is important that this
 	 * method returns the same data type as it consumes. By default, this method only calls the
-	 * {@link #reduce(Iterator, Collector)} method. If the behavior in the pre-reducing is different
+	 * {@link #reduce(Iterable, Collector)} method. If the behavior in the pre-reducing is different
 	 * from the final reduce function (for example because the reduce function changes the data type),
 	 * this method must be overwritten, or the execution will fail.
 	 * 
@@ -70,7 +69,7 @@ public abstract class RichGroupReduceFunction<IN, OUT> extends AbstractRichFunct
 	 *                   to fail and may trigger recovery.
 	 */
 	@Override
-	public void combine(Iterator<IN> values, Collector<IN> out) throws Exception {
+	public void combine(Iterable<IN> values, Collector<IN> out) throws Exception {
 		@SuppressWarnings("unchecked")
 		Collector<OUT> c = (Collector<OUT>) out;
 		reduce(values, c);
@@ -80,7 +79,7 @@ public abstract class RichGroupReduceFunction<IN, OUT> extends AbstractRichFunct
 	
 	/**
 	 * This annotation can be added to classes that extend {@link RichGroupReduceFunction}, in oder to mark
-	 * them as "combinable". The system may call the {@link RichGroupReduceFunction#combine(Iterator, Collector)}
+	 * them as "combinable". The system may call the {@link RichGroupReduceFunction#combine(Iterable, Collector)}
 	 * method on such functions, to pre-reduce the data before transferring it over the network to
 	 * the actual group reduce operation.
 	 * <p>

@@ -25,8 +25,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.IterativeDataSet;
 
-import java.util.Iterator;
-
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.example.java.graph.util.ConnectedComponentsData;
@@ -70,8 +68,8 @@ public class TransitiveClosureNaive implements ProgramDescription {
 				.groupBy(0, 1)
 				.reduceGroup(new GroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>() {
 					@Override
-					public void reduce(Iterator<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long>> out) throws Exception {
-						out.collect(values.next());
+					public void reduce(Iterable<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long>> out) throws Exception {
+						out.collect(values.iterator().next());
 					}
 				});
 

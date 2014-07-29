@@ -21,7 +21,6 @@ package org.apache.flink.api.java.type.extractor;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.Iterator;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -72,7 +71,7 @@ public class TypeExtractorTest {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public void reduce(Iterator<Boolean> values, Collector<Boolean> out) throws Exception {
+			public void reduce(Iterable<Boolean> values, Collector<Boolean> out) throws Exception {
 				// nothing to do
 			}
 		};
@@ -1084,7 +1083,7 @@ public class TypeExtractorTest {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public void coGroup(Iterator<String[]> first, Iterator<String[]> second, Collector<String[]> out) throws Exception {
+			public void coGroup(Iterable<String[]> first, Iterable<String[]> second, Collector<String[]> out) throws Exception {
 				// nothing to do
 			}
 		};

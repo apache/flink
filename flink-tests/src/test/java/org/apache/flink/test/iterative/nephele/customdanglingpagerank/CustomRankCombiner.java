@@ -35,12 +35,14 @@ public class CustomRankCombiner extends AbstractRichFunction implements GroupRed
 	private final VertexWithRank accumulator = new VertexWithRank();
 	
 	@Override
-	public void reduce(Iterator<VertexWithRank> records, Collector<VertexWithRank> out) throws Exception {
+	public void reduce(Iterable<VertexWithRank> records, Collector<VertexWithRank> out) throws Exception {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public void combine(Iterator<VertexWithRank> records, Collector<VertexWithRank> out) throws Exception {
+	public void combine(Iterable<VertexWithRank> recordsIterable, Collector<VertexWithRank> out) throws Exception {
+		final Iterator<VertexWithRank> records = recordsIterable.iterator();
+		
 		VertexWithRank next = records.next();
 		this.accumulator.setVertexID(next.getVertexID());
 		double rank = next.getRank();

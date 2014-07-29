@@ -194,15 +194,14 @@ public class AvroWithEmptyArrayITCase extends RecordAPITestBase {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out)
-				throws Exception {
+		public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) {
 
 			Record r1 = null;
-			if (records1.hasNext()) {
+			while (records1.hasNext()) {
 				r1 = records1.next();
 			}
 			Record r2 = null;
-			if (records2.hasNext()) {
+			while (records2.hasNext()) {
 				r2 = records2.next();
 			}
 

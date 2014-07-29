@@ -20,7 +20,6 @@
 package org.apache.flink.runtime.operators.util;
 
 import java.io.IOException;
-import java.util.Iterator;
 
 import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
 
@@ -30,8 +29,8 @@ import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
  * @param <T1> The generic type of the first input's data type.
  * @param <T2> The generic type of the second input's data type.
  */
-public interface CoGroupTaskIterator<T1, T2>
-{	
+public interface CoGroupTaskIterator<T1, T2> {
+	
 	/**
 	 * General-purpose open method.
 	 * 
@@ -63,12 +62,12 @@ public interface CoGroupTaskIterator<T1, T2>
 	 * 
 	 * @return an iterable over the left input values for the current key.
 	 */
-	Iterator<T1> getValues1();
+	Iterable<T1> getValues1();
 
 	/**
 	 * Returns an iterable over the left input values for the current key.
 	 * 
 	 * @return an iterable over the left input values for the current key.
 	 */
-	Iterator<T2> getValues2();
+	Iterable<T2> getValues2();
 }

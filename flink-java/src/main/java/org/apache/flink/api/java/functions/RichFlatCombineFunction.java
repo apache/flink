@@ -24,8 +24,6 @@ import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.util.Collector;
 
-import java.util.Iterator;
-
 /**
  * Rich variant of the {@link FlatCombineFunction}. As a {@link RichFunction}, it gives access to the
  * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
@@ -39,5 +37,5 @@ public abstract class RichFlatCombineFunction<T> extends AbstractRichFunction im
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public abstract void combine(Iterator<T> values, Collector<T> out) throws Exception;
+	public abstract void combine(Iterable<T> values, Collector<T> out) throws Exception;
 }

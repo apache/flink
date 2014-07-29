@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
-import java.util.Iterator;
-
 import org.junit.Assert;
-
 import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.java.functions.RichCoGroupFunction;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
+import org.apache.flink.runtime.operators.CoGroupDriver;
+import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.IntValue;
@@ -84,25 +83,23 @@ public class CoGroupTaskExternalITCase extends DriverTestBase<CoGroupFunction<Re
 		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
-	public static final class MockCoGroupStub extends org.apache.flink.api.java.record.functions.CoGroupFunction {
+	public static final class MockCoGroupStub extends RichCoGroupFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private final Record res = new Record();
 		
+		@SuppressWarnings("unused")
 		@Override
-		public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out)
-		{
+		public void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) {
 			int val1Cnt = 0;
 			int val2Cnt = 0;
 			
-			while (records1.hasNext()) {
+			for (Record r : records1) {
 				val1Cnt++;
-				records1.next();
 			}
 			
-			while (records2.hasNext()) {
+			for (Record r : records2) {
 				val2Cnt++;
-				records2.next();
 			}
 			
 			if (val1Cnt == 0) {

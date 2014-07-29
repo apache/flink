@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler;
-
-import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
@@ -51,7 +48,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			DataSet<Double> data = env.fromElements(0.2, 0.3, 0.4, 0.5).name("source");
 			
 			data.reduceGroup(new RichGroupReduceFunction<Double, Double>() {
-				public void reduce(Iterator<Double> values, Collector<Double> out) {}
+				public void reduce(Iterable<Double> values, Collector<Double> out) {}
 			}).name("reducer")
 			.print().name("sink");
 			
@@ -95,7 +92,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			DataSet<Long> data = env.generateSequence(1, 8000000).name("source");
 			
 			GroupReduceOperator<Long, Long> reduced = data.reduceGroup(new RichGroupReduceFunction<Long, Long>() {
-				public void reduce(Iterator<Long> values, Collector<Long> out) {}
+				public void reduce(Iterable<Long> values, Collector<Long> out) {}
 			}).name("reducer");
 			
 			reduced.setCombinable(true);
@@ -148,7 +145,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			data
 				.groupBy(1)
 				.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
-				public void reduce(Iterator<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
+				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
 			}).name("reducer")
 			.print().name("sink");
 			
@@ -197,7 +194,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			GroupReduceOperator<Tuple2<String, Double>, Tuple2<String, Double>> reduced = data
 					.groupBy(1)
 					.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
-				public void reduce(Iterator<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
+				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
 			}).name("reducer");
 			
 			reduced.setCombinable(true);
@@ -256,7 +253,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 					public String getKey(Tuple2<String, Double> value) { return value.f0; }
 				})
 				.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
-				public void reduce(Iterator<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
+				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
 			}).name("reducer")
 			.print().name("sink");
 			
@@ -314,7 +311,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 					public String getKey(Tuple2<String, Double> value) { return value.f0; }
 				})
 				.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
-				public void reduce(Iterator<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
+				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
 			}).name("reducer");
 			
 			reduced.setCombinable(true);

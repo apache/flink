@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative.nephele.customdanglingpagerank;
 
 import java.util.Iterator;
@@ -83,11 +82,13 @@ public class CustomCompensatableDotProductCoGroup extends AbstractRichFunction i
 	}
 
 	@Override
-	public void coGroup(Iterator<VertexWithRankAndDangling> currentPageRankIterator, Iterator<VertexWithRank> partialRanks,
+	public void coGroup(Iterable<VertexWithRankAndDangling> currentPageRankIterable, Iterable<VertexWithRank> partialRanks,
 			Collector<VertexWithRankAndDangling> collector)
 	{
+		final Iterator<VertexWithRankAndDangling> currentPageRankIterator = currentPageRankIterable.iterator();
+		
 		if (!currentPageRankIterator.hasNext()) {
-			long missingVertex = partialRanks.next().getVertexID();
+			long missingVertex = partialRanks.iterator().next().getVertexID();
 			throw new IllegalStateException("No current page rank for vertex [" + missingVertex + "]!");
 		}
 
@@ -95,8 +96,8 @@ public class CustomCompensatableDotProductCoGroup extends AbstractRichFunction i
 
 		long edges = 0;
 		double summedRank = 0;
-		while (partialRanks.hasNext()) {
-			summedRank += partialRanks.next().getRank();
+		for (VertexWithRank pr :partialRanks) {
+			summedRank += pr.getRank();
 			edges++;
 		}
 
