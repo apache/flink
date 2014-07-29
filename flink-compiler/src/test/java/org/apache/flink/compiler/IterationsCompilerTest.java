@@ -16,14 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler;
 
 import static org.junit.Assert.*;
 
 import org.junit.Test;
-
-import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
@@ -287,7 +284,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 	public static final class Reduce101 extends GroupReduceFunction<Tuple1<Long>, Tuple1<Long>> {
 		
 		@Override
-		public void reduce(Iterator<Tuple1<Long>> values, Collector<Tuple1<Long>> out) {}
+		public void reduce(Iterable<Tuple1<Long>> values, Collector<Tuple1<Long>> out) {}
 	}
 	
 	@ConstantFields("0")

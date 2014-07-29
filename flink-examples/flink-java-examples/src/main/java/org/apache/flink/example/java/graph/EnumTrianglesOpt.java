@@ -19,7 +19,6 @@
 package org.apache.flink.example.java.graph;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.operators.Order;
@@ -38,7 +37,7 @@ import org.apache.flink.example.java.graph.util.EnumTrianglesDataTypes.EdgeWithD
 import org.apache.flink.example.java.graph.util.EnumTrianglesDataTypes.Triad;
 
 /**
- * Triangle enumeration is a preprocessing step to find closely connected parts in graphs.
+ * Triangle enumeration is a pre-processing step to find closely connected parts in graphs.
  * A triangle consists of three edges that connect three vertices with each other.
  * 
  * <p>
@@ -166,18 +165,18 @@ public class EnumTrianglesOpt {
 		final EdgeWithDegrees outputEdge = new EdgeWithDegrees();
 		
 		@Override
-		public void reduce(Iterator<Edge> edges, Collector<EdgeWithDegrees> out) throws Exception {
+		public void reduce(Iterable<Edge> edges, Collector<EdgeWithDegrees> out) {
 			
 			otherVertices.clear();
 			
 			// get first edge
-			Edge edge = edges.next();
+			Edge edge = edges.iterator().next();
 			Integer groupVertex = edge.getFirstVertex();
 			this.otherVertices.add(edge.getSecondVertex());
 			
 			// get all other edges (assumes edges are sorted by second vertex)
-			while(edges.hasNext()) {
-				edge = edges.next();
+			for (Edge e : edges) {
+				edge = e;
 				Integer otherVertex = edge.getSecondVertex();
 				// collect unique vertices
 				if(!otherVertices.contains(otherVertex) && otherVertex != groupVertex) {
@@ -274,19 +273,19 @@ public class EnumTrianglesOpt {
 		private final Triad outTriad = new Triad();
 		
 		@Override
-		public void reduce(Iterator<Edge> edges, Collector<Triad> out) throws Exception {
+		public void reduce(Iterable<Edge> edges, Collector<Triad> out) throws Exception {
 			
 			// clear vertex list
 			vertices.clear();
 			
 			// read first edge
-			Edge firstEdge = edges.next();
+			Edge firstEdge = edges.iterator().next();
 			outTriad.setFirstVertex(firstEdge.getFirstVertex());
 			vertices.add(firstEdge.getSecondVertex());
 			
 			// build and emit triads
-			while(edges.hasNext()) {
-				Integer higherVertexId = edges.next().getSecondVertex();
+			for (Edge e : edges) {
+				Integer higherVertexId = e.getSecondVertex();
 				
 				// combine vertex with all previously read vertices
 				for(Integer lowerVertexId : vertices) {

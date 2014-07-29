@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.relational;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
@@ -175,12 +173,12 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		 *   2:SUM(EXTENDEDPRICE)
 		 */
 		@Override
-		public void reduce(Iterator<Record> values, Collector<Record> out) {
+		public void reduce(Iterable<Record> values, Collector<Record> out) {
 			Record rec = null;
 			double partExtendedPriceSum = 0;
 
-			while (values.hasNext()) {
-				rec = values.next();
+			for (Record next : values) {
+				rec = next;
 				partExtendedPriceSum += rec.getField(2, DoubleValue.class).getValue();
 			}
 
@@ -193,7 +191,7 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		 * Creates partial sums on the price attribute for each data batch.
 		 */
 		@Override
-		public void combine(Iterator<Record> values, Collector<Record> out) {
+		public void combine(Iterable<Record> values, Collector<Record> out) {
 			reduce(values, out);
 		}
 	}

@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
-
-import java.util.Iterator;
 
 import junit.framework.Assert;
 
@@ -92,20 +89,18 @@ public class CoGroupTaskExternalITCase extends DriverTestBase<GenericCoGrouper<R
 		
 		private final Record res = new Record();
 		
+		@SuppressWarnings("unused")
 		@Override
-		public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out)
-		{
+		public void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) {
 			int val1Cnt = 0;
 			int val2Cnt = 0;
 			
-			while (records1.hasNext()) {
+			for (Record r : records1) {
 				val1Cnt++;
-				records1.next();
 			}
 			
-			while (records2.hasNext()) {
+			for (Record r : records2) {
 				val2Cnt++;
-				records2.next();
 			}
 			
 			if (val1Cnt == 0) {

@@ -160,20 +160,23 @@ public class SpargelIteration {
 		private MessageIterator<M> messageIter;
 
 		@Override
-		public void coGroup(Iterator<Record> messages, Iterator<Record> vertex, Collector<Record> out) throws Exception {
+		public void coGroup(Iterable<Record> messages, Iterable<Record> vertex, Collector<Record> out) throws Exception {
 
-			if (vertex.hasNext()) {
-				Record first = vertex.next();
+			final Iterator<Record> vertexIter = vertex.iterator();
+			
+			if (vertexIter.hasNext()) {
+				Record first = vertexIter.next();
 				first.getFieldInto(0, vertexKey);
 				first.getFieldInto(1, vertexValue);
-				messageIter.setSource(messages);
+				messageIter.setSource(messages.iterator());
 				vertexUpdateFunction.setOutput(first, out);
 				vertexUpdateFunction.updateVertex(vertexKey, vertexValue, messageIter);
 			} else {
-				if (messages.hasNext()) {
+				final Iterator<Record> messageIter = messages.iterator();
+				if (messageIter.hasNext()) {
 					String message = "Target vertex does not exist!.";
 					try {
-						Record next = messages.next();
+						Record next = messageIter.next();
 						next.getFieldInto(0, vertexKey);
 						message = "Target vertex '" + vertexKey + "' does not exist!.";
 					} catch (Throwable t) {}
@@ -233,12 +236,13 @@ public class SpargelIteration {
 		private V vertexValue;
 		
 		@Override
-		public void coGroup(Iterator<Record> edges, Iterator<Record> state, Collector<Record> out) throws Exception {
-			if (state.hasNext()) {
-				Record first = state.next();
+		public void coGroup(Iterable<Record> edges, Iterable<Record> state, Collector<Record> out) throws Exception {
+			final Iterator<Record> stateIter = state.iterator();
+			if (stateIter.hasNext()) {
+				Record first = stateIter.next();
 				first.getFieldInto(0, vertexKey);
 				first.getFieldInto(1, vertexValue);
-				messagingFunction.set(edges, out);
+				messagingFunction.set(edges.iterator(), out);
 				messagingFunction.sendMessages(vertexKey, vertexValue);
 			}
 		}

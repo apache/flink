@@ -116,8 +116,8 @@ public class SortMergeCoGroupIteratorITCase
 			final TestData.Key key = new TestData.Key();
 			while (iterator.next())
 			{
-				Iterator<Record> iter1 = iterator.getValues1();
-				Iterator<Record> iter2 = iterator.getValues2();
+				Iterator<Record> iter1 = iterator.getValues1().iterator();
+				Iterator<Record> iter2 = iterator.getValues2().iterator();
 				
 				TestData.Value v1 = null;
 				TestData.Value v2 = null;

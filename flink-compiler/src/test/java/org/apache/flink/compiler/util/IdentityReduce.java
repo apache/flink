@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.util;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 import org.apache.flink.api.java.record.functions.ReduceFunction;
 import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsExcept;
@@ -32,9 +30,9 @@ public final class IdentityReduce extends ReduceFunction implements Serializable
 	private static final long serialVersionUID = 1L;
 	
 	@Override
-	public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
-		while (records.hasNext()) {
-			out.collect(records.next());
+	public void reduce(Iterable<Record> records, Collector<Record> out) throws Exception {
+		for (Record r : records) {
+			out.collect(r);
 		}
 	}
 }

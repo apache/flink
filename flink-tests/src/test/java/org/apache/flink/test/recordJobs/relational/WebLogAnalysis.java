@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.relational;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
@@ -221,12 +219,12 @@ public class WebLogAnalysis implements Program, ProgramDescription {
 		 * 2: AVG_DURATION
 		 */
 		@Override
-		public void coGroup(Iterator<Record> ranks, Iterator<Record> visits, Collector<Record> out) {
+		public void coGroup(Iterable<Record> ranks, Iterable<Record> visits, Collector<Record> out) {
 			// Check if there is a entry in the visits relation
-			if (!visits.hasNext()) {
-				while (ranks.hasNext()) {
-					// Emit all rank pairs
-					out.collect(ranks.next());
+			if (!visits.iterator().hasNext()) {
+				// Emit all rank pairs
+				for (Record r : ranks) {
+					out.collect(r);
 				}
 			}
 		}

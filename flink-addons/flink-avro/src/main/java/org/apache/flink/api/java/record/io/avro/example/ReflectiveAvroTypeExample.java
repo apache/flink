@@ -20,7 +20,6 @@ package org.apache.flink.api.java.record.io.avro.example;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Iterator;
 import java.util.Random;
 
 import org.apache.flink.api.common.Plan;
@@ -80,14 +79,14 @@ public class ReflectiveAvroTypeExample {
 		private final Record result = new Record(2);
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
-			Record r = records.next();
+		public void reduce(Iterable<Record> records, Collector<Record> out) throws Exception {
+			Record r = records.iterator().next();
 			
 			int num = r.getField(1, IntValue.class).getValue();
 			String names = r.getField(0, SUser.class).datum().getFavoriteColor().toString();
 			
-			while (records.hasNext()) {
-				r = records.next();
+			for (Record next : records) {
+				r = next;
 				names += " - " + r.getField(0, SUser.class).datum().getFavoriteColor().toString();
 			}
 			

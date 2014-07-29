@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.record.functions;
-
-import java.util.Iterator;
 
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.common.functions.GenericCombine;
@@ -48,7 +45,7 @@ public abstract class ReduceFunction extends AbstractFunction implements Generic
 	 *                   decide whether to retry the reduce execution.
 	 */
 	@Override
-	public abstract void reduce(Iterator<Record> records, Collector<Record> out) throws Exception;
+	public abstract void reduce(Iterable<Record> records, Collector<Record> out) throws Exception;
 
 	/**
 	 * No default implementation provided.
@@ -72,7 +69,7 @@ public abstract class ReduceFunction extends AbstractFunction implements Generic
 	 *                   decide whether to retry the combiner execution.
 	 */
 	@Override
-	public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
+	public void combine(Iterable<Record> records, Collector<Record> out) throws Exception {
 		// to be implemented, if the reducer should use a combiner. Note that the combining method
 		// is only used, if the stub class is further annotated with the annotation
 		// @ReduceOperator.Combinable

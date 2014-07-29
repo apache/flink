@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative.aggregators;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
@@ -39,11 +37,8 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.IterativeDataSet;
 
-
 /**
- * 
- * Connected Components test case that uses a parametrizable aggregator
- *
+ * Connected Components test case that uses a parameterizable aggregator
  */
 public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaProgramTestBase {
 
@@ -168,15 +163,14 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 		final Tuple2<Long, Long> resultVertex = new Tuple2<Long, Long>();
 
 		@Override
-		public void reduce(Iterator<Tuple2<Long, Long>> values,
-				Collector<Tuple2<Long, Long>> out) throws Exception {
+		public void reduce(Iterable<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long>> out) {
 
-			final Tuple2<Long, Long> first = values.next();
+			final Tuple2<Long, Long> first = values.iterator().next();
 			final Long vertexId = first.f0;
 			Long minimumCompId = first.f1;
 
-			while (values.hasNext()) {
-				Long candidateCompId = values.next().f1;
+			for (Tuple2<Long, Long> value: values) {
+				Long candidateCompId = value.f1;
 				if (candidateCompId < minimumCompId) {
 					minimumCompId = candidateCompId;
 				}

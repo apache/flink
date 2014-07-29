@@ -20,7 +20,6 @@ package org.apache.flink.api.avro;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.avro.reflect.Nullable;
@@ -194,16 +193,16 @@ public class AvroWithEmptyArrayITCase extends RecordAPITestBase {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out)
+		public void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out)
 				throws Exception {
 
 			Record r1 = null;
-			if (records1.hasNext()) {
-				r1 = records1.next();
+			for (Record next : records1) {
+				r1 = next;
 			}
 			Record r2 = null;
-			if (records2.hasNext()) {
-				r2 = records2.next();
+			for (Record next : records2) {
+				r2 = next;
 			}
 
 			if (r1 != null) {

@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.relational.query1Util;
-
-import java.util.Iterator;
 
 import org.apache.flink.api.java.record.functions.ReduceFunction;
 import org.apache.flink.test.recordJobs.util.Tuple;
@@ -33,7 +30,7 @@ public class GroupByReturnFlag extends ReduceFunction {
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
+	public void reduce(Iterable<Record> records, Collector<Record> out) {
 		Record outRecord = new Record();
 		Tuple returnTuple = new Tuple();
 		
@@ -41,8 +38,7 @@ public class GroupByReturnFlag extends ReduceFunction {
 		double extendedPriceSum = 0.0; 
 		
 		boolean first = true;
-		while(records.hasNext()) {
-			Record rec = records.next();
+		for (Record rec : records) {
 			Tuple t = rec.getField(1, Tuple.class);
 			
 			if(first) {

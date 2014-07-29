@@ -16,10 +16,8 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
-import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Assert;
@@ -409,18 +407,14 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 		private int cnt = 0;
 		
 		@Override
-		public void coGroup(Iterator<Record> records1,
-				Iterator<Record> records2, Collector<Record> out) throws RuntimeException
-		{
+		public void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) {
 			int val1Cnt = 0;
 			
-			while (records1.hasNext()) {
+			for (@SuppressWarnings("unused") Record r : records1) { 
 				val1Cnt++;
-				records1.next();
 			}
 			
-			while (records2.hasNext()) {
-				Record record2 = records2.next();
+			for (Record record2 : records2) { 
 				if (val1Cnt == 0) {
 					
 					if(++this.cnt>=10) {
@@ -446,22 +440,20 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 	public static final class MockDelayingCoGroupStub extends CoGroupFunction {
 		private static final long serialVersionUID = 1L;
 		
+		@SuppressWarnings("unused")
 		@Override
-		public void coGroup(Iterator<Record> records1,
-				Iterator<Record> records2, Collector<Record> out) {
+		public void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) {
 			
-			while (records1.hasNext()) {
+			for (Record r : records1) { 
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e) { }
-				records1.next();
 			}
 			
-			while (records2.hasNext()) {
+			for (Record r : records2) { 
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e) { }
-				records2.next();
 			}
 		}
 	}

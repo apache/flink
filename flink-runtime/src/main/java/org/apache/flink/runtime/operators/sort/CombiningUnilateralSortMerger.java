@@ -502,7 +502,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * This class implements an iterator over values from a sort buffer. The iterator returns the values of a given
 	 * interval.
 	 */
-	private static final class CombineValueIterator<E> implements Iterator<E> {
+	private static final class CombineValueIterator<E> implements Iterator<E>, Iterable<E> {
 		
 		private final InMemorySorter<E> buffer; // the buffer from which values are returned
 		
@@ -562,6 +562,11 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 		@Override
 		public void remove() {
 			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Iterator<E> iterator() {
+			return this;
 		}
 	};
 

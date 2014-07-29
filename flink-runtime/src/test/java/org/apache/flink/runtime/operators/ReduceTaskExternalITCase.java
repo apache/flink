@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import junit.framework.Assert;
@@ -43,8 +41,8 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class ReduceTaskExternalITCase extends DriverTestBase<GenericGroupReduce<Record, Record>>
-{
+public class ReduceTaskExternalITCase extends DriverTestBase<GenericGroupReduce<Record, Record>> {
+	
 	private static final Log LOG = LogFactory.getLog(ReduceTaskExternalITCase.class);
 	
 	@SuppressWarnings("unchecked")
@@ -222,12 +220,12 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericGroupReduce<
 		private final IntValue value = new IntValue();
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
 			Record element = null;
 			int cnt = 0;
-			while (records.hasNext()) {
-				element = records.next();
+			
+			for (Record next : records) {
+				element = next;
 				cnt++;
 			}
 			element.getField(0, this.key);
@@ -246,12 +244,12 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericGroupReduce<
 		private final IntValue combineValue = new IntValue();
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
 			Record element = null;
 			int sum = 0;
-			while (records.hasNext()) {
-				element = records.next();
+
+			for (Record next : records) {
+				element = next;
 				element.getField(1, this.value);
 				
 				sum += this.value.getValue();
@@ -263,12 +261,12 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericGroupReduce<
 		}
 		
 		@Override
-		public void combine(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void combine(Iterable<Record> records, Collector<Record> out) {
 			Record element = null;
 			int sum = 0;
-			while (records.hasNext()) {
-				element = records.next();
+
+			for (Record next : records) {
+				element = next;
 				element.getField(1, this.combineValue);
 				
 				sum += this.combineValue.getValue();
@@ -278,7 +276,5 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericGroupReduce<
 			element.setField(1, this.combineValue);
 			out.collect(element);
 		}
-		
 	}
-	
 }

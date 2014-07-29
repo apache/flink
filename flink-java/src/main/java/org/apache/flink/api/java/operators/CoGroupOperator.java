@@ -300,7 +300,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	/**
 	 * Intermediate step of a CoGroup transformation. <br/>
 	 * To continue the CoGroup transformation, select the grouping key of the first input {@link DataSet} by calling 
-	 * {@link CoGroupOperatorSets#where()} or {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets#where(KeySelector)}.
+	 * {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets#where(int, int...)} or {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets#where(KeySelector)}.
 	 *
 	 * @param <I1> The type of the first input DataSet of the CoGroup transformation.
 	 * @param <I2> The type of the second input DataSet of the CoGroup transformation.
@@ -327,7 +327,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		 * @param field0 The first index of the Tuple fields of the first co-grouped DataSets that should be used as key
 		 * @param fields The indexes of the Tuple fields of the first co-grouped DataSets that should be used as keys.
 		 * @return An incomplete CoGroup transformation. 
-		 *           Call {@link CoGroupOperatorSetsPredicate#equalTo()} to continue the CoGroup.
+		 *           Call {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate#equalTo(int, int...)} to continue the CoGroup.
 		 * 
 		 * @see Tuple
 		 * @see DataSet
@@ -347,7 +347,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		 * @param field0 The first field of the Tuple fields of the first co-grouped DataSets that should be used as key
 		 * @param fields The  fields of the first co-grouped DataSets that should be used as keys.
 		 * @return An incomplete CoGroup transformation.
-		 *           Call {@link CoGroupOperatorSetsPredicate#equalTo()} to continue the CoGroup.
+		 *           Call {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate#equalTo(int, int...)} to continue the CoGroup.
 		 *
 		 * @see Tuple
 		 * @see DataSet
@@ -366,7 +366,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		 * 
 		 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet on which it is grouped.
 		 * @return An incomplete CoGroup transformation. 
-		 *           Call {@link CoGroupOperatorSetsPredicate#equalTo()} to continue the CoGroup. 
+		 *           Call {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate#equalTo(int, int...)} to continue the CoGroup. 
 		 * 
 		 * @see KeySelector
 		 * @see DataSet
@@ -380,7 +380,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		/**
 		 * Intermediate step of a CoGroup transformation. <br/>
 		 * To continue the CoGroup transformation, select the grouping key of the second input {@link DataSet} by calling 
-		 * {@link CoGroupOperatorSetsPredicate#equalTo(int...)} or {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate#equalTo(KeySelector)}.
+		 * {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate#equalTo(int, int...)} or {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate#equalTo(KeySelector)}.
 		 *
 		 */
 		public final class CoGroupOperatorSetsPredicate {

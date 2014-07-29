@@ -34,24 +34,19 @@ import org.apache.flink.util.MutableObjectIterator;
  * to the next smallest element logarithmic in complexity, with respect to the
  * number of streams to be merged.
  * The order among the elements is established using the methods from the
- * {@link TypeSerializer} class, specifically {@link TypeSerializer#setReference(Object)}
- * and {@link TypeSerializer#compareToReference(TypeSerializer)}.
- * 
- * @see TypeSerializer
- * @see TypeSerializer#setReference(Object)
- * @see TypeSerializer#compareToReference(TypeSerializer)
- * 
+ * {@link TypeComparator} class, specifically {@link TypeComparator#setReference(Object)}
+ * and {@link TypeComparator#compareToReference(TypeComparator)}.
  */
-public class MergeIterator<E> implements MutableObjectIterator<E>
-{
+public class MergeIterator<E> implements MutableObjectIterator<E> {
+	
 	private final PartialOrderPriorityQueue<HeadStream<E>> heap;	// heap over the head elements of the stream
 	
 	private final TypeSerializer<E> serializer;
 	
 	/**
 	 * @param iterators
-	 * @param accessors The accessors used to establish an order among the elements.
-	 *                  The accessors will not be used directly, but a duplicate will be used.
+	 * @param serializer
+	 * @param comparator
 	 * @throws IOException
 	 */
 	public MergeIterator(List<MutableObjectIterator<E>> iterators,

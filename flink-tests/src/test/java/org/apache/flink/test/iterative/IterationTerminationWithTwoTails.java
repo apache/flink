@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.MapFunction;
@@ -107,11 +105,12 @@ public class IterationTerminationWithTwoTails extends RecordAPITestBase {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void reduce(Iterator<Record> it, Collector<Record> out) {
+		public void reduce(Iterable<Record> it, Collector<Record> out) {
 			// Compute the sum
 			int sum = 0;
-			while (it.hasNext()) {
-				sum += Integer.parseInt(it.next().getField(0, StringValue.class).getValue()) + 1;
+			
+			for (Record r : it) {
+				sum += Integer.parseInt(r.getField(0, StringValue.class).getValue()) + 1;
 			}
 			
 			out.collect(new Record(new StringValue(Integer.toString(sum))));

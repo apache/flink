@@ -151,7 +151,7 @@ public final class KeyGroupedIterator<E> {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public final class ValuesIterator implements Iterator<E>
+	public final class ValuesIterator implements Iterator<E>, Iterable<E>
 	{
 		private final TypeSerializer<E> serializer = KeyGroupedIterator.this.serializer;
 		private final TypeComparator<E> comparator = KeyGroupedIterator.this.comparator; 
@@ -220,6 +220,11 @@ public final class KeyGroupedIterator<E> {
 		@Override
 		public void remove() {
 			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Iterator<E> iterator() {
+			return this;
 		}
 	}
 }

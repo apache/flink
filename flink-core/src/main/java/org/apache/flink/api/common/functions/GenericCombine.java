@@ -19,7 +19,6 @@
 
 package org.apache.flink.api.common.functions;
 
-import java.util.Iterator;
 
 import org.apache.flink.util.Collector;
 
@@ -28,5 +27,11 @@ import org.apache.flink.util.Collector;
  */
 public interface GenericCombine<T> extends Function {
 
-	void combine(Iterator<T> records, Collector<T> out) throws Exception;
+	/**
+	 * @param records The records from the current group.
+	 * @param out The collector used to emit result records.
+	 * @throws Exception The method may throw exceptions, which will cause the task to fail
+	 *                   and may trigger the recovery logic.
+	 */
+	void combine(Iterable<T> records, Collector<T> out) throws Exception;
 }

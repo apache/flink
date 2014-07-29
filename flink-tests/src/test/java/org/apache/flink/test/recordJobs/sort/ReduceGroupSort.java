@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.sort;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
@@ -56,9 +54,9 @@ public class ReduceGroupSort implements Program, ProgramDescription {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out) {
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
 			
-			Record next = records.next();
+			Record next = records.iterator().next();
 			
 			// Increments the first field of the first record of the reduce group by 100 and emit it
 			IntValue incrVal = next.getField(0, IntValue.class);
@@ -67,8 +65,8 @@ public class ReduceGroupSort implements Program, ProgramDescription {
 			out.collect(next);
 			
 			// emit all remaining records
-			while (records.hasNext()) {
-				out.collect(records.next());
+			for (Record r : records){
+				out.collect(r);
 			}
 		}
 	}

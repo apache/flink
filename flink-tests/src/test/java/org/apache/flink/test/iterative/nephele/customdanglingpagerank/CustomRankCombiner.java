@@ -18,14 +18,11 @@
 
 package org.apache.flink.test.iterative.nephele.customdanglingpagerank;
 
-import java.util.Iterator;
-
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.common.functions.GenericCombine;
 import org.apache.flink.api.common.functions.GenericGroupReduce;
 import org.apache.flink.test.iterative.nephele.customdanglingpagerank.types.VertexWithRank;
 import org.apache.flink.util.Collector;
-
 
 public class CustomRankCombiner extends AbstractFunction implements GenericGroupReduce<VertexWithRank, VertexWithRank>,
 		GenericCombine<VertexWithRank>
@@ -35,18 +32,18 @@ public class CustomRankCombiner extends AbstractFunction implements GenericGroup
 	private final VertexWithRank accumulator = new VertexWithRank();
 	
 	@Override
-	public void reduce(Iterator<VertexWithRank> records, Collector<VertexWithRank> out) throws Exception {
+	public void reduce(Iterable<VertexWithRank> records, Collector<VertexWithRank> out) throws Exception {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public void combine(Iterator<VertexWithRank> records, Collector<VertexWithRank> out) throws Exception {
-		VertexWithRank next = records.next();
+	public void combine(Iterable<VertexWithRank> records, Collector<VertexWithRank> out) throws Exception {
+		VertexWithRank next = records.iterator().next();
 		this.accumulator.setVertexID(next.getVertexID());
 		double rank = next.getRank();
 		
-		while (records.hasNext()) {
-			rank += records.next().getRank();
+		for (VertexWithRank r : records) {
+			rank += r.getRank();
 		}
 		
 		this.accumulator.setRank(rank);

@@ -284,11 +284,11 @@ public class CombiningUnilateralSortMergerITCase {
 		
 		
 		@Override
-		public void combine(Iterator<Record> values, Collector<Record> out) {
+		public void combine(Iterable<Record> values, Collector<Record> out) {
 			Record rec = null;
 			int cnt = 0;
-			while (values.hasNext()) {
-				rec = values.next();
+			for (Record next : values) {
+				rec = next;
 				cnt += rec.getField(1, IntValue.class).getValue();
 			}
 			
@@ -298,7 +298,7 @@ public class CombiningUnilateralSortMergerITCase {
 		}
 
 		@Override
-		public void reduce(Iterator<Record> values, Collector<Record> out) {}
+		public void reduce(Iterable<Record> values, Collector<Record> out) {}
 		
 		@Override
 		public void open(Configuration parameters) throws Exception {
@@ -319,11 +319,11 @@ public class CombiningUnilateralSortMergerITCase {
 		public volatile boolean closed = false;
 		
 		@Override
-		public void combine(Iterator<Record> values, Collector<Record> out) {
+		public void combine(Iterable<Record> values, Collector<Record> out) {
 			Record rec = null;
 			int cnt = 0;
-			while (values.hasNext()) {
-				rec = values.next();
+			for (Record next : values) {
+				rec = next;
 				cnt += Integer.parseInt(rec.getField(1, TestData.Value.class).toString());
 			}
 
@@ -331,7 +331,7 @@ public class CombiningUnilateralSortMergerITCase {
 		}
 
 		@Override
-		public void reduce(Iterator<Record> values, Collector<Record> out) {
+		public void reduce(Iterable<Record> values, Collector<Record> out) {
 			// yo, nothing, mon
 		}
 		

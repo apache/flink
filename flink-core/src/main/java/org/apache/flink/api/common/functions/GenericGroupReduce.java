@@ -16,20 +16,17 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.functions;
-
-import java.util.Iterator;
 
 import org.apache.flink.util.Collector;
 
-
 /**
  *
- * @param <T> Incoming types
- * @param <O> Outgoing types
+ * @param <T> The type of the incoming records.
+ * @param <O> The type of the outgoing records.
  */
 public interface GenericGroupReduce<T, O> extends Function {
+	
 	/**
 	 * 
 	 * The central function to be implemented for a reducer. The function receives per call one
@@ -40,5 +37,5 @@ public interface GenericGroupReduce<T, O> extends Function {
 	 * @param out The collector to hand results to.
 	 * @throws Exception
 	 */
-	void reduce(Iterator<T> records, Collector<O> out) throws Exception;
+	void reduce(Iterable<T> records, Collector<O> out) throws Exception;
 }

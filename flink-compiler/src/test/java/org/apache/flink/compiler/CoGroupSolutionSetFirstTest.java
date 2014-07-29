@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler;
-
-import java.util.Iterator;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -45,8 +42,7 @@ public class CoGroupSolutionSetFirstTest extends CompilerTestBase {
 	
 	public static class SimpleCGroup extends CoGroupFunction<Tuple1<Integer>, Tuple1<Integer>, Tuple1<Integer>> {
 		@Override
-		public void coGroup(Iterator<Tuple1<Integer>> first, Iterator<Tuple1<Integer>> second, Collector<Tuple1<Integer>> out) throws Exception {
-		}
+		public void coGroup(Iterable<Tuple1<Integer>> first, Iterable<Tuple1<Integer>> second, Collector<Tuple1<Integer>> out) {}
 	}
 
 	public static class SimpleMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {

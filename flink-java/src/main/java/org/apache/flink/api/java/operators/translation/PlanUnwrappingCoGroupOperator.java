@@ -79,9 +79,9 @@ public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>
 
 
 		@Override
-		public void coGroup(Iterator<Tuple2<K, I1>> records1, Iterator<Tuple2<K, I2>> records2, Collector<OUT> out) throws Exception {
-			iter1.set(records1);
-			iter2.set(records2);
+		public void coGroup(Iterable<Tuple2<K, I1>> records1, Iterable<Tuple2<K, I2>> records2, Collector<OUT> out) throws Exception {
+			iter1.set(records1.iterator());
+			iter2.set(records2.iterator());
 			this.wrappedFunction.coGroup(iter1, iter2, out);
 		}
 		

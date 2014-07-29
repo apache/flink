@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -279,12 +277,12 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 		private final IntValue value = new IntValue();
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
 			Record element = null;
 			int cnt = 0;
-			while (records.hasNext()) {
-				element = records.next();
+			
+			for (Record next : records) {
+				element = next;
 				cnt++;
 			}
 			element.getField(0, this.key);
@@ -303,12 +301,12 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 		private final IntValue combineValue = new IntValue();
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
 			Record element = null;
 			int sum = 0;
-			while (records.hasNext()) {
-				element = records.next();
+			
+			for (Record next : records) {
+				element = next;
 				element.getField(1, this.value);
 				
 				sum += this.value.getValue();
@@ -320,12 +318,12 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 		}
 		
 		@Override
-		public void combine(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void combine(Iterable<Record> records, Collector<Record> out) {
 			Record element = null;
 			int sum = 0;
-			while (records.hasNext()) {
-				element = records.next();
+			
+			for (Record next : records) {
+				element = next;
 				element.getField(1, this.combineValue);
 				
 				sum += this.combineValue.getValue();
@@ -347,12 +345,12 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 		private final IntValue value = new IntValue();
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
 			Record element = null;
 			int valCnt = 0;
-			while (records.hasNext()) {
-				element = records.next();
+			
+			for (Record next : records) {
+				element = next;
 				valCnt++;
 			}
 			
@@ -371,12 +369,11 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out) {
-			while(records.hasNext()) {
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
+			for (@SuppressWarnings("unused") Record r : records) {
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e) {}
-				records.next();
 			}
 		}
 	}

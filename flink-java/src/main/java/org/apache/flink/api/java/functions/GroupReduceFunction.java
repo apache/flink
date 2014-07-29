@@ -22,7 +22,6 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.Iterator;
 
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.common.functions.GenericCombine;
@@ -44,7 +43,7 @@ import org.apache.flink.util.Collector;
  * </blockquote></pre>
  * <p>
  * GroupReduceFunctions may be "combinable", in which case they can pre-reduce partial groups in order to
- * reduce the data volume early. See the {@link #combine(Iterator, Collector)} function for details.
+ * reduce the data volume early. See the {@link #combine(Iterable, Collector)} function for details.
  * <p>
  * Like all functions, the GroupReduceFunction needs to be serializable, as defined in {@link java.io.Serializable}.
  * 
@@ -66,7 +65,7 @@ public abstract class GroupReduceFunction<IN, OUT> extends AbstractFunction impl
 	 *                   to fail and may trigger recovery.
 	 */
 	@Override
-	public abstract void reduce(Iterator<IN> values, Collector<OUT> out) throws Exception;
+	public abstract void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception;
 	
 	/**
 	 * The combine methods pre-reduces elements. It may be called on subsets of the data
@@ -81,7 +80,7 @@ public abstract class GroupReduceFunction<IN, OUT> extends AbstractFunction impl
 	 * <p>
 	 * Since the reduce function will be called on the result of this method, it is important that this
 	 * method returns the same data type as it consumes. By default, this method only calls the
-	 * {@link #reduce(Iterator, Collector)} method. If the behavior in the pre-reducing is different
+	 * {@link #reduce(Iterable, Collector)} method. If the behavior in the pre-reducing is different
 	 * from the final reduce function (for example because the reduce function changes the data type),
 	 * this method must be overwritten, or the execution will fail.
 	 * 
@@ -92,7 +91,7 @@ public abstract class GroupReduceFunction<IN, OUT> extends AbstractFunction impl
 	 *                   to fail and may trigger recovery.
 	 */
 	@Override
-	public void combine(Iterator<IN> values, Collector<IN> out) throws Exception {
+	public void combine(Iterable<IN> values, Collector<IN> out) throws Exception {
 		@SuppressWarnings("unchecked")
 		Collector<OUT> c = (Collector<OUT>) out;
 		reduce(values, c);
@@ -102,7 +101,7 @@ public abstract class GroupReduceFunction<IN, OUT> extends AbstractFunction impl
 	
 	/**
 	 * This annotation can be added to classes that extend {@link GroupReduceFunction}, in oder to mark
-	 * them as "combinable". The system may call the {@link GroupReduceFunction#combine(Iterator, Collector)}
+	 * them as "combinable". The system may call the {@link GroupReduceFunction#combine(Iterable, Collector)}
 	 * method on such functions, to pre-reduce the data before transferring it over the network to
 	 * the actual group reduce operation.
 	 * <p>
