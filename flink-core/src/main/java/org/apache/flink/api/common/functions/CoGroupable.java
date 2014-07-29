@@ -24,10 +24,18 @@ import java.util.Iterator;
 
 import org.apache.flink.util.Collector;
 
-/**
- * Generic interface used for combiners.
- */
-public interface Combinable<T> extends Function, Serializable {
 
-	void combine(Iterator<T> records, Collector<T> out) throws Exception;
+public interface CoGroupable<V1, V2, O> extends Function, Serializable {
+	
+	/**
+	 * This method must be implemented to provide a user implementation of a
+	 * coGroup. It is called for each two key-value pairs that share the same
+	 * key and come from different inputs.
+	 * 
+	 * @param first The records from the first input which were paired with the key.
+	 * @param second The records from the second input which were paired with the key.
+	 * @param out A collector that collects all output pairs.
+	 */
+	void coGroup(Iterator<V1> first, Iterator<V2> second, Collector<O> out) throws Exception;
+	
 }

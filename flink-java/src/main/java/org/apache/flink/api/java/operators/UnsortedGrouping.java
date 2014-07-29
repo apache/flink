@@ -18,12 +18,16 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.functions.GroupReducible;
+import org.apache.flink.api.common.functions.Reducible;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.functions.ReduceFunction;
 
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
 
 public class UnsortedGrouping<T> extends Grouping<T> {
 
@@ -101,7 +105,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see ReduceOperator
 	 * @see DataSet
 	 */
-	public ReduceOperator<T> reduce(ReduceFunction<T> reducer) {
+	public ReduceOperator<T> reduce(Reducible<T> reducer) {
 		if (reducer == null) {
 			throw new NullPointerException("Reduce function must not be null.");
 		}
@@ -118,15 +122,19 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @return A GroupReduceOperator that represents the reduced DataSet.
 	 * 
 	 * @see GroupReduceFunction
-	 * @see ReduceGroupOperator
+	 * @see GroupReduceOperator
 	 * @see DataSet
 	 */
-	public <R> ReduceGroupOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
+	public <R> GroupReduceOperator<T, R> reduceGroup(GroupReducible<T, R> reducer) {
 		if (reducer == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
-		return new ReduceGroupOperator<T, R>(this, reducer);
+		if (FunctionUtils.isLambdaFunction(reducer)) {
+			throw new UnsupportedLambdaExpressionException();
+		}
+		return new GroupReduceOperator<T, R>(this, reducer);
 	}
+
 
 	// --------------------------------------------------------------------------------------------
 	//  Group Operations

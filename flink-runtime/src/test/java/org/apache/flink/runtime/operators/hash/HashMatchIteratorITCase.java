@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.GenericJoiner;
+import org.apache.flink.api.common.functions.FlatJoinable;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -412,7 +412,7 @@ public class HashMatchIteratorITCase {
 				collectIntPairData(input1),
 				collectRecordData(input2));
 			
-			final GenericJoiner<IntPair, Record, Record> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
+			final FlatJoinable<IntPair, Record, Record> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
 			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 	
 			// reset the generators
@@ -423,7 +423,7 @@ public class HashMatchIteratorITCase {
 			// compare with iterator values
 			BuildSecondHashMatchIterator<IntPair, Record, Record> iterator = 
 					new BuildSecondHashMatchIterator<IntPair, Record, Record>(
-						input1, input2, this.pairSerializer, this.pairComparator, 
+						input1, input2, this.pairSerializer, this.pairComparator,
 						this.recordSerializer, this.record2Comparator, this.pairRecordPairComparator,
 						this.memoryManager, this.ioManager, this.parentTask, 1.0);
 			
@@ -459,7 +459,7 @@ public class HashMatchIteratorITCase {
 				collectIntPairData(input1),
 				collectRecordData(input2));
 			
-			final GenericJoiner<IntPair, Record, Record> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
+			final FlatJoinable<IntPair, Record, Record> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
 			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 	
 			// reset the generators
@@ -673,7 +673,7 @@ public class HashMatchIteratorITCase {
 		}
 		
 		@Override
-		public void join(Record rec1, Record rec2, Collector<Record> out)
+		public void join(Record rec1, Record rec2, Collector<Record> out) throws Exception
 		{
 			TestData.Key key = rec1.getField(0, TestData.Key.class);
 			TestData.Value value1 = rec1.getField(1, TestData.Value.class);
@@ -693,7 +693,7 @@ public class HashMatchIteratorITCase {
 		}
 	}
 	
-	static final class RecordIntPairMatchRemovingMatcher extends AbstractRichFunction implements GenericJoiner<IntPair, Record, Record>
+	static final class RecordIntPairMatchRemovingMatcher extends AbstractRichFunction implements FlatJoinable<IntPair, Record, Record>
 	{
 		private final Map<TestData.Key, Collection<RecordIntPairMatch>> toRemoveFrom;
 		
@@ -702,7 +702,7 @@ public class HashMatchIteratorITCase {
 		}
 		
 		@Override
-		public void join(IntPair rec1, Record rec2, Collector<Record> out)
+		public void join(IntPair rec1, Record rec2, Collector<Record> out) throws Exception
 		{
 			final int k = rec1.getKey();
 			final int v = rec1.getValue(); 

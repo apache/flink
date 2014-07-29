@@ -25,6 +25,7 @@ import java.util.LinkedList;
 
 import junit.framework.Assert;
 
+import org.apache.flink.api.common.functions.Mappable;
 import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
@@ -40,7 +41,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class MapITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 9;
+	private static int NUM_PROGRAMS = 10;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -478,6 +479,39 @@ public class MapITCase extends JavaProgramTestBase {
 				return 	"1,1,Hi\n"
 						+ "2,2,Hello\n"
 						+ "3,2,Hello world";
+			}
+			case 10: {
+				/*
+				 * Test passing interface instead of rich function
+				 * Identical to test 4
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+				DataSet<String> typeConversionMapDs = ds.
+						map(new Mappable<Tuple3<Integer, Long, String>, String>() {
+							@Override
+							public String map(Tuple3<Integer, Long, String> record) throws Exception {
+								return record.getField(2);
+							}
+						});
+
+				typeConversionMapDs.writeAsText(resultPath);
+				env.execute();
+
+				// return expected result
+				return 	"Hi\n" + "Hello\n" + "Hello world\n" +
+						"Hello world, how are you?\n" +
+						"I am fine.\n" + "Luke Skywalker\n" +
+						"Comment#1\n" +	"Comment#2\n" +
+						"Comment#3\n" +	"Comment#4\n" +
+						"Comment#5\n" +	"Comment#6\n" +
+						"Comment#7\n" + "Comment#8\n" +
+						"Comment#9\n" +	"Comment#10\n" +
+						"Comment#11\n" + "Comment#12\n" +
+						"Comment#13\n" + "Comment#14\n" +
+						"Comment#15\n";
+
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.ReduceFunctional;
+import org.apache.flink.api.common.functions.Reducible;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -35,13 +35,13 @@ import org.apache.flink.util.MutableObjectIterator;
  * The ReduceTask creates a iterator over all records from its input. The iterator returns all records grouped by their
  * key. The iterator is handed to the <code>reduce()</code> method of the ReduceFunction.
  * 
- * @see org.apache.flink.api.common.functions.ReduceFunctional
+ * @see org.apache.flink.api.common.functions.Reducible
  */
-public class AllReduceDriver<T> implements PactDriver<ReduceFunctional<T>, T> {
+public class AllReduceDriver<T> implements PactDriver<Reducible<T>, T> {
 	
 	private static final Log LOG = LogFactory.getLog(AllReduceDriver.class);
 
-	private PactTaskContext<ReduceFunctional<T>, T> taskContext;
+	private PactTaskContext<Reducible<T>, T> taskContext;
 	
 	private MutableObjectIterator<T> input;
 
@@ -52,7 +52,7 @@ public class AllReduceDriver<T> implements PactDriver<ReduceFunctional<T>, T> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<ReduceFunctional<T>, T> context) {
+	public void setup(PactTaskContext<Reducible<T>, T> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -63,9 +63,9 @@ public class AllReduceDriver<T> implements PactDriver<ReduceFunctional<T>, T> {
 	}
 
 	@Override
-	public Class<ReduceFunctional<T>> getStubType() {
+	public Class<Reducible<T>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<ReduceFunctional<T>> clazz = (Class<ReduceFunctional<T>>) (Class<?>) ReduceFunctional.class;
+		final Class<Reducible<T>> clazz = (Class<Reducible<T>>) (Class<?>) Reducible.class;
 		return clazz;
 	}
 
@@ -94,7 +94,7 @@ public class AllReduceDriver<T> implements PactDriver<ReduceFunctional<T>, T> {
 			LOG.debug(this.taskContext.formatLogString("AllReduce preprocessing done. Running Reducer code."));
 		}
 
-		final ReduceFunctional<T> stub = this.taskContext.getStub();
+		final Reducible<T> stub = this.taskContext.getStub();
 		final MutableObjectIterator<T> input = this.input;
 		final TypeSerializer<T> serializer = this.serializer;
 		

@@ -32,8 +32,8 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Value;
 
@@ -43,8 +43,7 @@ public abstract class WrappingFunction<T extends Function> extends AbstractRichF
 	private static final long serialVersionUID = 1L;
 
 	protected final T wrappedFunction;
-	
-	
+
 	protected WrappingFunction(T wrappedFunction) {
 		this.wrappedFunction = wrappedFunction;
 	}
@@ -52,12 +51,12 @@ public abstract class WrappingFunction<T extends Function> extends AbstractRichF
 	
 	@Override
 	public void open(Configuration parameters) throws Exception {
-		openFunction(this.wrappedFunction, parameters);
+		FunctionUtils.openFunction(this.wrappedFunction, parameters);
 	}
 	
 	@Override
 	public void close() throws Exception {
-		closeFunction(this.wrappedFunction);
+		FunctionUtils.closeFunction(this.wrappedFunction);
 	}
 	
 	@Override
@@ -65,33 +64,14 @@ public abstract class WrappingFunction<T extends Function> extends AbstractRichF
 		super.setRuntimeContext(t);
 		
 		if (t instanceof IterationRuntimeContext) {
-			setFunctionRuntimeContext(this.wrappedFunction, new WrappingIterationRuntimeContext(t));
+			FunctionUtils.setFunctionRuntimeContext(this.wrappedFunction, new WrappingIterationRuntimeContext(t));
 		}
 		else{
-			setFunctionRuntimeContext(this.wrappedFunction, new WrappingRuntimeContext(t));
+			FunctionUtils.setFunctionRuntimeContext(this.wrappedFunction, new WrappingRuntimeContext(t));
 		}
 	}
 
-	private static void openFunction (Function function, Configuration parameters) throws Exception{
-		if (function instanceof RichFunction) {
-			RichFunction richFunction = (RichFunction) function;
-			richFunction.open (parameters);
-		}
-	}
 
-	private static void closeFunction (Function function) throws Exception{
-		if (function instanceof RichFunction) {
-			RichFunction richFunction = (RichFunction) function;
-			richFunction.close ();
-		}
-	}
-
-	private static void setFunctionRuntimeContext (Function function, RuntimeContext context){
-		if (function instanceof RichFunction) {
-			RichFunction richFunction = (RichFunction) function;
-			richFunction.setRuntimeContext(context);
-		}
-	}
 	
 	
 	private static class WrappingRuntimeContext implements RuntimeContext {

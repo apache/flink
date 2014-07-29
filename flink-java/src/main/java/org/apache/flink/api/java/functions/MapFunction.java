@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.functions;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.MapFunctional;
+import org.apache.flink.api.common.functions.Mappable;
 
 /**
  * The abstract base class for Map functions. Map functions take elements and transform them,
@@ -40,7 +40,7 @@ import org.apache.flink.api.common.functions.MapFunctional;
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
  */
-public abstract class MapFunction<IN, OUT> extends AbstractRichFunction implements MapFunctional<IN, OUT> {
+public abstract class MapFunction<IN, OUT> extends AbstractRichFunction implements Mappable<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 

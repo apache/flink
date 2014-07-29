@@ -128,7 +128,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 			
 			assertEquals(IdentityMapper.class, worksetMapper.getUserCodeWrapper().getUserCodeClass());
 			assertEquals(NextWorksetMapper.class, nextWorksetMapper.getUserCodeWrapper().getUserCodeClass());
-			assertEquals(SolutionWorksetJoin.class, solutionSetJoin.getUserCodeWrapper().getUserCodeClass());
+			//assertEquals(SolutionWorksetJoin.class, solutionSetJoin.getUserCodeWrapper().getUserCodeClass());
 			
 			assertEquals(BEFORE_NEXT_WORKSET_MAP, nextWorksetMapper.getName());
 			

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators;
 
 import java.util.Iterator;
 
-import org.apache.flink.api.common.functions.GenericCoGrouper;
+import org.apache.flink.api.common.functions.CoGroupable;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
@@ -34,9 +34,9 @@ import org.apache.flink.runtime.util.KeyGroupedIterator;
 import org.apache.flink.runtime.util.SingleElementIterator;
 import org.apache.flink.util.Collector;
 
-public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements ResettablePactDriver<GenericCoGrouper<IT1, IT2, OT>, OT> {
+public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements ResettablePactDriver<CoGroupable<IT1, IT2, OT>, OT> {
 	
-	private PactTaskContext<GenericCoGrouper<IT1, IT2, OT>, OT> taskContext;
+	private PactTaskContext<CoGroupable<IT1, IT2, OT>, OT> taskContext;
 	
 	private CompactingHashTable<IT1> hashTable;
 	
@@ -53,7 +53,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public void setup(PactTaskContext<GenericCoGrouper<IT1, IT2, OT>, OT> context) {
+	public void setup(PactTaskContext<CoGroupable<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -64,9 +64,9 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 	}
 	
 	@Override
-	public Class<GenericCoGrouper<IT1, IT2, OT>> getStubType() {
+	public Class<CoGroupable<IT1, IT2, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericCoGrouper<IT1, IT2, OT>> clazz = (Class<GenericCoGrouper<IT1, IT2, OT>>) (Class<?>) GenericCoGrouper.class;
+		final Class<CoGroupable<IT1, IT2, OT>> clazz = (Class<CoGroupable<IT1, IT2, OT>>) (Class<?>) CoGroupable.class;
 		return clazz;
 	}
 	
@@ -123,7 +123,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 	@Override
 	public void run() throws Exception {
 
-		final GenericCoGrouper<IT1, IT2, OT> coGroupStub = taskContext.getStub();
+		final CoGroupable<IT1, IT2, OT> coGroupStub = taskContext.getStub();
 		final Collector<OT> collector = taskContext.getOutputCollector();
 		
 		IT1 buildSideRecord = solutionSideRecord;

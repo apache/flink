@@ -22,11 +22,12 @@ package org.apache.flink.example.java.graph;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.JoinFunction;
+import org.apache.flink.api.java.functions.FlatJoinFunction;
 import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsSecond;
+import org.apache.flink.api.java.functions.JoinFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
@@ -165,11 +166,10 @@ public class ConnectedComponents implements ProgramDescription {
 		}
 	}
 	
-	/**
-	 * The input is nested tuples ( (vertex-id, candidate-component) , (vertex-id, current-component) )
-	 */
+
+
 	@ConstantFieldsFirst("0")
-	public static final class ComponentIdFilter extends JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class ComponentIdFilter extends FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		@Override
 		public void join(Tuple2<Long, Long> candidate, Tuple2<Long, Long> old, Collector<Tuple2<Long, Long>> out) {
@@ -177,9 +177,9 @@ public class ConnectedComponents implements ProgramDescription {
 				out.collect(candidate);
 			}
 		}
-		@Override
-		public Tuple2<Long, Long> join(Tuple2<Long, Long> first, Tuple2<Long, Long> second) { return null; }
 	}
+
+
 
 	@Override
 	public String getDescription() {

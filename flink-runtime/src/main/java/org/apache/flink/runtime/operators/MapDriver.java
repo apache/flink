@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.flink.api.common.functions.MapFunctional;
+import org.apache.flink.api.common.functions.Mappable;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -31,20 +31,20 @@ import org.apache.flink.util.MutableObjectIterator;
  * The MapTask creates an iterator over all key-value pairs of its input and hands that to the <code>map()</code> method
  * of the MapFunction.
  * 
- * @see org.apache.flink.api.common.functions.MapFunctional
+ * @see org.apache.flink.api.common.functions.Mappable
  * 
  * @param <IT> The mapper's input data type.
  * @param <OT> The mapper's output data type.
  */
-public class MapDriver<IT, OT> implements PactDriver<MapFunctional<IT, OT>, OT> {
+public class MapDriver<IT, OT> implements PactDriver<Mappable<IT, OT>, OT> {
 	
-	private PactTaskContext<MapFunctional<IT, OT>, OT> taskContext;
+	private PactTaskContext<Mappable<IT, OT>, OT> taskContext;
 	
 	private volatile boolean running;
 	
 	
 	@Override
-	public void setup(PactTaskContext<MapFunctional<IT, OT>, OT> context) {
+	public void setup(PactTaskContext<Mappable<IT, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -55,9 +55,9 @@ public class MapDriver<IT, OT> implements PactDriver<MapFunctional<IT, OT>, OT> 
 	}
 
 	@Override
-	public Class<MapFunctional<IT, OT>> getStubType() {
+	public Class<Mappable<IT, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<MapFunctional<IT, OT>> clazz = (Class<MapFunctional<IT, OT>>) (Class<?>) MapFunctional.class;
+		final Class<Mappable<IT, OT>> clazz = (Class<Mappable<IT, OT>>) (Class<?>) Mappable.class;
 		return clazz;
 	}
 
@@ -75,7 +75,7 @@ public class MapDriver<IT, OT> implements PactDriver<MapFunctional<IT, OT>, OT> 
 	public void run() throws Exception {
 		// cache references on the stack
 		final MutableObjectIterator<IT> input = this.taskContext.getInput(0);
-		final MapFunctional<IT, OT> function = this.taskContext.getStub();
+		final Mappable<IT, OT> function = this.taskContext.getStub();
 		final Collector<OT> output = this.taskContext.getOutputCollector();
 
 		IT record = this.taskContext.<IT>getInputSerializer(0).getSerializer().createInstance();

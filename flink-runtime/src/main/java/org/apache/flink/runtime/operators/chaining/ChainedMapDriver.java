@@ -20,26 +20,25 @@
 package org.apache.flink.runtime.operators.chaining;
 
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.MapFunctional;
-import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.Mappable;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.RegularPactTask;
 
 public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 
-	private MapFunctional<IT, OT> mapper;
+	private Mappable<IT, OT> mapper;
 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void setup(AbstractInvokable parent) {
 		@SuppressWarnings("unchecked")
-		final MapFunctional<IT, OT> mapper =
-			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, MapFunctional.class);
+		final Mappable<IT, OT> mapper =
+			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, Mappable.class);
 		this.mapper = mapper;
-		setFunctionRuntimeContext(mapper, getUdfRuntimeContext());
+		FunctionUtils.setFunctionRuntimeContext(mapper, getUdfRuntimeContext());
 	}
 
 	@Override
@@ -56,7 +55,7 @@ public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	@Override
 	public void cancelTask() {
 		try {
-			closeFunction(this.mapper);
+			FunctionUtils.closeFunction(this.mapper);
 		} catch (Throwable t) {
 		}
 	}
@@ -87,17 +86,4 @@ public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 		this.outputCollector.close();
 	}
 
-	private static void setFunctionRuntimeContext (Function function, RuntimeContext context){
-		if (function instanceof RichFunction) {
-			RichFunction richFunction = (RichFunction) function;
-			richFunction.setRuntimeContext(context);
-		}
-	}
-
-	private static void closeFunction (Function function) throws Exception{
-		if (function instanceof RichFunction) {
-			RichFunction richFunction = (RichFunction) function;
-			richFunction.close ();
-		}
-	}
 }

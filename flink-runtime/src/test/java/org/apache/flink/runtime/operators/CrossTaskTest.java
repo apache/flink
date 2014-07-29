@@ -23,10 +23,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Assert;
 
-import org.apache.flink.api.common.functions.GenericCrosser;
+import org.apache.flink.api.common.functions.Crossable;
 import org.apache.flink.api.java.record.functions.CrossFunction;
-import org.apache.flink.runtime.operators.CrossDriver;
-import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
@@ -36,7 +34,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class CrossTaskTest extends DriverTestBase<GenericCrosser<Record, Record, Record>>
+public class CrossTaskTest extends DriverTestBase<Crossable<Record, Record, Record>>
 {
 	private static final long CROSS_MEM = 1024 * 1024;
 
@@ -585,10 +583,10 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<Record, Record,
 	
 	public static final class MockCrossStub extends CrossFunction {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
-		public void cross(Record record1, Record record2, Collector<Record> out) {
-			out.collect(record1);
+		public Record cross(Record record1, Record record2) throws Exception {
+			return record1;
 		}
 	}
 	
@@ -598,11 +596,11 @@ public class CrossTaskTest extends DriverTestBase<GenericCrosser<Record, Record,
 		private int cnt = 0;
 		
 		@Override
-		public void cross(Record record1, Record record2, Collector<Record> out) {
+		public Record cross(Record record1, Record record2) {
 			if (++this.cnt >= 10) {
 				throw new ExpectedTestException();
 			}
-			out.collect(record1);
+			return record1;
 		}
 	}
 }

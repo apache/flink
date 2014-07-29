@@ -19,10 +19,24 @@
 
 package org.apache.flink.api.common.functions;
 
-import org.apache.flink.util.Collector;
+import java.io.Serializable;
 
 
-public interface GenericJoiner<V1, V2, O> extends RichFunction {
-	
-	void join(V1 value1, V2 value2, Collector<O> out) throws Exception;
+/**
+ * @param <IN1> First input type
+ * @param <IN2> Second input type
+ * @param <OUT> Output type
+ */
+public interface Crossable<IN1, IN2, OUT> extends Function, Serializable {
+
+	/**
+	 * User defined function for the cross operator.
+	 * 
+	 * @param record1 Record from first input
+	 * @param record2 Record from the second input
+	 * @return result of cross UDF.
+	 * @throws Exception
+	 */
+	OUT cross(IN1 record1, IN2 record2) throws Exception;
+
 }

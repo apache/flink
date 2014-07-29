@@ -24,7 +24,12 @@ import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 
+import java.util.regex.Pattern;
+
 public class FunctionUtils {
+
+	private static final Pattern lambdaPattern = Pattern.compile("(\\S+)\\$\\$Lambda\\$(\\d+)/\\d+");
+
 
 	public static void openFunction (Function function, Configuration parameters) throws Exception{
 		if (function instanceof RichFunction) {
@@ -47,7 +52,7 @@ public class FunctionUtils {
 		}
 	}
 
-	public static  RuntimeContext getFunctionRuntimeContext (Function function, RuntimeContext defaultContext){
+	public static RuntimeContext getFunctionRuntimeContext (Function function, RuntimeContext defaultContext){
 		if (function instanceof RichFunction) {
 			RichFunction richFunction = (RichFunction) function;
 			return richFunction.getRuntimeContext();
@@ -55,5 +60,10 @@ public class FunctionUtils {
 		else {
 			return defaultContext;
 		}
+	}
+
+	public static boolean isLambdaFunction (Function function) {
+
+		return lambdaPattern.matcher(function.getClass().getName()).matches();
 	}
 }

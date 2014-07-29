@@ -22,7 +22,7 @@ package org.apache.flink.runtime.operators.drivers;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.ReduceFunctional;
+import org.apache.flink.api.common.functions.Reducible;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.java.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -44,8 +44,8 @@ public class ReduceCombineDriverTest {
 	@Test
 	public void testImmutableEmpty() {
 		try {
-			TestTaskContext<ReduceFunctional<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
-					new TestTaskContext<ReduceFunctional<Tuple2<String,Integer>>, Tuple2<String,Integer>>(1024 * 1024);
+			TestTaskContext<Reducible<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
+					new TestTaskContext<Reducible<Tuple2<String,Integer>>, Tuple2<String,Integer>>(1024 * 1024);
 			context.getTaskConfig().setRelativeMemoryDriver(0.5);
 			
 			List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
@@ -81,8 +81,8 @@ public class ReduceCombineDriverTest {
 	public void testReduceDriverImmutable() {
 		try {
 			{
-				TestTaskContext<ReduceFunctional<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
-						new TestTaskContext<ReduceFunctional<Tuple2<String,Integer>>, Tuple2<String,Integer>>(1024 * 1024);
+				TestTaskContext<Reducible<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
+						new TestTaskContext<Reducible<Tuple2<String,Integer>>, Tuple2<String,Integer>>(1024 * 1024);
 				context.getTaskConfig().setRelativeMemoryDriver(0.5);
 				
 				List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
@@ -112,8 +112,8 @@ public class ReduceCombineDriverTest {
 			}
 			
 			{
-				TestTaskContext<ReduceFunctional<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
-						new TestTaskContext<ReduceFunctional<Tuple2<String,Integer>>, Tuple2<String,Integer>>(1024 * 1024);
+				TestTaskContext<Reducible<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
+						new TestTaskContext<Reducible<Tuple2<String,Integer>>, Tuple2<String,Integer>>(1024 * 1024);
 				context.getTaskConfig().setRelativeMemoryDriver(0.5);
 				
 				List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
@@ -153,8 +153,8 @@ public class ReduceCombineDriverTest {
 	public void testReduceDriverMutable() {
 		try {
 			{
-				TestTaskContext<ReduceFunctional<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
-						new TestTaskContext<ReduceFunctional<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>(1024 * 1024);
+				TestTaskContext<Reducible<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
+						new TestTaskContext<Reducible<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>(1024 * 1024);
 				context.getTaskConfig().setRelativeMemoryDriver(0.5);
 				
 				List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
@@ -181,8 +181,8 @@ public class ReduceCombineDriverTest {
 				DriverTestData.compareTupleArrays(expected, res);
 			}
 			{
-				TestTaskContext<ReduceFunctional<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
-						new TestTaskContext<ReduceFunctional<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>(1024 * 1024);
+				TestTaskContext<Reducible<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
+						new TestTaskContext<Reducible<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>(1024 * 1024);
 				context.getTaskConfig().setRelativeMemoryDriver(0.5);
 				
 				List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();

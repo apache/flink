@@ -38,7 +38,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class FilterITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 8; 
+	private static int NUM_PROGRAMS = 9;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -333,6 +333,25 @@ public class FilterITCase extends JavaProgramTestBase {
 						"14,5,Comment#8\n" +
 						"15,5,Comment#9\n";
 				
+			}
+			case 9: {
+				/*
+				 * Test passing lambda instead of function
+				 * Functionality identical to test 3
+				 */
+
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
+						filter(value -> value.f2.contains("world"));
+				filterDs.writeAsCsv(resultPath);
+				env.execute();
+
+				// return expected result
+				return "3,2,Hello world\n" +
+						"4,3,Hello world, how are you?\n";
+
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

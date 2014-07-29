@@ -19,14 +19,15 @@
 
 package org.apache.flink.compiler.testfunctions;
 
-import org.apache.flink.api.java.functions.JoinFunction;
+import org.apache.flink.api.java.functions.FlatJoinFunction;
+import org.apache.flink.util.Collector;
 
-public class DummyJoinFunction<T> extends JoinFunction<T, T, T> {
+public class DummyFlatJoinFunction<T> extends FlatJoinFunction<T, T, T> {
 
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public T join(T first, T second) {
-		return null;
+	public void join(T first, T second, Collector<T> out) {
+		out.collect(null);
 	}
 }

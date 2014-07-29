@@ -30,15 +30,16 @@ import java.io.Serializable;
  * @param <O>
  */
 public interface FlatMappable<T, O> extends Function, Serializable {
-	
+
 	/**
-	 * User defined function to perform transformations on records.
-	 * This method allows to submit an arbitrary number of records
-	 * per incoming tuple.
-	 * 
-	 * @param record incoming record
-	 * @param out outgoing collector to return none, one or more records
-	 * @throws Exception
+	 * The core method of FlatMappable. Takes an element from the input data set and transforms
+	 * it into zero, one, or more elements.
+	 *
+	 * @param value The input value.
+	 * @param out The collector for for emitting result values.
+	 *
+	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
+	 *                   to fail and may trigger recovery.
 	 */
-	void flatMap(T record, Collector<O> out) throws Exception;
+	void flatMap(T value, Collector<O> out) throws Exception;
 }

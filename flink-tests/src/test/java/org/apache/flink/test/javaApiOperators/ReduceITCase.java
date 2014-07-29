@@ -40,7 +40,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class ReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 8;
+	private static int NUM_PROGRAMS = 9;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -269,6 +269,38 @@ public class ReduceITCase extends JavaProgramTestBase {
 						"34,4,Hi again!\n" +
 						"65,5,Hi again!\n" +
 						"111,6,Hi again!\n";
+			}
+			case 9: {
+				/*
+				 * Pass lambda instead of rich function
+				 * Functionality identical to test 2
+				 */
+
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds
+						.groupBy(4,0)
+						.reduce((in1, in2) -> {
+							Tuple5<Integer, Long, Integer, String, Long> out = new Tuple5<Integer, Long, Integer, String, Long>();
+							out.setFields(in1.f0, in1.f1+in2.f1, 0, "P-)", in1.f4);
+							return out;});
+
+				reduceDs.writeAsCsv(resultPath);
+				env.execute();
+
+				// return expected result
+				return "1,1,0,Hallo,1\n" +
+						"2,3,2,Hallo Welt wie,1\n" +
+						"2,2,1,Hallo Welt,2\n" +
+						"3,9,0,P-),2\n" +
+						"3,6,5,BCD,3\n" +
+						"4,17,0,P-),1\n" +
+						"4,17,0,P-),2\n" +
+						"5,11,10,GHI,1\n" +
+						"5,29,0,P-),2\n" +
+						"5,25,0,P-),3\n";
+
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

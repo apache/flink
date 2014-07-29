@@ -21,7 +21,7 @@ package org.apache.flink.api.common.operators;
 
 import java.util.List;
 
-import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.util.Visitor;
 
@@ -33,7 +33,7 @@ import org.apache.flink.util.Visitor;
  * @param <OUT> Output type of the user function
  * @param <FT> Type of the user function
  */
-public abstract class DualInputOperator<IN1, IN2, OUT, FT extends RichFunction> extends AbstractUdfOperator<OUT, FT> {
+public abstract class DualInputOperator<IN1, IN2, OUT, FT extends Function> extends AbstractUdfOperator<OUT, FT> {
 	
 	/**
 	 * The operator producing the first input.

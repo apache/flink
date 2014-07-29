@@ -24,22 +24,10 @@ import java.util.Iterator;
 
 import org.apache.flink.util.Collector;
 
-
 /**
- *
- * @param <T> Incoming types
- * @param <O> Outgoing types
+ * Generic interface used for combiners.
  */
-public interface GroupReducible<T, O> extends Function, Serializable {
-	/**
-	 * 
-	 * The central function to be implemented for a reducer. The function receives per call one
-	 * key and all the values that belong to that key. Each key is guaranteed to be processed by exactly
-	 * one function call across all involved instances across all computing nodes.
-	 * 
-	 * @param records All records that belong to the given input key.
-	 * @param out The collector to hand results to.
-	 * @throws Exception
-	 */
-	void reduce(Iterator<T> values, Collector<O> out) throws Exception;
+public interface FlatCombinable<T> extends Function, Serializable {
+
+	void combine(Iterator<T> values, Collector<T> out) throws Exception;
 }
