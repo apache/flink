@@ -21,7 +21,10 @@ package org.apache.flink.streaming.api.invokable;
 
 import java.io.Serializable;
 
-public abstract class StreamComponentInvokable implements Serializable {
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.util.Collector;
+
+public abstract class StreamComponentInvokable<OUT extends Tuple> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -29,6 +32,11 @@ public abstract class StreamComponentInvokable implements Serializable {
 	private String componentName;
 	@SuppressWarnings("unused")
 	private int channelID;
+	protected Collector<OUT> collector;
+
+	public void setCollector(Collector<OUT> collector) {
+		this.collector = collector;
+	}
 
 	public void setAttributes(String componentName, int channelID) {
 		this.componentName = componentName;

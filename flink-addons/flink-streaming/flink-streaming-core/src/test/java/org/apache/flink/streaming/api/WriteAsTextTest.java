@@ -19,7 +19,7 @@
 
 package org.apache.flink.streaming.api;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -30,7 +30,9 @@ import java.util.List;
 
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.streaming.util.LogUtils;
 import org.apache.flink.util.Collector;
+import org.apache.log4j.Level;
 import org.junit.Test;
 
 public class WriteAsTextTest {
@@ -110,9 +112,11 @@ public class WriteAsTextTest {
 
 	@Test
 	public void test() throws Exception {
-
+		
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
+		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
+		
 		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> dataStream1 = env.addSource(new MySource1(), 1).writeAsText(
 				"test1.txt");
@@ -151,11 +155,11 @@ public class WriteAsTextTest {
 		readFile("test4.txt", result4);
 		readFile("test5.txt", result5);
 
-		assertTrue(expected1.equals(result1));
-		assertTrue(expected2.equals(result2));
-		assertTrue(expected3.equals(result3));
-		assertTrue(expected4.equals(result4));
-		assertTrue(expected5.equals(result5));
+		assertEquals(expected1,result1);
+		assertEquals(expected2,result2);
+		assertEquals(expected3,result3);
+		assertEquals(expected4,result4);
+		assertEquals(expected5,result5);
 
 		new File("test1.txt").delete();
 		new File("test2.txt").delete();

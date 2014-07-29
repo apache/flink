@@ -25,13 +25,14 @@ import org.apache.flink.runtime.iterative.concurrent.Broker;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 @SuppressWarnings("rawtypes")
-public class BlockingQueueBroker extends Broker<BlockingQueue<StreamRecord>>{
+public class BlockingQueueBroker extends Broker<BlockingQueue<StreamRecord>> {
 	/**
 	 * Singleton instance
 	 */
 	private static final BlockingQueueBroker INSTANCE = new BlockingQueueBroker();
 
-	private BlockingQueueBroker() {}
+	private BlockingQueueBroker() {
+	}
 
 	/**
 	 * retrieve singleton instance

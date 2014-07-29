@@ -29,7 +29,8 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.StringUtils;
 
-public class StreamIterationSink<IN extends Tuple> extends SingleInputAbstractStreamComponent<IN, IN> {
+public class StreamIterationSink<IN extends Tuple> extends
+		SingleInputAbstractStreamComponent<IN, IN> {
 
 	private static final Log LOG = LogFactory.getLog(StreamIterationSink.class);
 
@@ -51,13 +52,13 @@ public class StreamIterationSink<IN extends Tuple> extends SingleInputAbstractSt
 
 			iterationId = configuration.getIterationId();
 			dataChannel = BlockingQueueBroker.instance().get(iterationId);
-			
+
 		} catch (Exception e) {
 			throw new StreamComponentException(String.format(
 					"Cannot register inputs of StreamIterationSink %s", iterationId), e);
 		}
 	}
-	
+
 	@Override
 	public void invoke() throws Exception {
 		if (LOG.isDebugEnabled()) {
@@ -93,6 +94,5 @@ public class StreamIterationSink<IN extends Tuple> extends SingleInputAbstractSt
 
 	@Override
 	protected void setInvokable() {
-
 	}
 }

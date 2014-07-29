@@ -32,7 +32,8 @@ import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-public class StreamIterationSource<OUT extends Tuple> extends SingleInputAbstractStreamComponent<Tuple, OUT> {
+public class StreamIterationSource<OUT extends Tuple> extends
+		SingleInputAbstractStreamComponent<Tuple, OUT> {
 
 	private static final Log LOG = LogFactory.getLog(StreamIterationSource.class);
 
@@ -68,7 +69,7 @@ public class StreamIterationSource<OUT extends Tuple> extends SingleInputAbstrac
 		}
 
 	}
-	
+
 	@Override
 	public void invoke() throws Exception {
 		if (LOG.isDebugEnabled()) {
@@ -100,5 +101,4 @@ public class StreamIterationSource<OUT extends Tuple> extends SingleInputAbstrac
 	@Override
 	protected void setInvokable() {
 	}
-
 }

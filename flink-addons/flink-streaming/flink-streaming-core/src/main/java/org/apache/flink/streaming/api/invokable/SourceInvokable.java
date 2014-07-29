@@ -22,13 +22,23 @@ package org.apache.flink.streaming.api.invokable;
 import java.io.Serializable;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.util.Collector;
+import org.apache.flink.streaming.api.function.source.SourceFunction;
 
-public abstract class UserSourceInvokable<OUT extends Tuple> extends StreamComponentInvokable implements
+public class SourceInvokable<OUT extends Tuple> extends StreamComponentInvokable<OUT> implements
 		Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	public abstract void invoke(Collector<OUT> collector) throws Exception;
+	private SourceFunction<OUT> sourceFunction;
 
+	public SourceInvokable() {
+	}
+
+	public SourceInvokable(SourceFunction<OUT> sourceFunction) {
+		this.sourceFunction = sourceFunction;
+	}
+
+	public void invoke() throws Exception {
+		sourceFunction.invoke(collector);
+	}
 }
