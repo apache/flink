@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.netty;
 
 import io.netty.bootstrap.Bootstrap;
@@ -31,7 +30,6 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.runtime.io.network.ChannelManager;
@@ -70,12 +68,19 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 
 	private final int highWaterMark;
 
+	private final int closeAfterIdleForMs;
+
 	private ServerBootstrap in;
 
 	private Bootstrap out;
 
-	public NettyConnectionManager(InetAddress bindAddress, int bindPort, int bufferSize, int numInThreads,
-								int numOutThreads, int lowWaterMark, int highWaterMark) {
+	public NettyConnectionManager(
+			InetAddress bindAddress,
+			int bindPort,
+			int bufferSize,
+			int numInThreads,
+			int numOutThreads,
+			int closeAfterIdleForMs) {
 
 		this.bindAddress = bindAddress;
 		this.bindPort = bindPort;
@@ -87,14 +92,19 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 		this.numInThreads = (numInThreads == -1) ? defaultNumThreads : numInThreads;
 		this.numOutThreads = (numOutThreads == -1) ? defaultNumThreads : numOutThreads;
 
-		this.lowWaterMark = (lowWaterMark == -1) ? bufferSize / 2 : lowWaterMark;
-		this.highWaterMark = (highWaterMark == -1) ? bufferSize : highWaterMark;
+		this.lowWaterMark = bufferSize / 2;
+		this.highWaterMark = bufferSize;
+
+		this.closeAfterIdleForMs = closeAfterIdleForMs;
 	}
 
 	@Override
 	public void start(ChannelManager channelManager) throws IOException {
-		LOG.info(String.format("Starting with %d incoming and %d outgoing connection threads.", numInThreads, numOutThreads));
-		LOG.info(String.format("Setting low water mark to %d and high water mark to %d bytes.", lowWaterMark, highWaterMark));
+		LOG.info(String.format("Starting with %d incoming and %d outgoing connection threads.",
+				numInThreads, numOutThreads));
+		LOG.info(String.format("Setting low water mark to %d and high water mark to %d bytes.",
+				lowWaterMark, highWaterMark));
+		LOG.info(String.format("Close channels after idle for %d ms.", closeAfterIdleForMs));
 
 		final BufferProviderBroker bufferProviderBroker = channelManager;
 		final EnvelopeDispatcher envelopeDispatcher = channelManager;
@@ -102,16 +112,16 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 		int numHeapArenas = 0;
 		int numDirectArenas = numInThreads + numOutThreads;
 		int pageSize = bufferSize << 1;
-		int chunkSize = 16 * 1 << 20; // 16 MB
+		int chunkSize = 16 << 20; // 16 MB
 
 		// shift pageSize maxOrder times to get to chunkSize
-		int maxOrder = (int) (Math.log(chunkSize/pageSize) / Math.log(2));
+		int maxOrder = (int) (Math.log(chunkSize / pageSize) / Math.log(2));
 
 		PooledByteBufAllocator pooledByteBufAllocator =
 				new PooledByteBufAllocator(true, numHeapArenas, numDirectArenas, pageSize, maxOrder);
 
 		String msg = String.format("Instantiated PooledByteBufAllocator with direct arenas: %d, heap arenas: %d, " +
-				"page size (bytes): %d, chunk size (bytes): %d.",
+						"page size (bytes): %d, chunk size (bytes): %d.",
 				numDirectArenas, numHeapArenas, pageSize, (pageSize << maxOrder));
 		LOG.info(msg);
 
@@ -188,7 +198,7 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 		// 2) a channel that is in buildup (sometimes) -> attach to the future and wait for the actual channel
 		// 3) not yet existing -> establish the channel
 
-		final Object entry = this.outConnections.get(receiver);
+		final Object entry = outConnections.get(receiver);
 		final OutboundConnectionQueue channel;
 
 		if (entry != null) {
@@ -206,14 +216,14 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 			// We create a "buildup future" and atomically add it to the map.
 			// Only the thread that really added it establishes the channel.
 			// The others need to wait on that original establisher's future.
-			ChannelInBuildup inBuildup = new ChannelInBuildup(this.out, receiver);
-			Object old = this.outConnections.putIfAbsent(receiver, inBuildup);
+			ChannelInBuildup inBuildup = new ChannelInBuildup(out, receiver, this, closeAfterIdleForMs);
+			Object old = outConnections.putIfAbsent(receiver, inBuildup);
 
 			if (old == null) {
-				this.out.connect(receiver.getConnectionAddress()).addListener(inBuildup);
+				out.connect(receiver.getConnectionAddress()).addListener(inBuildup);
 				channel = inBuildup.waitForChannel();
 
-				Object previous = this.outConnections.put(receiver, channel);
+				Object previous = outConnections.put(receiver, channel);
 
 				if (inBuildup != previous) {
 					throw new IOException("Race condition during channel build up.");
@@ -227,7 +237,19 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 			}
 		}
 
-		channel.enqueue(envelope);
+		if (!channel.enqueue(envelope)) {
+			// The channel has been closed, try again.
+			LOG.debug("Retry enqueue on channel: " + channel + ".");
+
+			// This will either establish a new connection or use the
+			// one, which has been established in the mean time.
+			enqueue(envelope, receiver);
+		}
+	}
+
+	@Override
+	public void close(RemoteReceiver receiver) {
+		outConnections.remove(receiver);
 	}
 
 	@Override
@@ -256,9 +278,9 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 	private String getNonZeroNumQueuedEnvelopes() {
 		StringBuilder str = new StringBuilder();
 
-		str.append(String.format("==== %d outgoing connections ===\n", this.outConnections.size()));
+		str.append(String.format("==== %d outgoing connections ===\n", outConnections.size()));
 
-		for (Map.Entry<RemoteReceiver, Object> entry : this.outConnections.entrySet()) {
+		for (Map.Entry<RemoteReceiver, Object> entry : outConnections.entrySet()) {
 			RemoteReceiver receiver = entry.getKey();
 
 			Object value = entry.getValue();
@@ -294,41 +316,52 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 
 		private final RemoteReceiver receiver;
 
-		private ChannelInBuildup(Bootstrap out, RemoteReceiver receiver) {
+		private final NetworkConnectionManager connectionManager;
+
+		private final int closeAfterIdleMs;
+
+		private ChannelInBuildup(
+				Bootstrap out,
+				RemoteReceiver receiver,
+				NetworkConnectionManager connectionManager,
+				int closeAfterIdleMs) {
+
 			this.out = out;
 			this.receiver = receiver;
+			this.connectionManager = connectionManager;
+			this.closeAfterIdleMs = closeAfterIdleMs;
 		}
 
 		private void handInChannel(OutboundConnectionQueue c) {
-			synchronized (this.lock) {
-				this.channel = c;
-				this.lock.notifyAll();
+			synchronized (lock) {
+				channel = c;
+				lock.notifyAll();
 			}
 		}
 
-		private void notifyOfError(Throwable error) {
-			synchronized (this.lock) {
-				this.error = error;
-				this.lock.notifyAll();
+		private void notifyOfError(Throwable t) {
+			synchronized (lock) {
+				error = t;
+				lock.notifyAll();
 			}
 		}
 
 		private OutboundConnectionQueue waitForChannel() throws IOException {
-			synchronized (this.lock) {
-				while (this.error == null && this.channel == null) {
+			synchronized (lock) {
+				while (error == null && channel == null) {
 					try {
-						this.lock.wait(2000);
+						lock.wait(2000);
 					} catch (InterruptedException e) {
 						throw new RuntimeException("Channel buildup interrupted.");
 					}
 				}
 			}
 
-			if (this.error != null) {
+			if (error != null) {
 				throw new IOException("Connecting the channel failed: " + error.getMessage(), error);
 			}
 
-			return this.channel;
+			return channel;
 		}
 
 		@Override
@@ -338,13 +371,14 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 					LOG.debug(String.format("Channel %s connected", future.channel()));
 				}
 
-				handInChannel(new OutboundConnectionQueue(future.channel()));
+				handInChannel(new OutboundConnectionQueue(
+						future.channel(), receiver, connectionManager, closeAfterIdleMs));
 			}
-			else if (this.numRetries > 0) {
-				LOG.debug(String.format("Connection request did not succeed, retrying (%d attempts left)", this.numRetries));
+			else if (numRetries > 0) {
+				LOG.debug(String.format("Connection request did not succeed, retrying (%d attempts left)", numRetries));
 
-				this.out.connect(this.receiver.getConnectionAddress()).addListener(this);
-				this.numRetries--;
+				out.connect(receiver.getConnectionAddress()).addListener(this);
+				numRetries--;
 			}
 			else {
 				if (future.getClass() != null) {
