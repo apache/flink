@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util;
 
 /**
  * This is a utility class to deal with temporary files.
- * 
  */
 public final class FileUtils {
 
