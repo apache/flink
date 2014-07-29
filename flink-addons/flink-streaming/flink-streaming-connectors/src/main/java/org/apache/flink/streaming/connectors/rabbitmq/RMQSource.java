@@ -21,31 +21,24 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.ConsumerCancelledException;
+import com.rabbitmq.client.QueueingConsumer;
+import com.rabbitmq.client.ShutdownSignalException;
+
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.QueueingConsumer;
-
-/**
- * Source for reading messages from a RabbitMQ queue. The source currently only
- * support string messages. Other types will be added soon.
- * 
- */
-
 public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
-	private static final Log LOG = LogFactory.getLog(RMQSource.class);
-
 	private static final long serialVersionUID = 1L;
 
 	private final String QUEUE_NAME;
 	private final String HOST_NAME;
-	private boolean close = false;
+	private boolean closeWithoutSend = false;
+	private boolean sendAndClose = false;
 
 	private transient ConnectionFactory factory;
 	private transient Connection connection;
@@ -70,8 +63,6 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 			consumer = new QueueingConsumer(channel);
 			channel.basicConsume(QUEUE_NAME, true, consumer);
 		} catch (IOException e) {
-			new RuntimeException("Cannot create RMQ connection with " + QUEUE_NAME + " at "
-					+ HOST_NAME, e);
 		}
 	}
 
@@ -79,19 +70,28 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 	public void invoke(Collector<IN> collector) throws Exception {
 		initializeConnection();
 
-		while (!close) {
+		while (true) {
 
 			try {
 				delivery = consumer.nextDelivery();
-			} catch (Exception e) {
-				if (LOG.isErrorEnabled()) {
-					LOG.error("Cannot receive RMQ message " + QUEUE_NAME + " at " + HOST_NAME);
-				}
+			} catch (ShutdownSignalException e) {
+				e.printStackTrace();
+				break;
+			} catch (ConsumerCancelledException e) {
+				e.printStackTrace();
+				break;
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
 
 			outTuple = deserialize(delivery.getBody());
-			if (!close){
+			if (closeWithoutSend) {
+				break;
+			} else {
 				collector.collect(outTuple);
+			}
+			if (sendAndClose) {
+				break;
 			}
 		}
 
@@ -105,8 +105,12 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 
 	public abstract IN deserialize(byte[] t);
 
-	public void close() {
-		close = true;
+	public void closeWithoutSend() {
+		closeWithoutSend = true;
+	}
+
+	public void sendAndClose() {
+		sendAndClose = true;
 	}
 
 }

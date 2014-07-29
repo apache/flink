@@ -35,7 +35,8 @@ public abstract class KafkaSink<IN extends Tuple, OUT> extends SinkFunction<IN> 
 	static Properties props;
 	private String topicId;
 	private String brokerAddr;
-	private boolean close = false;
+	private boolean sendAndClose = false;
+	private boolean closeWithoutSend = false;
 	private boolean initDone = false;
 
 	public KafkaSink(String topicId, String brokerAddr) {
@@ -63,18 +64,27 @@ public abstract class KafkaSink<IN extends Tuple, OUT> extends SinkFunction<IN> 
 		}
 
 		OUT out = serialize(tuple);
-		KeyedMessage<Integer, OUT> data = new KeyedMessage<Integer, OUT>(topicId, out);
-		producer.send(data);
-		if (close) {
-			producer.close();
+		KeyedMessage<Integer, OUT> data = new KeyedMessage<Integer, OUT>(
+				topicId, out);
+
+		if (!closeWithoutSend) {
+			producer.send(data);
 		}
 
+		if (sendAndClose) {
+			producer.close();
+		}
 	}
 
 	public abstract OUT serialize(IN tuple);
 
-	public void close() {
-		close = true;
+	public void closeWithoutSend() {
+		producer.close();
+		closeWithoutSend = true;
+	}
+
+	public void sendAndClose() {
+		sendAndClose = true;
 	}
 
 }

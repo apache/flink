@@ -21,47 +21,39 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
-
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 
-/**
- * Source for sending messages to a RabbitMQ queue. The source currently only
- * support string messages. Other types will be added soon.
- * 
- */
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
+
 public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
-	private static final Log LOG = LogFactory.getLog(RMQSink.class);
-
 	private static final long serialVersionUID = 1L;
-	private boolean close = false;
+	private boolean sendAndClose = false;
+	private boolean closeWithoutSend = false;
 
-	private String queueName;
-	private String hostName;
+	private String QUEUE_NAME;
+	private String HOST_NAME;
 	private transient ConnectionFactory factory;
 	private transient Connection connection;
 	private transient Channel channel;
 	private boolean initDone = false;
 
-	public RMQSink(String hostName, String queueName) {
-		this.hostName = hostName;
-		this.queueName = queueName;
+	public RMQSink(String HOST_NAME, String QUEUE_NAME) {
+		this.HOST_NAME = HOST_NAME;
+		this.QUEUE_NAME = QUEUE_NAME;
 	}
 
 	public void initializeConnection() {
 		factory = new ConnectionFactory();
-		factory.setHost(hostName);
+		factory.setHost(HOST_NAME);
 		try {
 			connection = factory.newConnection();
 			channel = connection.createChannel();
+
 		} catch (IOException e) {
-			new RuntimeException("Cannot create RMQ connection with " + queueName + " at "
-					+ hostName, e);
+			e.printStackTrace();
 		}
 
 		initDone = true;
@@ -74,31 +66,39 @@ public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 		}
 
 		try {
-			channel.queueDeclare(queueName, false, false, false, null);
+			channel.queueDeclare(QUEUE_NAME, false, false, false, null);
 			byte[] msg = serialize(tuple);
-			channel.basicPublish("", queueName, null, msg);
-		} catch (IOException e) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Cannot send RMQ message to " + queueName + " at " + hostName);
+			if (!closeWithoutSend) {
+				channel.basicPublish("", QUEUE_NAME, null, msg);
 			}
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 
-		if (close) {
-			try {
-				channel.close();
-				connection.close();
-			} catch (IOException e) {
-				if (LOG.isWarnEnabled()) {
-					LOG.warn("Cannot close RMQ connection: " + queueName + " at " + hostName);
-				}
-			}
+		if (sendAndClose) {
+			closeChannel();
 		}
 	}
 
 	public abstract byte[] serialize(Tuple t);
 
-	public void close() {
-		close = true;
+	private void closeChannel() {
+		try {
+			channel.close();
+			connection.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	public void closeWithoutSend() {
+		closeChannel();
+		closeWithoutSend = true;
+	}
+
+	public void sendAndClose() {
+		sendAndClose = true;
 	}
 
 }
