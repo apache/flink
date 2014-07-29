@@ -49,13 +49,19 @@ under the License.
 		</dependency>
 
 
-	        <dependency>
+	    <dependency>
 			<groupId>com.rabbitmq</groupId>
 			<artifactId>amqp-client</artifactId>
 			<version>3.3.1</version>
 		</dependency>
 
-	</dependencies>
+	    <dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>hbc-core</artifactId>
+			<version>2.2.0</version>
+		</dependency>
+
+    </dependencies>
 
 	<build>
 		<plugins>
