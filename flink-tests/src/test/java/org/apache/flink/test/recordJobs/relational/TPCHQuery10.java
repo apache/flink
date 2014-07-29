@@ -16,13 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.relational;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
-import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
@@ -200,17 +198,16 @@ public class TPCHQuery10 implements Program, ProgramDescription {
 	}
 	
 	@ReduceOperator.Combinable
-	public static class Sum extends ReduceFunction
-	{
+	public static class Sum extends ReduceFunction {
+		
 		private final DoubleValue d = new DoubleValue();
 		
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception
-		{
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
 			Record record = null;
 			double sum = 0;
-			while (records.hasNext()) {
-				record = records.next();
+			for (Record next : records) {
+				record = next;
 				sum += record.getField(2, DoubleValue.class).getValue();
 			}
 		
@@ -220,7 +217,7 @@ public class TPCHQuery10 implements Program, ProgramDescription {
 		}
 		
 		@Override
-		public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
+		public void combine(Iterable<Record> records, Collector<Record> out) {
 			reduce(records,out);
 		}
 	}

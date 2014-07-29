@@ -16,17 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.sort;
 
 import java.io.IOException;
-import java.util.Iterator;
+import java.util.Collections;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.operators.util.CoGroupTaskIterator;
-import org.apache.flink.runtime.util.EmptyIterator;
 import org.apache.flink.runtime.util.KeyGroupedIterator;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -41,9 +39,9 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 	
 	private MatchStatus matchStatus;
 	
-	private Iterator<T1> firstReturn;
+	private Iterable<T1> firstReturn;
 	
-	private Iterator<T2> secondReturn;
+	private Iterable<T2> secondReturn;
 	
 	private TypePairComparator<T1, T2> comp;
 	
@@ -73,13 +71,13 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 
 
 	@Override
-	public Iterator<T1> getValues1() {
+	public Iterable<T1> getValues1() {
 		return this.firstReturn;
 	}
 
 
 	@Override
-	public Iterator<T2> getValues2() {
+	public Iterable<T2> getValues2() {
 		return this.secondReturn;
 	}
 
@@ -117,7 +115,7 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 		}
 		else if (firstEmpty && !secondEmpty) {
 			// input1 is empty, input2 not
-			this.firstReturn = EmptyIterator.get();
+			this.firstReturn = Collections.emptySet();
 			this.secondReturn = this.iterator2.getValues();
 			this.matchStatus = MatchStatus.FIRST_EMPTY;
 			return true;
@@ -125,7 +123,7 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 		else if (!firstEmpty && secondEmpty) {
 			// input1 is not empty, input 2 is empty
 			this.firstReturn = this.iterator1.getValues();
-			this.secondReturn = EmptyIterator.get();
+			this.secondReturn = Collections.emptySet();
 			this.matchStatus = MatchStatus.SECOND_EMPTY;
 			return true;
 		}
@@ -142,12 +140,12 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 			else if (0 < comp) {
 				// key1 goes first
 				this.firstReturn = this.iterator1.getValues();
-				this.secondReturn = EmptyIterator.get();
+				this.secondReturn = Collections.emptySet();
 				this.matchStatus = MatchStatus.SECOND_REMAINED;
 			}
 			else {
 				// key 2 goes first
-				this.firstReturn = EmptyIterator.get();
+				this.firstReturn = Collections.emptySet();
 				this.secondReturn = this.iterator2.getValues();
 				this.matchStatus = MatchStatus.FIRST_REMAINED;
 			}

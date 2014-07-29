@@ -19,8 +19,6 @@
 
 package org.apache.flink.api.java.record.functions;
 
-import java.util.Iterator;
-
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.common.functions.GenericCoGrouper;
 import org.apache.flink.types.Record;
@@ -47,6 +45,6 @@ public abstract class CoGroupFunction extends AbstractFunction implements Generi
 	 *                   decide whether to retry the task execution.
 	 */
 	@Override
-	public abstract void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) throws Exception;
+	public abstract void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) throws Exception;
 	
 }

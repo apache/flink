@@ -16,11 +16,8 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.ReduceFunction;
 import org.apache.flink.api.java.record.io.DelimitedInputFormat;
@@ -48,13 +45,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedList;
 
 @RunWith(Parameterized.class)
 public class ReduceITCase extends RecordAPITestBase {
-	
-	private static final Log LOG = LogFactory.getLog(ReduceITCase.class);
 
 	String inPath = null;
 	String resultPath = null;
@@ -83,17 +77,14 @@ public class ReduceITCase extends RecordAPITestBase {
 		private StringValue combineValue = new StringValue();
 
 		@Override
-		public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
-		
+		public void combine(Iterable<Record> records, Collector<Record> out) {
+			Record record = null;
 			int sum = 0;
-			Record record = new Record();
-			while (records.hasNext()) {
-				record = records.next();
+			
+			for (Record next : records) {
+				record = next;
 				combineValue = record.getField(1, combineValue);
 				sum += Integer.parseInt(combineValue.toString());
-
-				LOG.debug("Processed: [" + record.getField(0, StringValue.class).toString() +
-						"," + combineValue.toString() + "]");
 			}
 			combineValue.setValue(sum + "");
 			record.setField(1, combineValue);
@@ -101,17 +92,14 @@ public class ReduceITCase extends RecordAPITestBase {
 		}
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
-		
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
+			Record record = null;
 			int sum = 0;
-			Record record = new Record();
-			while (records.hasNext()) {
-				record = records.next();
+			
+			for (Record next : records) {
+				record = next;
 				reduceValue = record.getField(1, reduceValue);
 				sum += Integer.parseInt(reduceValue.toString());
-
-				LOG.debug("Processed: [" + record.getField(0, StringValue.class).toString() +
-						"," + reduceValue.toString() + "]");
 			}
 			record.setField(1, new IntValue(sum));
 			out.collect(record);

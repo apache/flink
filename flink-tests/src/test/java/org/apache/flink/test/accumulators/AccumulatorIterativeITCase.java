@@ -21,7 +21,6 @@ package org.apache.flink.test.accumulators;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.IntCounter;
@@ -124,11 +123,12 @@ public class AccumulatorIterativeITCase extends RecordAPITestBase {
 		}
 		
 		@Override
-		public void reduce(Iterator<Record> it, Collector<Record> out) {
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
 			// Compute the sum
 			int sum = 0;
-			while (it.hasNext()) {
-				Integer value = Integer.parseInt(it.next().getField(0, StringValue.class).getValue());
+			
+			for (Record r : records) {
+				Integer value = Integer.parseInt(r.getField(0, StringValue.class).getValue());
 				sum += value;
 				testCounter.add(value);
 			}

@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.scala.functions
 
-import java.util.{Iterator => JIterator}
+import java.lang.{Iterable => JIterable}
 
 import org.apache.flink.api.scala.analysis.{UDTSerializer, UDT}
 import org.apache.flink.api.scala.analysis.UDF2
@@ -53,9 +53,9 @@ abstract class CoGroupFunctionBase[LeftIn: UDT, RightIn: UDT, Out: UDT] extends 
 }
 
 abstract class CoGroupFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends CoGroupFunctionBase[LeftIn, RightIn, Out] with Function2[Iterator[LeftIn], Iterator[RightIn], Out] {
-  override def coGroup(leftRecords: JIterator[Record], rightRecords: JIterator[Record], out: Collector[Record]) = {
-    val firstLeftRecord = leftIterator.initialize(leftRecords)
-    val firstRightRecord = rightIterator.initialize(rightRecords)
+  override def coGroup(leftRecords: JIterable[Record], rightRecords: JIterable[Record], out: Collector[Record]) = {
+    val firstLeftRecord = leftIterator.initialize(leftRecords.iterator())
+    val firstRightRecord = rightIterator.initialize(rightRecords.iterator())
 
     if (firstRightRecord != null) {
       outputRecord.copyFrom(firstRightRecord, rightForwardFrom, rightForwardTo)
@@ -72,11 +72,11 @@ abstract class CoGroupFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends CoGr
 }
 
 abstract class FlatCoGroupFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends CoGroupFunctionBase[LeftIn, RightIn, Out] with Function2[Iterator[LeftIn], Iterator[RightIn], Iterator[Out]] {
-  override def coGroup(leftRecords: JIterator[Record], rightRecords: JIterator[Record], out: Collector[Record]) = {
-    val firstLeftRecord = leftIterator.initialize(leftRecords)
+  override def coGroup(leftRecords: JIterable[Record], rightRecords: JIterable[Record], out: Collector[Record]) = {
+    val firstLeftRecord = leftIterator.initialize(leftRecords.iterator())
     outputRecord.copyFrom(firstLeftRecord, leftForwardFrom, leftForwardTo)
 
-    val firstRightRecord = rightIterator.initialize(rightRecords)
+    val firstRightRecord = rightIterator.initialize(rightRecords.iterator())
     outputRecord.copyFrom(firstRightRecord, rightForwardFrom, rightForwardTo)
 
     val output = apply(leftIterator, rightIterator)

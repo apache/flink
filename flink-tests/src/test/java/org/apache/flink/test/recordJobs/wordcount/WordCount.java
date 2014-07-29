@@ -16,10 +16,8 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.wordcount;
 
-import java.util.Iterator;
 import java.util.StringTokenizer;
 
 import org.apache.flink.api.common.JobExecutionResult;
@@ -89,11 +87,11 @@ public class WordCount implements Program, ProgramDescription {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
+		public void reduce(Iterable<Record> records, Collector<Record> out) throws Exception {
 			Record element = null;
 			int sum = 0;
-			while (records.hasNext()) {
-				element = records.next();
+			for (Record next : records) {
+				element = next;
 				int cnt = element.getField(1, IntValue.class).getValue();
 				sum += cnt;
 			}
@@ -103,7 +101,7 @@ public class WordCount implements Program, ProgramDescription {
 		}
 		
 		@Override
-		public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
+		public void combine(Iterable<Record> records, Collector<Record> out) throws Exception {
 			// the logic is the same as in the reduce function, so simply call the reduce method
 			reduce(records, out);
 		}

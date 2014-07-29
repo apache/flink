@@ -26,7 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
  * An iterator that reads 2-tuples (key value pairs) and returns only the values (second field).
  * The iterator also tracks the keys, as the pairs flow though it.
  */
-public class TupleUnwrappingIterator<T, K> implements Iterator<T>, java.io.Serializable {
+public class TupleUnwrappingIterator<T, K> implements Iterator<T>, Iterable<T>, java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -56,5 +56,10 @@ public class TupleUnwrappingIterator<T, K> implements Iterator<T>, java.io.Seria
 	@Override
 	public void remove() {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Iterator<T> iterator() {
+		return this;
 	}
 }

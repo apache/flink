@@ -32,7 +32,7 @@ import org.apache.flink.util.MutableObjectIterator;
  * whenever hasNext() returns (possibly with false), the previous obtained record is 
  * still valid and cannot have been overwritten internally.
  */
-public class MutableToRegularIteratorWrapper<T> implements Iterator<T> {
+public class MutableToRegularIteratorWrapper<T> implements Iterator<T>, Iterable<T> {
 	
 	private final MutableObjectIterator<T> source;
 	
@@ -84,5 +84,10 @@ public class MutableToRegularIteratorWrapper<T> implements Iterator<T> {
 	@Override
 	public void remove() {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Iterator<T> iterator() {
+		return this;
 	}
 }

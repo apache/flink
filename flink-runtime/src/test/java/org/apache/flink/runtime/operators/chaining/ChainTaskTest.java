@@ -20,7 +20,6 @@
 package org.apache.flink.runtime.operators.chaining;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.GenericCollectorMap;
@@ -196,12 +195,12 @@ public class ChainTaskTest extends TaskTestBase {
 		private int cnt = 0;
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
+		public void reduce(Iterable<Record> records, Collector<Record> out) throws Exception {
 			if (++this.cnt >= 5) {
 				throw new RuntimeException("Expected Test Exception");
 			}
-			while(records.hasNext()) {
-				out.collect(records.next());
+			for (Record rec : records) {
+				out.collect(rec);
 			}
 		}
 	}

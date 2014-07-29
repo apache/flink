@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.relational;
 
 import java.text.ParseException;
@@ -24,7 +23,6 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
@@ -180,17 +178,16 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 	public static class CountAgg extends ReduceFunction {
 		
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {	
+		public void reduce(Iterable<Record> records, Collector<Record> out) throws Exception {	
 			long count = 0;
 			Record rec = null;
 			
-			while(records.hasNext()) {
-			 	rec = records.next();
-			 	count++;
+			for (Record next : records) {
+				rec = next;
+				count++;
 			}
 			
-			if(rec != null)
-			{
+			if(rec != null) {
 				Tuple tuple = new Tuple();
 				tuple.addAttribute("" + count);
 				rec.setField(1, tuple);

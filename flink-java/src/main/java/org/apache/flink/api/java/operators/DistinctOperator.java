@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.java.operators;
 
-import java.util.Iterator;
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GenericGroupReduce;
 import org.apache.flink.api.common.functions.GenericMap;
@@ -143,9 +141,8 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterator<T> values, Collector<T> out)
-				throws Exception {
-			out.collect(values.next());
+		public void reduce(Iterable<T> values, Collector<T> out) {
+			out.collect(values.iterator().next());
 		}
 	}
 }

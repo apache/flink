@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.graph.pageRankUtil;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 import org.apache.flink.api.java.record.functions.CoGroupFunction;
 import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst;
@@ -91,20 +89,20 @@ public class DotProductCoGroup extends CoGroupFunction implements Serializable {
 	}
 
 	@Override
-	public void coGroup(Iterator<Record> currentPageRankIterator, Iterator<Record> partialRanks,
+	public void coGroup(Iterable<Record> currentPageRankIterator, Iterable<Record> partialRanks,
 			Collector<Record> collector)
 	{
-		if (!currentPageRankIterator.hasNext()) {
-			long missingVertex = partialRanks.next().getField(0, LongValue.class).getValue();
+		if (!currentPageRankIterator.iterator().hasNext()) {
+			long missingVertex = partialRanks.iterator().next().getField(0, LongValue.class).getValue();
 			throw new IllegalStateException("No current page rank for vertex [" + missingVertex + "]!");
 		}
 
-		Record currentPageRank = currentPageRankIterator.next();
+		Record currentPageRank = currentPageRankIterator.iterator().next();
 
 		long edges = 0;
 		double summedRank = 0;
-		while (partialRanks.hasNext()) {
-			summedRank += partialRanks.next().getField(1, doubleInstance).getValue();
+		for (Record r : partialRanks) {
+			summedRank += r.getField(1, doubleInstance).getValue();
 			edges++;
 		}
 

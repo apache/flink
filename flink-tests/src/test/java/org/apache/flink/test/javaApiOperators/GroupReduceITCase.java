@@ -21,7 +21,6 @@ package org.apache.flink.test.javaApiOperators;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedList;
 
 import org.apache.flink.api.common.operators.Order;
@@ -417,16 +416,13 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 	public static class Tuple3GroupReduce extends GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, Long>> {
 		private static final long serialVersionUID = 1L;
 
-
 		@Override
-		public void reduce(Iterator<Tuple3<Integer, Long, String>> values,
-				Collector<Tuple2<Integer, Long>> out) throws Exception {
+		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple2<Integer, Long>> out) {
 			
 			int i = 0;
 			long l = 0l;
 			
-			while(values.hasNext()) {
-				Tuple3<Integer, Long, String> t = values.next();
+			for (Tuple3<Integer, Long, String> t : values) {
 				i += t.f0;
 				l = t.f1;
 			}
@@ -441,24 +437,21 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 
 
 		@Override
-		public void reduce(Iterator<Tuple3<Integer, Long, String>> values,
-				Collector<Tuple3<Integer, Long, String>> out) throws Exception {
+		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
 			
-			Tuple3<Integer, Long, String> t = values.next();
+			Tuple3<Integer, Long, String> t = values.iterator().next();
 			
 			int sum = t.f0;
 			long key = t.f1;
 			String concat = t.f2;
 			
-			while(values.hasNext()) {
-				t = values.next();
+			for (Tuple3<Integer, Long, String> next : values) {
 				
-				sum += t.f0;
-				concat += "-"+t.f2;
+				sum += next.f0;
+				concat += "-" + next.f2;
 			}
 			
 			out.collect(new Tuple3<Integer, Long, String>(sum, key, concat));
-			
 		}
 	}
 	
@@ -467,16 +460,14 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 
 		@Override
 		public void reduce(
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> values,
+				Iterable<Tuple5<Integer, Long, Integer, String, Long>> values,
 				Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
-				throws Exception {
-			
+		{
 			int i = 0;
 			long l = 0l;
 			long l2 = 0l;
 			
-			while(values.hasNext()) {
-				Tuple5<Integer, Long, Integer, String, Long> t = values.next();
+			for ( Tuple5<Integer, Long, Integer, String, Long> t : values ) {
 				i = t.f0;
 				l += t.f1;
 				l2 = t.f4;
@@ -491,19 +482,17 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		
 
 		@Override
-		public void reduce(Iterator<CustomType> values,
-				Collector<CustomType> out) throws Exception {
+		public void reduce(Iterable<CustomType> values, Collector<CustomType> out) {
 			
 			CustomType o = new CustomType();
-			CustomType c = values.next();
+			CustomType c = values.iterator().next();
 			
 			o.myString = "Hello!";
 			o.myInt = c.myInt;
 			o.myLong = c.myLong;
 			
-			while(values.hasNext()) {
-				c = values.next();
-				o.myLong += c.myLong;
+			for ( CustomType next : values) {
+				o.myLong += next.myLong;
 
 			}
 			
@@ -516,11 +505,9 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterator<Tuple3<Integer, Long, String>> values,
-				Collector<Tuple3<Integer, Long, String>> out) throws Exception {
+		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
 
-			while(values.hasNext()) {
-				Tuple3<Integer, Long, String> t = values.next();
+			for ( Tuple3<Integer, Long, String> t : values ) {
 				
 				if(t.f0 < 4) {
 					t.f2 = "Hi!";
@@ -538,14 +525,12 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void reduce(Iterator<Tuple3<Integer, Long, String>> values,
-				Collector<Tuple3<Integer, Long, String>> out) throws Exception {
+		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
 
 			int i = 0;
 			long l = 0l;
 			
-			while(values.hasNext()) {
-				Tuple3<Integer, Long, String> t = values.next();
+			for ( Tuple3<Integer, Long, String> t : values ) {
 				i += t.f0;
 				l += t.f1;
 			}
@@ -558,21 +543,19 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void reduce(Iterator<CustomType> values,
-				Collector<CustomType> out) throws Exception {
+		public void reduce(Iterable<CustomType> values, Collector<CustomType> out) {
 
 			CustomType o = new CustomType();
-			CustomType c = values.next();
+			CustomType c = values.iterator().next();
 			
 			o.myString = "Hello!";
 			o.myInt = c.myInt;
 			o.myLong = c.myLong;
 			
 			
-			while(values.hasNext()) {
-				c = values.next();
-				o.myInt += c.myInt;
-				o.myLong += c.myLong;
+			for (CustomType next : values) {
+				o.myInt += next.myInt;
+				o.myLong += next.myLong;
 			}
 			
 			out.collect(o);
@@ -596,14 +579,12 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 
 		@Override
-		public void reduce(Iterator<Tuple3<Integer, Long, String>> values,
-				Collector<Tuple3<Integer, Long, String>> out) throws Exception {
+		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
 				
 			int i = 0;
 			long l = 0l;
 			
-			while(values.hasNext()) {
-				Tuple3<Integer, Long, String> t = values.next();
+			for ( Tuple3<Integer, Long, String> t : values ) {
 				i += t.f0;
 				l = t.f1;
 			}
@@ -618,12 +599,11 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void combine(Iterator<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) throws Exception {
+		public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
 
 			Tuple3<Integer, Long, String> o = new Tuple3<Integer, Long, String>(0, 0l, "");
 
-			while(values.hasNext()) {
-				Tuple3<Integer, Long, String> t = values.next();
+			for ( Tuple3<Integer, Long, String> t : values ) {
 				o.f0 += t.f0;
 				o.f1 = t.f1;
 				o.f2 = "test"+o.f1;
@@ -633,14 +613,12 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 
 		@Override
-		public void reduce(Iterator<Tuple3<Integer, Long, String>> values,
-				Collector<Tuple2<Integer, String>> out) throws Exception {
+		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple2<Integer, String>> out) {
 
 			int i = 0;
 			String s = "";
 
-			while(values.hasNext()) {
-				Tuple3<Integer, Long, String> t = values.next();
+			for ( Tuple3<Integer, Long, String> t : values ) {
 				i += t.f0;
 				s = t.f2;
 			}
@@ -655,12 +633,11 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void combine(Iterator<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
+		public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
 			
 			Tuple3<Integer, Long, String> o = new Tuple3<Integer, Long, String>(0, 0l, "");
 			
-			while(values.hasNext()) {
-				Tuple3<Integer, Long, String> t = values.next();
+			for ( Tuple3<Integer, Long, String> t : values ) {
 				o.f0 += t.f0;
 				o.f1 += t.f1;
 				o.f2 += "test";
@@ -670,13 +647,12 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 
 		@Override
-		public void reduce(Iterator<Tuple3<Integer, Long, String>> values, Collector<Tuple2<Integer, String>> out) {
+		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple2<Integer, String>> out) {
 			
 			int i = 0;
 			String s = "";
 			
-			while(values.hasNext()) {
-				Tuple3<Integer, Long, String> t = values.next();
+			for ( Tuple3<Integer, Long, String> t : values ) {
 				i += t.f0 + t.f1;
 				s += t.f2;
 			}
@@ -691,12 +667,11 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void combine(Iterator<CustomType> values, Collector<CustomType> out) throws Exception {
+		public void combine(Iterable<CustomType> values, Collector<CustomType> out) throws Exception {
 			
 			CustomType o = new CustomType();
 			
-			while(values.hasNext()) {
-				CustomType c = values.next();
+			for ( CustomType c : values ) {
 				o.myInt = c.myInt;
 				o.myLong += c.myLong;
 				o.myString = "test"+c.myInt;
@@ -706,13 +681,11 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 
 		@Override
-		public void reduce(Iterator<CustomType> values,
-				Collector<CustomType> out) throws Exception {
+		public void reduce(Iterable<CustomType> values, Collector<CustomType> out)  {
 			
 			CustomType o = new CustomType(0, 0, "");
 			
-			while(values.hasNext()) {
-				CustomType c = values.next();
+			for ( CustomType c : values) {
 				o.myInt = c.myInt;
 				o.myLong += c.myLong;
 				o.myString = c.myString;
@@ -727,6 +700,5 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 
 		@Override
 		public T map(T value) { return value; }
-		
 	}
 }

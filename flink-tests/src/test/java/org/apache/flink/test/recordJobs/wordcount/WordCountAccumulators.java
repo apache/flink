@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.wordcount;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Iterator;
 import java.util.Set;
 import java.util.StringTokenizer;
 
@@ -128,11 +126,12 @@ public class WordCountAccumulators implements Program, ProgramDescription {
 		private final IntValue cnt = new IntValue();
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out) {
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
 			Record element = null;
 			int sum = 0;
-			while (records.hasNext()) {
-				element = records.next();
+			
+			for ( Record next : records ) {
+				element = next;
 				IntValue i = element.getField(1, IntValue.class);
 				sum += i.getValue();
 			}

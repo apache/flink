@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Assert;
@@ -171,12 +169,12 @@ public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?
 		private final IntValue theInteger = new IntValue();
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
 			Record element = null;
 			int sum = 0;
-			while (records.hasNext()) {
-				element = records.next();
+			
+			for (Record next : records) {
+				element = next;
 				element.getField(1, this.theInteger);
 				
 				sum += this.theInteger.getValue();
@@ -187,7 +185,7 @@ public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?
 		}
 		
 		@Override
-		public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
+		public void combine(Iterable<Record> records, Collector<Record> out) throws Exception {
 			reduce(records, out);
 		}
 	}
@@ -203,12 +201,12 @@ public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?
 		private final IntValue combineValue = new IntValue();
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
 			Record element = null;
 			int sum = 0;
-			while (records.hasNext()) {
-				element = records.next();
+			
+			for (Record next : records) {
+				element = next;
 				element.getField(1, this.value);
 				
 				sum += this.value.getValue();
@@ -220,12 +218,12 @@ public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?
 		}
 		
 		@Override
-		public void combine(Iterator<Record> records, Collector<Record> out)
-				throws Exception {
+		public void combine(Iterable<Record> records, Collector<Record> out) {
 			Record element = null;
 			int sum = 0;
-			while (records.hasNext()) {
-				element = records.next();
+			
+			for (Record next : records) {
+				element = next;
 				element.getField(1, this.combineValue);
 				
 				sum += this.combineValue.getValue();

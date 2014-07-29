@@ -23,6 +23,7 @@ import language.experimental.macros
 import scala.language.reflectiveCalls
 import scala.reflect.macros.Context
 
+import java.lang.{ Iterable => JIterable }
 import java.util.{ Iterator => JIterator }
 
 import org.apache.flink.api.scala.DataSet
@@ -126,11 +127,12 @@ object ReduceMacros {
       implicit val inputUDT: UDT[In] = c.Expr[UDT[In]](createUdtIn).splice
 
       new ReduceFunctionBase[In, In] {
-        override def combine(records: JIterator[Record], out: Collector[Record]) = {
+        override def combine(records: JIterable[Record], out: Collector[Record]) = {
           reduce(records, out)
         }
 
-        override def reduce(records: JIterator[Record], out: Collector[Record]) = {
+        override def reduce(recordsIterable: JIterable[Record], out: Collector[Record]) = {
+          val records: JIterator[Record] = recordsIterable.iterator()
           if (records.hasNext) {
             val firstRecord = reduceIterator.initialize(records)
             reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
@@ -191,7 +193,9 @@ object ReduceMacros {
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
 
       new ReduceFunctionBase[In, Out] {
-        override def reduce(records: JIterator[Record], out: Collector[Record]) = {
+        override def reduce(recordsIterable: JIterable[Record], out: Collector[Record]) = {
+          val records: JIterator[Record] = recordsIterable.iterator()
+          
           if (records.hasNext) {
             val firstRecord = reduceIterator.initialize(records)
             reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
@@ -248,12 +252,12 @@ object ReduceMacros {
       implicit val inputUDT: UDT[In] = c.Expr[UDT[In]](createUdtIn).splice
 
       new ReduceFunctionBase[In, In] {
-        override def combine(records: JIterator[Record], out: Collector[Record]) = {
+        override def combine(records: JIterable[Record], out: Collector[Record]) = {
           reduce(records, out)
         }
 
-        override def reduce(records: JIterator[Record], out: Collector[Record]) = {
-          val firstRecord = reduceIterator.initialize(records)
+        override def reduce(records: JIterable[Record], out: Collector[Record]) = {
+          val firstRecord = reduceIterator.initialize(records.iterator())
           reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
 
           val output = fun.splice.apply(reduceIterator)
@@ -319,8 +323,9 @@ object ReduceMacros {
           this.countPosition = udf.getOutputLength - 1;
         }
         
-        override def reduce(records: JIterator[Record], result: Collector[Record]) : Unit = {
+        override def reduce(recordsIterable: JIterable[Record], result: Collector[Record]) : Unit = {
           
+          val records: JIterator[Record] = recordsIterable.iterator()
           var record : Record = null
           var counter: Int = 0
           while (records.hasNext()) {
@@ -334,7 +339,7 @@ object ReduceMacros {
           result.collect(record)
         }
         
-        override def combine(records: JIterator[Record], result: Collector[Record]) : Unit = {
+        override def combine(records: JIterable[Record], result: Collector[Record]) : Unit = {
           reduce(records, result)
         }
 

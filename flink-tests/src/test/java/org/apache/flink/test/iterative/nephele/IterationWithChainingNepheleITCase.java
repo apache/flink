@@ -19,7 +19,6 @@
 package org.apache.flink.test.iterative.nephele;
 
 import java.util.Collection;
-import java.util.Iterator;
 
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -278,9 +277,9 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterator<Record> it, Collector<Record> out) {
-			while (it.hasNext()) {
-				out.collect(it.next());
+		public void reduce(Iterable<Record> it, Collector<Record> out) {
+			for (Record r :it) {
+				out.collect(r);
 			}
 		}
 	}

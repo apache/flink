@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.graph;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
@@ -91,15 +89,15 @@ public class WorksetConnectedComponents implements Program, ProgramDescription {
 		private final LongValue minComponentId = new LongValue();
 		
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out) {
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
 
-			final Record first = records.next();
+			final Record first = records.iterator().next();
 			final long vertexID = first.getField(0, LongValue.class).getValue();
 			
 			long minimumComponentID = first.getField(1, LongValue.class).getValue();
 
-			while (records.hasNext()) {
-				long candidateComponentID = records.next().getField(1, LongValue.class).getValue();
+			for (Record r : records) {
+				long candidateComponentID = r.getField(1, LongValue.class).getValue();
 				if (candidateComponentID < minimumComponentID) {
 					minimumComponentID = candidateComponentID;
 				}

@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.graph;
-
-import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
@@ -74,14 +71,14 @@ public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescripti
 		private final DoubleValue newRank = new DoubleValue();
 		
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out) {
+		public void reduce(Iterable<Record> records, Collector<Record> out) {
 			
 			double rankSum = 0.0;
 			double rank;
 			Record rec = null;
 
-			while (records.hasNext()) {
-				rec = records.next();
+			for (Record next : records) {
+				rec = next;
 				rank = rec.getField(1, DoubleValue.class).getValue();
 				rankSum += rank;
 			}

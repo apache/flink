@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.scala.operators
 
 import language.experimental.macros
 import scala.reflect.macros.Context
 
 import java.util.{ Iterator => JIterator }
+import java.lang.{ Iterable => JIterable }
 
 import org.apache.flink.types.Record
 import org.apache.flink.util.Collector
@@ -106,11 +106,13 @@ object CoGroupMacros {
       implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
+      
       new CoGroupFunctionBase[LeftIn, RightIn, Out] {
-        override def coGroup(leftRecords: JIterator[Record], rightRecords: JIterator[Record], out: Collector[Record]) = {
+        
+        override def coGroup(leftRecords: JIterable[Record], rightRecords: JIterable[Record], out: Collector[Record]) = {
 
-          val firstLeftRecord = leftIterator.initialize(leftRecords)
-          val firstRightRecord = rightIterator.initialize(rightRecords)
+          val firstLeftRecord = leftIterator.initialize(leftRecords.iterator())
+          val firstRightRecord = rightIterator.initialize(rightRecords.iterator())
 
           if (firstRightRecord != null) {
             outputRecord.copyFrom(firstRightRecord, rightForwardFrom, rightForwardTo)
@@ -177,10 +179,12 @@ object CoGroupMacros {
       implicit val leftInputUDT: UDT[LeftIn] = c.Expr[UDT[LeftIn]](createUdtLeftIn).splice
       implicit val rightInputUDT: UDT[RightIn] = c.Expr[UDT[RightIn]](createUdtRightIn).splice
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
+      
       new CoGroupFunctionBase[LeftIn, RightIn, Out] {
-        override def coGroup(leftRecords: JIterator[Record], rightRecords: JIterator[Record], out: Collector[Record]) = {
-          val firstLeftRecord = leftIterator.initialize(leftRecords)
-          val firstRightRecord = rightIterator.initialize(rightRecords)
+        
+        override def coGroup(leftRecords: JIterable[Record], rightRecords: JIterable[Record], out: Collector[Record]) = {
+          val firstLeftRecord = leftIterator.initialize(leftRecords.iterator())
+          val firstRightRecord = rightIterator.initialize(rightRecords.iterator())
 
           if (firstRightRecord != null) {
             outputRecord.copyFrom(firstRightRecord, rightForwardFrom, rightForwardTo)

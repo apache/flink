@@ -16,14 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
-import java.util.Iterator;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
@@ -283,7 +280,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			
 		DataSet<Tuple3<Long, Long, Long>> nextWorkset = joinedWithSolutionSet.groupBy(1, 2)
 			.reduceGroup(new GroupReduceFunction<Tuple3<Long,Long,Long>, Tuple3<Long,Long,Long>>() {
-				public void reduce(Iterator<Tuple3<Long, Long, Long>> values, Collector<Tuple3<Long, Long, Long>> out) {}
+				public void reduce(Iterable<Tuple3<Long, Long, Long>> values, Collector<Tuple3<Long, Long, Long>> out) {}
 			})
 			.name(NEXT_WORKSET_REDUCER_NAME)
 			.withConstantSet("1->1","2->2","0->0");

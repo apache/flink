@@ -19,8 +19,6 @@
 
 package org.apache.flink.api.common.functions;
 
-import java.util.Iterator;
-
 import org.apache.flink.util.Collector;
 
 
@@ -35,6 +33,6 @@ public interface GenericCoGrouper<V1, V2, O> extends Function {
 	 * @param records2 The records from the second input which were paired with the key.
 	 * @param out A collector that collects all output pairs.
 	 */
-	void coGroup(Iterator<V1> records1, Iterator<V2> records2, Collector<O> out) throws Exception;
+	void coGroup(Iterable<V1> records1, Iterable<V2> records2, Collector<O> out) throws Exception;
 	
 }

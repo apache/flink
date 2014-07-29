@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.java.functions;
 
-import java.util.Iterator;
-
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.common.functions.GenericCoGrouper;
 import org.apache.flink.util.Collector;
@@ -69,6 +67,6 @@ public abstract class CoGroupFunction<IN1, IN2, OUT> extends AbstractFunction im
 	 *                   to fail and may trigger recovery.
 	 */
 	@Override
-	public abstract void coGroup(Iterator<IN1> first, Iterator<IN2> second, Collector<OUT> out) throws Exception;
+	public abstract void coGroup(Iterable<IN1> first, Iterable<IN2> second, Collector<OUT> out) throws Exception;
 
 }

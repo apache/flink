@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.java.functions.FlatMapFunction;
@@ -171,8 +169,8 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterator<Long> values, Collector<Long> out) throws Exception {
-				out.collect(values.next());
+		public void reduce(Iterable<Long> values, Collector<Long> out) {
+				out.collect(values.iterator().next());
 		}
 	}
 	
@@ -208,15 +206,14 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		final Tuple2<Long, Long> resultVertex = new Tuple2<Long, Long>();
 		
 		@Override
-		public void reduce(Iterator<Tuple2<Long, Long>> values,
-				Collector<Tuple2<Long, Long>> out) throws Exception {
+		public void reduce(Iterable<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long>> out) {
 
-			final Tuple2<Long, Long> first = values.next();		
+			final Tuple2<Long, Long> first = values.iterator().next();
 			final Long vertexId = first.f0;
 			Long minimumCompId = first.f1;
 			
-			while ( values.hasNext() ) {
-				Long candidateCompId = values.next().f1;
+			for ( Tuple2<Long, Long> value : values ) {
+				Long candidateCompId = value.f1;
 				if ( candidateCompId < minimumCompId ) {
 					minimumCompId = candidateCompId;
 				}
@@ -236,8 +233,8 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		@Override
 		public void flatMap(
 				Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>> vertexWithNewAndOldId,
-				Collector<Tuple2<Long, Long>> out) throws Exception {
-						
+				Collector<Tuple2<Long, Long>> out)
+		{
 			if ( vertexWithNewAndOldId.f0.f1 < vertexWithNewAndOldId.f1.f1 ) {
 				out.collect(vertexWithNewAndOldId.f0);
 			}
