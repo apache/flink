@@ -18,8 +18,7 @@
 
 package org.apache.flink.api.java.record;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -30,9 +29,13 @@ import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.common.functions.GenericCombine;
 import org.apache.flink.api.common.functions.GenericGroupReduce;
+import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
+import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.record.functions.ReduceFunction;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
+import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
@@ -126,7 +129,7 @@ public class ReduceWrappingFunctionTest {
 			source.add(new Record(new IntValue(13), new LongValue(17)));
 			
 			// test reduce
-			((GenericGroupReduce<Record, Record>) reducer).reduce(source, collector);
+			reducer.reduce(source, collector);
 			assertEquals(2, target.size());
 			assertEquals(new IntValue(42), target.get(0).getField(0, IntValue.class));
 			assertEquals(new LongValue(11), target.get(0).getField(1, LongValue.class));
@@ -149,8 +152,66 @@ public class ReduceWrappingFunctionTest {
 		}
 	}
 	
+	@Test
+	public void testExtractSemantics() {
+		try {
+			{
+				ReduceOperator reduceOp = ReduceOperator.builder(new TestReduceFunction()).build();
+				
+				SingleInputSemanticProperties props = reduceOp.getSemanticProperties();
+				FieldSet fw2 = props.getForwardedField(2);
+				FieldSet fw4 = props.getForwardedField(4);
+				
+				assertNotNull(fw2);
+				assertNotNull(fw4);
+				assertEquals(1, fw2.size());
+				assertEquals(1, fw4.size());
+				assertTrue(fw2.contains(2));
+				assertTrue(fw4.contains(4));
+			}
+			{
+				ReduceOperator reduceOp = ReduceOperator.builder(TestReduceFunction.class).build();
+				
+				SingleInputSemanticProperties props = reduceOp.getSemanticProperties();
+				FieldSet fw2 = props.getForwardedField(2);
+				FieldSet fw4 = props.getForwardedField(4);
+				
+				assertNotNull(fw2);
+				assertNotNull(fw4);
+				assertEquals(1, fw2.size());
+				assertEquals(1, fw4.size());
+				assertTrue(fw2.contains(2));
+				assertTrue(fw4.contains(4));
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testCombinable() {
+		try {
+			{
+				ReduceOperator reduceOp = ReduceOperator.builder(new TestReduceFunction()).build();
+				assertTrue(reduceOp.isCombinable());
+			}
+			{
+				ReduceOperator reduceOp = ReduceOperator.builder(TestReduceFunction.class).build();
+				assertTrue(reduceOp.isCombinable());
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
+	@Combinable
+	@ConstantFields({2, 4})
 	public static class TestReduceFunction extends ReduceFunction {
 		
 		private final AtomicInteger methodCounter;

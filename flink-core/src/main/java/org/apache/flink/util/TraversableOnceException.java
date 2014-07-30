@@ -16,20 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.functions;
+package org.apache.flink.util;
 
-import org.apache.flink.util.Collector;
+public class TraversableOnceException extends RuntimeException {
 
-public interface GenericCoGrouper<V1, V2, O> extends Function {
-	
-	/**
-	 * This method must be implemented to provide a user implementation of a
-	 * coGroup. It is called for each two key-value pairs that share the same
-	 * key and come from different inputs.
-	 * 
-	 * @param records1 The records from the first input which were paired with the key.
-	 * @param records2 The records from the second input which were paired with the key.
-	 * @param out A collector that collects all output pairs.
-	 */
-	void coGroup(Iterable<V1> records1, Iterable<V2> records2, Collector<O> out) throws Exception;
+	private static final long serialVersionUID = 7636881584773577290L;
+
+	public TraversableOnceException() {
+		super("The Iterable can be iterated over only once. Only the first call to 'iterator()' will succeed.");
+	}
 }

@@ -47,6 +47,7 @@ import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
 import org.apache.flink.runtime.util.KeyGroupedIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.TraversableOnceException;
 
 
 /**
@@ -511,6 +512,8 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 		private int last; // the position of the last value to be returned
 
 		private int position; // the position of the next value to be returned
+		
+		private boolean iteratorAvailable;
 
 		/**
 		 * Creates an iterator over the values in a <tt>BufferSortable</tt>.
@@ -534,6 +537,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 		public void set(int first, int last) {
 			this.last = last;
 			this.position = first;
+			this.iteratorAvailable = true;
 		}
 
 		@Override
@@ -566,7 +570,12 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 
 		@Override
 		public Iterator<E> iterator() {
-			return this;
+			if (iteratorAvailable) {
+				iteratorAvailable = false;
+				return this;
+			} else {
+				throw new TraversableOnceException();
+			}
 		}
 	};
 

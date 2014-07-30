@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.iterative.nephele.customdanglingpagerank;
 
+import java.util.Iterator;
 import java.util.Set;
 
 import org.apache.flink.api.common.functions.AbstractFunction;
@@ -81,15 +82,17 @@ public class CustomCompensatableDotProductCoGroup extends AbstractFunction imple
 	}
 
 	@Override
-	public void coGroup(Iterable<VertexWithRankAndDangling> currentPageRankIterator, Iterable<VertexWithRank> partialRanks,
+	public void coGroup(Iterable<VertexWithRankAndDangling> currentPageRankIterable, Iterable<VertexWithRank> partialRanks,
 			Collector<VertexWithRankAndDangling> collector)
 	{
-		if (!currentPageRankIterator.iterator().hasNext()) {
+		final Iterator<VertexWithRankAndDangling> currentPageRankIterator = currentPageRankIterable.iterator();
+		
+		if (!currentPageRankIterator.hasNext()) {
 			long missingVertex = partialRanks.iterator().next().getVertexID();
 			throw new IllegalStateException("No current page rank for vertex [" + missingVertex + "]!");
 		}
 
-		VertexWithRankAndDangling currentPageRank = currentPageRankIterator.iterator().next();
+		VertexWithRankAndDangling currentPageRank = currentPageRankIterator.next();
 
 		long edges = 0;
 		double summedRank = 0;

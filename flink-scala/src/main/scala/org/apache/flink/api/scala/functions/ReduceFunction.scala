@@ -21,7 +21,7 @@ package org.apache.flink.api.scala.functions
 
 import scala.Iterator
 
-import java.lang.{Iterable => JIterable}
+import java.util.{Iterator => JIterator}
 
 import org.apache.flink.api.scala.analysis.{UDTSerializer, FieldSelector, UDT}
 import org.apache.flink.api.scala.analysis.UDF1
@@ -47,12 +47,12 @@ abstract class ReduceFunctionBase[In: UDT, Out: UDT] extends JReduceFunction wit
 
 abstract class ReduceFunction[In: UDT] extends ReduceFunctionBase[In, In] with Function2[In, In, In] {
 
-  override def combine(records: JIterable[Record], out: Collector[Record]) = {
+  override def combine(records: JIterator[Record], out: Collector[Record]) = {
     reduce(records, out)
   }
 
-  override def reduce(records: JIterable[Record], out: Collector[Record]) = {
-    val firstRecord = reduceIterator.initialize(records.iterator())
+  override def reduce(records: JIterator[Record], out: Collector[Record]) = {
+    val firstRecord = reduceIterator.initialize(records)
     reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
 
     val output = reduceIterator.reduce(apply)
@@ -63,8 +63,8 @@ abstract class ReduceFunction[In: UDT] extends ReduceFunctionBase[In, In] with F
 }
 
 abstract class GroupReduceFunction[In: UDT, Out: UDT] extends ReduceFunctionBase[In, Out] with Function1[Iterator[In], Out] {
-  override def reduce(records: JIterable[Record], out: Collector[Record]) = {
-    val firstRecord = reduceIterator.initialize(records.iterator())
+  override def reduce(records: JIterator[Record], out: Collector[Record]) = {
+    val firstRecord = reduceIterator.initialize(records)
     reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
 
     val output = apply(reduceIterator)
@@ -75,8 +75,8 @@ abstract class GroupReduceFunction[In: UDT, Out: UDT] extends ReduceFunctionBase
 }
 
 abstract class CombinableGroupReduceFunction[In: UDT, Out: UDT] extends ReduceFunctionBase[In, Out] with Function1[Iterator[In], Out] {
-  override def combine(records: JIterable[Record], out: Collector[Record]) = {
-    val firstRecord = reduceIterator.initialize(records.iterator())
+  override def combine(records: JIterator[Record], out: Collector[Record]) = {
+    val firstRecord = reduceIterator.initialize(records)
     reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
 
     val output = combine(reduceIterator)
@@ -85,8 +85,8 @@ abstract class CombinableGroupReduceFunction[In: UDT, Out: UDT] extends ReduceFu
     out.collect(reduceRecord)
   }
 
-  override def reduce(records: JIterable[Record], out: Collector[Record]) = {
-    val firstRecord = reduceIterator.initialize(records.iterator())
+  override def reduce(records: JIterator[Record], out: Collector[Record]) = {
+    val firstRecord = reduceIterator.initialize(records)
     reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)
 
     val output = reduce(reduceIterator)

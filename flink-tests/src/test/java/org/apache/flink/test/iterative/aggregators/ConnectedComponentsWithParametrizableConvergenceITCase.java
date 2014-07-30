@@ -159,19 +159,18 @@ public class ConnectedComponentsWithParametrizableConvergenceITCase extends Java
 
 		@Override
 		public void reduce(Iterable<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long>> out) {
+			Long vertexId = 0L;
+			Long minimumCompId = Long.MAX_VALUE;
 
-			final Tuple2<Long, Long> first = values.iterator().next();
-			final Long vertexId = first.f0;
-			Long minimumCompId = first.f1;
-
-			for (Tuple2<Long, Long> value : values) {
+			for (Tuple2<Long, Long> value: values) {
+				vertexId = value.f0;
 				Long candidateCompId = value.f1;
 				if (candidateCompId < minimumCompId) {
 					minimumCompId = candidateCompId;
 				}
 			}
-			resultVertex.setField(vertexId, 0);
-			resultVertex.setField(minimumCompId, 1);
+			resultVertex.f0 = vertexId;
+			resultVertex.f1 = minimumCompId;
 
 			out.collect(resultVertex);
 		}

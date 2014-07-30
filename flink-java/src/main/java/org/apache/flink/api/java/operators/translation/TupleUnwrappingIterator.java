@@ -21,6 +21,7 @@ package org.apache.flink.api.java.operators.translation;
 import java.util.Iterator;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.TraversableOnceException;
 
 /**
  * An iterator that reads 2-tuples (key value pairs) and returns only the values (second field).
@@ -32,9 +33,11 @@ public class TupleUnwrappingIterator<T, K> implements Iterator<T>, Iterable<T>, 
 	
 	private K lastKey; 
 	private Iterator<Tuple2<K, T>> iterator;
+	private boolean iteratorAvailable;
 	
 	public void set(Iterator<Tuple2<K, T>> iterator) {
 		this.iterator = iterator;
+		this.iteratorAvailable = true;
 	}
 	
 	public K getLastKey() {
@@ -60,6 +63,11 @@ public class TupleUnwrappingIterator<T, K> implements Iterator<T>, Iterable<T>, 
 
 	@Override
 	public Iterator<T> iterator() {
-		return this;
+		if (iteratorAvailable) {
+			iteratorAvailable = false;
+			return this;
+		} else {
+			throw new TraversableOnceException();
+		}
 	}
 }

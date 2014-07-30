@@ -18,6 +18,8 @@
 
 package org.apache.flink.test.iterative.nephele.customdanglingpagerank;
 
+import java.util.Iterator;
+
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.common.functions.GenericCombine;
 import org.apache.flink.api.common.functions.GenericGroupReduce;
@@ -37,13 +39,15 @@ public class CustomRankCombiner extends AbstractFunction implements GenericGroup
 	}
 
 	@Override
-	public void combine(Iterable<VertexWithRank> records, Collector<VertexWithRank> out) throws Exception {
-		VertexWithRank next = records.iterator().next();
+	public void combine(Iterable<VertexWithRank> recordsIterable, Collector<VertexWithRank> out) throws Exception {
+		final Iterator<VertexWithRank> records = recordsIterable.iterator();
+		
+		VertexWithRank next = records.next();
 		this.accumulator.setVertexID(next.getVertexID());
 		double rank = next.getRank();
 		
-		for (VertexWithRank r : records) {
-			rank += r.getRank();
+		while (records.hasNext()) {
+			rank += records.next().getRank();
 		}
 		
 		this.accumulator.setRank(rank);

@@ -37,6 +37,7 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.RecordOperator;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
+import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
@@ -61,6 +62,8 @@ public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, Gene
 	 */
 	private final Class<? extends Key<?>>[] keyTypes;
 	
+	private final UserCodeWrapper<ReduceFunction> originalFunction;
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -69,8 +72,11 @@ public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, Gene
 	 * @param udf The {@link ReduceFunction} implementation for this Reduce contract.
 	 */
 	public static Builder builder(ReduceFunction udf) {
-		WrappingReduceFunction wrapper = new WrappingReduceFunction(udf);
-		return new Builder(new UserCodeObjectWrapper<GenericGroupReduce<Record, Record>>(wrapper));
+		UserCodeWrapper<ReduceFunction> original = new UserCodeObjectWrapper<ReduceFunction>(udf);
+		UserCodeWrapper<GenericGroupReduce<Record, Record>> wrapped =
+				new UserCodeObjectWrapper<GenericGroupReduce<Record, Record>>(new WrappingReduceFunction(udf));
+		
+		return new Builder(original, wrapped);
 	}
 	
 	/**
@@ -81,8 +87,11 @@ public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, Gene
 	 * @param keyColumn The position of the key.
 	 */
 	public static Builder builder(ReduceFunction udf, Class<? extends Key<?>> keyClass, int keyColumn) {
-		WrappingReduceFunction wrapper = new WrappingReduceFunction(udf);
-		return new Builder(new UserCodeObjectWrapper<GenericGroupReduce<Record, Record>>(wrapper), keyClass, keyColumn);
+		UserCodeWrapper<ReduceFunction> original = new UserCodeObjectWrapper<ReduceFunction>(udf);
+		UserCodeWrapper<GenericGroupReduce<Record, Record>> wrapped =
+				new UserCodeObjectWrapper<GenericGroupReduce<Record, Record>>(new WrappingReduceFunction(udf));
+		
+		return new Builder(original, wrapped, keyClass, keyColumn);
 	}
 
 	/**
@@ -91,8 +100,11 @@ public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, Gene
 	 * @param udf The {@link ReduceFunction} implementation for this Reduce contract.
 	 */
 	public static Builder builder(Class<? extends ReduceFunction> udf) {
-		WrappingReduceFunction wrapper = new WrappingClassReduceFunction(udf);
-		return new Builder(new UserCodeObjectWrapper<GenericGroupReduce<Record, Record>>(wrapper));
+		UserCodeWrapper<ReduceFunction> original = new UserCodeClassWrapper<ReduceFunction>(udf);
+		UserCodeWrapper<GenericGroupReduce<Record, Record>> wrapped =
+				new UserCodeObjectWrapper<GenericGroupReduce<Record, Record>>(new WrappingClassReduceFunction(udf));
+		
+		return new Builder(original, wrapped);
 	}
 	
 	/**
@@ -103,8 +115,11 @@ public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, Gene
 	 * @param keyColumn The position of the key.
 	 */
 	public static Builder builder(Class<? extends ReduceFunction> udf, Class<? extends Key<?>> keyClass, int keyColumn) {
-		WrappingReduceFunction wrapper = new WrappingClassReduceFunction(udf);
-		return new Builder(new UserCodeObjectWrapper<GenericGroupReduce<Record, Record>>(wrapper), keyClass, keyColumn);
+		UserCodeWrapper<ReduceFunction> original = new UserCodeClassWrapper<ReduceFunction>(udf);
+		UserCodeWrapper<GenericGroupReduce<Record, Record>> wrapped =
+				new UserCodeObjectWrapper<GenericGroupReduce<Record, Record>>(new WrappingClassReduceFunction(udf));
+		
+		return new Builder(original, wrapped, keyClass, keyColumn);
 	}
 	
 	/**
@@ -112,8 +127,10 @@ public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, Gene
 	 * @param builder
 	 */
 	protected ReduceOperator(Builder builder) {
-		super(builder.udf, OperatorInfoHelper.unary(), builder.getKeyColumnsArray(), builder.name);
+		super(builder.udfWrapper, OperatorInfoHelper.unary(), builder.getKeyColumnsArray(), builder.name);
+		
 		this.keyTypes = builder.getKeyClassesArray();
+		this.originalFunction = builder.originalUdf;
 		
 		if (builder.inputs != null && !builder.inputs.isEmpty()) {
 			setInput(Operator.createUnionCascade(builder.inputs));
@@ -122,8 +139,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, Gene
 		setGroupOrder(builder.secondaryOrder);
 		setBroadcastVariables(builder.broadcastInputs);
 		
-		ReduceFunction function = ((WrappingReduceFunction) builder.udf.getUserCodeObject()).getWrappedFunction();
-		setSemanticProperties(FunctionAnnotation.readSingleConstantAnnotations(new UserCodeObjectWrapper<ReduceFunction>(function)));
+		setSemanticProperties(FunctionAnnotation.readSingleConstantAnnotations(originalFunction));
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -138,7 +154,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, Gene
 	
 	@Override
 	public boolean isCombinable() {
-		return super.isCombinable() || getUserCodeWrapper().getUserCodeAnnotation(Combinable.class) != null;
+		return super.isCombinable() || originalFunction.getUserCodeAnnotation(Combinable.class) != null;
 	}
 	
 	/**
@@ -190,7 +206,8 @@ public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, Gene
 	public static class Builder {
 		
 		/* The required parameters */
-		private final UserCodeWrapper<GenericGroupReduce<Record, Record>> udf;
+		private final UserCodeWrapper<ReduceFunction> originalUdf;
+		private final UserCodeWrapper<GenericGroupReduce<Record, Record>> udfWrapper;
 		private final List<Class<? extends Key<?>>> keyClasses;
 		private final List<Integer> keyColumns;
 		
@@ -203,10 +220,11 @@ public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, Gene
 		/**
 		 * Creates a Builder with the provided {@link ReduceFunction} implementation.
 		 * 
-		 * @param udf The {@link ReduceFunction} implementation for this Reduce contract.
+		 * @param wrappedUdf The {@link ReduceFunction} implementation for this Reduce contract.
 		 */
-		private Builder(UserCodeWrapper<GenericGroupReduce<Record, Record>> udf) {
-			this.udf = udf;
+		private Builder(UserCodeWrapper<ReduceFunction> originalUdf, UserCodeWrapper<GenericGroupReduce<Record, Record>> wrappedUdf) {
+			this.originalUdf = originalUdf;
+			this.udfWrapper = wrappedUdf;
 			this.keyClasses = new ArrayList<Class<? extends Key<?>>>();
 			this.keyColumns = new ArrayList<Integer>();
 			this.inputs = new ArrayList<Operator<Record>>();
@@ -216,12 +234,16 @@ public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, Gene
 		/**
 		 * Creates a Builder with the provided {@link ReduceFunction} implementation.
 		 * 
-		 * @param udf The {@link ReduceFunction} implementation for this Reduce contract.
+		 * @param wrappedUdf The {@link ReduceFunction} implementation for this Reduce contract.
 		 * @param keyClass The class of the key data type.
 		 * @param keyColumn The position of the key.
 		 */
-		private Builder(UserCodeWrapper<GenericGroupReduce<Record, Record>> udf, Class<? extends Key<?>> keyClass, int keyColumn) {
-			this.udf = udf;
+		private Builder(UserCodeWrapper<ReduceFunction> originalUdf, 
+						UserCodeWrapper<GenericGroupReduce<Record, Record>> wrappedUdf,
+						Class<? extends Key<?>> keyClass, int keyColumn)
+		{
+			this.originalUdf = originalUdf;
+			this.udfWrapper = wrappedUdf;
 			this.keyClasses = new ArrayList<Class<? extends Key<?>>>();
 			this.keyClasses.add(keyClass);
 			this.keyColumns = new ArrayList<Integer>();
@@ -337,7 +359,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, Gene
 		 */
 		public ReduceOperator build() {
 			if (name == null) {
-				name = udf.getUserCodeClass().getName();
+				name = udfWrapper.getUserCodeClass().getName();
 			}
 			return new ReduceOperator(this);
 		}

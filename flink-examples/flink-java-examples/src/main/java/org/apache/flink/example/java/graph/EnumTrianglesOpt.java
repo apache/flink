@@ -19,6 +19,7 @@
 package org.apache.flink.example.java.graph;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.operators.Order;
@@ -165,18 +166,19 @@ public class EnumTrianglesOpt {
 		final EdgeWithDegrees outputEdge = new EdgeWithDegrees();
 		
 		@Override
-		public void reduce(Iterable<Edge> edges, Collector<EdgeWithDegrees> out) {
+		public void reduce(Iterable<Edge> edgesIter, Collector<EdgeWithDegrees> out) {
 			
+			Iterator<Edge> edges = edgesIter.iterator();
 			otherVertices.clear();
 			
 			// get first edge
-			Edge edge = edges.iterator().next();
+			Edge edge = edges.next();
 			Integer groupVertex = edge.getFirstVertex();
 			this.otherVertices.add(edge.getSecondVertex());
 			
 			// get all other edges (assumes edges are sorted by second vertex)
-			for (Edge e : edges) {
-				edge = e;
+			while (edges.hasNext()) {
+				edge = edges.next();
 				Integer otherVertex = edge.getSecondVertex();
 				// collect unique vertices
 				if(!otherVertices.contains(otherVertex) && otherVertex != groupVertex) {
@@ -273,19 +275,20 @@ public class EnumTrianglesOpt {
 		private final Triad outTriad = new Triad();
 		
 		@Override
-		public void reduce(Iterable<Edge> edges, Collector<Triad> out) throws Exception {
+		public void reduce(Iterable<Edge> edgesIter, Collector<Triad> out) throws Exception {
+			final Iterator<Edge> edges = edgesIter.iterator();
 			
 			// clear vertex list
 			vertices.clear();
 			
 			// read first edge
-			Edge firstEdge = edges.iterator().next();
+			Edge firstEdge = edges.next();
 			outTriad.setFirstVertex(firstEdge.getFirstVertex());
 			vertices.add(firstEdge.getSecondVertex());
 			
 			// build and emit triads
-			for (Edge e : edges) {
-				Integer higherVertexId = e.getSecondVertex();
+			while (edges.hasNext()) {
+				Integer higherVertexId = edges.next().getSecondVertex();
 				
 				// combine vertex with all previously read vertices
 				for(Integer lowerVertexId : vertices) {

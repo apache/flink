@@ -21,6 +21,7 @@ package org.apache.flink.test.javaApiOperators;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedList;
 
 import org.apache.flink.api.common.operators.Order;
@@ -438,20 +439,21 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 
 		@Override
 		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
-			
-			Tuple3<Integer, Long, String> t = values.iterator().next();
-			
-			int sum = t.f0;
-			long key = t.f1;
-			String concat = t.f2;
+			int sum = 0;
+			long key = 0;
+			StringBuilder concat = new StringBuilder();
 			
 			for (Tuple3<Integer, Long, String> next : values) {
-				
 				sum += next.f0;
-				concat += "-" + next.f2;
+				key = next.f1;
+				concat.append(next.f2).append("-");
 			}
 			
-			out.collect(new Tuple3<Integer, Long, String>(sum, key, concat));
+			if (concat.length() > 0) {
+				concat.setLength(concat.length() - 1);
+			}
+			
+			out.collect(new Tuple3<Integer, Long, String>(sum, key, concat.toString()));
 		}
 	}
 	
@@ -483,17 +485,18 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 
 		@Override
 		public void reduce(Iterable<CustomType> values, Collector<CustomType> out) {
+			final Iterator<CustomType> iter = values.iterator();
 			
 			CustomType o = new CustomType();
-			CustomType c = values.iterator().next();
+			CustomType c = iter.next();
 			
 			o.myString = "Hello!";
 			o.myInt = c.myInt;
 			o.myLong = c.myLong;
 			
-			for ( CustomType next : values) {
+			while (iter.hasNext()) {
+				CustomType next = iter.next();
 				o.myLong += next.myLong;
-
 			}
 			
 			out.collect(o);
@@ -545,13 +548,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		@Override
 		public void reduce(Iterable<CustomType> values, Collector<CustomType> out) {
 
-			CustomType o = new CustomType();
-			CustomType c = values.iterator().next();
-			
-			o.myString = "Hello!";
-			o.myInt = c.myInt;
-			o.myLong = c.myLong;
-			
+			CustomType o = new CustomType(0, 0, "Hello!");
 			
 			for (CustomType next : values) {
 				o.myInt += next.myInt;

@@ -26,6 +26,7 @@ import java.util.NoSuchElementException;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.TraversableOnceException;
 
 /**
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
@@ -98,6 +99,8 @@ public final class KeyGroupedIterator<E> {
 				return false;
 			}
 		}
+		
+		this.valuesIterator.iteratorAvailable = true;
 
 		// Whole value-iterator was read and a new key is available.
 		if (this.lookAheadHasNext) {
@@ -151,19 +154,20 @@ public final class KeyGroupedIterator<E> {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public final class ValuesIterator implements Iterator<E>, Iterable<E>
-	{
+	public final class ValuesIterator implements Iterator<E>, Iterable<E> {
+		
 		private final TypeSerializer<E> serializer = KeyGroupedIterator.this.serializer;
 		private final TypeComparator<E> comparator = KeyGroupedIterator.this.comparator; 
 		
 		private E staging = this.serializer.createInstance();
 		private boolean currentIsUnconsumed = false;
 		
+		private boolean iteratorAvailable = true;
+		
 		private ValuesIterator() {}
 
 		@Override
-		public boolean hasNext()
-		{
+		public boolean hasNext() {
 			if (KeyGroupedIterator.this.current == null || KeyGroupedIterator.this.lookAheadHasNext) {
 				return false;
 			}
@@ -224,7 +228,13 @@ public final class KeyGroupedIterator<E> {
 
 		@Override
 		public Iterator<E> iterator() {
-			return this;
+			if (iteratorAvailable) {
+				iteratorAvailable = false;
+				return this;
+			}
+			else {
+				throw new TraversableOnceException();
+			}
 		}
 	}
 }

@@ -25,6 +25,7 @@ import java.util.NoSuchElementException;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.TraversableOnceException;
 
 /**
  * This class wraps a {@link MutableObjectIterator} into a regular {@link Iterator}.
@@ -39,6 +40,8 @@ public class MutableToRegularIteratorWrapper<T> implements Iterator<T>, Iterable
 	private T current, next;
 	
 	private boolean currentIsAvailable;
+	
+	private boolean iteratorAvailable = true;
 
 	public MutableToRegularIteratorWrapper(MutableObjectIterator<T> source, TypeSerializer<T> serializer) {
 		this.source = source;
@@ -88,6 +91,12 @@ public class MutableToRegularIteratorWrapper<T> implements Iterator<T>, Iterable
 
 	@Override
 	public Iterator<T> iterator() {
-		return this;
+		if (iteratorAvailable) {
+			iteratorAvailable = false;
+			return this;
+		}
+		else {
+			throw new TraversableOnceException();
+		}
 	}
 }

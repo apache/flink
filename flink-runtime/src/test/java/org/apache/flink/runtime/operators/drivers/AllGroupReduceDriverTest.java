@@ -154,7 +154,7 @@ public class AllGroupReduceDriverTest {
 
 		@Override
 		public void reduce(Iterable<Tuple2<String, Integer>> values, Collector<Tuple2<String, Integer>> out) {
-			Tuple2<String, Integer> current = values.iterator().next();
+			Tuple2<String, Integer> current = new Tuple2<String, Integer>("", 0);
 			
 			for (Tuple2<String, Integer> next : values) {
 				next.f0 = current.f0 + next.f0;
@@ -170,7 +170,7 @@ public class AllGroupReduceDriverTest {
 
 		@Override
 		public void reduce(Iterable<Tuple2<StringValue, IntValue>> values, Collector<Tuple2<StringValue, IntValue>> out) {
-			Tuple2<StringValue, IntValue> current = values.iterator().next();
+			Tuple2<StringValue, IntValue> current = new Tuple2<StringValue, IntValue>(new StringValue(""), new IntValue(0));
 			
 			for (Tuple2<StringValue, IntValue> next : values) {
 				next.f0.append(current.f0);
