@@ -20,6 +20,7 @@ package org.apache.flink.test.iterative;
 
 import java.io.BufferedReader;
 import java.io.Serializable;
+import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.CoGroupFunction;
@@ -92,16 +93,17 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 		private final LongValue newComponentId = new LongValue();
 		
 		@Override
-		public void coGroup(Iterable<Record> candidates, Iterable<Record> current, Collector<Record> out) throws Exception {
-			if (!current.iterator().hasNext()) {
+		public void coGroup(Iterator<Record> candidates, Iterator<Record> current, Collector<Record> out) throws Exception {
+			if (!current.hasNext()) {
 				throw new Exception("Error: Id not encountered before.");
 			}
-			Record old = current.iterator().next();
+			Record old = current.next();
 			long oldId = old.getField(1, LongValue.class).getValue();
 			
 			long minimumComponentID = Long.MAX_VALUE;
 
-			for (Record candidate : candidates) {
+			while (candidates.hasNext()) {
+				Record candidate = candidates.next();
 				long candidateComponentID = candidate.getField(1, LongValue.class).getValue();
 				if (candidateComponentID < minimumComponentID) {
 					minimumComponentID = candidateComponentID;

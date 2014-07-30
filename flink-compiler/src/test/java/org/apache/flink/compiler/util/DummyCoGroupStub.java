@@ -19,6 +19,7 @@
 package org.apache.flink.compiler.util;
 
 import java.io.Serializable;
+import java.util.Iterator;
 
 import org.apache.flink.api.java.record.functions.CoGroupFunction;
 import org.apache.flink.types.Record;
@@ -28,13 +29,13 @@ public class DummyCoGroupStub extends CoGroupFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) {
-		for (Record r : records1) {
-			out.collect(r);
+	public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) {
+		while (records1.hasNext()) {
+			out.collect(records1.next());
 		}
 
-		for (Record r : records2) {
-			out.collect(r);
+		while (records2.hasNext()) {
+			out.collect(records2.next());
 		}
 	}
 }

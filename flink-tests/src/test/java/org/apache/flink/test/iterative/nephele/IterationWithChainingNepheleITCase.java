@@ -23,8 +23,8 @@ import java.util.Collection;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.record.functions.MapFunction;
-import org.apache.flink.api.java.record.functions.ReduceFunction;
 import org.apache.flink.api.java.record.io.FileOutputFormat;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparatorFactory;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
@@ -272,7 +272,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		}
 	}
 
-	public static final class DummyReducer extends ReduceFunction {
+	public static final class DummyReducer extends GroupReduceFunction<Record, Record> {
 
 		private static final long serialVersionUID = 1L;
 

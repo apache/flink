@@ -22,6 +22,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedList;
 
 import org.apache.flink.api.common.Plan;
@@ -113,21 +114,21 @@ public class CoGroupITCase extends RecordAPITestBase {
 		private StringValue valueString = new StringValue();
 		
 		@Override
-		public void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) {
+		public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) {
 			
 			Record record = null;
 			int sum = 0;
 			
-			for (Record next : records1) {
-				record = next;
+			while (records1.hasNext()) {
+				record = records1.next();
 				keyString = record.getField(0, keyString);
 				valueString = record.getField(1, valueString);
 				sum += Integer.parseInt(valueString.getValue());
 			}
 			
 			
-			for (Record next : records2) {
-				record = next;
+			while (records2.hasNext()) {
+				record = records2.next();
 				keyString = record.getField(0, keyString);
 				valueString = record.getField(1, valueString);
 				sum -= Integer.parseInt(valueString.getValue());

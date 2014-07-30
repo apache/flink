@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.test.recordJobs.graph;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
@@ -173,9 +175,9 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 		}
 
 		@Override
-		public void reduce(Iterable<Record> records, Collector<Record> out) throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			// read the first edge
-			final Record rec = records.iterator().next();
+			final Record rec = records.next();
 			// read the matching vertex
 			rec.getFieldInto(0, this.matchVertex);
 			// read the non-matching vertex and add it to the list
@@ -186,7 +188,10 @@ public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 			
 			int numEdges = 1;
 			// while there are more edges
-			for (Record next : records) {
+			while (records.hasNext()) {
+
+				// read the next edge
+				final Record next = records.next();
 				
 				final StringValue myVertex;
 				// obtain an object to store the non-matching vertex

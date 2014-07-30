@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.test.recordJobs.graph;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -284,32 +286,32 @@ public class PairwiseSP implements Program, ProgramDescription {
 		private final IntValue minLength = new IntValue();
 		
 		@Override
-		public void coGroup(Iterable<Record> inputRecords, Iterable<Record> concatRecords, Collector<Record> out) {
+		public void coGroup(Iterator<Record> inputRecords, Iterator<Record> concatRecords, Collector<Record> out) {
 
 			// init minimum length and minimum path
-			Record initial = null;
+			Record pathRec = null;
 			StringValue path = null;
-			
-			if (inputRecords.iterator().hasNext()) {
+			if(inputRecords.hasNext()) {
 				// path is in input paths
-				initial = inputRecords.iterator().next();
+				pathRec = inputRecords.next();
 			} else {
 				// path must be in concat paths
-				initial = concatRecords.iterator().next();
+				pathRec = concatRecords.next();
 			}
 			// get from node (common for all paths)
-			StringValue fromNode = initial.getField(0, StringValue.class);
+			StringValue fromNode = pathRec.getField(0, StringValue.class);
 			// get to node (common for all paths)
-			StringValue toNode = initial.getField(1, StringValue.class);
+			StringValue toNode = pathRec.getField(1, StringValue.class);
 			// get length of path
-			minLength.setValue(initial.getField(2, IntValue.class).getValue());
+			minLength.setValue(pathRec.getField(2, IntValue.class).getValue());
 			// store path and hop count
-			path = new StringValue(initial.getField(4, StringValue.class));
+			path = new StringValue(pathRec.getField(4, StringValue.class));
 			shortestPaths.add(path);
-			hopCnts.put(path, new IntValue(initial.getField(3, IntValue.class).getValue()));
+			hopCnts.put(path, new IntValue(pathRec.getField(3, IntValue.class).getValue()));
 						
 			// find shortest path of all input paths
-			for (Record pathRec : inputRecords) {
+			while (inputRecords.hasNext()) {
+				pathRec = inputRecords.next();
 				IntValue length = pathRec.getField(2, IntValue.class);
 				
 				if (length.getValue() == minLength.getValue()) {
@@ -318,8 +320,7 @@ public class PairwiseSP implements Program, ProgramDescription {
 					if(shortestPaths.add(path)) {
 						hopCnts.put(path, new IntValue(pathRec.getField(3, IntValue.class).getValue()));
 					}
-				}
-				else if (length.getValue() < minLength.getValue()) {
+				} else if (length.getValue() < minLength.getValue()) {
 					// path has minimum length
 					minLength.setValue(length.getValue());
 					// clear lists
@@ -333,7 +334,8 @@ public class PairwiseSP implements Program, ProgramDescription {
 			}
 
 			// find shortest path of all input and concatenated paths
-			for (Record pathRec : concatRecords) {
+			while (concatRecords.hasNext()) {
+				pathRec = concatRecords.next();
 				IntValue length = pathRec.getField(2, IntValue.class);
 				
 				if (length.getValue() == minLength.getValue()) {
@@ -365,7 +367,7 @@ public class PairwiseSP implements Program, ProgramDescription {
 				outputRecord.setField(4, shortestPath);
 				out.collect(outputRecord);
 			}
-			
+									
 			hopCnts.clear();
 			shortestPaths.clear();
 			

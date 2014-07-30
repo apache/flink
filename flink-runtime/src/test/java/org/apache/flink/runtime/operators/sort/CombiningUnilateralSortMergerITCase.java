@@ -32,7 +32,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
-import org.apache.flink.api.java.record.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import org.apache.flink.configuration.Configuration;
@@ -273,7 +273,7 @@ public class CombiningUnilateralSortMergerITCase {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public static class TestCountCombiner extends ReduceFunction {
+	public static class TestCountCombiner extends GroupReduceFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private final IntValue count = new IntValue();
@@ -311,7 +311,7 @@ public class CombiningUnilateralSortMergerITCase {
 		}
 	}
 
-	public static class TestCountCombiner2 extends ReduceFunction {
+	public static class TestCountCombiner2 extends GroupReduceFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		public volatile boolean opened = false;

@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.test.recordJobs.graph;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
@@ -82,13 +84,14 @@ public class ComputeEdgeDegrees implements Program, ProgramDescription {
 		private int[] vals = new int[1024];
 
 		@Override
-		public void reduce(Iterable<Record> records, Collector<Record> out) {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			int[] vals = this.vals;
 			int len = 0;
 			int key = -1;
 			
 			// collect all values
-			for (Record rec : records) {
+			while (records.hasNext()) {
+				final Record rec = records.next();
 				final int id = rec.getField(1, IntValue.class).getValue();
 				if (key == -1) {
 					key = rec.getField(0, IntValue.class).getValue();
@@ -153,13 +156,13 @@ public class ComputeEdgeDegrees implements Program, ProgramDescription {
 		private final IntValue count2 = new IntValue();
 
 		@Override
-		public void reduce(Iterable<Record> records, Collector<Record> out) {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			Record rec = null;
 			int c1 = 0, c2 = 0;
 			int numValues = 0;
 			
-			for (Record next : records) {
-				rec = next;
+			while (records.hasNext()) {
+				rec = records.next();
 				final int f1 = rec.getField(2, IntValue.class).getValue();
 				final int f2 = rec.getField(3, IntValue.class).getValue();
 				c1 += f1;

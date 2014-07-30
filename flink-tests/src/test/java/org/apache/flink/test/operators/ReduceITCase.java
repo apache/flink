@@ -45,6 +45,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedList;
 
 @RunWith(Parameterized.class)
@@ -77,12 +78,12 @@ public class ReduceITCase extends RecordAPITestBase {
 		private StringValue combineValue = new StringValue();
 
 		@Override
-		public void combine(Iterable<Record> records, Collector<Record> out) {
+		public void combine(Iterator<Record> records, Collector<Record> out) {
 			Record record = null;
 			int sum = 0;
 			
-			for (Record next : records) {
-				record = next;
+			while (records.hasNext()) {
+				record = records.next();
 				combineValue = record.getField(1, combineValue);
 				sum += Integer.parseInt(combineValue.toString());
 			}
@@ -92,12 +93,12 @@ public class ReduceITCase extends RecordAPITestBase {
 		}
 
 		@Override
-		public void reduce(Iterable<Record> records, Collector<Record> out) {
+		public void reduce(Iterator<Record> records, Collector<Record> out) {
 			Record record = null;
 			int sum = 0;
 			
-			for (Record next : records) {
-				record = next;
+			while (records.hasNext()) {
+				record = records.next();
 				reduceValue = record.getField(1, reduceValue);
 				sum += Integer.parseInt(reduceValue.toString());
 			}

@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.test.recordJobs.graph;
 
 import java.io.Serializable;
+import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
@@ -88,12 +90,12 @@ public class SimplePageRank implements Program, ProgramDescription {
 		private final DoubleValue sum = new DoubleValue();
 
 		@Override
-		public void reduce(Iterable<Record> pageWithPartialRank, Collector<Record> out) throws Exception {
+		public void reduce(Iterator<Record> pageWithPartialRank, Collector<Record> out) throws Exception {
 			Record rec = null;
 			double rankSum = 0.0;
 			
-			for (Record next : pageWithPartialRank) {
-				rec = next;
+			while (pageWithPartialRank.hasNext()) {
+				rec = pageWithPartialRank.next();
 				rankSum += rec.getField(1, DoubleValue.class).getValue();
 			}
 			sum.setValue(rankSum);

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators;
 import junit.framework.Assert;
 
 import org.apache.flink.api.common.functions.GenericCoGrouper;
-import org.apache.flink.api.java.record.functions.CoGroupFunction;
+import org.apache.flink.api.java.functions.CoGroupFunction;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
 import org.apache.flink.runtime.operators.CoGroupDriver;
@@ -84,7 +84,7 @@ public class CoGroupTaskExternalITCase extends DriverTestBase<GenericCoGrouper<R
 		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
-	public static final class MockCoGroupStub extends CoGroupFunction {
+	public static final class MockCoGroupStub extends CoGroupFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private final Record res = new Record();

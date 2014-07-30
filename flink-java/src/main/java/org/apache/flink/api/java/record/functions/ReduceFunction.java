@@ -18,9 +18,9 @@
 
 package org.apache.flink.api.java.record.functions;
 
+import java.util.Iterator;
+
 import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.common.functions.GenericCombine;
-import org.apache.flink.api.common.functions.GenericGroupReduce;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
@@ -28,7 +28,7 @@ import org.apache.flink.util.Collector;
  * The ReduceFunction must be extended to provide a reducer implementation, as invoked by a
  * {@link org.apache.flink.api.java.operators.ReduceOperator}.
  */
-public abstract class ReduceFunction extends AbstractFunction implements GenericGroupReduce<Record, Record>, GenericCombine<Record> {
+public abstract class ReduceFunction extends AbstractFunction {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -44,8 +44,7 @@ public abstract class ReduceFunction extends AbstractFunction implements Generic
 	 *                   runtime catches an exception, it aborts the reduce task and lets the fail-over logic
 	 *                   decide whether to retry the reduce execution.
 	 */
-	@Override
-	public abstract void reduce(Iterable<Record> records, Collector<Record> out) throws Exception;
+	public abstract void reduce(Iterator<Record> records, Collector<Record> out) throws Exception;
 
 	/**
 	 * No default implementation provided.
@@ -68,8 +67,7 @@ public abstract class ReduceFunction extends AbstractFunction implements Generic
 	 *                   runtime catches an exception, it aborts the combine task and lets the fail-over logic
 	 *                   decide whether to retry the combiner execution.
 	 */
-	@Override
-	public void combine(Iterable<Record> records, Collector<Record> out) throws Exception {
+	public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
 		// to be implemented, if the reducer should use a combiner. Note that the combining method
 		// is only used, if the stub class is further annotated with the annotation
 		// @ReduceOperator.Combinable

@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import junit.framework.Assert;
 
 import org.apache.flink.api.common.functions.GenericGroupReduce;
-import org.apache.flink.api.java.record.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.runtime.operators.DriverStrategy;
@@ -163,7 +163,7 @@ public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?
 	}
 	
 	@Combinable
-	public static class MockCombiningReduceStub extends ReduceFunction {
+	public static class MockCombiningReduceStub extends GroupReduceFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private final IntValue theInteger = new IntValue();
@@ -191,7 +191,7 @@ public class CombineTaskTest extends DriverTestBase<GenericGroupReduce<Record, ?
 	}
 	
 	@Combinable
-	public static final class MockFailingCombiningReduceStub extends ReduceFunction {
+	public static final class MockFailingCombiningReduceStub extends GroupReduceFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;

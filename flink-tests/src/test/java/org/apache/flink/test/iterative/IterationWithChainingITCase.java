@@ -20,6 +20,7 @@ package org.apache.flink.test.iterative;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.MapFunction;
@@ -92,9 +93,9 @@ public class IterationWithChainingITCase extends RecordAPITestBase {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterable<Record> it, Collector<Record> out) {
-			for (Record r : it) {
-				out.collect(r);
+		public void reduce(Iterator<Record> it, Collector<Record> out) {
+			while (it.hasNext()) {
+				out.collect(it.next());
 			}
 		}
 	}

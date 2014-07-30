@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.test.recordJobs.kmeans;
 
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.Plan;
@@ -253,7 +255,7 @@ public class KMeansBroadcast implements Program, ProgramDescription {
 		 * Compute the new position (coordinate vector) of a cluster center.
 		 */
 		@Override
-		public void reduce(Iterable<Record> points, Collector<Record> out) {
+		public void reduce(Iterator<Record> points, Collector<Record> out) {
 			Record sum = sumPointsAndCount(points);
 			sum.setField(1, sum.getField(1, Point.class).div(sum.getField(2, IntValue.class).getValue()));
 			out.collect(sum);
@@ -263,18 +265,18 @@ public class KMeansBroadcast implements Program, ProgramDescription {
 		 * Computes a pre-aggregated average value of a coordinate vector.
 		 */
 		@Override
-		public void combine(Iterable<Record> points, Collector<Record> out) {
+		public void combine(Iterator<Record> points, Collector<Record> out) {
 			out.collect(sumPointsAndCount(points));
 		}
 		
-		private final Record sumPointsAndCount(Iterable<Record> dataPoints) {
+		private final Record sumPointsAndCount(Iterator<Record> dataPoints) {
 			Record next = null;
 			p.clear();
 			int count = 0;
 			
 			// compute coordinate vector sum and count
-			for (Record n : dataPoints) {
-				next = n;
+			while (dataPoints.hasNext()) {
+				next = dataPoints.next();
 				p.add(next.getField(1, Point.class));
 				count += next.getField(2, IntValue.class).getValue();
 			}

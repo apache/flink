@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.test.recordJobs.relational;
 
 import java.io.Serializable;
+import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
@@ -95,6 +97,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		private static final long serialVersionUID = 1L;
 
 		private final IntValue integer = new IntValue();
+		private Record record = new Record();
 	
 		/**
 		 * Output Schema:
@@ -103,23 +106,29 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		 *
 		 */
 		@Override
-		public void reduce(Iterable<Record> records, Collector<Record> out) {
-			Record record = null;
+		public void reduce(Iterator<Record> records, Collector<Record> out)
+				throws Exception {
+
 			int count = 0;
 
-			for (Record next : records) {
-				record = next;
-				count += record.getField(0, integer).getValue();
+			while (records.hasNext()) {
+				record = records.next();
+				count+=record.getField(0, integer).getValue();
 			}
 
 			integer.setValue(count);
 			record.setField(0, integer);
 			out.collect(record);
 		}
-
-		public void combine(Iterable<Record> records, Collector<Record> out) {
+		
+		/**
+		 * Computes partial counts
+		 */
+		public void combine(Iterator<Record> records, Collector<Record> out)
+				throws Exception {
 			reduce(records, out);
 		}
+
 	}
 
 

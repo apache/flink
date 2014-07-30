@@ -27,7 +27,7 @@ import junit.framework.Assert;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.GenericGroupReduce;
-import org.apache.flink.api.java.record.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
@@ -270,7 +270,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 		
 	}
 	
-	public static class MockReduceStub extends ReduceFunction {
+	public static class MockReduceStub extends GroupReduceFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private final IntValue key = new IntValue();
@@ -293,7 +293,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 	}
 	
 	@Combinable
-	public static class MockCombiningReduceStub extends ReduceFunction {
+	public static class MockCombiningReduceStub extends GroupReduceFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private final IntValue key = new IntValue();
@@ -336,7 +336,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 		
 	}
 	
-	public static class MockFailingReduceStub extends ReduceFunction {
+	public static class MockFailingReduceStub extends GroupReduceFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;
@@ -365,7 +365,7 @@ public class ReduceTaskTest extends DriverTestBase<GenericGroupReduce<Record, Re
 		}
 	}
 	
-	public static class MockDelayingReduceStub extends ReduceFunction {
+	public static class MockDelayingReduceStub extends GroupReduceFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override

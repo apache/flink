@@ -22,6 +22,7 @@ package org.apache.flink.test.accumulators;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
@@ -255,23 +256,23 @@ public class AccumulatorITCase extends RecordAPITestBase {
 		}
 		
 		@Override
-		public void reduce(Iterable<Record> records, Collector<Record> out) throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			reduceCalls.add(1);
 			reduceInternal(records, out);
 		}
 		
 		@Override
-		public void combine(Iterable<Record> records, Collector<Record> out) throws Exception {
+		public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
 			combineCalls.add(1);
 			reduceInternal(records, out);
 		}
 		
-		private void reduceInternal(Iterable<Record> records, Collector<Record> out) {
+		private void reduceInternal(Iterator<Record> records, Collector<Record> out) {
 			Record element = null;
 			int sum = 0;
 			
-			for (Record next : records) {
-				element = next;
+			while (records.hasNext()) {
+				element = records.next();
 				IntValue i = element.getField(1, IntValue.class);
 				sum += i.getValue();
 			}

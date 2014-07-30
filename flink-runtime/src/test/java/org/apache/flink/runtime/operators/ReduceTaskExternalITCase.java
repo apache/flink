@@ -26,7 +26,7 @@ import junit.framework.Assert;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.GenericGroupReduce;
-import org.apache.flink.api.java.record.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
@@ -213,7 +213,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericGroupReduce<
 		
 	}
 	
-	public static class MockReduceStub extends ReduceFunction {
+	public static class MockReduceStub extends GroupReduceFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private final IntValue key = new IntValue();
@@ -236,7 +236,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<GenericGroupReduce<
 	}
 	
 	@Combinable
-	public static class MockCombiningReduceStub extends ReduceFunction {
+	public static class MockCombiningReduceStub extends GroupReduceFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 
 		private final IntValue key = new IntValue();

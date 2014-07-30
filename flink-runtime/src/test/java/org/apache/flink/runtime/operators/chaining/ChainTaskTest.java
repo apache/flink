@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.chaining;
 
 import java.util.ArrayList;
@@ -24,7 +23,7 @@ import java.util.List;
 
 import org.apache.flink.api.common.functions.GenericCollectorMap;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
-import org.apache.flink.api.java.record.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparatorFactory;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import org.apache.flink.configuration.Configuration;
@@ -189,7 +188,7 @@ public class ChainTaskTest extends TaskTestBase {
 		}
 	}
 	
-	public static final class MockFailingCombineStub extends ReduceFunction {
+	public static final class MockFailingCombineStub extends GroupReduceFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;
@@ -199,8 +198,9 @@ public class ChainTaskTest extends TaskTestBase {
 			if (++this.cnt >= 5) {
 				throw new RuntimeException("Expected Test Exception");
 			}
-			for (Record rec : records) {
-				out.collect(rec);
+			
+			for (Record r : records) {
+				out.collect(r);
 			}
 		}
 	}

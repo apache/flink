@@ -19,6 +19,7 @@
 package org.apache.flink.test.recordJobs.kmeans.udfs;
 
 import java.io.Serializable;
+import java.util.Iterator;
 
 import org.apache.flink.api.java.record.functions.ReduceFunction;
 import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFields;
@@ -47,7 +48,7 @@ public class RecomputeClusterCenter extends ReduceFunction implements Serializab
 	 * Compute the new position (coordinate vector) of a cluster center.
 	 */
 	@Override
-	public void reduce(Iterable<Record> dataPoints, Collector<Record> out) {
+	public void reduce(Iterator<Record> dataPoints, Collector<Record> out) {
 		Record next = null;
 			
 		// initialize coordinate vector sum and count
@@ -56,8 +57,8 @@ public class RecomputeClusterCenter extends ReduceFunction implements Serializab
 		int count = 0;	
 
 		// compute coordinate vector sum and count
-		for (Record n : dataPoints) {
-			next = n;
+		while (dataPoints.hasNext()) {
+			next = dataPoints.next();
 			
 			// get the coordinates and the count from the record
 			double[] thisCoords = next.getField(1, CoordVector.class).getCoordinates();
@@ -93,7 +94,7 @@ public class RecomputeClusterCenter extends ReduceFunction implements Serializab
 	 * Computes a pre-aggregated average value of a coordinate vector.
 	 */
 	@Override
-	public void combine(Iterable<Record> dataPoints, Collector<Record> out) {
+	public void combine(Iterator<Record> dataPoints, Collector<Record> out) {
 		
 		Record next = null;
 		
@@ -103,8 +104,8 @@ public class RecomputeClusterCenter extends ReduceFunction implements Serializab
 		int count = 0;	
 
 		// compute coordinate vector sum and count
-		for (Record n : dataPoints) {
-			next = n;
+		while (dataPoints.hasNext()) {
+			next = dataPoints.next();
 			
 			// get the coordinates and the count from the record
 			double[] thisCoords = next.getField(1, CoordVector.class).getCoordinates();

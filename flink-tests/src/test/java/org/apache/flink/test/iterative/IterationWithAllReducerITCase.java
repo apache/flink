@@ -19,6 +19,7 @@
 package org.apache.flink.test.iterative;
 
 import java.io.Serializable;
+import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.ReduceFunction;
@@ -100,8 +101,8 @@ public class IterationWithAllReducerITCase extends RecordAPITestBase {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void reduce(Iterable<Record> it, Collector<Record> out) {
-			out.collect(it.iterator().next());
+		public void reduce(Iterator<Record> it, Collector<Record> out) {
+			out.collect(it.next());
 		}
 	}
 }

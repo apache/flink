@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.test.recordJobs.graph;
 
 import java.io.Serializable;
+import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
@@ -55,18 +57,17 @@ public class ConnectedComponentsWithCoGroup implements Program {
 		private final LongValue newComponentId = new LongValue();
 		
 		@Override
-		public void coGroup(Iterable<Record> candidates, Iterable<Record> current, Collector<Record> out) throws Exception {
-			if (!current.iterator().hasNext()) {
+		public void coGroup(Iterator<Record> candidates, Iterator<Record> current, Collector<Record> out) throws Exception {
+			if (!current.hasNext()) {
 				throw new Exception("Error: Id not encountered before.");
 			}
-			
-			Record old = current.iterator().next();
+			Record old = current.next();
 			long oldId = old.getField(1, LongValue.class).getValue();
 			
 			long minimumComponentID = Long.MAX_VALUE;
 
-			for (Record candidate : candidates) {
-				long candidateComponentID = candidate.getField(1, LongValue.class).getValue();
+			while (candidates.hasNext()) {
+				long candidateComponentID = candidates.next().getField(1, LongValue.class).getValue();
 				if (candidateComponentID < minimumComponentID) {
 					minimumComponentID = candidateComponentID;
 				}

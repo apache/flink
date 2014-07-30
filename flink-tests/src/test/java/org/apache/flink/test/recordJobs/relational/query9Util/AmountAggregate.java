@@ -16,7 +16,11 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.test.recordJobs.relational.query9Util;
+
+
+import java.util.Iterator;
 
 import org.apache.flink.api.java.record.functions.ReduceFunction;
 import org.apache.flink.types.Record;
@@ -39,13 +43,15 @@ public class AmountAggregate extends ReduceFunction {
 	 *  Value: amount
 	 *
 	 */
+	
 	@Override
-	public void reduce(Iterable<Record> records, Collector<Record> out) {
+	public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception
+	{
 		Record record = null;
 		float amount = 0;
 
-		for (Record next : records) {
-			record = next;
+		while (records.hasNext()) {
+			record = records.next();
 			StringValue value = record.getField(1, StringValue.class);
 			amount += Float.parseFloat(value.toString());
 		}
@@ -60,7 +66,8 @@ public class AmountAggregate extends ReduceFunction {
 	 * Creates partial sums of "amount" for each data batch:
 	 */
 	@Override
-	public void combine(Iterable<Record> records, Collector<Record> out) {
+	public void combine(Iterator<Record> records, Collector<Record> out) throws Exception
+	{
 		reduce(records, out);
 	}
 }

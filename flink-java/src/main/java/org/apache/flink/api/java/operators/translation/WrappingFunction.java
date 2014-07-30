@@ -40,13 +40,16 @@ public abstract class WrappingFunction<T extends AbstractFunction> extends Abstr
 	
 	private static final long serialVersionUID = 1L;
 
-	protected final T wrappedFunction;
+	protected T wrappedFunction;
 	
 	
 	protected WrappingFunction(T wrappedFunction) {
 		this.wrappedFunction = wrappedFunction;
 	}
 
+	public T getWrappedFunction() {
+		return wrappedFunction;
+	}
 	
 	@Override
 	public void open(Configuration parameters) throws Exception {
@@ -170,6 +173,5 @@ public abstract class WrappingFunction<T extends AbstractFunction> extends Abstr
 		public <T extends Value> T getPreviousIterationAggregate(String name) {
 			return ((IterationRuntimeContext) context).<T>getPreviousIterationAggregate(name);
 		}
-		
 	}
 }

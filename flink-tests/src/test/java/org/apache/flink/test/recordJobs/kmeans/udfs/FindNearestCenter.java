@@ -19,6 +19,7 @@
 package org.apache.flink.test.recordJobs.kmeans.udfs;
 
 import java.io.Serializable;
+import java.util.Iterator;
 
 import org.apache.flink.api.java.record.functions.ReduceFunction;
 import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFields;
@@ -53,12 +54,14 @@ public class FindNearestCenter extends ReduceFunction implements Serializable {
 	 * 2: constant(1) (to enable combinable average computation in the following reducer)
 	 */
 	@Override
-	public void reduce(Iterable<Record> pointsWithDistance, Collector<Record> out) {
+	public void reduce(Iterator<Record> pointsWithDistance, Collector<Record> out) {
 		double nearestDistance = Double.MAX_VALUE;
 		int nearestClusterId = 0;
 
 		// check all cluster centers
-		for ( Record res : pointsWithDistance) {
+		while (pointsWithDistance.hasNext()) {
+			Record res = pointsWithDistance.next();
+			
 			double distance = res.getField(3, DoubleValue.class).getValue();
 
 			// compare distances
@@ -89,11 +92,12 @@ public class FindNearestCenter extends ReduceFunction implements Serializable {
 	 * cluster centers.
 	 */
 	@Override
-	public void combine(Iterable<Record> pointsWithDistance, Collector<Record> out) {
+	public void combine(Iterator<Record> pointsWithDistance, Collector<Record> out) {
 		double nearestDistance = Double.MAX_VALUE;
 
 		// check all cluster centers
-		for (Record res : pointsWithDistance) {
+		while (pointsWithDistance.hasNext()) {
+			Record res = pointsWithDistance.next();
 			double distance = res.getField(3, DoubleValue.class).getValue();
 
 			// compare distances

@@ -20,6 +20,7 @@ package org.apache.flink.test.recordJobTests;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.Order;
@@ -117,11 +118,11 @@ public class GroupOrderReduceITCase extends RecordAPITestBase {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterable<Record> records, Collector<Record> out) throws Exception {
-			int lastValue = records.iterator().next().getField(1, IntValue.class).getValue();
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
+			int lastValue = records.next().getField(1, IntValue.class).getValue();
 			
-			for (Record r : records) {
-				int nextValue = r.getField(1, IntValue.class).getValue();
+			while (records.hasNext()) {
+				int nextValue = records.next().getField(1, IntValue.class).getValue();
 				
 				if (nextValue < lastValue) {
 					throw new Exception("Group Order is violated!");

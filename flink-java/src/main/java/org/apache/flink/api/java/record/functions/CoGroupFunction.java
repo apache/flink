@@ -16,18 +16,18 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.record.functions;
 
+import java.util.Iterator;
+
 import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.common.functions.GenericCoGrouper;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
 /**
  * The CoGroupFunction is the base class for functions that are invoked by a {@link org.apache.flink.api.java.operators.CoGroupOperator}.
  */
-public abstract class CoGroupFunction extends AbstractFunction implements GenericCoGrouper<Record, Record, Record> {
+public abstract class CoGroupFunction extends AbstractFunction {
 
 	private static final long serialVersionUID = 1L;
 
@@ -44,7 +44,5 @@ public abstract class CoGroupFunction extends AbstractFunction implements Generi
 	 *                   runtime catches an exception, it aborts the task and lets the fail-over logic
 	 *                   decide whether to retry the task execution.
 	 */
-	@Override
-	public abstract void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) throws Exception;
-	
+	public abstract void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) throws Exception;
 }

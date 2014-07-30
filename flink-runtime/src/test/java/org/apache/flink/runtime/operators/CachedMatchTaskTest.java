@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.flink.api.common.functions.GenericJoiner;
-import org.apache.flink.api.java.record.functions.JoinFunction;
+import org.apache.flink.api.java.functions.JoinFunction;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
 import org.apache.flink.runtime.operators.BuildFirstCachedMatchDriver;
@@ -462,31 +462,31 @@ public class CachedMatchTaskTest extends DriverTestBase<GenericJoiner<Record, Re
 	
 	// =================================================================================================
 	
-	public static final class MockMatchStub extends JoinFunction {
+	public static final class MockMatchStub extends JoinFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void join(Record record1, Record record2, Collector<Record> out) throws Exception {
-			out.collect(record1);
+		public Record join(Record record1, Record record2) throws Exception {
+			return record1;
 		}
 	}
 	
-	public static final class MockFailingMatchStub extends JoinFunction {
+	public static final class MockFailingMatchStub extends JoinFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;
 		
 		@Override
-		public void join(Record record1, Record record2, Collector<Record> out) {
+		public Record join(Record first, Record second) throws Exception {
 			if (++this.cnt >= 10) {
 				throw new ExpectedTestException();
 			}
 			
-			out.collect(record1);
+			return first;
 		}
 	}
 	
-	public static final class MockDelayingMatchStub extends JoinFunction {
+	public static final class MockDelayingMatchStub extends JoinFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
@@ -494,6 +494,11 @@ public class CachedMatchTaskTest extends DriverTestBase<GenericJoiner<Record, Re
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) { }
+		}
+
+		@Override
+		public Record join(Record first, Record second){
+			return null;
 		}
 	}
 }

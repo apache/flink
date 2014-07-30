@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.test.recordJobs.graph;
 
 import java.io.Serializable;
+import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
@@ -88,10 +90,12 @@ public class EnumTrianglesOnEdgesWithDegrees implements Program, ProgramDescript
 		private int[] edgeCache = new int[1024];
 
 		@Override
-		public void reduce(Iterable<Record> records, Collector<Record> out) throws Exception {
+		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			int len = 0;
 			
-			for (Record rec : records) {
+			Record rec = null;
+			while (records.hasNext()) {
+				rec = records.next();
 				final int e1 = rec.getField(1, IntValue.class).getValue();
 				
 				for (int i = 0; i < len; i++) {
