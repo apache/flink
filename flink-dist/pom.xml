@@ -132,8 +132,9 @@ under the License.
 						<artifactId>maven-assembly-plugin</artifactId>
 						<version>2.4</version>
 						<executions>
+							<!--  Uber-jar -->
 							<execution>
-								<id>single-jar</id>
+								<id>uber-jar</id>
 								<phase>package</phase>
 								<goals>
 									<goal>single</goal>
@@ -154,8 +155,23 @@ under the License.
 									</archive>
 									<descriptors>
 										<descriptor>src/main/assemblies/yarn-uberjar.xml</descriptor>
+									</descriptors>
+								</configuration>
+							</execution>
+							
+							<!-- yarn bin directory -->
+							<execution>
+								<id>yarn-bin</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<descriptors>
 										<descriptor>src/main/assemblies/yarn.xml</descriptor>
 									</descriptors>
+									<finalName>flink-${project.version}-bin</finalName>
+									<appendAssemblyId>false</appendAssemblyId>
 								</configuration>
 							</execution>
 						</executions>
@@ -321,13 +337,15 @@ under the License.
 		</profile>
 	</profiles>
 	
+	
+
 	<build>
 		<plugins>
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>generate-package</id>
+						<id>bin</id>
 						<phase>package</phase>
 						<goals>
 							<goal>single</goal>
@@ -336,6 +354,8 @@ under the License.
 							<descriptors>
 								<descriptor>src/main/assemblies/bin.xml</descriptor>
 							</descriptors>
+							<finalName>flink-${project.version}-bin</finalName>
+							<appendAssemblyId>false</appendAssemblyId>
 						</configuration>
 					</execution>
 				</executions>
