@@ -16,15 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.functions;
+package org.apache.flink.test.javaApiOperators.lambdas;
 
-import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
+import org.junit.Assert;
+import org.junit.Test;
 
-public class UnsupportedLambdaExpressionException extends InvalidProgramException {
+import java.io.Serializable;
 
-	private static final long serialVersionUID = -1721898801986321010L;
+public class MapITCase implements Serializable{
 
-	public UnsupportedLambdaExpressionException() {
-		super("Java 8 lambda expressions are currently supported only in filter and reduce user-defined functions.");
+	@Test
+	public void TestMapLambda () {
+		try {
+			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+			DataSet<String> stringDs = env.fromElements("aa", "ab", "ac", "ad");
+			DataSet<String> mappedDs = stringDs.map (s -> s.replace("a", "b"));
+			env.execute();
+		}
+		catch (UnsupportedLambdaExpressionException e) {
+			// Success
+			return;
+		}
+		catch (Exception e) {
+			Assert.fail();
+		}
 	}
 }

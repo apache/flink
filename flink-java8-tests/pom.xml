@@ -30,11 +30,10 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-tests</artifactId>
-	<name>flink-tests</name>
+	<artifactId>flink-java8-tests</artifactId>
+	<name>flink-java8-tests</name>
 
 	<packaging>jar</packaging>
-
 
 	<dependencies>
 		<dependency>
@@ -91,10 +90,26 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-tests</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+            <plugin>
+                <!-- just define the Java version to be used for compiling and plugins -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.1</version><!--$NO-MVN-MAN-VER$-->
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <!-- High optimization, no debugging <compilerArgument>-g:none -O</compilerArgument> -->
+                </configuration>
+            </plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
@@ -113,9 +128,6 @@ under the License.
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
-					<excludes>
-						<exclude>**/*TestBase*.class</exclude>
-					</excludes>
 					<forkMode>once</forkMode>
 					<argLine>-Xmx1024m</argLine>
 				</configuration>
@@ -131,60 +143,18 @@ under the License.
 					<perCoreThreadCount>false</perCoreThreadCount>
 				</configuration>
 			</plugin>
-			
-			<plugin>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
-				<executions>
-					<execution>
-						<id>create-test-dependency</id>
-						<phase>process-test-classes</phase>
-						<goals>
-							<goal>single</goal>
-						</goals>
-						<configuration>
-							<archive>
-								<manifest>
-									<mainClass>org.apache.flink.test.util.testjar.KMeansForTest</mainClass>
-								</manifest>
-							</archive>
-							<finalName>maven</finalName>
-							<attach>false</attach>
-							<descriptors>
-								<descriptor>src/test/assembly/test-assembly.xml</descriptor>
-							</descriptors>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
+            <plugin>
+                <!-- Define the Java version to be used for compiling and plugins -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.1</version><!--$NO-MVN-MAN-VER$-->
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <!-- High optimization, no debugging <compilerArgument>-g:none -O</compilerArgument> -->
+                </configuration>
+            </plugin>
 
-			<!--Remove the KMeansForTest code from the test-classes directory since it musn't be in the
-			classpath when running the tests to actually test whether the user code class loader
-			is properly used.-->
-			<plugin>
-				<artifactId>maven-clean-plugin</artifactId>
-				<version>2.5</version>
-				<executions>
-					<execution>
-						<id>remove-kmeansfortest</id>
-						<phase>process-test-classes</phase>
-						<goals>
-							<goal>clean</goal>
-						</goals>
-						<configuration>
-							<excludeDefaultDirectories>true</excludeDefaultDirectories>
-							<filesets>
-								<fileset>
-									<directory>${project.build.testOutputDirectory}</directory>
-									<includes>
-										<include>**/testjar/*.class</include>
-									</includes>
-								</fileset>
-							</filesets>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
 		</plugins>
 		
 		<pluginManagement>

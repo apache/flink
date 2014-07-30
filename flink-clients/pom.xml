@@ -154,17 +154,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-            <plugin>
-            <!-- just define the Java version to be used for compiling and plugins -->
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.1</version><!--$NO-MVN-MAN-VER$-->
-                    <configuration>
-                        <source>1.8</source>
-                        <target>1.8</target>
-                        <!-- High optimization, no debugging <compilerArgument>-g:none -O</compilerArgument> -->
-                    </configuration>
-            </plugin>
 		</plugins>
 		
 		<pluginManagement>

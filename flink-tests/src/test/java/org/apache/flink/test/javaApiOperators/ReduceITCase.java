@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
+import org.apache.flink.api.common.functions.Reducible;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -272,19 +273,23 @@ public class ReduceITCase extends JavaProgramTestBase {
 			}
 			case 9: {
 				/*
-				 * Pass lambda instead of rich function
-				 * Functionality identical to test 2
+				 * Passing interface instead of function
+				 * Functionality identical to org.apache.flink.test.javaApiOperators.ReduceITCase test 2
 				 */
 
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
 				DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds
-						.groupBy(4,0)
-						.reduce((in1, in2) -> {
-							Tuple5<Integer, Long, Integer, String, Long> out = new Tuple5<Integer, Long, Integer, String, Long>();
-							out.setFields(in1.f0, in1.f1+in2.f1, 0, "P-)", in1.f4);
-							return out;});
+						.groupBy(4, 0)
+						.reduce(new Reducible<Tuple5<Integer, Long, Integer, String, Long>>() {
+							@Override
+							public Tuple5<Integer, Long, Integer, String, Long> reduce(Tuple5<Integer, Long, Integer, String, Long> in1, Tuple5<Integer, Long, Integer, String, Long> in2) throws Exception {
+								Tuple5<Integer, Long, Integer, String, Long> out = new Tuple5<Integer, Long, Integer, String, Long>();
+								out.setFields(in1.f0, in1.f1+in2.f1, 0, "P-)", in1.f4);
+								return out;
+							}
+						});
 
 				reduceDs.writeAsCsv(resultPath);
 				env.execute();
@@ -302,7 +307,7 @@ public class ReduceITCase extends JavaProgramTestBase {
 						"5,25,0,P-),3\n";
 
 			}
-			default: 
+			default:
 				throw new IllegalArgumentException("Invalid program id");
 			}
 			

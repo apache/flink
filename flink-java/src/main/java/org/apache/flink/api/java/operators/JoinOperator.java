@@ -481,26 +481,22 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			if (FunctionUtils.isLambdaFunction(function)) {
 				throw new UnsupportedLambdaExpressionException();
 			}
-			FlatJoinable generatedFunction = new GeneratedFlatJoinFunction<I1, I2, R> (function);
+			FlatJoinable generatedFunction = new WrappingFlatJoinFunction<I1, I2, R>(function);
 			TypeInformation<R> returnType = TypeExtractor.getJoinReturnTypes(function, getInput1Type(), getInput2Type());
 			return new EquiJoin<I1, I2, R>(getInput1(), getInput2(), getKeys1(), getKeys2(), generatedFunction, function, returnType, getJoinHint());
 		}
 
-		private static class GeneratedFlatJoinFunction<IN1, IN2, OUT> extends WrappingFunction<Joinable<IN1,IN2,OUT>> implements FlatJoinable<IN1, IN2, OUT> {
+		private static class WrappingFlatJoinFunction<IN1, IN2, OUT> extends WrappingFunction<Joinable<IN1,IN2,OUT>> implements FlatJoinable<IN1, IN2, OUT> {
 
 			private static final long serialVersionUID = 1L;
 
-			private GeneratedFlatJoinFunction(Joinable<IN1, IN2, OUT> wrappedFunction) {
+			private WrappingFlatJoinFunction(Joinable<IN1, IN2, OUT> wrappedFunction) {
 				super(wrappedFunction);
 			}
 
 			@Override
 			public void join(IN1 left, IN2 right, Collector<OUT> out) throws Exception {
 				out.collect (this.wrappedFunction.join(left, right));
-			}
-
-			public Joinable getWrappedFunction () {
-				return this.wrappedFunction;
 			}
 		}
 

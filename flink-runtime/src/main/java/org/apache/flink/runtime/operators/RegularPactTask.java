@@ -526,8 +526,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			// modify accumulators.ll;
 			if (this.stub != null) {
 				// collect the counters from the stub
-
-				// !!! Is this.runtimeUdfContext the right thing to return here if this.stub.getRuntimeContext() is null? !!!
 				Map<String, Accumulator<?,?>> accumulators = FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
 				RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
 			}

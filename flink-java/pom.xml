@@ -34,22 +34,6 @@ under the License.
 
 	<packaging>jar</packaging>
 
-    <build>
-        <plugins>
-            <plugin>
-                <!-- just define the Java version to be used for compiling and plugins -->
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.1</version><!--$NO-MVN-MAN-VER$-->
-                <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
-                    <!-- High optimization, no debugging <compilerArgument>-g:none -O</compilerArgument> -->
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
-
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>

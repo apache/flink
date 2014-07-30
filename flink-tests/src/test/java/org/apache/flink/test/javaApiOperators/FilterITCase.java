@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
+import org.apache.flink.api.common.functions.Filterable;
 import org.apache.flink.api.java.functions.FilterFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
@@ -336,22 +337,26 @@ public class FilterITCase extends JavaProgramTestBase {
 			}
 			case 9: {
 				/*
-				 * Test passing lambda instead of function
-				 * Functionality identical to test 3
+				 * Passing interface instead of function
+				 * Functionality identical to org.apache.flink.test.javaApiOperators.FilterITCase test 3
 				 */
 
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
-						filter(value -> value.f2.contains("world"));
+						filter(new Filterable<Tuple3<Integer, Long, String>>() {
+								   @Override
+								   public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
+									   return value.f2.contains("world");
+								   }
+							   });
 				filterDs.writeAsCsv(resultPath);
 				env.execute();
 
 				// return expected result
 				return "3,2,Hello world\n" +
 						"4,3,Hello world, how are you?\n";
-
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

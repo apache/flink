@@ -71,7 +71,9 @@ public abstract class WrappingFunction<T extends Function> extends AbstractRichF
 		}
 	}
 
-
+	public T getWrappedFunction () {
+		return this.wrappedFunction;
+	}
 	
 	
 	private static class WrappingRuntimeContext implements RuntimeContext {
