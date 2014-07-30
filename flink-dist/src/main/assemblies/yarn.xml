@@ -23,11 +23,7 @@ under the License.
 	xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0 http://maven.apache.org/xsd/assembly-1.1.0.xsd">
 	<id>yarn</id>
 	<formats>
-		<format>tar.gz</format>
-		<!--
-		<format>tar.gz</format>
-		<format>zip</format>
-		-->
+		<format>dir</format>
 	</formats>
 
 	<includeBaseDirectory>true</includeBaseDirectory>
@@ -68,6 +64,9 @@ under the License.
 			<includes>
 				<include>*.txt</include>
 				<include>*.properties</include>
+				<include>DISCLAIMER*</include>
+				<include>LICENSE*</include>
+				<include>NOTICE*</include>
 			</includes>
 		</fileSet>
 		

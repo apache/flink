@@ -62,8 +62,7 @@ public class HadoopDummyReporter implements Reporter {
 	public InputSplit getInputSplit() throws UnsupportedOperationException {
 		return null;
 	}
-
-	@Override
+	// There should be an @Override, but some CDH4 dependency does not contain this method
 	public float getProgress() {
 		return 0;
 	}

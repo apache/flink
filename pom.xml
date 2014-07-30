@@ -460,6 +460,7 @@ under the License.
 						<exclude>**/target/**</exclude>
 						<!-- Documentation -->
 						<exclude>**/docs/**</exclude>
+						<exclude>**/tools/*.md</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
