@@ -444,17 +444,23 @@ Please look at the reduce examples to see how the grouping keys are specified.
 A Reduce transformation that is applied on a grouped `DataSet` reduces each group to a single element using a user-defined `ReduceFunction`.
 For each group of input elements, a `ReduceFunction` successively combines pairs of elements into one element until only a single element for each group remains.
 
-#### Reduce on DataSet grouped by KeySelector Function
-
-A `KeySelector` function extracts a key value from each element of a `DataSet`. The extracted key value is used to group the `DataSet`.
-The following code shows how to group a POJO `DataSet` using a `KeySelector` function and to reduce it with a `ReduceFunction`.
+#### Reduce on DataSet grouped by POJO expression keys
 
 ```java
 // some ordinary POJO
-public class WC {
+public static class WC {
   public String word;
   public int count;
+  
+  public WC() {
+  }
+  
+  public WC (String word, int count) {
+  	this.word = word;
+	this.count = count;
+  }
   // [...]
+  
 }
 
 // ReduceFunction that sums Integer attributes of a POJO
@@ -466,6 +472,22 @@ public class WordCounter extends ReduceFunction<WC> {
 }
 
 // [...]
+DataSet<WC> words = // [...]
+DataSet<WC> wordCounts = words
+                         // DataSet grouping by referring to the name of POJO's member
+                         .groupBy("word")
+                         // apply ReduceFunction on grouped DataSet
+                         .reduce(new WordCounter());
+```
+#### Reduce on DataSet grouped by KeySelector Function
+In case that a more complex key needs to be constructed, one may use the `KeySelector` function.
+A `KeySelector` function extracts a key value from each element of a `DataSet`. The extracted key value is used to group the `DataSet`.
+The following code shows how to group a POJO `DataSet` using a `KeySelector` function and to reduce it with a `ReduceFunction`.
+
+```java
+
+// [...]
+
 DataSet<WC> words = // [...]
 DataSet<WC> wordCounts = words
                          // DataSet grouping with inline-defined KeySelector function
