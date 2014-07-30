@@ -30,7 +30,7 @@ mvn archetype:generate								\
   -Dversion=0.1										\
   -Dpackage=org.apache.flink 						\
   -DinteractiveMode=false							\
-  -DarchetypeCatalog=https://oss.sonatype.org/content/repositories/snapshots/
+  -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/
 
 #
 # Give some guidance

@@ -15,9 +15,9 @@ notifications:
 
 env:
     global: 
-        # username and password for sonatype (maven deploy)
-        - secure: "iQrrSH9vL/ANeqj0u2qC1Ft4eAor2KF6mrqA4T6/5Woxqoq22siw9SGcSW7UmLr3fpbzqsapK8XX8Rkpgsi6V7YTpACZyj0tIX6knoy08KK4qJaGEDx+8FlM61l9qQCQ5gFVVu+cFvI+xd3tDCoZuGSZUjZOjNpYZZqSunsOZ7E="
-        - secure: "aip84Xhcy9jYUtLrdfL4uWNATmLgqwIU/Gn9dR85uPJHeVPq7gSq3yrmiLJkEUgc6WyLdsKmiGKPPqwAG2Hc57i/cdz3YSq0Cn/Ksuxviec66HvNIhIFLwuXQkWF/W7MLmMgL6kVD8PxMn+A3d/4aEUKX4ELhoAmBhULOYiXi+E="
+        # username and password for Apache Nexus (maven deploy)
+        - secure: "Nu2oNTrIAmxIkNEZzALw+GT2QBogEh/mqecSqoKDCk0oFjUZhrnrsIZYD/8zTG9fAVa5Gx4uWH4W824Va5RlBZvCs9UTh5TF25K2ORR9dB9FiXZ+Vjjig78sKJF7N73WVIOsHCSKpoBKnVkvNwxuAkPTMYjn3sswRh1pMu2VQ90="
+        - secure: "jMllQXAHpE+ijYXjvQvh0xml6DCL5pmESuWRtd0Wi4v56HHxKHc/Tty/CJvX8whVDLaHNFtwlbaIN9asSyAu1OyGhpWCqsmsxWF4atvKFua1oX45XMB26Ymf7Yr7aq7lcx66j0cYpfBXY4tFTFPiT05QnZ8XsHzEnv4Tpgif2dg="
         # New s3 deployment
         - ARTIFACTS_S3_BUCKET="stratosphere-bin"
         - secure: "AECzVxihEhYfnNcrY/wLirTkKkmSATycvTfKsBmxD07bg6BmaVgsOl4degUu4YL50e6agpoWul6irGxTg0bjLMAwg1ZGyRx57NFvNQ7JYDHK6EWmJ7BsK2WO7HiYzfau+ZAaL36WpOMi0UUPpuNXMvULqaE9b4jZqo1Wo/WDcyU="

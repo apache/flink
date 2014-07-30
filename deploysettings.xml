@@ -24,12 +24,12 @@ under the License.
                       http://maven.apache.org/xsd/settings-1.0.0.xsd">
   <servers>
     <server>
-      <id>sonatype-nexus-snapshots</id>
+      <id>apache.snapshots.https</id>
       <username>${sonatype_user}</username>
       <password>${sonatype_pw}</password>
     </server>
     <server>
-      <id>sonatype-nexus-staging</id>
+      <id>apache.releases.https</id>
       <username>${sonatype_user}</username>
       <password>${sonatype_pw}</password>
     </server>
