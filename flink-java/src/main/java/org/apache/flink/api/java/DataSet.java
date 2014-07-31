@@ -39,6 +39,7 @@ import org.apache.flink.api.java.operators.CustomUnaryOperation;
 import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.operators.FilterOperator;
+import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.JoinOperator;
@@ -300,6 +301,15 @@ public abstract class DataSet<T> {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
 		return new ReduceGroupOperator<T, R>(this, reducer);
+	}
+	
+	/**
+	 * Returns a new set containing the first n elements in this {@link DataSet}.<br/>
+	 * @param n The desired number of elements.
+	 * @return A ReduceGroupOperator that represents the DataSet containing the elements.
+	*/
+	public ReduceGroupOperator<T, T> first(int n) {
+		return reduceGroup(new FirstReducer(n));
 	}
 	
 	// --------------------------------------------------------------------------------------------

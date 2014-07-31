@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.GroupReduceFunction;
@@ -126,6 +127,15 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
 		return new ReduceGroupOperator<T, R>(this, reducer);
+	}
+	
+	/**
+	 * Returns a new set containing the first n elements in this grouped {@link DataSet}.<br/>
+	 * @param n The desired number of elements.
+	 * @return A ReduceGroupOperator that represents the DataSet containing the elements.
+	*/
+	public ReduceGroupOperator<T, T> first(int n) {
+		return reduceGroup(new FirstReducer(n));
 	}
 
 	// --------------------------------------------------------------------------------------------
