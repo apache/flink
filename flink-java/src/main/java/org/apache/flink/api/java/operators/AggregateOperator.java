@@ -24,7 +24,7 @@ import java.util.List;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.functions.GenericGroupReduce;
+import org.apache.flink.api.common.functions.GroupReducible;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -151,7 +151,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected org.apache.flink.api.common.operators.base.GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>> translateToDataFlow(Operator<IN> input) {
+	protected org.apache.flink.api.common.operators.base.GroupReduceOperatorBase<IN, IN, GroupReducible<IN, IN>> translateToDataFlow(Operator<IN> input) {
 		
 		// sanity check
 		if (this.aggregationFunctions.isEmpty() || this.aggregationFunctions.size() != this.fields.size()) {
@@ -183,8 +183,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 		if (this.grouping == null) {
 			// non grouped aggregation
 			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getResultType());
-			GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>> po =
-					new GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>>(function, operatorInfo, new int[0], name);
+			GroupReduceOperatorBase<IN, IN, GroupReducible<IN, IN>> po =
+					new GroupReduceOperatorBase<IN, IN, GroupReducible<IN, IN>>(function, operatorInfo, new int[0], name);
 			
 			po.setCombinable(true);
 			
@@ -200,8 +200,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			// grouped aggregation
 			int[] logicalKeyPositions = this.grouping.getKeys().computeLogicalKeyPositions();
 			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getResultType());
-			GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>> po =
-					new GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>>(function, operatorInfo, logicalKeyPositions, name);
+			GroupReduceOperatorBase<IN, IN, GroupReducible<IN, IN>> po =
+					new GroupReduceOperatorBase<IN, IN, GroupReducible<IN, IN>>(function, operatorInfo, logicalKeyPositions, name);
 			
 			po.setCombinable(true);
 			

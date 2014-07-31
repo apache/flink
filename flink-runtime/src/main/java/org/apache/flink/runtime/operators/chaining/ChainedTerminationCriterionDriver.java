@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.operators.chaining;
 
-import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.base.BulkIterationBase.TerminationCriterionAggregator;
@@ -47,7 +47,7 @@ public class ChainedTerminationCriterionDriver<IT, OT> extends ChainedDriver<IT,
 
 	// --------------------------------------------------------------------------------------------
 
-	public Function getStub() {
+	public RichFunction getStub() {
 		return null;
 	}
 

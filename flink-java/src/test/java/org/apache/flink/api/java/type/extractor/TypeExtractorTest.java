@@ -23,14 +23,14 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Iterator;
 
-import org.apache.flink.api.common.functions.GenericMap;
+import org.apache.flink.api.common.functions.Mappable;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.functions.CoGroupFunction;
 import org.apache.flink.api.java.functions.CrossFunction;
 import org.apache.flink.api.java.functions.FlatMapFunction;
 import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.functions.InvalidTypesException;
-import org.apache.flink.api.java.functions.JoinFunction;
+import org.apache.flink.api.java.functions.FlatJoinFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -247,12 +247,12 @@ public class TypeExtractorTest {
 	@Test
 	public void testSubclassOfTuple() {
 		// use getJoinReturnTypes()
-		JoinFunction<?, ?, ?> function = new JoinFunction<CustomTuple, String, CustomTuple>() {
+		FlatJoinFunction<?, ?, ?> function = new FlatJoinFunction<CustomTuple, String, CustomTuple>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public CustomTuple join(CustomTuple first, String second) throws Exception {
-				return null;
+			public void join(CustomTuple first, String second, Collector<CustomTuple> out) throws Exception {
+				out.collect(null);
 			}			
 		};
 
@@ -1382,8 +1382,8 @@ public class TypeExtractorTest {
 	}
 	
 	@Test
-	public void testInterface() {
-		GenericMap<String, Boolean> mapInterface = new GenericMap<String, Boolean>() {
+	public void testFunction() {
+		MapFunction<String, Boolean> mapInterface = new MapFunction<String, Boolean>() {
 			
 			@Override
 			public void setRuntimeContext(RuntimeContext t) {
@@ -1392,7 +1392,6 @@ public class TypeExtractorTest {
 			
 			@Override
 			public void open(Configuration parameters) throws Exception {
-				
 			}
 			
 			@Override
@@ -1411,6 +1410,19 @@ public class TypeExtractorTest {
 			}
 		};
 		
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(mapInterface, BasicTypeInfo.STRING_TYPE_INFO);
+		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
+	}
+
+	@Test
+	public void testInterface() {
+		Mappable<String, Boolean> mapInterface = new Mappable<String, Boolean>() {
+			@Override
+			public Boolean map(String record) throws Exception {
+				return null;
+			}
+		};
+
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(mapInterface, BasicTypeInfo.STRING_TYPE_INFO);
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
 	}

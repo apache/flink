@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.java.functions;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.common.functions.GenericReduce;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.Reducible;
 
 /**
  * The abstract base class for Reduce functions. Reduce functions combine groups of elements to
@@ -44,7 +44,7 @@ import org.apache.flink.api.common.functions.GenericReduce;
  * 
  * @param <T> Type of the elements that this function processes.
  */
-public abstract class ReduceFunction<T> extends AbstractFunction implements GenericReduce<T> {
+public abstract class ReduceFunction<T> extends AbstractRichFunction implements Reducible<T> {
 	
 	private static final long serialVersionUID = 1L;
 

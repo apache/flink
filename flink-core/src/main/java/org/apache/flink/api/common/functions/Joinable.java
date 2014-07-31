@@ -19,8 +19,10 @@
 
 package org.apache.flink.api.common.functions;
 
+import java.io.Serializable;
 
-public interface GenericReduce<T> extends Function {
-	
-	T reduce(T value1, T value2) throws Exception;
+
+public interface Joinable<IN1, IN2, OUT> extends Function, Serializable {
+
+	OUT join(IN1 first, IN2 second) throws Exception;
 }

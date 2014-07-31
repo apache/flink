@@ -45,7 +45,7 @@ abstract class CrossFunctionBase[LeftIn: UDT, RightIn: UDT, Out: UDT] extends JC
 }
 
 abstract class CrossFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends CrossFunctionBase[LeftIn, RightIn, Out] with Function2[LeftIn, RightIn, Out] {
-  override def cross(leftRecord: Record, rightRecord: Record, out: Collector[Record]) = {
+  override def cross(leftRecord: Record, rightRecord: Record) : Record = {
     val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
     val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
     val output = apply(left, right)
@@ -59,31 +59,7 @@ abstract class CrossFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends CrossF
     leftRecord.copyFrom(leftRecord, leftForwardFrom, leftForwardTo)
 
     serializer.serialize(output, leftRecord)
-    out.collect(leftRecord)
-  }
-}
-
-abstract class FlatCrossFunction[LeftIn: UDT, RightIn: UDT, Out: UDT] extends CrossFunctionBase[LeftIn, RightIn, Out] with Function2[LeftIn, RightIn, Iterator[Out]]  {
-  override def cross(leftRecord: Record, rightRecord: Record, out: Collector[Record]) = {
-    val left = leftDeserializer.deserializeRecyclingOn(leftRecord)
-    val right = rightDeserializer.deserializeRecyclingOn(rightRecord)
-    val output = apply(left, right)
-
-    if (output.nonEmpty) {
-
-      leftRecord.setNumFields(outputLength)
-
-      for (field <- leftDiscard)
-        leftRecord.setNull(field)
-
-      leftRecord.copyFrom(rightRecord, rightForwardFrom, rightForwardTo)
-      leftRecord.copyFrom(leftRecord, leftForwardFrom, leftForwardTo)
-
-      for (item <- output) {
-        serializer.serialize(item, leftRecord)
-        out.collect(leftRecord)
-      }
-    }
+    leftRecord
   }
 }
 

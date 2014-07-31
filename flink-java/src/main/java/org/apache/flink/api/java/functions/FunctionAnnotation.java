@@ -65,7 +65,7 @@ import org.apache.flink.api.common.InvalidProgramException;
  * <p>
  * Be aware that some annotations should only be used for functions with as single input
  * ({@link MapFunction}, {@link ReduceFunction}) and some only for stubs with two inputs
- * ({@link CrossFunction}, {@link JoinFunction}, {@link CoGroupFunction}).
+ * ({@link CrossFunction}, {@link FlatJoinFunction}, {@link CoGroupFunction}).
  */
 public class FunctionAnnotation {
 
@@ -103,7 +103,7 @@ public class FunctionAnnotation {
 	/**
 	 * This annotation declares that a function leaves certain fields of its first input values unmodified and
 	 * only "forwards" or "copies" them to the return value. The annotation is applicable to binary
-	 * functions, like for example {@link JoinFunction}, {@link CoGroupFunction}, or {@link CrossFunction}.
+	 * functions, like for example {@link FlatJoinFunction}, {@link CoGroupFunction}, or {@link CrossFunction}.
 	 * <p>
 	 * The following example illustrates a join function that copies fields from the first and second input to the
 	 * return value:
@@ -135,7 +135,7 @@ public class FunctionAnnotation {
 	/**
 	 * This annotation declares that a function leaves certain fields of its second input values unmodified and
 	 * only "forwards" or "copies" them to the return value. The annotation is applicable to binary
-	 * functions, like for example {@link JoinFunction}, {@link CoGroupFunction}, or {@link CrossFunction}.
+	 * functions, like for example {@link FlatJoinFunction}, {@link CoGroupFunction}, or {@link CrossFunction}.
 	 * <p>
 	 * The following example illustrates a join function that copies fields from the first and second input to the
 	 * return value:
@@ -201,7 +201,7 @@ public class FunctionAnnotation {
 	/**
 	 * This annotation declares that a function changes certain fields of its first input value, while leaving all
 	 * others unmodified and in place in the return value. The annotation is applicable to binary
-	 * functions, like for example {@link JoinFunction}, {@link CoGroupFunction}, or {@link CrossFunction}.
+	 * functions, like for example {@link FlatJoinFunction}, {@link CoGroupFunction}, or {@link CrossFunction}.
 	 * <p>
 	 * The following example illustrates a join function that copies fields from the first and second input to the
 	 * return value:
@@ -238,7 +238,7 @@ public class FunctionAnnotation {
 	/**
 	 * This annotation declares that a function changes certain fields of its second input value, while leaving all
 	 * others unmodified and in place in the return value. The annotation is applicable to binary
-	 * functions, like for example {@link JoinFunction}, {@link CoGroupFunction}, or {@link CrossFunction}.
+	 * functions, like for example {@link FlatJoinFunction}, {@link CoGroupFunction}, or {@link CrossFunction}.
 	 * <p>
 	 * The following example illustrates a join function that copies fields from the first and second input to the
 	 * return value:

@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.java.functions;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.common.functions.GenericFlatMap;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.FlatMappable;
 import org.apache.flink.util.Collector;
 
 /**
@@ -40,7 +40,7 @@ import org.apache.flink.util.Collector;
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
  */
-public abstract class FlatMapFunction<IN, OUT> extends AbstractFunction implements GenericFlatMap<IN, OUT> {
+public abstract class FlatMapFunction<IN, OUT> extends AbstractRichFunction implements FlatMappable<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 

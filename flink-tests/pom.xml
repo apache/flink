@@ -35,6 +35,7 @@ under the License.
 
 	<packaging>jar</packaging>
 
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -184,7 +185,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-
 		</plugins>
 		
 		<pluginManagement>

@@ -19,6 +19,12 @@
 package org.apache.flink.api.java;
 
 import org.apache.commons.lang3.Validate;
+import org.apache.flink.api.common.functions.Filterable;
+import org.apache.flink.api.common.functions.FlatMappable;
+import org.apache.flink.api.common.functions.GroupReducible;
+import org.apache.flink.api.common.functions.Mappable;
+import org.apache.flink.api.common.functions.Reducible;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.aggregation.Aggregations;
@@ -29,32 +35,29 @@ import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.operators.AggregateOperator;
 import org.apache.flink.api.java.operators.CoGroupOperator;
+import org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
 import org.apache.flink.api.java.operators.CrossOperator;
+import org.apache.flink.api.java.operators.CrossOperator.DefaultCross;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
 import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.operators.FilterOperator;
 import org.apache.flink.api.java.operators.FlatMapOperator;
-import org.apache.flink.api.java.operators.Grouping;
-import org.apache.flink.api.java.operators.JoinOperator;
-import org.apache.flink.api.java.operators.Keys;
-import org.apache.flink.api.java.operators.MapOperator;
-import org.apache.flink.api.java.operators.ProjectOperator;
-import org.apache.flink.api.java.operators.ReduceGroupOperator;
-import org.apache.flink.api.java.operators.ReduceOperator;
-import org.apache.flink.api.java.operators.SortedGrouping;
-import org.apache.flink.api.java.operators.UnionOperator;
-import org.apache.flink.api.java.operators.UnsortedGrouping;
-import org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
-import org.apache.flink.api.java.operators.CrossOperator.DefaultCross;
 import org.apache.flink.api.java.operators.JoinOperator.JoinHint;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
+import org.apache.flink.api.java.operators.Keys;
+import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.ProjectOperator.Projection;
+import org.apache.flink.api.java.operators.GroupReduceOperator;
+import org.apache.flink.api.java.operators.ReduceOperator;
+import org.apache.flink.api.java.operators.UnionOperator;
+import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.api.java.record.functions.CrossFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -134,9 +137,12 @@ public abstract class DataSet<T> {
 	 * @see MapOperator
 	 * @see DataSet
 	 */
-	public <R> MapOperator<T, R> map(MapFunction<T, R> mapper) {
+	public <R> MapOperator<T, R> map(Mappable<T, R> mapper) {
 		if (mapper == null) {
 			throw new NullPointerException("Map function must not be null.");
+		}
+		if (FunctionUtils.isSerializedLambdaFunction(mapper)) {
+			throw new UnsupportedLambdaExpressionException();
 		}
 		return new MapOperator<T, R>(this, mapper);
 	}
@@ -153,9 +159,12 @@ public abstract class DataSet<T> {
 	 * @see FlatMapOperator
 	 * @see DataSet
 	 */
-	public <R> FlatMapOperator<T, R> flatMap(FlatMapFunction<T, R> flatMapper) {
+	public <R> FlatMapOperator<T, R> flatMap(FlatMappable<T, R> flatMapper) {
 		if (flatMapper == null) {
 			throw new NullPointerException("FlatMap function must not be null.");
+		}
+		if (FunctionUtils.isSerializedLambdaFunction(flatMapper)) {
+			throw new UnsupportedLambdaExpressionException();
 		}
 		return new FlatMapOperator<T, R>(this, flatMapper);
 	}
@@ -173,12 +182,13 @@ public abstract class DataSet<T> {
 	 * @see FilterOperator
 	 * @see DataSet
 	 */
-	public FilterOperator<T> filter(FilterFunction<T> filter) {
+	public FilterOperator<T> filter(Filterable<T> filter) {
 		if (filter == null) {
 			throw new NullPointerException("Filter function must not be null.");
 		}
 		return new FilterOperator<T>(this, filter);
 	}
+
 	
 	// --------------------------------------------------------------------------------------------
 	//  Projections
@@ -275,7 +285,7 @@ public abstract class DataSet<T> {
 	 * @see ReduceOperator
 	 * @see DataSet
 	 */
-	public ReduceOperator<T> reduce(ReduceFunction<T> reducer) {
+	public ReduceOperator<T> reduce(Reducible<T> reducer) {
 		if (reducer == null) {
 			throw new NullPointerException("Reduce function must not be null.");
 		}
@@ -292,16 +302,19 @@ public abstract class DataSet<T> {
 	 * @return A GroupReduceOperator that represents the reduced DataSet.
 	 * 
 	 * @see GroupReduceFunction
-	 * @see ReduceGroupOperator
+	 * @see org.apache.flink.api.java.operators.GroupReduceOperator
 	 * @see DataSet
 	 */
-	public <R> ReduceGroupOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
+	public <R> GroupReduceOperator<T, R> reduceGroup(GroupReducible<T, R> reducer) {
 		if (reducer == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
-		return new ReduceGroupOperator<T, R>(this, reducer);
+		if (FunctionUtils.isSerializedLambdaFunction(reducer)) {
+			throw new UnsupportedLambdaExpressionException();
+		}
+		return new GroupReduceOperator<T, R>(this, reducer);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  distinct
 	// --------------------------------------------------------------------------------------------
@@ -372,7 +385,7 @@ public abstract class DataSet<T> {
 	 * @see SortedGrouping
 	 * @see AggregateOperator
 	 * @see ReduceOperator
-	 * @see ReduceGroupOperator
+	 * @see org.apache.flink.api.java.operators.GroupReduceOperator
 	 * @see DataSet
 	 */
 	public <K extends Comparable<K>> UnsortedGrouping<T> groupBy(KeySelector<T, K> keyExtractor) {
@@ -401,7 +414,7 @@ public abstract class DataSet<T> {
 	 * @see SortedGrouping
 	 * @see AggregateOperator
 	 * @see ReduceOperator
-	 * @see ReduceGroupOperator
+	 * @see org.apache.flink.api.java.operators.GroupReduceOperator
 	 * @see DataSet
 	 */
 	public UnsortedGrouping<T> groupBy(int... fields) {
@@ -430,7 +443,7 @@ public abstract class DataSet<T> {
 	 * @see SortedGrouping
 	 * @see AggregateOperator
 	 * @see ReduceOperator
-	 * @see ReduceGroupOperator
+	 * @see org.apache.flink.api.java.operators.GroupReduceOperator
 	 * @see DataSet
 	 */
 	public UnsortedGrouping<T> groupBy(String... fields) {
@@ -461,7 +474,7 @@ public abstract class DataSet<T> {
 	public <R> JoinOperatorSets<T, R> join(DataSet<R> other) {
 		return new JoinOperatorSets<T, R>(this, other);
 	}
-	
+
 	/**
 	 * Initiates a Join transformation. <br/>
 	 * A Join transformation joins the elements of two 

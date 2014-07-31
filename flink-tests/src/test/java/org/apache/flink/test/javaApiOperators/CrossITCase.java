@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
+import org.apache.flink.api.common.functions.Crossable;
 import org.apache.flink.api.java.functions.CrossFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -32,6 +33,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.util.Collector;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -41,7 +43,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class CrossITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 11;
+	private static int NUM_PROGRAMS = 12;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -391,6 +393,39 @@ public class CrossITCase extends JavaProgramTestBase {
 						"4,2,Hallo Welt wieHello\n" +
 						"4,4,Hallo Welt wieHello world\n";
 				
+			}
+			case 12: {
+				/*
+				 * check passing SAM interface instead of rich function
+				 * funcitonality identical to test 1
+				 */
+
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
+				DataSet<Tuple2<Integer, String>> crossDs = ds
+						.cross(ds2)
+						.with(new Crossable<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, String>>() {
+							@Override
+							public Tuple2<Integer, String> cross(Tuple5<Integer, Long, Integer, String, Long> first, Tuple5<Integer, Long, Integer, String, Long> second) throws Exception {
+								return new Tuple2<Integer, String>(first.f2+second.f2, first.f3+second.f3);
+							}
+						});
+
+				crossDs.writeAsCsv(resultPath);
+				env.execute();
+
+				// return expected result
+				return "0,HalloHallo\n" +
+						"1,HalloHallo Welt\n" +
+						"2,HalloHallo Welt wie\n" +
+						"1,Hallo WeltHallo\n" +
+						"2,Hallo WeltHallo Welt\n" +
+						"3,Hallo WeltHallo Welt wie\n" +
+						"2,Hallo Welt wieHallo\n" +
+						"3,Hallo Welt wieHallo Welt\n" +
+						"4,Hallo Welt wieHallo Welt wie\n";
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

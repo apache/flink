@@ -28,7 +28,7 @@ import org.apache.flink.configuration.Configuration;
  * for {@link #open(Configuration)} and {@link #close()}. It also offers access to the
  * {@link RuntimeContext} and {@link IterationRuntimeContext}.
  */
-public abstract class AbstractFunction implements Function, Serializable {
+public abstract class AbstractRichFunction implements RichFunction, Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	

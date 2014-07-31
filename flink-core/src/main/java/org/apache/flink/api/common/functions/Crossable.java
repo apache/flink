@@ -19,22 +19,24 @@
 
 package org.apache.flink.api.common.functions;
 
-import java.util.Iterator;
-
-import org.apache.flink.util.Collector;
+import java.io.Serializable;
 
 
-public interface GenericCoGrouper<V1, V2, O> extends Function {
-	
+/**
+ * @param <IN1> First input type
+ * @param <IN2> Second input type
+ * @param <OUT> Output type
+ */
+public interface Crossable<IN1, IN2, OUT> extends Function, Serializable {
+
 	/**
-	 * This method must be implemented to provide a user implementation of a
-	 * coGroup. It is called for each two key-value pairs that share the same
-	 * key and come from different inputs.
+	 * User defined function for the cross operator.
 	 * 
-	 * @param records1 The records from the first input which were paired with the key.
-	 * @param records2 The records from the second input which were paired with the key.
-	 * @param out A collector that collects all output pairs.
+	 * @param record1 Record from first input
+	 * @param record2 Record from the second input
+	 * @return result of cross UDF.
+	 * @throws Exception
 	 */
-	void coGroup(Iterator<V1> records1, Iterator<V2> records2, Collector<O> out) throws Exception;
-	
+	OUT cross(IN1 record1, IN2 record2) throws Exception;
+
 }

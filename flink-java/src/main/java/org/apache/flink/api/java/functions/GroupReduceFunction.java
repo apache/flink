@@ -24,9 +24,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.Iterator;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.common.functions.GenericCombine;
-import org.apache.flink.api.common.functions.GenericGroupReduce;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.FlatCombinable;
+import org.apache.flink.api.common.functions.GroupReducible;
 import org.apache.flink.util.Collector;
 
 /**
@@ -51,7 +51,7 @@ import org.apache.flink.util.Collector;
  * @param <IN> Type of the elements that this function processes.
  * @param <OUT> The type of the elements returned by the user-defined function.
  */
-public abstract class GroupReduceFunction<IN, OUT> extends AbstractFunction implements GenericGroupReduce<IN, OUT>, GenericCombine<IN> {
+public abstract class GroupReduceFunction<IN, OUT> extends AbstractRichFunction implements GroupReducible<IN, OUT>, FlatCombinable<IN> {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -77,7 +77,7 @@ public abstract class GroupReduceFunction<IN, OUT> extends AbstractFunction impl
 	 * This method is only ever invoked when the subclass of {@link GroupReduceFunction}
 	 * adds the {@link Combinable} annotation, or if the <i>combinable</i> flag is set when defining
 	 * the <i>reduceGroup<i> operation via
-	 * {@link org.apache.flink.api.java.operators.ReduceGroupOperator#setCombinable(boolean)}.
+	 * {@link org.apache.flink.api.java.operators.GroupReduceOperator#setCombinable(boolean)}.
 	 * <p>
 	 * Since the reduce function will be called on the result of this method, it is important that this
 	 * method returns the same data type as it consumes. By default, this method only calls the

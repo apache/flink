@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
+import org.apache.flink.api.common.functions.FlatMappable;
 import org.apache.flink.api.java.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
@@ -39,7 +40,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class FlatMapITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 7;
+	private static int NUM_PROGRAMS = 8;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -371,6 +372,45 @@ public class FlatMapITCase extends JavaProgramTestBase {
 						"55,6,Comment#13\n" +
 						"55,6,Comment#14\n" +
 						"55,6,Comment#15\n";
+			}
+			case 8: {
+				/*
+				 * Pass interface instead of rich function
+				 * Identical to test 3
+				 *
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+				DataSet<Tuple3<Integer, Long, String>> varyingTuplesMapDs = ds.
+						flatMap(new FlatMappable<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>() {
+							@Override
+							public void flatMap(Tuple3<Integer, Long, String> value, Collector<Tuple3<Integer, Long, String>> out) throws Exception {
+								final int numTuples = value.f0 % 3;
+								for ( int i = 0; i < numTuples; i++ ) {
+									out.collect(value);
+								}
+							}
+						});
+
+				varyingTuplesMapDs.writeAsCsv(resultPath);
+				env.execute();
+
+				// return expected result
+				return  "1,1,Hi\n" +
+						"2,2,Hello\n" + "2,2,Hello\n" +
+						"4,3,Hello world, how are you?\n" +
+						"5,3,I am fine.\n" + "5,3,I am fine.\n" +
+						"7,4,Comment#1\n" +
+						"8,4,Comment#2\n" + "8,4,Comment#2\n" +
+						"10,4,Comment#4\n" +
+						"11,5,Comment#5\n" + "11,5,Comment#5\n" +
+						"13,5,Comment#7\n" +
+						"14,5,Comment#8\n" + "14,5,Comment#8\n" +
+						"16,6,Comment#10\n" +
+						"17,6,Comment#11\n" + "17,6,Comment#11\n" +
+						"19,6,Comment#13\n" +
+						"20,6,Comment#14\n" + "20,6,Comment#14\n";
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

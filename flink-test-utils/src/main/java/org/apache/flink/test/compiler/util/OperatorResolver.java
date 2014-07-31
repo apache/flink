@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.java.record.operators.BulkIteration;
 import org.apache.flink.api.java.record.operators.DeltaIteration;
@@ -63,7 +63,7 @@ public class OperatorResolver implements Visitor<Operator<?>> {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public <T extends Operator<?>> T getNode(String name, Class<? extends Function> stubClass) {
+	public <T extends Operator<?>> T getNode(String name, Class<? extends RichFunction> stubClass) {
 		List<Operator<?>> nodes = this.map.get(name);
 		if (nodes == null || nodes.isEmpty()) {
 			throw new RuntimeException("No node found with the given name and stub class.");

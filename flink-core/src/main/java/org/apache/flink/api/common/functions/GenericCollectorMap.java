@@ -23,7 +23,7 @@ import org.apache.flink.util.Collector;
 
 
 
-public interface GenericCollectorMap<T, O> extends Function {
+public interface GenericCollectorMap<T, O> extends RichFunction {
 	
 	void map(T record, Collector<O> out) throws Exception;
 }

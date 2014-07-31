@@ -19,15 +19,15 @@
 
 package org.apache.flink.api.common.functions;
 
+import java.io.Serializable;
+import java.util.Iterator;
 
-public interface GenericFilter<T> extends Function {
-	
-	/**
-	 * User defined function for a filter.
-	 * 
-	 * @param value Incoming tuples
-	 * @return true for tuples that are allowed to pass the filter
-	 * @throws Exception
-	 */
-	boolean filter(T value) throws Exception;
+import org.apache.flink.util.Collector;
+
+/**
+ * Generic interface used for combiners.
+ */
+public interface FlatCombinable<T> extends Function, Serializable {
+
+	void combine(Iterator<T> values, Collector<T> out) throws Exception;
 }

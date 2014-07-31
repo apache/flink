@@ -18,27 +18,27 @@
 
 package org.apache.flink.api.java.operators.translation;
 
-import org.apache.flink.api.common.functions.GenericFlatMap;
+import org.apache.flink.api.common.functions.Filterable;
+import org.apache.flink.api.common.functions.FlatMappable;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.FilterOperatorBase;
-import org.apache.flink.api.java.functions.FilterFunction;
 import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.Collector;
 
 
-public class PlanFilterOperator<T> extends FilterOperatorBase<T, GenericFlatMap<T, T>> {
+public class PlanFilterOperator<T> extends FilterOperatorBase<T, FlatMappable<T, T>> {
 	
-	public PlanFilterOperator(FilterFunction<T> udf, String name, TypeInformation<T> type) {
+	public PlanFilterOperator(Filterable<T> udf, String name, TypeInformation<T> type) {
 		super(new FlatMapFilter<T>(udf), new UnaryOperatorInformation<T, T>(type, type), name);
 	}
 
-	public static final class FlatMapFilter<T> extends WrappingFunction<FilterFunction<T>>
-		implements GenericFlatMap<T, T>
+	public static final class FlatMapFilter<T> extends WrappingFunction<Filterable<T>>
+		implements FlatMappable<T, T>
 	{
 
 		private static final long serialVersionUID = 1L;
 		
-		private FlatMapFilter(FilterFunction<T> wrapped) {
+		private FlatMapFilter(Filterable<T> wrapped) {
 			super(wrapped);
 		}
 

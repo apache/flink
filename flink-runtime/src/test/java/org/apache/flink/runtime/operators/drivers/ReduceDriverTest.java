@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators.drivers;
 
 import java.util.List;
 
-import org.apache.flink.api.common.functions.GenericReduce;
+import org.apache.flink.api.common.functions.Reducible;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.java.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -43,8 +43,8 @@ public class ReduceDriverTest {
 	@Test
 	public void testReduceDriverImmutableEmpty() {
 		try {
-			TestTaskContext<GenericReduce<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
-					new TestTaskContext<GenericReduce<Tuple2<String,Integer>>, Tuple2<String,Integer>>();
+			TestTaskContext<Reducible<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
+					new TestTaskContext<Reducible<Tuple2<String,Integer>>, Tuple2<String,Integer>>();
 			
 			List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
 			TupleTypeInfo<Tuple2<String, Integer>> typeInfo = (TupleTypeInfo<Tuple2<String, Integer>>) TypeExtractor.getForObject(data.get(0));
@@ -76,8 +76,8 @@ public class ReduceDriverTest {
 	public void testReduceDriverImmutable() {
 		try {
 			{
-				TestTaskContext<GenericReduce<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
-						new TestTaskContext<GenericReduce<Tuple2<String,Integer>>, Tuple2<String,Integer>>();
+				TestTaskContext<Reducible<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
+						new TestTaskContext<Reducible<Tuple2<String,Integer>>, Tuple2<String,Integer>>();
 				
 				List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
 				TupleTypeInfo<Tuple2<String, Integer>> typeInfo = (TupleTypeInfo<Tuple2<String, Integer>>) TypeExtractor.getForObject(data.get(0));
@@ -104,8 +104,8 @@ public class ReduceDriverTest {
 			}
 			
 			{
-				TestTaskContext<GenericReduce<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
-						new TestTaskContext<GenericReduce<Tuple2<String,Integer>>, Tuple2<String,Integer>>();
+				TestTaskContext<Reducible<Tuple2<String, Integer>>, Tuple2<String, Integer>> context =
+						new TestTaskContext<Reducible<Tuple2<String,Integer>>, Tuple2<String,Integer>>();
 				
 				List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
 				TupleTypeInfo<Tuple2<String, Integer>> typeInfo = (TupleTypeInfo<Tuple2<String, Integer>>) TypeExtractor.getForObject(data.get(0));
@@ -142,8 +142,8 @@ public class ReduceDriverTest {
 	public void testReduceDriverMutable() {
 		try {
 			{
-				TestTaskContext<GenericReduce<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
-						new TestTaskContext<GenericReduce<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>();
+				TestTaskContext<Reducible<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
+						new TestTaskContext<Reducible<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>();
 				
 				List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
 				TupleTypeInfo<Tuple2<StringValue, IntValue>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, IntValue>>) TypeExtractor.getForObject(data.get(0));
@@ -169,8 +169,8 @@ public class ReduceDriverTest {
 				DriverTestData.compareTupleArrays(expected, res);
 			}
 			{
-				TestTaskContext<GenericReduce<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
-						new TestTaskContext<GenericReduce<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>();
+				TestTaskContext<Reducible<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>> context =
+						new TestTaskContext<Reducible<Tuple2<StringValue, IntValue>>, Tuple2<StringValue, IntValue>>();
 				
 				List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
 				TupleTypeInfo<Tuple2<StringValue, IntValue>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, IntValue>>) TypeExtractor.getForObject(data.get(0));
