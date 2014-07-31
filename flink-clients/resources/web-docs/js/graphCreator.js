@@ -34,7 +34,7 @@ function drawGraph(data, svgID){
 	//find all iterations
 	iterationNodes = searchForIterationNodes();
 	
-	//add the graphs and the sizes + Ids to the arrays
+	//add the graphs of iterations and their sizes + Ids to arrays
 	if (iterationNodes != null) {
 		for (var i in iterationNodes) {
 			var itNode = iterationNodes[i];
@@ -101,22 +101,56 @@ function drawGraph(data, svgID){
 //Responsible for adding nodes and edges
 function loadJsonToDagre(data){
 	
-	//stores all nodes that are in right graph -> no edges out of iterations!
+	//stores all nodes that are in current graph -> no edges to nodes which are outside of current iterations!
 	var existingNodes = new Array;
 	
 	var g = new dagreD3.Digraph();
 	
-	//Find out whether we are in an iteration or in the normal json
+	//Find out whether we are in an iteration or in the normal json 
+	//Bulk variables
+	var partialSolution;
+	var nextPartialSolution;
+	//Workset variables
+	var workset;
+	var nextWorkset;
+	var solutionSet;
+	var solutionDelta;
+
 	if (data.nodes != null) {
+		//This is the normal json data
 		var toIterate = data.nodes;
 	} else {
+		//This is an iteration, we now store special iteration nodes if possible
 		var toIterate = data.step_function;
+		partialSolution = data.partial_solution;
+		nextPartialSolution = data.next_partial_solution;
+		workset = data.workset;
+		nextWorkset = data.next_workset;
+		solutionSet = data.solution_set;
+		solutionDelta = data.solution_delta;
 	}
 	
 	for (var i in toIterate) {
 		var el = toIterate[i];
-		g.addNode(el.id, { label: createLabelNode(el, ""), nodesWithoutEdges: ""} );
+		//create node, send additional informations about the node if it is a special one
+		if (el.id == partialSolution) {
+			g.addNode(el.id, { label: createLabelNode(el, "partialSolution"), nodesWithoutEdges: ""} );
+		} else if (el.id == nextPartialSolution) {
+			g.addNode(el.id, { label: createLabelNode(el, "nextPartialSolution"), nodesWithoutEdges: ""} );
+		} else if (el.id == workset) {
+			g.addNode(el.id, { label: createLabelNode(el, "workset"), nodesWithoutEdges: ""} );
+		} else if (el.id == nextWorkset) {
+			g.addNode(el.id, { label: createLabelNode(el, "nextWorkset"), nodesWithoutEdges: ""} );
+		} else if (el.id == solutionSet) {
+			g.addNode(el.id, { label: createLabelNode(el, "solutionSet"), nodesWithoutEdges: ""} );
+		} else if (el.id == solutionDelta) {
+			g.addNode(el.id, { label: createLabelNode(el, "solutionDelta"), nodesWithoutEdges: ""} );
+		} else {
+			g.addNode(el.id, { label: createLabelNode(el, ""), nodesWithoutEdges: ""} );
+		}
 		existingNodes.push(el.id);
+		
+		//create edgdes from predecessors to current node
 		if (el.predecessors != null) {
 			for (var j in el.predecessors) {
 				if (existingNodes.indexOf(el.predecessors[j].id) != -1) {
@@ -155,6 +189,10 @@ function createLabelEdge(el) {
 
 //creates the label of a node, in info is stored, whether it is a special node (like a mirror in an iteration)
 function createLabelNode(el, info) {
+	if (info != "") {
+		console.log("The node " + el.id + " is a " + info);	
+	}
+	
 	var labelValue = "<div style=\"margin-top: 0\">";
 	//set color of panel
 	if (info == "mirror") {
@@ -170,11 +208,11 @@ function createLabelNode(el, info) {
 	}
 	//Nodename
 	if (info == "mirror") {
-		labelValue += "<div><a nodeID=\""+el.id+"\" href=\"#\" rel=\"#propertyO\"><h3 style=\"text-align: center; font-size: 150%\">Mirror of " + el.pact 
-				+ " (ID = "+el.id+")</h3></a>";
+		labelValue += "<div><a nodeID=\""+el.id+"\" href=\"#\" rel=\"#propertyO\"><h3 style=\"text-align: center; "
+		+ "font-size: 150%\">Mirror of " + el.pact + " (ID = "+el.id+")</h3></a>";
 	} else {
-		labelValue += "<div><a nodeID=\""+el.id+"\" href=\"#\" rel=\"#propertyO\"><h3 style=\"text-align: center; font-size: 150%\">" + el.pact 
-				+ " (ID = "+el.id+")</h3></a>";
+		labelValue += "<div><a nodeID=\""+el.id+"\" href=\"#\" rel=\"#propertyO\"><h3 style=\"text-align: center; "
+		+ "font-size: 150%\">" + el.pact + " (ID = "+el.id+")</h3></a>";
 	}
 	if (el.contents == "") {
 		labelValue += "</div>";
@@ -188,23 +226,22 @@ function createLabelNode(el, info) {
 	//If this node is an "iteration" we need a different panel-body
 	if (el.step_function != null) {
 		labelValue += extendLabelNodeForIteration(el.id);
-		return labelValue;
-	}
+	} else {
+		//Otherwise add infos
+		if (el.parallelism != "") {
+			labelValue += "<h5 style=\"font-size:115%\">Parallelism: " + el.parallelism + "</h5>";
+		}
 	
-	if (el.parallelism != "") {
-		labelValue += "<h5 style=\"font-size:115%\">Parallelism: " + el.parallelism + "</h5>";
+		if (el.driver_strategy != undefined) {
+			labelValue += "<h5 style=\"font-size:115%\">Driver Strategy: " + el.driver_strategy + "</h5";
+		}
 	}
-
-	if (el.driver_strategy != undefined) {
-		labelValue += "<h5 style=\"font-size:115%\">Driver Strategy: " + el.driver_strategy + "</h5";
-	}
-	
-	//close panel
+	//close divs
 	labelValue += "</div></div>";
 	return labelValue;
 }
 
-//Extends the label of a node with an additional svg Element to present the workset iteration.
+//Extends the label of a node with an additional svg Element to present the iteration.
 function extendLabelNodeForIteration(id) {
 	var svgID = "svg-" + id;
 
@@ -218,7 +255,7 @@ function extendLabelNodeForIteration(id) {
 	return labelValue;
 }
 
-//presents properties for a given nodeID in the propertyCanvas
+//presents properties for a given nodeID in the propertyCanvas overlay
 function showProperties(nodeID) {
 	$("#propertyCanvas").empty();
 	node = searchForNode(nodeID);
