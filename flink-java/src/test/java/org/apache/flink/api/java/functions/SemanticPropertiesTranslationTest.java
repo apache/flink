@@ -28,8 +28,6 @@ import org.apache.flink.api.common.operators.base.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldSet;
-import org.apache.flink.api.java.functions.JoinFunction;
-import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsSecond;
@@ -284,7 +282,7 @@ public class SemanticPropertiesTranslationTest {
 	
 	
 	@ConstantFields("*")
-	public static class WildcardConstantMapper<T> extends MapFunction<T, T> {
+	public static class WildcardConstantMapper<T> extends RichMapFunction<T, T> {
 
 		@Override
 		public T map(T value)  {
@@ -293,7 +291,7 @@ public class SemanticPropertiesTranslationTest {
 	}
 	
 	@ConstantFields("0->0;1->1;2->2")
-	public static class IndividualConstantMapper<X, Y, Z> extends MapFunction<Tuple3<X, Y, Z>, Tuple3<X, Y, Z>> {
+	public static class IndividualConstantMapper<X, Y, Z> extends RichMapFunction<Tuple3<X, Y, Z>, Tuple3<X, Y, Z>> {
 
 		@Override
 		public Tuple3<X, Y, Z> map(Tuple3<X, Y, Z> value) {
@@ -302,7 +300,7 @@ public class SemanticPropertiesTranslationTest {
 	}
 	
 	@ConstantFields("0")
-	public static class ZeroConstantMapper<T> extends MapFunction<T, T> {
+	public static class ZeroConstantMapper<T> extends RichMapFunction<T, T> {
 
 		@Override
 		public T map(T value)  {
@@ -312,7 +310,7 @@ public class SemanticPropertiesTranslationTest {
 	
 	@ConstantFieldsFirst("1 -> 0")
 	@ConstantFieldsSecond("1 -> 1")
-	public static class ForwardingTupleJoin<A, B, C, D> extends JoinFunction<Tuple2<A, B>, Tuple2<C, D>, Tuple2<B, D>> {
+	public static class ForwardingTupleJoin<A, B, C, D> extends RichJoinFunction<Tuple2<A, B>, Tuple2<C, D>, Tuple2<B, D>> {
 
 		@Override
 		public Tuple2<B, D> join(Tuple2<A, B> first, Tuple2<C, D> second) {
@@ -322,7 +320,7 @@ public class SemanticPropertiesTranslationTest {
 	
 	@ConstantFieldsFirst("0 -> 0")
 	@ConstantFieldsSecond("0 -> 1")
-	public static class ForwardingBasicJoin<A, B> extends JoinFunction<A, B, Tuple2<A, B>> {
+	public static class ForwardingBasicJoin<A, B> extends RichJoinFunction<A, B, Tuple2<A, B>> {
 
 		@Override
 		public Tuple2<A, B> join(A first, B second) {

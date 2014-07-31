@@ -24,8 +24,9 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import org.apache.flink.api.java.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.functions.RichCoGroupFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -301,7 +302,7 @@ public class CoGroupITCase extends JavaProgramTestBase {
 	
 	}
 	
-	public static class Tuple5CoGroup extends CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, Integer>> {
+	public static class Tuple5CoGroup implements CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, Integer>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -330,7 +331,7 @@ public class CoGroupITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class CustomTypeCoGroup extends CoGroupFunction<CustomType, CustomType, CustomType> {
+	public static class CustomTypeCoGroup implements CoGroupFunction<CustomType, CustomType, CustomType> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -358,7 +359,7 @@ public class CoGroupITCase extends JavaProgramTestBase {
 		
 	}
 	
-	public static class MixedCoGroup extends CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, CustomType, Tuple3<Integer, Long, String>> {
+	public static class MixedCoGroup implements CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, CustomType, Tuple3<Integer, Long, String>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -388,7 +389,7 @@ public class CoGroupITCase extends JavaProgramTestBase {
 		
 	}
 	
-	public static class MixedCoGroup2 extends CoGroupFunction<CustomType, Tuple5<Integer, Long, Integer, String, Long>, CustomType> {
+	public static class MixedCoGroup2 implements CoGroupFunction<CustomType, Tuple5<Integer, Long, Integer, String, Long>, CustomType> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -417,7 +418,7 @@ public class CoGroupITCase extends JavaProgramTestBase {
 		
 	}
 	
-	public static class Tuple3ReturnLeft extends CoGroupFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
+	public static class Tuple3ReturnLeft implements CoGroupFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 		
 		private static final long serialVersionUID = 1L;
 
@@ -434,7 +435,7 @@ public class CoGroupITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class Tuple5ReturnRight extends CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
+	public static class Tuple5ReturnRight implements CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
 		
 		private static final long serialVersionUID = 1L;
 
@@ -456,7 +457,7 @@ public class CoGroupITCase extends JavaProgramTestBase {
 
 	}
 	
-	public static class Tuple5CoGroupBC extends CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Integer, Integer>> {
+	public static class Tuple5CoGroupBC extends RichCoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Integer, Integer>> {
 
 		private static final long serialVersionUID = 1L;
 		

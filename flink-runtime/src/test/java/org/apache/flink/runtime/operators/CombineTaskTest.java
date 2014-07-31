@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Assert;
 
-import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.record.functions.ReduceFunction;
 import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
@@ -41,7 +41,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class CombineTaskTest extends DriverTestBase<GroupReduceFunction<Record, ?>>
+public class CombineTaskTest extends DriverTestBase<RichGroupReduceFunction<Record, ?>>
 {
 	private static final long COMBINE_MEM = 3 * 1024 * 1024;
 

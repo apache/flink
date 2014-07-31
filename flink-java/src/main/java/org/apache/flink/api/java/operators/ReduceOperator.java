@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.common.functions.Mappable;
-import org.apache.flink.api.common.functions.Reducible;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
@@ -39,11 +39,11 @@ import org.apache.flink.api.java.DataSet;
  * 
  * @param <IN> The type of the data set reduced by the operator.
  * 
- * @see Reducible
+ * @see org.apache.flink.api.common.functions.ReduceFunction
  */
 public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOperator<IN>> {
 	
-	private final Reducible<IN> function;
+	private final ReduceFunction<IN> function;
 	
 	private final Grouping<IN> grouper;
 	
@@ -54,7 +54,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	 * @param input
 	 * @param function
 	 */
-	public ReduceOperator(DataSet<IN> input, Reducible<IN> function) {
+	public ReduceOperator(DataSet<IN> input, ReduceFunction<IN> function) {
 		super(input, input.getType());
 		
 		this.function = function;
@@ -64,7 +64,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	}
 	
 	
-	public ReduceOperator(Grouping<IN> input, Reducible<IN> function) {
+	public ReduceOperator(Grouping<IN> input, ReduceFunction<IN> function) {
 		super(input.getDataSet(), input.getDataSet().getType());
 		
 		this.function = function;
@@ -82,8 +82,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		if (grouper == null) {
 			// non grouped reduce
 			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getInputType());
-			ReduceOperatorBase<IN, Reducible<IN>> po =
-					new ReduceOperatorBase<IN, Reducible<IN>>(function, operatorInfo, new int[0], name);
+			ReduceOperatorBase<IN, ReduceFunction<IN>> po =
+					new ReduceOperatorBase<IN, ReduceFunction<IN>>(function, operatorInfo, new int[0], name);
 			// set input
 			po.setInput(input);
 			
@@ -108,8 +108,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			// reduce with field positions
 			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
 			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getInputType());
-			ReduceOperatorBase<IN, Reducible<IN>> po =
-					new ReduceOperatorBase<IN, Reducible<IN>>(function, operatorInfo, logicalKeyPositions, name);
+			ReduceOperatorBase<IN, ReduceFunction<IN>> po =
+					new ReduceOperatorBase<IN, ReduceFunction<IN>>(function, operatorInfo, logicalKeyPositions, name);
 			
 			// set input
 			po.setInput(input);
@@ -127,7 +127,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	// --------------------------------------------------------------------------------------------
 	
 	private static <T, K> MapOperatorBase<Tuple2<K, T>, T, ?> translateSelectorFunctionReducer(Keys.SelectorFunctionKeys<T, ?> rawKeys,
-			Reducible<T> function, TypeInformation<T> inputType, String name, Operator<T> input, int dop)
+			ReduceFunction<T> function, TypeInformation<T> inputType, String name, Operator<T> input, int dop)
 	{
 		@SuppressWarnings("unchecked")
 		final Keys.SelectorFunctionKeys<T, K> keys = (Keys.SelectorFunctionKeys<T, K>) rawKeys;
@@ -138,8 +138,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		
 		PlanUnwrappingReduceOperator<T, K> reducer = new PlanUnwrappingReduceOperator<T, K>(function, keys, name, inputType, typeInfoWithKey);
 		
-		MapOperatorBase<T, Tuple2<K, T>, Mappable<T, Tuple2<K, T>>> keyExtractingMap = new MapOperatorBase<T, Tuple2<K, T>, Mappable<T, Tuple2<K, T>>>(extractor, new UnaryOperatorInformation<T, Tuple2<K, T>>(inputType, typeInfoWithKey), "Key Extractor");
-		MapOperatorBase<Tuple2<K, T>, T, Mappable<Tuple2<K, T>, T>> keyRemovingMap = new MapOperatorBase<Tuple2<K, T>, T, Mappable<Tuple2<K, T>, T>>(new KeyRemovingMapper<T, K>(), new UnaryOperatorInformation<Tuple2<K, T>, T>(typeInfoWithKey, inputType), "Key Extractor");
+		MapOperatorBase<T, Tuple2<K, T>, MapFunction<T, Tuple2<K, T>>> keyExtractingMap = new MapOperatorBase<T, Tuple2<K, T>, MapFunction<T, Tuple2<K, T>>>(extractor, new UnaryOperatorInformation<T, Tuple2<K, T>>(inputType, typeInfoWithKey), "Key Extractor");
+		MapOperatorBase<Tuple2<K, T>, T, MapFunction<Tuple2<K, T>, T>> keyRemovingMap = new MapOperatorBase<Tuple2<K, T>, T, MapFunction<Tuple2<K, T>, T>>(new KeyRemovingMapper<T, K>(), new UnaryOperatorInformation<Tuple2<K, T>, T>(typeInfoWithKey, inputType), "Key Extractor");
 
 		keyExtractingMap.setInput(input);
 		reducer.setInput(keyExtractingMap);

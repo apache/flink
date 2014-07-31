@@ -24,7 +24,7 @@ import java.util.HashMap;
 
 import junit.framework.Assert;
 
-import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.runtime.operators.CombineTaskTest.MockCombiningReduceStub;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
@@ -35,7 +35,7 @@ import org.apache.flink.types.Record;
 import org.junit.Test;
 
 
-public class CombineTaskExternalITCase extends DriverTestBase<GroupReduceFunction<Record, ?>> {
+public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<Record, ?>> {
 	
 	private static final long COMBINE_MEM = 3 * 1024 * 1024;
 

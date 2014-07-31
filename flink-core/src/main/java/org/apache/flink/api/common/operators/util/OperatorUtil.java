@@ -25,11 +25,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.flink.api.common.functions.CoGroupable;
-import org.apache.flink.api.common.functions.Crossable;
-import org.apache.flink.api.common.functions.FlatJoinable;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.CrossFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
-import org.apache.flink.api.common.functions.GroupReducible;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.InputFormat;
@@ -56,10 +56,10 @@ public class OperatorUtil {
 
 	static {
 		STUB_CONTRACTS.put(GenericCollectorMap.class, CollectorMapOperatorBase.class);
-		STUB_CONTRACTS.put(GroupReducible.class, GroupReduceOperatorBase.class);
-		STUB_CONTRACTS.put(CoGroupable.class, CoGroupOperatorBase.class);
-		STUB_CONTRACTS.put(Crossable.class, CrossOperatorBase.class);
-		STUB_CONTRACTS.put(FlatJoinable.class, JoinOperatorBase.class);
+		STUB_CONTRACTS.put(GroupReduceFunction.class, GroupReduceOperatorBase.class);
+		STUB_CONTRACTS.put(CoGroupFunction.class, CoGroupOperatorBase.class);
+		STUB_CONTRACTS.put(CrossFunction.class, CrossOperatorBase.class);
+		STUB_CONTRACTS.put(FlatJoinFunction.class, JoinOperatorBase.class);
 		STUB_CONTRACTS.put(FileInputFormat.class, GenericDataSourceBase.class);
 		STUB_CONTRACTS.put(FileOutputFormat.class, GenericDataSinkBase.class);
 		STUB_CONTRACTS.put(InputFormat.class, GenericDataSourceBase.class);

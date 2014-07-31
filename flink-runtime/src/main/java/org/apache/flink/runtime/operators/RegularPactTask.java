@@ -24,7 +24,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
-import org.apache.flink.api.common.functions.FlatCombinable;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -526,8 +526,10 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			// modify accumulators.ll;
 			if (this.stub != null) {
 				// collect the counters from the stub
-				Map<String, Accumulator<?,?>> accumulators = FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
-				RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
+				if (FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext) != null) {
+					Map<String, Accumulator<?, ?>> accumulators = FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
+					RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
+				}
 			}
 		}
 		catch (Exception ex) {
@@ -583,9 +585,12 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		// tasks. Type conflicts can occur here if counters with same name but
 		// different type were used.
 
+
 		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
-			Map<String, Accumulator<?, ?>> chainedAccumulators = FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators();
-			AccumulatorHelper.mergeInto(accumulators, chainedAccumulators);
+			if (FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null) != null) {
+				Map<String, Accumulator<?, ?>> chainedAccumulators = FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators();
+				AccumulatorHelper.mergeInto(accumulators, chainedAccumulators);
+			}
 		}
 
 		// Don't report if the UDF didn't collect any accumulators
@@ -608,7 +613,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		// done before sending
 		AccumulatorHelper.resetAndClearAccumulators(accumulators);
 		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
-			AccumulatorHelper.resetAndClearAccumulators(FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators());
+			if (FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null) != null) {
+				AccumulatorHelper.resetAndClearAccumulators(FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators());
+			}
 		}
 	}
 
@@ -989,13 +996,13 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 						e.getMessage() == null ? "." : ": " + e.getMessage(), e);
 				}
 				
-				if (!(localStub instanceof FlatCombinable)) {
+				if (!(localStub instanceof FlatCombineFunction)) {
 					throw new IllegalStateException("Performing combining sort outside a reduce task!");
 				}
 
 				@SuppressWarnings({ "rawtypes", "unchecked" })
 				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
-					(FlatCombinable) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
+					(FlatCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
 					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
 					this.config.getSpillingThresholdInput(inputNum));

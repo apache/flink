@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.flink.api.common.functions.FlatJoinable;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.java.record.functions.JoinFunction;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
@@ -40,7 +40,7 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class MatchTaskTest extends DriverTestBase<FlatJoinable<Record, Record, Record>>
+public class MatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Record>>
 {
 	private static final long HASH_MEM = 6*1024*1024;
 	

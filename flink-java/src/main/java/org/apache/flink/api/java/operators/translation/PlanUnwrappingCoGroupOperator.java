@@ -20,7 +20,7 @@ package org.apache.flink.api.java.operators.translation;
 
 import java.util.Iterator;
 
-import org.apache.flink.api.common.functions.CoGroupable;
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
 import org.apache.flink.api.java.operators.Keys;
@@ -29,10 +29,10 @@ import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.Collector;
 
 public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> 
-	extends CoGroupOperatorBase<Tuple2<K, I1>, Tuple2<K, I2>, OUT, CoGroupable<Tuple2<K, I1>, Tuple2<K, I2>, OUT>>
+	extends CoGroupOperatorBase<Tuple2<K, I1>, Tuple2<K, I2>, OUT, CoGroupFunction<Tuple2<K, I1>, Tuple2<K, I2>, OUT>>
 {
 
-	public PlanUnwrappingCoGroupOperator(CoGroupable<I1, I2, OUT> udf,
+	public PlanUnwrappingCoGroupOperator(CoGroupFunction<I1, I2, OUT> udf,
 			Keys.SelectorFunctionKeys<I1, K> key1, Keys.SelectorFunctionKeys<I2, K> key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
@@ -41,7 +41,7 @@ public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>
 				key1.computeLogicalKeyPositions(), key2.computeLogicalKeyPositions(), name);
 	}
 	
-	public PlanUnwrappingCoGroupOperator(CoGroupable<I1, I2, OUT> udf,
+	public PlanUnwrappingCoGroupOperator(CoGroupFunction<I1, I2, OUT> udf,
 			int[] key1, Keys.SelectorFunctionKeys<I2, K> key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
@@ -50,7 +50,7 @@ public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>
 				new int[]{0}, key2.computeLogicalKeyPositions(), name);
 	}
 	
-	public PlanUnwrappingCoGroupOperator(CoGroupable<I1, I2, OUT> udf,
+	public PlanUnwrappingCoGroupOperator(CoGroupFunction<I1, I2, OUT> udf,
 			Keys.SelectorFunctionKeys<I1, K> key1, int[] key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
@@ -61,15 +61,15 @@ public class PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>
 
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class TupleUnwrappingCoGrouper<I1, I2, OUT, K> extends WrappingFunction<CoGroupable<I1, I2, OUT>>
-		implements CoGroupable<Tuple2<K, I1>, Tuple2<K, I2>, OUT>
+	public static final class TupleUnwrappingCoGrouper<I1, I2, OUT, K> extends WrappingFunction<CoGroupFunction<I1, I2, OUT>>
+		implements CoGroupFunction<Tuple2<K, I1>, Tuple2<K, I2>, OUT>
 	{
 		private static final long serialVersionUID = 1L;
 		
 		private final TupleUnwrappingIterator<I1, K> iter1;
 		private final TupleUnwrappingIterator<I2, K> iter2;
 		
-		private TupleUnwrappingCoGrouper(CoGroupable<I1, I2, OUT> wrapped) {
+		private TupleUnwrappingCoGrouper(CoGroupFunction<I1, I2, OUT> wrapped) {
 			super(wrapped);
 			
 			this.iter1 = new TupleUnwrappingIterator<I1, K>();

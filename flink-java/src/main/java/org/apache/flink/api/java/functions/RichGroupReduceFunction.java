@@ -25,8 +25,8 @@ import java.lang.annotation.Target;
 import java.util.Iterator;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.FlatCombinable;
-import org.apache.flink.api.common.functions.GroupReducible;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.util.Collector;
 
 /**
@@ -51,7 +51,7 @@ import org.apache.flink.util.Collector;
  * @param <IN> Type of the elements that this function processes.
  * @param <OUT> The type of the elements returned by the user-defined function.
  */
-public abstract class RichGroupReduceFunction<IN, OUT> extends AbstractRichFunction implements GroupReducible<IN, OUT>, FlatCombinable<IN> {
+public abstract class RichGroupReduceFunction<IN, OUT> extends AbstractRichFunction implements GroupReduceFunction<IN, OUT>, FlatCombineFunction<IN> {
 	
 	private static final long serialVersionUID = 1L;
 

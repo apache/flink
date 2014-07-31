@@ -20,11 +20,11 @@ package org.apache.flink.api.java.operators.translation;
 
 import java.util.Iterator;
 
-import org.apache.flink.api.common.functions.FlatCombinable;
-import org.apache.flink.api.common.functions.GroupReducible;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.TypeInformation;
@@ -34,12 +34,12 @@ import org.apache.flink.util.Collector;
  * A reduce operator that takes 2-tuples (key-value pairs), and applies the group reduce operation only
  * on the unwrapped values.
  */
-public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOperatorBase<Tuple2<K, IN>, OUT, GroupReducible<Tuple2<K, IN>,OUT>> {
+public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOperatorBase<Tuple2<K, IN>, OUT, GroupReduceFunction<Tuple2<K, IN>,OUT>> {
 
-	public PlanUnwrappingReduceGroupOperator(GroupReducible<IN, OUT> udf, Keys.SelectorFunctionKeys<IN, K> key, String name,
+	public PlanUnwrappingReduceGroupOperator(GroupReduceFunction<IN, OUT> udf, Keys.SelectorFunctionKeys<IN, K> key, String name,
 			TypeInformation<OUT> outType, TypeInformation<Tuple2<K, IN>> typeInfoWithKey, boolean combinable)
 	{
-		super(combinable ? new TupleUnwrappingFlatCombinableGroupReducer<IN, OUT, K>((GroupReduceFunction) udf) : new TupleUnwrappingNonCombinableGroupReducer<IN, OUT, K>(udf),
+		super(combinable ? new TupleUnwrappingFlatCombinableGroupReducer<IN, OUT, K>((RichGroupReduceFunction) udf) : new TupleUnwrappingNonCombinableGroupReducer<IN, OUT, K>(udf),
 				new UnaryOperatorInformation<Tuple2<K, IN>, OUT>(typeInfoWithKey, outType), key.computeLogicalKeyPositions(), name);
 		
 		super.setCombinable(combinable);
@@ -47,9 +47,9 @@ public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOp
 	
 	// --------------------------------------------------------------------------------------------
 	
-	@GroupReduceFunction.Combinable
-	public static final class TupleUnwrappingFlatCombinableGroupReducer<IN, OUT, K> extends WrappingFunction<GroupReduceFunction<IN, OUT>>
-		implements GroupReducible<Tuple2<K, IN>, OUT>, FlatCombinable<Tuple2<K, IN>>
+	@RichGroupReduceFunction.Combinable
+	public static final class TupleUnwrappingFlatCombinableGroupReducer<IN, OUT, K> extends WrappingFunction<RichGroupReduceFunction<IN, OUT>>
+		implements GroupReduceFunction<Tuple2<K, IN>, OUT>, FlatCombineFunction<Tuple2<K, IN>>
 	{
 
 		private static final long serialVersionUID = 1L;
@@ -57,7 +57,7 @@ public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOp
 		private TupleUnwrappingIterator<IN, K> iter;
 		private TupleWrappingCollector<IN, K> coll; 
 		
-		private TupleUnwrappingFlatCombinableGroupReducer(GroupReduceFunction<IN, OUT> wrapped) {
+		private TupleUnwrappingFlatCombinableGroupReducer(RichGroupReduceFunction<IN, OUT> wrapped) {
 			super(wrapped);
 			this.iter = new TupleUnwrappingIterator<IN, K>();
 			this.coll = new TupleWrappingCollector<IN, K>(this.iter);
@@ -83,15 +83,15 @@ public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOp
 		}
 	}
 	
-	public static final class TupleUnwrappingNonCombinableGroupReducer<IN, OUT, K> extends WrappingFunction<GroupReducible<IN, OUT>>
-		implements GroupReducible<Tuple2<K, IN>, OUT>
+	public static final class TupleUnwrappingNonCombinableGroupReducer<IN, OUT, K> extends WrappingFunction<GroupReduceFunction<IN, OUT>>
+		implements GroupReduceFunction<Tuple2<K, IN>, OUT>
 	{
 	
 		private static final long serialVersionUID = 1L;
 		
 		private final TupleUnwrappingIterator<IN, K> iter; 
 		
-		private TupleUnwrappingNonCombinableGroupReducer(GroupReducible<IN, OUT> wrapped) {
+		private TupleUnwrappingNonCombinableGroupReducer(GroupReduceFunction<IN, OUT> wrapped) {
 			super(wrapped);
 			this.iter = new TupleUnwrappingIterator<IN, K>();
 		}

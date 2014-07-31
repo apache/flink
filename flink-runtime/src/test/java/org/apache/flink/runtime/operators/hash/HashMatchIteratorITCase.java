@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.FlatJoinable;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -412,7 +412,7 @@ public class HashMatchIteratorITCase {
 				collectIntPairData(input1),
 				collectRecordData(input2));
 			
-			final FlatJoinable<IntPair, Record, Record> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
+			final FlatJoinFunction<IntPair, Record, Record> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
 			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 	
 			// reset the generators
@@ -459,7 +459,7 @@ public class HashMatchIteratorITCase {
 				collectIntPairData(input1),
 				collectRecordData(input2));
 			
-			final FlatJoinable<IntPair, Record, Record> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
+			final FlatJoinFunction<IntPair, Record, Record> matcher = new RecordIntPairMatchRemovingMatcher(expectedMatchesMap);
 			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 	
 			// reset the generators
@@ -693,7 +693,7 @@ public class HashMatchIteratorITCase {
 		}
 	}
 	
-	static final class RecordIntPairMatchRemovingMatcher extends AbstractRichFunction implements FlatJoinable<IntPair, Record, Record>
+	static final class RecordIntPairMatchRemovingMatcher extends AbstractRichFunction implements FlatJoinFunction<IntPair, Record, Record>
 	{
 		private final Map<TestData.Key, Collection<RecordIntPairMatch>> toRemoveFrom;
 		

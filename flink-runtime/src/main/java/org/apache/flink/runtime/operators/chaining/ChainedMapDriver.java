@@ -20,7 +20,7 @@
 package org.apache.flink.runtime.operators.chaining;
 
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.Mappable;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -28,15 +28,15 @@ import org.apache.flink.runtime.operators.RegularPactTask;
 
 public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 
-	private Mappable<IT, OT> mapper;
+	private MapFunction<IT, OT> mapper;
 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void setup(AbstractInvokable parent) {
 		@SuppressWarnings("unchecked")
-		final Mappable<IT, OT> mapper =
-			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, Mappable.class);
+		final MapFunction<IT, OT> mapper =
+			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, MapFunction.class);
 		this.mapper = mapper;
 		FunctionUtils.setFunctionRuntimeContext(mapper, getUdfRuntimeContext());
 	}

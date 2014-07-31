@@ -20,9 +20,9 @@ package org.apache.flink.api.java.functions;
 
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.Joinable;
+import org.apache.flink.api.common.functions.JoinFunction;
 
-public abstract class RichJoinFunction<IN1,IN2,OUT> extends AbstractRichFunction implements Joinable<IN1,IN2,OUT> {
+public abstract class RichJoinFunction<IN1,IN2,OUT> extends AbstractRichFunction implements JoinFunction<IN1,IN2,OUT> {
 
 	private static final long serialVersionUID = 1L;
 

@@ -20,13 +20,12 @@
 package org.apache.flink.api.java.record.functions;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.Crossable;
 import org.apache.flink.types.Record;
 
 /**
  * The CrossFunction is the base class for functions that are invoked by a {@link org.apache.flink.api.java.operators.CrossOperator}.
  */
-public abstract class CrossFunction extends AbstractRichFunction implements Crossable<Record, Record, Record> {
+public abstract class CrossFunction extends AbstractRichFunction implements org.apache.flink.api.common.functions.CrossFunction<Record, Record, Record> {
 	
 	private static final long serialVersionUID = 1L;
 	

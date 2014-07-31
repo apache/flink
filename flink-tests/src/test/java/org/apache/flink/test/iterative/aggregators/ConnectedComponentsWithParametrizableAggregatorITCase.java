@@ -24,9 +24,9 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.JoinFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
+import org.apache.flink.api.java.functions.RichJoinFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -147,8 +147,7 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 		}
 	}
 
-	public static final class NeighborWithComponentIDJoin extends JoinFunction
-		<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class NeighborWithComponentIDJoin extends RichJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -161,8 +160,7 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 		}
 	}
 
-	public static final class MinimumReduce extends GroupReduceFunction
-		<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class MinimumReduce extends RichGroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
 		final Tuple2<Long, Long> resultVertex = new Tuple2<Long, Long>();
@@ -189,8 +187,7 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 	}
 
 	@SuppressWarnings("serial")
-	public static final class MinimumIdFilter extends FlatMapFunction
-		<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
+	public static final class MinimumIdFilter extends RichFlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
 
 		private static LongSumAggregatorWithParameter aggr;
 

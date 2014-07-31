@@ -23,8 +23,7 @@ import java.util.Iterator;
 
 import junit.framework.Assert;
 
-import org.apache.flink.api.common.functions.CoGroupable;
-import org.apache.flink.api.java.record.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
@@ -35,7 +34,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class CoGroupTaskExternalITCase extends DriverTestBase<CoGroupable<Record, Record, Record>>
+public class CoGroupTaskExternalITCase extends DriverTestBase<CoGroupFunction<Record, Record, Record>>
 {
 	private static final long SORT_MEM = 3*1024*1024;
 	
@@ -85,7 +84,7 @@ public class CoGroupTaskExternalITCase extends DriverTestBase<CoGroupable<Record
 		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
-	public static final class MockCoGroupStub extends CoGroupFunction {
+	public static final class MockCoGroupStub extends org.apache.flink.api.java.record.functions.CoGroupFunction {
 		private static final long serialVersionUID = 1L;
 		
 		private final Record res = new Record();

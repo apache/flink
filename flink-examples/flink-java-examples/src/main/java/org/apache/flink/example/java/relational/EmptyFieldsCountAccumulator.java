@@ -26,7 +26,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.functions.FilterFunction;
+import org.apache.flink.api.java.functions.RichFilterFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
@@ -149,7 +149,7 @@ public class EmptyFieldsCountAccumulator {
 	 * In doing so, it also counts the number of empty fields per attribute with an accumulator (registered under 
 	 * {@link EmptyFieldsCountAccumulator#EMPTY_FIELD_ACCUMULATOR}).
 	 */
-	public static final class EmptyFieldFilter extends FilterFunction<Tuple> {
+	public static final class EmptyFieldFilter extends RichFilterFunction<Tuple> {
 
 		// create a new accumulator in each filter function instance
 		// accumulators can be merged later on

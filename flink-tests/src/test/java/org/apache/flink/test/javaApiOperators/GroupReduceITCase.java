@@ -24,12 +24,11 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import org.apache.flink.api.common.functions.FlatCombinable;
-import org.apache.flink.api.common.functions.GroupReducible;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -49,7 +48,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class GroupReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 14;
+	private static int NUM_PROGRAMS = 13;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -412,46 +411,6 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 							"111,6,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
 
 				}
-				case 14: {
-					/*
-					 * check correctness of passing interface without combiner
-					 * logic identical to test 9
-					 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-					DataSet<Tuple3<Integer, Long, String>> reduceDs = ds
-							.groupBy(1)
-							.reduceGroup(new GroupReducible<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>() {
-								@Override
-								public void reduce(Iterator<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) throws Exception {
-									while(values.hasNext()) {
-										Tuple3<Integer, Long, String> t = values.next();
-
-										if(t.f0 < 4) {
-											t.f2 = "Hi!";
-											t.f0 += 10;
-											out.collect(t);
-											t.f0 += 10;
-											t.f2 = "Hi again!";
-											out.collect(t);
-										}
-									}
-								}
-							});
-
-					reduceDs.writeAsCsv(resultPath);
-					env.execute();
-
-					// return expected result
-					return "11,1,Hi!\n" +
-							"21,1,Hi again!\n" +
-							"12,2,Hi!\n" +
-							"22,2,Hi again!\n" +
-							"13,2,Hi!\n" +
-							"23,2,Hi again!\n";
-
-				}
 				default: {
 					throw new IllegalArgumentException("Invalid program id");
 				}
@@ -460,7 +419,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 	
 	}
 	
-	public static class Tuple3GroupReduce extends GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, Long>> {
+	public static class Tuple3GroupReduce implements GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, Long>> {
 		private static final long serialVersionUID = 1L;
 
 
@@ -482,7 +441,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class Tuple3SortedGroupReduce extends GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
+	public static class Tuple3SortedGroupReduce implements GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 
 
@@ -508,7 +467,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class Tuple5GroupReduce extends GroupReduceFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
+	public static class Tuple5GroupReduce implements GroupReduceFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -532,7 +491,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class CustomTypeGroupReduce extends GroupReduceFunction<CustomType, CustomType> {
+	public static class CustomTypeGroupReduce implements GroupReduceFunction<CustomType, CustomType> {
 		private static final long serialVersionUID = 1L;
 		
 
@@ -559,7 +518,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 	}
 
 
-	public static class InputReturningTuple3GroupReduce extends GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
+	public static class InputReturningTuple3GroupReduce implements GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -581,7 +540,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class AllAddingTuple3GroupReduce extends GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
+	public static class AllAddingTuple3GroupReduce implements GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
@@ -601,7 +560,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class AllAddingCustomTypeGroupReduce extends GroupReduceFunction<CustomType, CustomType> {
+	public static class AllAddingCustomTypeGroupReduce implements GroupReduceFunction<CustomType, CustomType> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
@@ -626,7 +585,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class BCTuple3GroupReduce extends GroupReduceFunction<Tuple3<Integer, Long, String>,Tuple3<Integer, Long, String>> {
+	public static class BCTuple3GroupReduce extends RichGroupReduceFunction<Tuple3<Integer, Long, String>,Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 		private String f2Replace = "";
 		
@@ -660,8 +619,8 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	@org.apache.flink.api.java.functions.GroupReduceFunction.Combinable
-	public static class Tuple3GroupReduceWithCombine extends GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>> {
+	@RichGroupReduceFunction.Combinable
+	public static class Tuple3GroupReduceWithCombine extends RichGroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -697,8 +656,8 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	@org.apache.flink.api.java.functions.GroupReduceFunction.Combinable
-	public static class Tuple3AllGroupReduceWithCombine extends GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>> {
+	@RichGroupReduceFunction.Combinable
+	public static class Tuple3AllGroupReduceWithCombine extends RichGroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
@@ -733,8 +692,8 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	@org.apache.flink.api.java.functions.GroupReduceFunction.Combinable
-	public static class CustomTypeGroupReduceWithCombine extends GroupReduceFunction<CustomType, CustomType> {
+	@RichGroupReduceFunction.Combinable
+	public static class CustomTypeGroupReduceWithCombine extends RichGroupReduceFunction<CustomType, CustomType> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
@@ -770,7 +729,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static final class IdentityMapper<T> extends MapFunction<T, T> {
+	public static final class IdentityMapper<T> extends RichMapFunction<T, T> {
 
 		@Override
 		public T map(T value) { return value; }

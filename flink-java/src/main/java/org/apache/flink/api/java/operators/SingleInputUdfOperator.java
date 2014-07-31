@@ -35,8 +35,8 @@ import org.apache.flink.api.java.DataSet;
 /**
  * The <tt>SingleInputUdfOperator</tt> is the base class of all unary operators that execute
  * user-defined functions (UDFs). The UDFs encapsulated by this operator are naturally UDFs that
- * have one input (such as {@link org.apache.flink.api.java.functions.MapFunction} or
- * {@link org.apache.flink.api.java.functions.ReduceFunction}).
+ * have one input (such as {@link org.apache.flink.api.java.functions.RichMapFunction} or
+ * {@link org.apache.flink.api.java.functions.RichReduceFunction}).
  * <p>
  * This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization
  * through configuration objects, and semantic properties.

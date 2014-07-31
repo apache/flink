@@ -20,8 +20,8 @@
 package org.apache.flink.api.common.operators.base;
 
 
-import org.apache.flink.api.common.functions.FlatCombinable;
-import org.apache.flink.api.common.functions.GroupReducible;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -31,9 +31,9 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 
 
 /**
- * @see org.apache.flink.api.common.functions.GroupReducible
+ * @see org.apache.flink.api.common.functions.GroupReduceFunction
  */
-public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReducible<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
+public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 
 	/**
 	 * The ordering for the order inside a reduce group.
@@ -92,15 +92,15 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReducible<IN, OUT>
 	/**
 	 * Marks the group reduce operation as combinable. Combinable operations may pre-reduce the
 	 * data before the actual group reduce operations. Combinable user-defined functions
-	 * must implement the interface {@link org.apache.flink.api.common.functions.FlatCombinable}.
+	 * must implement the interface {@link org.apache.flink.api.common.functions.FlatCombineFunction}.
 	 * 
 	 * @param combinable Flag to mark the group reduce operation as combinable.
 	 */
 	public void setCombinable(boolean combinable) {
 		// sanity check
-		if (combinable && !FlatCombinable.class.isAssignableFrom(this.userFunction.getUserCodeClass())) {
+		if (combinable && !FlatCombineFunction.class.isAssignableFrom(this.userFunction.getUserCodeClass())) {
 			throw new IllegalArgumentException("Cannot set a UDF as combinable if it does not implement the interface " +
-					FlatCombinable.class.getName());
+					FlatCombineFunction.class.getName());
 		} else {
 			this.combinable = combinable;
 		}

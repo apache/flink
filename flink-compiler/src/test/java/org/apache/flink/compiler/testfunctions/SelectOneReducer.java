@@ -18,9 +18,9 @@
 
 package org.apache.flink.compiler.testfunctions;
 
-import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.RichReduceFunction;
 
-public class SelectOneReducer<T> extends ReduceFunction<T> {
+public class SelectOneReducer<T> extends RichReduceFunction<T> {
 
 	private static final long serialVersionUID = 1L;
 

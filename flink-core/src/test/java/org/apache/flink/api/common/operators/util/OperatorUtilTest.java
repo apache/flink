@@ -21,12 +21,12 @@ package org.apache.flink.api.common.operators.util;
 
 import static org.junit.Assert.assertEquals;
 
-import org.apache.flink.api.common.functions.CoGroupable;
-import org.apache.flink.api.common.functions.FlatJoinable;
-import org.apache.flink.api.common.functions.GroupReducible;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
-import org.apache.flink.api.common.functions.Crossable;
+import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.io.DelimitedInputFormat;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
@@ -115,13 +115,13 @@ public class OperatorUtilTest {
 		assertEquals(GenericDataSourceBase.class, result);
 	}
 
-	static abstract class CoGrouper implements CoGroupable<IntValue, IntValue, IntValue> {}
+	static abstract class CoGrouper implements CoGroupFunction<IntValue, IntValue, IntValue> {}
 
-	static abstract class Crosser implements Crossable<IntValue, IntValue, IntValue> {}
+	static abstract class Crosser implements CrossFunction<IntValue, IntValue, IntValue> {}
 
 	static abstract class Mapper implements GenericCollectorMap<IntValue, IntValue> {}
 
-	static abstract class Matcher implements FlatJoinable<IntValue, IntValue, IntValue> {}
+	static abstract class Matcher implements FlatJoinFunction<IntValue, IntValue, IntValue> {}
 
-	static abstract class Reducer implements GroupReducible<IntValue, IntValue> {}
+	static abstract class Reducer implements GroupReduceFunction<IntValue, IntValue> {}
 }

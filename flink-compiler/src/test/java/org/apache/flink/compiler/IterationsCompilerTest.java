@@ -21,6 +21,7 @@ package org.apache.flink.compiler;
 
 import static org.junit.Assert.*;
 
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.junit.Test;
 
 import java.util.Iterator;
@@ -31,10 +32,9 @@ import org.apache.flink.api.java.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.IterativeDataSet;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.JoinFunction;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
+import org.apache.flink.api.java.functions.RichJoinFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -261,7 +261,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 		
 	}
 	
-	public static final class Join222 extends JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class Join222 extends RichJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		@Override
 		public Tuple2<Long, Long> join(Tuple2<Long, Long> vertexWithComponent, Tuple2<Long, Long> edge) {
@@ -269,13 +269,13 @@ public class IterationsCompilerTest extends CompilerTestBase {
 		}
 	}
 	
-	public static final class FlatMapJoin extends FlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
+	public static final class FlatMapJoin extends RichFlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
 		
 		@Override
 		public void flatMap(Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>> value, Collector<Tuple2<Long, Long>> out) {}
 	}
 	
-	public static final class DummyMap extends MapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class DummyMap extends RichMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		@Override
 		public Tuple2<Long, Long> map(Tuple2<Long, Long> value) throws Exception {
@@ -284,14 +284,14 @@ public class IterationsCompilerTest extends CompilerTestBase {
 	}
 	
 	@ConstantFields("0")
-	public static final class Reduce101 extends GroupReduceFunction<Tuple1<Long>, Tuple1<Long>> {
+	public static final class Reduce101 extends RichGroupReduceFunction<Tuple1<Long>, Tuple1<Long>> {
 		
 		@Override
 		public void reduce(Iterator<Tuple1<Long>> values, Collector<Tuple1<Long>> out) {}
 	}
 	
 	@ConstantFields("0")
-	public static final class DuplicateValue extends MapFunction<Tuple1<Long>, Tuple2<Long, Long>> {
+	public static final class DuplicateValue extends RichMapFunction<Tuple1<Long>, Tuple2<Long, Long>> {
 
 		@Override
 		public Tuple2<Long, Long> map(Tuple1<Long> value) throws Exception {
@@ -299,7 +299,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 		}
 	}
 	
-	public static final class DuplicateValueScalar<T> extends MapFunction<T, Tuple2<T, T>> {
+	public static final class DuplicateValueScalar<T> extends RichMapFunction<T, Tuple2<T, T>> {
 
 		@Override
 		public Tuple2<T, T> map(T value) {

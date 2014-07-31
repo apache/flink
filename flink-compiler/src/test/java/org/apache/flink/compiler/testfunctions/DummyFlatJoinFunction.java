@@ -19,10 +19,10 @@
 
 package org.apache.flink.compiler.testfunctions;
 
-import org.apache.flink.api.java.functions.FlatJoinFunction;
+import org.apache.flink.api.java.functions.RichFlatJoinFunction;
 import org.apache.flink.util.Collector;
 
-public class DummyFlatJoinFunction<T> extends FlatJoinFunction<T, T, T> {
+public class DummyFlatJoinFunction<T> extends RichFlatJoinFunction<T, T, T> {
 
 	private static final long serialVersionUID = 1L;
 

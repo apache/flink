@@ -27,8 +27,8 @@ import org.apache.flink.api.java.DataSet;
 
 /**
  * This interface marks operators as operators that execute user-defined functions (UDFs), such as
- * {@link org.apache.flink.api.java.functions.MapFunction}, {@link org.apache.flink.api.java.functions.ReduceFunction},
- * or {@link org.apache.flink.api.java.functions.CoGroupFunction}.
+ * {@link org.apache.flink.api.java.functions.RichMapFunction}, {@link org.apache.flink.api.java.functions.RichReduceFunction},
+ * or {@link org.apache.flink.api.java.functions.RichCoGroupFunction}.
  * The UDF operators stand in contrast to operators that execute built-in operations, like aggregations.
  */
 public interface UdfOperator<O extends UdfOperator<O>> {

@@ -22,8 +22,8 @@ package org.apache.flink.api.java.record.functions;
 import java.util.Iterator;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.FlatCombinable;
-import org.apache.flink.api.common.functions.GroupReducible;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
@@ -31,7 +31,7 @@ import org.apache.flink.util.Collector;
  * The ReduceFunction must be extended to provide a reducer implementation, as invoked by a
  * {@link org.apache.flink.api.java.operators.ReduceOperator}.
  */
-public abstract class ReduceFunction extends AbstractRichFunction implements GroupReducible<Record, Record>, FlatCombinable<Record> {
+public abstract class ReduceFunction extends AbstractRichFunction implements GroupReduceFunction<Record, Record>, FlatCombineFunction<Record> {
 	
 	private static final long serialVersionUID = 1L;
 	

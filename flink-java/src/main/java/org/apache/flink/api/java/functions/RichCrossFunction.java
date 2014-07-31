@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.functions;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.Crossable;
+import org.apache.flink.api.common.functions.CrossFunction;
 
 
 /**
@@ -45,7 +45,7 @@ import org.apache.flink.api.common.functions.Crossable;
  * @param <IN2> The type of the elements in the second input.
  * @param <OUT> The type of the result elements.
  */
-public abstract class RichCrossFunction<IN1, IN2, OUT> extends AbstractRichFunction implements Crossable<IN1, IN2, OUT> {
+public abstract class RichCrossFunction<IN1, IN2, OUT> extends AbstractRichFunction implements CrossFunction<IN1, IN2, OUT> {
 	
 	private static final long serialVersionUID = 1L;
 	

@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.operators.chaining;
 
-import org.apache.flink.api.common.functions.FlatMappable;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
@@ -28,15 +28,15 @@ import org.apache.flink.runtime.operators.RegularPactTask;
 
 public class ChainedFlatMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 
-	private FlatMappable<IT, OT> mapper;
+	private FlatMapFunction<IT, OT> mapper;
 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void setup(AbstractInvokable parent) {
 		@SuppressWarnings("unchecked")
-		final FlatMappable<IT, OT> mapper =
-			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, FlatMappable.class);
+		final FlatMapFunction<IT, OT> mapper =
+			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, FlatMapFunction.class);
 		this.mapper = mapper;
 		FunctionUtils.setFunctionRuntimeContext(mapper, getUdfRuntimeContext());
 	}

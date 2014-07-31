@@ -19,22 +19,16 @@
 package org.apache.flink.api.java;
 
 import org.apache.commons.lang3.Validate;
-import org.apache.flink.api.common.functions.Filterable;
-import org.apache.flink.api.common.functions.FlatMappable;
-import org.apache.flink.api.common.functions.GroupReducible;
-import org.apache.flink.api.common.functions.Mappable;
-import org.apache.flink.api.common.functions.Reducible;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.functions.CoGroupFunction;
-import org.apache.flink.api.java.functions.FilterFunction;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
@@ -71,8 +65,8 @@ import org.apache.flink.types.TypeInformation;
  * A DataSet represents a collection of elements of the same type.<br/>
  * A DataSet can be transformed into another DataSet by applying a transformation as for example 
  * <ul>
- *   <li>{@link DataSet#map(MapFunction)},</li>
- *   <li>{@link DataSet#reduce(ReduceFunction)},</li>
+ *   <li>{@link DataSet#map(org.apache.flink.api.java.functions.RichMapFunction)},</li>
+ *   <li>{@link DataSet#reduce(org.apache.flink.api.java.functions.RichReduceFunction)},</li>
  *   <li>{@link DataSet#join(DataSet)}, or</li>
  *   <li>{@link DataSet#coGroup(DataSet)}.</li>
  * </ul>
@@ -127,17 +121,17 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Applies a Map transformation on a {@link DataSet}.<br/>
-	 * The transformation calls a {@link MapFunction} for each element of the DataSet.
+	 * The transformation calls a {@link org.apache.flink.api.java.functions.RichMapFunction} for each element of the DataSet.
 	 * Each MapFunction call returns exactly one element.
 	 * 
 	 * @param mapper The MapFunction that is called for each element of the DataSet.
 	 * @return A MapOperator that represents the transformed DataSet.
 	 * 
-	 * @see MapFunction
+	 * @see org.apache.flink.api.java.functions.RichMapFunction
 	 * @see MapOperator
 	 * @see DataSet
 	 */
-	public <R> MapOperator<T, R> map(Mappable<T, R> mapper) {
+	public <R> MapOperator<T, R> map(MapFunction<T, R> mapper) {
 		if (mapper == null) {
 			throw new NullPointerException("Map function must not be null.");
 		}
@@ -149,17 +143,17 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Applies a FlatMap transformation on a {@link DataSet}.<br/>
-	 * The transformation calls a {@link FlatMapFunction} for each element of the DataSet.
+	 * The transformation calls a {@link org.apache.flink.api.java.functions.RichFlatMapFunction} for each element of the DataSet.
 	 * Each FlatMapFunction call can return any number of elements including none.
 	 * 
 	 * @param flatMapper The FlatMapFunction that is called for each element of the DataSet. 
 	 * @return A FlatMapOperator that represents the transformed DataSet.
 	 * 
-	 * @see FlatMapFunction
+	 * @see org.apache.flink.api.java.functions.RichFlatMapFunction
 	 * @see FlatMapOperator
 	 * @see DataSet
 	 */
-	public <R> FlatMapOperator<T, R> flatMap(FlatMappable<T, R> flatMapper) {
+	public <R> FlatMapOperator<T, R> flatMap(FlatMapFunction<T, R> flatMapper) {
 		if (flatMapper == null) {
 			throw new NullPointerException("FlatMap function must not be null.");
 		}
@@ -171,18 +165,18 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Applies a Filter transformation on a {@link DataSet}.<br/>
-	 * The transformation calls a {@link FilterFunction} for each element of the DataSet 
+	 * The transformation calls a {@link org.apache.flink.api.java.functions.RichFilterFunction} for each element of the DataSet
 	 * and retains only those element for which the function returns true. Elements for 
 	 * which the function returns false are filtered. 
 	 * 
 	 * @param filter The FilterFunction that is called for each element of the DataSet.
 	 * @return A FilterOperator that represents the filtered DataSet.
 	 * 
-	 * @see FilterFunction
+	 * @see org.apache.flink.api.java.functions.RichFilterFunction
 	 * @see FilterOperator
 	 * @see DataSet
 	 */
-	public FilterOperator<T> filter(Filterable<T> filter) {
+	public FilterOperator<T> filter(FilterFunction<T> filter) {
 		if (filter == null) {
 			throw new NullPointerException("Filter function must not be null.");
 		}
@@ -274,18 +268,18 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Applies a Reduce transformation on a non-grouped {@link DataSet}.<br/>
-	 * The transformation consecutively calls a {@link ReduceFunction} 
+	 * The transformation consecutively calls a {@link org.apache.flink.api.java.functions.RichReduceFunction}
 	 *   until only a single element remains which is the result of the transformation.
 	 * A ReduceFunction combines two elements into one new element of the same type.
 	 * 
 	 * @param reducer The ReduceFunction that is applied on the DataSet.
 	 * @return A ReduceOperator that represents the reduced DataSet.
 	 * 
-	 * @see ReduceFunction
+	 * @see org.apache.flink.api.java.functions.RichReduceFunction
 	 * @see ReduceOperator
 	 * @see DataSet
 	 */
-	public ReduceOperator<T> reduce(Reducible<T> reducer) {
+	public ReduceOperator<T> reduce(ReduceFunction<T> reducer) {
 		if (reducer == null) {
 			throw new NullPointerException("Reduce function must not be null.");
 		}
@@ -294,18 +288,18 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Applies a GroupReduce transformation on a non-grouped {@link DataSet}.<br/>
-	 * The transformation calls a {@link GroupReduceFunction} once with the full DataSet.
+	 * The transformation calls a {@link org.apache.flink.api.java.functions.RichGroupReduceFunction} once with the full DataSet.
 	 * The GroupReduceFunction can iterate over all elements of the DataSet and emit any
 	 *   number of output elements including none.
 	 * 
 	 * @param reducer The GroupReduceFunction that is applied on the DataSet.
 	 * @return A GroupReduceOperator that represents the reduced DataSet.
 	 * 
-	 * @see GroupReduceFunction
+	 * @see org.apache.flink.api.java.functions.RichGroupReduceFunction
 	 * @see org.apache.flink.api.java.operators.GroupReduceOperator
 	 * @see DataSet
 	 */
-	public <R> GroupReduceOperator<T, R> reduceGroup(GroupReducible<T, R> reducer) {
+	public <R> GroupReduceOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
 		if (reducer == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
@@ -372,8 +366,8 @@ public abstract class DataSet<T> {
 	 * <ul>
 	 *   <li>{@link UnsortedGrouping#sortGroup(int, org.apache.flink.api.common.operators.Order)} to get a {@link SortedGrouping}. 
 	 *   <li>{@link UnsortedGrouping#aggregate(Aggregations, int)} to apply an Aggregate transformation.
-	 *   <li>{@link UnsortedGrouping#reduce(ReduceFunction)} to apply a Reduce transformation.
-	 *   <li>{@link UnsortedGrouping#reduceGroup(GroupReduceFunction)} to apply a GroupReduce transformation.
+	 *   <li>{@link UnsortedGrouping#reduce(org.apache.flink.api.java.functions.RichReduceFunction)} to apply a Reduce transformation.
+	 *   <li>{@link UnsortedGrouping#reduceGroup(org.apache.flink.api.java.functions.RichGroupReduceFunction)} to apply a GroupReduce transformation.
 	 * </ul>
 	 *  
 	 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet on which it is grouped. 
@@ -401,8 +395,8 @@ public abstract class DataSet<T> {
 	 * <ul>
 	 *   <li>{@link UnsortedGrouping#sortGroup(int, org.apache.flink.api.common.operators.Order)} to get a {@link SortedGrouping}. 
 	 *   <li>{@link UnsortedGrouping#aggregate(Aggregations, int)} to apply an Aggregate transformation.
-	 *   <li>{@link UnsortedGrouping#reduce(ReduceFunction)} to apply a Reduce transformation.
-	 *   <li>{@link UnsortedGrouping#reduceGroup(GroupReduceFunction)} to apply a GroupReduce transformation.
+	 *   <li>{@link UnsortedGrouping#reduce(org.apache.flink.api.java.functions.RichReduceFunction)} to apply a Reduce transformation.
+	 *   <li>{@link UnsortedGrouping#reduceGroup(org.apache.flink.api.java.functions.RichGroupReduceFunction)} to apply a GroupReduce transformation.
 	 * </ul> 
 	 * 
 	 * @param fields One or more field positions on which the DataSet will be grouped. 
@@ -430,8 +424,8 @@ public abstract class DataSet<T> {
 	 * <ul>
 	 *   <li>{@link UnsortedGrouping#sortGroup(int, org.apache.flink.api.common.operators.Order)} to get a {@link SortedGrouping}.
 	 *   <li>{@link UnsortedGrouping#aggregate(Aggregations, int)} to apply an Aggregate transformation.
-	 *   <li>{@link UnsortedGrouping#reduce(ReduceFunction)} to apply a Reduce transformation.
-	 *   <li>{@link UnsortedGrouping#reduceGroup(GroupReduceFunction)} to apply a GroupReduce transformation.
+	 *   <li>{@link UnsortedGrouping#reduce(org.apache.flink.api.java.functions.RichReduceFunction)} to apply a Reduce transformation.
+	 *   <li>{@link UnsortedGrouping#reduceGroup(org.apache.flink.api.java.functions.RichGroupReduceFunction)} to apply a GroupReduce transformation.
 	 * </ul>
 	 *
 	 * @param fields One or more field expressions on which the DataSet will be grouped.
@@ -527,7 +521,7 @@ public abstract class DataSet<T> {
 	 * Initiates a CoGroup transformation.<br/>
 	 * A CoGroup transformation combines the elements of
 	 *   two {@link DataSet DataSets} into one DataSet. It groups each DataSet individually on a key and 
-	 *   gives groups of both DataSets with equal keys together into a {@link CoGroupFunction}.
+	 *   gives groups of both DataSets with equal keys together into a {@link org.apache.flink.api.java.functions.RichCoGroupFunction}.
 	 *   If a DataSet has a group with no matching key in the other DataSet, the CoGroupFunction
 	 *   is called with an empty group for the non-existing group.</br>
 	 * The CoGroupFunction can iterate over the elements of both groups and return any number 

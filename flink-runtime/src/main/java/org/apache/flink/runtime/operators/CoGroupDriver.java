@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.CoGroupable;
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -41,12 +41,12 @@ import org.apache.flink.util.MutableObjectIterator;
  * 
  * @see org.apache.flink.api.java.record.functions.CoGroupFunction
  */
-public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<CoGroupable<IT1, IT2, OT>, OT> {
+public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<CoGroupFunction<IT1, IT2, OT>, OT> {
 	
 	private static final Log LOG = LogFactory.getLog(CoGroupDriver.class);
 	
 	
-	private PactTaskContext<CoGroupable<IT1, IT2, OT>, OT> taskContext;
+	private PactTaskContext<CoGroupFunction<IT1, IT2, OT>, OT> taskContext;
 	
 	private CoGroupTaskIterator<IT1, IT2> coGroupIterator;				// the iterator that does the actual cogroup
 	
@@ -56,7 +56,7 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<CoGroupable<IT1, 
 
 
 	@Override
-	public void setup(PactTaskContext<CoGroupable<IT1, IT2, OT>, OT> context) {
+	public void setup(PactTaskContext<CoGroupFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -69,9 +69,9 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<CoGroupable<IT1, 
 	
 
 	@Override
-	public Class<CoGroupable<IT1, IT2, OT>> getStubType() {
+	public Class<CoGroupFunction<IT1, IT2, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<CoGroupable<IT1, IT2, OT>> clazz = (Class<CoGroupable<IT1, IT2, OT>>) (Class<?>) CoGroupable.class;
+		final Class<CoGroupFunction<IT1, IT2, OT>> clazz = (Class<CoGroupFunction<IT1, IT2, OT>>) (Class<?>) CoGroupFunction.class;
 		return clazz;
 	}
 	
@@ -122,7 +122,7 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<CoGroupable<IT1, 
 	@Override
 	public void run() throws Exception
 	{
-		final CoGroupable<IT1, IT2, OT> coGroupStub = this.taskContext.getStub();
+		final CoGroupFunction<IT1, IT2, OT> coGroupStub = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		final CoGroupTaskIterator<IT1, IT2> coGroupIterator = this.coGroupIterator;
 		

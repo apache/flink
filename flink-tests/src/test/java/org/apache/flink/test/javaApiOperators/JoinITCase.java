@@ -23,10 +23,10 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
-import org.apache.flink.api.common.functions.Joinable;
-import org.apache.flink.api.java.functions.FlatJoinFunction;
-import org.apache.flink.api.java.functions.JoinFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.functions.RichFlatJoinFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -461,7 +461,7 @@ public class JoinITCase extends JavaProgramTestBase {
 	
 	}
 	
-	public static class T3T5FlatJoin extends FlatJoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple2<String, String>> {
+	public static class T3T5FlatJoin implements FlatJoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple2<String, String>> {
 
 		@Override
 		public void join(Tuple3<Integer, Long, String> first,
@@ -473,7 +473,7 @@ public class JoinITCase extends JavaProgramTestBase {
 
 	}
 	
-	public static class LeftReturningJoin implements Joinable<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Long, String>> {
+	public static class LeftReturningJoin implements JoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Long, String>> {
 
 		@Override
 		public Tuple3<Integer, Long, String> join(Tuple3<Integer, Long, String> first,
@@ -483,7 +483,7 @@ public class JoinITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class RightReturningJoin extends JoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
+	public static class RightReturningJoin implements JoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
 
 		@Override
 		public Tuple5<Integer, Long, Integer, String, Long> join(Tuple3<Integer, Long, String> first,
@@ -493,7 +493,7 @@ public class JoinITCase extends JavaProgramTestBase {
 		}
 	}
 		
-	public static class T3T5BCJoin extends FlatJoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<String, String, Integer>> {
+	public static class T3T5BCJoin extends RichFlatJoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<String, String, Integer>> {
 
 		private int broadcast;
 		
@@ -525,7 +525,7 @@ public class JoinITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class T3CustJoin extends JoinFunction<Tuple3<Integer, Long, String>, CustomType, Tuple2<String, String>> {
+	public static class T3CustJoin implements JoinFunction<Tuple3<Integer, Long, String>, CustomType, Tuple2<String, String>> {
 
 		@Override
 		public Tuple2<String, String> join(Tuple3<Integer, Long, String> first,
@@ -535,7 +535,7 @@ public class JoinITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class CustT3Join extends JoinFunction<CustomType, Tuple3<Integer, Long, String>, Tuple2<String, String>> {
+	public static class CustT3Join implements JoinFunction<CustomType, Tuple3<Integer, Long, String>, Tuple2<String, String>> {
 
 		@Override
 		public Tuple2<String, String> join(CustomType first, Tuple3<Integer, Long, String> second) {

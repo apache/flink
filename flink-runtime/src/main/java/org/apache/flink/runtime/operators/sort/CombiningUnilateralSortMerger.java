@@ -29,7 +29,7 @@ import java.util.Queue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.FlatCombinable;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -72,7 +72,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 */
 	private static final Log LOG = LogFactory.getLog(CombiningUnilateralSortMerger.class);
 
-	private final FlatCombinable<E> combineStub;	// the user code stub that does the combining
+	private final FlatCombineFunction<E> combineStub;	// the user code stub that does the combining
 	
 	private Configuration udfConfig;
 	
@@ -102,7 +102,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
 	 */
-	public CombiningUnilateralSortMerger(FlatCombinable<E> combineStub, MemoryManager memoryManager, IOManager ioManager,
+	public CombiningUnilateralSortMerger(FlatCombineFunction<E> combineStub, MemoryManager memoryManager, IOManager ioManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			double memoryFraction, int maxNumFileHandles, float startSpillingFraction)
@@ -134,7 +134,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	 * @throws MemoryAllocationException Thrown, if not enough memory can be obtained from the memory manager to
 	 *                                   perform the sort.
 	 */
-	public CombiningUnilateralSortMerger(FlatCombinable<E> combineStub, MemoryManager memoryManager, IOManager ioManager,
+	public CombiningUnilateralSortMerger(FlatCombineFunction<E> combineStub, MemoryManager memoryManager, IOManager ioManager,
 			MutableObjectIterator<E> input, AbstractInvokable parentTask, 
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			double memoryFraction, int numSortBuffers, int maxNumFileHandles,
@@ -255,7 +255,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 			
 			// ------------------- Spilling Phase ------------------------
 			
-			final FlatCombinable<E> combineStub = CombiningUnilateralSortMerger.this.combineStub;
+			final FlatCombineFunction<E> combineStub = CombiningUnilateralSortMerger.this.combineStub;
 			
 			// now that we are actually spilling, take the combiner, and open it
 			try {
@@ -467,7 +467,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 																			this.memManager.getPageSize());
 			
 			final WriterCollector<E> collector = new WriterCollector<E>(output, this.serializer);
-			final FlatCombinable<E> combineStub = CombiningUnilateralSortMerger.this.combineStub;
+			final FlatCombineFunction<E> combineStub = CombiningUnilateralSortMerger.this.combineStub;
 
 			// combine and write to disk
 			try {

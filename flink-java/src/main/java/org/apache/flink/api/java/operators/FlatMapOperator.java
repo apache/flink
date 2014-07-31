@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.common.functions.FlatMappable;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.FlatMapOperatorBase;
@@ -35,10 +35,10 @@ import org.apache.flink.api.java.DataSet;
  */
 public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, FlatMapOperator<IN, OUT>> {
 	
-	protected final FlatMappable<IN, OUT> function;
+	protected final FlatMapFunction<IN, OUT> function;
 	
 	
-	public FlatMapOperator(DataSet<IN> input, FlatMappable<IN, OUT> function) {
+	public FlatMapOperator(DataSet<IN> input, FlatMapFunction<IN, OUT> function) {
 		super(input, TypeExtractor.getFlatMapReturnTypes(function, input.getType()));
 		
 		this.function = function;
@@ -46,11 +46,11 @@ public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, Fl
 	}
 
 	@Override
-	protected org.apache.flink.api.common.operators.base.FlatMapOperatorBase<IN, OUT, FlatMappable<IN,OUT>> translateToDataFlow(Operator<IN> input) {
+	protected org.apache.flink.api.common.operators.base.FlatMapOperatorBase<IN, OUT, FlatMapFunction<IN,OUT>> translateToDataFlow(Operator<IN> input) {
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator
-		FlatMapOperatorBase<IN, OUT, FlatMappable<IN, OUT>> po = new FlatMapOperatorBase<IN, OUT, FlatMappable<IN, OUT>>(function, new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType()), name);
+		FlatMapOperatorBase<IN, OUT, FlatMapFunction<IN, OUT>> po = new FlatMapOperatorBase<IN, OUT, FlatMapFunction<IN, OUT>>(function, new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType()), name);
 		// set input
 		po.setInput(input);
 		// set dop

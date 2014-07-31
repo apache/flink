@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.functions;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.FlatJoinable;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.util.Collector;
 
 /**
@@ -47,7 +47,7 @@ import org.apache.flink.util.Collector;
  * the result of the operation is a sequence of Tuple2, where the elements in the tuple are those that
  * the JoinFunction would have been invoked with.
  * <P>
- * Note: You can use a {@link CoGroupFunction} to perform an outer join.
+ * Note: You can use a {@link RichCoGroupFunction} to perform an outer join.
  * <p>
  * All functions need to be serializable, as defined in {@link java.io.Serializable}.
  * 
@@ -55,7 +55,7 @@ import org.apache.flink.util.Collector;
  * @param <IN2> The type of the elements in the second input.
  * @param <OUT> The type of the result elements.
  */
-public abstract class RichFlatJoinFunction<IN1, IN2, OUT> extends AbstractRichFunction implements FlatJoinable<IN1, IN2, OUT> {
+public abstract class RichFlatJoinFunction<IN1, IN2, OUT> extends AbstractRichFunction implements FlatJoinFunction<IN1, IN2, OUT> {
 
 	private static final long serialVersionUID = 1L;
 

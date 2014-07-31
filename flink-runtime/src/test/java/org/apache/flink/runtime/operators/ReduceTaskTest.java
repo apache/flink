@@ -28,7 +28,7 @@ import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.record.functions.ReduceFunction;
 import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
@@ -46,7 +46,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class ReduceTaskTest extends DriverTestBase<GroupReduceFunction<Record, Record>>
+public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Record, Record>>
 {
 	private static final Log LOG = LogFactory.getLog(ReduceTaskTest.class);
 	

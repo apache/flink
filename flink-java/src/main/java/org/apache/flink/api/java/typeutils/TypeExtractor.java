@@ -31,13 +31,13 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.lang3.Validate;
-import org.apache.flink.api.common.functions.CoGroupable;
-import org.apache.flink.api.common.functions.Crossable;
-import org.apache.flink.api.common.functions.FlatJoinable;
-import org.apache.flink.api.common.functions.FlatMappable;
-import org.apache.flink.api.common.functions.GroupReducible;
-import org.apache.flink.api.common.functions.Mappable;
-import org.apache.flink.api.common.functions.Joinable;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.CrossFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.java.functions.InvalidTypesException;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -61,75 +61,75 @@ public class TypeExtractor {
 	// --------------------------------------------------------------------------------------------
 	
 	@SuppressWarnings("unchecked")
-	public static <IN, OUT> TypeInformation<OUT> getMapReturnTypes(Mappable<IN, OUT> mapInterface, TypeInformation<IN> inType) {
-		validateInputType(Mappable.class, mapInterface.getClass(), 0, inType);
+	public static <IN, OUT> TypeInformation<OUT> getMapReturnTypes(MapFunction<IN, OUT> mapInterface, TypeInformation<IN> inType) {
+		validateInputType(MapFunction.class, mapInterface.getClass(), 0, inType);
 		if(mapInterface instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) mapInterface).getProducedType();
 		}
-		return new TypeExtractor().privateCreateTypeInfo(Mappable.class, mapInterface.getClass(), 1, inType, null);
+		return new TypeExtractor().privateCreateTypeInfo(MapFunction.class, mapInterface.getClass(), 1, inType, null);
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <IN, OUT> TypeInformation<OUT> getFlatMapReturnTypes(FlatMappable<IN, OUT> flatMapInterface, TypeInformation<IN> inType) {
-		validateInputType(FlatMappable.class, flatMapInterface.getClass(), 0, inType);
+	public static <IN, OUT> TypeInformation<OUT> getFlatMapReturnTypes(FlatMapFunction<IN, OUT> flatMapInterface, TypeInformation<IN> inType) {
+		validateInputType(FlatMapFunction.class, flatMapInterface.getClass(), 0, inType);
 		if(flatMapInterface instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) flatMapInterface).getProducedType();
 		}
-		return new TypeExtractor().privateCreateTypeInfo(FlatMappable.class, flatMapInterface.getClass(), 1, inType, null);
+		return new TypeExtractor().privateCreateTypeInfo(FlatMapFunction.class, flatMapInterface.getClass(), 1, inType, null);
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <IN, OUT> TypeInformation<OUT> getGroupReduceReturnTypes(GroupReducible<IN, OUT> groupReduceInterface,
+	public static <IN, OUT> TypeInformation<OUT> getGroupReduceReturnTypes(GroupReduceFunction<IN, OUT> groupReduceInterface,
 			TypeInformation<IN> inType) {
-		validateInputType(GroupReducible.class, groupReduceInterface.getClass(), 0, inType);
+		validateInputType(GroupReduceFunction.class, groupReduceInterface.getClass(), 0, inType);
 		if(groupReduceInterface instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) groupReduceInterface).getProducedType();
 		}
-		return new TypeExtractor().privateCreateTypeInfo(GroupReducible.class, groupReduceInterface.getClass(), 1, inType, null);
+		return new TypeExtractor().privateCreateTypeInfo(GroupReduceFunction.class, groupReduceInterface.getClass(), 1, inType, null);
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(FlatJoinable<IN1, IN2, OUT> joinInterface,
+	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(FlatJoinFunction<IN1, IN2, OUT> joinInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		validateInputType(FlatJoinable.class, joinInterface.getClass(), 0, in1Type);
-		validateInputType(FlatJoinable.class, joinInterface.getClass(), 1, in2Type);
+		validateInputType(FlatJoinFunction.class, joinInterface.getClass(), 0, in1Type);
+		validateInputType(FlatJoinFunction.class, joinInterface.getClass(), 1, in2Type);
 		if(joinInterface instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) joinInterface).getProducedType();
 		}
-		return new TypeExtractor().privateCreateTypeInfo(FlatJoinable.class, joinInterface.getClass(), 2, in1Type, in2Type);
+		return new TypeExtractor().privateCreateTypeInfo(FlatJoinFunction.class, joinInterface.getClass(), 2, in1Type, in2Type);
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(Joinable<IN1, IN2, OUT> joinInterface,
+	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(JoinFunction<IN1, IN2, OUT> joinInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		validateInputType(Joinable.class, joinInterface.getClass(), 0, in1Type);
-		validateInputType(Joinable.class, joinInterface.getClass(), 1, in2Type);
+		validateInputType(JoinFunction.class, joinInterface.getClass(), 0, in1Type);
+		validateInputType(JoinFunction.class, joinInterface.getClass(), 1, in2Type);
 		if(joinInterface instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) joinInterface).getProducedType();
 		}
-		return new TypeExtractor().privateCreateTypeInfo(Joinable.class, joinInterface.getClass(), 2, in1Type, in2Type);
+		return new TypeExtractor().privateCreateTypeInfo(JoinFunction.class, joinInterface.getClass(), 2, in1Type, in2Type);
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <IN1, IN2, OUT> TypeInformation<OUT> getCoGroupReturnTypes(CoGroupable<IN1, IN2, OUT> coGroupInterface,
+	public static <IN1, IN2, OUT> TypeInformation<OUT> getCoGroupReturnTypes(CoGroupFunction<IN1, IN2, OUT> coGroupInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		validateInputType(CoGroupable.class, coGroupInterface.getClass(), 0, in1Type);
-		validateInputType(CoGroupable.class, coGroupInterface.getClass(), 1, in2Type);
+		validateInputType(CoGroupFunction.class, coGroupInterface.getClass(), 0, in1Type);
+		validateInputType(CoGroupFunction.class, coGroupInterface.getClass(), 1, in2Type);
 		if(coGroupInterface instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) coGroupInterface).getProducedType();
 		}
-		return new TypeExtractor().privateCreateTypeInfo(CoGroupable.class, coGroupInterface.getClass(), 2, in1Type, in2Type);
+		return new TypeExtractor().privateCreateTypeInfo(CoGroupFunction.class, coGroupInterface.getClass(), 2, in1Type, in2Type);
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static <IN1, IN2, OUT> TypeInformation<OUT> getCrossReturnTypes(Crossable<IN1, IN2, OUT> crossInterface,
+	public static <IN1, IN2, OUT> TypeInformation<OUT> getCrossReturnTypes(CrossFunction<IN1, IN2, OUT> crossInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		validateInputType(Crossable.class, crossInterface.getClass(), 0, in1Type);
-		validateInputType(Crossable.class, crossInterface.getClass(), 1, in2Type);
+		validateInputType(CrossFunction.class, crossInterface.getClass(), 0, in1Type);
+		validateInputType(CrossFunction.class, crossInterface.getClass(), 1, in2Type);
 		if(crossInterface instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) crossInterface).getProducedType();
 		}
-		return new TypeExtractor().privateCreateTypeInfo(Crossable.class, crossInterface.getClass(), 2, in1Type, in2Type);
+		return new TypeExtractor().privateCreateTypeInfo(CrossFunction.class, crossInterface.getClass(), 2, in1Type, in2Type);
 	}
 	
 	@SuppressWarnings("unchecked")

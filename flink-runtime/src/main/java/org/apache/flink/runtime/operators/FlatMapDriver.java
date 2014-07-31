@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.flink.api.common.functions.FlatMappable;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -31,20 +31,20 @@ import org.apache.flink.util.MutableObjectIterator;
  * The MapTask creates an iterator over all key-value pairs of its input and hands that to the <code>map()</code> method
  * of the MapFunction.
  * 
- * @see org.apache.flink.api.common.functions.FlatMappable
+ * @see org.apache.flink.api.common.functions.FlatMapFunction
  * 
  * @param <IT> The mapper's input data type.
  * @param <OT> The mapper's output data type.
  */
-public class FlatMapDriver<IT, OT> implements PactDriver<FlatMappable<IT, OT>, OT> {
+public class FlatMapDriver<IT, OT> implements PactDriver<FlatMapFunction<IT, OT>, OT> {
 	
-	private PactTaskContext<FlatMappable<IT, OT>, OT> taskContext;
+	private PactTaskContext<FlatMapFunction<IT, OT>, OT> taskContext;
 	
 	private volatile boolean running;
 	
 	
 	@Override
-	public void setup(PactTaskContext<FlatMappable<IT, OT>, OT> context) {
+	public void setup(PactTaskContext<FlatMapFunction<IT, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -55,9 +55,9 @@ public class FlatMapDriver<IT, OT> implements PactDriver<FlatMappable<IT, OT>, O
 	}
 
 	@Override
-	public Class<FlatMappable<IT, OT>> getStubType() {
+	public Class<FlatMapFunction<IT, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<FlatMappable<IT, OT>> clazz = (Class<FlatMappable<IT, OT>>) (Class<?>) FlatMappable.class;
+		final Class<FlatMapFunction<IT, OT>> clazz = (Class<FlatMapFunction<IT, OT>>) (Class<?>) FlatMapFunction.class;
 		return clazz;
 	}
 
@@ -75,7 +75,7 @@ public class FlatMapDriver<IT, OT> implements PactDriver<FlatMappable<IT, OT>, O
 	public void run() throws Exception {
 		// cache references on the stack
 		final MutableObjectIterator<IT> input = this.taskContext.getInput(0);
-		final FlatMappable<IT, OT> function = this.taskContext.getStub();
+		final FlatMapFunction<IT, OT> function = this.taskContext.getStub();
 		final Collector<OT> output = this.taskContext.getOutputCollector();
 
 		IT record = this.taskContext.<IT>getInputSerializer(0).getSerializer().createInstance();

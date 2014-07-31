@@ -24,8 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Assert;
 
-import org.apache.flink.api.common.functions.CoGroupable;
-import org.apache.flink.api.java.record.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
 import org.apache.flink.runtime.operators.CoGroupTaskExternalITCase.MockCoGroupStub;
@@ -40,7 +39,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class CoGroupTaskTest extends DriverTestBase<CoGroupable<Record, Record, Record>>
+public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Record>>
 {
 	private static final long SORT_MEM = 3*1024*1024;
 	
@@ -401,7 +400,7 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupable<Record, Record, 
 		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
-	public static class MockFailingCoGroupStub extends CoGroupFunction {
+	public static class MockFailingCoGroupStub extends org.apache.flink.api.java.record.functions.CoGroupFunction {
 		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;
@@ -441,7 +440,7 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupable<Record, Record, 
 	
 	}
 	
-	public static final class MockDelayingCoGroupStub extends CoGroupFunction {
+	public static final class MockDelayingCoGroupStub extends org.apache.flink.api.java.record.functions.CoGroupFunction {
 		private static final long serialVersionUID = 1L;
 		
 		@Override

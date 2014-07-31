@@ -29,7 +29,7 @@ import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.DeltaIteration;
-import org.apache.flink.api.java.functions.CoGroupFunction;
+import org.apache.flink.api.java.functions.RichCoGroupFunction;
 import org.apache.flink.api.java.operators.CoGroupOperator;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -393,7 +393,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	// --------------------------------------------------------------------------------------------
 	
 	private static final class VertexUpdateUdf<VertexKey extends Comparable<VertexKey>, VertexValue, Message> 
-		extends CoGroupFunction<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>
+		extends RichCoGroupFunction<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>
 		implements ResultTypeQueryable<Tuple2<VertexKey, VertexValue>>
 	{
 		private static final long serialVersionUID = 1L;
@@ -463,7 +463,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * UDF that encapsulates the message sending function for graphs where the edges have no associated values.
 	 */
 	private static final class MessagingUdfNoEdgeValues<VertexKey extends Comparable<VertexKey>, VertexValue, Message> 
-		extends CoGroupFunction<Tuple2<VertexKey, VertexKey>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>
+		extends RichCoGroupFunction<Tuple2<VertexKey, VertexKey>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>
 		implements ResultTypeQueryable<Tuple2<VertexKey, Message>>
 	{
 		private static final long serialVersionUID = 1L;
@@ -516,7 +516,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * UDF that encapsulates the message sending function for graphs where the edges have an associated value.
 	 */
 	private static final class MessagingUdfWithEdgeValues<VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue> 
-		extends CoGroupFunction<Tuple3<VertexKey, VertexKey, EdgeValue>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>
+		extends RichCoGroupFunction<Tuple3<VertexKey, VertexKey, EdgeValue>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>
 		implements ResultTypeQueryable<Tuple2<VertexKey, Message>>
 	{
 		private static final long serialVersionUID = 1L;

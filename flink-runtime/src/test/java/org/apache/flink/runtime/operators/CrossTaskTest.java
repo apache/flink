@@ -23,18 +23,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Assert;
 
-import org.apache.flink.api.common.functions.Crossable;
-import org.apache.flink.api.java.record.functions.CrossFunction;
+import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.Record;
-import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class CrossTaskTest extends DriverTestBase<Crossable<Record, Record, Record>>
+public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, Record>>
 {
 	private static final long CROSS_MEM = 1024 * 1024;
 
@@ -581,7 +579,7 @@ public class CrossTaskTest extends DriverTestBase<Crossable<Record, Record, Reco
 		Assert.assertTrue("Exception was thrown despite proper canceling.", success.get());
 	}
 	
-	public static final class MockCrossStub extends CrossFunction {
+	public static final class MockCrossStub extends org.apache.flink.api.java.record.functions.CrossFunction {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -590,7 +588,7 @@ public class CrossTaskTest extends DriverTestBase<Crossable<Record, Record, Reco
 		}
 	}
 	
-	public static final class MockFailingCrossStub extends CrossFunction {
+	public static final class MockFailingCrossStub extends org.apache.flink.api.java.record.functions.CrossFunction {
 		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;

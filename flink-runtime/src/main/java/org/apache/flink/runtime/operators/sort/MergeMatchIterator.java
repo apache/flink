@@ -25,7 +25,7 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.FlatJoinable;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -151,7 +151,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	 * @see org.apache.flink.runtime.operators.util.JoinTaskIterator#callWithNextKey()
 	 */
 	@Override
-	public boolean callWithNextKey(final FlatJoinable<T1, T2, O> matchFunction, final Collector<O> collector)
+	public boolean callWithNextKey(final FlatJoinFunction<T1, T2, O> matchFunction, final Collector<O> collector)
 	throws Exception
 	{
 		if (!this.iterator1.nextKey() || !this.iterator2.nextKey()) {
@@ -234,7 +234,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	 * @throws Exception Forwards all exceptions thrown by the stub.
 	 */
 	private void crossFirst1withNValues(final T1 val1, final T2 firstValN,
-			final Iterator<T2> valsN, final FlatJoinable<T1, T2, O> matchFunction, final Collector<O> collector)
+			final Iterator<T2> valsN, final FlatJoinFunction<T1, T2, O> matchFunction, final Collector<O> collector)
 	throws Exception
 	{
 		this.copy1 = this.serializer1.copy(val1, this.copy1);
@@ -267,7 +267,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	 * @throws Exception Forwards all exceptions thrown by the stub.
 	 */
 	private void crossSecond1withNValues(T2 val1, T1 firstValN,
-			Iterator<T1> valsN, FlatJoinable<T1, T2, O> matchFunction, Collector<O> collector)
+			Iterator<T1> valsN, FlatJoinFunction<T1, T2, O> matchFunction, Collector<O> collector)
 	throws Exception
 	{
 		this.copy2 = this.serializer2.copy(val1, this.copy2);
@@ -297,7 +297,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	 */
 	private void crossMwithNValues(final T1 firstV1, Iterator<T1> spillVals,
 			final T2 firstV2, final Iterator<T2> blockVals,
-			final FlatJoinable<T1, T2, O> matchFunction, final Collector<O> collector)
+			final FlatJoinFunction<T1, T2, O> matchFunction, final Collector<O> collector)
 	throws Exception
 	{
 		// ==================================================

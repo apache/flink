@@ -21,8 +21,8 @@ package org.apache.flink.runtime.operators;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.FlatCombinable;
-import org.apache.flink.api.common.functions.GroupReducible;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.util.MutableToRegularIteratorWrapper;
@@ -37,13 +37,13 @@ import org.apache.flink.util.MutableObjectIterator;
  * The GroupReduceTask creates a iterator over all records from its input. The iterator returns all records grouped by their
  * key. The iterator is handed to the <code>reduce()</code> method of the GroupReduceFunction.
  * 
- * @see org.apache.flink.api.common.functions.GroupReducible
+ * @see org.apache.flink.api.common.functions.GroupReduceFunction
  */
-public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReducible<IT, OT>, OT> {
+public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunction<IT, OT>, OT> {
 	
 	private static final Log LOG = LogFactory.getLog(AllGroupReduceDriver.class);
 
-	private PactTaskContext<GroupReducible<IT, OT>, OT> taskContext;
+	private PactTaskContext<GroupReduceFunction<IT, OT>, OT> taskContext;
 	
 	private MutableObjectIterator<IT> input;
 
@@ -54,7 +54,7 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReducible<I
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<GroupReducible<IT, OT>, OT> context) {
+	public void setup(PactTaskContext<GroupReduceFunction<IT, OT>, OT> context) {
 		this.taskContext = context;
 	}
 	
@@ -64,9 +64,9 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReducible<I
 	}
 
 	@Override
-	public Class<GroupReducible<IT, OT>> getStubType() {
+	public Class<GroupReduceFunction<IT, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GroupReducible<IT, OT>> clazz = (Class<GroupReducible<IT, OT>>) (Class<?>) GroupReducible.class;
+		final Class<GroupReduceFunction<IT, OT>> clazz = (Class<GroupReduceFunction<IT, OT>>) (Class<?>) GroupReduceFunction.class;
 		return clazz;
 	}
 
@@ -83,8 +83,8 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReducible<I
 		this.strategy = config.getDriverStrategy();
 		
 		if (strategy == DriverStrategy.ALL_GROUP_COMBINE) {
-			if (!(this.taskContext.getStub() instanceof FlatCombinable)) {
-				throw new Exception("Using combiner on a UDF that does not implement the combiner interface " + FlatCombinable.class.getName());
+			if (!(this.taskContext.getStub() instanceof FlatCombineFunction)) {
+				throw new Exception("Using combiner on a UDF that does not implement the combiner interface " + FlatCombineFunction.class.getName());
 			}
 		}
 		else if (strategy != DriverStrategy.ALL_GROUP_REDUCE) {
@@ -105,13 +105,13 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReducible<I
 		// single UDF call with the single group
 		if (inIter.hasNext()) {
 			if (strategy == DriverStrategy.ALL_GROUP_REDUCE) {
-				final GroupReducible<IT, OT> reducer = this.taskContext.getStub();
+				final GroupReduceFunction<IT, OT> reducer = this.taskContext.getStub();
 				final Collector<OT> output = this.taskContext.getOutputCollector();
 				reducer.reduce(inIter, output);
 			}
 			else {
 				@SuppressWarnings("unchecked")
-				final FlatCombinable<IT> combiner = (FlatCombinable<IT>) this.taskContext.getStub();
+				final FlatCombineFunction<IT> combiner = (FlatCombineFunction<IT>) this.taskContext.getStub();
 				@SuppressWarnings("unchecked")
 				final Collector<IT> output = (Collector<IT>) this.taskContext.getOutputCollector();
 				combiner.combine(inIter, output);

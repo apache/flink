@@ -20,12 +20,12 @@ package org.apache.flink.api.java.functions;
 
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.FlatCombinable;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.util.Collector;
 
 import java.util.Iterator;
 
-public abstract class RichFlatCombineFunction<T> extends AbstractRichFunction implements FlatCombinable<T> {
+public abstract class RichFlatCombineFunction<T> extends AbstractRichFunction implements FlatCombineFunction<T> {
 
 	private static final long serialVersionUID = 1L;
 

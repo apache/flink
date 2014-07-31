@@ -23,9 +23,9 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
-import org.apache.flink.api.common.functions.Reducible;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.configuration.Configuration;
@@ -41,7 +41,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class ReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 9;
+	private static int NUM_PROGRAMS = 8;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -271,42 +271,6 @@ public class ReduceITCase extends JavaProgramTestBase {
 						"65,5,Hi again!\n" +
 						"111,6,Hi again!\n";
 			}
-			case 9: {
-				/*
-				 * Passing interface instead of function
-				 * Functionality identical to org.apache.flink.test.javaApiOperators.ReduceITCase test 2
-				 */
-
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds
-						.groupBy(4, 0)
-						.reduce(new Reducible<Tuple5<Integer, Long, Integer, String, Long>>() {
-							@Override
-							public Tuple5<Integer, Long, Integer, String, Long> reduce(Tuple5<Integer, Long, Integer, String, Long> in1, Tuple5<Integer, Long, Integer, String, Long> in2) throws Exception {
-								Tuple5<Integer, Long, Integer, String, Long> out = new Tuple5<Integer, Long, Integer, String, Long>();
-								out.setFields(in1.f0, in1.f1+in2.f1, 0, "P-)", in1.f4);
-								return out;
-							}
-						});
-
-				reduceDs.writeAsCsv(resultPath);
-				env.execute();
-
-				// return expected result
-				return "1,1,0,Hallo,1\n" +
-						"2,3,2,Hallo Welt wie,1\n" +
-						"2,2,1,Hallo Welt,2\n" +
-						"3,9,0,P-),2\n" +
-						"3,6,5,BCD,3\n" +
-						"4,17,0,P-),1\n" +
-						"4,17,0,P-),2\n" +
-						"5,11,10,GHI,1\n" +
-						"5,29,0,P-),2\n" +
-						"5,25,0,P-),3\n";
-
-			}
 			default:
 				throw new IllegalArgumentException("Invalid program id");
 			}
@@ -315,7 +279,7 @@ public class ReduceITCase extends JavaProgramTestBase {
 	
 	}
 	
-	public static class Tuple3Reduce extends ReduceFunction<Tuple3<Integer, Long, String>> {
+	public static class Tuple3Reduce implements ReduceFunction<Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 		private final Tuple3<Integer, Long, String> out = new Tuple3<Integer, Long, String>();
 		private final String f2Replace;
@@ -343,7 +307,7 @@ public class ReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class Tuple5Reduce extends ReduceFunction<Tuple5<Integer, Long, Integer, String, Long>> {
+	public static class Tuple5Reduce implements ReduceFunction<Tuple5<Integer, Long, Integer, String, Long>> {
 		private static final long serialVersionUID = 1L;
 		private final Tuple5<Integer, Long, Integer, String, Long> out = new Tuple5<Integer, Long, Integer, String, Long>();
 		
@@ -358,7 +322,7 @@ public class ReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class CustomTypeReduce extends ReduceFunction<CustomType> {
+	public static class CustomTypeReduce implements ReduceFunction<CustomType> {
 		private static final long serialVersionUID = 1L;
 		private final CustomType out = new CustomType();
 		
@@ -373,7 +337,7 @@ public class ReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class InputReturningTuple3Reduce extends ReduceFunction<Tuple3<Integer, Long, String>> {
+	public static class InputReturningTuple3Reduce implements ReduceFunction<Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -387,7 +351,7 @@ public class ReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class AllAddingTuple3Reduce extends ReduceFunction<Tuple3<Integer, Long, String>> {
+	public static class AllAddingTuple3Reduce implements ReduceFunction<Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 		private final Tuple3<Integer, Long, String> out = new Tuple3<Integer, Long, String>();
 		
@@ -401,7 +365,7 @@ public class ReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class AllAddingCustomTypeReduce extends ReduceFunction<CustomType> {
+	public static class AllAddingCustomTypeReduce implements ReduceFunction<CustomType> {
 		private static final long serialVersionUID = 1L;
 		private final CustomType out = new CustomType();
 		
@@ -416,7 +380,7 @@ public class ReduceITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class BCTuple3Reduce extends ReduceFunction<Tuple3<Integer, Long, String>> {
+	public static class BCTuple3Reduce extends RichReduceFunction<Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 		private final Tuple3<Integer, Long, String> out = new Tuple3<Integer, Long, String>();
 		private String f2Replace = "";

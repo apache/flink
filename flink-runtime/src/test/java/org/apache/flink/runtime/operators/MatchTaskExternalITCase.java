@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators;
 
 import junit.framework.Assert;
 
-import org.apache.flink.api.common.functions.FlatJoinable;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.java.record.functions.JoinFunction;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
@@ -33,7 +33,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class MatchTaskExternalITCase extends DriverTestBase<FlatJoinable<Record, Record, Record>>
+public class MatchTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Record, Record, Record>>
 {
 	private static final long HASH_MEM = 4*1024*1024;
 	
