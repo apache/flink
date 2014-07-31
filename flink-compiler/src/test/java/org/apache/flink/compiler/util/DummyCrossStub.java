@@ -16,17 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.util;
-
-import java.io.Serializable;
 
 import org.apache.flink.api.java.record.functions.CrossFunction;
 import org.apache.flink.types.Record;
 
 public class DummyCrossStub extends CrossFunction {
 	private static final long serialVersionUID = 1L;
-
 
 	@Override
 	public Record cross(Record first, Record second) throws Exception {

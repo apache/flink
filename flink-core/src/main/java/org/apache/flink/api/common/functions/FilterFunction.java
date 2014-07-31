@@ -16,18 +16,33 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.functions;
+
 import java.io.Serializable;
 
+/**
+ * base interface for Filter functions. A filter function take elements and evaluates a
+ * predicate on them to decide whether to keep the element, or to discard it.
+ * <p>
+ * The basic syntax for using a FilterFunction is as follows:
+ * <pre><blockquote>
+ * DataSet<X> input = ...;
+ * 
+ * DataSet<X> result = input.filter(new MyFilterFunction());
+ * </blockquote></pre>
+ * 
+ * @param <T> The type of the filtered elements.
+ */
 public interface FilterFunction<T> extends Function, Serializable {
 	
 	/**
-	 * User defined function for a filter.
+	 * The filter function that evaluates the predicate.
 	 * 
-	 * @param value Incoming tuples
-	 * @return true for tuples that are allowed to pass the filter
-	 * @throws Exception
+	 * @param value The value to be filtered.
+	 * @return True for values that should be retained, false for values to be filtered out.
+	 * 
+	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
+	 *                   to fail and may trigger recovery.
 	 */
 	boolean filter(T value) throws Exception;
 }

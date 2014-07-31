@@ -16,27 +16,36 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.functions;
 
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
-
 /**
- *
- * @param <T>
- * @param <O>
+ * interface flatMap functions. FlatMap functions take elements and transform them,
+ * into zero, one, or more elements. Typical applications can be splitting elements, or unnesting lists
+ * and arrays. Operations that produce multiple strictly one result element per input element can also
+ * use the {@link MapFunction}.
+ * <p>
+ * The basic syntax for using a FlatMapFunction is as follows:
+ * <pre><blockquote>
+ * DataSet<X> input = ...;
+ * 
+ * DataSet<Y> result = input.flatMap(new MyFlatMapFunction());
+ * </blockquote></pre>
+ * 
+ * @param <T> Type of the input elements.
+ * @param <O> Type of the returned elements.
  */
 public interface FlatMapFunction<T, O> extends Function, Serializable {
 
 	/**
-	 * The core method of FlatMappable. Takes an element from the input data set and transforms
+	 * The core method of the FlatMapFunction. Takes an element from the input data set and transforms
 	 * it into zero, one, or more elements.
 	 *
 	 * @param value The input value.
-	 * @param out The collector for for emitting result values.
+	 * @param out The collector for returning result values.
 	 *
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
 	 *                   to fail and may trigger recovery.

@@ -20,22 +20,14 @@ package org.apache.flink.api.java.functions;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.util.Collector;
 
 /**
- * The abstract base class for flatMap functions. FlatMap functions take elements and transform them,
- * into zero, one, or more elements. Typical applications can be splitting elements, or unnesting lists
- * and arrays. Operations that produce multiple strictly one result element per input element can also
- * use the {@link RichMapFunction}.
- * <p>
- * The basic syntax for using a FlatMapFunction is as follows:
- * <pre><blockquote>
- * DataSet<X> input = ...;
- * 
- * DataSet<Y> result = input.flatMap(new MyFlatMapFunction());
- * </blockquote></pre>
- * <p>
- * Like all functions, the FlatMapFunction needs to be serializable, as defined in {@link java.io.Serializable}.
+ * Rich variant of the {@link FlatMapFunction}. As a {@link RichFunction}, it gives access to the
+ * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
+ * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
+ * {@link RichFunction#close()}.
  * 
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
@@ -44,16 +36,6 @@ public abstract class RichFlatMapFunction<IN, OUT> extends AbstractRichFunction 
 
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * The core method of the FlatMapFunction. Takes an element from the input data set and transforms
-	 * it into zero, one, or more elements.
-	 * 
-	 * @param value The input value.
-	 * @param out The collector for for emitting result values.
-	 * 
-	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
-	 *                   to fail and may trigger recovery.
-	 */
 	@Override
 	public abstract void flatMap(IN value, Collector<OUT> out) throws Exception;
 }

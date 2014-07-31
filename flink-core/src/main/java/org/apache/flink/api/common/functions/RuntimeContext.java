@@ -105,34 +105,6 @@ public interface RuntimeContext {
 	 * Convenience function to create a counter object for histograms.
 	 */
 	Histogram getHistogram(String name);
-
-//	/**
-//	 * I propose to remove this and only keep the other more explicit functions
-//	 * (to add or get an accumulator object)
-//	 * 
-//	 * Get an existing or new named accumulator object. Use this function to get
-//	 * an counter for an custom accumulator type. For the integrated
-//	 * accumulators you better use convenience functions (e.g. getIntCounter).
-//	 * 
-//	 * There is no need to register accumulators - they will be created when a
-//	 * UDF asks the first time for a counter that does not exist yet locally.
-//	 * This implies that there can be conflicts when a counter is requested with
-//	 * the same name but with different types, either in the same UDF or in
-//	 * different. In the last case the conflict occurs during merging.
-//	 * 
-//	 * @param name
-//	 * @param accumulatorClass
-//	 *            If the accumulator was not created previously
-//	 * @return
-//	 */
-//	<V, A> Accumulator<V, A> getAccumulator(String name,
-//			Class<? extends Accumulator<V, A>> accumulatorClass);
-//
-//	/**
-//	 * See getAccumulable
-//	 */
-//	<T> SimpleAccumulator<T> getSimpleAccumulator(String name,
-//			Class<? extends SimpleAccumulator<T>> accumulatorClass);
 	
 	// --------------------------------------------------------------------------------------------
 

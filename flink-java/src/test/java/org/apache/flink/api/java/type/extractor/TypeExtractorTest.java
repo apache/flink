@@ -1385,6 +1385,8 @@ public class TypeExtractorTest {
 	public void testFunction() {
 		RichMapFunction<String, Boolean> mapInterface = new RichMapFunction<String, Boolean>() {
 			
+			private static final long serialVersionUID = 1L;
+
 			@Override
 			public void setRuntimeContext(RuntimeContext t) {
 				
@@ -1417,6 +1419,8 @@ public class TypeExtractorTest {
 	@Test
 	public void testInterface() {
 		MapFunction<String, Boolean> mapInterface = new MapFunction<String, Boolean>() {
+			private static final long serialVersionUID = 1L;
+			
 			@Override
 			public Boolean map(String record) throws Exception {
 				return null;

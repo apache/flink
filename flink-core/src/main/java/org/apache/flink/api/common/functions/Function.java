@@ -24,5 +24,4 @@ package org.apache.flink.api.common.functions;
  * can be called as Java 8 lambdas
  */
 public interface Function {
-
 }

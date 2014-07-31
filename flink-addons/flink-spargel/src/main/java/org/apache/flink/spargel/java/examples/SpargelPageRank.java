@@ -18,8 +18,8 @@
 
 package org.apache.flink.spargel.java.examples;
 
-import org.apache.flink.api.java.functions.RichFlatMapFunction;
-import org.apache.flink.api.java.functions.RichMapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.spargel.java.MessageIterator;
@@ -48,7 +48,7 @@ public class SpargelPageRank {
 		
 		// enumerate some sample edges and assign an initial uniform probability (rank)
 		DataSet<Tuple2<Long, Double>> intialRanks = env.generateSequence(1, numVertices)
-								.map(new RichMapFunction<Long, Tuple2<Long, Double>>() {
+								.map(new MapFunction<Long, Tuple2<Long, Double>>() {
 									public Tuple2<Long, Double> map(Long value) {
 										return new Tuple2<Long, Double>(value, 1.0/numVertices);
 									}
@@ -56,7 +56,7 @@ public class SpargelPageRank {
 		
 		// generate some random edges. the transition probability on each edge is 1/num-out-edges of the source vertex
 		DataSet<Tuple3<Long, Long, Double>> edgesWithProbability = env.generateSequence(1, numVertices)
-								.flatMap(new RichFlatMapFunction<Long, Tuple3<Long, Long, Double>>() {
+								.flatMap(new FlatMapFunction<Long, Tuple3<Long, Long, Double>>() {
 									public void flatMap(Long value, Collector<Tuple3<Long, Long, Double>> out) {
 										int numOutEdges = (int) (Math.random() * (numVertices / 2));
 										for (int i = 0; i < numOutEdges; i++) {

@@ -16,32 +16,42 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.javaApiOperators.lambdas;
+package org.apache.flink.api.java.operators.translation;
 
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.operators.DistinctOperator;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.Serializable;
-
 @SuppressWarnings("serial")
-public class FlatMapITCase implements Serializable {
+public class DistrinctTranslationTest {
 
 	@Test
-	public void testFlatMapLambda() {
+	public void testCombinable() {
 		try {
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-			DataSet<String> stringDs = env.fromElements("aa", "ab", "ac", "ad");
-			DataSet<String> flatMappedDs = stringDs.flatMap((s, out) -> out.collect(s.replace("a", "b")));
-			env.execute();
-		} catch (UnsupportedLambdaExpressionException e) {
-			// Success
-			return;
-		} catch (Exception e) {
-			Assert.fail();
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			
+			DataSet<String> input = env.fromElements("1", "2", "1", "3");
+			
+			
+			DistinctOperator<String> op = input.distinct(new KeySelector<String, String>() {
+				public String getKey(String value) { return value; }
+			});
+			
+			op.print();
+			
+			Plan p = env.createProgramPlan();
+			
+			GroupReduceOperatorBase<?, ?, ?> reduceOp = (GroupReduceOperatorBase<?, ?, ?>) p.getDataSinks().iterator().next().getInput();
+			Assert.assertTrue(reduceOp.isCombinable());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
 		}
 	}
 }

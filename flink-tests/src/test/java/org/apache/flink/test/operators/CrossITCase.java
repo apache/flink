@@ -16,11 +16,8 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.CrossFunction;
 import org.apache.flink.api.java.record.io.DelimitedInputFormat;
@@ -35,8 +32,6 @@ import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.util.Collector;
-import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -47,17 +42,12 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.LinkedList;
 
-/**
- */
 @RunWith(Parameterized.class)
-//@Ignore("Test needs to be adapted to new cross signature")
 public class CrossITCase extends RecordAPITestBase {
 
-	private static final Log LOG = LogFactory.getLog(CrossITCase.class);
-
-	String leftInPath = null;
-	String rightInPath = null;
-	String resultPath = null;
+	private String leftInPath = null;
+	private String rightInPath = null;
+	private String resultPath = null;
 
 	public CrossITCase(Configuration testConfig) {
 		super(testConfig);
@@ -112,8 +102,6 @@ public class CrossITCase extends RecordAPITestBase {
 			int key1 = Integer.parseInt(string.toString());
 			string = record2.getField(0, string);
 			int key2 = Integer.parseInt(string.toString());
-			
-			LOG.debug("Processing { [" + key1 + "," + val1 + "] , [" + key2 + "," + val2 + "] }");
 
 			string.setValue((key1 + key2 + 2) + "");
 			integer.setValue(val2 - val1 + 1);

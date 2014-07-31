@@ -20,27 +20,13 @@ package org.apache.flink.api.java.functions;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.RichFunction;
 
 /**
- * The abstract base class for Reduce functions. Reduce functions combine groups of elements to
- * a single value, by taking always two elements and combining them into one. Reduce functions
- * may be used on entire data sets, or on grouped data sets. In the latter case, each group is reduced
- * individually.
- * <p>
- * For a reduce functions that work on an entire group at the same time (such as the 
- * MapReduce/Hadoop-style reduce), see {@link RichGroupReduceFunction}, called via
- * {@link org.apache.flink.api.java.DataSet#reduceGroup(RichGroupReduceFunction)}. In the general case,
- * ReduceFunctions are considered faster, because they allow the system to use hash-based
- * execution strategies.
- * <p>
- * The basic syntax for using a grouped ReduceFunction is as follows:
- * <pre><blockquote>
- * DataSet<X> input = ...;
- * 
- * DataSet<X> result = input.groupBy(<key-definition>).reduce(new MyReduceFunction());
- * </blockquote></pre>
- * <p>
- * Like all functions, the ReduceFunction needs to be serializable, as defined in {@link java.io.Serializable}.
+ * Rich variant of the {@link ReduceFunction}. As a {@link RichFunction}, it gives access to the
+ * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
+ * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
+ * {@link RichFunction#close()}.
  * 
  * @param <T> Type of the elements that this function processes.
  */
@@ -48,16 +34,5 @@ public abstract class RichReduceFunction<T> extends AbstractRichFunction impleme
 	
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * The core method of the ReduceFunction, combining two values into one value of the same type.
-	 * The reduce function is consecutively applied to all values of a group until only a single value remains.
-	 *
-	 * @param value1 The first value to combine.
-	 * @param value2 The second value to combine.
-	 * @return The combined value of both input values.
-	 *
-	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
-	 *                   to fail and may trigger recovery.
-	 */
 	public abstract T reduce(T value1, T value2) throws Exception;
 }

@@ -23,8 +23,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -34,9 +32,11 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-@RunWith(Parameterized.class)
+@SuppressWarnings("serial")
 public class FilterITCase extends JavaProgramTestBase {
 
+	private static final String EXPECTED_RESULT = "3,2,Hello world\n" +
+													"4,3,Hello world, how are you?\n";
 
 	public static DataSet<Tuple3<Integer, Long, String>> get3TupleDataSet(ExecutionEnvironment env) {
 
@@ -68,15 +68,7 @@ public class FilterITCase extends JavaProgramTestBase {
 		return env.fromCollection(data);
 	}
 
-	private static int NUM_PROGRAMS = 1;
-
-	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
-	private String expectedResult;
-
-	public FilterITCase(Configuration config) {
-		super(config);
-	}
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -85,58 +77,18 @@ public class FilterITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		expectedResult = FilterProgs.runProgram(curProgId, resultPath);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
+				filter(value -> value.f2.contains("world"));
+		filterDs.writeAsCsv(resultPath);
+		env.execute();
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expectedResult, resultPath);
+		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
 	}
-
-	@Parameterized.Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
-
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
-		}
-
-		return toParameterList(tConfigs);
-	}
-
-	private static class FilterProgs {
-
-		public static String runProgram(int progId, String resultPath) throws Exception {
-
-			switch(progId) {
-				case 1: {
-					/*
-					 * Test lambda filter
-					 * Functionality identical to org.apache.flink.test.javaApiOperators.FilterITCase test 3
-					 */
-
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					DataSet<Tuple3<Integer, Long, String>> ds = get3TupleDataSet(env);
-					DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
-							filter(value -> value.f2.contains("world"));
-					filterDs.writeAsCsv(resultPath);
-					env.execute();
-
-					// return expected result
-					return "3,2,Hello world\n" +
-							"4,3,Hello world, how are you?\n";
-				}
-				default:
-					throw new IllegalArgumentException("Invalid program id");
-			}
-
-		}
-
-	}
-
 }
 

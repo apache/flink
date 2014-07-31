@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.functions;
 
 import java.io.Serializable;
@@ -24,22 +23,35 @@ import java.util.Iterator;
 
 import org.apache.flink.util.Collector;
 
-
 /**
- *
- * @param <T> Incoming types
- * @param <O> Outgoing types
+ * The interface for group reduce functions. GroupReduceFunctions process groups of elements.
+ * They may aggregate them to a single value, or produce multiple result values for each group.
+ * The group may be defined by sharing a common grouping key, or the group may simply be
+ * all elements of a data set.
+ * <p>
+ * For a reduce functions that works incrementally by combining always two elements, see 
+ * {@link ReduceFunction}.
+ * <p>
+ * The basic syntax for using a grouped GroupReduceFunction is as follows:
+ * <pre><blockquote>
+ * DataSet<X> input = ...;
+ * 
+ * DataSet<X> result = input.groupBy(<key-definition>).reduceGroup(new MyGroupReduceFunction());
+ * </blockquote></pre>
+ * 
+ * @param <T> Type of the elements that this function processes.
+ * @param <O> The type of the elements returned by the user-defined function.
  */
 public interface GroupReduceFunction<T, O> extends Function, Serializable {
+	
 	/**
+	 * The reduce method. The function receives one call per group of elements.
 	 * 
-	 * The central function to be implemented for a reducer. The function receives per call one
-	 * key and all the values that belong to that key. Each key is guaranteed to be processed by exactly
-	 * one function call across all involved instances across all computing nodes.
-	 * 
-	 * @param records All records that belong to the given input key.
+	 * @param values All records that belong to the given input key.
 	 * @param out The collector to hand results to.
-	 * @throws Exception
+	 *
+	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
+	 *                   to fail and may trigger recovery.
 	 */
 	void reduce(Iterator<T> values, Collector<O> out) throws Exception;
 }

@@ -16,16 +16,31 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.functions;
-
 
 import java.io.Serializable;
 
+/**
+ * Base interface for Map functions. Map functions take elements and transform them,
+ * element wise. A Map function always produces a single result element for each input element.
+ * Typical applications are parsing elements, converting data types, or projecting out fields.
+ * Operations that produce multiple result elements from a single input element can be implemented
+ * using the {@link FlatMapFunction}.
+ * <p>
+ * The basic syntax for using a MapFunction is as follows:
+ * <pre><blockquote>
+ * DataSet<X> input = ...;
+ * 
+ * DataSet<Y> result = input.map(new MyMapFunction());
+ * </blockquote></pre>
+ * 
+ * @param <T> Type of the input elements.
+ * @param <O> Type of the returned elements.
+ */
 public interface MapFunction<T, O> extends Function, Serializable {
 
 	/**
-	 * The core method of Mappable. Takes an element from the input data set and transforms
+	 * The mapping method. Takes an element from the input data set and transforms
 	 * it into exactly one element.
 	 *
 	 * @param value The input value.

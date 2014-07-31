@@ -48,6 +48,7 @@ import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 /**
  * Convenience methods when dealing with {@link Operator}s.
  */
+@SuppressWarnings("deprecation")
 public class OperatorUtil {
 	
 	@SuppressWarnings("rawtypes")
@@ -126,7 +127,7 @@ public class OperatorUtil {
 	 * @param inputs
 	 *        all input contracts to this contract
 	 */
-	@SuppressWarnings({ "deprecation", "rawtypes", "unchecked" })
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public static void setInputs(final Operator<?> contract, final List<List<Operator>> inputs) {
 		if (contract instanceof GenericDataSinkBase) {
 			if (inputs.size() != 1) {

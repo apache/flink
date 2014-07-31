@@ -27,6 +27,7 @@ import org.junit.Test;
 
 import java.io.Serializable;
 
+@SuppressWarnings("serial")
 public class GroupReduceITCase implements Serializable {
 
 	@Test

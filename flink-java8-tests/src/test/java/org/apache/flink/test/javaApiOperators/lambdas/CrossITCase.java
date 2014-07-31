@@ -27,6 +27,7 @@ import org.junit.Test;
 
 import java.io.Serializable;
 
+@SuppressWarnings("serial")
 public class CrossITCase implements Serializable {
 
 	@Test

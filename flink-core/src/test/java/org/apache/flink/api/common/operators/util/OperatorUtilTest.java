@@ -42,6 +42,7 @@ import org.junit.Test;
 /**
  * Tests {@link OperatorUtil}.
  */
+@SuppressWarnings("deprecation")
 public class OperatorUtilTest {
 	/**
 	 * Test {@link OperatorUtil#getContractClass(Class)}
@@ -115,13 +116,17 @@ public class OperatorUtilTest {
 		assertEquals(GenericDataSourceBase.class, result);
 	}
 
+	@SuppressWarnings("serial")
 	static abstract class CoGrouper implements CoGroupFunction<IntValue, IntValue, IntValue> {}
 
+	@SuppressWarnings("serial")
 	static abstract class Crosser implements CrossFunction<IntValue, IntValue, IntValue> {}
 
 	static abstract class Mapper implements GenericCollectorMap<IntValue, IntValue> {}
 
+	@SuppressWarnings("serial")
 	static abstract class Matcher implements FlatJoinFunction<IntValue, IntValue, IntValue> {}
 
+	@SuppressWarnings("serial")
 	static abstract class Reducer implements GroupReduceFunction<IntValue, IntValue> {}
 }

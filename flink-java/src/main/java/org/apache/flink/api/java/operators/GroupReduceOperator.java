@@ -51,9 +51,6 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 
 	private final Grouping<IN> grouper;
 
-	// reduceFunction is a GroupReduceFunction
-	private boolean richFunction;
-
 	private boolean combinable;
 
 	/**
@@ -176,8 +173,8 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 
 			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
 			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
-			GroupReduceOperatorBase<IN, OUT, GenericGroupReduce<IN, OUT>> po =
-					new GroupReduceOperatorBase<IN, OUT, GenericGroupReduce<IN, OUT>>(function, operatorInfo, logicalKeyPositions, name);
+			GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>> po =
+					new GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>>(function, operatorInfo, logicalKeyPositions, name);
 
 			po.setCombinable(combinable);
 			po.setInput(input);

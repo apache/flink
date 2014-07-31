@@ -29,7 +29,7 @@ import org.apache.flink.util.Collector;
 
 /**
  * The ReduceFunction must be extended to provide a reducer implementation, as invoked by a
- * {@link org.apache.flink.api.java.operators.ReduceOperator}.
+ * {@link org.apache.flink.api.java.record.operators.ReduceOperator}.
  */
 public abstract class ReduceFunction extends AbstractRichFunction implements GroupReduceFunction<Record, Record>, FlatCombineFunction<Record> {
 	

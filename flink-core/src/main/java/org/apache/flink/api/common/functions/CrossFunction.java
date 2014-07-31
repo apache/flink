@@ -16,27 +16,43 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.functions;
 
 import java.io.Serializable;
 
-
 /**
- * @param <IN1> First input type
- * @param <IN2> Second input type
- * @param <OUT> Output type
+ * Interface for Cross functions. Cross functions are applied to the Cartesian produce of their inputs
+ * and call are called for each pair of elements.
+ * 
+ * They are optional, a means of convenience the can be used to directly produce manipulate the
+ * pair of elements, instead of processing 2-tuples that contain the pairs.
+ * <p>
+ * The basic syntax for using Cross on two data sets is as follows:
+ * <pre><blockquote>
+ * DataSet<X> set1 = ...;
+ * DataSet<Y> set2 = ...;
+ * 
+ * set1.cross(set2).with(new MyCrossFunction());
+ * </blockquote></pre>
+ * <p>
+ * {@code set1} is here considered the first input, {@code set2} the second input.
+ * 
+ * @param <IN1> The type of the elements in the first input.
+ * @param <IN2> The type of the elements in the second input.
+ * @param <OUT> The type of the result elements.
  */
 public interface CrossFunction<IN1, IN2, OUT> extends Function, Serializable {
 
 	/**
-	 * User defined function for the cross operator.
+	 * Cross UDF method. Called once per pair of elements in the Cartesian product of the inputs.
 	 * 
-	 * @param record1 Record from first input
-	 * @param record2 Record from the second input
-	 * @return result of cross UDF.
-	 * @throws Exception
+	 * @param val1 Element from first input.
+	 * @param val2 Element from the second input.
+	 * @return The result element.
+	 * 
+	 * @throws Exception The function may throw Exceptions, which will cause the program to cancel,
+	 *                   and may trigger the recovery logic.
 	 */
-	OUT cross(IN1 record1, IN2 record2) throws Exception;
+	OUT cross(IN1 val1, IN2 val2) throws Exception;
 
 }

@@ -515,7 +515,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 					if (function == null) {
 						throw new NullPointerException("CoGroup function must not be null.");
 					}
-					if (FunctionUtils.isSerializedLambdaFunction(function)) {
+					if (FunctionUtils.isLambdaFunction(function)) {
 						throw new UnsupportedLambdaExpressionException();
 					}
 					TypeInformation<R> returnType = TypeExtractor.getCoGroupReturnTypes(function, input1.getType(), input2.getType());

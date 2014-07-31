@@ -18,17 +18,14 @@
 
 package org.apache.flink.api.common.functions.util;
 
-
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 
-import java.lang.invoke.SerializedLambda;
 import java.lang.reflect.Method;
 
 public class FunctionUtils {
-
 
 	public static void openFunction (Function function, Configuration parameters) throws Exception{
 		if (function instanceof RichFunction) {
@@ -61,21 +58,30 @@ public class FunctionUtils {
 		}
 	}
 
-	public static boolean isSerializedLambdaFunction(Function function) {
-		Class<?> clazz = function.getClass();
-		try {
-			Method replaceMethod = clazz.getDeclaredMethod("writeReplace");
-			replaceMethod.setAccessible(true);
-			Object serializedForm = replaceMethod.invoke(function);
-			if (serializedForm instanceof SerializedLambda) {
-				return true;
+	public static boolean isLambdaFunction(Function function) {
+		if (function == null) {
+			throw new IllegalArgumentException();
+		}
+		
+		for (Class<?> clazz = function.getClass(); clazz != null; clazz = clazz.getSuperclass()) {
+			try {
+				Method replaceMethod = clazz.getDeclaredMethod("writeReplace");
+				replaceMethod.setAccessible(true);
+				Object serialVersion = replaceMethod.invoke(function);
+				
+				if (serialVersion.getClass().getName().equals("java.lang.invoke.SerializedLambda")) {
+					return true;
+				}
 			}
-			else {
-				return false;
+			catch (NoSuchMethodException e) {
+				// thrown if the method is not there. fall through the loop
+			}
+			catch (Throwable t) {
+				// this should not happen, we are not executing any method code.
+				throw new RuntimeException("Error while checking whether function is a lambda.", t);
 			}
 		}
-		catch (Exception e) {
-			return false;
-		}
+		
+		return false;
 	}
 }

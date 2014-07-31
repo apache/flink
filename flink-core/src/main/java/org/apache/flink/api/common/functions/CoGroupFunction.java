@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.functions;
 
 import java.io.Serializable;
@@ -24,18 +23,41 @@ import java.util.Iterator;
 
 import org.apache.flink.util.Collector;
 
-
+/**
+ * The interface for CoGroup functions. CoGroup functions combine two data sets by first grouping each data set
+ * after a key and then "joining" the groups by calling this function with the two sets for each key. 
+ * If a key is present in only one of the two inputs, it may be that one of the groups is empty.
+ * <p>
+ * The basic syntax for using CoGoup on two data sets is as follows:
+ * <pre><blockquote>
+ * DataSet<X> set1 = ...;
+ * DataSet<Y> set2 = ...;
+ * 
+ * set1.coGroup(set2).where(<key-definition>).equalTo(<key-definition>).with(new MyCoGroupFunction());
+ * </blockquote></pre>
+ * <p>
+ * {@code set1} is here considered the first input, {@code set2} the second input.
+ * <p>
+ * Some keys may only be contained in one of the two original data sets. In that case, the CoGroup function is invoked
+ * with in empty input for the side of the data set that did not contain elements with that specific key.
+ * 
+ * @param <V1> The data type of the first input data set.
+ * @param <V2> The data type of the second input data set.
+ * @param <O> The data type of the returned elements.
+ */
 public interface CoGroupFunction<V1, V2, O> extends Function, Serializable {
 	
 	/**
 	 * This method must be implemented to provide a user implementation of a
-	 * coGroup. It is called for each two key-value pairs that share the same
-	 * key and come from different inputs.
+	 * coGroup. It is called for each pair of element groups where the elements share the
+	 * same key.
 	 * 
-	 * @param first The records from the first input which were paired with the key.
-	 * @param second The records from the second input which were paired with the key.
-	 * @param out A collector that collects all output pairs.
+	 * @param first The records from the first input.
+	 * @param second The records from the second.
+	 * @param out A collector to return elements.
+	 * 
+	 * @throws Exception The function may throw Exceptions, which will cause the program to cancel,
+	 *                   and may trigger the recovery logic.
 	 */
 	void coGroup(Iterator<V1> first, Iterator<V2> second, Collector<O> out) throws Exception;
-	
 }

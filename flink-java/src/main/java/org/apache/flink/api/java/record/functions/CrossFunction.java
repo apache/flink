@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.types.Record;
 
 /**
- * The CrossFunction is the base class for functions that are invoked by a {@link org.apache.flink.api.java.operators.CrossOperator}.
+ * The CrossFunction is the base class for functions that are invoked by a {@link org.apache.flink.api.java.record.operators.CrossOperator}.
  */
 public abstract class CrossFunction extends AbstractRichFunction implements org.apache.flink.api.common.functions.CrossFunction<Record, Record, Record> {
 	
@@ -41,10 +41,6 @@ public abstract class CrossFunction extends AbstractRichFunction implements org.
 	 *                   runtime catches an exception, it aborts the task and lets the fail-over logic
 	 *                   decide whether to retry the task execution.
 	 */
-
-	//@Override
-	//public abstract void cross(Record record1, Record record2, Collector<Record> out) throws Exception;
-
 	@Override
 	public abstract Record cross(Record first, Record second) throws Exception;
 

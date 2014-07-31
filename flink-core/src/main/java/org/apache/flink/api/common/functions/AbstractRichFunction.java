@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.functions;
 
 import java.io.Serializable;
@@ -24,9 +23,10 @@ import java.io.Serializable;
 import org.apache.flink.configuration.Configuration;
 
 /**
- * An abstract stub implementation for user-defined functions. It offers default implementations
- * for {@link #open(Configuration)} and {@link #close()}. It also offers access to the
- * {@link RuntimeContext} and {@link IterationRuntimeContext}.
+ * An abstract stub implementation for rich user-defined functions.
+ * Rich functions have additional methods for initialization ({@link #open(Configuration)}) and
+ * teardown ({@link #close()}), as well as access to their runtime execution context via
+ * {@link #getRuntimeContext()}.
  */
 public abstract class AbstractRichFunction implements RichFunction, Serializable {
 	

@@ -26,6 +26,7 @@ import org.junit.Test;
 
 import java.io.Serializable;
 
+@SuppressWarnings("serial")
 public class MapITCase implements Serializable{
 
 	@Test

@@ -112,7 +112,7 @@ public abstract class ExecutionEnvironment {
 	 * individually override this value to use a specific degree of parallelism via
 	 * {@link Operator#setParallelism(int)}. Other operations may need to run with a different
 	 * degree of parallelism - for example calling
-	 * {@link DataSet#reduce(org.apache.flink.api.java.functions.RichReduceFunction)} over the entire
+	 * {@link DataSet#reduce(org.apache.flink.api.common.functions.ReduceFunction)} over the entire
 	 * set will insert eventually an operation that runs non-parallel (degree of parallelism of one).
 	 * 
 	 * @return The degree of parallelism used by operations, unless they override that value. This method

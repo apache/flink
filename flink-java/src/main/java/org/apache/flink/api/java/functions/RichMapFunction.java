@@ -20,22 +20,13 @@ package org.apache.flink.api.java.functions;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichFunction;
 
 /**
- * The abstract base class for Map functions. Map functions take elements and transform them,
- * element wise. A Map function always produces a single result element for each input element.
- * Typical applications are parsing elements, converting data types, or projecting out fields.
- * Operations that produce multiple result elements from a single input element can be implemented
- * using the {@link RichFlatMapFunction}.
- * <p>
- * The basic syntax for using a MapFunction is as follows:
- * <pre><blockquote>
- * DataSet<X> input = ...;
- * 
- * DataSet<Y> result = input.map(new MyMapFunction());
- * </blockquote></pre>
- * <p>
- * Like all functions, the MapFunction needs to be serializable, as defined in {@link java.io.Serializable}.
+ * Rich variant of the {@link MapFunction}. As a {@link RichFunction}, it gives access to the
+ * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
+ * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
+ * {@link RichFunction#close()}.
  * 
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
@@ -44,16 +35,6 @@ public abstract class RichMapFunction<IN, OUT> extends AbstractRichFunction impl
 
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * The core method of the MapFunction. Takes an element from the input data set and transforms
-	 * it into another element.
-	 * 
-	 * @param value The input value.
-	 * @return The value produced by the map function from the input value.
-	 * 
-	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
-	 *                   to fail and may trigger recovery.
-	 */
 	@Override
 	public abstract OUT map(IN value) throws Exception;
 }

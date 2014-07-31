@@ -36,9 +36,20 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-@RunWith(Parameterized.class)
+@SuppressWarnings("serial")
 public class ReduceITCase extends JavaProgramTestBase {
 
+	private static final String EXPECTED_RESULT = "1,1,0,Hallo,1\n" +
+			"2,3,2,Hallo Welt wie,1\n" +
+			"2,2,1,Hallo Welt,2\n" +
+			"3,9,0,P-),2\n" +
+			"3,6,5,BCD,3\n" +
+			"4,17,0,P-),1\n" +
+			"4,17,0,P-),2\n" +
+			"5,11,10,GHI,1\n" +
+			"5,29,0,P-),2\n" +
+			"5,25,0,P-),3\n";
+	
 	public static DataSet<Tuple5<Integer, Long, Integer, String, Long>> get5TupleDataSet(ExecutionEnvironment env) {
 
 		List<Tuple5<Integer, Long, Integer, String, Long>> data = new ArrayList<Tuple5<Integer, Long, Integer, String, Long>>();
@@ -71,17 +82,9 @@ public class ReduceITCase extends JavaProgramTestBase {
 
 		return env.fromCollection(data, type);
 	}
-
-	private static int NUM_PROGRAMS = 1;
-
-	private int curProgId = config.getInteger("ProgramId", -1);
+	
 	private String resultPath;
-	private String expectedResult;
-
-	public ReduceITCase(Configuration config) {
-		super(config);
-	}
-
+	
 	@Override
 	protected void preSubmit() throws Exception {
 		resultPath = getTempDirPath("result");
@@ -89,72 +92,23 @@ public class ReduceITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		expectedResult = ReduceProgs.runProgram(curProgId, resultPath);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = get5TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds
+				.groupBy(4, 0)
+				.reduce((in1, in2) -> {
+					Tuple5<Integer, Long, Integer, String, Long> out = new Tuple5<Integer, Long, Integer, String, Long>();
+					out.setFields(in1.f0, in1.f1 + in2.f1, 0, "P-)", in1.f4);
+					return out;
+				});
+
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expectedResult, resultPath);
+		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
 	}
-
-	@Parameterized.Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
-
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
-		}
-
-		return toParameterList(tConfigs);
-	}
-
-	private static class ReduceProgs {
-
-		public static String runProgram(int progId, String resultPath) throws Exception {
-
-			switch(progId) {
-				case 1: {
-					/*
-					 * Test reduce with lambda
-					 * Functionality identical to org.apache.flink.test.javaApiOperators.ReduceITCase test 2
-					 */
-
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = get5TupleDataSet(env);
-					DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds
-							.groupBy(4, 0)
-							.reduce((in1, in2) -> {
-								Tuple5<Integer, Long, Integer, String, Long> out = new Tuple5<Integer, Long, Integer, String, Long>();
-								out.setFields(in1.f0, in1.f1 + in2.f1, 0, "P-)", in1.f4);
-								return out;
-							});
-
-					reduceDs.writeAsCsv(resultPath);
-					env.execute();
-
-					// return expected result
-					return "1,1,0,Hallo,1\n" +
-							"2,3,2,Hallo Welt wie,1\n" +
-							"2,2,1,Hallo Welt,2\n" +
-							"3,9,0,P-),2\n" +
-							"3,6,5,BCD,3\n" +
-							"4,17,0,P-),1\n" +
-							"4,17,0,P-),2\n" +
-							"5,11,10,GHI,1\n" +
-							"5,29,0,P-),2\n" +
-							"5,25,0,P-),3\n";
-				}
-				default:
-					throw new IllegalArgumentException("Invalid program id");
-			}
-
-		}
-
-	}
-
-
 }

@@ -467,7 +467,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			if (function == null) {
 				throw new NullPointerException("Join function must not be null.");
 			}
-			if (FunctionUtils.isSerializedLambdaFunction(function)) {
+			if (FunctionUtils.isLambdaFunction(function)) {
 				throw new UnsupportedLambdaExpressionException();
 			}
 			TypeInformation<R> returnType = TypeExtractor.getJoinReturnTypes(function, getInput1Type(), getInput2Type());
@@ -478,10 +478,10 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			if (function == null) {
 				throw new NullPointerException("Join function must not be null.");
 			}
-			if (FunctionUtils.isSerializedLambdaFunction(function)) {
+			if (FunctionUtils.isLambdaFunction(function)) {
 				throw new UnsupportedLambdaExpressionException();
 			}
-			FlatJoinFunction generatedFunction = new WrappingFlatJoinFunction<I1, I2, R>(function);
+			FlatJoinFunction<I1, I2, R> generatedFunction = new WrappingFlatJoinFunction<I1, I2, R>(function);
 			TypeInformation<R> returnType = TypeExtractor.getJoinReturnTypes(function, getInput1Type(), getInput2Type());
 			return new EquiJoin<I1, I2, R>(getInput1(), getInput2(), getKeys1(), getKeys2(), generatedFunction, function, returnType, getJoinHint());
 		}

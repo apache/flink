@@ -48,6 +48,7 @@ import org.apache.flink.util.Visitor;
 /**
  * 
  */
+@SuppressWarnings("deprecation")
 public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRichFunction> implements IterationOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Bulk Iteration>";

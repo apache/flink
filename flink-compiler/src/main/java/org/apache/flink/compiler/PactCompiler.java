@@ -37,7 +37,6 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Union;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
-import org.apache.flink.api.common.operators.base.CollectorMapOperatorBase;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.common.operators.base.FilterOperatorBase;
@@ -648,6 +647,7 @@ public class PactCompiler {
 			this.forceDOP = forceDOP;
 		}
 
+		@SuppressWarnings("deprecation")
 		@Override
 		public boolean preVisit(Operator<?> c) {
 			// check if we have been here before
@@ -671,8 +671,8 @@ public class PactCompiler {
 			else if (c instanceof MapOperatorBase) {
 				n = new MapNode((MapOperatorBase<?, ?, ?>) c);
 			}
-			else if (c instanceof CollectorMapOperatorBase) {
-				n = new CollectorMapNode((CollectorMapOperatorBase<?, ?, ?>) c);
+			else if (c instanceof org.apache.flink.api.common.operators.base.CollectorMapOperatorBase) {
+				n = new CollectorMapNode((org.apache.flink.api.common.operators.base.CollectorMapOperatorBase<?, ?, ?>) c);
 			}
 			else if (c instanceof FlatMapOperatorBase) {
 				n = new FlatMapNode((FlatMapOperatorBase<?, ?, ?>) c);

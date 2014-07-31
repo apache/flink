@@ -32,7 +32,7 @@ import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
  * SortedGrouping is an intermediate step for a transformation on a grouped and sorted DataSet.<br/>
  * The following transformation can be applied on sorted groups:
  * <ul>
- * 	<li>{@link SortedGrouping#reduceGroup(org.apache.flink.api.java.functions.RichGroupReduceFunction)},</li>
+ * 	<li>{@link SortedGrouping#reduceGroup(org.apache.flink.api.common.functions.GroupReduceFunction)},</li>
  * </ul>
  * 
  * @param <T> The type of the elements of the sorted and grouped DataSet.
@@ -82,7 +82,7 @@ public class SortedGrouping<T> extends Grouping<T> {
 		if (reducer == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
-		if (FunctionUtils.isSerializedLambdaFunction(reducer)) {
+		if (FunctionUtils.isLambdaFunction(reducer)) {
 			throw new UnsupportedLambdaExpressionException();
 		}
 		return new GroupReduceOperator<T, R>(this, reducer);
