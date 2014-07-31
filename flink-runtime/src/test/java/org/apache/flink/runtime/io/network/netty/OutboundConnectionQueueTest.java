@@ -154,7 +154,7 @@ public class OutboundConnectionQueueTest {
 
 		Mockito.verify(connectionManager, Mockito.times(0)).close(Mockito.any(RemoteReceiver.class));
 
-		boolean hasRequestedClose = Whitebox.getInternalState(queue, "hasRequestedClose");
+		Boolean hasRequestedClose = Whitebox.<Boolean>getInternalState(queue, "hasRequestedClose");
 		Assert.assertFalse("Close request while envelope in flight.", hasRequestedClose);
 
 		// Change writability of channel back to writable
