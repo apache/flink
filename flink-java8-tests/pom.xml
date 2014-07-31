@@ -41,21 +41,11 @@ under the License.
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-compiler</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
-			<version>${project.version}</version>
-		</dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-test-utils</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
@@ -66,35 +56,6 @@ under the License.
 			<artifactId>junit</artifactId>
 			<version>4.7</version>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java-examples</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala-examples</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-tests</artifactId>
-            <version>${project.version}</version>
-        </dependency>
 	</dependencies>
 
 	<build>
@@ -143,18 +104,6 @@ under the License.
 					<perCoreThreadCount>false</perCoreThreadCount>
 				</configuration>
 			</plugin>
-            <plugin>
-                <!-- Define the Java version to be used for compiling and plugins -->
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.1</version><!--$NO-MVN-MAN-VER$-->
-                <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                    <!-- High optimization, no debugging <compilerArgument>-g:none -O</compilerArgument> -->
-                </configuration>
-            </plugin>
-
 		</plugins>
 		
 		<pluginManagement>

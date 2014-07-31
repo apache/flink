@@ -24,11 +24,10 @@ import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 
-import java.util.regex.Pattern;
+import java.lang.invoke.SerializedLambda;
+import java.lang.reflect.Method;
 
 public class FunctionUtils {
-
-	private static final Pattern lambdaPattern = Pattern.compile("(\\S+)\\$\\$Lambda\\$(\\d+)/\\d+");
 
 
 	public static void openFunction (Function function, Configuration parameters) throws Exception{
@@ -62,8 +61,21 @@ public class FunctionUtils {
 		}
 	}
 
-	public static boolean isLambdaFunction (Function function) {
-
-		return lambdaPattern.matcher(function.getClass().getName()).matches();
+	public static boolean isSerializedLambdaFunction(Function function) {
+		Class<?> clazz = function.getClass();
+		try {
+			Method replaceMethod = clazz.getDeclaredMethod("writeReplace");
+			replaceMethod.setAccessible(true);
+			Object serializedForm = replaceMethod.invoke(function);
+			if (serializedForm instanceof SerializedLambda) {
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+		catch (Exception e) {
+			return false;
+		}
 	}
 }

@@ -467,7 +467,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			if (function == null) {
 				throw new NullPointerException("Join function must not be null.");
 			}
-			if (FunctionUtils.isLambdaFunction(function)) {
+			if (FunctionUtils.isSerializedLambdaFunction(function)) {
 				throw new UnsupportedLambdaExpressionException();
 			}
 			TypeInformation<R> returnType = TypeExtractor.getJoinReturnTypes(function, getInput1Type(), getInput2Type());
@@ -478,7 +478,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			if (function == null) {
 				throw new NullPointerException("Join function must not be null.");
 			}
-			if (FunctionUtils.isLambdaFunction(function)) {
+			if (FunctionUtils.isSerializedLambdaFunction(function)) {
 				throw new UnsupportedLambdaExpressionException();
 			}
 			FlatJoinable generatedFunction = new WrappingFlatJoinFunction<I1, I2, R>(function);

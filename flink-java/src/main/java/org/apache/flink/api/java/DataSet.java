@@ -141,7 +141,7 @@ public abstract class DataSet<T> {
 		if (mapper == null) {
 			throw new NullPointerException("Map function must not be null.");
 		}
-		if (FunctionUtils.isLambdaFunction(mapper)) {
+		if (FunctionUtils.isSerializedLambdaFunction(mapper)) {
 			throw new UnsupportedLambdaExpressionException();
 		}
 		return new MapOperator<T, R>(this, mapper);
@@ -163,7 +163,7 @@ public abstract class DataSet<T> {
 		if (flatMapper == null) {
 			throw new NullPointerException("FlatMap function must not be null.");
 		}
-		if (FunctionUtils.isLambdaFunction(flatMapper)) {
+		if (FunctionUtils.isSerializedLambdaFunction(flatMapper)) {
 			throw new UnsupportedLambdaExpressionException();
 		}
 		return new FlatMapOperator<T, R>(this, flatMapper);
@@ -309,7 +309,7 @@ public abstract class DataSet<T> {
 		if (reducer == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
-		if (FunctionUtils.isLambdaFunction(reducer)) {
+		if (FunctionUtils.isSerializedLambdaFunction(reducer)) {
 			throw new UnsupportedLambdaExpressionException();
 		}
 		return new GroupReduceOperator<T, R>(this, reducer);

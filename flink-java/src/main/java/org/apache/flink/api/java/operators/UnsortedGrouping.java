@@ -129,7 +129,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 		if (reducer == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
-		if (FunctionUtils.isLambdaFunction(reducer)) {
+		if (FunctionUtils.isSerializedLambdaFunction(reducer)) {
 			throw new UnsupportedLambdaExpressionException();
 		}
 		return new GroupReduceOperator<T, R>(this, reducer);
