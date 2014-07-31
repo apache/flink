@@ -28,7 +28,6 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.Buffer;
 import org.apache.flink.runtime.io.network.Envelope;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
-import org.apache.flink.runtime.io.network.netty.OutboundEnvelopeEncoder;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.junit.Test;
 
