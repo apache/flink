@@ -1430,4 +1430,27 @@ public class TypeExtractorTest {
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(mapInterface, BasicTypeInfo.STRING_TYPE_INFO);
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
 	}
+	
+	@SuppressWarnings({ "serial", "unchecked", "rawtypes" })
+	@Test
+	public void testExtractKeySelector() {
+		KeySelector<String, Integer> selector = new KeySelector<String, Integer>() {
+			@Override
+			public Integer getKey(String value) { return null; }
+		};
+
+		TypeInformation<?> ti = TypeExtractor.getKeySelectorTypes(selector, BasicTypeInfo.STRING_TYPE_INFO);
+		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
+		
+		try {
+			TypeExtractor.getKeySelectorTypes((KeySelector) selector, BasicTypeInfo.BOOLEAN_TYPE_INFO);
+			Assert.fail();
+		}
+		catch (InvalidTypesException e) {
+			// good
+		}
+		catch (Exception e) {
+			Assert.fail("wrong exception type");
+		}
+	}
 }

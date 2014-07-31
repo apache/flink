@@ -38,9 +38,11 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.java.functions.InvalidTypesException;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.types.TypeInformation;
 import org.apache.flink.types.Value;
@@ -134,6 +136,10 @@ public class TypeExtractor {
 	
 	@SuppressWarnings("unchecked")
 	public static <IN, OUT> TypeInformation<OUT> getKeySelectorTypes(KeySelector<IN, OUT> selectorInterface, TypeInformation<IN> inType) {
+		if (FunctionUtils.isLambdaFunction(selectorInterface)) {
+			throw new UnsupportedLambdaExpressionException();
+		}
+		
 		validateInputType(KeySelector.class, selectorInterface.getClass(), 0, inType);
 		if(selectorInterface instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) selectorInterface).getProducedType();
@@ -406,7 +412,8 @@ public class TypeExtractor {
 			return parameter;
 		}
 		
-		throw new IllegalArgumentException(baseClass.getName() + " must be implemented.");
+		throw new IllegalArgumentException("The types of the interface " + baseClass.getName() + " could not be inferred. " + 
+						"Support for synthetic interfaces, lambdas, and generic types is limited at this point.");
 	}
 	
 	private static Type getParameterTypeFromGenericType(Class<?> baseClass, ArrayList<Type> typeHierarchy, Type t, int pos) {

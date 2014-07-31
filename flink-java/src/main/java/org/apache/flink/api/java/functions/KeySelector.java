@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.functions;
 
+import org.apache.flink.api.common.functions.Function;
 
 /**
  * The {@link KeySelector} allows to use arbitrary objects for operations such as
@@ -28,9 +29,7 @@ package org.apache.flink.api.java.functions;
  * @param <IN> Type of objects to extract the key from.
  * @param <KEY> Type of key.
  */
-public abstract class KeySelector<IN, KEY> implements java.io.Serializable {
-	
-	private static final long serialVersionUID = 1L;
+public interface KeySelector<IN, KEY> extends Function, java.io.Serializable {
 	
 	/**
 	 * User-defined function that extracts the key from an arbitrary object.
@@ -54,6 +53,9 @@ public abstract class KeySelector<IN, KEY> implements java.io.Serializable {
 	 * 
 	 * @param value The object to get the key from.
 	 * @return The extracted key.
+	 * 
+	 * @throws Exception Throwing an exception will cause the execution of the respective task to fail,
+	 *                   and trigger recovery or cancellation of the program. 
 	 */
-	public abstract KEY getKey(IN value);
+	KEY getKey(IN value) throws Exception;
 }
