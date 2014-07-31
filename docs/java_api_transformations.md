@@ -241,7 +241,11 @@ DataSet<Double> output = input
 
 #### Combinable GroupReduceFunctions
 
-In contrast to a `ReduceFunction`, a `GroupReduceFunction` is not necessarily combinable. In order to make a `GroupReduceFunction` combinable, you need to implement (override) the `combine()` method and annotate the `GroupReduceFunction` with the `@Combinable` annotation as shown here:
+In contrast to a `ReduceFunction`, a `GroupReduceFunction` is not
+necessarily combinable. In order to make a `GroupReduceFunction`
+combinable, you need to use the `RichGroupReduceFunction` variant,
+implement (override) the `combine()` method, and annotate the
+`GroupReduceFunction` with the `@Combinable` annotation as shown here:
 
 ```java
 // Combinable GroupReduceFunction that computes two sums.
@@ -430,6 +434,28 @@ DataSet<Tuple2<String, Double>>
                    // applying the JoinFunction on joining pairs
                    .with(new PointWeighter());
 ```
+
+#### Join with FlatJoinFunction
+
+Analogous to Map and FlatMap, a FlatJoin function behaves in the same
+way as a JoinFunction, but instead of returning one element, it can
+return (collect), zero, one, or more elements.
+{% highlight java %}
+public class PointWeighter
+         implements FlatJoinFunction<Rating, Tuple2<String, Double>, Tuple2<String, Double>> {
+  @Override
+  public void join(Rating rating, Tuple2<String, Double> weight,
+	  Collector<Tuple2<String, Double>> out) {
+	if (weight.f1 > 0.1) {
+		out.collect(new Tuple2<String, Double>(rating.name, rating.points * weight.f1));
+	}
+  }
+}
+
+DataSet<Tuple2<String, Double>>
+            weightedRatings =
+            ratings.join(weights) // [...]
+{% endhighlight %}
 
 #### Join with Projection
 
@@ -625,4 +651,3 @@ DataSet<Tuple2<String, Integer>> unioned = vals1.union(vals2)
 
 
 [Back to top](#top)
-
