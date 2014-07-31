@@ -166,6 +166,19 @@ public class ReduceGroupOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			
 			return po;
 		}
+		else if (grouper.getKeys() instanceof Keys.ExpressionKeys) {
+
+			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
+			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
+			GroupReduceOperatorBase<IN, OUT, GenericGroupReduce<IN, OUT>> po =
+					new GroupReduceOperatorBase<IN, OUT, GenericGroupReduce<IN, OUT>>(function, operatorInfo, logicalKeyPositions, name);
+
+			po.setCombinable(combinable);
+			po.setInput(input);
+			po.setDegreeOfParallelism(this.getParallelism());
+			
+			return po;
+		}
 		else {
 			throw new UnsupportedOperationException("Unrecognized key type.");
 		}
