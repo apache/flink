@@ -19,39 +19,41 @@
 package org.apache.flink.api.java.functions;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.Filterable;
+import org.apache.flink.api.common.functions.FlatMappable;
+import org.apache.flink.util.Collector;
 
 /**
- * The abstract base class for Filter functions. A filter function take elements and evaluates a
- * predicate on them to decide whether to keep the element, or to discard it.
+ * The abstract base class for flatMap functions. FlatMap functions take elements and transform them,
+ * into zero, one, or more elements. Typical applications can be splitting elements, or unnesting lists
+ * and arrays. Operations that produce multiple strictly one result element per input element can also
+ * use the {@link RichMapFunction}.
  * <p>
- * The basic syntax for using a FilterFunction is as follows:
+ * The basic syntax for using a FlatMapFunction is as follows:
  * <pre><blockquote>
  * DataSet<X> input = ...;
  * 
- * DataSet<X> result = input.filter(new MyFilterFunction());
+ * DataSet<Y> result = input.flatMap(new MyFlatMapFunction());
  * </blockquote></pre>
  * <p>
- * Like all functions, the FilterFunction needs to be serializable, as defined in {@link java.io.Serializable}.
+ * Like all functions, the FlatMapFunction needs to be serializable, as defined in {@link java.io.Serializable}.
  * 
- * @param <T> The type of the filtered elements.
+ * @param <IN> Type of the input elements.
+ * @param <OUT> Type of the returned elements.
  */
-public abstract class FilterFunction<T> extends AbstractRichFunction implements Filterable<T> {
-	
+public abstract class RichFlatMapFunction<IN, OUT> extends AbstractRichFunction implements FlatMappable<IN, OUT> {
+
 	private static final long serialVersionUID = 1L;
-	
+
 	/**
-	 * The core method of the FilterFunction. The method is called for each element in the input,
-	 * and determines whether the element should be kept or filtered out. If the method returns true,
-	 * the element passes the filter and is kept, if the method returns false, the element is
-	 * filtered out.
+	 * The core method of the FlatMapFunction. Takes an element from the input data set and transforms
+	 * it into zero, one, or more elements.
 	 * 
-	 * @param value The input value to be filtered.
-	 * @return Flag to indicate whether to keep the value (true) or to discard it (false).
+	 * @param value The input value.
+	 * @param out The collector for for emitting result values.
 	 * 
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
 	 *                   to fail and may trigger recovery.
 	 */
 	@Override
-	public abstract boolean filter(T value) throws Exception;
+	public abstract void flatMap(IN value, Collector<OUT> out) throws Exception;
 }

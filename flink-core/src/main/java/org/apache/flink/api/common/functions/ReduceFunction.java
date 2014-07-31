@@ -16,16 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.functions;
+
+package org.apache.flink.api.common.functions;
 
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.Joinable;
+import java.io.Serializable;
 
-public abstract class JoinFunction<IN1,IN2,OUT> extends AbstractRichFunction implements Joinable<IN1,IN2,OUT> {
+public interface ReduceFunction<T> extends Function, Serializable {
 
-	private static final long serialVersionUID = 1L;
-
-	@Override
-	public abstract OUT join(IN1 first, IN2 second) throws Exception;
+	/**
+	 * The core method of Reducible, combining two values into one value of the same type.
+	 * The reduce function is consecutively applied to all values of a group until only a single value remains.
+	 *
+	 * @param value1 The first value to combine.
+	 * @param value2 The second value to combine.
+	 * @return The combined value of both input values.
+	 *
+	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
+	 *                   to fail and may trigger recovery.
+	 */
+	T reduce(T value1, T value2) throws Exception;
 }

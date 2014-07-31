@@ -18,25 +18,16 @@
 
 
 package org.apache.flink.api.common.functions;
-
 import java.io.Serializable;
 
-
-/**
- * @param <IN1> First input type
- * @param <IN2> Second input type
- * @param <OUT> Output type
- */
-public interface Crossable<IN1, IN2, OUT> extends Function, Serializable {
-
+public interface FilterFunction<T> extends Function, Serializable {
+	
 	/**
-	 * User defined function for the cross operator.
+	 * User defined function for a filter.
 	 * 
-	 * @param record1 Record from first input
-	 * @param record2 Record from the second input
-	 * @return result of cross UDF.
+	 * @param value Incoming tuples
+	 * @return true for tuples that are allowed to pass the filter
 	 * @throws Exception
 	 */
-	OUT cross(IN1 record1, IN2 record2) throws Exception;
-
+	boolean filter(T value) throws Exception;
 }

@@ -19,20 +19,27 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
-public interface Mappable<T, O> extends Function, Serializable {
+
+/**
+ *
+ * @param <T>
+ * @param <O>
+ */
+public interface FlatMapFunction<T, O> extends Function, Serializable {
 
 	/**
-	 * The core method of Mappable. Takes an element from the input data set and transforms
-	 * it into exactly one element.
+	 * The core method of FlatMappable. Takes an element from the input data set and transforms
+	 * it into zero, one, or more elements.
 	 *
 	 * @param value The input value.
-	 * @returns  The transformed value
+	 * @param out The collector for for emitting result values.
 	 *
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
 	 *                   to fail and may trigger recovery.
 	 */
-	O map(T value) throws Exception;
+	void flatMap(T value, Collector<O> out) throws Exception;
 }

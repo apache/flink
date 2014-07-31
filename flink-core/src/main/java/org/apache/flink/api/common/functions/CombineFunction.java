@@ -19,27 +19,13 @@
 
 package org.apache.flink.api.common.functions;
 
-import org.apache.flink.util.Collector;
-
 import java.io.Serializable;
-
+import java.util.Iterator;
 
 /**
- *
- * @param <T>
- * @param <O>
+ * Generic interface used for combiners.
  */
-public interface FlatMappable<T, O> extends Function, Serializable {
+public interface CombineFunction<T> extends Function, Serializable {
 
-	/**
-	 * The core method of FlatMappable. Takes an element from the input data set and transforms
-	 * it into zero, one, or more elements.
-	 *
-	 * @param value The input value.
-	 * @param out The collector for for emitting result values.
-	 *
-	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
-	 *                   to fail and may trigger recovery.
-	 */
-	void flatMap(T value, Collector<O> out) throws Exception;
+	T combine(Iterator<T> records) throws Exception;
 }

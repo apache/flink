@@ -24,7 +24,7 @@ import org.apache.flink.util.Collector;
 import java.io.Serializable;
 
 
-public interface FlatJoinable<IN1, IN2, OUT> extends Function, Serializable {
+public interface FlatJoinFunction<IN1, IN2, OUT> extends Function, Serializable {
 
 	void join (IN1 left, IN2 right, Collector<OUT> out) throws Exception;
 }

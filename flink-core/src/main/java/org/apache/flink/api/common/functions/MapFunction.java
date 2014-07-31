@@ -19,13 +19,20 @@
 
 package org.apache.flink.api.common.functions;
 
+
 import java.io.Serializable;
-import java.util.Iterator;
 
-/**
- * Generic interface used for combiners.
- */
-public interface ProposedNewCombinable<T> extends Function, Serializable {
+public interface MapFunction<T, O> extends Function, Serializable {
 
-	T combine(Iterator<T> records) throws Exception;
+	/**
+	 * The core method of Mappable. Takes an element from the input data set and transforms
+	 * it into exactly one element.
+	 *
+	 * @param value The input value.
+	 * @returns  The transformed value
+	 *
+	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
+	 *                   to fail and may trigger recovery.
+	 */
+	O map(T value) throws Exception;
 }

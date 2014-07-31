@@ -34,7 +34,7 @@ import org.apache.flink.util.Collector;
  * They may aggregate them to a single value, or produce multiple result values for each group.
  * <p>
  * For a reduce functions that works incrementally by combining always two elements, see 
- * {@link ReduceFunction}, called via {@link org.apache.flink.api.java.DataSet#reduce(ReduceFunction)}.
+ * {@link RichReduceFunction}, called via {@link org.apache.flink.api.java.DataSet#reduce(RichReduceFunction)}.
  * <p>
  * The basic syntax for using a grouped GroupReduceFunction is as follows:
  * <pre><blockquote>
@@ -51,7 +51,7 @@ import org.apache.flink.util.Collector;
  * @param <IN> Type of the elements that this function processes.
  * @param <OUT> The type of the elements returned by the user-defined function.
  */
-public abstract class GroupReduceFunction<IN, OUT> extends AbstractRichFunction implements GroupReducible<IN, OUT>, FlatCombinable<IN> {
+public abstract class RichGroupReduceFunction<IN, OUT> extends AbstractRichFunction implements GroupReducible<IN, OUT>, FlatCombinable<IN> {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -74,7 +74,7 @@ public abstract class GroupReduceFunction<IN, OUT> extends AbstractRichFunction 
 	 * to reorganizing the data in an expensive way, as might be required for the final
 	 * reduce function.
 	 * <p>
-	 * This method is only ever invoked when the subclass of {@link GroupReduceFunction}
+	 * This method is only ever invoked when the subclass of {@link RichGroupReduceFunction}
 	 * adds the {@link Combinable} annotation, or if the <i>combinable</i> flag is set when defining
 	 * the <i>reduceGroup<i> operation via
 	 * {@link org.apache.flink.api.java.operators.GroupReduceOperator#setCombinable(boolean)}.
@@ -101,8 +101,8 @@ public abstract class GroupReduceFunction<IN, OUT> extends AbstractRichFunction 
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * This annotation can be added to classes that extend {@link GroupReduceFunction}, in oder to mark
-	 * them as "combinable". The system may call the {@link GroupReduceFunction#combine(Iterator, Collector)}
+	 * This annotation can be added to classes that extend {@link RichGroupReduceFunction}, in oder to mark
+	 * them as "combinable". The system may call the {@link RichGroupReduceFunction#combine(Iterator, Collector)}
 	 * method on such functions, to pre-reduce the data before transferring it over the network to
 	 * the actual group reduce operation.
 	 * <p>

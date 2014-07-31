@@ -44,7 +44,7 @@ import org.apache.flink.api.common.functions.Reducible;
  * 
  * @param <T> Type of the elements that this function processes.
  */
-public abstract class ReduceFunction<T> extends AbstractRichFunction implements Reducible<T> {
+public abstract class RichReduceFunction<T> extends AbstractRichFunction implements Reducible<T> {
 	
 	private static final long serialVersionUID = 1L;
 

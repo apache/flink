@@ -16,18 +16,16 @@
  * limitations under the License.
  */
 
+package org.apache.flink.api.java.functions;
 
-package org.apache.flink.api.common.functions;
 
-import java.io.Serializable;
-import java.util.Iterator;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.Joinable;
 
-import org.apache.flink.util.Collector;
+public abstract class RichJoinFunction<IN1,IN2,OUT> extends AbstractRichFunction implements Joinable<IN1,IN2,OUT> {
 
-/**
- * Generic interface used for combiners.
- */
-public interface FlatCombinable<T> extends Function, Serializable {
+	private static final long serialVersionUID = 1L;
 
-	void combine(Iterator<T> values, Collector<T> out) throws Exception;
+	@Override
+	public abstract OUT join(IN1 first, IN2 second) throws Exception;
 }

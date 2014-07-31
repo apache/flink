@@ -16,18 +16,19 @@
  * limitations under the License.
  */
 
+package org.apache.flink.api.java.functions;
 
-package org.apache.flink.api.common.functions;
-import java.io.Serializable;
 
-public interface Filterable<T> extends Function, Serializable {
-	
-	/**
-	 * User defined function for a filter.
-	 * 
-	 * @param value Incoming tuples
-	 * @return true for tuples that are allowed to pass the filter
-	 * @throws Exception
-	 */
-	boolean filter(T value) throws Exception;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.FlatCombinable;
+import org.apache.flink.util.Collector;
+
+import java.util.Iterator;
+
+public abstract class RichFlatCombineFunction<T> extends AbstractRichFunction implements FlatCombinable<T> {
+
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public abstract void combine(Iterator<T> values, Collector<T> out) throws Exception;
 }

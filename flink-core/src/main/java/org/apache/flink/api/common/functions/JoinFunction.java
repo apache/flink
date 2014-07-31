@@ -20,26 +20,9 @@
 package org.apache.flink.api.common.functions;
 
 import java.io.Serializable;
-import java.util.Iterator;
-
-import org.apache.flink.util.Collector;
 
 
-/**
- *
- * @param <T> Incoming types
- * @param <O> Outgoing types
- */
-public interface GroupReducible<T, O> extends Function, Serializable {
-	/**
-	 * 
-	 * The central function to be implemented for a reducer. The function receives per call one
-	 * key and all the values that belong to that key. Each key is guaranteed to be processed by exactly
-	 * one function call across all involved instances across all computing nodes.
-	 * 
-	 * @param records All records that belong to the given input key.
-	 * @param out The collector to hand results to.
-	 * @throws Exception
-	 */
-	void reduce(Iterator<T> values, Collector<O> out) throws Exception;
+public interface JoinFunction<IN1, IN2, OUT> extends Function, Serializable {
+
+	OUT join(IN1 first, IN2 second) throws Exception;
 }
