@@ -28,5 +28,4 @@ public abstract class StreamReduceInvokable<IN extends Tuple, OUT extends Tuple>
 	private static final long serialVersionUID = 1L;
 	protected GroupReduceFunction<IN, OUT> reducer;
 
-
 }

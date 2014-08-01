@@ -22,6 +22,9 @@ package org.apache.flink.streaming.api;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang3.SerializationException;
+import org.apache.commons.lang3.SerializationUtils;
+import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.java.functions.FilterFunction;
 import org.apache.flink.api.java.functions.FlatMapFunction;
 import org.apache.flink.api.java.functions.GroupReduceFunction;
@@ -29,14 +32,20 @@ import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
+import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.sink.WriteFormatAsCsv;
 import org.apache.flink.streaming.api.function.sink.WriteFormatAsText;
+import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByBatches;
+import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByMillis;
+import org.apache.flink.streaming.api.invokable.SinkInvokable;
+import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 import org.apache.flink.streaming.api.invokable.operator.BatchReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.WindowReduceInvokable;
+import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoMapInvokable;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.partitioner.DistributePartitioner;
@@ -44,6 +53,8 @@ import org.apache.flink.streaming.partitioner.FieldsPartitioner;
 import org.apache.flink.streaming.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
+import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -66,11 +77,12 @@ public class DataStream<T extends Tuple> {
 	protected String id;
 	protected int degreeOfParallelism;
 	protected String userDefinedName;
-	protected OutputSelector<T> outputSelector;
 	protected List<String> connectIDs;
 	protected List<StreamPartitioner<T>> partitioners;
 	protected boolean iterationflag;
 	protected Integer iterationID;
+
+	protected JobGraphBuilder jobGraphBuilder;
 
 	/**
 	 * Create a new {@link DataStream} in the given execution environment with
@@ -91,8 +103,8 @@ public class DataStream<T extends Tuple> {
 		this.id = operatorType + "-" + counter.toString();
 		this.environment = environment;
 		this.degreeOfParallelism = environment.getDegreeOfParallelism();
+		this.jobGraphBuilder = environment.getJobGraphBuilder();
 		initConnections();
-
 	}
 
 	/**
@@ -106,11 +118,11 @@ public class DataStream<T extends Tuple> {
 		this.id = dataStream.id;
 		this.degreeOfParallelism = dataStream.degreeOfParallelism;
 		this.userDefinedName = dataStream.userDefinedName;
-		this.outputSelector = dataStream.outputSelector;
 		this.connectIDs = new ArrayList<String>(dataStream.connectIDs);
 		this.partitioners = new ArrayList<StreamPartitioner<T>>(dataStream.partitioners);
 		this.iterationflag = dataStream.iterationflag;
 		this.iterationID = dataStream.iterationID;
+		this.jobGraphBuilder = dataStream.jobGraphBuilder;
 	}
 
 	/**
@@ -144,7 +156,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The DataStream with mutability set.
 	 */
 	public DataStream<T> setMutability(boolean isMutable) {
-		environment.setMutability(this, isMutable);
+		jobGraphBuilder.setMutability(id, isMutable);
 		return this;
 	}
 
@@ -157,7 +169,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The DataStream with buffer timeout set.
 	 */
 	public DataStream<T> setBufferTimeout(long timeoutMillis) {
-		environment.setBufferTimeout(this, timeoutMillis);
+		jobGraphBuilder.setBufferTimeout(id, timeoutMillis);
 		return this;
 	}
 
@@ -175,10 +187,9 @@ public class DataStream<T extends Tuple> {
 		}
 		this.degreeOfParallelism = dop;
 
-		environment.setOperatorParallelism(this);
+		jobGraphBuilder.setParallelism(id, degreeOfParallelism);
 
 		return new DataStream<T>(this);
-
 	}
 
 	/**
@@ -200,13 +211,14 @@ public class DataStream<T extends Tuple> {
 	 * @return The named DataStream.
 	 */
 	public DataStream<T> name(String name) {
-		// copy?
+		// TODO copy DataStream?
 		if (name == "") {
 			throw new IllegalArgumentException("User defined name must not be empty string");
 		}
 
 		userDefinedName = name;
-		environment.setName(this, name);
+		jobGraphBuilder.setUserDefinedName(id, name);
+
 		return this;
 	}
 
@@ -236,13 +248,10 @@ public class DataStream<T extends Tuple> {
 	 *            The other DataStream will connected to this
 	 * @param stream
 	 *            This DataStream will be connected to returnStream
-	 * @return Connected DataStream
 	 */
-	private DataStream<T> addConnection(DataStream<T> returnStream, DataStream<T> stream) {
+	private void addConnection(DataStream<T> returnStream, DataStream<T> stream) {
 		returnStream.connectIDs.addAll(stream.connectIDs);
 		returnStream.partitioners.addAll(stream.partitioners);
-
-		return returnStream;
 	}
 
 	/**
@@ -256,8 +265,12 @@ public class DataStream<T extends Tuple> {
 	 * @return The directed DataStream.
 	 */
 	public DataStream<T> directTo(OutputSelector<T> outputSelector) {
-		this.outputSelector = outputSelector;
-		environment.addDirectedEmit(id, outputSelector);
+		try {
+			jobGraphBuilder.setOutputSelector(id, SerializationUtils.serialize(outputSelector));
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize OutputSelector");
+		}
+
 		return this;
 	}
 
@@ -323,10 +336,10 @@ public class DataStream<T extends Tuple> {
 		for (int i = 0; i < returnStream.partitioners.size(); i++) {
 			returnStream.partitioners.set(i, partitioner);
 		}
-		
+
 		return returnStream;
 	}
-	
+
 	/**
 	 * Applies a Map transformation on a {@link DataStream}. The transformation
 	 * calls a {@link MapFunction} for each element of the DataStream. Each
@@ -340,9 +353,8 @@ public class DataStream<T extends Tuple> {
 	 * @return The transformed DataStream.
 	 */
 	public <R extends Tuple> StreamOperator<T, R> map(MapFunction<T, R> mapper) {
-		return environment.addFunction("map", new DataStream<T>(this), mapper,
-				new MapInvokable<T, R>(mapper));
-
+		return addFunction("map", mapper, new FunctionTypeWrapper<T, Tuple, R>(mapper,
+				MapFunction.class, 0, -1, 1), new MapInvokable<T, R>(mapper));
 	}
 
 	/**
@@ -362,8 +374,10 @@ public class DataStream<T extends Tuple> {
 	 */
 	public <T2 extends Tuple, R extends Tuple> DataStream<R> coMapWith(
 			CoMapFunction<T, T2, R> coMapper, DataStream<T2> otherStream) {
-		return environment.addCoFunction("coMap", new DataStream<T>(this), new DataStream<T2>(
-				otherStream), coMapper, new CoMapInvokable<T, T2, R>(coMapper));
+		return addCoFunction("coMap", new DataStream<T>(this), new DataStream<T2>(otherStream),
+				coMapper,
+				new FunctionTypeWrapper<T, T2, R>(coMapper, CoMapFunction.class, 0, 1, 2),
+				new CoMapInvokable<T, T2, R>(coMapper));
 	}
 
 	/**
@@ -381,8 +395,8 @@ public class DataStream<T extends Tuple> {
 	 * @return The transformed DataStream.
 	 */
 	public <R extends Tuple> StreamOperator<T, R> flatMap(FlatMapFunction<T, R> flatMapper) {
-		return environment.addFunction("flatMap", new DataStream<T>(this), flatMapper,
-				new FlatMapInvokable<T, R>(flatMapper));
+		return addFunction("flatMap", flatMapper, new FunctionTypeWrapper<T, Tuple, R>(flatMapper,
+				FlatMapFunction.class, 0, -1, 1), new FlatMapInvokable<T, R>(flatMapper));
 	}
 
 	/**
@@ -397,8 +411,8 @@ public class DataStream<T extends Tuple> {
 	 * @return The filtered DataStream.
 	 */
 	public StreamOperator<T, T> filter(FilterFunction<T> filter) {
-		return environment.addFunction("filter", new DataStream<T>(this), filter,
-				new FilterInvokable<T>(filter));
+		return addFunction("filter", filter, new FunctionTypeWrapper<T, Tuple, T>(filter,
+				FilterFunction.class, 0, -1, 0), new FilterInvokable<T>(filter));
 	}
 
 	/**
@@ -418,8 +432,9 @@ public class DataStream<T extends Tuple> {
 	 */
 	public <R extends Tuple> StreamOperator<T, R> batchReduce(GroupReduceFunction<T, R> reducer,
 			int batchSize) {
-		return environment.addFunction("batchReduce", new DataStream<T>(this), reducer,
-				new BatchReduceInvokable<T, R>(reducer, batchSize));
+		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<T, Tuple, R>(reducer,
+				GroupReduceFunction.class, 0, -1, 1), new BatchReduceInvokable<T, R>(reducer,
+				batchSize));
 	}
 
 	/**
@@ -440,8 +455,93 @@ public class DataStream<T extends Tuple> {
 	 */
 	public <R extends Tuple> StreamOperator<T, R> windowReduce(GroupReduceFunction<T, R> reducer,
 			long windowSize) {
-		return environment.addFunction("batchReduce", new DataStream<T>(this), reducer,
-				new WindowReduceInvokable<T, R>(reducer, windowSize));
+		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<T, Tuple, R>(reducer,
+				GroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<T, R>(reducer,
+				windowSize));
+	}
+
+	/**
+	 * Internal function for passing the user defined functions to the JobGraph
+	 * of the job.
+	 * 
+	 * @param functionName
+	 *            name of the function
+	 * @param function
+	 *            the user defined function
+	 * @param functionInvokable
+	 *            the wrapping JobVertex instance
+	 * @param <T>
+	 *            type of the input stream
+	 * @param <R>
+	 *            type of the return stream
+	 * @return the data stream constructed
+	 */
+	private <R extends Tuple> StreamOperator<T, R> addFunction(String functionName,
+			final AbstractFunction function, TypeSerializerWrapper<T, Tuple, R> typeWrapper,
+			UserTaskInvokable<T, R> functionInvokable) {
+
+		DataStream<T> inputStream = new DataStream<T>(this);
+		StreamOperator<T, R> returnStream = new StreamOperator<T, R>(environment, functionName);
+
+		try {
+			jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, typeWrapper,
+					functionName, SerializationUtils.serialize(function), degreeOfParallelism);
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize user defined function");
+		}
+
+		connectGraph(inputStream, returnStream.getId(), 0);
+
+		if (inputStream.iterationflag) {
+			returnStream.addIterationSource(inputStream.iterationID.toString());
+			inputStream.iterationflag = false;
+		}
+
+		return returnStream;
+	}
+
+	protected <T1 extends Tuple, T2 extends Tuple, R extends Tuple> DataStream<R> addCoFunction(
+			String functionName, DataStream<T1> inputStream1, DataStream<T2> inputStream2,
+			final AbstractFunction function, TypeSerializerWrapper<T1, T2, R> typeWrapper,
+			CoInvokable<T1, T2, R> functionInvokable) {
+
+		DataStream<R> returnStream = new DataStream<R>(environment, functionName);
+
+		try {
+			jobGraphBuilder.addCoTask(returnStream.getId(), functionInvokable, typeWrapper,
+					functionName, SerializationUtils.serialize(function), degreeOfParallelism);
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize user defined function");
+		}
+
+		connectGraph(inputStream1, returnStream.getId(), 1);
+		connectGraph(inputStream2, returnStream.getId(), 2);
+
+		// TODO consider iteration
+
+		return returnStream;
+	}
+
+	/**
+	 * Internal function for assembling the underlying
+	 * {@link org.apache.flink.nephele.jobgraph.JobGraph} of the job. Connects
+	 * the outputs of the given input stream to the specified output stream
+	 * given by the outputID.
+	 * 
+	 * @param inputStream
+	 *            input data stream
+	 * @param outputID
+	 *            ID of the output
+	 * @param typeNumber
+	 *            Number of the type (used at co-functions)
+	 */
+	<X extends Tuple> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
+		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
+			String inputID = inputStream.connectIDs.get(i);
+			StreamPartitioner<X> partitioner = inputStream.partitioners.get(i);
+
+			jobGraphBuilder.setEdge(inputID, outputID, partitioner, typeNumber);
+		}
 	}
 
 	/**
@@ -454,7 +554,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The modified DataStream.
 	 */
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
-		return environment.addSink(new DataStream<T>(this), sinkFunction);
+		return addSink(new DataStream<T>(this), sinkFunction);
 	}
 
 	/**
@@ -465,7 +565,35 @@ public class DataStream<T extends Tuple> {
 	 * @return The closed DataStream.
 	 */
 	public DataStream<T> print() {
-		return environment.print(new DataStream<T>(this));
+		DataStream<T> inputStream = new DataStream<T>(this);
+		PrintSinkFunction<T> printFunction = new PrintSinkFunction<T>();
+		DataStream<T> returnStream = addSink(inputStream, printFunction, null);
+
+		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+
+		return returnStream;
+	}
+
+	private DataStream<T> addSink(DataStream<T> inputStream, SinkFunction<T> sinkFunction) {
+		return addSink(inputStream, sinkFunction, new FunctionTypeWrapper<T, Tuple, T>(
+				sinkFunction, SinkFunction.class, 0, -1, 0));
+	}
+
+	private DataStream<T> addSink(DataStream<T> inputStream, SinkFunction<T> sinkFunction,
+			TypeSerializerWrapper<T, Tuple, T> typeWrapper) {
+		DataStream<T> returnStream = new DataStream<T>(environment, "sink");
+
+		try {
+			jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction),
+					typeWrapper, "sink", SerializationUtils.serialize(sinkFunction),
+					degreeOfParallelism);
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize SinkFunction");
+		}
+
+		inputStream.connectGraph(inputStream, returnStream.getId(), 0);
+
+		return returnStream;
 	}
 
 	/**
@@ -479,7 +607,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsText(String path) {
-		environment.writeAsText(this, path, new WriteFormatAsText<T>(), 1, null);
+		writeAsText(this, path, new WriteFormatAsText<T>(), 1, null);
 		return new DataStream<T>(this);
 	}
 
@@ -497,7 +625,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsText(String path, long millis) {
-		environment.writeAsText(this, path, new WriteFormatAsText<T>(), millis, null);
+		writeAsText(this, path, new WriteFormatAsText<T>(), millis, null);
 		return new DataStream<T>(this);
 	}
 
@@ -516,7 +644,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsText(String path, int batchSize) {
-		environment.writeAsText(this, path, new WriteFormatAsText<T>(), batchSize, null);
+		writeAsText(this, path, new WriteFormatAsText<T>(), batchSize, null);
 		return new DataStream<T>(this);
 	}
 
@@ -539,7 +667,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsText(String path, long millis, T endTuple) {
-		environment.writeAsText(this, path, new WriteFormatAsText<T>(), millis, endTuple);
+		writeAsText(this, path, new WriteFormatAsText<T>(), millis, endTuple);
 		return new DataStream<T>(this);
 	}
 
@@ -563,8 +691,63 @@ public class DataStream<T extends Tuple> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsText(String path, int batchSize, T endTuple) {
-		environment.writeAsText(this, path, new WriteFormatAsText<T>(), batchSize, endTuple);
+		writeAsText(this, path, new WriteFormatAsText<T>(), batchSize, endTuple);
 		return new DataStream<T>(this);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in text format. The
+	 * writing is performed periodically, in every millis milliseconds. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param millis
+	 *            is the file update frequency
+	 * @param endTuple
+	 *            is a special tuple indicating the end of the stream. If an
+	 *            endTuple is caught, the last pending batch of tuples will be
+	 *            immediately appended to the target file regardless of the
+	 *            system time.
+	 * 
+	 * @return the data stream constructed
+	 */
+	private DataStream<T> writeAsText(DataStream<T> inputStream, String path,
+			WriteFormatAsText<T> format, long millis, T endTuple) {
+		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<T>(path,
+				format, millis, endTuple), null);
+		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+		jobGraphBuilder.setMutability(returnStream.getId(), false);
+		return returnStream;
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in text format. The
+	 * writing is performed periodically in equally sized batches. For every
+	 * element of the DataStream the result of {@link Object#toString()} is
+	 * written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param batchSize
+	 *            is the size of the batches, i.e. the number of tuples written
+	 *            to the file at a time
+	 * @param endTuple
+	 *            is a special tuple indicating the end of the stream. If an
+	 *            endTuple is caught, the last pending batch of tuples will be
+	 *            immediately appended to the target file regardless of the
+	 *            batchSize.
+	 * 
+	 * @return the data stream constructed
+	 */
+	private DataStream<T> writeAsText(DataStream<T> inputStream, String path,
+			WriteFormatAsText<T> format, int batchSize, T endTuple) {
+		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByBatches<T>(path,
+				format, batchSize, endTuple), null);
+		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+		jobGraphBuilder.setMutability(returnStream.getId(), false);
+		return returnStream;
 	}
 
 	/**
@@ -578,7 +761,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsCsv(String path) {
-		environment.writeAsCsv(this, path, new WriteFormatAsCsv<T>(), 1, null);
+		writeAsCsv(this, path, new WriteFormatAsCsv<T>(), 1, null);
 		return new DataStream<T>(this);
 	}
 
@@ -596,7 +779,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsCsv(String path, long millis) {
-		environment.writeAsCsv(this, path, new WriteFormatAsCsv<T>(), millis, null);
+		writeAsCsv(this, path, new WriteFormatAsCsv<T>(), millis, null);
 		return new DataStream<T>(this);
 	}
 
@@ -615,7 +798,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsCsv(String path, int batchSize) {
-		environment.writeAsCsv(this, path, new WriteFormatAsCsv<T>(), batchSize, null);
+		writeAsCsv(this, path, new WriteFormatAsCsv<T>(), batchSize, null);
 		return new DataStream<T>(this);
 	}
 
@@ -638,7 +821,7 @@ public class DataStream<T extends Tuple> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsCsv(String path, long millis, T endTuple) {
-		environment.writeAsCsv(this, path, new WriteFormatAsCsv<T>(), millis, endTuple);
+		writeAsCsv(this, path, new WriteFormatAsCsv<T>(), millis, endTuple);
 		return new DataStream<T>(this);
 	}
 
@@ -663,8 +846,63 @@ public class DataStream<T extends Tuple> {
 	 */
 	public DataStream<T> writeAsCsv(String path, int batchSize, T endTuple) {
 		setMutability(false);
-		environment.writeAsCsv(this, path, new WriteFormatAsCsv<T>(), batchSize, endTuple);
+		writeAsCsv(this, path, new WriteFormatAsCsv<T>(), batchSize, endTuple);
 		return new DataStream<T>(this);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in csv format. The
+	 * writing is performed periodically, in every millis milliseconds. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param millis
+	 *            is the file update frequency
+	 * @param endTuple
+	 *            is a special tuple indicating the end of the stream. If an
+	 *            endTuple is caught, the last pending batch of tuples will be
+	 *            immediately appended to the target file regardless of the
+	 *            system time.
+	 * 
+	 * @return the data stream constructed
+	 */
+	private DataStream<T> writeAsCsv(DataStream<T> inputStream, String path,
+			WriteFormatAsCsv<T> format, long millis, T endTuple) {
+		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<T>(path,
+				format, millis, endTuple));
+		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+		jobGraphBuilder.setMutability(returnStream.getId(), false);
+		return returnStream;
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in csv format. The
+	 * writing is performed periodically in equally sized batches. For every
+	 * element of the DataStream the result of {@link Object#toString()} is
+	 * written.
+	 * 
+	 * @param path
+	 *            is the path to the location where the tuples are written
+	 * @param batchSize
+	 *            is the size of the batches, i.e. the number of tuples written
+	 *            to the file at a time
+	 * @param endTuple
+	 *            is a special tuple indicating the end of the stream. If an
+	 *            endTuple is caught, the last pending batch of tuples will be
+	 *            immediately appended to the target file regardless of the
+	 *            batchSize.
+	 * 
+	 * @return the data stream constructed
+	 */
+	private DataStream<T> writeAsCsv(DataStream<T> inputStream, String path,
+			WriteFormatAsCsv<T> format, int batchSize, T endTuple) {
+		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByBatches<T>(path,
+				format, batchSize, endTuple), null);
+		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+		jobGraphBuilder.setMutability(returnStream.getId(), false);
+		return returnStream;
 	}
 
 	/**
@@ -688,9 +926,12 @@ public class DataStream<T extends Tuple> {
 		return new IterativeDataStream<T>(this);
 	}
 
-	protected DataStream<T> addIterationSource(String iterationID) {
-		environment.addIterationSource(this, iterationID);
+	protected <R extends Tuple> DataStream<T> addIterationSource(String iterationID) {
+		DataStream<R> returnStream = new DataStream<R>(environment, "iterationSource");
+
+		jobGraphBuilder.addIterationSource(returnStream.getId(), this.getId(), iterationID,
+				degreeOfParallelism);
+
 		return new DataStream<T>(this);
 	}
-
 }

@@ -27,7 +27,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 public abstract class CoInvokable<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tuple> extends
-		StreamComponentInvokable {
+		StreamComponentInvokable<OUT> {
 
 	private static final long serialVersionUID = 1L;
 

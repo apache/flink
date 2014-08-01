@@ -28,14 +28,14 @@ import org.apache.flink.util.Collector;
 
 public class FileSourceFunction extends SourceFunction<Tuple1<String>> {
 	private static final long serialVersionUID = 1L;
-	
+
 	private final String path;
 	private Tuple1<String> outTuple = new Tuple1<String>();
-	
+
 	public FileSourceFunction(String path) {
 		this.path = path;
 	}
-	
+
 	@Override
 	public void invoke(Collector<Tuple1<String>> collector) throws IOException {
 		BufferedReader br = new BufferedReader(new FileReader(path));

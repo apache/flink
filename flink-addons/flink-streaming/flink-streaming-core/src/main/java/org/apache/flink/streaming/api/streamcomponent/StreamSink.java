@@ -28,10 +28,10 @@ public class StreamSink<IN extends Tuple> extends SingleInputAbstractStreamCompo
 
 	private static final Log LOG = LogFactory.getLog(StreamSink.class);
 
-	private StreamRecordInvokable<IN, IN> userFunction;
+	private StreamRecordInvokable<IN, IN> userInvokable;
 
 	public StreamSink() {
-		userFunction = null;
+		userInvokable = null;
 	}
 
 	@Override
@@ -39,18 +39,18 @@ public class StreamSink<IN extends Tuple> extends SingleInputAbstractStreamCompo
 		try {
 			setConfigInputs();
 			setSinkSerializer();
-			
+
 			inputIter = createInputIterator(inputs, inTupleSerializer);
 		} catch (Exception e) {
 			throw new StreamComponentException("Cannot register inputs for "
 					+ getClass().getSimpleName(), e);
 		}
 	}
-	
+
 	@Override
-	protected void setInvokable() {		
-		userFunction = getInvokable();
-		userFunction.initialize(collector, inputIter, inTupleSerializer, isMutable);
+	protected void setInvokable() {
+		userInvokable = getInvokable();
+		userInvokable.initialize(collector, inputIter, inTupleSerializer, isMutable);
 	}
 
 	@Override
@@ -59,7 +59,7 @@ public class StreamSink<IN extends Tuple> extends SingleInputAbstractStreamCompo
 			LOG.debug("SINK " + name + " invoked");
 		}
 
-		userFunction.invoke();
+		userInvokable.invoke();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("SINK " + name + " invoke finished");

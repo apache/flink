@@ -36,29 +36,28 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
 	private static final Log LOG = LogFactory.getLog(StreamTask.class);
 
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
-	private StreamRecordInvokable<IN, OUT> userFunction;
+	private StreamRecordInvokable<IN, OUT> userInvokable;
 	private static int numTasks;
 
 	public StreamTask() {
 		outputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
-		userFunction = null;
+		userInvokable = null;
 		numTasks = newComponent();
 		instanceID = numTasks;
 	}
-	
+
 	@Override
 	public void setInputsOutputs() {
 		setConfigInputs();
 		setConfigOutputs(outputs);
 
-		inputIter = createInputIterator(inputs, inTupleSerializer);		
+		inputIter = createInputIterator(inputs, inTupleSerializer);
 	}
-	
+
 	@Override
 	protected void setInvokable() {
-		// Default value is a TaskInvokable even if it was called from a source
-		userFunction = getInvokable();
-		userFunction.initialize(collector, inputIter, inTupleSerializer, isMutable);
+		userInvokable = getInvokable();
+		userInvokable.initialize(collector, inputIter, inTupleSerializer, isMutable);
 	}
 
 	@Override
@@ -71,7 +70,7 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
 			output.initializeSerializers();
 		}
 
-		userFunction.invoke();
+		userInvokable.invoke();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("TASK " + name + " invoke finished with instance id " + instanceID);
