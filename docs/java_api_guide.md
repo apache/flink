@@ -426,7 +426,7 @@ fields of the Tuple:
 {% highlight java %}
 DataSet<Tuple3<Integer,String,Long>> input = // [...]
 DataSet<Tuple3<Integer,String,Long> grouped = input
-	.groupBy(1)
+	.groupBy(0)
 	.reduceGroup(/*do something*/);
 {% endhighlight %}
 
@@ -559,11 +559,11 @@ data.map (new RichMapFunction<String, Integer>() {
 {% endhighlight %}
 
 Rich functions provide, in addition to the user-defined function (map,
-reduce, etc), four methods: `open`, `close`, `getRuntimeContext`,
-`getIterationRuntimeContext`, and `setRuntimeContext`. These are
-useful for creating and finalizing local state, accessing broadcast
-variables (see [Broadcast Variables](#broadcast_variables), and for
-accessing runtime information such as accumulators and counters (see
+reduce, etc), four methods: `open`, `close`, `getRuntimeContext`, and
+`setRuntimeContext`. These are useful for creating and finalizing
+local state, accessing broadcast variables (see
+[Broadcast Variables](#broadcast_variables), and for accessing runtime
+information such as accumulators and counters (see
 [Accumulators and Counters](#accumulators_counters), and information
 on iterations (see [Iterations](#iterations)).
 

@@ -439,18 +439,16 @@ DataSet<Tuple2<String, Double>>
 
 Analogous to Map and FlatMap, a FlatJoin function behaves in the same
 way as a JoinFunction, but instead of returning one element, it can
-return (collect), zero, one, or more elements
-
+return (collect), zero, one, or more elements.
 {% highlight java %}
 public class PointWeighter
          implements FlatJoinFunction<Rating, Tuple2<String, Double>, Tuple2<String, Double>> {
-
   @Override
   public void join(Rating rating, Tuple2<String, Double> weight,
-
 	  Collector<Tuple2<String, Double>> out) {
-	if (weight.f1 > 0.1)
+	if (weight.f1 > 0.1) {
 		out.collect(new Tuple2<String, Double>(rating.name, rating.points * weight.f1));
+	}
   }
 }
 
