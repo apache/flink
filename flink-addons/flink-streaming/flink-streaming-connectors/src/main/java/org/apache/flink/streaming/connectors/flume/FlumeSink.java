@@ -21,21 +21,22 @@ package org.apache.flink.streaming.connectors.flume;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.streaming.api.DataStream;
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.streaming.connectors.rabbitmq.RMQSource;
 import org.apache.flume.Event;
 import org.apache.flume.EventDeliveryException;
 import org.apache.flume.FlumeException;
 import org.apache.flume.api.RpcClient;
 import org.apache.flume.api.RpcClientFactory;
 import org.apache.flume.event.EventBuilder;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.connectors.rabbitmq.RMQSource;
 
 public abstract class FlumeSink<IN extends Tuple> extends SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Log LOG = LogFactory.getLog(RMQSource.class);
-	
+
 	private transient FlinkRpcClientFacade client;
 	boolean initDone = false;
 	String host;
@@ -48,6 +49,13 @@ public abstract class FlumeSink<IN extends Tuple> extends SinkFunction<IN> {
 		this.port = port;
 	}
 
+	/**
+	 * Receives tuples from the Apache Flink {@link DataStream} and forwards them to
+	 * Apache Flume.
+	 * 
+	 * @param tuple
+	 *            The tuple arriving from the datastream
+	 */
 	@Override
 	public void invoke(IN tuple) {
 
@@ -66,6 +74,13 @@ public abstract class FlumeSink<IN extends Tuple> extends SinkFunction<IN> {
 
 	}
 
+	/**
+	 * Serializes tuples into byte arrays.
+	 * 
+	 * @param tuple
+	 *            The tuple used for the serialization
+	 * @return The serialized byte array.
+	 */
 	public abstract byte[] serialize(IN tuple);
 
 	private class FlinkRpcClientFacade {
@@ -73,6 +88,14 @@ public abstract class FlumeSink<IN extends Tuple> extends SinkFunction<IN> {
 		private String hostname;
 		private int port;
 
+		/**
+		 * Initializes the connection to Apache Flume.
+		 * 
+		 * @param hostname
+		 *            The host
+		 * @param port
+		 *            The port.
+		 */
 		public void init(String hostname, int port) {
 			// Setup the RPC connection
 			this.hostname = hostname;
@@ -80,12 +103,13 @@ public abstract class FlumeSink<IN extends Tuple> extends SinkFunction<IN> {
 			int initCounter = 0;
 			while (true) {
 				if (initCounter >= 90) {
-					System.exit(1);
+					new RuntimeException("Cannot establish connection with" + port + " at " + host);
 				}
 				try {
 					this.client = RpcClientFactory.getDefaultInstance(hostname, port);
 				} catch (FlumeException e) {
-					// Wait one second if the connection failed before the next try
+					// Wait one second if the connection failed before the next
+					// try
 					try {
 						Thread.sleep(1000);
 					} catch (InterruptedException e1) {
@@ -102,6 +126,12 @@ public abstract class FlumeSink<IN extends Tuple> extends SinkFunction<IN> {
 			initDone = true;
 		}
 
+		/**
+		 * Sends byte arrays as {@link Event} series to Apache Flume.
+		 * 
+		 * @param data
+		 *            The byte array to send to Apache FLume
+		 */
 		public void sendDataToFlume(byte[] data) {
 			Event event = EventBuilder.withBody(data);
 
@@ -116,16 +146,25 @@ public abstract class FlumeSink<IN extends Tuple> extends SinkFunction<IN> {
 			}
 		}
 
+		/**
+		 * Closes the RpcClient.
+		 */
 		public void close() {
 			client.close();
 		}
 
 	}
 
+	/**
+	 * Closes the connection only when the next message is sent after this call.
+	 */
 	public void sendAndClose() {
 		sendAndClose = true;
 	}
 
+	/**
+	 * Closes the connection immediately and no further data will be sent.
+	 */
 	public void closeWithoutSend() {
 		client.close();
 		closeWithoutSend = true;

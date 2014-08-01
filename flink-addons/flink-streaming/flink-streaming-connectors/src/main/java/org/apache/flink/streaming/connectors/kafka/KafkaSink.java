@@ -45,6 +45,9 @@ public abstract class KafkaSink<IN extends Tuple, OUT> extends SinkFunction<IN> 
 
 	}
 
+	/**
+	 * Initializes the connection to Kafka.
+	 */
 	public void initialize() {
 		props = new Properties();
 
@@ -57,6 +60,12 @@ public abstract class KafkaSink<IN extends Tuple, OUT> extends SinkFunction<IN> 
 		initDone = true;
 	}
 
+	/**
+	 * Called when new data arrives to the sink, and forwards it to Kafka.
+	 * 
+	 * @param tuple
+	 *            The incoming data
+	 */
 	@Override
 	public void invoke(IN tuple) {
 		if (!initDone) {
@@ -75,13 +84,26 @@ public abstract class KafkaSink<IN extends Tuple, OUT> extends SinkFunction<IN> 
 		}
 	}
 
+	/**
+	 * Serializes tuples into byte arrays.
+	 * 
+	 * @param tuple
+	 *            The tuple used for the serialization
+	 * @return The serialized byte array.
+	 */
 	public abstract OUT serialize(IN tuple);
 
+	/**
+	 * Closes the connection immediately and no further data will be sent.
+	 */
 	public void closeWithoutSend() {
 		producer.close();
 		closeWithoutSend = true;
 	}
 
+	/**
+	 * Closes the connection only when the next message is sent after this call.
+	 */
 	public void sendAndClose() {
 		sendAndClose = true;
 	}

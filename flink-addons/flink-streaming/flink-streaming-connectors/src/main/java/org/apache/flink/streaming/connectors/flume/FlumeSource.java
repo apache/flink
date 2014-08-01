@@ -26,8 +26,8 @@ import org.apache.flume.channel.ChannelProcessor;
 import org.apache.flume.source.AvroSource;
 import org.apache.flume.source.avro.AvroFlumeEvent;
 import org.apache.flume.source.avro.Status;
-
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
@@ -45,12 +45,28 @@ public abstract class FlumeSource<IN extends Tuple> extends SourceFunction<IN> {
 	public class MyAvroSource extends AvroSource {
 		Collector<IN> collector;
 
+		/**
+		 * Sends the AvroFlumeEvent from it's argument list to the Apache Flink
+		 * {@link DataStream}.
+		 * 
+		 * @param avroEvent
+		 *            The event that should be sent to the dataStream
+		 * @return A {@link Status}.OK message if sending the event was successful.
+		 */
 		@Override
 		public Status append(AvroFlumeEvent avroEvent) {
 			collect(avroEvent);
 			return Status.OK;
 		}
 
+		/**
+		 * Sends the AvroFlumeEvents from it's argument list to the Apache Flink
+		 * {@link DataStream}.
+		 * 
+		 * @param events
+		 *            The events that is sent to the dataStream
+		 * @return A Status.OK message if sending the events was successful.
+		 */
 		@Override
 		public Status appendBatch(List<AvroFlumeEvent> events) {
 			for (AvroFlumeEvent avroEvent : events) {
@@ -60,6 +76,13 @@ public abstract class FlumeSource<IN extends Tuple> extends SourceFunction<IN> {
 			return Status.OK;
 		}
 
+		/**
+		 * Deserializes the AvroFlumeEvent before sending it to the Apache Flink
+		 * {@link DataStream}.
+		 * 
+		 * @param avroEvent
+		 *            The event that is sent to the dataStream
+		 */
 		private void collect(AvroFlumeEvent avroEvent) {
 			byte[] b = avroEvent.getBody().array();
 			IN tuple = FlumeSource.this.deserialize(b);
@@ -78,8 +101,22 @@ public abstract class FlumeSource<IN extends Tuple> extends SourceFunction<IN> {
 	private boolean sendAndClose = false;
 	private volatile boolean sendDone = false;
 
-	public abstract IN deserialize(byte[] msg);
+	/**
+	 * Deserializes the incoming data.
+	 * 
+	 * @param message
+	 *            The incoming message in a byte array
+	 * @return The deserialized message in the required format.
+	 */
+	public abstract IN deserialize(byte[] message);
 
+	/**
+	 * Configures the AvroSource. Also sets the collector so the application can
+	 * use it from outside of the invoke function.
+	 * 
+	 * @param collector
+	 *            The collector used in the invoke function
+	 */
 	public void configureAvroSource(Collector<IN> collector) {
 
 		avroSource = new MyAvroSource();
@@ -88,10 +125,18 @@ public abstract class FlumeSource<IN extends Tuple> extends SourceFunction<IN> {
 		context.put("port", port);
 		context.put("bind", host);
 		avroSource.configure(context);
+		// An instance of a ChannelProcessor is required for configuring the
+		// avroSource although it will not be used in this case.
 		ChannelProcessor cp = new ChannelProcessor(null);
 		avroSource.setChannelProcessor(cp);
 	}
 
+	/**
+	 * Configures the AvroSource and runs until the user calls a close function.
+	 * 
+	 * @param collector
+	 *            The Collector for sending data to the datastream
+	 */
 	@Override
 	public void invoke(Collector<IN> collector) throws Exception {
 		configureAvroSource(collector);
@@ -104,10 +149,16 @@ public abstract class FlumeSource<IN extends Tuple> extends SourceFunction<IN> {
 		avroSource.stop();
 	}
 
+	/**
+	 * Closes the connection only when the next message is sent after this call.
+	 */
 	public void sendAndClose() {
 		sendAndClose = true;
 	}
 
+	/**
+	 * Closes the connection immediately and no further data will be sent.
+	 */
 	public void closeWithoutSend() {
 		closeWithoutSend = true;
 	}

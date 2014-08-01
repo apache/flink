@@ -50,6 +50,9 @@ public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 		this.QUEUE_NAME = QUEUE_NAME;
 	}
 
+	/**
+	 * Initializes the connection to RMQ.
+	 */
 	public void initializeConnection() {
 		factory = new ConnectionFactory();
 		factory.setHost(HOST_NAME);
@@ -64,6 +67,12 @@ public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 		initDone = true;
 	}
 
+	/**
+	 * Called when new data arrives to the sink, and forwards it to RMQ.
+	 * 
+	 * @param tuple
+	 *            The incoming data
+	 */
 	@Override
 	public void invoke(IN tuple) {
 		if (!initDone) {
@@ -87,8 +96,18 @@ public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 		}
 	}
 
-	public abstract byte[] serialize(Tuple t);
+	/**
+	 * Serializes tuples into byte arrays.
+	 * 
+	 * @param tuple
+	 *            The tuple used for the serialization
+	 * @return The serialized byte array.
+	 */
+	public abstract byte[] serialize(Tuple tuple);
 
+	/**
+	 * Closes the connection.
+	 */
 	private void closeChannel() {
 		try {
 			channel.close();
@@ -100,11 +119,17 @@ public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 
 	}
 
+	/**
+	 * Closes the connection immediately and no further data will be sent.
+	 */
 	public void closeWithoutSend() {
 		closeChannel();
 		closeWithoutSend = true;
 	}
 
+	/**
+	 * Closes the connection only when the next message is sent after this call.
+	 */
 	public void sendAndClose() {
 		sendAndClose = true;
 	}

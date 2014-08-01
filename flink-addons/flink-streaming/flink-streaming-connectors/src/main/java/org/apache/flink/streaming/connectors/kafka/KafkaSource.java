@@ -28,14 +28,12 @@ import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
+
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
-/**
- * Source for reading messages from a Kafka queue. The source currently only
- * support string messages.
- */
 public abstract class KafkaSource<IN extends Tuple> extends SourceFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
@@ -49,14 +47,16 @@ public abstract class KafkaSource<IN extends Tuple> extends SourceFunction<IN> {
 
 	IN outTuple;
 
-	public KafkaSource(String zkQuorum, String groupId, String topicId,
-			int numThreads) {
+	public KafkaSource(String zkQuorum, String groupId, String topicId, int numThreads) {
 		this.zkQuorum = zkQuorum;
 		this.groupId = groupId;
 		this.topicId = topicId;
 		this.numThreads = numThreads;
 	}
 
+	/**
+	 * Initializes the connection to Kafka.
+	 */
 	private void initializeConnection() {
 		Properties props = new Properties();
 		props.put("zookeeper.connect", zkQuorum);
@@ -64,10 +64,15 @@ public abstract class KafkaSource<IN extends Tuple> extends SourceFunction<IN> {
 		props.put("zookeeper.session.timeout.ms", "400");
 		props.put("zookeeper.sync.time.ms", "200");
 		props.put("auto.commit.interval.ms", "1000");
-		consumer = kafka.consumer.Consumer
-				.createJavaConsumerConnector(new ConsumerConfig(props));
+		consumer = kafka.consumer.Consumer.createJavaConsumerConnector(new ConsumerConfig(props));
 	}
 
+	/**
+	 * Called to forward the data from the source to the {@link DataStream}.
+	 * 
+	 * @param collector
+	 *            The Collector for sending data to the dataStream
+	 */
 	@Override
 	public void invoke(Collector<IN> collector) throws Exception {
 		initializeConnection();
@@ -92,12 +97,25 @@ public abstract class KafkaSource<IN extends Tuple> extends SourceFunction<IN> {
 		consumer.shutdown();
 	}
 
-	public abstract IN deserialize(byte[] msg);
+	/**
+	 * Deserializes the incoming data.
+	 * 
+	 * @param message
+	 *            The incoming message in a byte array
+	 * @return The deserialized message in the required format.
+	 */
+	public abstract IN deserialize(byte[] message);
 
+	/**
+	 * Closes the connection immediately and no further data will be sent.
+	 */
 	public void closeWithoutSend() {
 		closeWithoutSend = true;
 	}
 
+	/**
+	 * Closes the connection only when the next message is sent after this call.
+	 */
 	public void sendAndClose() {
 		sendAndClose = true;
 	}
