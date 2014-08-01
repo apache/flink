@@ -30,6 +30,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
@@ -56,6 +57,9 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 		this.QUEUE_NAME = QUEUE_NAME;
 	}
 
+	/**
+	 * Initializes the connection to RMQ.
+	 */
 	private void initializeConnection() {
 		factory = new ConnectionFactory();
 		factory.setHost(HOST_NAME);
@@ -71,6 +75,12 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 		}
 	}
 
+	/**
+	 * Called to forward the data from the source to the {@link DataStream}.
+	 * 
+	 * @param collector
+	 *            The Collector for sending data to the dataStream
+	 */
 	@Override
 	public void invoke(Collector<IN> collector) throws Exception {
 		initializeConnection();
@@ -105,12 +115,25 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 
 	}
 
-	public abstract IN deserialize(byte[] t);
+	/**
+	 * Deserializes the incoming data.
+	 * 
+	 * @param message
+	 *            The incoming message in a byte array
+	 * @return The deserialized message in the required format.
+	 */
+	public abstract IN deserialize(byte[] message);
 
+	/**
+	 * Closes the connection immediately and no further data will be sent.
+	 */
 	public void closeWithoutSend() {
 		closeWithoutSend = true;
 	}
 
+	/**
+	 * Closes the connection only when the next message is sent after this call.
+	 */
 	public void sendAndClose() {
 		sendAndClose = true;
 	}

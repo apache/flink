@@ -39,7 +39,7 @@ public class FlumeTopology {
 				try {
 					sendAndClose();
 				} catch (Exception e) {
-					new RuntimeException("Error while closing RMQ connection with " + port + " at "
+					new RuntimeException("Error while closing Flume connection with " + port + " at "
 							+ host, e);
 				}
 			}
