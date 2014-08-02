@@ -16,6 +16,11 @@
  * limitations under the License.
  */
 
+/*
+ * NOTE: The code in this file is based on code from the Apache Spark
+ * project, licensed under the Apache License v 2.0
+ */
+
 package org.apache.flink.api.scala.operators
 
 import java.lang.reflect.Field

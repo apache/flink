@@ -46,20 +46,20 @@ function getVersion() {
 	  # to the script (e.g. permissions re-evaled after suid)
 	  exit 1  # fail
 	fi
-	stratosphere_home="`dirname \"$here\"`"
-	cd $stratosphere_home
+	flink_home="`dirname \"$here\"`"
+	cd $flink_home
 	echo `mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version|grep -Ev '(^\[|Download\w+:)'`
 }
 
 # this will take a while
-CURRENT_STRATOSPHERE_VERSION=`getVersion`
-if [[ "$CURRENT_STRATOSPHERE_VERSION" == *-SNAPSHOT ]]; then
-	CURRENT_STRATOSPHERE_VERSION_YARN=${CURRENT_STRATOSPHERE_VERSION/-SNAPSHOT/-hadoop2-SNAPSHOT}
+CURRENT_FLINK_VERSION=`getVersion`
+if [[ "$CURRENT_FLINK_VERSION" == *-SNAPSHOT ]]; then
+	CURRENT_FLINK_VERSION_YARN=${CURRENT_FLINK_VERSION/-SNAPSHOT/-hadoop2-SNAPSHOT}
 else
-	CURRENT_STRATOSPHERE_VERSION_YARN="$CURRENT_STRATOSPHERE_VERSION-hadoop2"
+	CURRENT_FLINK_VERSION_YARN="$CURRENT_FLINK_VERSION-hadoop2"
 fi
 
-echo "detected current version as: '$CURRENT_STRATOSPHERE_VERSION' ; yarn: $CURRENT_STRATOSPHERE_VERSION_YARN "
+echo "detected current version as: '$CURRENT_FLINK_VERSION' ; yarn: $CURRENT_FLINK_VERSION_YARN "
 
 # Check if push/commit is eligible for pushing
 echo "Job: $TRAVIS_JOB_NUMBER ; isPR: $TRAVIS_PULL_REQUEST"
@@ -70,24 +70,24 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 	# It will deploy both a hadoop v1 and a hadoop v2 (yarn) artifact
 	# 
 
-	if [[ $TRAVIS_JOB_NUMBER == *1 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_STRATOSPHERE_VERSION == *SNAPSHOT* ]] ; then 
+	if [[ $TRAVIS_JOB_NUMBER == *1 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
 		# Deploy regular hadoop v1 to maven
-		mvn -DskipTests deploy --settings deploysettings.xml; 
+		mvn -DskipTests -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
 	fi
 
-	if [[ $TRAVIS_JOB_NUMBER == *4 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_STRATOSPHERE_VERSION == *SNAPSHOT* ]] ; then 
+	if [[ $TRAVIS_JOB_NUMBER == *4 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
 		# deploy hadoop v2 (yarn)
 		echo "Generating poms for hadoop-yarn."
-		./tools/generate_specific_pom.sh $CURRENT_STRATOSPHERE_VERSION $CURRENT_STRATOSPHERE_VERSION_YARN
+		./tools/generate_specific_pom.sh $CURRENT_FLINK_VERSION $CURRENT_FLINK_VERSION_YARN
 		# all these tweaks assume a yarn build.
 		# performance tweaks here: no "clean deploy" so that actually nothing is being rebuild (could cause wrong poms inside the jars?)
 		# skip tests (they were running already)
 		# skip javadocs generation (already generated)
-		mvn -B -f pom.hadoop2.xml -DskipTests -Dmaven.javadoc.skip=true deploy --settings deploysettings.xml; 
+		mvn -B -f pom.hadoop2.xml -DskipTests -Drat.ignoreErrors=true -Dmaven.javadoc.skip=true deploy --settings deploysettings.xml; 
 	fi
 
-	if [[ $TRAVIS_JOB_NUMBER == *5 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_STRATOSPHERE_VERSION == *SNAPSHOT* ]] ; then 
-		cd stratosphere-java
+	if [[ $TRAVIS_JOB_NUMBER == *5 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
+		cd flink-java
 		mvn javadoc:javadoc
 		cd target
 		cd apidocs
@@ -118,19 +118,19 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 	if [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then 
 		#generate yarn poms & build for yarn.
 		# it is not required to generate poms for this build.
-		#./tools/generate_specific_pom.sh $CURRENT_STRATOSPHERE_VERSION $CURRENT_STRATOSPHERE_VERSION_YARN pom.xml
+		#./tools/generate_specific_pom.sh $CURRENT_FLINK_VERSION $CURRENT_FLINK_VERSION_YARN pom.xml
 		#mvn -B -DskipTests clean install
-		CURRENT_STRATOSPHERE_VERSION=$CURRENT_STRATOSPHERE_VERSION_YARN
-		YARN_ARCHIVE="stratosphere-dist/target/*yarn.tar.gz"
+		CURRENT_FLINK_VERSION=$CURRENT_FLINK_VERSION_YARN
+		YARN_ARCHIVE="flink-dist/target/*yarn.tar.gz"
 	fi
 	if [[ $TRAVIS_JOB_NUMBER == *3 ]] || [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then 
-	#	cd stratosphere-dist
+	#	cd flink-dist
 	#	mvn -B -DskipTests -Pdebian-package package
 	#	cd ..
 		echo "Uploading build to amazon s3. Job Number: $TRAVIS_JOB_NUMBER"
-		mkdir stratosphere
-		cp -r stratosphere-dist/target/stratosphere-dist-*-bin/stratosphere*/* stratosphere/
-		tar -czf stratosphere-$CURRENT_STRATOSPHERE_VERSION.tgz stratosphere
+		mkdir flink
+		cp -r flink-dist/target/flink-dist-*-bin/flink*/* flink/
+		tar -czf flink-$CURRENT_FLINK_VERSION.tgz flink
 		
 		# upload the two in parallel
 		if [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then
@@ -138,7 +138,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 			mv $YARN_ARCHIVE .
 			travis-artifacts upload --path *yarn.tar.gz --target-path / 
 		fi
-		travis-artifacts upload --path stratosphere-$CURRENT_STRATOSPHERE_VERSION.tgz   --target-path / 
+		travis-artifacts upload --path flink-$CURRENT_FLINK_VERSION.tgz   --target-path / 
 	fi
 
 fi # pull request check
