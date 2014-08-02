@@ -20,10 +20,9 @@
 package org.apache.flink.streaming.api.function.source;
 
 import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.util.Collector;
 
-public abstract class SourceFunction<OUT extends Tuple> extends AbstractFunction {
+public abstract class SourceFunction<OUT> extends AbstractFunction {
 
 	private static final long serialVersionUID = 1L;
 

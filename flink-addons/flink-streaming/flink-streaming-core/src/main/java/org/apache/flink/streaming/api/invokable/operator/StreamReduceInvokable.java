@@ -20,10 +20,9 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 
-public abstract class StreamReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
+public abstract class StreamReduceInvokable<IN, OUT> extends
 		UserTaskInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 	protected GroupReduceFunction<IN, OUT> reducer;

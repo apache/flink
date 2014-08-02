@@ -22,11 +22,9 @@ package org.apache.flink.streaming.util.serialization;
 import java.io.IOException;
 
 import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
-public class FunctionTypeWrapper<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tuple> extends
+public class FunctionTypeWrapper<IN1, IN2, OUT> extends
 		TypeSerializerWrapper<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
@@ -44,30 +42,29 @@ public class FunctionTypeWrapper<IN1 extends Tuple, IN2 extends Tuple, OUT exten
 		this.inTypeParameter1 = inTypeParameter1;
 		this.inTypeParameter2 = inTypeParameter2;
 		this.outTypeParameter = outTypeParameter;
-		setTupleTypeInfo();
+		setTypeInfo();
 	}
 
 	private void readObject(java.io.ObjectInputStream in) throws IOException,
 			ClassNotFoundException {
 		in.defaultReadObject();
-		setTupleTypeInfo();
+		setTypeInfo();
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
-	protected void setTupleTypeInfo() {
+	protected void setTypeInfo() {
 		if (inTypeParameter1 != -1) {
-			inTupleTypeInfo1 = (TupleTypeInfo) TypeExtractor.createTypeInfo(functionSuperClass,
+			inTypeInfo1 = TypeExtractor.createTypeInfo(functionSuperClass,
 					function.getClass(), inTypeParameter1, null, null);
 		}
 
 		if (inTypeParameter2 != -1) {
-			inTupleTypeInfo2 = (TupleTypeInfo) TypeExtractor.createTypeInfo(functionSuperClass,
+			inTypeInfo2 = TypeExtractor.createTypeInfo(functionSuperClass,
 					function.getClass(), inTypeParameter2, null, null);
 		}
 
 		if (outTypeParameter != -1) {
-			outTupleTypeInfo = (TupleTypeInfo) TypeExtractor.createTypeInfo(functionSuperClass,
+			outTypeInfo = TypeExtractor.createTypeInfo(functionSuperClass,
 					function.getClass(), outTypeParameter, null, null);
 		}
 	}

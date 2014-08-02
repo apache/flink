@@ -19,7 +19,6 @@
 
 package org.apache.flink.streaming.api.function.sink;
 
-import org.apache.flink.api.java.tuple.Tuple;
 
 /**
  * Dummy implementation of the SinkFunction writing every tuple to the standard
@@ -28,7 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple;
  * @param <IN>
  *            Input tuple type
  */
-public class PrintSinkFunction<IN extends Tuple> extends SinkFunction<IN> {
+public class PrintSinkFunction<IN> extends SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
 	@Override

@@ -23,9 +23,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 
-public class WindowReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
+public class WindowReduceInvokable<IN, OUT> extends
 		StreamReduceInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 	private long windowSize;
@@ -54,7 +53,7 @@ public class WindowReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
 						break;
 					}
 				}
-				tupleBatch.add(reuse.getTuple());
+				tupleBatch.add(reuse.getObject());
 				resetReuse();
 			} while (System.currentTimeMillis() - startTime < windowSize);
 			reducer.reduce(tupleBatch.iterator(), collector);
@@ -99,10 +98,10 @@ public class WindowReduceInvokable<IN extends Tuple, OUT extends Tuple> extends
 		public IN next() {
 			if (hasNext()) {
 				loadedNext = false;
-				return reuse.getTuple();
+				return reuse.getObject();
 			} else {
 				loadedNext = false;
-				return reuse.getTuple();
+				return reuse.getObject();
 			}
 		}
 

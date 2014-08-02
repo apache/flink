@@ -70,7 +70,7 @@ import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
  *            The type of the DataStream, i.e., the type of the elements of the
  *            DataStream.
  */
-public class DataStream<T extends Tuple> {
+public class DataStream<T> {
 
 	protected static Integer counter = 0;
 	protected final StreamExecutionEnvironment environment;
@@ -352,7 +352,7 @@ public class DataStream<T extends Tuple> {
 	 *            output type
 	 * @return The transformed DataStream.
 	 */
-	public <R extends Tuple> StreamOperator<T, R> map(MapFunction<T, R> mapper) {
+	public <R> StreamOperator<T, R> map(MapFunction<T, R> mapper) {
 		return addFunction("map", mapper, new FunctionTypeWrapper<T, Tuple, R>(mapper,
 				MapFunction.class, 0, -1, 1), new MapInvokable<T, R>(mapper));
 	}
@@ -372,7 +372,7 @@ public class DataStream<T extends Tuple> {
 	 *            {@link CoMapFunction#map2(Tuple)}
 	 * @return The transformed DataStream
 	 */
-	public <T2 extends Tuple, R extends Tuple> DataStream<R> coMapWith(
+	public <T2, R> DataStream<R> coMapWith(
 			CoMapFunction<T, T2, R> coMapper, DataStream<T2> otherStream) {
 		return addCoFunction("coMap", new DataStream<T>(this), new DataStream<T2>(otherStream),
 				coMapper,
@@ -394,7 +394,7 @@ public class DataStream<T extends Tuple> {
 	 *            output type
 	 * @return The transformed DataStream.
 	 */
-	public <R extends Tuple> StreamOperator<T, R> flatMap(FlatMapFunction<T, R> flatMapper) {
+	public <R> StreamOperator<T, R> flatMap(FlatMapFunction<T, R> flatMapper) {
 		return addFunction("flatMap", flatMapper, new FunctionTypeWrapper<T, Tuple, R>(flatMapper,
 				FlatMapFunction.class, 0, -1, 1), new FlatMapInvokable<T, R>(flatMapper));
 	}
@@ -430,7 +430,7 @@ public class DataStream<T extends Tuple> {
 	 *            output type
 	 * @return The modified DataStream.
 	 */
-	public <R extends Tuple> StreamOperator<T, R> batchReduce(GroupReduceFunction<T, R> reducer,
+	public <R> StreamOperator<T, R> batchReduce(GroupReduceFunction<T, R> reducer,
 			int batchSize) {
 		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<T, Tuple, R>(reducer,
 				GroupReduceFunction.class, 0, -1, 1), new BatchReduceInvokable<T, R>(reducer,
@@ -453,7 +453,7 @@ public class DataStream<T extends Tuple> {
 	 *            output type
 	 * @return The modified DataStream.
 	 */
-	public <R extends Tuple> StreamOperator<T, R> windowReduce(GroupReduceFunction<T, R> reducer,
+	public <R> StreamOperator<T, R> windowReduce(GroupReduceFunction<T, R> reducer,
 			long windowSize) {
 		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<T, Tuple, R>(reducer,
 				GroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<T, R>(reducer,
@@ -476,7 +476,7 @@ public class DataStream<T extends Tuple> {
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
-	private <R extends Tuple> StreamOperator<T, R> addFunction(String functionName,
+	private <R> StreamOperator<T, R> addFunction(String functionName,
 			final AbstractFunction function, TypeSerializerWrapper<T, Tuple, R> typeWrapper,
 			UserTaskInvokable<T, R> functionInvokable) {
 
@@ -500,7 +500,7 @@ public class DataStream<T extends Tuple> {
 		return returnStream;
 	}
 
-	protected <T1 extends Tuple, T2 extends Tuple, R extends Tuple> DataStream<R> addCoFunction(
+	protected <T1, T2, R> DataStream<R> addCoFunction(
 			String functionName, DataStream<T1> inputStream1, DataStream<T2> inputStream2,
 			final AbstractFunction function, TypeSerializerWrapper<T1, T2, R> typeWrapper,
 			CoInvokable<T1, T2, R> functionInvokable) {
@@ -535,7 +535,7 @@ public class DataStream<T extends Tuple> {
 	 * @param typeNumber
 	 *            Number of the type (used at co-functions)
 	 */
-	<X extends Tuple> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
+	<X> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
 			String inputID = inputStream.connectIDs.get(i);
 			StreamPartitioner<X> partitioner = inputStream.partitioners.get(i);
@@ -926,7 +926,7 @@ public class DataStream<T extends Tuple> {
 		return new IterativeDataStream<T>(this);
 	}
 
-	protected <R extends Tuple> DataStream<T> addIterationSource(String iterationID) {
+	protected <R> DataStream<T> addIterationSource(String iterationID) {
 		DataStream<R> returnStream = new DataStream<R>(environment, "iterationSource");
 
 		jobGraphBuilder.addIterationSource(returnStream.getId(), this.getId(), iterationID,

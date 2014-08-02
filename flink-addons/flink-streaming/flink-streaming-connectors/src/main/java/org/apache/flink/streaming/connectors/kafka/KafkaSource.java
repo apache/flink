@@ -29,12 +29,11 @@ import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
-public abstract class KafkaSource<IN extends Tuple> extends SourceFunction<IN> {
+public abstract class KafkaSource<OUT> extends SourceFunction<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private final String zkQuorum;
@@ -45,7 +44,7 @@ public abstract class KafkaSource<IN extends Tuple> extends SourceFunction<IN> {
 	private boolean closeWithoutSend = false;
 	private boolean sendAndClose = false;
 
-	IN outTuple;
+	OUT outTuple;
 
 	public KafkaSource(String zkQuorum, String groupId, String topicId, int numThreads) {
 		this.zkQuorum = zkQuorum;
@@ -74,7 +73,7 @@ public abstract class KafkaSource<IN extends Tuple> extends SourceFunction<IN> {
 	 *            The Collector for sending data to the dataStream
 	 */
 	@Override
-	public void invoke(Collector<IN> collector) throws Exception {
+	public void invoke(Collector<OUT> collector) throws Exception {
 		initializeConnection();
 
 		Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
@@ -85,7 +84,7 @@ public abstract class KafkaSource<IN extends Tuple> extends SourceFunction<IN> {
 		ConsumerIterator<byte[], byte[]> it = stream.iterator();
 
 		while (it.hasNext()) {
-			IN out = deserialize(it.next().message());
+			OUT out = deserialize(it.next().message());
 			if (closeWithoutSend) {
 				break;
 			}
@@ -104,7 +103,7 @@ public abstract class KafkaSource<IN extends Tuple> extends SourceFunction<IN> {
 	 *            The incoming message in a byte array
 	 * @return The deserialized message in the required format.
 	 */
-	public abstract IN deserialize(byte[] message);
+	public abstract OUT deserialize(byte[] message);
 
 	/**
 	 * Closes the connection immediately and no further data will be sent.

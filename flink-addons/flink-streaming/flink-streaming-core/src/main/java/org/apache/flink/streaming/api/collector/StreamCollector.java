@@ -26,7 +26,6 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -34,14 +33,14 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.StringUtils;
 
 /**
- * Collector for tuples in Apache Flink stream processing. The collected tuples
- * will be wrapped with ID in a {@link StreamRecord} and then emitted to the
- * outputs.
+ * Collector for tuples in Apache Flink stream processing. The collected
+ * tuples/obecjts will be wrapped with ID in a {@link StreamRecord} and then
+ * emitted to the outputs.
  * 
  * @param <T>
- *            Type of the Tuple collected.
+ *            Type of the Tuples/Objects collected.
  */
-public class StreamCollector<T extends Tuple> implements Collector<T> {
+public class StreamCollector<T> implements Collector<T> {
 
 	private static final Log LOG = LogFactory.getLog(StreamCollector.class);
 
@@ -57,9 +56,10 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 	 * @param channelID
 	 *            Channel ID of the Task
 	 * @param serializationDelegate
-	 *            Serialization delegate used for tuple serialization
+	 *            Serialization delegate used for serialization
 	 */
-	public StreamCollector(int channelID, SerializationDelegate<StreamRecord<T>> serializationDelegate) {
+	public StreamCollector(int channelID,
+			SerializationDelegate<StreamRecord<T>> serializationDelegate) {
 
 		this.serializationDelegate = serializationDelegate;
 		this.streamRecord = new StreamRecord<T>();
@@ -92,15 +92,15 @@ public class StreamCollector<T extends Tuple> implements Collector<T> {
 	}
 
 	/**
-	 * Collects and emits a tuple to the outputs by reusing a StreamRecord
-	 * object.
+	 * Collects and emits a tuple/object to the outputs by reusing a
+	 * StreamRecord object.
 	 * 
-	 * @param tuple
-	 *            Tuple to be collected and emitted.
+	 * @param outputObject
+	 *            Object to be collected and emitted.
 	 */
 	@Override
-	public void collect(T tuple) {
-		streamRecord.setTuple(tuple);
+	public void collect(T outputObject) {
+		streamRecord.setObject(outputObject);
 		emit(streamRecord);
 	}
 

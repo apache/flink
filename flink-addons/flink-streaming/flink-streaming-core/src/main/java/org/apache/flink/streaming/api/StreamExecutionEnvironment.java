@@ -26,7 +26,6 @@ import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.function.source.FileSourceFunction;
 import org.apache.flink.streaming.api.function.source.FileStreamFunction;
 import org.apache.flink.streaming.api.function.source.FromElementsFunction;
@@ -152,11 +151,11 @@ public abstract class StreamExecutionEnvironment {
 	 *            "file:///some/local/file" or "hdfs://host:port/file/path").
 	 * @return The DataStream representing the text file.
 	 */
-	public DataStream<Tuple1<String>> readTextFile(String filePath) {
+	public DataStream<String> readTextFile(String filePath) {
 		return addSource(new FileSourceFunction(filePath), 1);
 	}
 
-	public DataStream<Tuple1<String>> readTextFile(String filePath, int parallelism) {
+	public DataStream<String> readTextFile(String filePath, int parallelism) {
 		return addSource(new FileSourceFunction(filePath), parallelism);
 	}
 
@@ -170,11 +169,11 @@ public abstract class StreamExecutionEnvironment {
 	 *            "file:///some/local/file" or "hdfs://host:port/file/path").
 	 * @return The DataStream representing the text file.
 	 */
-	public DataStream<Tuple1<String>> readTextStream(String filePath) {
+	public DataStream<String> readTextStream(String filePath) {
 		return addSource(new FileStreamFunction(filePath), 1);
 	}
 
-	public DataStream<Tuple1<String>> readTextStream(String filePath, int parallelism) {
+	public DataStream<String> readTextStream(String filePath, int parallelism) {
 		return addSource(new FileStreamFunction(filePath), parallelism);
 	}
 
@@ -191,15 +190,14 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the returned stream
 	 * @return The DataStream representing the elements.
 	 */
-	public <X extends Serializable> DataStream<Tuple1<X>> fromElements(X... data) {
-		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
+	public <X extends Serializable> DataStream<X> fromElements(X... data) {
+		DataStream<X> returnStream = new DataStream<X>(this, "elements");
 
 		try {
-			SourceFunction<Tuple1<X>> function = new FromElementsFunction<X>(data);
-			jobGraphBuilder.addSource(returnStream.getId(),
-					new SourceInvokable<Tuple1<X>>(function),
-					new ObjectTypeWrapper<Tuple1<X>, Tuple, Tuple1<X>>(data[0], null, data[0]),
-					"source", SerializationUtils.serialize(function), 1);
+			SourceFunction<X> function = new FromElementsFunction<X>(data);
+			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<X>(function),
+					new ObjectTypeWrapper<X, Tuple, X>(data[0], null, data[0]), "source",
+					SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize elements");
 		}
@@ -218,22 +216,22 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the returned stream
 	 * @return The DataStream representing the elements.
 	 */
-	public <X extends Serializable> DataStream<Tuple1<X>> fromCollection(Collection<X> data) {
-		DataStream<Tuple1<X>> returnStream = new DataStream<Tuple1<X>>(this, "elements");
+	@SuppressWarnings("unchecked")
+	public <X extends Serializable> DataStream<X> fromCollection(Collection<X> data) {
+		DataStream<X> returnStream = new DataStream<X>(this, "elements");
 
 		if (data.isEmpty()) {
 			throw new RuntimeException("Collection must not be empty");
 		}
 
 		try {
-			SourceFunction<Tuple1<X>> function = new FromElementsFunction<X>(data);
+			SourceFunction<X> function = new FromElementsFunction<X>(data);
 
-			jobGraphBuilder
-					.addSource(returnStream.getId(), new SourceInvokable<Tuple1<X>>(
-							new FromElementsFunction<X>(data)),
-							new ObjectTypeWrapper<Tuple1<X>, Tuple, Tuple1<X>>(data.toArray()[0],
-									null, data.toArray()[0]), "source", SerializationUtils
-									.serialize(function), 1);
+			jobGraphBuilder.addSource(
+					returnStream.getId(),
+					new SourceInvokable<X>(new FromElementsFunction<X>(data)),
+					new ObjectTypeWrapper<X, Tuple, X>((X) data.toArray()[0], null, (X) data
+							.toArray()[0]), "source", SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize collection");
 		}
@@ -250,7 +248,7 @@ public abstract class StreamExecutionEnvironment {
 	 *            The number to stop at (inclusive)
 	 * @return A DataStrean, containing all number in the [from, to] interval.
 	 */
-	public DataStream<Tuple1<Long>> generateSequence(long from, long to) {
+	public DataStream<Long> generateSequence(long from, long to) {
 		return addSource(new GenSequenceFunction(from, to), 1);
 	}
 
@@ -265,7 +263,7 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
-	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> function, int parallelism) {
+	public <T> DataStream<T> addSource(SourceFunction<T> function, int parallelism) {
 		DataStream<T> returnStream = new DataStream<T>(this, "source");
 
 		try {
@@ -279,7 +277,7 @@ public abstract class StreamExecutionEnvironment {
 		return returnStream;
 	}
 
-	public <T extends Tuple> DataStream<T> addSource(SourceFunction<T> sourceFunction) {
+	public <T> DataStream<T> addSource(SourceFunction<T> sourceFunction) {
 		return addSource(sourceFunction, 1);
 	}
 

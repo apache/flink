@@ -19,7 +19,6 @@
 
 package org.apache.flink.streaming.connectors.twitter;
 
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
@@ -47,21 +46,21 @@ public class TwitterStreaming {
 	}
 	
 	public static class SelectDataFlatMap extends
-			JSONParseFlatMap<Tuple1<String>, Tuple5<Long, Long, String, String, String>> {
+			JSONParseFlatMap<String, Tuple5<Long, Long, String, String, String>> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(Tuple1<String> value,
+		public void flatMap(String value,
 				Collector<Tuple5<Long, Long, String, String, String>> out)
 				throws Exception {
 
 			out.collect(new Tuple5<Long, Long, String, String, String>(
-					convertDateString2Long(getField(value.f0, "id")),
-					convertDateString2LongDate(getField(value.f0, "created_at")),
-					colationOfNull(getField(value.f0, "user.name")),
-					colationOfNull(getField(value.f0, "text")),
-					getField(value.f0, "lang")));
+					convertDateString2Long(getField(value, "id")),
+					convertDateString2LongDate(getField(value, "created_at")),
+					colationOfNull(getField(value, "user.name")),
+					colationOfNull(getField(value, "text")),
+					getField(value, "lang")));
 		}
 		
 		protected String colationOfNull(String in){
@@ -94,7 +93,7 @@ public class TwitterStreaming {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(PARALLELISM);
 
-		DataStream<Tuple1<String>> streamSource = env.addSource(
+		DataStream<String> streamSource = env.addSource(
 				new TwitterSource(path,100), SOURCE_PARALLELISM);
 
 		DataStream<Tuple5<Long, Long, String, String, String>> selectedDataStream = streamSource

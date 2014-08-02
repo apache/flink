@@ -27,7 +27,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.AbstractFunction;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
@@ -38,14 +37,15 @@ import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
+import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.MutableObjectIterator;
 
 public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tuple> extends
 		AbstractStreamComponent<OUT> {
 	private static final Log LOG = LogFactory.getLog(CoStreamTask.class);
 
-	protected StreamRecordSerializer<IN1> inTupleDeserializer1 = null;
-	protected StreamRecordSerializer<IN2> inTupleDeserializer2 = null;
+	protected StreamRecordSerializer<IN1> inputDeserializer1 = null;
+	protected StreamRecordSerializer<IN2> inputDeserializer2 = null;
 
 	private MutableReader<IOReadableWritable> inputs1;
 	private MutableReader<IOReadableWritable> inputs2;
@@ -83,11 +83,11 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void setDeserializers(Object function, Class<? extends AbstractFunction> clazz) {
-		TupleTypeInfo<IN1> inTupleTypeInfo = (TupleTypeInfo<IN1>) typeWrapper.getInputTupleTypeInfo1();
-		inTupleDeserializer1 = new StreamRecordSerializer<IN1>(inTupleTypeInfo.createSerializer());
+		TypeInformation<IN1> inputTypeInfo1 = (TypeInformation<IN1>) typeWrapper.getInputTypeInfo1();
+		inputDeserializer1 = new StreamRecordSerializer<IN1>(inputTypeInfo1);
 
-		inTupleTypeInfo = (TupleTypeInfo<IN1>) typeWrapper.getInputTupleTypeInfo2();
-		inTupleDeserializer2 = new StreamRecordSerializer(inTupleTypeInfo.createSerializer());
+		TypeInformation<IN2> inputTypeInfo2 = (TypeInformation<IN2>) typeWrapper.getInputTypeInfo2();
+		inputDeserializer2 = new StreamRecordSerializer(inputTypeInfo2);
 	}
 
 	@Override
@@ -95,15 +95,15 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 		setConfigOutputs(outputs);
 		setConfigInputs();
 
-		inputIter1 = createInputIterator(inputs1, inTupleDeserializer1);
-		inputIter2 = createInputIterator(inputs2, inTupleDeserializer2);
+		inputIter1 = createInputIterator(inputs1, inputDeserializer1);
+		inputIter2 = createInputIterator(inputs2, inputDeserializer2);
 	}
 
 	@Override
 	protected void setInvokable() {
 		userInvokable = getInvokable();
-		userInvokable.initialize(collector, inputIter1, inTupleDeserializer1, inputIter2,
-				inTupleDeserializer2, isMutable);
+		userInvokable.initialize(collector, inputIter1, inputDeserializer1, inputIter2,
+				inputDeserializer2, isMutable);
 	}
 
 	protected void setConfigInputs() throws StreamComponentException {

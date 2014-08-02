@@ -19,7 +19,6 @@
 
 package org.apache.flink.streaming.connectors.twitter;
 
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
@@ -41,7 +40,7 @@ public class TwitterLocal {
 	 * FlatMapFunction to determine the language of tweets if possible 
 	 */
 	public static class SelectLanguageFlatMap extends
-			JSONParseFlatMap<Tuple1<String>, Tuple1<String>> {
+			JSONParseFlatMap<String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -49,9 +48,9 @@ public class TwitterLocal {
 		 * Select the language from the incoming JSON text
 		 */
 		@Override
-		public void flatMap(Tuple1<String> value, Collector<Tuple1<String>> out) throws Exception {
+		public void flatMap(String value, Collector<String> out) throws Exception {
 
-			out.collect(new Tuple1<String>(colationOfNull(getField(value.f0, "lang"))));
+			out.collect(colationOfNull(getField(value, "lang")));
 		}
 
 		/**
@@ -81,7 +80,7 @@ public class TwitterLocal {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(PARALLELISM);
 
-		DataStream<Tuple1<String>> streamSource = env.addSource(new TwitterSource(path, 100),
+		DataStream<String> streamSource = env.addSource(new TwitterSource(path, 100),
 				SOURCE_PARALLELISM);
 
 

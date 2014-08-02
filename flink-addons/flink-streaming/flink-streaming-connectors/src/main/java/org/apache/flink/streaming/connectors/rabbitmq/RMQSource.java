@@ -23,18 +23,16 @@ import java.io.IOException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.streaming.api.DataStream;
+import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.util.Collector;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
 
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.streaming.api.DataStream;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.util.Collector;
-
-public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
+public abstract class RMQSource<OUT> extends SourceFunction<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Log LOG = LogFactory.getLog(RMQSource.class);
@@ -50,7 +48,7 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 	private transient QueueingConsumer consumer;
 	private transient QueueingConsumer.Delivery delivery;
 
-	IN outTuple;
+	OUT outTuple;
 
 	public RMQSource(String HOST_NAME, String QUEUE_NAME) {
 		this.HOST_NAME = HOST_NAME;
@@ -82,7 +80,7 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 	 *            The Collector for sending data to the dataStream
 	 */
 	@Override
-	public void invoke(Collector<IN> collector) throws Exception {
+	public void invoke(Collector<OUT> collector) throws Exception {
 		initializeConnection();
 
 		while (true) {
@@ -122,7 +120,7 @@ public abstract class RMQSource<IN extends Tuple> extends SourceFunction<IN> {
 	 *            The incoming message in a byte array
 	 * @return The deserialized message in the required format.
 	 */
-	public abstract IN deserialize(byte[] message);
+	public abstract OUT deserialize(byte[] message);
 
 	/**
 	 * Closes the connection immediately and no further data will be sent.

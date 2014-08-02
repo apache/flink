@@ -22,8 +22,6 @@ package org.apache.flink.streaming.api.function.sink;
 import java.io.Serializable;
 import java.util.ArrayList;
 
-import org.apache.flink.api.java.tuple.Tuple;
-
 /**
  * Abstract class for formatting the output of the writeAsText and writeAsCsv
  * functions.
@@ -31,7 +29,7 @@ import org.apache.flink.api.java.tuple.Tuple;
  * @param <IN>
  *            Input tuple type
  */
-public abstract class WriteFormat<IN extends Tuple> implements Serializable {
+public abstract class WriteFormat<IN> implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	/**

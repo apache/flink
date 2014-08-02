@@ -20,10 +20,9 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 
-public class MapInvokable<IN extends Tuple, OUT extends Tuple> extends UserTaskInvokable<IN, OUT> {
+public class MapInvokable<IN, OUT> extends UserTaskInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private MapFunction<IN, OUT> mapper;
@@ -34,16 +33,16 @@ public class MapInvokable<IN extends Tuple, OUT extends Tuple> extends UserTaskI
 
 	@Override
 	protected void immutableInvoke() throws Exception {
-		while (recordIterator.next(reuse) != null) {
-			collector.collect(mapper.map(reuse.getTuple()));
+		while ((reuse = recordIterator.next(reuse)) != null) {
+			collector.collect(mapper.map(reuse.getObject()));
 			resetReuse();
 		}
 	}
 
 	@Override
 	protected void mutableInvoke() throws Exception {
-		while (recordIterator.next(reuse) != null) {
-			collector.collect(mapper.map(reuse.getTuple()));
+		while ((reuse = recordIterator.next(reuse)) != null) {
+			collector.collect(mapper.map(reuse.getObject()));
 		}
 	}
 }

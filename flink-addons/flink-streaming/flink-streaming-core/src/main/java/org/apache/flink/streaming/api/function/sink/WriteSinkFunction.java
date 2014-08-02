@@ -23,8 +23,6 @@ import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 
-import org.apache.flink.api.java.tuple.Tuple;
-
 /**
  * Simple implementation of the SinkFunction writing tuples as simple text to
  * the file specified by path. Tuples are collected to a list and written to the
@@ -34,7 +32,7 @@ import org.apache.flink.api.java.tuple.Tuple;
  * @param <IN>
  *            Input tuple type
  */
-public abstract class WriteSinkFunction<IN extends Tuple> extends SinkFunction<IN> {
+public abstract class WriteSinkFunction<IN> extends SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
 	protected final String path;

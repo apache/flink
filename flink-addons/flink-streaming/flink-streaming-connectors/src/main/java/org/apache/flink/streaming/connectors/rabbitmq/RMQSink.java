@@ -21,16 +21,15 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
+
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
-
-public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
+public abstract class RMQSink<IN> extends SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Log LOG = LogFactory.getLog(RMQSource.class);
@@ -103,7 +102,7 @@ public abstract class RMQSink<IN extends Tuple> extends SinkFunction<IN> {
 	 *            The tuple used for the serialization
 	 * @return The serialized byte array.
 	 */
-	public abstract byte[] serialize(Tuple tuple);
+	public abstract byte[] serialize(IN tuple);
 
 	/**
 	 * Closes the connection.

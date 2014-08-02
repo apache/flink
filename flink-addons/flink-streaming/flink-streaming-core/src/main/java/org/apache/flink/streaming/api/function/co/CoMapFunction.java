@@ -19,9 +19,8 @@
 package org.apache.flink.streaming.api.function.co;
 
 import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 
-public abstract class CoMapFunction<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tuple> extends AbstractFunction {
+public abstract class CoMapFunction<IN1, IN2, OUT> extends AbstractFunction {
 	private static final long serialVersionUID = 1L;
 	
 	public abstract OUT map1(IN1 value);

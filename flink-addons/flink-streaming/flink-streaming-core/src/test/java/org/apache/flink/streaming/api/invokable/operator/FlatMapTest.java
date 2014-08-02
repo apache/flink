@@ -25,91 +25,88 @@ import static org.junit.Assert.assertTrue;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.flink.api.java.functions.FlatMapFunction;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.util.LogUtils;
-import org.junit.Test;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
 import org.apache.log4j.Level;
+import org.junit.Test;
 
 public class FlatMapTest {
 
-	public static final class MyFlatMap extends FlatMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+	public static final class MyFlatMap extends FlatMapFunction<Integer, Integer> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(Tuple1<Integer> value, Collector<Tuple1<Integer>> out) throws Exception {
-			out.collect(new Tuple1<Integer>(value.f0 * value.f0));
+		public void flatMap(Integer value, Collector<Integer> out) throws Exception {
+			out.collect(value * value);
 
 		}
 
 	}
 
-	public static final class ParallelFlatMap extends
-			FlatMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+	public static final class ParallelFlatMap extends FlatMapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(Tuple1<Integer> value, Collector<Tuple1<Integer>> out) throws Exception {
+		public void flatMap(Integer value, Collector<Integer> out) throws Exception {
 			numberOfElements++;
 
 		}
 
 	}
 
-	public static final class GenerateSequenceFlatMap extends
-			FlatMapFunction<Tuple1<Long>, Tuple1<Long>> {
+	public static final class GenerateSequenceFlatMap extends FlatMapFunction<Long, Long> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(Tuple1<Long> value, Collector<Tuple1<Long>> out) throws Exception {
-			out.collect(new Tuple1<Long>(value.f0 * value.f0));
+		public void flatMap(Long value, Collector<Long> out) throws Exception {
+			out.collect(value * value);
 
 		}
 
 	}
 
-	public static final class MySink extends SinkFunction<Tuple1<Integer>> {
+	public static final class MySink extends SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Integer> tuple) {
-			result.add(tuple.f0);
+		public void invoke(Integer tuple) {
+			result.add(tuple);
 		}
 
 	}
 
-	public static final class FromElementsSink extends SinkFunction<Tuple1<Integer>> {
+	public static final class FromElementsSink extends SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Integer> tuple) {
-			fromElementsResult.add(tuple.f0);
+		public void invoke(Integer tuple) {
+			fromElementsResult.add(tuple);
 		}
 
 	}
 
-	public static final class FromCollectionSink extends SinkFunction<Tuple1<Integer>> {
+	public static final class FromCollectionSink extends SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Integer> tuple) {
-			fromCollectionResult.add(tuple.f0);
+		public void invoke(Integer tuple) {
+			fromCollectionResult.add(tuple);
 		}
 
 	}
 
-	public static final class GenerateSequenceSink extends SinkFunction<Tuple1<Long>> {
+	public static final class GenerateSequenceSink extends SinkFunction<Long> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Long> tuple) {
-			generateSequenceResult.add(tuple.f0);
+		public void invoke(Long tuple) {
+			generateSequenceResult.add(tuple);
 		}
 
 	}
@@ -170,7 +167,7 @@ public class FlatMapTest {
 		fillFromCollectionSet();
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> dataStream = env.fromCollection(fromCollectionSet)
+		DataStream<Integer> dataStream = env.fromCollection(fromCollectionSet)
 				.flatMap(new MyFlatMap()).addSink(new MySink());
 
 		fillExpectedList();
@@ -178,43 +175,38 @@ public class FlatMapTest {
 		// parallelShuffleconnectTest
 		fillFromCollectionSet();
 
-		DataStream<Tuple1<Integer>> source = env.fromCollection(fromCollectionSet);
+		DataStream<Integer> source = env.fromCollection(fromCollectionSet);
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> map = source
-				.flatMap(new ParallelFlatMap())
-				.addSink(new MySink());
+		DataStream<Integer> map = source.flatMap(new ParallelFlatMap()).addSink(
+				new MySink());
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> map2 = source
-				.flatMap(new ParallelFlatMap())
-				.addSink(new MySink());
+		DataStream<Integer> map2 = source.flatMap(new ParallelFlatMap()).addSink(
+				new MySink());
 
 		// fromElementsTest
-		DataStream<Tuple1<Integer>> fromElementsMap = env
-				.fromElements(2, 5, 9)
-				.flatMap(new MyFlatMap());
+		DataStream<Integer> fromElementsMap = env.fromElements(2, 5, 9).flatMap(
+				new MyFlatMap());
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> sink = fromElementsMap.addSink(new FromElementsSink());
+		DataStream<Integer> sink = fromElementsMap.addSink(new FromElementsSink());
 
 		fillFromElementsExpected();
 
 		// fromCollectionTest
 		fillFromCollectionSet();
 
-		DataStream<Tuple1<Integer>> fromCollectionMap = env
-				.fromCollection(fromCollectionSet)
+		DataStream<Integer> fromCollectionMap = env.fromCollection(fromCollectionSet)
 				.flatMap(new MyFlatMap());
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> fromCollectionSink = fromCollectionMap
+		DataStream<Integer> fromCollectionSink = fromCollectionMap
 				.addSink(new FromCollectionSink());
 
 		// generateSequenceTest
 		fillSequenceSet();
 
-		DataStream<Tuple1<Long>> generateSequenceMap = env
-				.generateSequence(0, 9)
-				.flatMap(new GenerateSequenceFlatMap());
+		DataStream<Long> generateSequenceMap = env.generateSequence(0, 9).flatMap(
+				new GenerateSequenceFlatMap());
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Long>> generateSequenceSink = generateSequenceMap
+		DataStream<Long> generateSequenceSink = generateSequenceMap
 				.addSink(new GenerateSequenceSink());
 
 		fillLongSequenceSet();

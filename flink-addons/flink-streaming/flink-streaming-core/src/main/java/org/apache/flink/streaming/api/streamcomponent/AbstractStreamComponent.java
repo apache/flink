@@ -26,8 +26,6 @@ import org.apache.commons.lang.SerializationUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -43,21 +41,22 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
+import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-public abstract class AbstractStreamComponent<OUT extends Tuple> extends AbstractInvokable {
+public abstract class AbstractStreamComponent<OUT> extends AbstractInvokable {
 
 	protected static final String SOURCE = "source";
 
 	private static final Log LOG = LogFactory.getLog(AbstractStreamComponent.class);
 
-	protected TupleTypeInfo<OUT> outTupleTypeInfo = null;
-	protected StreamRecordSerializer<OUT> outTupleSerializer = null;
+	protected TypeInformation<OUT> outTypeInfo = null;
+	protected StreamRecordSerializer<OUT> outSerializer = null;
 	protected SerializationDelegate<StreamRecord<OUT>> outSerializationDelegate = null;
 
 	protected StreamConfig configuration;
-	protected TypeSerializerWrapper<? extends Tuple, ? extends Tuple, OUT> typeWrapper;
+	protected TypeSerializerWrapper<?, ?, OUT> typeWrapper;
 	protected StreamCollector<OUT> collector;
 	protected int instanceID;
 	protected String name;
@@ -105,9 +104,9 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 	}
 
 	protected void setSerializer() {
-		outTupleTypeInfo = typeWrapper.getOutputTupleTypeInfo();
-		outTupleSerializer = new StreamRecordSerializer<OUT>(outTupleTypeInfo.createSerializer());
-		outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(outTupleSerializer);
+		outTypeInfo = typeWrapper.getOutputTypeInfo();
+		outSerializer = new StreamRecordSerializer<OUT>(outTypeInfo);
+		outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(outSerializer);
 	}
 
 	protected void setConfigOutputs(
@@ -171,7 +170,7 @@ public abstract class AbstractStreamComponent<OUT extends Tuple> extends Abstrac
 		return (T) configuration.getUserInvokableObject();
 	}
 
-	protected <IN extends Tuple> MutableObjectIterator<StreamRecord<IN>> createInputIterator(
+	protected <IN> MutableObjectIterator<StreamRecord<IN>> createInputIterator(
 			MutableReader<?> inputReader, TypeSerializer<?> serializer) {
 
 		// generic data type serialization

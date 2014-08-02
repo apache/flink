@@ -26,7 +26,6 @@ import java.util.Collection;
 import java.util.HashSet;
 
 import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
@@ -39,45 +38,45 @@ public class DirectedOutputTest {
 	static HashSet<Long> evenSet = new HashSet<Long>();
 	static HashSet<Long> oddSet = new HashSet<Long>();
 	
-	private static class PlusTwo extends MapFunction<Tuple1<Long>, Tuple1<Long>> {
+	private static class PlusTwo extends MapFunction<Long, Long> {
 	
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Tuple1<Long> map(Tuple1<Long> arg0) throws Exception {
-			arg0.f0 += 2;
+		public Long map(Long arg0) throws Exception {
+			arg0 += 2;
 			return arg0;
 		}
 	}
 
-	private static class EvenSink extends SinkFunction<Tuple1<Long>> {
+	private static class EvenSink extends SinkFunction<Long> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Long> tuple) {
-			evenSet.add(tuple.f0);
+		public void invoke(Long tuple) {
+			evenSet.add(tuple);
 		}
 	}
 	
-	private static class OddSink extends SinkFunction<Tuple1<Long>> {
+	private static class OddSink extends SinkFunction<Long> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Long> tuple) {
-			oddSet.add(tuple.f0);
+		public void invoke(Long tuple) {
+			oddSet.add(tuple);
 		}
 	}
 	
 	
-	private static class MySelector extends OutputSelector<Tuple1<Long>> {
+	private static class MySelector extends OutputSelector<Long> {
 		
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void select(Tuple1<Long> tuple, Collection<String> outputs) {
-			int mod = (int) (tuple.f0 % 2);
+		public void select(Long tuple, Collection<String> outputs) {
+			int mod = (int) (tuple % 2);
 			switch (mod) {
 				case 0:
 					outputs.add("ds1");
@@ -96,10 +95,10 @@ public class DirectedOutputTest {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-		DataStream<Tuple1<Long>> s = env.generateSequence(1, 6).directTo(new MySelector());
-		DataStream<Tuple1<Long>> ds1 = s.map(new PlusTwo()).name("ds1").addSink(new EvenSink());
-		DataStream<Tuple1<Long>> ds2 = s.map(new PlusTwo()).name("ds2").addSink(new OddSink());
-		DataStream<Tuple1<Long>> ds3 = s.map(new PlusTwo()).addSink(new OddSink());
+		DataStream<Long> s = env.generateSequence(1, 6).directTo(new MySelector());
+		DataStream<Long> ds1 = s.map(new PlusTwo()).name("ds1").addSink(new EvenSink());
+		DataStream<Long> ds2 = s.map(new PlusTwo()).name("ds2").addSink(new OddSink());
+		DataStream<Long> ds3 = s.map(new PlusTwo()).addSink(new OddSink());
 
 		env.execute();
 		

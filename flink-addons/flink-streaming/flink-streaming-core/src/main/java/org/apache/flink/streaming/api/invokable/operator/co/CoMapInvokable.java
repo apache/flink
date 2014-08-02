@@ -19,11 +19,9 @@
 
 package org.apache.flink.streaming.api.invokable.operator.co;
 
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
 
-public class CoMapInvokable<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tuple> extends
-		CoInvokable<IN1, IN2, OUT> {
+public class CoMapInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private CoMapFunction<IN1, IN2, OUT> mapper;
@@ -39,14 +37,14 @@ public class CoMapInvokable<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tu
 		boolean noMoreRecordOnInput2 = false;
 
 		do {
-			noMoreRecordOnInput1 = recordIterator1.next(reuse1) == null;
+			noMoreRecordOnInput1 = ((reuse1 = recordIterator1.next(reuse1)) == null);
 			if (!noMoreRecordOnInput1) {
-				collector.collect(mapper.map1(reuse1.getTuple()));
+				collector.collect(mapper.map1(reuse1.getObject()));
 			}
 
-			noMoreRecordOnInput2 = recordIterator2.next(reuse2) == null;
+			noMoreRecordOnInput2 = ((reuse2 = recordIterator2.next(reuse2)) == null);
 			if (!noMoreRecordOnInput2) {
-				collector.collect(mapper.map2(reuse2.getTuple()));
+				collector.collect(mapper.map2(reuse2.getObject()));
 			}
 
 			if (!this.isMutable) {

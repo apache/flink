@@ -19,7 +19,6 @@
 
 package org.apache.flink.streaming.api;
 
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.partitioner.ForwardPartitioner;
 
 /**
@@ -29,7 +28,7 @@ import org.apache.flink.streaming.partitioner.ForwardPartitioner;
  * @param <T>
  *            Type of the DataStream
  */
-public class IterativeDataStream<T extends Tuple> extends StreamOperator<T, T> {
+public class IterativeDataStream<T> extends StreamOperator<T, T> {
 
 	static Integer iterationCount = 0;
 
@@ -69,7 +68,7 @@ public class IterativeDataStream<T extends Tuple> extends StreamOperator<T, T> {
 	 *            when used with directed emits
 	 * 
 	 */
-	public <R extends Tuple> DataStream<T> closeWith(DataStream<T> iterationResult,
+	public <R> DataStream<T> closeWith(DataStream<T> iterationResult,
 			String iterationName) {
 		DataStream<R> returnStream = new DataStream<R>(environment, "iterationSink");
 

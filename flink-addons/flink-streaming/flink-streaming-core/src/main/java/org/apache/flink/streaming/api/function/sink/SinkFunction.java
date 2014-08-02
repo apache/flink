@@ -22,12 +22,11 @@ package org.apache.flink.streaming.api.function.sink;
 import java.io.Serializable;
 
 import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 
-public abstract class SinkFunction<IN extends Tuple> extends AbstractFunction implements Serializable {
+public abstract class SinkFunction<IN> extends AbstractFunction implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	public abstract void invoke(IN tuple);
+	public abstract void invoke(IN value);
 
 }

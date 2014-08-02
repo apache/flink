@@ -22,14 +22,12 @@ package org.apache.flink.streaming.api.function.source;
 import java.util.Arrays;
 import java.util.Collection;
 
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
 
-public class FromElementsFunction<T> extends SourceFunction<Tuple1<T>> {
+public class FromElementsFunction<T> extends SourceFunction<T> {
 	private static final long serialVersionUID = 1L;
 
 	Iterable<T> iterable;
-	Tuple1<T> outTuple = new Tuple1<T>();
 
 	public FromElementsFunction(T... elements) {
 		this.iterable = Arrays.asList(elements);
@@ -40,10 +38,9 @@ public class FromElementsFunction<T> extends SourceFunction<Tuple1<T>> {
 	}
 
 	@Override
-	public void invoke(Collector<Tuple1<T>> collector) throws Exception {
+	public void invoke(Collector<T> collector) throws Exception {
 		for (T element : iterable) {
-			outTuple.f0 = element;
-			collector.collect(outTuple);
+			collector.collect(element);
 		}
 	}
 

@@ -20,7 +20,6 @@ package org.apache.flink.streaming.partitioner;
 
 import java.io.Serializable;
 
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.ChannelSelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -31,6 +30,6 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
  * @param <T>
  *            Type of the Tuple
  */
-public interface StreamPartitioner<T extends Tuple> extends ChannelSelector<SerializationDelegate<StreamRecord<T>>>,
+public interface StreamPartitioner<T> extends ChannelSelector<SerializationDelegate<StreamRecord<T>>>,
 		Serializable {
 }

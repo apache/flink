@@ -26,7 +26,7 @@ import org.apache.flink.util.Collector;
  * Source Function used to generate the number sequence
  * 
  */
-public class GenSequenceFunction extends SourceFunction<Tuple1<Long>> {
+public class GenSequenceFunction extends SourceFunction<Long> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -40,10 +40,9 @@ public class GenSequenceFunction extends SourceFunction<Tuple1<Long>> {
 	}
 
 	@Override
-	public void invoke(Collector<Tuple1<Long>> collector) throws Exception {
+	public void invoke(Collector<Long> collector) throws Exception {
 		for (long i = from; i <= to; i++) {
-			outTuple.f0 = i;
-			collector.collect(outTuple);
+			collector.collect(i);
 		}
 	}
 

@@ -21,10 +21,9 @@ package org.apache.flink.streaming.api.streamcomponent;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
 
-public class StreamSink<IN extends Tuple> extends SingleInputAbstractStreamComponent<IN, IN> {
+public class StreamSink<IN> extends SingleInputAbstractStreamComponent<IN, IN> {
 
 	private static final Log LOG = LogFactory.getLog(StreamSink.class);
 
@@ -40,7 +39,7 @@ public class StreamSink<IN extends Tuple> extends SingleInputAbstractStreamCompo
 			setConfigInputs();
 			setSinkSerializer();
 
-			inputIter = createInputIterator(inputs, inTupleSerializer);
+			inputIter = createInputIterator(inputs, inputSerializer);
 		} catch (Exception e) {
 			throw new StreamComponentException("Cannot register inputs for "
 					+ getClass().getSimpleName(), e);
@@ -50,7 +49,7 @@ public class StreamSink<IN extends Tuple> extends SingleInputAbstractStreamCompo
 	@Override
 	protected void setInvokable() {
 		userInvokable = getInvokable();
-		userInvokable.initialize(collector, inputIter, inTupleSerializer, isMutable);
+		userInvokable.initialize(collector, inputIter, inputSerializer, isMutable);
 	}
 
 	@Override
