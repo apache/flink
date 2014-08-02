@@ -21,37 +21,36 @@ package org.apache.flink.streaming.util.serialization;
 
 import java.io.Serializable;
 
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.types.TypeInformation;
 
-public abstract class TypeSerializerWrapper<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tuple>
+public abstract class TypeSerializerWrapper<IN1, IN2, OUT>
 		implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	protected transient TupleTypeInfo<IN1> inTupleTypeInfo1 = null;
-	protected transient TupleTypeInfo<IN2> inTupleTypeInfo2 = null;
-	protected transient TupleTypeInfo<OUT> outTupleTypeInfo = null;
+	protected transient TypeInformation<IN1> inTypeInfo1 = null;
+	protected transient TypeInformation<IN2> inTypeInfo2 = null;
+	protected transient TypeInformation<OUT> outTypeInfo = null;
 
-	public TupleTypeInfo<IN1> getInputTupleTypeInfo1() {
-		if (inTupleTypeInfo1 == null) {
+	public TypeInformation<IN1> getInputTypeInfo1() {
+		if (inTypeInfo1 == null) {
 			throw new RuntimeException("There is no TypeInfo for the first input");
 		}
-		return inTupleTypeInfo1;
+		return inTypeInfo1;
 	}
 
-	public TupleTypeInfo<IN2> getInputTupleTypeInfo2() {
-		if (inTupleTypeInfo1 == null) {
-			throw new RuntimeException("There is no TypeInfo for the first input");
+	public TypeInformation<IN2> getInputTypeInfo2() {
+		if (inTypeInfo2 == null) {
+			throw new RuntimeException("There is no TypeInfo for the second input");
 		}
-		return inTupleTypeInfo2;
+		return inTypeInfo2;
 	}
 
-	public TupleTypeInfo<OUT> getOutputTupleTypeInfo() {
-		if (inTupleTypeInfo1 == null) {
-			throw new RuntimeException("There is no TypeInfo for the first input");
+	public TypeInformation<OUT> getOutputTypeInfo() {
+		if (outTypeInfo == null) {
+			throw new RuntimeException("There is no TypeInfo for the output");
 		}
-		return outTupleTypeInfo;
+		return outTypeInfo;
 	}
 
-	protected abstract void setTupleTypeInfo();
+	protected abstract void setTypeInfo();
 }

@@ -21,17 +21,16 @@ package org.apache.flink.streaming.connectors.flume;
 
 import java.util.List;
 
+import org.apache.flink.streaming.api.DataStream;
+import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.util.Collector;
 import org.apache.flume.Context;
 import org.apache.flume.channel.ChannelProcessor;
 import org.apache.flume.source.AvroSource;
 import org.apache.flume.source.avro.AvroFlumeEvent;
 import org.apache.flume.source.avro.Status;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.streaming.api.DataStream;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.util.Collector;
 
-public abstract class FlumeSource<IN extends Tuple> extends SourceFunction<IN> {
+public abstract class FlumeSource<OUT> extends SourceFunction<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	String host;
@@ -43,7 +42,7 @@ public abstract class FlumeSource<IN extends Tuple> extends SourceFunction<IN> {
 	}
 
 	public class MyAvroSource extends AvroSource {
-		Collector<IN> collector;
+		Collector<OUT> collector;
 
 		/**
 		 * Sends the AvroFlumeEvent from it's argument list to the Apache Flink
@@ -85,7 +84,7 @@ public abstract class FlumeSource<IN extends Tuple> extends SourceFunction<IN> {
 		 */
 		private void collect(AvroFlumeEvent avroEvent) {
 			byte[] b = avroEvent.getBody().array();
-			IN tuple = FlumeSource.this.deserialize(b);
+			OUT tuple = FlumeSource.this.deserialize(b);
 			if (!closeWithoutSend) {
 				collector.collect(tuple);
 			}
@@ -108,7 +107,7 @@ public abstract class FlumeSource<IN extends Tuple> extends SourceFunction<IN> {
 	 *            The incoming message in a byte array
 	 * @return The deserialized message in the required format.
 	 */
-	public abstract IN deserialize(byte[] message);
+	public abstract OUT deserialize(byte[] message);
 
 	/**
 	 * Configures the AvroSource. Also sets the collector so the application can
@@ -117,7 +116,7 @@ public abstract class FlumeSource<IN extends Tuple> extends SourceFunction<IN> {
 	 * @param collector
 	 *            The collector used in the invoke function
 	 */
-	public void configureAvroSource(Collector<IN> collector) {
+	public void configureAvroSource(Collector<OUT> collector) {
 
 		avroSource = new MyAvroSource();
 		avroSource.collector = collector;
@@ -138,7 +137,7 @@ public abstract class FlumeSource<IN extends Tuple> extends SourceFunction<IN> {
 	 *            The Collector for sending data to the datastream
 	 */
 	@Override
-	public void invoke(Collector<IN> collector) throws Exception {
+	public void invoke(Collector<OUT> collector) throws Exception {
 		configureAvroSource(collector);
 		avroSource.start();
 		while (true) {

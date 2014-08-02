@@ -20,15 +20,12 @@
 package org.apache.flink.streaming.connectors.rabbitmq;
 
 import org.apache.commons.lang.SerializationUtils;
-
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 
 public class RMQTopology {
 
-	public static final class MyRMQSink extends RMQSink<Tuple1<String>> {
+	public static final class MyRMQSink extends RMQSink<String> {
 		public MyRMQSink(String HOST_NAME, String QUEUE_NAME) {
 			super(HOST_NAME, QUEUE_NAME);
 		}
@@ -36,16 +33,16 @@ public class RMQTopology {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public byte[] serialize(Tuple t) {
-			if (t.getField(0).equals("q")) {
+		public byte[] serialize(String t) {
+			if (t.equals("q")) {
 				sendAndClose();
 			}
-			return SerializationUtils.serialize((String) t.getField(0));
+			return SerializationUtils.serialize((String) t);
 		}
 
 	}
 
-	public static final class MyRMQSource extends RMQSource<Tuple1<String>> {
+	public static final class MyRMQSource extends RMQSource<String> {
 
 		public MyRMQSource(String HOST_NAME, String QUEUE_NAME) {
 			super(HOST_NAME, QUEUE_NAME);
@@ -54,14 +51,12 @@ public class RMQTopology {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Tuple1<String> deserialize(byte[] t) {
+		public String deserialize(byte[] t) {
 			String s = (String) SerializationUtils.deserialize(t);
-			Tuple1<String> out = new Tuple1<String>();
-			out.f0 = s;
 			if (s.equals("q")) {
 				closeWithoutSend();
 			}
-			return out;
+			return s;
 		}
 
 	}
@@ -71,12 +66,12 @@ public class RMQTopology {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<String>> dataStream1 = env
+		DataStream<String> dataStream1 = env
 			.addSource(new MyRMQSource("localhost", "hello"))
 			.print();
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<String>> dataStream2 = env
+		DataStream<String> dataStream2 = env
 			.fromElements("one", "two", "three", "four", "five", "q")
 			.addSink(new MyRMQSink("localhost", "hello"));
 

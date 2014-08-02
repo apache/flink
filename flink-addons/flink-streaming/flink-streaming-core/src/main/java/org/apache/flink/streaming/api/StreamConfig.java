@@ -24,7 +24,6 @@ import java.io.IOException;
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
@@ -74,12 +73,12 @@ public class StreamConfig {
 	// CONFIGS
 
 	public void setTypeWrapper(
-			TypeSerializerWrapper<? extends Tuple, ? extends Tuple, ? extends Tuple> typeWrapper) {
+			TypeSerializerWrapper<?, ?, ?> typeWrapper) {
 		config.setBytes("typeWrapper", SerializationUtils.serialize(typeWrapper));
 	}
 
 	@SuppressWarnings("unchecked")
-	public <IN1 extends Tuple, IN2 extends Tuple, OUT extends Tuple> TypeSerializerWrapper<IN1, IN2, OUT> getTypeWrapper() {
+	public <IN1, IN2, OUT> TypeSerializerWrapper<IN1, IN2, OUT> getTypeWrapper() {
 		byte[] serializedWrapper = config.getBytes("typeWrapper", null);
 
 		if (serializedWrapper == null) {
@@ -106,7 +105,7 @@ public class StreamConfig {
 		return config.getLong(BUFFER_TIMEOUT, DEFAULT_TIMEOUT);
 	}
 
-	public void setUserInvokable(StreamComponentInvokable<? extends Tuple> invokableObject) {
+	public void setUserInvokable(StreamComponentInvokable<?> invokableObject) {
 		if (invokableObject != null) {
 			config.setClass(USER_FUNCTION, invokableObject.getClass());
 
@@ -125,7 +124,7 @@ public class StreamConfig {
 	// return (Class<? extends T>) config.getClass(USER_FUNCTION, null);
 	// }
 
-	public <T extends Tuple> StreamComponentInvokable<T> getUserInvokableObject() {
+	public <T> StreamComponentInvokable<T> getUserInvokableObject() {
 		try {
 			return deserializeObject(config.getBytes(SERIALIZEDUDF, null));
 		} catch (Exception e) {
@@ -186,7 +185,7 @@ public class StreamConfig {
 		}
 	}
 
-	public <T extends Tuple> OutputSelector<T> getOutputSelector() {
+	public <T> OutputSelector<T> getOutputSelector() {
 		try {
 			return deserializeObject(config.getBytes(OUTPUT_SELECTOR, null));
 		} catch (Exception e) {
@@ -211,14 +210,14 @@ public class StreamConfig {
 		return config.getInteger(NUMBER_OF_OUTPUT_CHANNELS + outputIndex, 0);
 	}
 
-	public <T extends Tuple> void setPartitioner(int outputIndex,
+	public <T> void setPartitioner(int outputIndex,
 			StreamPartitioner<T> partitionerObject) {
 
 		config.setBytes(PARTITIONER_OBJECT + outputIndex,
 				SerializationUtils.serialize(partitionerObject));
 	}
 
-	public <T extends Tuple> StreamPartitioner<T> getPartitioner(int outputIndex)
+	public <T> StreamPartitioner<T> getPartitioner(int outputIndex)
 			throws ClassNotFoundException, IOException {
 		return deserializeObject(config.getBytes(PARTITIONER_OBJECT + outputIndex,
 				SerializationUtils.serialize(new ShufflePartitioner<T>())));

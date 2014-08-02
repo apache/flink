@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.util.LogUtils;
 import org.apache.flink.util.Collector;
@@ -38,13 +37,13 @@ public class IterateTest {
 	private static boolean iterated = false;
 
 	public static final class IterationHead extends
-			FlatMapFunction<Tuple1<Boolean>, Tuple1<Boolean>> {
+			FlatMapFunction<Boolean, Boolean> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(Tuple1<Boolean> value, Collector<Tuple1<Boolean>> out) throws Exception {
-			if (value.f0) {
+		public void flatMap(Boolean value, Collector<Boolean> out) throws Exception {
+			if (value) {
 				iterated = true;
 			} else {
 				out.collect(value);
@@ -55,24 +54,24 @@ public class IterateTest {
 	}
 
 	public static final class IterationTail extends
-			FlatMapFunction<Tuple1<Boolean>, Tuple1<Boolean>> {
+			FlatMapFunction<Boolean,Boolean> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(Tuple1<Boolean> value, Collector<Tuple1<Boolean>> out) throws Exception {
-			out.collect(new Tuple1<Boolean>(true));
+		public void flatMap(Boolean value, Collector<Boolean> out) throws Exception {
+			out.collect(true);
 
 		}
 
 	}
 
-	public static final class MySink extends SinkFunction<Tuple1<Boolean>> {
+	public static final class MySink extends SinkFunction<Boolean> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Boolean> tuple) {
+		public void invoke(Boolean tuple) {
 		}
 
 	}
@@ -87,12 +86,12 @@ public class IterateTest {
 		for (int i = 0; i < 100000; i++) {
 			bl.add(false);
 		}
-		DataStream<Tuple1<Boolean>> source =  env
+		DataStream<Boolean> source =  env
 				.fromCollection(bl);
 
-		IterativeDataStream<Tuple1<Boolean>> iteration = source.iterate();
+		IterativeDataStream<Boolean> iteration = source.iterate();
 				
-		DataStream<Tuple1<Boolean>> increment = iteration.flatMap(new IterationHead()).flatMap(new IterationTail());
+		DataStream<Boolean> increment = iteration.flatMap(new IterationHead()).flatMap(new IterationTail());
 
 		iteration.closeWith(increment).addSink(new MySink());
 

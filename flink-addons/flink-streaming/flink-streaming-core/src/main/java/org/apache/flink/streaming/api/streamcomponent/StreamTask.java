@@ -51,13 +51,13 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
 		setConfigInputs();
 		setConfigOutputs(outputs);
 
-		inputIter = createInputIterator(inputs, inTupleSerializer);
+		inputIter = createInputIterator(inputs, inputSerializer);
 	}
 
 	@Override
 	protected void setInvokable() {
 		userInvokable = getInvokable();
-		userInvokable.initialize(collector, inputIter, inTupleSerializer, isMutable);
+		userInvokable.initialize(collector, inputIter, inputSerializer, isMutable);
 	}
 
 	@Override

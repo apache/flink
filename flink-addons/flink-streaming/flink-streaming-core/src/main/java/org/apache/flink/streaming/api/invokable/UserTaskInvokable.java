@@ -21,9 +21,7 @@ package org.apache.flink.streaming.api.invokable;
 
 import java.io.Serializable;
 
-import org.apache.flink.api.java.tuple.Tuple;
-
-public abstract class UserTaskInvokable<IN extends Tuple, OUT extends Tuple> extends
+public abstract class UserTaskInvokable<IN, OUT> extends
 		StreamRecordInvokable<IN, OUT> implements Serializable {
 
 	private static final long serialVersionUID = 1L;

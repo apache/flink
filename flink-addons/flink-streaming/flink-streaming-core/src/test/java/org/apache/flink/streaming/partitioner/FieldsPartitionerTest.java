@@ -33,9 +33,9 @@ public class FieldsPartitionerTest {
 
 	private FieldsPartitioner<Tuple> fieldsPartitioner;
 	private StreamRecord<Tuple> streamRecord1 = new StreamRecord<Tuple>()
-			.setTuple(new Tuple2<String, Integer>("test", 0));
+			.setObject(new Tuple2<String, Integer>("test", 0));
 	private StreamRecord<Tuple> streamRecord2 = new StreamRecord<Tuple>()
-			.setTuple(new Tuple2<String, Integer>("test", 42));
+			.setObject(new Tuple2<String, Integer>("test", 42));
 	private SerializationDelegate<StreamRecord<Tuple>> sd1 = new SerializationDelegate<StreamRecord<Tuple>>(
 			null);
 	private SerializationDelegate<StreamRecord<Tuple>> sd2 = new SerializationDelegate<StreamRecord<Tuple>>(

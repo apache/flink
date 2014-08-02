@@ -21,10 +21,8 @@ package org.apache.flink.streaming.connectors.flume;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.connectors.rabbitmq.RMQSource;
 import org.apache.flume.Event;
 import org.apache.flume.EventDeliveryException;
 import org.apache.flume.FlumeException;
@@ -32,10 +30,10 @@ import org.apache.flume.api.RpcClient;
 import org.apache.flume.api.RpcClientFactory;
 import org.apache.flume.event.EventBuilder;
 
-public abstract class FlumeSink<IN extends Tuple> extends SinkFunction<IN> {
+public abstract class FlumeSink<IN> extends SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
-	private static final Log LOG = LogFactory.getLog(RMQSource.class);
+	private static final Log LOG = LogFactory.getLog(FlumeSink.class);
 
 	private transient FlinkRpcClientFacade client;
 	boolean initDone = false;

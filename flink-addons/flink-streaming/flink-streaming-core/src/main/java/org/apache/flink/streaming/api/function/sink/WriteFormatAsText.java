@@ -25,15 +25,13 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 
-import org.apache.flink.api.java.tuple.Tuple;
-
 /**
  * Writes tuples in text format.
  *
  * @param <IN>
  *            Input tuple type
  */
-public class WriteFormatAsText<IN extends Tuple> extends WriteFormat<IN> {
+public class WriteFormatAsText<IN> extends WriteFormat<IN> {
 	private static final long serialVersionUID = 1L;
 
 	@Override

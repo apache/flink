@@ -20,13 +20,12 @@
 package org.apache.flink.streaming.connectors.flume;
 
 import org.apache.commons.lang.SerializationUtils;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 
 public class FlumeTopology {
 
-	public static class MyFlumeSink extends FlumeSink<Tuple1<String>> {
+	public static class MyFlumeSink extends FlumeSink<String> {
 		private static final long serialVersionUID = 1L;
 
 		public MyFlumeSink(String host, int port) {
@@ -34,8 +33,8 @@ public class FlumeTopology {
 		}
 
 		@Override
-		public byte[] serialize(Tuple1<String> tuple) {
-			if (tuple.f0.equals("q")) {
+		public byte[] serialize(String tuple) {
+			if (tuple.equals("q")) {
 				try {
 					sendAndClose();
 				} catch (Exception e) {
@@ -43,12 +42,12 @@ public class FlumeTopology {
 							+ host, e);
 				}
 			}
-			return SerializationUtils.serialize((String) tuple.getField(0));
+			return SerializationUtils.serialize(tuple);
 		}
 
 	}
 
-	public static class MyFlumeSource extends FlumeSource<Tuple1<String>> {
+	public static class MyFlumeSource extends FlumeSource<String> {
 		private static final long serialVersionUID = 1L;
 
 		MyFlumeSource(String host, int port) {
@@ -56,14 +55,12 @@ public class FlumeTopology {
 		}
 
 		@Override
-		public Tuple1<String> deserialize(byte[] msg) {
+		public String deserialize(byte[] msg) {
 			String s = (String) SerializationUtils.deserialize(msg);
-			Tuple1<String> out = new Tuple1<String>();
-			out.f0 = s;
 			if (s.equals("q")) {
 				closeWithoutSend();
 			}
-			return out;
+			return s;
 		}
 
 	}
@@ -73,12 +70,12 @@ public class FlumeTopology {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<String>> dataStream1 = env
+		DataStream<String> dataStream1 = env
 			.addSource(new MyFlumeSource("localhost", 41414))
 			.print();
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<String>> dataStream2 = env
+		DataStream<String> dataStream2 = env
 			.fromElements("one", "two", "three", "four", "five", "q")
 			.addSink(new MyFlumeSink("localhost", 42424));
 

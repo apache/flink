@@ -27,181 +27,180 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.util.LogUtils;
-import org.junit.Test;
-import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
 import org.apache.log4j.Level;
+import org.junit.Test;
 
 public class MapTest {
 
-	public static final class MySource extends SourceFunction<Tuple1<Integer>> {
+	public static final class MySource extends SourceFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
+		public void invoke(Collector<Integer> collector) throws Exception {
 			for (int i = 0; i < 10; i++) {
-				collector.collect(new Tuple1<Integer>(i));
+				collector.collect(i);
 			}
 		}
 	}
-	
-	public static final class MySource1 extends SourceFunction<Tuple1<Integer>> {
+
+	public static final class MySource1 extends SourceFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
+		public void invoke(Collector<Integer> collector) throws Exception {
 			for (int i = 0; i < 5; i++) {
-				collector.collect(new Tuple1<Integer>(i));
+				collector.collect(i);
 			}
 		}
 	}
-	
-	public static final class MySource2 extends SourceFunction<Tuple1<Integer>> {
+
+	public static final class MySource2 extends SourceFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
+		public void invoke(Collector<Integer> collector) throws Exception {
 			for (int i = 5; i < 10; i++) {
-				collector.collect(new Tuple1<Integer>(i));
+				collector.collect(i);
 			}
 		}
 	}
-	
-	public static final class MySource3 extends SourceFunction<Tuple1<Integer>> {
+
+	public static final class MySource3 extends SourceFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
+		public void invoke(Collector<Integer> collector) throws Exception {
 			for (int i = 10; i < 15; i++) {
-				collector.collect(new Tuple1<Integer>(i));
+				collector.collect(new Integer(i));
 			}
 		}
 	}
 
-	public static final class MyMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+	public static final class MyMap extends MapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
+		public Integer map(Integer value) throws Exception {
 			map++;
-			return new Tuple1<Integer>(value.f0 * value.f0);
+			return value * value;
 		}
 	}
-	
-	public static final class MySingleJoinMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+
+	public static final class MySingleJoinMap extends MapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
-			singleJoinSetResult.add(value.f0);
-			return new Tuple1<Integer>(value.f0);
+		public Integer map(Integer value) throws Exception {
+			singleJoinSetResult.add(value);
+			return value;
 		}
 	}
-	
-	public static final class MyMultipleJoinMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+
+	public static final class MyMultipleJoinMap extends MapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
-			multipleJoinSetResult.add(value.f0);
-			return new Tuple1<Integer>(value.f0);
+		public Integer map(Integer value) throws Exception {
+			multipleJoinSetResult.add(value);
+			return value;
 		}
 	}
 
-	public static final class MyFieldsMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+	public static final class MyFieldsMap extends MapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		private int counter = 0;
 
 		@Override
-		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
+		public Integer map(Integer value) throws Exception {
 			counter++;
 			if (counter == MAXSOURCE)
 				allInOne = true;
-			return new Tuple1<Integer>(value.f0 * value.f0);
+			return value * value;
 		}
 	}
-	
-	public static final class MyDiffFieldsMap extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+
+	public static final class MyDiffFieldsMap extends MapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		private int counter = 0;
 
 		@Override
-		public Tuple1<Integer> map(Tuple1<Integer> value) throws Exception {
+		public Integer map(Integer value) throws Exception {
 			counter++;
 			if (counter > 3)
 				threeInAll = false;
-			return new Tuple1<Integer>(value.f0 * value.f0);
+			return value*value;
 		}
 	}
 
-	public static final class MySink extends SinkFunction<Tuple1<Integer>> {
+	public static final class MySink extends SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Integer> tuple) {
-			result.add(tuple.f0);
+		public void invoke(Integer tuple) {
+			result.add(tuple);
 		}
 	}
 
-	public static final class MyBroadcastSink extends SinkFunction<Tuple1<Integer>> {
+	public static final class MyBroadcastSink extends SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Integer> tuple) {
+		public void invoke(Integer tuple) {
 			broadcastResult++;
 		}
 	}
 
-	public static final class MyShufflesSink extends SinkFunction<Tuple1<Integer>> {
+	public static final class MyShufflesSink extends SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Integer> tuple) {
+		public void invoke(Integer tuple) {
 			shuffleResult++;
 		}
 	}
 
-	public static final class MyFieldsSink extends SinkFunction<Tuple1<Integer>> {
+	public static final class MyFieldsSink extends SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Integer> tuple) {
+		public void invoke(Integer tuple) {
 			fieldsResult++;
 		}
 	}
-	
-	public static final class MyDiffFieldsSink extends SinkFunction<Tuple1<Integer>> {
+
+	public static final class MyDiffFieldsSink extends SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Integer> tuple) {
+		public void invoke(Integer tuple) {
 			diffFieldsResult++;
 		}
 	}
-	
-	public static final class MyGraphSink extends SinkFunction<Tuple1<Integer>> {
+
+	public static final class MyGraphSink extends SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Integer> tuple) {
+		public void invoke(Integer tuple) {
 			graphResult++;
 		}
 	}
-	
-	public static final class JoinSink extends SinkFunction<Tuple1<Integer>> {
+
+	public static final class JoinSink extends SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Integer> tuple) {
+		public void invoke(Integer tuple) {
 		}
 	}
 
@@ -210,14 +209,14 @@ public class MapTest {
 	private static int broadcastResult = 0;
 	private static int shuffleResult = 0;
 	@SuppressWarnings("unused")
-  private static int fieldsResult = 0;
+	private static int fieldsResult = 0;
 	private static int diffFieldsResult = 0;
 	@SuppressWarnings("unused")
-  private static int graphResult = 0;
+	private static int graphResult = 0;
 	@SuppressWarnings("unused")
-  private static int map = 0;
+	private static int map = 0;
 	@SuppressWarnings("unused")
-  private static final int PARALLELISM = 1;
+	private static final int PARALLELISM = 1;
 	private static final long MEMORYSIZE = 32;
 	private static final int MAXSOURCE = 10;
 	private static boolean allInOne = false;
@@ -235,139 +234,110 @@ public class MapTest {
 			expected.add(i * i);
 		}
 	}
-	
+
 	private static void fillFromCollectionSet() {
-		if(fromCollectionSet.isEmpty()){
+		if (fromCollectionSet.isEmpty()) {
 			for (int i = 0; i < 10; i++) {
 				fromCollectionSet.add(i);
 			}
 		}
 	}
-	
+
 	private static void fillFromCollectionFieldsSet() {
-		if(fromCollectionFields.isEmpty()){
+		if (fromCollectionFields.isEmpty()) {
 			for (int i = 0; i < MAXSOURCE; i++) {
-				
+
 				fromCollectionFields.add(5);
 			}
 		}
 	}
-	
+
 	private static void fillFromCollectionDiffFieldsSet() {
-		if(fromCollectionDiffFieldsSet.isEmpty()){
+		if (fromCollectionDiffFieldsSet.isEmpty()) {
 			for (int i = 0; i < 9; i++) {
 				fromCollectionDiffFieldsSet.add(i);
 			}
 		}
 	}
-	
+
 	private static void fillSingleJoinSet() {
 		for (int i = 0; i < 10; i++) {
 			singleJoinSetExpected.add(i);
 		}
 	}
-	
+
 	private static void fillMultipleJoinSet() {
 		for (int i = 0; i < 15; i++) {
 			multipleJoinSetExpected.add(i);
 		}
 	}
 
-
 	@Test
 	public void mapTest() throws Exception {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
-		//mapTest
+		// mapTest
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(3);
 
 		fillFromCollectionSet();
-		
-		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> dataStream = env.fromCollection(fromCollectionSet)
-				.map(new MyMap()).addSink(new MySink());
 
+		@SuppressWarnings("unused")
+		DataStream<Integer> dataStream = env.fromCollection(fromCollectionSet).map(new MyMap())
+				.addSink(new MySink());
 
 		fillExpectedList();
-		
-	
-		//broadcastSinkTest
-		fillFromCollectionSet();
-		
-		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> dataStream1 = env
-				.fromCollection(fromCollectionSet)
-				.broadcast()
-				.map(new MyMap())
-				.addSink(new MyBroadcastSink());
-		
 
-		//shuffleSinkTest
+		// broadcastSinkTest
 		fillFromCollectionSet();
-		
-		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> dataStream2 = env
-				.fromCollection(fromCollectionSet)
-				.map(new MyMap()).setParallelism(3)
-				.addSink(new MyShufflesSink());
 
-		
-		//fieldsMapTest
+		@SuppressWarnings("unused")
+		DataStream<Integer> dataStream1 = env.fromCollection(fromCollectionSet).broadcast()
+				.map(new MyMap()).addSink(new MyBroadcastSink());
+
+		// shuffleSinkTest
+		fillFromCollectionSet();
+
+		@SuppressWarnings("unused")
+		DataStream<Integer> dataStream2 = env.fromCollection(fromCollectionSet).map(new MyMap())
+				.setParallelism(3).addSink(new MyShufflesSink());
+
+		// fieldsMapTest
 		fillFromCollectionFieldsSet();
-		
-		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> dataStream3 = env
-				.fromCollection(fromCollectionFields)
-				.partitionBy(0)
-				.map(new MyFieldsMap())
-				.addSink(new MyFieldsSink());
 
-		
-		//diffFieldsMapTest
+		@SuppressWarnings("unused")
+		DataStream<Integer> dataStream3 = env.fromCollection(fromCollectionFields).partitionBy(0)
+				.map(new MyFieldsMap()).addSink(new MyFieldsSink());
+
+		// diffFieldsMapTest
 		fillFromCollectionDiffFieldsSet();
-		
+
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> dataStream4 = env
-				.fromCollection(fromCollectionDiffFieldsSet)
-				.partitionBy(0)
-				.map(new MyDiffFieldsMap())
-				.addSink(new MyDiffFieldsSink());
-	
-		
-		//singleConnectWithTest
-		DataStream<Tuple1<Integer>> source1 = env.addSource(new MySource1(),
-				1);
-		
+		DataStream<Integer> dataStream4 = env.fromCollection(fromCollectionDiffFieldsSet)
+				.partitionBy(0).map(new MyDiffFieldsMap()).addSink(new MyDiffFieldsSink());
+
+		// singleConnectWithTest
+		DataStream<Integer> source1 = env.addSource(new MySource1(), 1);
+
 		@SuppressWarnings({ "unused", "unchecked" })
-		DataStream<Tuple1<Integer>> source2 = env
-				.addSource(new MySource2(), 1)
-				.connectWith(source1)
-				.partitionBy(0)
-				.map(new MySingleJoinMap()).setParallelism(1)
+		DataStream<Integer> source2 = env.addSource(new MySource2(), 1).connectWith(source1)
+				.partitionBy(0).map(new MySingleJoinMap()).setParallelism(1)
 				.addSink(new JoinSink());
 
-		
 		fillSingleJoinSet();
-		
-		
-		//multipleConnectWithTest
-		DataStream<Tuple1<Integer>> source3 = env.addSource(new MySource1(),
-				1);
-		
-		DataStream<Tuple1<Integer>> source4 = env.addSource(new MySource2(),
-				1);
-		
-		@SuppressWarnings({ "unused", "unchecked" })
-		DataStream<Tuple1<Integer>> source5 = env
-				.addSource(new MySource3(), 1)
-				.connectWith(source3, source4)
-				.partitionBy(0)
-				.map(new MyMultipleJoinMap()).setParallelism(1)
-				.addSink(new JoinSink());
 
-		env.executeTest(MEMORYSIZE);		
-		
+		// multipleConnectWithTest
+		DataStream<Integer> source3 = env.addSource(new MySource1(), 1);
+
+		DataStream<Integer> source4 = env.addSource(new MySource2(), 1);
+
+		@SuppressWarnings({ "unused", "unchecked" })
+		DataStream<Integer> source5 = env.addSource(new MySource3(), 1)
+				.connectWith(source3, source4).partitionBy(0).map(new MyMultipleJoinMap())
+				.setParallelism(1).addSink(new JoinSink());
+
+		env.executeTest(MEMORYSIZE);
+
 		fillMultipleJoinSet();
-		
+
 		assertTrue(expected.equals(result));
 		assertEquals(30, broadcastResult);
 		assertEquals(10, shuffleResult);
@@ -376,7 +346,7 @@ public class MapTest {
 		assertEquals(9, diffFieldsResult);
 		assertEquals(singleJoinSetExpected, singleJoinSetResult);
 		assertEquals(multipleJoinSetExpected, multipleJoinSetResult);
-		
+
 	}
 
 }

@@ -22,20 +22,21 @@ package org.apache.flink.streaming.api.streamrecord;
 import java.io.Serializable;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 
 /**
- * Object for wrapping a tuple with ID used for sending records between
- * streaming task in Apache Flink stream processing.
+ * Object for wrapping a tuple or other object with ID used for sending records
+ * between streaming task in Apache Flink stream processing.
  */
-public class StreamRecord<T extends Tuple> implements Serializable {
+public class StreamRecord<T> implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private UID uid;
-	private T tuple;
+	private T streamObject;
+	public boolean isTuple;
 
-	protected TupleSerializer<T> tupleSerializer;
-
+	/**
+	 * Creates an empty StreamRecord and initializes an empty ID
+	 */
 	public StreamRecord() {
 		uid = new UID();
 	}
@@ -60,28 +61,50 @@ public class StreamRecord<T extends Tuple> implements Serializable {
 	}
 
 	/**
+	 * Gets the wrapped object from the StreamRecord
 	 * 
-	 * @return The tuple contained
+	 * @return The object wrapped
 	 */
-	public T getTuple() {
-		return tuple;
+	public T getObject() {
+		return streamObject;
 	}
 
 	/**
-	 * Sets the tuple stored
+	 * Gets the field of the contained object at the given position. If a tuple
+	 * is wrapped then the getField method is invoked. If the StreamRecord
+	 * contains and object of Basic types only position 0 could be returned.
 	 * 
-	 * @param tuple
-	 *            Value to set
+	 * @param pos
+	 *            Position of the field to get.
+	 * @return Returns the object contained in the position.
+	 */
+	public Object getField(int pos) {
+		if (isTuple) {
+			return ((Tuple) streamObject).getField(pos);
+		} else {
+			if (pos == 0) {
+				return streamObject;
+			} else {
+				throw new IndexOutOfBoundsException();
+			}
+		}
+	}
+
+	/**
+	 * Sets the object stored
+	 * 
+	 * @param object
+	 *            Object to set
 	 * @return Returns the StreamRecord object
 	 */
-	public StreamRecord<T> setTuple(T tuple) {
-		this.tuple = tuple;
+	public StreamRecord<T> setObject(T object) {
+		this.streamObject = object;
 		return this;
 	}
 
 	@Override
 	public String toString() {
-		return tuple.toString();
+		return streamObject.toString();
 	}
 
 }

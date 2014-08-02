@@ -20,11 +20,9 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 
-public class FlatMapInvokable<IN extends Tuple, OUT extends Tuple> extends
-		UserTaskInvokable<IN, OUT> {
+public class FlatMapInvokable<IN, OUT> extends UserTaskInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private FlatMapFunction<IN, OUT> flatMapper;
@@ -35,16 +33,16 @@ public class FlatMapInvokable<IN extends Tuple, OUT extends Tuple> extends
 
 	@Override
 	protected void immutableInvoke() throws Exception {
-		while (recordIterator.next(reuse) != null) {
-			flatMapper.flatMap(reuse.getTuple(), collector);
+		while ((reuse = recordIterator.next(reuse)) != null) {
+			flatMapper.flatMap(reuse.getObject(), collector);
 			resetReuse();
 		}
 	}
 
 	@Override
 	protected void mutableInvoke() throws Exception {
-		while (recordIterator.next(reuse) != null) {
-			flatMapper.flatMap(reuse.getTuple(), collector);
+		while ((reuse = recordIterator.next(reuse)) != null) {
+			flatMapper.flatMap(reuse.getObject(), collector);
 		}
 	}
 }

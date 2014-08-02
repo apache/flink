@@ -23,7 +23,6 @@ import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
@@ -40,28 +39,28 @@ public class CoMapTest implements Serializable {
 	private static Set<String> result;
 	private static Set<String> expected = new HashSet<String>();
 
-	private final static class EmptySink extends SinkFunction<Tuple1<Boolean>> {
+	private final static class EmptySink extends SinkFunction<Boolean> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Boolean> tuple) {
+		public void invoke(Boolean tuple) {
 		}
 	}
 
 	private final static class MyCoMap extends
-			CoMapFunction<Tuple1<String>, Tuple1<Integer>, Tuple1<Boolean>> {
+			CoMapFunction<String, Integer, Boolean> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Tuple1<Boolean> map1(Tuple1<String> value) {
-			result.add(value.f0);
-			return new Tuple1<Boolean>(true);
+		public Boolean map1(String value) {
+			result.add(value);
+			return true;
 		}
 
 		@Override
-		public Tuple1<Boolean> map2(Tuple1<Integer> value) {
-			result.add(value.f0.toString());
-			return new Tuple1<Boolean>(false);
+		public Boolean map2(Integer value) {
+			result.add(value.toString());
+			return false;
 		}
 	}
 
@@ -80,14 +79,14 @@ public class CoMapTest implements Serializable {
 
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
-		DataStream<Tuple1<Integer>> ds1 = env.fromElements(1, 3);
+		DataStream<Integer> ds1 = env.fromElements(1, 3);
 		@SuppressWarnings("unchecked")
-		DataStream<Tuple1<Integer>> ds2 = env.fromElements(2, 4).connectWith(ds1);
+		DataStream<Integer> ds2 = env.fromElements(2, 4).connectWith(ds1);
 
-		DataStream<Tuple1<String>> ds3 = env.fromElements("a", "b");
+		DataStream<String> ds3 = env.fromElements("a", "b");
 
 		@SuppressWarnings({ "unused", "unchecked" })
-		DataStream<Tuple1<Boolean>> ds4 = env.fromElements("c").connectWith(ds3)
+		DataStream<Boolean> ds4 = env.fromElements("c").connectWith(ds3)
 				.coMapWith(new MyCoMap(),
 
 				ds2).addSink(new EmptySink());

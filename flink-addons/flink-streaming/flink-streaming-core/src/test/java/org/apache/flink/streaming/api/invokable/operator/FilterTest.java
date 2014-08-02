@@ -24,7 +24,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.flink.api.java.functions.FilterFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.util.LogUtils;
@@ -34,37 +33,37 @@ import org.junit.Test;
 
 public class FilterTest implements Serializable {
 	private static final long serialVersionUID = 1L;
-	
+
 	private static Set<Integer> set = new HashSet<Integer>();
 
-	private static class SetSink extends SinkFunction<Tuple1<Integer>> {
+	private static class MySink extends SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Integer> tuple) {
-			set.add(tuple.f0);
+		public void invoke(Integer value) {
+			set.add(value);
 		}
 	}
 
-	static class MyFilter extends FilterFunction<Tuple1<Integer>> {
+	static class MyFilter extends FilterFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public boolean filter(Tuple1<Integer> value) throws Exception {
-			return value.f0 % 2 == 0;
+		public boolean filter(Integer value) throws Exception {
+			return value % 2 == 0;
 		}
 	}
 
 	@Test
 	public void test() {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
-		
+
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-		
-		env.fromElements(1, 2, 3, 4, 5, 6, 7).filter(new MyFilter()).addSink(new SetSink());
+
+		env.fromElements(1, 2, 3, 4, 5, 6, 7).filter(new MyFilter()).addSink(new MySink());
 
 		env.execute();
-		
+
 		Assert.assertArrayEquals(new Integer[] { 2, 4, 6 }, set.toArray());
 	}
 }

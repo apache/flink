@@ -48,7 +48,7 @@ public class StreamIterationSink<IN extends Tuple> extends
 			setConfigInputs();
 			setSinkSerializer();
 
-			inputIter = createInputIterator(inputs, inTupleSerializer);
+			inputIter = createInputIterator(inputs, inputSerializer);
 
 			iterationId = configuration.getIterationId();
 			dataChannel = BlockingQueueBroker.instance().get(iterationId);
@@ -73,11 +73,11 @@ public class StreamIterationSink<IN extends Tuple> extends
 	}
 
 	protected void forwardRecords() throws Exception {
-		StreamRecord<IN> reuse = inTupleSerializer.createInstance().setId(0);
+		StreamRecord<IN> reuse = inputSerializer.createInstance().setId(0);
 		while ((reuse = inputIter.next(reuse)) != null) {
 			pushToQueue(reuse);
 			// TODO: Fix object reuse for iteration
-			reuse = inTupleSerializer.createInstance();
+			reuse = inputSerializer.createInstance();
 		}
 	}
 

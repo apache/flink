@@ -19,7 +19,6 @@
 
 package org.apache.flink.streaming.partitioner;
 
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
@@ -30,7 +29,7 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
  * @param <T>
  *            Type of the Tuple
  */
-public class FieldsPartitioner<T extends Tuple> implements StreamPartitioner<T> {
+public class FieldsPartitioner<T> implements StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
 	private int keyPosition;
@@ -44,7 +43,7 @@ public class FieldsPartitioner<T extends Tuple> implements StreamPartitioner<T> 
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numberOfOutputChannels) {
-		returnArray[0] = Math.abs(record.getInstance().getTuple().getField(keyPosition).hashCode())
+		returnArray[0] = Math.abs(record.getInstance().getField(keyPosition).hashCode())
 				% numberOfOutputChannels;
 		return returnArray;
 	}

@@ -19,9 +19,8 @@
 
 package org.apache.flink.streaming.api;
 
-import org.apache.flink.api.java.tuple.Tuple;
 
-public class StreamOperator<IN extends Tuple, OUT extends Tuple> extends DataStream<OUT> {
+public class StreamOperator<IN, OUT > extends DataStream<OUT> {
 
 	protected StreamOperator(StreamExecutionEnvironment environment, String operatorType) {
 		super(environment, operatorType);

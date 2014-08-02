@@ -29,8 +29,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
@@ -46,9 +44,9 @@ import com.twitter.hbc.httpclient.auth.OAuth1;
  * Implementation of {@link SourceFunction} specialized to emit tweets from Twitter.
  * It can connect to Twitter Streaming API, collect tweets and 
  */
-public class TwitterSource extends SourceFunction<Tuple1<String>> {
+public class TwitterSource extends SourceFunction<String> {
 
-	private static final Log LOG = LogFactory.getLog(DataStream.class);
+	private static final Log LOG = LogFactory.getLog(TwitterSource.class);
 
 	private static final long serialVersionUID = 1L;
 	private String authPath;
@@ -88,7 +86,7 @@ public class TwitterSource extends SourceFunction<Tuple1<String>> {
 	 * 
 	 */
 	@Override
-	public void invoke(Collector<Tuple1<String>> collector) throws Exception {
+	public void invoke(Collector<String> collector) throws Exception {
 
 		initializeConnection();
 
@@ -169,7 +167,7 @@ public class TwitterSource extends SourceFunction<Tuple1<String>> {
 	 * @param collector
 	 * @param piece
 	 */
-	protected void collectMessages(Collector<Tuple1<String>> collector, int piece) {
+	protected void collectMessages(Collector<String> collector, int piece) {
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Collecting tweets");
@@ -189,7 +187,7 @@ public class TwitterSource extends SourceFunction<Tuple1<String>> {
 	 * @param collector
 	 * 
 	 */
-	protected void collectMessages(Collector<Tuple1<String>> collector) {
+	protected void collectMessages(Collector<String> collector) {
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Tweet-stream begins");
@@ -204,7 +202,7 @@ public class TwitterSource extends SourceFunction<Tuple1<String>> {
 	 * Put one tweet into the collector.
 	 * @param collector
 	 */
-	protected void collectOneMessage(Collector<Tuple1<String>> collector) {
+	protected void collectOneMessage(Collector<String> collector) {
 		if (client.isDone()) {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Client connection closed unexpectedly: "
@@ -215,7 +213,7 @@ public class TwitterSource extends SourceFunction<Tuple1<String>> {
 		try {
 			String msg = queue.poll(waitSec, TimeUnit.SECONDS);
 			if (msg != null) {
-				collector.collect(new Tuple1<String>(msg));
+				collector.collect(msg);
 			} else {
 				if (LOG.isInfoEnabled()) {
 					LOG.info("Did not receive a message in " + waitSec

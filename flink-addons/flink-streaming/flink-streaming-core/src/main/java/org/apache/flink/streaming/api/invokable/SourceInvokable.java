@@ -21,10 +21,9 @@ package org.apache.flink.streaming.api.invokable;
 
 import java.io.Serializable;
 
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 
-public class SourceInvokable<OUT extends Tuple> extends StreamComponentInvokable<OUT> implements
+public class SourceInvokable<OUT> extends StreamComponentInvokable<OUT> implements
 		Serializable {
 
 	private static final long serialVersionUID = 1L;

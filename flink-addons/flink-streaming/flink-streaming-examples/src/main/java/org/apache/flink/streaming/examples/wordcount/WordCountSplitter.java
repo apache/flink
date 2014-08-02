@@ -20,21 +20,17 @@
 package org.apache.flink.streaming.examples.wordcount;
 
 import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
 
-public class WordCountSplitter extends FlatMapFunction<Tuple1<String>, Tuple1<String>> {
+public class WordCountSplitter extends FlatMapFunction<String, String> {
 	private static final long serialVersionUID = 1L;
-
-	private Tuple1<String> outTuple = new Tuple1<String>();
 
 	// Splits the lines according on spaces
 	@Override
-	public void flatMap(Tuple1<String> inTuple, Collector<Tuple1<String>> out) throws Exception {
+	public void flatMap(String inTuple, Collector<String> out) throws Exception {
 		
-		for (String word : inTuple.f0.split(" ")) {
-			outTuple.f0 = word;
-			out.collect(outTuple);
+		for (String word : inTuple.split(" ")) {
+			out.collect(word);
 		}
 	}
 }

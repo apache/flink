@@ -21,19 +21,20 @@ package org.apache.flink.streaming.api.streamrecord;
 import java.io.IOException;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.types.TypeInformation;
 
-public final class StreamRecordSerializer<T extends Tuple> extends TypeSerializer<StreamRecord<T>> {
+public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord<T>> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final TupleSerializer<T> tupleSerializer;
+	private final TypeSerializer<T> typeSerializer;
+	private final boolean isTuple;
 
-	public StreamRecordSerializer(TupleSerializer<T> tupleSerializer) {
-		this.tupleSerializer = tupleSerializer;
+	public StreamRecordSerializer(TypeInformation<T> typeInfo) {
+		this.typeSerializer = typeInfo.createSerializer();
+		this.isTuple = typeInfo.isTupleType();
 	}
 
 	@Override
@@ -51,7 +52,8 @@ public final class StreamRecordSerializer<T extends Tuple> extends TypeSerialize
 		try {
 			@SuppressWarnings("unchecked")
 			StreamRecord<T> t = StreamRecord.class.newInstance();
-			t.setTuple(tupleSerializer.createInstance());
+			t.isTuple = isTuple;
+			t.setObject(typeSerializer.createInstance());
 			return t;
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot instantiate StreamRecord.", e);
@@ -79,14 +81,14 @@ public final class StreamRecordSerializer<T extends Tuple> extends TypeSerialize
 	@Override
 	public void serialize(StreamRecord<T> value, DataOutputView target) throws IOException {
 		value.getId().write(target);
-		tupleSerializer.serialize(value.getTuple(), target);
+		typeSerializer.serialize(value.getObject(), target);
 	}
 
 	@Override
 	public StreamRecord<T> deserialize(StreamRecord<T> reuse, DataInputView source)
 			throws IOException {
 		reuse.getId().read(source);
-		tupleSerializer.deserialize(reuse.getTuple(), source);
+		reuse.setObject(typeSerializer.deserialize(reuse.getObject(), source));
 		return reuse;
 	}
 

@@ -20,10 +20,9 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import org.apache.flink.api.java.functions.FilterFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 
-public class FilterInvokable<IN extends Tuple> extends UserTaskInvokable<IN, IN> {
+public class FilterInvokable<IN> extends UserTaskInvokable<IN, IN> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -35,9 +34,9 @@ public class FilterInvokable<IN extends Tuple> extends UserTaskInvokable<IN, IN>
 
 	@Override
 	protected void immutableInvoke() throws Exception {
-		while (recordIterator.next(reuse) != null) {
-			if (filterFunction.filter(reuse.getTuple())) {
-				collector.collect(reuse.getTuple());
+		while ((reuse = recordIterator.next(reuse)) != null) {
+			if (filterFunction.filter(reuse.getObject())) {
+				collector.collect(reuse.getObject());
 			}
 			resetReuse();
 		}
@@ -45,9 +44,9 @@ public class FilterInvokable<IN extends Tuple> extends UserTaskInvokable<IN, IN>
 
 	@Override
 	protected void mutableInvoke() throws Exception {
-		while (recordIterator.next(reuse) != null) {
-			if (filterFunction.filter(reuse.getTuple())) {
-				collector.collect(reuse.getTuple());
+		while ((reuse = recordIterator.next(reuse)) != null) {
+			if (filterFunction.filter(reuse.getObject())) {
+				collector.collect(reuse.getObject());
 			}
 		}
 	}

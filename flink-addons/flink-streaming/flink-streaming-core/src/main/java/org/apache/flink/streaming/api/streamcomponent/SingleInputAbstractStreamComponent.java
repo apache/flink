@@ -19,20 +19,19 @@
 
 package org.apache.flink.streaming.api.streamcomponent;
 
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.MutableUnionRecordReader;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
+import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.MutableObjectIterator;
 
-public abstract class SingleInputAbstractStreamComponent<IN extends Tuple, OUT extends Tuple>
-		extends AbstractStreamComponent<OUT> {
+public abstract class SingleInputAbstractStreamComponent<IN, OUT> extends
+		AbstractStreamComponent<OUT> {
 
-	protected StreamRecordSerializer<IN> inTupleSerializer = null;
+	protected StreamRecordSerializer<IN> inputSerializer = null;
 	protected MutableObjectIterator<StreamRecord<IN>> inputIter;
 	protected MutableReader<IOReadableWritable> inputs;
 
@@ -46,17 +45,19 @@ public abstract class SingleInputAbstractStreamComponent<IN extends Tuple, OUT e
 
 	@SuppressWarnings("unchecked")
 	private void setDeserializer() {
-		TupleTypeInfo<IN> inTupleTypeInfo = (TupleTypeInfo<IN>) typeWrapper
-				.getInputTupleTypeInfo1();
-		inTupleSerializer = new StreamRecordSerializer<IN>(inTupleTypeInfo.createSerializer());
+		TypeInformation<IN> inTupleTypeInfo = (TypeInformation<IN>) typeWrapper
+				.getInputTypeInfo1();
+		inputSerializer = new StreamRecordSerializer<IN>(inTupleTypeInfo);
 	}
 
 	@SuppressWarnings("unchecked")
 	protected void setSinkSerializer() {
-		if (outSerializationDelegate != null) {
-			TupleTypeInfo<IN> inTupleTypeInfo = (TupleTypeInfo<IN>) outTupleTypeInfo;
-
-			inTupleSerializer = new StreamRecordSerializer<IN>(inTupleTypeInfo.createSerializer());
+		try {
+			TypeInformation<IN> inputTypeInfo = (TypeInformation<IN>) typeWrapper
+					.getOutputTypeInfo();
+			inputSerializer = new StreamRecordSerializer<IN>(inputTypeInfo);
+		} catch (RuntimeException e) {
+			// User implemented sink, nothing to do
 		}
 	}
 

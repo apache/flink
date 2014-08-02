@@ -26,7 +26,6 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -38,8 +37,8 @@ import org.apache.flink.runtime.jobgraph.JobTaskVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
-import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
 import org.apache.flink.streaming.api.invokable.SourceInvokable;
+import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamcomponent.CoStreamTask;
@@ -68,11 +67,11 @@ public class JobGraphBuilder {
 	private Map<String, ArrayList<Integer>> outEdgeType;
 	private Map<String, Boolean> mutability;
 	private Map<String, List<String>> inEdgeList;
-	private Map<String, List<StreamPartitioner<? extends Tuple>>> connectionTypes;
+	private Map<String, List<StreamPartitioner<?>>> connectionTypes;
 	private Map<String, String> userDefinedNames;
 	private Map<String, String> operatorNames;
-	private Map<String, StreamComponentInvokable<? extends Tuple>> invokableObjects;
-	private Map<String, TypeSerializerWrapper<? extends Tuple, ? extends Tuple, ? extends Tuple>> typeWrappers;
+	private Map<String, StreamComponentInvokable<?>> invokableObjects;
+	private Map<String, TypeSerializerWrapper<?, ?, ?>> typeWrappers;
 	private Map<String, byte[]> serializedFunctions;
 	private Map<String, byte[]> outputSelectors;
 	private Map<String, Class<? extends AbstractInvokable>> componentClasses;
@@ -105,11 +104,11 @@ public class JobGraphBuilder {
 		outEdgeType = new HashMap<String, ArrayList<Integer>>();
 		mutability = new HashMap<String, Boolean>();
 		inEdgeList = new HashMap<String, List<String>>();
-		connectionTypes = new HashMap<String, List<StreamPartitioner<? extends Tuple>>>();
+		connectionTypes = new HashMap<String, List<StreamPartitioner<?>>>();
 		userDefinedNames = new HashMap<String, String>();
 		operatorNames = new HashMap<String, String>();
-		invokableObjects = new HashMap<String, StreamComponentInvokable<? extends Tuple>>();
-		typeWrappers = new HashMap<String, TypeSerializerWrapper<? extends Tuple, ? extends Tuple, ? extends Tuple>>();
+		invokableObjects = new HashMap<String, StreamComponentInvokable<?>>();
+		typeWrappers = new HashMap<String, TypeSerializerWrapper<?, ?, ?>>();
 		serializedFunctions = new HashMap<String, byte[]>();
 		outputSelectors = new HashMap<String, byte[]>();
 		componentClasses = new HashMap<String, Class<? extends AbstractInvokable>>();
@@ -154,8 +153,8 @@ public class JobGraphBuilder {
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
-	public void addSource(String componentName, SourceInvokable<? extends Tuple> InvokableObject,
-			TypeSerializerWrapper<? extends Tuple, ? extends Tuple, ? extends Tuple> typeWrapper,
+	public void addSource(String componentName, SourceInvokable<?> InvokableObject,
+			TypeSerializerWrapper<?, ?, ?> typeWrapper,
 			String operatorName, byte[] serializedFunction, int parallelism) {
 
 		addComponent(componentName, StreamSource.class, typeWrapper, InvokableObject, operatorName,
@@ -201,7 +200,7 @@ public class JobGraphBuilder {
 	 * Adds a task to the JobGraph with the given parameters
 	 * 
 	 * @param componentNameTypeSerializerWrapper
-	 *            <? extends Tuple, ? extends Tuple, ? extends Tuple>
+	 *            <?, ?, ?>
 	 *            typeWrapper, Name of the component
 	 * @param taskInvokableObject
 	 *            User defined operator
@@ -212,9 +211,9 @@ public class JobGraphBuilder {
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
-	public <IN extends Tuple, OUT extends Tuple> void addTask(String componentName,
+	public <IN, OUT> void addTask(String componentName,
 			UserTaskInvokable<IN, OUT> taskInvokableObject,
-			TypeSerializerWrapper<? extends Tuple, ? extends Tuple, ? extends Tuple> typeWrapper,
+			TypeSerializerWrapper<?, ?, ?> typeWrapper,
 			String operatorName, byte[] serializedFunction, int parallelism) {
 
 		addComponent(componentName, StreamTask.class, typeWrapper, taskInvokableObject,
@@ -225,9 +224,9 @@ public class JobGraphBuilder {
 		}
 	}
 
-	public <IN1 extends Tuple, IN2 extends Tuple, OUT extends Tuple> void addCoTask(
+	public <IN1, IN2, OUT> void addCoTask(
 			String componentName, CoInvokable<IN1, IN2, OUT> taskInvokableObject,
-			TypeSerializerWrapper<? extends Tuple, ? extends Tuple, ? extends Tuple> typeWrapper,
+			TypeSerializerWrapper<?, ?, ?> typeWrapper,
 			String operatorName, byte[] serializedFunction, int parallelism) {
 
 		addComponent(componentName, CoStreamTask.class, typeWrapper, taskInvokableObject,
@@ -252,8 +251,8 @@ public class JobGraphBuilder {
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
-	public void addSink(String componentName, SinkInvokable<? extends Tuple> InvokableObject,
-			TypeSerializerWrapper<? extends Tuple, ? extends Tuple, ? extends Tuple> typeWrapper,
+	public void addSink(String componentName, SinkInvokable<?> InvokableObject,
+			TypeSerializerWrapper<?, ?, ?> typeWrapper,
 			String operatorName, byte[] serializedFunction, int parallelism) {
 
 		addComponent(componentName, StreamSink.class, typeWrapper, InvokableObject, operatorName,
@@ -320,8 +319,8 @@ public class JobGraphBuilder {
 	 */
 	private void addComponent(String componentName,
 			Class<? extends AbstractInvokable> componentClass,
-			TypeSerializerWrapper<? extends Tuple, ? extends Tuple, ? extends Tuple> typeWrapper,
-			StreamComponentInvokable<? extends Tuple> invokableObject, String operatorName,
+			TypeSerializerWrapper<?, ?, ?> typeWrapper,
+			StreamComponentInvokable<?> invokableObject, String operatorName,
 			byte[] serializedFunction, int parallelism) {
 
 		componentClasses.put(componentName, componentClass);
@@ -335,7 +334,7 @@ public class JobGraphBuilder {
 		outEdgeList.put(componentName, new ArrayList<String>());
 		outEdgeType.put(componentName, new ArrayList<Integer>());
 		inEdgeList.put(componentName, new ArrayList<String>());
-		connectionTypes.put(componentName, new ArrayList<StreamPartitioner<? extends Tuple>>());
+		connectionTypes.put(componentName, new ArrayList<StreamPartitioner<?>>());
 		iterationTailCount.put(componentName, 0);
 	}
 
@@ -350,7 +349,7 @@ public class JobGraphBuilder {
 
 		// Get vertex attributes
 		Class<? extends AbstractInvokable> componentClass = componentClasses.get(componentName);
-		StreamComponentInvokable<? extends Tuple> invokableObject = invokableObjects
+		StreamComponentInvokable<?> invokableObject = invokableObjects
 				.get(componentName);
 		String operatorName = operatorNames.get(componentName);
 		byte[] serializedFunction = serializedFunctions.get(componentName);
@@ -453,7 +452,7 @@ public class JobGraphBuilder {
 	 *            Number of the type (used at co-functions)
 	 */
 	public void setEdge(String upStreamComponentName, String downStreamComponentName,
-			StreamPartitioner<? extends Tuple> partitionerObject, int typeNumber) {
+			StreamPartitioner<?> partitionerObject, int typeNumber) {
 		outEdgeList.get(upStreamComponentName).add(downStreamComponentName);
 		outEdgeType.get(upStreamComponentName).add(typeNumber);
 		inEdgeList.get(downStreamComponentName).add(upStreamComponentName);
@@ -471,7 +470,7 @@ public class JobGraphBuilder {
 	 * @param partitionerObject
 	 *            The partitioner
 	 */
-	private <T extends Tuple> void connect(String upStreamComponentName,
+	private <T> void connect(String upStreamComponentName,
 			String downStreamComponentName, StreamPartitioner<T> partitionerObject) {
 
 		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
@@ -530,7 +529,7 @@ public class JobGraphBuilder {
 	 * @param serializedOutputSelector
 	 *            Byte array representing the serialized output selector.
 	 */
-	public <T extends Tuple> void setOutputSelector(String componentName,
+	public <T> void setOutputSelector(String componentName,
 			byte[] serializedOutputSelector) {
 		outputSelectors.put(componentName, serializedOutputSelector);
 

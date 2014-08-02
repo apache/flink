@@ -23,7 +23,6 @@ import java.util.Collection;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -36,7 +35,7 @@ import org.apache.flink.util.StringUtils;
  * @param <T>
  *            Type of the Tuple collected.
  */
-public class DirectedStreamCollector<T extends Tuple> extends StreamCollector<T> {
+public class DirectedStreamCollector<T> extends StreamCollector<T> {
 
 	OutputSelector<T> outputSelector;
 	private static final Log log = LogFactory.getLog(DirectedStreamCollector.class);
@@ -47,7 +46,7 @@ public class DirectedStreamCollector<T extends Tuple> extends StreamCollector<T>
 	 * @param channelID
 	 *            Channel ID of the Task
 	 * @param serializationDelegate
-	 *            Serialization delegate used for tuple serialization
+	 *            Serialization delegate used for serialization
 	 * @param outputSelector
 	 *            User defined {@link OutputSelector}
 	 */
@@ -63,12 +62,12 @@ public class DirectedStreamCollector<T extends Tuple> extends StreamCollector<T>
 	 * Collects and emits a tuple to the outputs by reusing a StreamRecord
 	 * object.
 	 * 
-	 * @param tuple
-	 *            Tuple to be collected and emitted.
+	 * @param outputObject
+	 *            Object to be collected and emitted.
 	 */
 	@Override
-	public void collect(T tuple) {
-		streamRecord.setTuple(tuple);
+	public void collect(T outputObject) {
+		streamRecord.setObject(outputObject);
 		emit(streamRecord);
 	}
 
@@ -80,7 +79,7 @@ public class DirectedStreamCollector<T extends Tuple> extends StreamCollector<T>
 	 *            Record to emit.
 	 */
 	private void emit(StreamRecord<T> streamRecord) {
-		Collection<String> outputNames = outputSelector.getOutputs(streamRecord.getTuple());
+		Collection<String> outputNames = outputSelector.getOutputs(streamRecord.getObject());
 		streamRecord.setId(channelID);
 		serializationDelegate.setInstance(streamRecord);
 		for (String outputName : outputNames) {
