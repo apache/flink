@@ -25,14 +25,14 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.junit.Test;
 
 public class TypeSerializationTest {
 
-	private static class MyMap extends MapFunction<Tuple1<Integer>, Tuple1<String>> {
+	private static class MyMap extends RichMapFunction<Tuple1<Integer>, Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -45,7 +45,7 @@ public class TypeSerializationTest {
 	@Test
 	public void functionTypeSerializationTest() {
 		TypeSerializerWrapper<Tuple1<Integer>, Tuple, Tuple1<Integer>> ser = new FunctionTypeWrapper<Tuple1<Integer>, Tuple, Tuple1<Integer>>(
-				new MyMap(), MapFunction.class, 0, -1, 1);
+				new MyMap(), RichMapFunction.class, 0, -1, 1);
 
 		byte[] serializedType = SerializationUtils.serialize(ser);
 

@@ -24,7 +24,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.api.java.functions.FlatMapFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.util.LogUtils;
 import org.apache.flink.util.Collector;
@@ -36,8 +36,7 @@ public class IterateTest {
 	private static final long MEMORYSIZE = 32;
 	private static boolean iterated = false;
 
-	public static final class IterationHead extends
-			FlatMapFunction<Boolean, Boolean> {
+	public static final class IterationHead extends RichFlatMapFunction<Boolean, Boolean> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -53,8 +52,7 @@ public class IterateTest {
 
 	}
 
-	public static final class IterationTail extends
-			FlatMapFunction<Boolean,Boolean> {
+	public static final class IterationTail extends RichFlatMapFunction<Boolean, Boolean> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -86,12 +84,12 @@ public class IterateTest {
 		for (int i = 0; i < 100000; i++) {
 			bl.add(false);
 		}
-		DataStream<Boolean> source =  env
-				.fromCollection(bl);
+		DataStream<Boolean> source = env.fromCollection(bl);
 
 		IterativeDataStream<Boolean> iteration = source.iterate();
-				
-		DataStream<Boolean> increment = iteration.flatMap(new IterationHead()).flatMap(new IterationTail());
+
+		DataStream<Boolean> increment = iteration.flatMap(new IterationHead()).flatMap(
+				new IterationTail());
 
 		iteration.closeWith(increment).addSink(new MySink());
 

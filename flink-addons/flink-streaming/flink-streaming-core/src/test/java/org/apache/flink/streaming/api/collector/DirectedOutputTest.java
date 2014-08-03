@@ -25,7 +25,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
@@ -38,7 +38,7 @@ public class DirectedOutputTest {
 	static HashSet<Long> evenSet = new HashSet<Long>();
 	static HashSet<Long> oddSet = new HashSet<Long>();
 	
-	private static class PlusTwo extends MapFunction<Long, Long> {
+	private static class PlusTwo extends RichMapFunction<Long, Long> {
 	
 		private static final long serialVersionUID = 1L;
 

@@ -19,16 +19,17 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import org.apache.flink.api.java.functions.FilterFunction;
+import org.apache.flink.api.java.functions.RichFilterFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 
 public class FilterInvokable<IN> extends UserTaskInvokable<IN, IN> {
 
 	private static final long serialVersionUID = 1L;
 
-	FilterFunction<IN> filterFunction;
+	RichFilterFunction<IN> filterFunction;
 
-	public FilterInvokable(FilterFunction<IN> filterFunction) {
+	public FilterInvokable(RichFilterFunction<IN> filterFunction) {
 		this.filterFunction = filterFunction;
 	}
 
@@ -49,5 +50,15 @@ public class FilterInvokable<IN> extends UserTaskInvokable<IN, IN> {
 				collector.collect(reuse.getObject());
 			}
 		}
+	}
+
+	@Override
+	public void open(Configuration parameters) throws Exception {
+		filterFunction.open(parameters);
+	}
+
+	@Override
+	public void close() throws Exception {
+		filterFunction.close();
 	}
 }

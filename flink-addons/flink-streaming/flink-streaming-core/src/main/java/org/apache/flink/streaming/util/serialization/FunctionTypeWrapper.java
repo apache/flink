@@ -21,21 +21,21 @@ package org.apache.flink.streaming.util.serialization;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 public class FunctionTypeWrapper<IN1, IN2, OUT> extends
 		TypeSerializerWrapper<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private AbstractFunction function;
-	private Class<? extends AbstractFunction> functionSuperClass;
+	private AbstractRichFunction function;
+	private Class<? extends AbstractRichFunction> functionSuperClass;
 	private int inTypeParameter1;
 	private int inTypeParameter2;
 	private int outTypeParameter;
 
-	public FunctionTypeWrapper(AbstractFunction function,
-			Class<? extends AbstractFunction> functionSuperClass, int inTypeParameter1,
+	public FunctionTypeWrapper(AbstractRichFunction function,
+			Class<? extends AbstractRichFunction> functionSuperClass, int inTypeParameter1,
 			int inTypeParameter2, int outTypeParameter) {
 		this.function = function;
 		this.functionSuperClass = functionSuperClass;

@@ -58,7 +58,9 @@ public class StreamSink<IN> extends SingleInputAbstractStreamComponent<IN, IN> {
 			LOG.debug("SINK " + name + " invoked");
 		}
 
+		userInvokable.open(getTaskConfiguration());
 		userInvokable.invoke();
+		userInvokable.close();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("SINK " + name + " invoke finished");

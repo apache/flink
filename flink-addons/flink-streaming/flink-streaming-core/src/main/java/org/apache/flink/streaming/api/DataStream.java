@@ -24,11 +24,11 @@ import java.util.List;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.java.functions.FilterFunction;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.java.functions.RichFilterFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
@@ -124,6 +124,14 @@ public class DataStream<T> {
 		this.iterationID = dataStream.iterationID;
 		this.jobGraphBuilder = dataStream.jobGraphBuilder;
 	}
+	
+
+	/**
+	 * Partitioning strategy on the stream.
+	 */
+	public static enum ConnectionType {
+		SHUFFLE, BROADCAST, FIELD, FORWARD, DISTRIBUTE
+	}
 
 	/**
 	 * Initialize the connection and partitioning among the connected
@@ -133,7 +141,7 @@ public class DataStream<T> {
 		connectIDs = new ArrayList<String>();
 		connectIDs.add(getId());
 		partitioners = new ArrayList<StreamPartitioner<T>>();
-		partitioners.add(new ShufflePartitioner<T>());
+		partitioners.add(new ForwardPartitioner<T>());
 	}
 
 	/**
@@ -203,7 +211,7 @@ public class DataStream<T> {
 
 	/**
 	 * Gives the data transformation(vertex) a user defined name in order to use
-	 * at directed outputs. The {@link OutputSelector} of the input vertex
+	 * with directed outputs. The {@link OutputSelector} of the input vertex
 	 * should use this name for directed emits.
 	 * 
 	 * @param name
@@ -312,7 +320,8 @@ public class DataStream<T> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are forwarded to the local subtask of the next component.
+	 * are forwarded to the local subtask of the next component. This is the
+	 * default partitioner setting.
 	 * 
 	 * @return The DataStream with shuffle partitioning set.
 	 */
@@ -342,19 +351,19 @@ public class DataStream<T> {
 
 	/**
 	 * Applies a Map transformation on a {@link DataStream}. The transformation
-	 * calls a {@link MapFunction} for each element of the DataStream. Each
+	 * calls a {@link RichMapFunction} for each element of the DataStream. Each
 	 * MapFunction call returns exactly one element.
 	 * 
 	 * @param mapper
-	 *            The MapFunction that is called for each element of the
+	 *            The RichMapFunction that is called for each element of the
 	 *            DataStream.
 	 * @param <R>
 	 *            output type
 	 * @return The transformed DataStream.
 	 */
-	public <R> StreamOperator<T, R> map(MapFunction<T, R> mapper) {
+	public <R> StreamOperator<T, R> map(RichMapFunction<T, R> mapper) {
 		return addFunction("map", mapper, new FunctionTypeWrapper<T, Tuple, R>(mapper,
-				MapFunction.class, 0, -1, 1), new MapInvokable<T, R>(mapper));
+				RichMapFunction.class, 0, -1, 1), new MapInvokable<T, R>(mapper));
 	}
 
 	/**
@@ -372,8 +381,8 @@ public class DataStream<T> {
 	 *            {@link CoMapFunction#map2(Tuple)}
 	 * @return The transformed DataStream
 	 */
-	public <T2, R> DataStream<R> coMapWith(
-			CoMapFunction<T, T2, R> coMapper, DataStream<T2> otherStream) {
+	public <T2, R> DataStream<R> coMapWith(CoMapFunction<T, T2, R> coMapper,
+			DataStream<T2> otherStream) {
 		return addCoFunction("coMap", new DataStream<T>(this), new DataStream<T2>(otherStream),
 				coMapper,
 				new FunctionTypeWrapper<T, T2, R>(coMapper, CoMapFunction.class, 0, 1, 2),
@@ -382,81 +391,82 @@ public class DataStream<T> {
 
 	/**
 	 * Applies a FlatMap transformation on a {@link DataStream}. The
-	 * transformation calls a FlatMapFunction for each element of the
-	 * DataStream. Each FlatMapFunction call can return any number of elements
-	 * including none.
+	 * transformation calls a {@link RichFlatMapFunction} for each element of
+	 * the DataStream. Each RichFlatMapFunction call can return any number of
+	 * elements including none.
 	 * 
 	 * @param flatMapper
-	 *            The FlatMapFunction that is called for each element of the
+	 *            The RichFlatMapFunction that is called for each element of the
 	 *            DataStream
 	 * 
 	 * @param <R>
 	 *            output type
 	 * @return The transformed DataStream.
 	 */
-	public <R> StreamOperator<T, R> flatMap(FlatMapFunction<T, R> flatMapper) {
+	public <R> StreamOperator<T, R> flatMap(RichFlatMapFunction<T, R> flatMapper) {
 		return addFunction("flatMap", flatMapper, new FunctionTypeWrapper<T, Tuple, R>(flatMapper,
-				FlatMapFunction.class, 0, -1, 1), new FlatMapInvokable<T, R>(flatMapper));
+				RichFlatMapFunction.class, 0, -1, 1), new FlatMapInvokable<T, R>(flatMapper));
 	}
 
 	/**
 	 * Applies a Filter transformation on a {@link DataStream}. The
-	 * transformation calls a {@link FilterFunction} for each element of the
+	 * transformation calls a {@link RichFilterFunction} for each element of the
 	 * DataStream and retains only those element for which the function returns
 	 * true. Elements for which the function returns false are filtered.
 	 * 
 	 * @param filter
-	 *            The FilterFunction that is called for each element of the
+	 *            The RichFilterFunction that is called for each element of the
 	 *            DataSet.
 	 * @return The filtered DataStream.
 	 */
-	public StreamOperator<T, T> filter(FilterFunction<T> filter) {
+	public StreamOperator<T, T> filter(RichFilterFunction<T> filter) {
 		return addFunction("filter", filter, new FunctionTypeWrapper<T, Tuple, T>(filter,
-				FilterFunction.class, 0, -1, 0), new FilterInvokable<T>(filter));
+				RichFilterFunction.class, 0, -1, 0), new FilterInvokable<T>(filter));
 	}
 
 	/**
 	 * Applies a reduce transformation on preset chunks of the DataStream. The
-	 * transformation calls a {@link GroupReduceFunction} for each tuple batch
-	 * of the predefined size. Each GroupReduceFunction call can return any
-	 * number of elements including none.
+	 * transformation calls a {@link RichGroupReduceFunction} for each tuple
+	 * batch of the predefined size. Each RichGroupReduceFunction call can
+	 * return any number of elements including none.
 	 * 
 	 * 
 	 * @param reducer
-	 *            The GroupReduceFunction that is called for each tuple batch.
+	 *            The RichGroupReduceFunction that is called for each tuple
+	 *            batch.
 	 * @param batchSize
 	 *            The number of tuples grouped together in the batch.
 	 * @param <R>
 	 *            output type
 	 * @return The modified DataStream.
 	 */
-	public <R> StreamOperator<T, R> batchReduce(GroupReduceFunction<T, R> reducer,
-			int batchSize) {
+	public <R> StreamOperator<T, R> batchReduce(RichGroupReduceFunction<T, R> reducer, int batchSize) {
 		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<T, Tuple, R>(reducer,
-				GroupReduceFunction.class, 0, -1, 1), new BatchReduceInvokable<T, R>(reducer,
+				RichGroupReduceFunction.class, 0, -1, 1), new BatchReduceInvokable<T, R>(reducer,
 				batchSize));
 	}
 
 	/**
 	 * Applies a reduce transformation on preset "time" chunks of the
-	 * DataStream. The transformation calls a {@link GroupReduceFunction} on
+	 * DataStream. The transformation calls a {@link RichGroupReduceFunction} on
 	 * records received during the predefined time window. The window shifted
-	 * after each reduce call. Each GroupReduceFunction call can return any
+	 * after each reduce call. Each RichGroupReduceFunction call can return any
 	 * number of elements including none.
 	 * 
 	 * 
 	 * @param reducer
-	 *            The GroupReduceFunction that is called for each time window.
+	 *            The RichGroupReduceFunction that is called for each time
+	 *            window.
 	 * @param windowSize
 	 *            The time window to run the reducer on, in milliseconds.
 	 * @param <R>
 	 *            output type
 	 * @return The modified DataStream.
 	 */
-	public <R> StreamOperator<T, R> windowReduce(GroupReduceFunction<T, R> reducer,
+	public <R> StreamOperator<T, R> windowReduce(RichGroupReduceFunction<T, R> reducer,
 			long windowSize) {
 		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<T, Tuple, R>(reducer,
-				GroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<T, R>(reducer,
+				RichGroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<T, R>(reducer,
 				windowSize));
 	}
 
@@ -477,7 +487,7 @@ public class DataStream<T> {
 	 * @return the data stream constructed
 	 */
 	private <R> StreamOperator<T, R> addFunction(String functionName,
-			final AbstractFunction function, TypeSerializerWrapper<T, Tuple, R> typeWrapper,
+			final AbstractRichFunction function, TypeSerializerWrapper<T, Tuple, R> typeWrapper,
 			UserTaskInvokable<T, R> functionInvokable) {
 
 		DataStream<T> inputStream = new DataStream<T>(this);
@@ -500,9 +510,9 @@ public class DataStream<T> {
 		return returnStream;
 	}
 
-	protected <T1, T2, R> DataStream<R> addCoFunction(
-			String functionName, DataStream<T1> inputStream1, DataStream<T2> inputStream2,
-			final AbstractFunction function, TypeSerializerWrapper<T1, T2, R> typeWrapper,
+	protected <T1, T2, R> DataStream<R> addCoFunction(String functionName,
+			DataStream<T1> inputStream1, DataStream<T2> inputStream2,
+			final AbstractRichFunction function, TypeSerializerWrapper<T1, T2, R> typeWrapper,
 			CoInvokable<T1, T2, R> functionInvokable) {
 
 		DataStream<R> returnStream = new DataStream<R>(environment, functionName);
@@ -535,7 +545,7 @@ public class DataStream<T> {
 	 * @param typeNumber
 	 *            Number of the type (used at co-functions)
 	 */
-	<X> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
+	private <X> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
 		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
 			String inputID = inputStream.connectIDs.get(i);
 			StreamPartitioner<X> partitioner = inputStream.partitioners.get(i);
@@ -545,13 +555,13 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Adds the given sink to this environment. Only streams with sinks added
+	 * Adds the given sink to this DataStream. Only streams with sinks added
 	 * will be executed once the {@link StreamExecutionEnvironment#execute()}
 	 * method is called.
 	 * 
 	 * @param sinkFunction
 	 *            The object containing the sink's invoke function.
-	 * @return The modified DataStream.
+	 * @return The closed DataStream.
 	 */
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
 		return addSink(new DataStream<T>(this), sinkFunction);

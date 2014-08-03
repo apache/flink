@@ -23,13 +23,13 @@ import java.util.Random;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.math.stat.regression.OLSMultipleLinearRegression;
-import org.apache.flink.streaming.api.DataStream;
-import org.apache.flink.streaming.api.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.DataStream;
+import org.apache.flink.streaming.api.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
 public class IncrementalOLS {
@@ -78,7 +78,7 @@ public class IncrementalOLS {
 	}
 
 	public static class PartialModelBuilder extends
-			MapFunction<Tuple2<Double, Double[]>, Tuple2<Boolean, Double[]>> {
+			RichMapFunction<Tuple2<Double, Double[]>, Tuple2<Boolean, Double[]>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -116,7 +116,7 @@ public class IncrementalOLS {
 	}
 
 	// TODO: How do I know the x for which I have predicted y?
-	public static class Predictor extends MapFunction<Tuple2<Boolean, Double[]>, Tuple1<Double>> {
+	public static class Predictor extends RichMapFunction<Tuple2<Boolean, Double[]>, Tuple1<Double>> {
 		private static final long serialVersionUID = 1L;
 
 		// StreamRecord batchModel = null;

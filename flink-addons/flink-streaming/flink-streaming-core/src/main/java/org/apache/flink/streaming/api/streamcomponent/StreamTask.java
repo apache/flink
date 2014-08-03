@@ -70,7 +70,9 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
 			output.initializeSerializers();
 		}
 
+		userInvokable.open(getTaskConfiguration());
 		userInvokable.invoke();
+		userInvokable.close();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("TASK " + name + " invoke finished with instance id " + instanceID);

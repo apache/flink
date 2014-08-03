@@ -23,7 +23,7 @@ import java.io.IOException;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
@@ -257,13 +257,13 @@ public class StreamConfig {
 		return config.getInteger(INPUT_TYPE + inputNumber, 0);
 	}
 
-	public void setFunctionClass(Class<? extends AbstractFunction> functionClass) {
+	public void setFunctionClass(Class<? extends AbstractRichFunction> functionClass) {
 		config.setClass("functionClass", functionClass);
 	}
 
 	@SuppressWarnings("unchecked")
-	public Class<? extends AbstractFunction> getFunctionClass() {
-		return (Class<? extends AbstractFunction>) config.getClass("functionClass", null);
+	public Class<? extends AbstractRichFunction> getFunctionClass() {
+		return (Class<? extends AbstractRichFunction>) config.getClass("functionClass", null);
 	}
 
 	@SuppressWarnings("unchecked")

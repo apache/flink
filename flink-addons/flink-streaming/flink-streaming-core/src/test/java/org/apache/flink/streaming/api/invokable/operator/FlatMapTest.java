@@ -25,7 +25,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.flink.api.java.functions.FlatMapFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
@@ -37,7 +37,7 @@ import org.junit.Test;
 
 public class FlatMapTest {
 
-	public static final class MyFlatMap extends FlatMapFunction<Integer, Integer> {
+	public static final class MyFlatMap extends RichFlatMapFunction<Integer, Integer> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -49,7 +49,7 @@ public class FlatMapTest {
 
 	}
 
-	public static final class ParallelFlatMap extends FlatMapFunction<Integer, Integer> {
+	public static final class ParallelFlatMap extends RichFlatMapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -60,7 +60,7 @@ public class FlatMapTest {
 
 	}
 
-	public static final class GenerateSequenceFlatMap extends FlatMapFunction<Long, Long> {
+	public static final class GenerateSequenceFlatMap extends RichFlatMapFunction<Long, Long> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

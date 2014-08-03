@@ -19,11 +19,11 @@
 
 package org.apache.flink.streaming.examples.ml;
 
+import org.apache.flink.api.java.functions.RichMapFunction;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
 
 public class IncrementalLearningSkeleton {
@@ -69,7 +69,7 @@ public class IncrementalLearningSkeleton {
 	}
 
 	// Task for building up-to-date partial models on new training data
-	public static class PartialModelBuilder extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+	public static class PartialModelBuilder extends RichMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -86,7 +86,7 @@ public class IncrementalLearningSkeleton {
 
 	// Task for performing prediction using the model produced in
 	// batch-processing and the up-to-date partial model
-	public static class Predictor extends MapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+	public static class Predictor extends RichMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		Tuple1<Integer> batchModel = null;

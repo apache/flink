@@ -23,7 +23,7 @@ import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.flink.api.java.functions.FilterFunction;
+import org.apache.flink.api.java.functions.RichFilterFunction;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.util.LogUtils;
@@ -45,7 +45,7 @@ public class FilterTest implements Serializable {
 		}
 	}
 
-	static class MyFilter extends FilterFunction<Integer> {
+	static class MyFilter extends RichFilterFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

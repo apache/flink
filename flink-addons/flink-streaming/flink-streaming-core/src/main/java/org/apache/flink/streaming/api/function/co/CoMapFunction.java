@@ -18,9 +18,10 @@
 
 package org.apache.flink.streaming.api.function.co;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 
-public abstract class CoMapFunction<IN1, IN2, OUT> extends AbstractFunction {
+
+public abstract class CoMapFunction<IN1, IN2, OUT> extends AbstractRichFunction {
 	private static final long serialVersionUID = 1L;
 	
 	public abstract OUT map1(IN1 value);

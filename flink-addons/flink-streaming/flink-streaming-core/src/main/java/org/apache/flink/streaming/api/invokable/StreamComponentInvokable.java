@@ -21,9 +21,12 @@ package org.apache.flink.streaming.api.invokable;
 
 import java.io.Serializable;
 
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
-public abstract class StreamComponentInvokable<OUT> implements Serializable {
+public abstract class StreamComponentInvokable<OUT> extends AbstractRichFunction implements
+		Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -40,6 +43,16 @@ public abstract class StreamComponentInvokable<OUT> implements Serializable {
 	public void setAttributes(String componentName, int channelID) {
 		this.componentName = componentName;
 		this.channelID = channelID;
+	}
+
+	@Override
+	public void open(Configuration parameters) throws Exception {
+		System.out.println("Open not implemented");
+	}
+
+	@Override
+	public void close() throws Exception {
+		System.out.println("Close not implemented");
 	}
 
 }

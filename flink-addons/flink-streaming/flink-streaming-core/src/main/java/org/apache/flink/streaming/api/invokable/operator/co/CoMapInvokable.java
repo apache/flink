@@ -19,6 +19,7 @@
 
 package org.apache.flink.streaming.api.invokable.operator.co;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
 
 public class CoMapInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
@@ -51,6 +52,16 @@ public class CoMapInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
 				resetReuse();
 			}
 		} while (!noMoreRecordOnInput1 && !noMoreRecordOnInput2);
+	}
+
+	@Override
+	public void open(Configuration parameters) throws Exception {
+		mapper.open(parameters);
+	}
+
+	@Override
+	public void close() throws Exception {
+		mapper.close();
 	}
 
 }
