@@ -19,8 +19,7 @@
 
 package org.apache.flink.streaming.api;
 
-
-public class StreamOperator<IN, OUT > extends DataStream<OUT> {
+public class StreamOperator<IN, OUT> extends DataStream<OUT> {
 
 	protected StreamOperator(StreamExecutionEnvironment environment, String operatorType) {
 		super(environment, operatorType);
@@ -28,6 +27,11 @@ public class StreamOperator<IN, OUT > extends DataStream<OUT> {
 
 	protected StreamOperator(DataStream<OUT> dataStream) {
 		super(dataStream);
+	}
+
+	@Override
+	protected DataStream<OUT> copy() {
+		return new StreamOperator<IN, OUT>(this);
 	}
 
 }
