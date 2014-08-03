@@ -16,18 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative.aggregators;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.JoinFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
+import org.apache.flink.api.java.functions.RichJoinFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -139,8 +137,7 @@ public class ConnectedComponentsWithParametrizableConvergenceITCase extends Java
 		}
 	}
 
-	public static final class NeighborWithComponentIDJoin extends JoinFunction
-		<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class NeighborWithComponentIDJoin extends RichJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -153,36 +150,32 @@ public class ConnectedComponentsWithParametrizableConvergenceITCase extends Java
 		}
 	}
 
-	public static final class MinimumReduce extends GroupReduceFunction
-		<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class MinimumReduce extends RichGroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
 		final Tuple2<Long, Long> resultVertex = new Tuple2<Long, Long>();
 
 		@Override
-		public void reduce(Iterator<Tuple2<Long, Long>> values,
-				Collector<Tuple2<Long, Long>> out) throws Exception {
+		public void reduce(Iterable<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long>> out) {
+			Long vertexId = 0L;
+			Long minimumCompId = Long.MAX_VALUE;
 
-			final Tuple2<Long, Long> first = values.next();		
-			final Long vertexId = first.f0;
-			Long minimumCompId = first.f1;
-
-			while (values.hasNext()) {
-				Long candidateCompId = values.next().f1;
+			for (Tuple2<Long, Long> value: values) {
+				vertexId = value.f0;
+				Long candidateCompId = value.f1;
 				if (candidateCompId < minimumCompId) {
 					minimumCompId = candidateCompId;
 				}
 			}
-			resultVertex.setField(vertexId, 0);
-			resultVertex.setField(minimumCompId, 1);
+			resultVertex.f0 = vertexId;
+			resultVertex.f1 = minimumCompId;
 
 			out.collect(resultVertex);
 		}
 	}
 
 	@SuppressWarnings("serial")
-	public static final class MinimumIdFilter extends FlatMapFunction
-		<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
+	public static final class MinimumIdFilter extends RichFlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
 
 		private static LongSumAggregator aggr;
 

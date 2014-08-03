@@ -21,7 +21,7 @@ package org.apache.flink.test.spargel;
 
 import java.io.BufferedReader;
 
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -72,7 +72,7 @@ public class SpargelConnectedComponentsITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static final class EdgeParser extends MapFunction<String, Tuple2<Long, Long>> {
+	public static final class EdgeParser extends RichMapFunction<String, Tuple2<Long, Long>> {
 		public Tuple2<Long, Long> map(String value) {
 			String[] nums = value.split(" ");
 			return new Tuple2<Long, Long>(Long.parseLong(nums[0]), Long.parseLong(nums[1]));

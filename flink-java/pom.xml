@@ -50,12 +50,12 @@ under the License.
 		<dependency>
 			<groupId>org.apache.avro</groupId>
 			<artifactId>avro</artifactId>
-			<version>1.7.5</version>
+			<!-- version is derived from base module -->
 		</dependency>
 		<dependency>
 			<groupId>com.esotericsoftware.kryo</groupId>
 			<artifactId>kryo</artifactId>
-			<version>2.23.0</version>
+			<version>2.24.0</version>
 		</dependency>
 	</dependencies>
 </project>

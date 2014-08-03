@@ -19,15 +19,13 @@
 
 package org.apache.flink.api.java.record.functions;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.common.functions.GenericCrosser;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.types.Record;
-import org.apache.flink.util.Collector;
 
 /**
- * The CrossFunction is the base class for functions that are invoked by a {@link org.apache.flink.api.java.operators.CrossOperator}.
+ * The CrossFunction is the base class for functions that are invoked by a {@link org.apache.flink.api.java.record.operators.CrossOperator}.
  */
-public abstract class CrossFunction extends AbstractFunction implements GenericCrosser<Record, Record, Record> {
+public abstract class CrossFunction extends AbstractRichFunction implements org.apache.flink.api.common.functions.CrossFunction<Record, Record, Record> {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -35,14 +33,15 @@ public abstract class CrossFunction extends AbstractFunction implements GenericC
 	 * This method must be implemented to provide a user implementation of a cross.
 	 * It is called for each element of the Cartesian product of both input sets.
 
-	 * @param record1 The record from the second input.
-	 * @param record2 The record from the second input.
-	 * @param out A collector that collects all output records.
+	 * @param first The record from the second input.
+	 * @param second The record from the second input.
+	 * @return The result of the cross UDF
 	 * 
 	 * @throws Exception Implementations may forward exceptions, which are caught by the runtime. When the
 	 *                   runtime catches an exception, it aborts the task and lets the fail-over logic
 	 *                   decide whether to retry the task execution.
 	 */
 	@Override
-	public abstract void cross(Record record1, Record record2, Collector<Record> out) throws Exception;
+	public abstract Record cross(Record first, Record second) throws Exception;
+
 }

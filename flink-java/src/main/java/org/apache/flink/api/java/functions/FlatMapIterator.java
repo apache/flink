@@ -23,7 +23,7 @@ import java.util.Iterator;
 import org.apache.flink.util.Collector;
 
 /**
- * A variant of the {@link FlatMapFunction} that returns elements through an iterator, rather then
+ * A convenience variant of the {@link RichFlatMapFunction} that returns elements through an iterator, rather then
  * through a collector. In all other respects, it behaves exactly like the FlatMapFunction.
  * <p>
  * The function needs to be serializable, as defined in {@link java.io.Serializable}.
@@ -31,7 +31,7 @@ import org.apache.flink.util.Collector;
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
  */
-public abstract class FlatMapIterator<IN, OUT> extends FlatMapFunction<IN, OUT> {
+public abstract class FlatMapIterator<IN, OUT> extends RichFlatMapFunction<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 

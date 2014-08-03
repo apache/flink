@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.task;
 
 import org.apache.commons.logging.Log;
@@ -29,10 +28,10 @@ import org.apache.flink.runtime.operators.PactTaskContext;
 import org.apache.flink.util.Collector;
 
 /**
- * An iteration tail, which runs a {@link PactDriver} inside.
+ * An iteration tail, which runs a driver inside.
  * <p/>
  * If the iteration state is updated, the output of this task will be send back to the {@link IterationHeadPactTask} via
- * a {@link BlockingBackChannel} for the workset -OR- a {@link MutableHashTable} for the solution set. Therefore this
+ * a BackChannel for the workset -OR- a HashTable for the solution set. Therefore this
  * task must be scheduled on the same instance as the head. It's also possible for the tail to update *both* the workset
  * and the solution set.
  * <p/>

@@ -21,11 +21,11 @@ package org.apache.flink.test.javaApiOperators;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedList;
 
-import org.apache.flink.api.java.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.functions.RichCoGroupFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -301,27 +301,25 @@ public class CoGroupITCase extends JavaProgramTestBase {
 	
 	}
 	
-	public static class Tuple5CoGroup extends CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, Integer>> {
+	public static class Tuple5CoGroup implements CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, Integer>> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void coGroup(
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> first,
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> second,
-				Collector<Tuple2<Integer, Integer>> out) throws Exception {
-			
+				Iterable<Tuple5<Integer, Long, Integer, String, Long>> first,
+				Iterable<Tuple5<Integer, Long, Integer, String, Long>> second,
+				Collector<Tuple2<Integer, Integer>> out)
+		{
 			int sum = 0;
 			int id = 0;
 			
-			while(first.hasNext()) {
-				Tuple5<Integer, Long, Integer, String, Long> element = first.next();
+			for ( Tuple5<Integer, Long, Integer, String, Long> element : first ) {
 				sum += element.f2;
 				id = element.f0;
 			}
 			
-			while(second.hasNext()) {
-				Tuple5<Integer, Long, Integer, String, Long> element = second.next();
+			for ( Tuple5<Integer, Long, Integer, String, Long> element : second ) {
 				sum += element.f2;
 				id = element.f0;
 			}
@@ -330,55 +328,48 @@ public class CoGroupITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class CustomTypeCoGroup extends CoGroupFunction<CustomType, CustomType, CustomType> {
+	public static class CustomTypeCoGroup implements CoGroupFunction<CustomType, CustomType, CustomType> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void coGroup(Iterator<CustomType> first,
-				Iterator<CustomType> second, Collector<CustomType> out)
-				throws Exception {
+		public void coGroup(Iterable<CustomType> first, Iterable<CustomType> second, Collector<CustomType> out) {
 			
 			CustomType o = new CustomType(0,0,"test");
 			
-			while(first.hasNext()) {
-				CustomType element = first.next();
+			for ( CustomType element : first ) {
 				o.myInt = element.myInt;
 				o.myLong += element.myLong;
 			}
 			
-			while(second.hasNext()) {
-				CustomType element = second.next();
+			for ( CustomType element : second ) {
 				o.myInt = element.myInt;
 				o.myLong += element.myLong;
 			}
 			
 			out.collect(o);
 		}
-		
 	}
 	
-	public static class MixedCoGroup extends CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, CustomType, Tuple3<Integer, Long, String>> {
+	public static class MixedCoGroup implements CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, CustomType, Tuple3<Integer, Long, String>> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void coGroup(
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> first,
-				Iterator<CustomType> second,
+				Iterable<Tuple5<Integer, Long, Integer, String, Long>> first,
+				Iterable<CustomType> second,
 				Collector<Tuple3<Integer, Long, String>> out) throws Exception {
 			
 			long sum = 0;
 			int id = 0;
 			
-			while(first.hasNext()) {
-				Tuple5<Integer, Long, Integer, String, Long> element = first.next();
+			for ( Tuple5<Integer, Long, Integer, String, Long> element : first ) {
 				sum += element.f0;
 				id = element.f2;
 			}
 			
-			while(second.hasNext()) {
-				CustomType element = second.next();
+			for (CustomType element : second) {
 				id = element.myInt;
 				sum += element.myLong;
 			}
@@ -388,25 +379,23 @@ public class CoGroupITCase extends JavaProgramTestBase {
 		
 	}
 	
-	public static class MixedCoGroup2 extends CoGroupFunction<CustomType, Tuple5<Integer, Long, Integer, String, Long>, CustomType> {
+	public static class MixedCoGroup2 implements CoGroupFunction<CustomType, Tuple5<Integer, Long, Integer, String, Long>, CustomType> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void coGroup(Iterator<CustomType> first,
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> second,
-				Collector<CustomType> out) throws Exception {
-			
+		public void coGroup(Iterable<CustomType> first,
+				Iterable<Tuple5<Integer, Long, Integer, String, Long>> second,
+				Collector<CustomType> out)
+		{
 			CustomType o = new CustomType(0,0,"test");
 			
-			while(first.hasNext()) {
-				CustomType element = first.next();
+			for (CustomType element : first) {
 				o.myInt = element.myInt;
 				o.myLong += element.myLong;
 			}
 			
-			while(second.hasNext()) {
-				Tuple5<Integer, Long, Integer, String, Long> element = second.next();
+			for (Tuple5<Integer, Long, Integer, String, Long> element : second) {
 				o.myInt = element.f2;
 				o.myLong += element.f0;
 			}
@@ -417,46 +406,42 @@ public class CoGroupITCase extends JavaProgramTestBase {
 		
 	}
 	
-	public static class Tuple3ReturnLeft extends CoGroupFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
+	public static class Tuple3ReturnLeft implements CoGroupFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 		
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void coGroup(Iterator<Tuple3<Integer, Long, String>> first,
-				Iterator<Tuple3<Integer, Long, String>> second,
-				Collector<Tuple3<Integer, Long, String>> out) throws Exception {
-
-			while(first.hasNext()) {
-				Tuple3<Integer, Long, String> element = first.next();
-				if(element.f0 < 6)
+		public void coGroup(Iterable<Tuple3<Integer, Long, String>> first,
+				Iterable<Tuple3<Integer, Long, String>> second,
+				Collector<Tuple3<Integer, Long, String>> out)
+		{
+			for (Tuple3<Integer, Long, String> element : first) {
+				if(element.f0 < 6) {
 					out.collect(element);
+				}
 			}
 		}
 	}
 	
-	public static class Tuple5ReturnRight extends CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
+	public static class Tuple5ReturnRight implements CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
 		
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void coGroup(
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> first,
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> second,
+				Iterable<Tuple5<Integer, Long, Integer, String, Long>> first,
+				Iterable<Tuple5<Integer, Long, Integer, String, Long>> second,
 				Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
-				throws Exception {
-
-			while(second.hasNext()) {
-				Tuple5<Integer, Long, Integer, String, Long> element = second.next();
-				if(element.f0 < 4)
+		{
+			for (Tuple5<Integer, Long, Integer, String, Long> element : second) {
+				if(element.f0 < 4) {
 					out.collect(element);
+				}
 			}
-			
 		}
-
-
 	}
 	
-	public static class Tuple5CoGroupBC extends CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Integer, Integer>> {
+	public static class Tuple5CoGroupBC extends RichCoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Integer, Integer>> {
 
 		private static final long serialVersionUID = 1L;
 		
@@ -476,21 +461,19 @@ public class CoGroupITCase extends JavaProgramTestBase {
 
 		@Override
 		public void coGroup(
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> first,
-				Iterator<Tuple5<Integer, Long, Integer, String, Long>> second,
-				Collector<Tuple3<Integer, Integer, Integer>> out) throws Exception {
-			
+				Iterable<Tuple5<Integer, Long, Integer, String, Long>> first,
+				Iterable<Tuple5<Integer, Long, Integer, String, Long>> second,
+				Collector<Tuple3<Integer, Integer, Integer>> out)
+		{
 			int sum = 0;
 			int id = 0;
 			
-			while(first.hasNext()) {
-				Tuple5<Integer, Long, Integer, String, Long> element = first.next();
+			for (Tuple5<Integer, Long, Integer, String, Long> element : first) {
 				sum += element.f2;
 				id = element.f0;
 			}
 			
-			while(second.hasNext()) {
-				Tuple5<Integer, Long, Integer, String, Long> element = second.next();
+			for (Tuple5<Integer, Long, Integer, String, Long> element : second) {
 				sum += element.f2;
 				id = element.f0;
 			}

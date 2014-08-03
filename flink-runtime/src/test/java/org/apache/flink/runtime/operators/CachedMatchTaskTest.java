@@ -16,15 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.flink.api.common.functions.GenericJoiner;
-import org.apache.flink.api.java.record.functions.JoinFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.java.functions.RichFlatJoinFunction;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
 import org.apache.flink.runtime.operators.BuildFirstCachedMatchDriver;
@@ -43,8 +42,8 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class CachedMatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, Record>>
-{
+public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
+
 	private static final long HASH_MEM = 6*1024*1024;
 	
 	private static final long SORT_MEM = 3*1024*1024;
@@ -462,7 +461,7 @@ public class CachedMatchTaskTest extends DriverTestBase<GenericJoiner<Record, Re
 	
 	// =================================================================================================
 	
-	public static final class MockMatchStub extends JoinFunction {
+	public static final class MockMatchStub extends RichFlatJoinFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
@@ -471,13 +470,13 @@ public class CachedMatchTaskTest extends DriverTestBase<GenericJoiner<Record, Re
 		}
 	}
 	
-	public static final class MockFailingMatchStub extends JoinFunction {
+	public static final class MockFailingMatchStub extends RichFlatJoinFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;
 		
 		@Override
-		public void join(Record record1, Record record2, Collector<Record> out) {
+		public void join(Record record1, Record record2, Collector<Record> out) throws Exception {
 			if (++this.cnt >= 10) {
 				throw new ExpectedTestException();
 			}
@@ -486,7 +485,7 @@ public class CachedMatchTaskTest extends DriverTestBase<GenericJoiner<Record, Re
 		}
 	}
 	
-	public static final class MockDelayingMatchStub extends JoinFunction {
+	public static final class MockDelayingMatchStub extends RichFlatJoinFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override

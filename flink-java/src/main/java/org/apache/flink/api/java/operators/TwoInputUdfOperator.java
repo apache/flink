@@ -35,8 +35,8 @@ import org.apache.flink.api.java.DataSet;
 /**
  * The <tt>TwoInputUdfOperator</tt> is the base class of all binary operators that execute
  * user-defined functions (UDFs). The UDFs encapsulated by this operator are naturally UDFs that
- * have two inputs (such as {@link org.apache.flink.api.java.functions.JoinFunction} or 
- * {@link org.apache.flink.api.java.functions.CoGroupFunction}).
+ * have two inputs (such as {@link org.apache.flink.api.java.functions.RichJoinFunction} or
+ * {@link org.apache.flink.api.java.functions.RichCoGroupFunction}).
  * <p>
  * This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization
  * through configuration objects, and semantic properties.

@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.record.functions;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
@@ -28,7 +27,8 @@ import org.apache.flink.util.Collector;
  * The MapFunction must be extended to provide a mapper implementation
  * By definition, the mapper is called for each individual input record.
  */
-public abstract class MapFunction extends AbstractFunction implements GenericCollectorMap<Record, Record> {
+@SuppressWarnings("deprecation")
+public abstract class MapFunction extends AbstractRichFunction implements GenericCollectorMap<Record, Record> {
 	
 	private static final long serialVersionUID = 1L;
 	

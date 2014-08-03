@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.java.operators.translation;
 
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 
-public final class TupleKeyExtractingMapper<T, K> extends MapFunction<T, Tuple2<K, T>> {
+public final class TupleKeyExtractingMapper<T, K> extends RichMapFunction<T, Tuple2<K, T>> {
 	
 	private static final long serialVersionUID = 1L;
 	

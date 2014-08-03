@@ -18,8 +18,8 @@
 
 package org.apache.flink.example.java.wordcount;
 
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -111,7 +111,7 @@ public class WordCountPOJO {
 	 * FlatMapFunction. The function takes a line (String) and splits it into
 	 * multiple WC POJOs as "(word, 1)".
 	 */
-	public static final class Tokenizer extends FlatMapFunction<String, WC> {
+	public static final class Tokenizer implements FlatMapFunction<String, WC> {
 
 		@Override
 		public void flatMap(String value, Collector<WC> out) {

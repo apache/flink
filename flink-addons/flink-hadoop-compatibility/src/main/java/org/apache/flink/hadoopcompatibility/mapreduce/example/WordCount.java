@@ -19,8 +19,8 @@
 package org.apache.flink.hadoopcompatibility.mapreduce.example;
 
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 import org.apache.hadoop.fs.Path;
@@ -89,7 +89,7 @@ public class WordCount {
 	/**
 	 * Splits a line into words and converts Hadoop Writables into normal Java data types.
 	 */
-	public static final class Tokenizer extends FlatMapFunction<Tuple2<LongWritable, Text>, Tuple2<String, Integer>> {
+	public static final class Tokenizer extends RichFlatMapFunction<Tuple2<LongWritable, Text>, Tuple2<String, Integer>> {
 		
 		@Override
 		public void flatMap(Tuple2<LongWritable, Text> value, Collector<Tuple2<String, Integer>> out) {
@@ -109,7 +109,7 @@ public class WordCount {
 	/**
 	 * Converts Java data types to Hadoop Writables.
 	 */
-	public static final class HadoopDatatypeMapper extends MapFunction<Tuple2<String, Integer>, Tuple2<Text, IntWritable>> {
+	public static final class HadoopDatatypeMapper extends RichMapFunction<Tuple2<String, Integer>, Tuple2<Text, IntWritable>> {
 		
 		@Override
 		public Tuple2<Text, IntWritable> map(Tuple2<String, Integer> value) throws Exception {

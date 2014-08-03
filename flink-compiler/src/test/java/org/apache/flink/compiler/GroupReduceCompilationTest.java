@@ -16,16 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler;
-
-import java.util.Iterator;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.operators.ReduceGroupOperator;
+import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Collector;
@@ -50,8 +47,8 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			
 			DataSet<Double> data = env.fromElements(0.2, 0.3, 0.4, 0.5).name("source");
 			
-			data.reduceGroup(new GroupReduceFunction<Double, Double>() {
-				public void reduce(Iterator<Double> values, Collector<Double> out) {}
+			data.reduceGroup(new RichGroupReduceFunction<Double, Double>() {
+				public void reduce(Iterable<Double> values, Collector<Double> out) {}
 			}).name("reducer")
 			.print().name("sink");
 			
@@ -94,8 +91,8 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			
 			DataSet<Long> data = env.generateSequence(1, 8000000).name("source");
 			
-			ReduceGroupOperator<Long, Long> reduced = data.reduceGroup(new GroupReduceFunction<Long, Long>() {
-				public void reduce(Iterator<Long> values, Collector<Long> out) {}
+			GroupReduceOperator<Long, Long> reduced = data.reduceGroup(new RichGroupReduceFunction<Long, Long>() {
+				public void reduce(Iterable<Long> values, Collector<Long> out) {}
 			}).name("reducer");
 			
 			reduced.setCombinable(true);
@@ -147,8 +144,8 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			
 			data
 				.groupBy(1)
-				.reduceGroup(new GroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
-				public void reduce(Iterator<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
+				.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
+				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
 			}).name("reducer")
 			.print().name("sink");
 			
@@ -194,10 +191,10 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
 				.name("source").setParallelism(6);
 			
-			ReduceGroupOperator<Tuple2<String, Double>, Tuple2<String, Double>> reduced = data
+			GroupReduceOperator<Tuple2<String, Double>, Tuple2<String, Double>> reduced = data
 					.groupBy(1)
-					.reduceGroup(new GroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
-				public void reduce(Iterator<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
+					.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
+				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
 			}).name("reducer");
 			
 			reduced.setCombinable(true);
@@ -255,8 +252,8 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 				.groupBy(new KeySelector<Tuple2<String,Double>, String>() { 
 					public String getKey(Tuple2<String, Double> value) { return value.f0; }
 				})
-				.reduceGroup(new GroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
-				public void reduce(Iterator<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
+				.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
+				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
 			}).name("reducer")
 			.print().name("sink");
 			
@@ -309,12 +306,12 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
 				.name("source").setParallelism(6);
 			
-			ReduceGroupOperator<Tuple2<String, Double>, Tuple2<String, Double>> reduced = data
+			GroupReduceOperator<Tuple2<String, Double>, Tuple2<String, Double>> reduced = data
 				.groupBy(new KeySelector<Tuple2<String,Double>, String>() { 
 					public String getKey(Tuple2<String, Double> value) { return value.f0; }
 				})
-				.reduceGroup(new GroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
-				public void reduce(Iterator<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
+				.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
+				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
 			}).name("reducer");
 			
 			reduced.setCombinable(true);

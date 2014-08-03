@@ -23,9 +23,10 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
@@ -396,7 +397,7 @@ public class MapITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> bcMapDs = ds.
-						map(new MapFunction<Tuple3<Integer,Long,String>, Tuple3<Integer,Long,String>>() {
+						map(new RichMapFunction<Tuple3<Integer,Long,String>, Tuple3<Integer,Long,String>>() {
 							private static final long serialVersionUID = 1L;
 							private final Tuple3<Integer, Long, String> out = new Tuple3<Integer, Long, String>();
 							private Integer f2Replace = 0;
@@ -457,7 +458,7 @@ public class MapITCase extends JavaProgramTestBase {
 				final int testValue = 666;
 				conf.setInteger(testKey, testValue);
 				DataSet<Tuple3<Integer, Long, String>> bcMapDs = ds.
-						map(new MapFunction<Tuple3<Integer,Long,String>, Tuple3<Integer,Long,String>>() {
+						map(new RichMapFunction<Tuple3<Integer,Long,String>, Tuple3<Integer,Long,String>>() {
 							private static final long serialVersionUID = 1L;
 							
 							@Override

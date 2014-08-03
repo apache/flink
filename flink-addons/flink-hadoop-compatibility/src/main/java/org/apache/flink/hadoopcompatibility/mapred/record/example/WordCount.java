@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.hadoopcompatibility.mapred.record.example;
 
 import java.io.Serializable;
@@ -103,6 +102,7 @@ public class WordCount implements Program, ProgramDescription {
 		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			Record element = null;
 			int sum = 0;
+			
 			while (records.hasNext()) {
 				element = records.next();
 				int cnt = element.getField(1, IntValue.class).getValue();

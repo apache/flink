@@ -270,6 +270,7 @@ public class AccumulatorITCase extends RecordAPITestBase {
 		private void reduceInternal(Iterator<Record> records, Collector<Record> out) {
 			Record element = null;
 			int sum = 0;
+			
 			while (records.hasNext()) {
 				element = records.next();
 				IntValue i = element.getField(1, IntValue.class);

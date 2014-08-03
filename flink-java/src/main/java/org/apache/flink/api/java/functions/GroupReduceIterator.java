@@ -23,18 +23,18 @@ import java.util.Iterator;
 import org.apache.flink.util.Collector;
 
 
-public abstract class GroupReduceIterator<IN, OUT> extends GroupReduceFunction<IN, OUT> {
+public abstract class GroupReduceIterator<IN, OUT> extends RichGroupReduceFunction<IN, OUT> {
 	
 	private static final long serialVersionUID = 1L;
 
 
-	public abstract Iterator<OUT> reduceGroup(Iterator<IN> values) throws Exception;
+	public abstract Iterator<OUT> reduceGroup(Iterable<IN> values) throws Exception;
 	
 	
 	// -------------------------------------------------------------------------------------------
 	
 	@Override
-	public final void reduce(Iterator<IN> values, Collector<OUT> out) throws Exception {
+	public final void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception {
 		for (Iterator<OUT> iter = reduceGroup(values); iter.hasNext(); ) {
 			out.collect(iter.next());
 		}

@@ -29,20 +29,21 @@ import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Value;
 
 
-public abstract class WrappingFunction<T extends AbstractFunction> extends AbstractFunction {
+public abstract class WrappingFunction<T extends Function> extends AbstractRichFunction {
 	
 	private static final long serialVersionUID = 1L;
 
-	protected final T wrappedFunction;
-	
-	
+	protected T wrappedFunction;
+
 	protected WrappingFunction(T wrappedFunction) {
 		this.wrappedFunction = wrappedFunction;
 	}
@@ -50,12 +51,12 @@ public abstract class WrappingFunction<T extends AbstractFunction> extends Abstr
 	
 	@Override
 	public void open(Configuration parameters) throws Exception {
-		this.wrappedFunction.open(parameters);
+		FunctionUtils.openFunction(this.wrappedFunction, parameters);
 	}
 	
 	@Override
 	public void close() throws Exception {
-		this.wrappedFunction.close();
+		FunctionUtils.closeFunction(this.wrappedFunction);
 	}
 	
 	@Override
@@ -63,13 +64,16 @@ public abstract class WrappingFunction<T extends AbstractFunction> extends Abstr
 		super.setRuntimeContext(t);
 		
 		if (t instanceof IterationRuntimeContext) {
-			this.wrappedFunction.setRuntimeContext(new WrappingIterationRuntimeContext(t));
+			FunctionUtils.setFunctionRuntimeContext(this.wrappedFunction, new WrappingIterationRuntimeContext(t));
 		}
 		else{
-			this.wrappedFunction.setRuntimeContext(new WrappingRuntimeContext(t));
+			FunctionUtils.setFunctionRuntimeContext(this.wrappedFunction, new WrappingRuntimeContext(t));
 		}
 	}
-	
+
+	public T getWrappedFunction () {
+		return this.wrappedFunction;
+	}
 	
 	
 	private static class WrappingRuntimeContext implements RuntimeContext {
@@ -170,6 +174,5 @@ public abstract class WrappingFunction<T extends AbstractFunction> extends Abstr
 		public <T extends Value> T getPreviousIterationAggregate(String name) {
 			return ((IterationRuntimeContext) context).<T>getPreviousIterationAggregate(name);
 		}
-		
 	}
 }

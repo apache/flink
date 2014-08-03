@@ -19,11 +19,9 @@
 
 package org.apache.flink.test.cancelling;
 
-import static junit.framework.Assert.fail;
-
 import java.util.Iterator;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -229,7 +227,7 @@ public abstract class CancellingTestBase {
 
 		} catch (Exception e) {
 			LOG.error(e);
-			fail(StringUtils.stringifyException(e));
+			Assert.fail(StringUtils.stringifyException(e));
 			return;
 		}
 	}

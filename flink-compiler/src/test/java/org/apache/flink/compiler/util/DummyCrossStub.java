@@ -16,21 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.util;
-
-import java.io.Serializable;
 
 import org.apache.flink.api.java.record.functions.CrossFunction;
 import org.apache.flink.types.Record;
-import org.apache.flink.util.Collector;
 
-public class DummyCrossStub extends CrossFunction implements Serializable {
+public class DummyCrossStub extends CrossFunction {
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void cross(Record record1, Record record2, Collector<Record> out) {
-		out.collect(record1);
-		out.collect(record2);
+	public Record cross(Record first, Record second) throws Exception {
+		return first;
 	}
 }

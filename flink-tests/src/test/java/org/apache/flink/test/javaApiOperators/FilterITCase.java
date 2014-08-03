@@ -23,7 +23,8 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
-import org.apache.flink.api.java.functions.FilterFunction;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.java.functions.RichFilterFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
@@ -38,7 +39,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class FilterITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 8; 
+	private static int NUM_PROGRAMS = 8;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -268,7 +269,7 @@ public class FilterITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
-						filter(new FilterFunction<Tuple3<Integer,Long,String>>() {
+						filter(new RichFilterFunction<Tuple3<Integer,Long,String>>() {
 							private static final long serialVersionUID = 1L;
 
 							int literal = -1;
@@ -306,7 +307,7 @@ public class FilterITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
-						filter(new FilterFunction<Tuple3<Integer,Long,String>>() {
+						filter(new RichFilterFunction<Tuple3<Integer,Long,String>>() {
 							private static final long serialVersionUID = 1L;
 							private  int broadcastSum = 0;
 							

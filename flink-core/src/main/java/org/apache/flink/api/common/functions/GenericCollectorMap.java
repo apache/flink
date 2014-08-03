@@ -16,14 +16,18 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.functions;
 
 import org.apache.flink.util.Collector;
 
-
-
-public interface GenericCollectorMap<T, O> extends Function {
+/**
+ * Variant of the flat map that is used for backwards compatibility in the deprecated Record-API-
+ *
+ * @param <T> The input data type.
+ * @param <O> The result data type.
+ */
+@Deprecated
+public interface GenericCollectorMap<T, O> extends RichFunction {
 	
 	void map(T record, Collector<O> out) throws Exception;
 }

@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative.nephele.customdanglingpagerank;
 
 import java.util.Iterator;
 import java.util.Set;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
-import org.apache.flink.api.common.functions.GenericCoGrouper;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.iterative.nephele.ConfigUtils;
 import org.apache.flink.test.iterative.nephele.customdanglingpagerank.types.VertexWithRank;
@@ -32,7 +31,7 @@ import org.apache.flink.test.iterative.nephele.danglingpagerank.PageRankStats;
 import org.apache.flink.test.iterative.nephele.danglingpagerank.PageRankStatsAggregator;
 import org.apache.flink.util.Collector;
 
-public class CustomCompensatableDotProductCoGroup extends AbstractFunction implements GenericCoGrouper<VertexWithRankAndDangling, VertexWithRank, VertexWithRankAndDangling> {
+public class CustomCompensatableDotProductCoGroup extends AbstractRichFunction implements CoGroupFunction<VertexWithRankAndDangling, VertexWithRank, VertexWithRankAndDangling> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -83,11 +82,13 @@ public class CustomCompensatableDotProductCoGroup extends AbstractFunction imple
 	}
 
 	@Override
-	public void coGroup(Iterator<VertexWithRankAndDangling> currentPageRankIterator, Iterator<VertexWithRank> partialRanks,
+	public void coGroup(Iterable<VertexWithRankAndDangling> currentPageRankIterable, Iterable<VertexWithRank> partialRanks,
 			Collector<VertexWithRankAndDangling> collector)
 	{
+		final Iterator<VertexWithRankAndDangling> currentPageRankIterator = currentPageRankIterable.iterator();
+		
 		if (!currentPageRankIterator.hasNext()) {
-			long missingVertex = partialRanks.next().getVertexID();
+			long missingVertex = partialRanks.iterator().next().getVertexID();
 			throw new IllegalStateException("No current page rank for vertex [" + missingVertex + "]!");
 		}
 
@@ -95,8 +96,8 @@ public class CustomCompensatableDotProductCoGroup extends AbstractFunction imple
 
 		long edges = 0;
 		double summedRank = 0;
-		while (partialRanks.hasNext()) {
-			summedRank += partialRanks.next().getRank();
+		for (VertexWithRank pr :partialRanks) {
+			summedRank += pr.getRank();
 			edges++;
 		}
 

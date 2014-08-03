@@ -19,9 +19,9 @@
 
 package org.apache.flink.api.scala.functions
 
-import java.util.{ Iterator => JIterator }
-
 import scala.Iterator
+
+import java.util.{Iterator => JIterator}
 
 import org.apache.flink.api.scala.analysis.{UDTSerializer, FieldSelector, UDT}
 import org.apache.flink.api.scala.analysis.UDF1

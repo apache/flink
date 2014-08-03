@@ -19,7 +19,7 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import org.apache.flink.api.common.functions.GenericReduce;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
@@ -31,12 +31,12 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
  * Base data flow operator for Reduce user-defined functions. Accepts reduce functions
  * and key positions. The key positions are expected in the flattened common data model.
  * 
- * @see GenericReduce
+ * @see org.apache.flink.api.common.functions.ReduceFunction
  *
  * @param <T> The type (parameters and return type) of the reduce function.
  * @param <FT> The type of the reduce function.
  */
-public class ReduceOperatorBase<T, FT extends GenericReduce<T>> extends SingleInputOperator<T, T, FT> {
+public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleInputOperator<T, T, FT> {
 
 	/**
 	 * Creates a grouped reduce data flow operator.

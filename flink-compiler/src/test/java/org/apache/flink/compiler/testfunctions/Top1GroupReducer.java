@@ -16,23 +16,20 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.testfunctions;
 
-import java.util.Iterator;
-
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction.Combinable;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.util.Collector;
 
 
 @Combinable
-public class Top1GroupReducer<T> extends GroupReduceFunction<T, T> {
+public class Top1GroupReducer<T> extends RichGroupReduceFunction<T, T> {
 
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void reduce(Iterator<T> values, Collector<T> out) {
-		out.collect(values.next());
+	public void reduce(Iterable<T> values, Collector<T> out) {
+		out.collect(values.iterator().next());
 	}
 }

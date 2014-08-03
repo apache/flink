@@ -16,11 +16,8 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.CrossFunction;
 import org.apache.flink.api.java.record.io.DelimitedInputFormat;
@@ -35,7 +32,6 @@ import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.util.Collector;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -46,28 +42,41 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.LinkedList;
 
-/**
- */
 @RunWith(Parameterized.class)
 public class CrossITCase extends RecordAPITestBase {
 
-	private static final Log LOG = LogFactory.getLog(CrossITCase.class);
-
-	String leftInPath = null;
-	String rightInPath = null;
-	String resultPath = null;
+	private String leftInPath = null;
+	private String rightInPath = null;
+	private String resultPath = null;
 
 	public CrossITCase(Configuration testConfig) {
 		super(testConfig);
 	}
 
-	private static final String LEFT_IN = "1 1\n2 2\n1 1\n2 2\n3 3\n4 4\n3 3\n4 4\n";
+	//private static final String LEFT_IN = "1 1\n2 2\n1 1\n2 2\n3 3\n4 4\n3 3\n4 4\n";
 
-	private static final String RIGHT_IN = "1 1\n1 2\n2 2\n2 4\n3 3\n3 6\n4 4\n4 8\n";
+	//private static final String RIGHT_IN = "1 1\n1 2\n2 2\n2 4\n3 3\n3 6\n4 4\n4 8\n";
 
-	private static final String RESULT = "4 1\n4 1\n4 2\n4 2\n5 2\n5 2\n5 4\n5 4\n6 3\n6 3\n7 4\n7 4\n"
-		+ "5 0\n5 0\n5 1\n5 1\n6 1\n6 1\n6 3\n6 3\n7 2\n7 2\n8 3\n8 3\n"
-		+ "6 -1\n6 -1\n6 0\n6 0\n7 0\n7 0\n8 1\n8 1\n" + "7 -2\n7 -2\n7 -1\n7 -1\n8 -1\n8 -1\n";
+	//private static final String RESULT = "4 1\n4 1\n4 2\n4 2\n5 2\n5 2\n5 4\n5 4\n6 3\n6 3\n7 4\n7 4\n"
+	//	+ "5 0\n5 0\n5 1\n5 1\n6 1\n6 1\n6 3\n6 3\n7 2\n7 2\n8 3\n8 3\n"
+	//	+ "6 -1\n6 -1\n6 0\n6 0\n7 0\n7 0\n8 1\n8 1\n" + "7 -2\n7 -2\n7 -1\n7 -1\n8 -1\n8 -1\n";
+
+	//private static final String RESULT = "10 1\n10 1\n10 5\n10 5\n4 1\n4 1\n4 2\n4 2\n5 0\n5 0\n5 1\n," +
+	//		"5 1\n5 2\n5 2\n5 4\n5 4\n6 -1\n6 -1\n6 0\n6 0\n6 1\n6 1\n6 3\n6 3\n6 3\n6 3\n6 6\n6 6\n7 -1\n" +
+	//		"7 -1\n7 -2\n7 -2\n7 0\n7 0\n7 2\n7 2\n7 2\n7 2\n7 4\n7 4\n7 5\n7 5\n7 8\n7 8\n8 -1\n8 -1\n8 1\n" +
+	//		"8 1\n8 1\n8 1\n8 3\n8 3\n8 4\n8 4\n8 7\n8 7\n9 0\n9 0\n9 2\n9 2\n9 3\n9 3\n9 6\n9 6\n";
+
+	//private static final String RESULT = "2 2\n4 4\n1 1\n3 3\n2 2\n4 4\n1 1\n3 3\n5 0\n5 1\n6 1\n 6 3\n" +
+	//		"7 2\n7 5\n8 3\n8 7\n7 -2\n7 -1\n8 -1\n8 1\n9 0\n9 3\n10 1\n10 5\n4 1\n4 2\n5 2\n5 4\n6 3\n" +
+	//		"6 6\n7 4\n7 8\n6 -1\n6 0\n7 0\n7 2\n8 1\n8 4\n9 2\n9 6\n5 0\n5 1\n6 1\n6 3\n7 2\n7 5\n 8 3\n" +
+	//		"8 7\n7 -2\n7 -1\n8 -1\n8 1\n9 0\n9 3\n10 1\n10 5\n4 1\n4 2\n5 2\n5 4\n6 3\n6 6\n7 4\n7 8\n" +
+	//		"6 -1\n6 0\n7 0\n7 2\n8 1\n8 4\n9 2\n9 6";
+
+
+	private static final String LEFT_IN = "1 1\n2 2\n3 3\n";
+	private static final String RIGHT_IN = "3 6\n4 4\n4 8\n";
+
+	private static final String RESULT = "6 6\n7 5\n7 8\n7 4\n8 3\n8 7\n8 4\n9 2\n9 6\n";
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -84,7 +93,7 @@ public class CrossITCase extends RecordAPITestBase {
 		private IntValue integer = new IntValue();
 		
 		@Override
-		public void cross(Record record1, Record record2, Collector<Record> out) {
+		public Record cross(Record record1, Record record2) throws Exception {
 			string = record1.getField(1, string);
 			int val1 = Integer.parseInt(string.toString());
 			string = record2.getField(1, string);
@@ -93,18 +102,14 @@ public class CrossITCase extends RecordAPITestBase {
 			int key1 = Integer.parseInt(string.toString());
 			string = record2.getField(0, string);
 			int key2 = Integer.parseInt(string.toString());
-			
-			LOG.debug("Processing { [" + key1 + "," + val1 + "] , [" + key2 + "," + val2 + "] }");
-			
-			if (val1 + val2 <= 6) {
-				string.setValue((key1 + key2 + 2) + "");
-				integer.setValue(val2 - val1 + 1);
-				
-				record1.setField(0, string);
-				record1.setField(1, integer);
-				
-				out.collect(record1);
-			}
+
+			string.setValue((key1 + key2 + 2) + "");
+			integer.setValue(val2 - val1 + 1);
+
+			record1.setField(0, string);
+			record1.setField(1, integer);
+
+			return record1;
 		}
 
 	}

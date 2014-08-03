@@ -16,18 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.netty;
-
-import junit.framework.Assert;
 
 import org.apache.flink.runtime.io.network.ChannelManager;
 import org.apache.flink.runtime.io.network.Envelope;
 import org.apache.flink.runtime.io.network.RemoteReceiver;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
-import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.junit.Assert;
 import org.mockito.Matchers;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -38,158 +36,206 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
 
 public class NettyConnectionManagerTest {
 
 	private final static long RANDOM_SEED = 520346508276087l;
 
-	private final static Random random = new Random(RANDOM_SEED);
+	private Random rand = new Random(RANDOM_SEED);
 
-	private final static int BIND_PORT = 20000;
+	private NettyConnectionManager senderManager;
 
-	private final static int BUFFER_SIZE = 32 * 1024;
+	private NettyConnectionManager receiverManager;
 
-	public void testEnqueueRaceAndDeadlockFreeMultipleChannels() throws Exception {
+	private ChannelManager channelManager;
+
+	private RemoteReceiver[] receivers;
+
+	private CountDownLatch receivedAllEnvelopesLatch;
+
+	private void initTest(
+			int numProducers,
+			final int numEnvelopesPerProducer,
+			int numInThreads,
+			int numOutThreads,
+			int closeAfterIdleForMs) throws Exception {
+
+		final InetAddress bindAddress = InetAddress.getLocalHost();
+		final int bindPort = 20000;
+		final int bufferSize = 32 * 1024;
+
+		senderManager = Mockito.spy(new NettyConnectionManager(
+				bindAddress, bindPort, bufferSize, numInThreads, numOutThreads, closeAfterIdleForMs));
+
+		receiverManager = new NettyConnectionManager(
+				bindAddress, bindPort + 1, bufferSize, numInThreads, numOutThreads, closeAfterIdleForMs);
+
+		channelManager = Mockito.mock(ChannelManager.class);
+
+		senderManager.start(channelManager);
+		receiverManager.start(channelManager);
+
+		receivers = new RemoteReceiver[numProducers];
+		for (int i = 0; i < numProducers; i++) {
+			receivers[i] = new RemoteReceiver(new InetSocketAddress(bindPort + 1), i);
+		}
+
+		// --------------------------------------------------------------------
+
+		receivedAllEnvelopesLatch = new CountDownLatch(numProducers);
+
+		final ConcurrentMap<ChannelID, Integer> receivedSequenceNums =
+				new ConcurrentHashMap<ChannelID, Integer>();
+
+		// Verifies that the sequence numbers of each producer are received
+		// in ascending incremental order. In addition, manages a latch to
+		// allow synchronization after all envelopes have been received.
+		Mockito.doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocation) throws Throwable {
+				final Envelope env = (Envelope) invocation.getArguments()[0];
+
+				final int currentSeqNum = env.getSequenceNumber();
+				final ChannelID cid = env.getSource();
+
+				if (currentSeqNum < 0 || currentSeqNum >= numEnvelopesPerProducer) {
+					Assert.fail("Received more envelopes than expected from " + cid);
+				}
+
+				Integer previousSeqNum = receivedSequenceNums.put(cid, currentSeqNum);
+
+				if (previousSeqNum != null) {
+					String errMsg = String.format("Received %s with unexpected sequence number.", env);
+					Assert.assertEquals(errMsg, previousSeqNum + 1, currentSeqNum);
+				}
+
+				if (currentSeqNum == numEnvelopesPerProducer - 1) {
+					receivedAllEnvelopesLatch.countDown();
+				}
+
+				return null;
+			}
+		}).when(channelManager).dispatchFromNetwork(Matchers.any(Envelope.class));
+	}
+
+	private void finishTest() throws IOException {
+		senderManager.shutdown();
+		receiverManager.shutdown();
+	}
+
+	// ------------------------------------------------------------------------
+
+	// Verifies that there are no race conditions or dead locks with
+	// concurrent enqueues and closes.
+	public void testConcurrentEnqueueAndClose() throws Exception {
 		Integer[][] configs = new Integer[][]{
-				{64, 4096, 1, 1, 1},
-				{128, 2048, 1, 1, 1},
-				{256, 1024, 1, 1, 1},
-				{512, 512, 1, 1, 1},
-				{64, 4096, 4, 1, 1},
-				{128, 2048, 4, 1, 1},
-				{256, 1024, 4, 1, 1},
-				{512, 512, 4, 1, 1},
-				{64, 4096, 4, 2, 2},
-				{128, 2048, 4, 2, 2},
-				{256, 1024, 4, 2, 2},
-				{512, 512, 4, 2, 2}
+				// No close after idle
+				{64, 4096, 1, 1, 1, 0, 0},
+				{128, 2048, 1, 1, 1, 0, 0},
+				{256, 1024, 1, 1, 1, 0, 0},
+				{512, 512, 1, 1, 1, 0, 0},
+
+				{64, 4096, 4, 1, 1, 0, 0},
+				{128, 2048, 4, 1, 1, 0, 0},
+				{256, 1024, 4, 1, 1, 0, 0},
+				{512, 512, 4, 1, 1, 0, 0},
+
+				{64, 4096, 4, 2, 2, 0, 0},
+				{128, 2048, 4, 2, 2, 0, 0},
+				{256, 1024, 4, 2, 2, 0, 0},
+				{512, 512, 4, 2, 2, 0, 0},
+				// Note: these need plenty of heap space for the threads
+				{1024, 256, 4, 2, 2, 0, 0},
+				{2048, 128, 4, 2, 2, 0, 0},
+				{4096, 64, 4, 2, 2, 0, 0},
+
+				// With close after idle
+				{4, 1024, 1, 1, 1, 40, 80},
+				{8, 1024, 1, 1, 1, 40, 80},
+				{16, 1024, 1, 1, 1, 40, 80},
+				{32, 1024, 1, 1, 1, 40, 80},
+				{64, 1024, 1, 1, 1, 40, 80},
+
+				{16, 1024, 4, 1, 1, 40, 80},
+				{32, 1024, 4, 1, 1, 40, 80},
+				{64, 1024, 4, 1, 1, 40, 80},
+
+				{16, 1024, 4, 2, 2, 40, 80},
+				{32, 1024, 4, 2, 2, 40, 80},
+				{64, 1024, 4, 2, 2, 40, 80}
 		};
 
 		for (Integer[] params : configs) {
-			System.out.println(String.format("Running %s with config: %d sub tasks, %d envelopes to send per subtasks, "
-					+ "%d num channels, %d num in threads, %d num out threads.",
-					"testEnqueueRaceAndDeadlockFreeMultipleChannels", params[0], params[1], params[2], params[3], params[4]));
+			System.out.println(String.format("Running testConcurrentEnqueueAndClose with config: " +
+							"%d producers, %d envelopes per producer, %d num channels, " +
+							"%d num in threads, %d num out threads, " +
+							"%d ms min sleep time, %d ms max sleep time.",
+					params[0], params[1], params[2], params[3], params[4], params[5], params[6]));
 
 			long start = System.currentTimeMillis();
-			doTestEnqueueRaceAndDeadlockFreeMultipleChannels(params[0], params[1], params[2], params[3], params[4]);
+			doTestConcurrentEnqueueAndClose(params[0], params[1], params[2], params[3], params[4], params[5], params[6]);
 			long end = System.currentTimeMillis();
 
 			System.out.println(String.format("Runtime: %d ms.", (end - start)));
 		}
 	}
 
-	private void doTestEnqueueRaceAndDeadlockFreeMultipleChannels(
-			int numSubtasks, final int numToSendPerSubtask, int numChannels, int numInThreads, int numOutThreads)
-			throws Exception {
+	private void doTestConcurrentEnqueueAndClose(
+			int numProducers,
+			final int numEnvelopesPerProducer,
+			final int numChannels,
+			int numInThreads,
+			int numOutThreads,
+			final int minSleepTimeMs,
+			final int maxSleepTimeMs) throws Exception {
 
-		final InetAddress localhost = InetAddress.getLocalHost();
-		final CountDownLatch latch = new CountDownLatch(numSubtasks);
-
-		// --------------------------------------------------------------------
-		// setup
-		// --------------------------------------------------------------------
-		ChannelManager channelManager = mock(ChannelManager.class);
-		doAnswer(new VerifyEnvelopes(latch, numToSendPerSubtask))
-				.when(channelManager).dispatchFromNetwork(Matchers.<Envelope>anyObject());
-
-		final NettyConnectionManager senderConnManager = new NettyConnectionManager(localhost, BIND_PORT, BUFFER_SIZE,
-				numInThreads, numOutThreads, -1, -1);
-		senderConnManager.start(channelManager);
-
-		NettyConnectionManager receiverConnManager = new NettyConnectionManager(localhost, BIND_PORT + 1, BUFFER_SIZE,
-				numInThreads, numOutThreads, -1, -1);
-		receiverConnManager.start(channelManager);
+		// The idle time before a close is requested is 1/4th of the min sleep
+		// time of each producer. Depending on the number of concurrent producers
+		// and number of envelopes to send per producer, this will result in a
+		// variable number of close requests.
+		initTest(numProducers, numEnvelopesPerProducer, numInThreads, numOutThreads, minSleepTimeMs / 4);
 
 		// --------------------------------------------------------------------
-		// start sender threads
-		// --------------------------------------------------------------------
-		RemoteReceiver[] receivers = new RemoteReceiver[numChannels];
 
-		for (int i = 0; i < numChannels; i++) {
-			receivers[i] = new RemoteReceiver(new InetSocketAddress(localhost, BIND_PORT + 1), i);
-		}
+		Runnable[] producers = new Runnable[numProducers];
 
-		for (int i = 0; i < numSubtasks; i++) {
-			final RemoteReceiver receiver = receivers[random.nextInt(numChannels)];
-
-			final AtomicInteger seqNum = new AtomicInteger(0);
-			final JobID jobId = new JobID();
-			final ChannelID channelId = new ChannelID();
-
-			new Thread(new Runnable() {
+		for (int i = 0; i < numProducers; i++) {
+			producers[i] = new Runnable() {
 				@Override
 				public void run() {
-					// enqueue envelopes with ascending seq numbers
-					while (seqNum.get() < numToSendPerSubtask) {
+					final JobID jid = new JobID();
+					final ChannelID cid = new ChannelID();
+					final RemoteReceiver receiver = receivers[rand.nextInt(numChannels)];
+
+					for (int sequenceNum = 0; sequenceNum < numEnvelopesPerProducer; sequenceNum++) {
 						try {
-							Envelope env = new Envelope(seqNum.getAndIncrement(), jobId, channelId);
-							senderConnManager.enqueue(env, receiver);
-						} catch (IOException e) {
-							throw new RuntimeException("Unexpected exception while enqueuing envelope.");
+							senderManager.enqueue(new Envelope(sequenceNum, jid, cid), receiver);
+
+							int sleepTime = rand.nextInt((maxSleepTimeMs - minSleepTimeMs) + 1) + minSleepTimeMs;
+							Thread.sleep(sleepTime);
+						} catch (Exception e) {
+							throw new RuntimeException(e);
 						}
 					}
 				}
-			}).start();
+			};
 		}
 
-		latch.await();
-
-		senderConnManager.shutdown();
-		receiverConnManager.shutdown();
-	}
-
-	/**
-	 * Verifies correct ordering of received envelopes (per envelope source channel ID).
-	 */
-	private class VerifyEnvelopes implements Answer<Void> {
-
-		private final ConcurrentMap<ChannelID, Integer> received = new ConcurrentHashMap<ChannelID, Integer>();
-
-		private final CountDownLatch latch;
-
-		private final int numExpectedEnvelopesPerSubtask;
-
-		private VerifyEnvelopes(CountDownLatch latch, int numExpectedEnvelopesPerSubtask) {
-			this.latch = latch;
-			this.numExpectedEnvelopesPerSubtask = numExpectedEnvelopesPerSubtask;
+		for (int i = 0; i < numProducers; i++) {
+			new Thread(producers[i], "Producer " + i).start();
 		}
 
-		@Override
-		public Void answer(InvocationOnMock invocation) throws Throwable {
-			Envelope env = (Envelope) invocation.getArguments()[0];
+		// --------------------------------------------------------------------
 
-			ChannelID channelId = env.getSource();
-			int seqNum = env.getSequenceNumber();
-
-			if (seqNum == 0) {
-				Integer previousSeqNum = this.received.putIfAbsent(channelId, seqNum);
-
-				String msg = String.format("Received envelope from %s before, but current seq num is 0", channelId);
-				Assert.assertNull(msg, previousSeqNum);
-			}
-			else {
-				boolean isExpectedPreviousSeqNum = this.received.replace(channelId, seqNum - 1, seqNum);
-
-				String msg = String.format("Received seq num %d from %s, but previous was not %d.",
-						seqNum, channelId, seqNum - 1);
-				Assert.assertTrue(msg, isExpectedPreviousSeqNum);
-			}
-
-			// count down the latch if all envelopes received for this source
-			if (seqNum == numExpectedEnvelopesPerSubtask - 1) {
-				this.latch.countDown();
-			}
-
-			return null;
+		while (receivedAllEnvelopesLatch.getCount() != 0) {
+			receivedAllEnvelopesLatch.await();
 		}
+
+		finishTest();
 	}
 
 	private void runAllTests() throws Exception {
-		testEnqueueRaceAndDeadlockFreeMultipleChannels();
+		testConcurrentEnqueueAndClose();
 
 		System.out.println("Done.");
 	}

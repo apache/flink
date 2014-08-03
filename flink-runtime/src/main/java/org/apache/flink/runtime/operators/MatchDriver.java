@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.GenericJoiner;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -42,13 +42,13 @@ import org.apache.flink.util.MutableObjectIterator;
  * The MatchTask matches all pairs of records that share the same key and come from different inputs. Each pair of 
  * matching records is handed to the <code>match()</code> method of the JoinFunction.
  * 
- * @see GenericJoiner
+ * @see org.apache.flink.api.common.functions.FlatJoinFunction
  */
-public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericJoiner<IT1, IT2, OT>, OT> {
+public class MatchDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1, IT2, OT>, OT> {
 	
 	protected static final Log LOG = LogFactory.getLog(MatchDriver.class);
 	
-	protected PactTaskContext<GenericJoiner<IT1, IT2, OT>, OT> taskContext;
+	protected PactTaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> taskContext;
 	
 	private volatile JoinTaskIterator<IT1, IT2, OT> matchIterator;		// the iterator that does the actual matching
 	
@@ -57,7 +57,7 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericJoiner<IT1, 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<GenericJoiner<IT1, IT2, OT>, OT> context) {
+	public void setup(PactTaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -68,9 +68,9 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericJoiner<IT1, 
 	}
 
 	@Override
-	public Class<GenericJoiner<IT1, IT2, OT>> getStubType() {
+	public Class<FlatJoinFunction<IT1, IT2, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericJoiner<IT1, IT2, OT>> clazz = (Class<GenericJoiner<IT1, IT2, OT>>) (Class<?>) GenericJoiner.class;
+		final Class<FlatJoinFunction<IT1, IT2, OT>> clazz = (Class<FlatJoinFunction<IT1, IT2, OT>>) (Class<?>) FlatJoinFunction.class;
 		return clazz;
 	}
 	
@@ -141,7 +141,7 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<GenericJoiner<IT1, 
 
 	@Override
 	public void run() throws Exception {
-		final GenericJoiner<IT1, IT2, OT> matchStub = this.taskContext.getStub();
+		final FlatJoinFunction<IT1, IT2, OT> matchStub = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		final JoinTaskIterator<IT1, IT2, OT> matchIterator = this.matchIterator;
 		

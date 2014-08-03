@@ -103,7 +103,7 @@ public interface InMemorySorter<T> extends IndexedSortable {
 	 * 
 	 * @param output The output view to write the records to.
 	 * @param start The logical start position of the subset.
-	 * @param len The number of elements to write.
+	 * @param num The number of elements to write.
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
 	public void writeToOutput(final ChannelWriterOutputView output, final int start, int num) throws IOException;

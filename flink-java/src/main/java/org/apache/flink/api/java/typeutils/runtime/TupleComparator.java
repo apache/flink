@@ -235,7 +235,7 @@ public final class TupleComparator<T extends Tuple> extends TypeComparator<T> im
 		try {
 			for (; i < keyPositions.length; i++) {
 				int keyPos = keyPositions[i];
-				int cmp = comparators[i].compare(first.getField(keyPos), second.getField(keyPos));
+				int cmp = comparators[i].compare((T)first.getField(keyPos), (T)second.getField(keyPos));
 				if (cmp != 0) {
 					return cmp;
 				}

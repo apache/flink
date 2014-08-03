@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative;
 
 import java.io.BufferedReader;
@@ -104,7 +103,8 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 			long minimumComponentID = Long.MAX_VALUE;
 
 			while (candidates.hasNext()) {
-				long candidateComponentID = candidates.next().getField(1, LongValue.class).getValue();
+				Record candidate = candidates.next();
+				long candidateComponentID = candidate.getField(1, LongValue.class).getValue();
 				if (candidateComponentID < minimumComponentID) {
 					minimumComponentID = candidateComponentID;
 				}

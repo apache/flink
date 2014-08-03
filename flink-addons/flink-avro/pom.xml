@@ -51,13 +51,13 @@ under the License.
 		<dependency>
 			<groupId>org.apache.avro</groupId>
 			<artifactId>avro</artifactId>
-			<version>1.7.5</version>
+			<!-- version is derived from base module -->
 		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.avro</groupId>
 			<artifactId>avro-mapred</artifactId>
-			<version>1.7.5</version>
+			<!-- version is derived from base module -->
 		</dependency>
 		
 		<dependency>

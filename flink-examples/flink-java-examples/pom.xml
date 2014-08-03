@@ -317,7 +317,6 @@ under the License.
 					
 				</executions>
 			</plugin>
-
 		</plugins>
 	</build>
 

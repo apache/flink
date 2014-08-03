@@ -16,43 +16,28 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative;
 
 import java.io.Serializable;
-import java.util.Collection;
-import java.util.Iterator;
 
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.record.functions.MapFunction;
-import org.apache.flink.api.java.record.functions.ReduceFunction;
-import org.apache.flink.api.java.record.operators.BulkIteration;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.MapOperator;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.IterativeDataSet;
 import org.apache.flink.test.recordJobs.kmeans.udfs.PointInFormat;
 import org.apache.flink.test.recordJobs.kmeans.udfs.PointOutFormat;
-import org.apache.flink.test.util.RecordAPITestBase;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
-@RunWith(Parameterized.class)
-public class IterationWithUnionITCase extends RecordAPITestBase {
+public class IterationWithUnionITCase extends JavaProgramTestBase {
 
 	private static final String DATAPOINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n";
 
 	protected String dataPath;
 	protected String resultPath;
 
-	
-	public IterationWithUnionITCase(Configuration config) {
-		super(config);
-		setTaskManagerNumSlots(DOP);
-	}
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -66,54 +51,36 @@ public class IterationWithUnionITCase extends RecordAPITestBase {
 	}
 
 	@Override
-	protected Plan getTestJob() {
-		return getPlan(config.getInteger("IterationWithUnionITCase#NumSubtasks", 1), dataPath, resultPath);
-	}
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-		Configuration config1 = new Configuration();
-		config1.setInteger("IterationWithUnionITCase#NumSubtasks", DOP);
-
-		return toParameterList(config1);
+	protected void testProgram() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		DataSet<Record> initialInput = env.readFile(new PointInFormat(), this.dataPath).setParallelism(1);
+		
+		IterativeDataSet<Record> iteration = initialInput.iterate(2);
+		
+		DataSet<Record> result = iteration.union(iteration).map(new IdentityMapper());
+		
+		iteration.closeWith(result).write(new PointOutFormat(), this.resultPath);
+		
+		env.execute();
 	}
 	
-	private static Plan getPlan(int numSubTasks, String input, String output) {
-		FileDataSource initialInput = new FileDataSource(new PointInFormat(), input, "Input");
-		initialInput.setDegreeOfParallelism(1);
-		
-		BulkIteration iteration = new BulkIteration("Loop");
-		iteration.setInput(initialInput);
-		iteration.setMaximumNumberOfIterations(2);
-
-		@SuppressWarnings("unchecked")
-		MapOperator map2 = MapOperator.builder(new IdentityMapper()).input(iteration.getPartialSolution(), iteration.getPartialSolution()).name("map").build();
-		
-		iteration.setNextPartialSolution(map2);
-
-		FileDataSink finalResult = new FileDataSink(new PointOutFormat(), output, iteration, "Output");
-
-		Plan plan = new Plan(finalResult, "Iteration with union test");
-		plan.setDefaultParallelism(numSubTasks);
-		return plan;
-	}
-	
-	static final class IdentityMapper extends MapFunction implements Serializable {
+	static final class IdentityMapper implements MapFunction<Record, Record>, Serializable {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void map(Record rec, Collector<Record> out) {
-			out.collect(rec);
+		public Record map(Record rec) {
+			return rec;
 		}
 	}
 
-	static final class DummyReducer extends ReduceFunction implements Serializable {
+	static final class DummyReducer implements GroupReduceFunction<Record, Record>, Serializable {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterator<Record> it, Collector<Record> out) {
-			while (it.hasNext()) {
-				out.collect(it.next());
+		public void reduce(Iterable<Record> it, Collector<Record> out) {
+			for (Record r : it) {
+				out.collect(r);
 			}
 		}
 	}

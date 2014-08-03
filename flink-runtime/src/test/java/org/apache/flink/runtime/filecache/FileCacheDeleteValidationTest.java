@@ -22,7 +22,7 @@ package org.apache.flink.runtime.filecache;
 import java.io.File;
 import java.io.IOException;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.core.fs.local.LocalFileSystem;

@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 
 /**
  * This operator represents a Union between two inputs.
  */
-public class Union<T> extends DualInputOperator<T, T, T, AbstractFunction> {
+public class Union<T> extends DualInputOperator<T, T, T, AbstractRichFunction> {
 	
 	private final static String NAME = "Union";
 	
@@ -34,7 +33,7 @@ public class Union<T> extends DualInputOperator<T, T, T, AbstractFunction> {
 	 */
 	public Union(BinaryOperatorInformation<T, T, T> operatorInfo) {
 		// we pass it an AbstractFunction, because currently all operators expect some form of UDF
-		super(new UserCodeClassWrapper<AbstractFunction>(AbstractFunction.class), operatorInfo, NAME);
+		super(new UserCodeClassWrapper<AbstractRichFunction>(AbstractRichFunction.class), operatorInfo, NAME);
 	}
 	
 	public Union(Operator<T> input1, Operator<T> input2) {
