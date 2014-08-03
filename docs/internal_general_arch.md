@@ -14,7 +14,7 @@ into the parallel data flow form that is executed by the JobManager and TaskMana
 illustrates the different actors in the system very coarsely.
 
 <div style="text-align: center;">
-<img src="ClientJmTm.svg" alt="The Interactions between Client, JobManager and TaskManager" height="400px" style="text-align: center;"/>
+<img src="img/ClientJmTm.svg" alt="The Interactions between Client, JobManager and TaskManager" height="400px" style="text-align: center;"/>
 </div>
 
 ## Component Stack
@@ -34,7 +34,7 @@ to provide utilities (serializers, comparators) that describe the interaction be
 the runtime.
 
 <div style="text-align: center;">
-<img src="stack.svg" alt="The Flink component stack" width="800px" />
+<img src="img/stack.svg" alt="The Flink component stack" width="800px" />
 </div>
 
 ## Projects and Dependencies
@@ -46,7 +46,7 @@ of smaller sub-modules.
 The individual projects and their dependencies are shown in the figure below.
 
 <div style="text-align: center;">
-<img src="projects_dependencies.svg" alt="The Flink sub-projects and their dependencies" height="600px" style="text-align: center;"/>
+<img src="img/projects_dependencies.svg" alt="The Flink sub-projects and their dependencies" height="600px" style="text-align: center;"/>
 </div>
 
 In addition to the projects listed in the figure above, Flink currently contains the following sub-projects:
