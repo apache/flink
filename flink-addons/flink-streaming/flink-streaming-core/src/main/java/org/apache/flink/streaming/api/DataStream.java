@@ -124,7 +124,15 @@ public class DataStream<T> {
 		this.iterationID = dataStream.iterationID;
 		this.jobGraphBuilder = dataStream.jobGraphBuilder;
 	}
-	
+
+	/**
+	 * Creates a copy of the DataStream
+	 * 
+	 * @return The copy
+	 */
+	protected DataStream<T> copy() {
+		return new DataStream<T>(this);
+	}
 
 	/**
 	 * Partitioning strategy on the stream.
@@ -197,7 +205,7 @@ public class DataStream<T> {
 
 		jobGraphBuilder.setParallelism(id, degreeOfParallelism);
 
-		return new DataStream<T>(this);
+		return this;
 	}
 
 	/**
@@ -218,7 +226,7 @@ public class DataStream<T> {
 	 *            The name to set
 	 * @return The named DataStream.
 	 */
-	public DataStream<T> name(String name) {
+	protected DataStream<T> name(String name) {
 		// TODO copy DataStream?
 		if (name == "") {
 			throw new IllegalArgumentException("User defined name must not be empty string");
@@ -241,7 +249,7 @@ public class DataStream<T> {
 	 * @return The connected DataStream.
 	 */
 	public DataStream<T> connectWith(DataStream<T>... streams) {
-		DataStream<T> returnStream = new DataStream<T>(this);
+		DataStream<T> returnStream = this.copy();
 
 		for (DataStream<T> stream : streams) {
 			addConnection(returnStream, stream);
@@ -270,16 +278,18 @@ public class DataStream<T> {
 	 * 
 	 * @param outputSelector
 	 *            The user defined OutputSelector for directing the tuples.
-	 * @return The directed DataStream.
+	 * @return The {@link SplitDataStream}
 	 */
-	public DataStream<T> directTo(OutputSelector<T> outputSelector) {
+	public SplitDataStream<T> split(OutputSelector<T> outputSelector) {
 		try {
-			jobGraphBuilder.setOutputSelector(id, SerializationUtils.serialize(outputSelector));
+			for (String id : connectIDs) {
+				jobGraphBuilder.setOutputSelector(id, SerializationUtils.serialize(outputSelector));
+			}
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize OutputSelector");
 		}
 
-		return this;
+		return new SplitDataStream<T>(this);
 	}
 
 	/**
@@ -340,7 +350,7 @@ public class DataStream<T> {
 	}
 
 	private DataStream<T> setConnectionType(StreamPartitioner<T> partitioner) {
-		DataStream<T> returnStream = new DataStream<T>(this);
+		DataStream<T> returnStream = this.copy();
 
 		for (int i = 0; i < returnStream.partitioners.size(); i++) {
 			returnStream.partitioners.set(i, partitioner);
@@ -383,8 +393,7 @@ public class DataStream<T> {
 	 */
 	public <T2, R> DataStream<R> coMapWith(CoMapFunction<T, T2, R> coMapper,
 			DataStream<T2> otherStream) {
-		return addCoFunction("coMap", new DataStream<T>(this), new DataStream<T2>(otherStream),
-				coMapper,
+		return addCoFunction("coMap", this.copy(), otherStream.copy(), coMapper,
 				new FunctionTypeWrapper<T, T2, R>(coMapper, CoMapFunction.class, 0, 1, 2),
 				new CoMapInvokable<T, T2, R>(coMapper));
 	}
@@ -490,7 +499,7 @@ public class DataStream<T> {
 			final AbstractRichFunction function, TypeSerializerWrapper<T, Tuple, R> typeWrapper,
 			UserTaskInvokable<T, R> functionInvokable) {
 
-		DataStream<T> inputStream = new DataStream<T>(this);
+		DataStream<T> inputStream = this.copy();
 		StreamOperator<T, R> returnStream = new StreamOperator<T, R>(environment, functionName);
 
 		try {
@@ -505,6 +514,10 @@ public class DataStream<T> {
 		if (inputStream.iterationflag) {
 			returnStream.addIterationSource(inputStream.iterationID.toString());
 			inputStream.iterationflag = false;
+		}
+
+		if (inputStream instanceof NamedDataStream) {
+			returnStream.name(inputStream.userDefinedName);
 		}
 
 		return returnStream;
@@ -527,6 +540,17 @@ public class DataStream<T> {
 		connectGraph(inputStream1, returnStream.getId(), 1);
 		connectGraph(inputStream2, returnStream.getId(), 2);
 
+		if ((inputStream1 instanceof NamedDataStream) && (inputStream2 instanceof NamedDataStream)) {
+			throw new RuntimeException("An operator cannot have two names");
+		} else {
+			if (inputStream1 instanceof NamedDataStream) {
+				returnStream.name(inputStream1.userDefinedName);
+			}
+
+			if (inputStream2 instanceof NamedDataStream) {
+				returnStream.name(inputStream2.userDefinedName);
+			}
+		}
 		// TODO consider iteration
 
 		return returnStream;
@@ -564,7 +588,7 @@ public class DataStream<T> {
 	 * @return The closed DataStream.
 	 */
 	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
-		return addSink(new DataStream<T>(this), sinkFunction);
+		return addSink(this.copy(), sinkFunction);
 	}
 
 	/**
@@ -575,7 +599,7 @@ public class DataStream<T> {
 	 * @return The closed DataStream.
 	 */
 	public DataStream<T> print() {
-		DataStream<T> inputStream = new DataStream<T>(this);
+		DataStream<T> inputStream = this.copy();
 		PrintSinkFunction<T> printFunction = new PrintSinkFunction<T>();
 		DataStream<T> returnStream = addSink(inputStream, printFunction, null);
 
@@ -603,6 +627,10 @@ public class DataStream<T> {
 
 		inputStream.connectGraph(inputStream, returnStream.getId(), 0);
 
+		if (this.copy() instanceof NamedDataStream) {
+			returnStream.name(inputStream.userDefinedName);
+		}
+
 		return returnStream;
 	}
 
@@ -617,8 +645,7 @@ public class DataStream<T> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsText(String path) {
-		writeAsText(this, path, new WriteFormatAsText<T>(), 1, null);
-		return new DataStream<T>(this);
+		return writeAsText(this, path, new WriteFormatAsText<T>(), 1, null);
 	}
 
 	/**
@@ -635,8 +662,7 @@ public class DataStream<T> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsText(String path, long millis) {
-		writeAsText(this, path, new WriteFormatAsText<T>(), millis, null);
-		return new DataStream<T>(this);
+		return writeAsText(this, path, new WriteFormatAsText<T>(), millis, null);
 	}
 
 	/**
@@ -654,8 +680,7 @@ public class DataStream<T> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsText(String path, int batchSize) {
-		writeAsText(this, path, new WriteFormatAsText<T>(), batchSize, null);
-		return new DataStream<T>(this);
+		return writeAsText(this, path, new WriteFormatAsText<T>(), batchSize, null);
 	}
 
 	/**
@@ -677,8 +702,7 @@ public class DataStream<T> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsText(String path, long millis, T endTuple) {
-		writeAsText(this, path, new WriteFormatAsText<T>(), millis, endTuple);
-		return new DataStream<T>(this);
+		return writeAsText(this, path, new WriteFormatAsText<T>(), millis, endTuple);
 	}
 
 	/**
@@ -701,8 +725,7 @@ public class DataStream<T> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsText(String path, int batchSize, T endTuple) {
-		writeAsText(this, path, new WriteFormatAsText<T>(), batchSize, endTuple);
-		return new DataStream<T>(this);
+		return writeAsText(this, path, new WriteFormatAsText<T>(), batchSize, endTuple);
 	}
 
 	/**
@@ -771,8 +794,7 @@ public class DataStream<T> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsCsv(String path) {
-		writeAsCsv(this, path, new WriteFormatAsCsv<T>(), 1, null);
-		return new DataStream<T>(this);
+		return writeAsCsv(this, path, new WriteFormatAsCsv<T>(), 1, null);
 	}
 
 	/**
@@ -789,8 +811,7 @@ public class DataStream<T> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsCsv(String path, long millis) {
-		writeAsCsv(this, path, new WriteFormatAsCsv<T>(), millis, null);
-		return new DataStream<T>(this);
+		return writeAsCsv(this, path, new WriteFormatAsCsv<T>(), millis, null);
 	}
 
 	/**
@@ -808,8 +829,7 @@ public class DataStream<T> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsCsv(String path, int batchSize) {
-		writeAsCsv(this, path, new WriteFormatAsCsv<T>(), batchSize, null);
-		return new DataStream<T>(this);
+		return writeAsCsv(this, path, new WriteFormatAsCsv<T>(), batchSize, null);
 	}
 
 	/**
@@ -831,8 +851,7 @@ public class DataStream<T> {
 	 * @return The closed DataStream
 	 */
 	public DataStream<T> writeAsCsv(String path, long millis, T endTuple) {
-		writeAsCsv(this, path, new WriteFormatAsCsv<T>(), millis, endTuple);
-		return new DataStream<T>(this);
+		return writeAsCsv(this, path, new WriteFormatAsCsv<T>(), millis, endTuple);
 	}
 
 	/**
@@ -856,8 +875,7 @@ public class DataStream<T> {
 	 */
 	public DataStream<T> writeAsCsv(String path, int batchSize, T endTuple) {
 		setMutability(false);
-		writeAsCsv(this, path, new WriteFormatAsCsv<T>(), batchSize, endTuple);
-		return new DataStream<T>(this);
+		return writeAsCsv(this, path, new WriteFormatAsCsv<T>(), batchSize, endTuple);
 	}
 
 	/**
@@ -942,6 +960,6 @@ public class DataStream<T> {
 		jobGraphBuilder.addIterationSource(returnStream.getId(), this.getId(), iterationID,
 				degreeOfParallelism);
 
-		return new DataStream<T>(this);
+		return this.copy();
 	}
 }

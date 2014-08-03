@@ -27,6 +27,7 @@ import java.util.HashSet;
 
 import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.streaming.api.DataStream;
+import org.apache.flink.streaming.api.SplitDataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.util.LogUtils;
@@ -95,9 +96,9 @@ public class DirectedOutputTest {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-		DataStream<Long> s = env.generateSequence(1, 6).directTo(new MySelector());
-		DataStream<Long> ds1 = s.map(new PlusTwo()).name("ds1").addSink(new EvenSink());
-		DataStream<Long> ds2 = s.map(new PlusTwo()).name("ds2").addSink(new OddSink());
+		SplitDataStream<Long> s = env.generateSequence(1, 6).split(new MySelector());
+		DataStream<Long> ds1 = s.select("ds1").shuffle().map(new PlusTwo()).addSink(new EvenSink());
+		DataStream<Long> ds2 = s.select("ds2").map(new PlusTwo()).addSink(new OddSink());
 		DataStream<Long> ds3 = s.map(new PlusTwo()).addSink(new OddSink());
 
 		env.execute();
