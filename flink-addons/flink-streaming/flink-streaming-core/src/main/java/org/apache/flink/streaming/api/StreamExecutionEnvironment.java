@@ -59,13 +59,6 @@ public abstract class StreamExecutionEnvironment {
 
 	protected JobGraphBuilder jobGraphBuilder;
 
-	/**
-	 * Partitioning strategy on the stream.
-	 */
-	public static enum ConnectionType {
-		SHUFFLE, BROADCAST, FIELD, FORWARD, DISTRIBUTE
-	}
-
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
 	// --------------------------------------------------------------------------------------------
@@ -112,15 +105,6 @@ public abstract class StreamExecutionEnvironment {
 		}
 		this.degreeOfParallelism = degreeOfParallelism;
 	}
-
-	// protected void setMutability(DataStream<?> stream, boolean isMutable) {
-	// jobGraphBuilder.setMutability(stream.getId(), isMutable);
-	// }
-	//
-	// protected void setBufferTimeout(DataStream<?> stream, long bufferTimeout)
-	// {
-	// jobGraphBuilder.setBufferTimeout(stream.getId(), bufferTimeout);
-	// }
 
 	/**
 	 * Sets the number of hardware contexts (CPU cores / threads) used when
@@ -186,17 +170,17 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @param data
 	 *            The collection of elements to create the DataStream from.
-	 * @param <X>
+	 * @param <OUT>
 	 *            type of the returned stream
 	 * @return The DataStream representing the elements.
 	 */
-	public <X extends Serializable> DataStream<X> fromElements(X... data) {
-		DataStream<X> returnStream = new DataStream<X>(this, "elements");
+	public <OUT extends Serializable> DataStream<OUT> fromElements(OUT... data) {
+		DataStream<OUT> returnStream = new DataStream<OUT>(this, "elements");
 
 		try {
-			SourceFunction<X> function = new FromElementsFunction<X>(data);
-			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<X>(function),
-					new ObjectTypeWrapper<X, Tuple, X>(data[0], null, data[0]), "source",
+			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
+			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(function),
+					new ObjectTypeWrapper<OUT, Tuple, OUT>(data[0], null, data[0]), "source",
 					SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize elements");
@@ -212,25 +196,25 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @param data
 	 *            The collection of elements to create the DataStream from.
-	 * @param <X>
+	 * @param <OUT>
 	 *            type of the returned stream
 	 * @return The DataStream representing the elements.
 	 */
 	@SuppressWarnings("unchecked")
-	public <X extends Serializable> DataStream<X> fromCollection(Collection<X> data) {
-		DataStream<X> returnStream = new DataStream<X>(this, "elements");
+	public <OUT extends Serializable> DataStream<OUT> fromCollection(Collection<OUT> data) {
+		DataStream<OUT> returnStream = new DataStream<OUT>(this, "elements");
 
 		if (data.isEmpty()) {
 			throw new RuntimeException("Collection must not be empty");
 		}
 
 		try {
-			SourceFunction<X> function = new FromElementsFunction<X>(data);
+			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 
 			jobGraphBuilder.addSource(
 					returnStream.getId(),
-					new SourceInvokable<X>(new FromElementsFunction<X>(data)),
-					new ObjectTypeWrapper<X, Tuple, X>((X) data.toArray()[0], null, (X) data
+					new SourceInvokable<OUT>(new FromElementsFunction<OUT>(data)),
+					new ObjectTypeWrapper<OUT, Tuple, OUT>((OUT) data.toArray()[0], null, (OUT) data
 							.toArray()[0]), "source", SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize collection");
@@ -259,16 +243,16 @@ public abstract class StreamExecutionEnvironment {
 	 *            the user defined function
 	 * @param parallelism
 	 *            number of parallel instances of the function
-	 * @param <T>
+	 * @param <OUT>
 	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
-	public <T> DataStream<T> addSource(SourceFunction<T> function, int parallelism) {
-		DataStream<T> returnStream = new DataStream<T>(this, "source");
+	public <OUT> DataStream<OUT> addSource(SourceFunction<OUT> function, int parallelism) {
+		DataStream<OUT> returnStream = new DataStream<OUT>(this, "source");
 
 		try {
-			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<T>(function),
-					new FunctionTypeWrapper<T, Tuple, T>(function, SourceFunction.class, 0, -1, 0),
+			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(function),
+					new FunctionTypeWrapper<OUT, Tuple, OUT>(function, SourceFunction.class, 0, -1, 0),
 					"source", SerializationUtils.serialize(function), parallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SourceFunction");
@@ -277,7 +261,7 @@ public abstract class StreamExecutionEnvironment {
 		return returnStream;
 	}
 
-	public <T> DataStream<T> addSource(SourceFunction<T> sourceFunction) {
+	public <OUT> DataStream<OUT> addSource(SourceFunction<OUT> sourceFunction) {
 		return addSource(sourceFunction, 1);
 	}
 

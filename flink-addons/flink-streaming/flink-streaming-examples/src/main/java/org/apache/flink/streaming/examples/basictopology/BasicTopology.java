@@ -19,11 +19,11 @@
 
 package org.apache.flink.streaming.examples.basictopology;
 
+import org.apache.flink.api.java.functions.RichMapFunction;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
 
 public class BasicTopology {
@@ -42,7 +42,7 @@ public class BasicTopology {
 		}
 	}
 
-	public static class BasicMap extends MapFunction<Tuple1<String>, Tuple1<String>> {
+	public static class BasicMap extends RichMapFunction<Tuple1<String>, Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
 		// map to the same tuple

@@ -22,16 +22,15 @@ package org.apache.flink.streaming.api.invokable.operator;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 
-public class WindowReduceInvokable<IN, OUT> extends
-		StreamReduceInvokable<IN, OUT> {
+public class WindowReduceInvokable<IN, OUT> extends StreamReduceInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 	private long windowSize;
 	volatile boolean isRunning;
 	boolean window;
 
-	public WindowReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize) {
+	public WindowReduceInvokable(RichGroupReduceFunction<IN, OUT> reduceFunction, long windowSize) {
 		this.reducer = reduceFunction;
 		this.windowSize = windowSize;
 		this.window = true;
@@ -56,7 +55,7 @@ public class WindowReduceInvokable<IN, OUT> extends
 				tupleBatch.add(reuse.getObject());
 				resetReuse();
 			} while (System.currentTimeMillis() - startTime < windowSize);
-			reducer.reduce(tupleBatch.iterator(), collector);
+			reducer.reduce(tupleBatch, collector);
 			tupleBatch.clear();
 			startTime = System.currentTimeMillis();
 		}
@@ -64,11 +63,11 @@ public class WindowReduceInvokable<IN, OUT> extends
 	}
 
 	protected void mutableInvoke() throws Exception {
-		BatchIterator<IN> userIterator = new WindowIterator();
+		userIterator = new WindowIterator();
 
 		do {
 			if (userIterator.hasNext()) {
-				reducer.reduce(userIterator, collector);
+				reducer.reduce(userIterable, collector);
 				userIterator.reset();
 			}
 		} while (reuse != null);

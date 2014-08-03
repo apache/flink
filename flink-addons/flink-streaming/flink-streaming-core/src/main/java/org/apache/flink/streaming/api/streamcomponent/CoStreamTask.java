@@ -25,7 +25,7 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.MutableReader;
@@ -82,11 +82,13 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private void setDeserializers(Object function, Class<? extends AbstractFunction> clazz) {
-		TypeInformation<IN1> inputTypeInfo1 = (TypeInformation<IN1>) typeWrapper.getInputTypeInfo1();
+	private void setDeserializers(Object function, Class<? extends AbstractRichFunction> clazz) {
+		TypeInformation<IN1> inputTypeInfo1 = (TypeInformation<IN1>) typeWrapper
+				.getInputTypeInfo1();
 		inputDeserializer1 = new StreamRecordSerializer<IN1>(inputTypeInfo1);
 
-		TypeInformation<IN2> inputTypeInfo2 = (TypeInformation<IN2>) typeWrapper.getInputTypeInfo2();
+		TypeInformation<IN2> inputTypeInfo2 = (TypeInformation<IN2>) typeWrapper
+				.getInputTypeInfo2();
 		inputDeserializer2 = new StreamRecordSerializer(inputTypeInfo2);
 	}
 
@@ -154,7 +156,9 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 			output.initializeSerializers();
 		}
 
+		userInvokable.open(getTaskConfiguration());
 		userInvokable.invoke();
+		userInvokable.close();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("TASK " + name + " invoke finished with instance id " + instanceID);

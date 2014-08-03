@@ -73,7 +73,9 @@ public class StreamSource<OUT extends Tuple> extends SingleInputAbstractStreamCo
 			output.initializeSerializers();
 		}
 
+		userInvokable.open(getTaskConfiguration());
 		userInvokable.invoke();
+		userInvokable.close();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("SOURCE " + name + " invoke finished with instance id " + instanceID);

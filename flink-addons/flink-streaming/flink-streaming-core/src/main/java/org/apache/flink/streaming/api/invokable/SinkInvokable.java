@@ -19,6 +19,7 @@
 
 package org.apache.flink.streaming.api.invokable;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 
 public class SinkInvokable<IN> extends StreamRecordInvokable<IN, IN> {
@@ -43,5 +44,15 @@ public class SinkInvokable<IN> extends StreamRecordInvokable<IN, IN> {
 		while ((reuse = recordIterator.next(reuse)) != null) {
 			sinkFunction.invoke((IN) reuse.getObject());
 		}
+	}
+
+	@Override
+	public void open(Configuration parameters) throws Exception {
+		sinkFunction.open(parameters);
+	}
+
+	@Override
+	public void close() throws Exception {
+		sinkFunction.close();
 	}
 }

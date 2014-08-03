@@ -22,12 +22,12 @@ package org.apache.flink.streaming.examples.join;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import org.apache.flink.api.java.functions.FlatMapFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.util.Collector;
 
 public class JoinTask extends
-		FlatMapFunction<Tuple3<String, String, Integer>, Tuple3<String, Integer, Integer>> {
+		RichFlatMapFunction<Tuple3<String, String, Integer>, Tuple3<String, Integer, Integer>> {
 	private static final long serialVersionUID = 749913336259789039L;
 
 	private HashMap<String, ArrayList<Integer>> gradeHashmap;

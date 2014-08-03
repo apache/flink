@@ -19,10 +19,10 @@
 
 package org.apache.flink.streaming.examples.wordcount;
 
-import org.apache.flink.api.java.functions.FlatMapFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.util.Collector;
 
-public class WordCountSplitter extends FlatMapFunction<String, String> {
+public class WordCountSplitter extends RichFlatMapFunction<String, String> {
 	private static final long serialVersionUID = 1L;
 
 	// Splits the lines according on spaces

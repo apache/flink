@@ -21,12 +21,12 @@ package org.apache.flink.streaming.examples.cellinfo;
 
 import java.util.Random;
 
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.util.Collector;
 
 public class CellInfoLocal {
@@ -77,7 +77,7 @@ public class CellInfoLocal {
 	}
 
 	private final static class CellTask extends
-			FlatMapFunction<Tuple4<Boolean, Integer, Long, Integer>, Tuple1<String>> {
+			RichFlatMapFunction<Tuple4<Boolean, Integer, Long, Integer>, Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
 		private WorkerEngineExact engine = new WorkerEngineExact(10, 500,

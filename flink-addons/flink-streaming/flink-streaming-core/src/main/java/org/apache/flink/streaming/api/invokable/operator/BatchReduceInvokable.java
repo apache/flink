@@ -22,14 +22,13 @@ package org.apache.flink.streaming.api.invokable.operator;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 
-public class BatchReduceInvokable<IN, OUT> extends
-		StreamReduceInvokable<IN, OUT> {
+public class BatchReduceInvokable<IN, OUT> extends StreamReduceInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 	private int batchSize;
 
-	public BatchReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, int batchSize) {
+	public BatchReduceInvokable(RichGroupReduceFunction<IN, OUT> reduceFunction, int batchSize) {
 		this.reducer = reduceFunction;
 		this.batchSize = batchSize;
 	}
@@ -55,7 +54,7 @@ public class BatchReduceInvokable<IN, OUT> extends
 				tupleBatch.add(reuse.getObject());
 				resetReuse();
 			} while (counter < batchSize);
-			reducer.reduce(tupleBatch.iterator(), collector);
+			reducer.reduce(tupleBatch, collector);
 			tupleBatch.clear();
 			counter = 0;
 		}
@@ -64,11 +63,11 @@ public class BatchReduceInvokable<IN, OUT> extends
 
 	@Override
 	protected void mutableInvoke() throws Exception {
-		BatchIterator<IN> userIterator = new CounterIterator();
+		userIterator = new CounterIterator();
 
 		do {
 			if (userIterator.hasNext()) {
-				reducer.reduce(userIterator, collector);
+				reducer.reduce(userIterable, collector);
 				userIterator.reset();
 			}
 		} while (reuse != null);

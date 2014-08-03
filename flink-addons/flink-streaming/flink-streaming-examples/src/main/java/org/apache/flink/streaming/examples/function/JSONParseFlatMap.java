@@ -21,8 +21,8 @@ package org.apache.flink.streaming.examples.function;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.streaming.api.DataStream;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
 
@@ -34,10 +34,10 @@ import org.apache.sling.commons.json.JSONObject;
  * Type of the returned elements.
  */
 public abstract class JSONParseFlatMap<IN, OUT> extends
-		FlatMapFunction<IN, OUT> {
+		RichFlatMapFunction<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
-	private static final Log LOG = LogFactory.getLog(DataStream.class);
+	private static final Log LOG = LogFactory.getLog(JSONParseFlatMap.class);
 
 	/**
 	 * Get the value of a field in a JSON text.

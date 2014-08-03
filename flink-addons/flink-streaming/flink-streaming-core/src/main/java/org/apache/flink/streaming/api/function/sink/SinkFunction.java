@@ -21,9 +21,9 @@ package org.apache.flink.streaming.api.function.sink;
 
 import java.io.Serializable;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 
-public abstract class SinkFunction<IN> extends AbstractFunction implements Serializable {
+public abstract class SinkFunction<IN> extends AbstractRichFunction implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 

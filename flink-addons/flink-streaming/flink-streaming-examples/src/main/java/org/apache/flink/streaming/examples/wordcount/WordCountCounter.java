@@ -22,10 +22,10 @@ package org.apache.flink.streaming.examples.wordcount;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-public class WordCountCounter extends MapFunction<String, Tuple2<String, Integer>> {
+public class WordCountCounter extends RichMapFunction<String, Tuple2<String, Integer>> {
 	private static final long serialVersionUID = 1L;
 
 	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();

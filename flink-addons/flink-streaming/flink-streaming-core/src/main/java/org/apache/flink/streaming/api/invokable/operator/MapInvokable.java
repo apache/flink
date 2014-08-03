@@ -19,15 +19,16 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 
 public class MapInvokable<IN, OUT> extends UserTaskInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private MapFunction<IN, OUT> mapper;
+	private RichMapFunction<IN, OUT> mapper;
 
-	public MapInvokable(MapFunction<IN, OUT> mapper) {
+	public MapInvokable(RichMapFunction<IN, OUT> mapper) {
 		this.mapper = mapper;
 	}
 
@@ -44,5 +45,15 @@ public class MapInvokable<IN, OUT> extends UserTaskInvokable<IN, OUT> {
 		while ((reuse = recordIterator.next(reuse)) != null) {
 			collector.collect(mapper.map(reuse.getObject()));
 		}
+	}
+
+	@Override
+	public void open(Configuration parameters) throws Exception {
+		mapper.open(parameters);
+	}
+
+	@Override
+	public void close() throws Exception {
+		mapper.close();
 	}
 }

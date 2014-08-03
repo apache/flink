@@ -32,7 +32,7 @@ import com.rabbitmq.client.ConnectionFactory;
 public abstract class RMQSink<IN> extends SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
-	private static final Log LOG = LogFactory.getLog(RMQSource.class);
+	private static final Log LOG = LogFactory.getLog(RMQSink.class);
 
 	private boolean sendAndClose = false;
 	private boolean closeWithoutSend = false;

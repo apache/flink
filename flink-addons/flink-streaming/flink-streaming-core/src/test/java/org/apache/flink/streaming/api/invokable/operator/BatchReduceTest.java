@@ -22,19 +22,18 @@ package org.apache.flink.streaming.api.invokable.operator;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.util.LogUtils;
-import org.junit.Test;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
 import org.apache.log4j.Level;
+import org.junit.Test;
 
 public class BatchReduceTest {
 
@@ -44,20 +43,20 @@ public class BatchReduceTest {
 	private static final long MEMORYSIZE = 32;
 
 	public static final class MyBatchReduce extends
-			GroupReduceFunction<Tuple1<Double>, Tuple1<Double>> {
+			RichGroupReduceFunction<Tuple1<Double>, Tuple1<Double>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterator<Tuple1<Double>> values, Collector<Tuple1<Double>> out)
+		public void reduce(Iterable<Tuple1<Double>> values, Collector<Tuple1<Double>> out)
 				throws Exception {
 
 			Double sum = 0.;
 			Double count = 0.;
-			while (values.hasNext()) {
-				sum += values.next().f0;
+			for (Tuple1<Double> value : values) {
+				sum += value.f0;
 				count++;
 			}
-			if(count>0){
+			if (count > 0) {
 				out.collect(new Tuple1<Double>(sum / count));
 			}
 		}
@@ -87,7 +86,7 @@ public class BatchReduceTest {
 	@Test
 	public void test() throws Exception {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
-		
+
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALlELISM);
 
 		@SuppressWarnings("unused")

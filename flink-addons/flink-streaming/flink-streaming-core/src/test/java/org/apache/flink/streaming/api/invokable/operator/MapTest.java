@@ -27,7 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
@@ -84,7 +84,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MyMap extends MapFunction<Integer, Integer> {
+	public static final class MyMap extends RichMapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -94,7 +94,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MySingleJoinMap extends MapFunction<Integer, Integer> {
+	public static final class MySingleJoinMap extends RichMapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -104,7 +104,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MyMultipleJoinMap extends MapFunction<Integer, Integer> {
+	public static final class MyMultipleJoinMap extends RichMapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -114,7 +114,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MyFieldsMap extends MapFunction<Integer, Integer> {
+	public static final class MyFieldsMap extends RichMapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		private int counter = 0;
@@ -128,7 +128,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MyDiffFieldsMap extends MapFunction<Integer, Integer> {
+	public static final class MyDiffFieldsMap extends RichMapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		private int counter = 0;

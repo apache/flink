@@ -19,10 +19,10 @@
 
 package org.apache.flink.streaming.api.function.source;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.util.Collector;
 
-public abstract class SourceFunction<OUT> extends AbstractFunction {
+public abstract class SourceFunction<OUT> extends AbstractRichFunction {
 
 	private static final long serialVersionUID = 1L;
 
