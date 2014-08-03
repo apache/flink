@@ -77,16 +77,14 @@ public class DataStream<T> {
 	protected String id;
 	protected int degreeOfParallelism;
 	protected String userDefinedName;
-	protected List<String> connectIDs;
-	protected List<StreamPartitioner<T>> partitioners;
-	protected boolean iterationflag;
-	protected Integer iterationID;
+	protected StreamPartitioner<T> partitioner;
+	protected List<DataStream<T>> connectedStreams;
 
 	protected JobGraphBuilder jobGraphBuilder;
 
 	/**
 	 * Create a new {@link DataStream} in the given execution environment with
-	 * partitioning set to shuffle by default.
+	 * partitioning set to forward by default.
 	 * 
 	 * @param environment
 	 *            StreamExecutionEnvironment
@@ -104,7 +102,9 @@ public class DataStream<T> {
 		this.environment = environment;
 		this.degreeOfParallelism = environment.getDegreeOfParallelism();
 		this.jobGraphBuilder = environment.getJobGraphBuilder();
-		initConnections();
+		this.partitioner = new ForwardPartitioner<T>();
+		this.connectedStreams = new ArrayList<DataStream<T>>();
+		this.connectedStreams.add(this.copy());
 	}
 
 	/**
@@ -118,11 +118,13 @@ public class DataStream<T> {
 		this.id = dataStream.id;
 		this.degreeOfParallelism = dataStream.degreeOfParallelism;
 		this.userDefinedName = dataStream.userDefinedName;
-		this.connectIDs = new ArrayList<String>(dataStream.connectIDs);
-		this.partitioners = new ArrayList<StreamPartitioner<T>>(dataStream.partitioners);
-		this.iterationflag = dataStream.iterationflag;
-		this.iterationID = dataStream.iterationID;
+		this.partitioner = dataStream.partitioner;
 		this.jobGraphBuilder = dataStream.jobGraphBuilder;
+		this.connectedStreams = new ArrayList<DataStream<T>>();
+		for (DataStream<T> stream : dataStream.connectedStreams) {
+			this.connectedStreams.add(stream.copy());
+		}
+
 	}
 
 	/**
@@ -142,23 +144,40 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Initialize the connection and partitioning among the connected
-	 * {@link DataStream}s.
-	 */
-	private void initConnections() {
-		connectIDs = new ArrayList<String>();
-		connectIDs.add(getId());
-		partitioners = new ArrayList<StreamPartitioner<T>>();
-		partitioners.add(new ForwardPartitioner<T>());
-	}
-
-	/**
 	 * Returns the ID of the {@link DataStream}.
 	 * 
 	 * @return ID of the DataStream
 	 */
 	public String getId() {
 		return id;
+	}
+
+	/**
+	 * Gets the degree of parallelism for this operator.
+	 * 
+	 * @return The parallelism set for this operator.
+	 */
+	public int getParallelism() {
+		return this.degreeOfParallelism;
+	}
+
+	/**
+	 * Sets the degree of parallelism for this operator. The degree must be 1 or
+	 * more.
+	 * 
+	 * @param dop
+	 *            The degree of parallelism for this operator.
+	 * @return The operator with set degree of parallelism.
+	 */
+	public DataStream<T> setParallelism(int dop) {
+		if (dop < 1) {
+			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
+		}
+		this.degreeOfParallelism = dop;
+	
+		jobGraphBuilder.setParallelism(id, degreeOfParallelism);
+	
+		return this;
 	}
 
 	/**
@@ -190,55 +209,6 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Sets the degree of parallelism for this operator. The degree must be 1 or
-	 * more.
-	 * 
-	 * @param dop
-	 *            The degree of parallelism for this operator.
-	 * @return The operator with set degree of parallelism.
-	 */
-	public DataStream<T> setParallelism(int dop) {
-		if (dop < 1) {
-			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
-		}
-		this.degreeOfParallelism = dop;
-
-		jobGraphBuilder.setParallelism(id, degreeOfParallelism);
-
-		return this;
-	}
-
-	/**
-	 * Gets the degree of parallelism for this operator.
-	 * 
-	 * @return The parallelism set for this operator.
-	 */
-	public int getParallelism() {
-		return this.degreeOfParallelism;
-	}
-
-	/**
-	 * Gives the data transformation(vertex) a user defined name in order to use
-	 * with directed outputs. The {@link OutputSelector} of the input vertex
-	 * should use this name for directed emits.
-	 * 
-	 * @param name
-	 *            The name to set
-	 * @return The named DataStream.
-	 */
-	protected DataStream<T> name(String name) {
-		// TODO copy DataStream?
-		if (name == "") {
-			throw new IllegalArgumentException("User defined name must not be empty string");
-		}
-
-		userDefinedName = name;
-		jobGraphBuilder.setUserDefinedName(id, name);
-
-		return this;
-	}
-
-	/**
 	 * Connecting {@link DataStream} outputs with each other for applying joint
 	 * operators on them. The DataStreams connected using this operator will be
 	 * transformed simultaneously. It creates a joint output of the connected
@@ -258,19 +228,6 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Connects two DataStreams
-	 * 
-	 * @param returnStream
-	 *            The other DataStream will connected to this
-	 * @param stream
-	 *            This DataStream will be connected to returnStream
-	 */
-	private void addConnection(DataStream<T> returnStream, DataStream<T> stream) {
-		returnStream.connectIDs.addAll(stream.connectIDs);
-		returnStream.partitioners.addAll(stream.partitioners);
-	}
-
-	/**
 	 * Operator used for directing tuples to specific named outputs. Sets an
 	 * {@link OutputSelector} for the vertex. The tuples emitted from this
 	 * vertex will be sent to the output names selected by the OutputSelector.
@@ -282,8 +239,9 @@ public class DataStream<T> {
 	 */
 	public SplitDataStream<T> split(OutputSelector<T> outputSelector) {
 		try {
-			for (String id : connectIDs) {
-				jobGraphBuilder.setOutputSelector(id, SerializationUtils.serialize(outputSelector));
+			for (DataStream<T> stream : connectedStreams) {
+				jobGraphBuilder.setOutputSelector(stream.id,
+						SerializationUtils.serialize(outputSelector));
 			}
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize OutputSelector");
@@ -349,16 +307,6 @@ public class DataStream<T> {
 		return setConnectionType(new DistributePartitioner<T>());
 	}
 
-	private DataStream<T> setConnectionType(StreamPartitioner<T> partitioner) {
-		DataStream<T> returnStream = this.copy();
-
-		for (int i = 0; i < returnStream.partitioners.size(); i++) {
-			returnStream.partitioners.set(i, partitioner);
-		}
-
-		return returnStream;
-	}
-
 	/**
 	 * Applies a Map transformation on a {@link DataStream}. The transformation
 	 * calls a {@link RichMapFunction} for each element of the DataStream. Each
@@ -374,28 +322,6 @@ public class DataStream<T> {
 	public <R> StreamOperator<T, R> map(RichMapFunction<T, R> mapper) {
 		return addFunction("map", mapper, new FunctionTypeWrapper<T, Tuple, R>(mapper,
 				RichMapFunction.class, 0, -1, 1), new MapInvokable<T, R>(mapper));
-	}
-
-	/**
-	 * Applies a CoMap transformation on two separate {@link DataStream}s. The
-	 * transformation calls a {@link CoMapFunction#map1(Tuple)} for each element
-	 * of the first DataStream (on which .coMapWith was called) and
-	 * {@link CoMapFunction#map2(Tuple)} for each element of the second
-	 * DataStream. Each CoMapFunction call returns exactly one element.
-	 * 
-	 * @param coMapper
-	 *            The CoMapFunction used to jointly transform the two input
-	 *            DataStreams
-	 * @param otherStream
-	 *            The DataStream that will be transformed with
-	 *            {@link CoMapFunction#map2(Tuple)}
-	 * @return The transformed DataStream
-	 */
-	public <T2, R> DataStream<R> coMapWith(CoMapFunction<T, T2, R> coMapper,
-			DataStream<T2> otherStream) {
-		return addCoFunction("coMap", this.copy(), otherStream.copy(), coMapper,
-				new FunctionTypeWrapper<T, T2, R>(coMapper, CoMapFunction.class, 0, 1, 2),
-				new CoMapInvokable<T, T2, R>(coMapper));
 	}
 
 	/**
@@ -418,19 +344,25 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Applies a Filter transformation on a {@link DataStream}. The
-	 * transformation calls a {@link RichFilterFunction} for each element of the
-	 * DataStream and retains only those element for which the function returns
-	 * true. Elements for which the function returns false are filtered.
+	 * Applies a CoMap transformation on two separate {@link DataStream}s. The
+	 * transformation calls a {@link CoMapFunction#map1(Tuple)} for each element
+	 * of the first DataStream (on which .coMapWith was called) and
+	 * {@link CoMapFunction#map2(Tuple)} for each element of the second
+	 * DataStream. Each CoMapFunction call returns exactly one element.
 	 * 
-	 * @param filter
-	 *            The RichFilterFunction that is called for each element of the
-	 *            DataSet.
-	 * @return The filtered DataStream.
+	 * @param coMapper
+	 *            The CoMapFunction used to jointly transform the two input
+	 *            DataStreams
+	 * @param otherStream
+	 *            The DataStream that will be transformed with
+	 *            {@link CoMapFunction#map2(Tuple)}
+	 * @return The transformed DataStream
 	 */
-	public StreamOperator<T, T> filter(RichFilterFunction<T> filter) {
-		return addFunction("filter", filter, new FunctionTypeWrapper<T, Tuple, T>(filter,
-				RichFilterFunction.class, 0, -1, 0), new FilterInvokable<T>(filter));
+	public <T2, R> DataStream<R> coMapWith(CoMapFunction<T, T2, R> coMapper,
+			DataStream<T2> otherStream) {
+		return addCoFunction("coMap", this.copy(), otherStream.copy(), coMapper,
+				new FunctionTypeWrapper<T, T2, R>(coMapper, CoMapFunction.class, 0, 1, 2),
+				new CoMapInvokable<T, T2, R>(coMapper));
 	}
 
 	/**
@@ -480,115 +412,19 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Internal function for passing the user defined functions to the JobGraph
-	 * of the job.
+	 * Applies a Filter transformation on a {@link DataStream}. The
+	 * transformation calls a {@link RichFilterFunction} for each element of the
+	 * DataStream and retains only those element for which the function returns
+	 * true. Elements for which the function returns false are filtered.
 	 * 
-	 * @param functionName
-	 *            name of the function
-	 * @param function
-	 *            the user defined function
-	 * @param functionInvokable
-	 *            the wrapping JobVertex instance
-	 * @param <T>
-	 *            type of the input stream
-	 * @param <R>
-	 *            type of the return stream
-	 * @return the data stream constructed
+	 * @param filter
+	 *            The RichFilterFunction that is called for each element of the
+	 *            DataSet.
+	 * @return The filtered DataStream.
 	 */
-	private <R> StreamOperator<T, R> addFunction(String functionName,
-			final AbstractRichFunction function, TypeSerializerWrapper<T, Tuple, R> typeWrapper,
-			UserTaskInvokable<T, R> functionInvokable) {
-
-		DataStream<T> inputStream = this.copy();
-		StreamOperator<T, R> returnStream = new StreamOperator<T, R>(environment, functionName);
-
-		try {
-			jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, typeWrapper,
-					functionName, SerializationUtils.serialize(function), degreeOfParallelism);
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize user defined function");
-		}
-
-		connectGraph(inputStream, returnStream.getId(), 0);
-
-		if (inputStream.iterationflag) {
-			returnStream.addIterationSource(inputStream.iterationID.toString());
-			inputStream.iterationflag = false;
-		}
-
-		if (inputStream instanceof NamedDataStream) {
-			returnStream.name(inputStream.userDefinedName);
-		}
-
-		return returnStream;
-	}
-
-	protected <T1, T2, R> DataStream<R> addCoFunction(String functionName,
-			DataStream<T1> inputStream1, DataStream<T2> inputStream2,
-			final AbstractRichFunction function, TypeSerializerWrapper<T1, T2, R> typeWrapper,
-			CoInvokable<T1, T2, R> functionInvokable) {
-
-		DataStream<R> returnStream = new DataStream<R>(environment, functionName);
-
-		try {
-			jobGraphBuilder.addCoTask(returnStream.getId(), functionInvokable, typeWrapper,
-					functionName, SerializationUtils.serialize(function), degreeOfParallelism);
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize user defined function");
-		}
-
-		connectGraph(inputStream1, returnStream.getId(), 1);
-		connectGraph(inputStream2, returnStream.getId(), 2);
-
-		if ((inputStream1 instanceof NamedDataStream) && (inputStream2 instanceof NamedDataStream)) {
-			throw new RuntimeException("An operator cannot have two names");
-		} else {
-			if (inputStream1 instanceof NamedDataStream) {
-				returnStream.name(inputStream1.userDefinedName);
-			}
-
-			if (inputStream2 instanceof NamedDataStream) {
-				returnStream.name(inputStream2.userDefinedName);
-			}
-		}
-		// TODO consider iteration
-
-		return returnStream;
-	}
-
-	/**
-	 * Internal function for assembling the underlying
-	 * {@link org.apache.flink.nephele.jobgraph.JobGraph} of the job. Connects
-	 * the outputs of the given input stream to the specified output stream
-	 * given by the outputID.
-	 * 
-	 * @param inputStream
-	 *            input data stream
-	 * @param outputID
-	 *            ID of the output
-	 * @param typeNumber
-	 *            Number of the type (used at co-functions)
-	 */
-	private <X> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
-		for (int i = 0; i < inputStream.connectIDs.size(); i++) {
-			String inputID = inputStream.connectIDs.get(i);
-			StreamPartitioner<X> partitioner = inputStream.partitioners.get(i);
-
-			jobGraphBuilder.setEdge(inputID, outputID, partitioner, typeNumber);
-		}
-	}
-
-	/**
-	 * Adds the given sink to this DataStream. Only streams with sinks added
-	 * will be executed once the {@link StreamExecutionEnvironment#execute()}
-	 * method is called.
-	 * 
-	 * @param sinkFunction
-	 *            The object containing the sink's invoke function.
-	 * @return The closed DataStream.
-	 */
-	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
-		return addSink(this.copy(), sinkFunction);
+	public StreamOperator<T, T> filter(RichFilterFunction<T> filter) {
+		return addFunction("filter", filter, new FunctionTypeWrapper<T, Tuple, T>(filter,
+				RichFilterFunction.class, 0, -1, 0), new FilterInvokable<T>(filter));
 	}
 
 	/**
@@ -604,32 +440,6 @@ public class DataStream<T> {
 		DataStream<T> returnStream = addSink(inputStream, printFunction, null);
 
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
-
-		return returnStream;
-	}
-
-	private DataStream<T> addSink(DataStream<T> inputStream, SinkFunction<T> sinkFunction) {
-		return addSink(inputStream, sinkFunction, new FunctionTypeWrapper<T, Tuple, T>(
-				sinkFunction, SinkFunction.class, 0, -1, 0));
-	}
-
-	private DataStream<T> addSink(DataStream<T> inputStream, SinkFunction<T> sinkFunction,
-			TypeSerializerWrapper<T, Tuple, T> typeWrapper) {
-		DataStream<T> returnStream = new DataStream<T>(environment, "sink");
-
-		try {
-			jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction),
-					typeWrapper, "sink", SerializationUtils.serialize(sinkFunction),
-					degreeOfParallelism);
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize SinkFunction");
-		}
-
-		inputStream.connectGraph(inputStream, returnStream.getId(), 0);
-
-		if (this.copy() instanceof NamedDataStream) {
-			returnStream.name(inputStream.userDefinedName);
-		}
 
 		return returnStream;
 	}
@@ -956,10 +766,193 @@ public class DataStream<T> {
 
 	protected <R> DataStream<T> addIterationSource(String iterationID) {
 		DataStream<R> returnStream = new DataStream<R>(environment, "iterationSource");
-
+	
 		jobGraphBuilder.addIterationSource(returnStream.getId(), this.getId(), iterationID,
 				degreeOfParallelism);
-
+	
 		return this.copy();
+	}
+
+	/**
+	 * Internal function for passing the user defined functions to the JobGraph
+	 * of the job.
+	 * 
+	 * @param functionName
+	 *            name of the function
+	 * @param function
+	 *            the user defined function
+	 * @param functionInvokable
+	 *            the wrapping JobVertex instance
+	 * @param <T>
+	 *            type of the input stream
+	 * @param <R>
+	 *            type of the return stream
+	 * @return the data stream constructed
+	 */
+	private <R> StreamOperator<T, R> addFunction(String functionName,
+			final AbstractRichFunction function, TypeSerializerWrapper<T, Tuple, R> typeWrapper,
+			UserTaskInvokable<T, R> functionInvokable) {
+	
+		DataStream<T> inputStream = this.copy();
+		StreamOperator<T, R> returnStream = new StreamOperator<T, R>(environment, functionName);
+	
+		try {
+			jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, typeWrapper,
+					functionName, SerializationUtils.serialize(function), degreeOfParallelism);
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize user defined function");
+		}
+	
+		connectGraph(inputStream, returnStream.getId(), 0);
+	
+		if (inputStream instanceof IterativeDataStream) {
+			returnStream.addIterationSource(((IterativeDataStream<T>) inputStream).iterationID
+					.toString());
+		}
+	
+		if (inputStream instanceof NamedDataStream) {
+			returnStream.name(inputStream.userDefinedName);
+		}
+	
+		return returnStream;
+	}
+
+	protected <T1, T2, R> DataStream<R> addCoFunction(String functionName,
+			DataStream<T1> inputStream1, DataStream<T2> inputStream2,
+			final AbstractRichFunction function, TypeSerializerWrapper<T1, T2, R> typeWrapper,
+			CoInvokable<T1, T2, R> functionInvokable) {
+	
+		DataStream<R> returnStream = new DataStream<R>(environment, functionName);
+	
+		try {
+			jobGraphBuilder.addCoTask(returnStream.getId(), functionInvokable, typeWrapper,
+					functionName, SerializationUtils.serialize(function), degreeOfParallelism);
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize user defined function");
+		}
+	
+		connectGraph(inputStream1, returnStream.getId(), 1);
+		connectGraph(inputStream2, returnStream.getId(), 2);
+	
+		if ((inputStream1 instanceof NamedDataStream) && (inputStream2 instanceof NamedDataStream)) {
+			throw new RuntimeException("An operator cannot have two names");
+		} else {
+			if (inputStream1 instanceof NamedDataStream) {
+				returnStream.name(inputStream1.userDefinedName);
+			}
+	
+			if (inputStream2 instanceof NamedDataStream) {
+				returnStream.name(inputStream2.userDefinedName);
+			}
+		}
+		// TODO consider iteration
+	
+		return returnStream;
+	}
+
+	/**
+	 * Gives the data transformation(vertex) a user defined name in order to use
+	 * with directed outputs. The {@link OutputSelector} of the input vertex
+	 * should use this name for directed emits.
+	 * 
+	 * @param name
+	 *            The name to set
+	 * @return The named DataStream.
+	 */
+	protected DataStream<T> name(String name) {
+		// TODO copy DataStream?
+		if (name == "") {
+			throw new IllegalArgumentException("User defined name must not be empty string");
+		}
+	
+		userDefinedName = name;
+		jobGraphBuilder.setUserDefinedName(id, name);
+	
+		return this;
+	}
+
+	/**
+	 * Connects two DataStreams
+	 * 
+	 * @param returnStream
+	 *            The other DataStream will connected to this
+	 * @param stream
+	 *            This DataStream will be connected to returnStream
+	 */
+	private void addConnection(DataStream<T> returnStream, DataStream<T> stream) {
+		if ((stream instanceof NamedDataStream) || (returnStream instanceof NamedDataStream)) {
+			if (!returnStream.userDefinedName.equals(stream.userDefinedName)) {
+				throw new RuntimeException("Error: Connected NamedDataStreams must have same names");
+			}
+		}
+		returnStream.connectedStreams.add(stream.copy());
+	}
+
+	private DataStream<T> setConnectionType(StreamPartitioner<T> partitioner) {
+		DataStream<T> returnStream = this.copy();
+	
+		for (DataStream<T> stream : returnStream.connectedStreams) {
+			stream.partitioner = partitioner;
+		}
+	
+		return returnStream;
+	}
+
+	/**
+	 * Internal function for assembling the underlying
+	 * {@link org.apache.flink.nephele.jobgraph.JobGraph} of the job. Connects
+	 * the outputs of the given input stream to the specified output stream
+	 * given by the outputID.
+	 * 
+	 * @param inputStream
+	 *            input data stream
+	 * @param outputID
+	 *            ID of the output
+	 * @param typeNumber
+	 *            Number of the type (used at co-functions)
+	 */
+	private <X> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
+		for (DataStream<X> stream : inputStream.connectedStreams) {
+			jobGraphBuilder.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber);
+		}
+	}
+
+	/**
+	 * Adds the given sink to this DataStream. Only streams with sinks added
+	 * will be executed once the {@link StreamExecutionEnvironment#execute()}
+	 * method is called.
+	 * 
+	 * @param sinkFunction
+	 *            The object containing the sink's invoke function.
+	 * @return The closed DataStream.
+	 */
+	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
+		return addSink(this.copy(), sinkFunction);
+	}
+
+	private DataStream<T> addSink(DataStream<T> inputStream, SinkFunction<T> sinkFunction) {
+		return addSink(inputStream, sinkFunction, new FunctionTypeWrapper<T, Tuple, T>(
+				sinkFunction, SinkFunction.class, 0, -1, 0));
+	}
+
+	private DataStream<T> addSink(DataStream<T> inputStream, SinkFunction<T> sinkFunction,
+			TypeSerializerWrapper<T, Tuple, T> typeWrapper) {
+		DataStream<T> returnStream = new DataStream<T>(environment, "sink");
+	
+		try {
+			jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction),
+					typeWrapper, "sink", SerializationUtils.serialize(sinkFunction),
+					degreeOfParallelism);
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize SinkFunction");
+		}
+	
+		inputStream.connectGraph(inputStream, returnStream.getId(), 0);
+	
+		if (this.copy() instanceof NamedDataStream) {
+			returnStream.name(inputStream.userDefinedName);
+		}
+	
+		return returnStream;
 	}
 }

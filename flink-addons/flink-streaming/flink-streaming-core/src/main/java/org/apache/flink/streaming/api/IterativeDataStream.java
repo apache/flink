@@ -31,12 +31,17 @@ import org.apache.flink.streaming.partitioner.ForwardPartitioner;
 public class IterativeDataStream<T> extends StreamOperator<T, T> {
 
 	static Integer iterationCount = 0;
+	protected Integer iterationID;
 
 	protected IterativeDataStream(DataStream<T> dataStream) {
 		super(dataStream);
 		iterationID = iterationCount;
 		iterationCount++;
-		iterationflag = true;
+	}
+
+	protected IterativeDataStream(DataStream<T> dataStream, Integer iterationID) {
+		super(dataStream);
+		this.iterationID = iterationID;
 	}
 
 	/**
@@ -68,8 +73,7 @@ public class IterativeDataStream<T> extends StreamOperator<T, T> {
 	 *            when used with directed emits
 	 * 
 	 */
-	public <R> DataStream<T> closeWith(DataStream<T> iterationResult,
-			String iterationName) {
+	public <R> DataStream<T> closeWith(DataStream<T> iterationResult, String iterationName) {
 		DataStream<R> returnStream = new DataStream<R>(environment, "iterationSink");
 
 		jobGraphBuilder.addIterationSink(returnStream.getId(), iterationResult.getId(),
@@ -78,11 +82,16 @@ public class IterativeDataStream<T> extends StreamOperator<T, T> {
 		jobGraphBuilder.setIterationSourceParallelism(iterationID.toString(),
 				iterationResult.getParallelism());
 
-		for (int i = 0; i < iterationResult.connectIDs.size(); i++) {
-			String inputID = iterationResult.connectIDs.get(i);
+		for (DataStream<T> stream : iterationResult.connectedStreams) {
+			String inputID = stream.getId();
 			jobGraphBuilder.setEdge(inputID, returnStream.getId(), new ForwardPartitioner<T>(), 0);
 		}
 
 		return iterationResult;
+	}
+
+	@Override
+	protected DataStream<T> copy() {
+		return new IterativeDataStream<T>(this, iterationID);
 	}
 }

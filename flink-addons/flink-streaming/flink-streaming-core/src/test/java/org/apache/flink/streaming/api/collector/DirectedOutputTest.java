@@ -20,6 +20,7 @@
 package org.apache.flink.streaming.api.collector;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -38,9 +39,9 @@ public class DirectedOutputTest {
 
 	static HashSet<Long> evenSet = new HashSet<Long>();
 	static HashSet<Long> oddSet = new HashSet<Long>();
-	
+
 	private static class PlusTwo extends RichMapFunction<Long, Long> {
-	
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -59,7 +60,7 @@ public class DirectedOutputTest {
 			evenSet.add(tuple);
 		}
 	}
-	
+
 	private static class OddSink extends SinkFunction<Long> {
 
 		private static final long serialVersionUID = 1L;
@@ -69,26 +70,24 @@ public class DirectedOutputTest {
 			oddSet.add(tuple);
 		}
 	}
-	
-	
+
 	private static class MySelector extends OutputSelector<Long> {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void select(Long tuple, Collection<String> outputs) {
 			int mod = (int) (tuple % 2);
 			switch (mod) {
-				case 0:
-					outputs.add("ds1");
-					break;
-				case 1:
-					outputs.add("ds2");
-					break;
+			case 0:
+				outputs.add("ds1");
+				break;
+			case 1:
+				outputs.add("ds2");
+				break;
 			}
 		}
 	}
-	
 
 	@SuppressWarnings("unused")
 	@Test
@@ -102,11 +101,41 @@ public class DirectedOutputTest {
 		DataStream<Long> ds3 = s.map(new PlusTwo()).addSink(new OddSink());
 
 		env.execute();
-		
+
 		HashSet<Long> expectedEven = new HashSet<Long>(Arrays.asList(4L, 6L, 8L));
 		HashSet<Long> expectedOdd = new HashSet<Long>(Arrays.asList(3L, 5L, 7L));
-		
+
 		assertEquals(expectedEven, evenSet);
 		assertEquals(expectedOdd, oddSet);
+	}
+
+	@SuppressWarnings({ "unchecked" })
+	@Test
+	public void directNamingTest() {
+		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+		SplitDataStream<Long> s = env.generateSequence(1, 10).split(new MySelector());
+		try {
+			s.select("ds2").connectWith(s.select("ds1"));
+			fail();
+		} catch (Exception e) {
+			// Exception thrown
+		}
+		try {
+			s.shuffle().connectWith(s.select("ds1"));
+			fail();
+		} catch (Exception e) {
+			// Exception thrown
+		}
+		try {
+			s.select("ds2").connectWith(s);
+			fail();
+		} catch (Exception e) {
+			// Exception thrown
+		}
+		s.connectWith(s);
+		s.select("ds2").connectWith(s.select("ds2"));
+
 	}
 }

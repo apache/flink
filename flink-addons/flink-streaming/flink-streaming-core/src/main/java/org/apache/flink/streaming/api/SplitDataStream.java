@@ -34,10 +34,9 @@ public class SplitDataStream<T> extends DataStream<T> {
 	 * @return Returns the modified DataStream
 	 */
 	public NamedDataStream<T> select(String outputName) {
-
-		userDefinedName = outputName;
-
-		return new NamedDataStream<T>(this);
+		NamedDataStream<T> returnStream = new NamedDataStream<T>(this);
+		returnStream.userDefinedName = outputName;
+		return returnStream;
 	}
 
 	@Override
