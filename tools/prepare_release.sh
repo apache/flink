@@ -19,5 +19,5 @@
 
 echo "Updating version from $OLD_VERSION to $NEW_VERSION"
 
-find .. -name 'pom.xml' -type f -exec sed -i 's#<version>$OLD_VERSION</version>#<version>$NEW_VERSION</version>#' {} \;
+find flink -name 'pom.xml' -type f -exec sed -i 's#<version>$OLD_VERSION</version>#<version>$NEW_VERSION</version>#' {} \;
 
