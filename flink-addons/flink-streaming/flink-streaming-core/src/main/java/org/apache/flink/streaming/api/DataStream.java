@@ -174,9 +174,9 @@ public class DataStream<T> {
 			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
 		}
 		this.degreeOfParallelism = dop;
-	
+
 		jobGraphBuilder.setParallelism(id, degreeOfParallelism);
-	
+
 		return this;
 	}
 
@@ -319,7 +319,7 @@ public class DataStream<T> {
 	 *            output type
 	 * @return The transformed DataStream.
 	 */
-	public <R> StreamOperator<T, R> map(RichMapFunction<T, R> mapper) {
+	public <R> StreamOperator<R> map(RichMapFunction<T, R> mapper) {
 		return addFunction("map", mapper, new FunctionTypeWrapper<T, Tuple, R>(mapper,
 				RichMapFunction.class, 0, -1, 1), new MapInvokable<T, R>(mapper));
 	}
@@ -338,7 +338,7 @@ public class DataStream<T> {
 	 *            output type
 	 * @return The transformed DataStream.
 	 */
-	public <R> StreamOperator<T, R> flatMap(RichFlatMapFunction<T, R> flatMapper) {
+	public <R> StreamOperator<R> flatMap(RichFlatMapFunction<T, R> flatMapper) {
 		return addFunction("flatMap", flatMapper, new FunctionTypeWrapper<T, Tuple, R>(flatMapper,
 				RichFlatMapFunction.class, 0, -1, 1), new FlatMapInvokable<T, R>(flatMapper));
 	}
@@ -358,7 +358,7 @@ public class DataStream<T> {
 	 *            {@link CoMapFunction#map2(Tuple)}
 	 * @return The transformed DataStream
 	 */
-	public <T2, R> DataStream<R> coMapWith(CoMapFunction<T, T2, R> coMapper,
+	public <T2, R> StreamOperator<R> coMapWith(CoMapFunction<T, T2, R> coMapper,
 			DataStream<T2> otherStream) {
 		return addCoFunction("coMap", this.copy(), otherStream.copy(), coMapper,
 				new FunctionTypeWrapper<T, T2, R>(coMapper, CoMapFunction.class, 0, 1, 2),
@@ -381,7 +381,7 @@ public class DataStream<T> {
 	 *            output type
 	 * @return The modified DataStream.
 	 */
-	public <R> StreamOperator<T, R> batchReduce(RichGroupReduceFunction<T, R> reducer, int batchSize) {
+	public <R> StreamOperator<R> batchReduce(RichGroupReduceFunction<T, R> reducer, int batchSize) {
 		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<T, Tuple, R>(reducer,
 				RichGroupReduceFunction.class, 0, -1, 1), new BatchReduceInvokable<T, R>(reducer,
 				batchSize));
@@ -404,8 +404,7 @@ public class DataStream<T> {
 	 *            output type
 	 * @return The modified DataStream.
 	 */
-	public <R> StreamOperator<T, R> windowReduce(RichGroupReduceFunction<T, R> reducer,
-			long windowSize) {
+	public <R> StreamOperator<R> windowReduce(RichGroupReduceFunction<T, R> reducer, long windowSize) {
 		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<T, Tuple, R>(reducer,
 				RichGroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<T, R>(reducer,
 				windowSize));
@@ -422,7 +421,7 @@ public class DataStream<T> {
 	 *            DataSet.
 	 * @return The filtered DataStream.
 	 */
-	public StreamOperator<T, T> filter(RichFilterFunction<T> filter) {
+	public StreamOperator<T> filter(RichFilterFunction<T> filter) {
 		return addFunction("filter", filter, new FunctionTypeWrapper<T, Tuple, T>(filter,
 				RichFilterFunction.class, 0, -1, 0), new FilterInvokable<T>(filter));
 	}
@@ -766,10 +765,10 @@ public class DataStream<T> {
 
 	protected <R> DataStream<T> addIterationSource(String iterationID) {
 		DataStream<R> returnStream = new DataStream<R>(environment, "iterationSource");
-	
+
 		jobGraphBuilder.addIterationSource(returnStream.getId(), this.getId(), iterationID,
 				degreeOfParallelism);
-	
+
 		return this.copy();
 	}
 
@@ -783,70 +782,70 @@ public class DataStream<T> {
 	 *            the user defined function
 	 * @param functionInvokable
 	 *            the wrapping JobVertex instance
-	 * @param <T>
-	 *            type of the input stream
 	 * @param <R>
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
-	private <R> StreamOperator<T, R> addFunction(String functionName,
+	private <R> StreamOperator<R> addFunction(String functionName,
 			final AbstractRichFunction function, TypeSerializerWrapper<T, Tuple, R> typeWrapper,
 			UserTaskInvokable<T, R> functionInvokable) {
-	
+
 		DataStream<T> inputStream = this.copy();
-		StreamOperator<T, R> returnStream = new StreamOperator<T, R>(environment, functionName);
-	
+		StreamOperator<R> returnStream = new SingleInputStreamOperator<T, R>(environment,
+				functionName);
+
 		try {
 			jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, typeWrapper,
 					functionName, SerializationUtils.serialize(function), degreeOfParallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize user defined function");
 		}
-	
+
 		connectGraph(inputStream, returnStream.getId(), 0);
-	
+
 		if (inputStream instanceof IterativeDataStream) {
 			returnStream.addIterationSource(((IterativeDataStream<T>) inputStream).iterationID
 					.toString());
 		}
-	
+
 		if (inputStream instanceof NamedDataStream) {
 			returnStream.name(inputStream.userDefinedName);
 		}
-	
+
 		return returnStream;
 	}
 
-	protected <T1, T2, R> DataStream<R> addCoFunction(String functionName,
+	protected <T1, T2, R> StreamOperator<R> addCoFunction(String functionName,
 			DataStream<T1> inputStream1, DataStream<T2> inputStream2,
 			final AbstractRichFunction function, TypeSerializerWrapper<T1, T2, R> typeWrapper,
 			CoInvokable<T1, T2, R> functionInvokable) {
-	
-		DataStream<R> returnStream = new DataStream<R>(environment, functionName);
-	
+
+		StreamOperator<R> returnStream = new TwoInputStreamOperator<T1, T2, R>(environment,
+				functionName);
+
 		try {
 			jobGraphBuilder.addCoTask(returnStream.getId(), functionInvokable, typeWrapper,
 					functionName, SerializationUtils.serialize(function), degreeOfParallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize user defined function");
 		}
-	
+
 		connectGraph(inputStream1, returnStream.getId(), 1);
 		connectGraph(inputStream2, returnStream.getId(), 2);
-	
+
 		if ((inputStream1 instanceof NamedDataStream) && (inputStream2 instanceof NamedDataStream)) {
 			throw new RuntimeException("An operator cannot have two names");
 		} else {
 			if (inputStream1 instanceof NamedDataStream) {
 				returnStream.name(inputStream1.userDefinedName);
 			}
-	
+
 			if (inputStream2 instanceof NamedDataStream) {
 				returnStream.name(inputStream2.userDefinedName);
 			}
 		}
 		// TODO consider iteration
-	
+
 		return returnStream;
 	}
 
@@ -864,10 +863,10 @@ public class DataStream<T> {
 		if (name == "") {
 			throw new IllegalArgumentException("User defined name must not be empty string");
 		}
-	
+
 		userDefinedName = name;
 		jobGraphBuilder.setUserDefinedName(id, name);
-	
+
 		return this;
 	}
 
@@ -890,11 +889,11 @@ public class DataStream<T> {
 
 	private DataStream<T> setConnectionType(StreamPartitioner<T> partitioner) {
 		DataStream<T> returnStream = this.copy();
-	
+
 		for (DataStream<T> stream : returnStream.connectedStreams) {
 			stream.partitioner = partitioner;
 		}
-	
+
 		return returnStream;
 	}
 
@@ -938,7 +937,7 @@ public class DataStream<T> {
 	private DataStream<T> addSink(DataStream<T> inputStream, SinkFunction<T> sinkFunction,
 			TypeSerializerWrapper<T, Tuple, T> typeWrapper) {
 		DataStream<T> returnStream = new DataStream<T>(environment, "sink");
-	
+
 		try {
 			jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction),
 					typeWrapper, "sink", SerializationUtils.serialize(sinkFunction),
@@ -946,13 +945,13 @@ public class DataStream<T> {
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SinkFunction");
 		}
-	
+
 		inputStream.connectGraph(inputStream, returnStream.getId(), 0);
-	
+
 		if (this.copy() instanceof NamedDataStream) {
 			returnStream.name(inputStream.userDefinedName);
 		}
-	
+
 		return returnStream;
 	}
 }
