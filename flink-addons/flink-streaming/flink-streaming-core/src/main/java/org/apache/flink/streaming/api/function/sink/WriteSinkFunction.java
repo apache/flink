@@ -32,7 +32,7 @@ import java.util.ArrayList;
  * @param <IN>
  *            Input tuple type
  */
-public abstract class WriteSinkFunction<IN> extends SinkFunction<IN> {
+public abstract class WriteSinkFunction<IN> implements SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
 	protected final String path;

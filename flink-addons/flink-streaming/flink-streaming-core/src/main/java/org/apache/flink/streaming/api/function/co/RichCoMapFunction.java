@@ -18,13 +18,10 @@
 
 package org.apache.flink.streaming.api.function.co;
 
-import java.io.Serializable;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 
-import org.apache.flink.api.common.functions.Function;
+public abstract class RichCoMapFunction<IN1, IN2, OUT> extends AbstractRichFunction implements
+		CoMapFunction<IN1, IN2, OUT> {
 
-public interface CoMapFunction<IN1, IN2, OUT> extends Function, Serializable {
-
-	public OUT map1(IN1 value);
-
-	public OUT map2(IN2 value);
+	private static final long serialVersionUID = 1L;
 }

@@ -22,10 +22,10 @@ package org.apache.flink.streaming.examples.wordcount;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.functions.MapFunction;
 
-public class WordCountCounter extends RichMapFunction<String, Tuple2<String, Integer>> {
+public class WordCountCounter implements MapFunction<String, Tuple2<String, Integer>> {
 	private static final long serialVersionUID = 1L;
 
 	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
@@ -33,7 +33,7 @@ public class WordCountCounter extends RichMapFunction<String, Tuple2<String, Int
 	private Integer count = 0;
 
 	private Tuple2<String, Integer> outTuple = new Tuple2<String, Integer>();
-	
+
 	// Increments the counter of the occurrence of the input word
 	@Override
 	public Tuple2<String, Integer> map(String inTuple) throws Exception {

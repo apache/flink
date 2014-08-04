@@ -19,12 +19,11 @@
 
 package org.apache.flink.streaming.api.function.source;
 
-import java.io.Serializable;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 
-import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.util.Collector;
+public abstract class RichSourceFunction<OUT> extends AbstractRichFunction implements
+		SourceFunction<OUT> {
 
-public interface SourceFunction<OUT> extends Function, Serializable {
+	private static final long serialVersionUID = 1L;
 
-	public void invoke(Collector<OUT> collector) throws Exception;
 }

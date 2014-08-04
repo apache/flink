@@ -34,7 +34,7 @@ import org.apache.flink.util.Collector;
 
 public class IncrementalOLS {
 
-	public static class NewDataSource extends SourceFunction<Tuple2<Boolean, Double[]>> {
+	public static class NewDataSource implements SourceFunction<Tuple2<Boolean, Double[]>> {
 
 		private static final long serialVersionUID = 1L;
 		Random rnd = new Random();
@@ -55,7 +55,7 @@ public class IncrementalOLS {
 		}
 	}
 
-	public static class TrainingDataSource extends SourceFunction<Tuple2<Double, Double[]>> {
+	public static class TrainingDataSource implements SourceFunction<Tuple2<Double, Double[]>> {
 		private static final long serialVersionUID = 1L;
 
 		Random rnd = new Random();

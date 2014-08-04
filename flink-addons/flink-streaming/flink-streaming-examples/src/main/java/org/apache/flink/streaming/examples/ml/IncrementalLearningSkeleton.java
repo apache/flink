@@ -29,7 +29,7 @@ import org.apache.flink.util.Collector;
 public class IncrementalLearningSkeleton {
 
 	// Source for feeding new data for prediction
-	public static class NewDataSource extends SourceFunction<Tuple1<Integer>> {
+	public static class NewDataSource implements SourceFunction<Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -46,7 +46,7 @@ public class IncrementalLearningSkeleton {
 	}
 
 	// Source for feeding new training data for partial model building
-	public static class TrainingDataSource extends SourceFunction<Tuple1<Integer>> {
+	public static class TrainingDataSource implements SourceFunction<Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

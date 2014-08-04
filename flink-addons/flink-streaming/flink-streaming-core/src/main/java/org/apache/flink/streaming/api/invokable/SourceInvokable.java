@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.invokable;
 
 import java.io.Serializable;
 
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 
@@ -43,11 +44,15 @@ public class SourceInvokable<OUT> extends StreamComponentInvokable<OUT> implemen
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
-		sourceFunction.open(parameters);
+		if (sourceFunction instanceof RichFunction) {
+			((RichFunction) sourceFunction).open(parameters);
+		}
 	}
 
 	@Override
 	public void close() throws Exception {
-		sourceFunction.close();
+		if (sourceFunction instanceof RichFunction) {
+			((RichFunction) sourceFunction).close();
+		}
 	}
 }

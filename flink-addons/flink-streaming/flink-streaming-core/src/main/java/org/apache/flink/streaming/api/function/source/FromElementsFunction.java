@@ -24,7 +24,7 @@ import java.util.Collection;
 
 import org.apache.flink.util.Collector;
 
-public class FromElementsFunction<T> extends SourceFunction<T> {
+public class FromElementsFunction<T> implements SourceFunction<T> {
 	private static final long serialVersionUID = 1L;
 
 	Iterable<T> iterable;

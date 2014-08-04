@@ -19,7 +19,6 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
-
 import java.util.HashSet;
 import java.util.Set;
 
@@ -28,8 +27,8 @@ import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.junit.Test;
 
 public class RMQTest {
-	
-	public static final class MySink extends SinkFunction<Tuple1<String>> {
+
+	public static final class MySink implements SinkFunction<Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -37,38 +36,37 @@ public class RMQTest {
 			result.add(tuple.f0);
 		}
 
-		
 	}
-	
+
 	private static Set<String> expected = new HashSet<String>();
 	private static Set<String> result = new HashSet<String>();
-	
+
 	@SuppressWarnings("unused")
-  private static void fillExpected() {
+	private static void fillExpected() {
 		expected.add("one");
 		expected.add("two");
 		expected.add("three");
 		expected.add("four");
 		expected.add("five");
 	}
-	
+
 	@Test
 	public void RMQTest1() throws Exception {
-//		
-//		StreamExecutionEnvironment env = new StreamExecutionEnvironment();
-//
-//		DataStream<Tuple1<String>> dataStream1 = env
-//				.addSource(new RMQSource("localhost", "hello"), 1)
-//				.addSink(new MySink());
-//		
-//		DataStream<Tuple1<String>> dataStream2 = env
-//				.fromElements("one", "two", "three", "four", "five", "q")
-//				.addSink(new RMQSink("localhost", "hello"));
-//
-//		env.execute();
-//		
-//		fillExpected();
-//		
-//		assertEquals(expected, result);
+		//
+		// StreamExecutionEnvironment env = new StreamExecutionEnvironment();
+		//
+		// DataStream<Tuple1<String>> dataStream1 = env
+		// .addSource(new RMQSource("localhost", "hello"), 1)
+		// .addSink(new MySink());
+		//
+		// DataStream<Tuple1<String>> dataStream2 = env
+		// .fromElements("one", "two", "three", "four", "five", "q")
+		// .addSink(new RMQSink("localhost", "hello"));
+		//
+		// env.execute();
+		//
+		// fillExpected();
+		//
+		// assertEquals(expected, result);
 	}
 }

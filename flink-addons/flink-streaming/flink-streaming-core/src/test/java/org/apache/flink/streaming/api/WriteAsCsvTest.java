@@ -48,7 +48,7 @@ public class WriteAsCsvTest {
 	private static List<String> expected4 = new ArrayList<String>();
 	private static List<String> expected5 = new ArrayList<String>();
 
-	public static final class MySource1 extends SourceFunction<Tuple1<Integer>> {
+	public static final class MySource1 implements SourceFunction<Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

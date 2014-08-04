@@ -51,7 +51,7 @@ public class DirectedOutputTest {
 		}
 	}
 
-	private static class EvenSink extends SinkFunction<Long> {
+	private static class EvenSink implements SinkFunction<Long> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -61,7 +61,7 @@ public class DirectedOutputTest {
 		}
 	}
 
-	private static class OddSink extends SinkFunction<Long> {
+	private static class OddSink implements SinkFunction<Long> {
 
 		private static final long serialVersionUID = 1L;
 

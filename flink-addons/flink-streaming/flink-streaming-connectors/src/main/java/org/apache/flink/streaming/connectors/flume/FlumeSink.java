@@ -30,7 +30,7 @@ import org.apache.flume.api.RpcClient;
 import org.apache.flume.api.RpcClientFactory;
 import org.apache.flume.event.EventBuilder;
 
-public abstract class FlumeSink<IN> extends SinkFunction<IN> {
+public abstract class FlumeSink<IN> implements SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Log LOG = LogFactory.getLog(FlumeSink.class);
@@ -51,18 +51,18 @@ public abstract class FlumeSink<IN> extends SinkFunction<IN> {
 	 * Receives tuples from the Apache Flink {@link DataStream} and forwards them to
 	 * Apache Flume.
 	 * 
-	 * @param tuple
+	 * @param value
 	 *            The tuple arriving from the datastream
 	 */
 	@Override
-	public void invoke(IN tuple) {
+	public void invoke(IN value) {
 
 		if (!initDone) {
 			client = new FlinkRpcClientFacade();
 			client.init(host, port);
 		}
 
-		byte[] data = serialize(tuple);
+		byte[] data = serialize(value);
 		if (!closeWithoutSend) {
 			client.sendDataToFlume(data);
 		}
@@ -75,11 +75,11 @@ public abstract class FlumeSink<IN> extends SinkFunction<IN> {
 	/**
 	 * Serializes tuples into byte arrays.
 	 * 
-	 * @param tuple
+	 * @param value
 	 *            The tuple used for the serialization
 	 * @return The serialized byte array.
 	 */
-	public abstract byte[] serialize(IN tuple);
+	public abstract byte[] serialize(IN value);
 
 	private class FlinkRpcClientFacade {
 		private RpcClient client;

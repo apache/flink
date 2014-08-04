@@ -29,7 +29,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 
-public abstract class RMQSink<IN> extends SinkFunction<IN> {
+public abstract class RMQSink<IN> implements SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Log LOG = LogFactory.getLog(RMQSink.class);
@@ -69,18 +69,18 @@ public abstract class RMQSink<IN> extends SinkFunction<IN> {
 	/**
 	 * Called when new data arrives to the sink, and forwards it to RMQ.
 	 * 
-	 * @param tuple
+	 * @param value
 	 *            The incoming data
 	 */
 	@Override
-	public void invoke(IN tuple) {
+	public void invoke(IN value) {
 		if (!initDone) {
 			initializeConnection();
 		}
 
 		try {
 			channel.queueDeclare(QUEUE_NAME, false, false, false, null);
-			byte[] msg = serialize(tuple);
+			byte[] msg = serialize(value);
 			if (!closeWithoutSend) {
 				channel.basicPublish("", QUEUE_NAME, null, msg);
 			}
@@ -98,11 +98,11 @@ public abstract class RMQSink<IN> extends SinkFunction<IN> {
 	/**
 	 * Serializes tuples into byte arrays.
 	 * 
-	 * @param tuple
+	 * @param value
 	 *            The tuple used for the serialization
 	 * @return The serialized byte array.
 	 */
-	public abstract byte[] serialize(IN tuple);
+	public abstract byte[] serialize(IN value);
 
 	/**
 	 * Closes the connection.

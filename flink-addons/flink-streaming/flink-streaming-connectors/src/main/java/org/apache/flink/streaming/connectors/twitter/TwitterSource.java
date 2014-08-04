@@ -44,7 +44,7 @@ import com.twitter.hbc.httpclient.auth.OAuth1;
  * Implementation of {@link SourceFunction} specialized to emit tweets from Twitter.
  * It can connect to Twitter Streaming API, collect tweets and 
  */
-public class TwitterSource extends SourceFunction<String> {
+public class TwitterSource implements SourceFunction<String> {
 
 	private static final Log LOG = LogFactory.getLog(TwitterSource.class);
 

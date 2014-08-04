@@ -27,7 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.flink.api.java.functions.RichMapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.StreamExecutionEnvironment;
@@ -40,7 +40,7 @@ import org.junit.Test;
 
 public class MapTest {
 
-	public static final class MySource extends SourceFunction<Integer> {
+	public static final class MySource implements SourceFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -51,7 +51,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MySource1 extends SourceFunction<Integer> {
+	public static final class MySource1 implements SourceFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -62,7 +62,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MySource2 extends SourceFunction<Integer> {
+	public static final class MySource2 implements SourceFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -73,7 +73,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MySource3 extends SourceFunction<Integer> {
+	public static final class MySource3 implements SourceFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -84,7 +84,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MyMap extends RichMapFunction<Integer, Integer> {
+	public static final class MyMap implements MapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -94,7 +94,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MySingleJoinMap extends RichMapFunction<Integer, Integer> {
+	public static final class MySingleJoinMap implements MapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -104,7 +104,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MyMultipleJoinMap extends RichMapFunction<Integer, Integer> {
+	public static final class MyMultipleJoinMap implements MapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -114,7 +114,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MyFieldsMap extends RichMapFunction<Integer, Integer> {
+	public static final class MyFieldsMap implements MapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		private int counter = 0;
@@ -128,7 +128,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MyDiffFieldsMap extends RichMapFunction<Integer, Integer> {
+	public static final class MyDiffFieldsMap implements MapFunction<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		private int counter = 0;
@@ -138,11 +138,11 @@ public class MapTest {
 			counter++;
 			if (counter > 3)
 				threeInAll = false;
-			return value*value;
+			return value * value;
 		}
 	}
 
-	public static final class MySink extends SinkFunction<Integer> {
+	public static final class MySink implements SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -151,7 +151,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MyBroadcastSink extends SinkFunction<Integer> {
+	public static final class MyBroadcastSink implements SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -160,7 +160,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MyShufflesSink extends SinkFunction<Integer> {
+	public static final class MyShufflesSink implements SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -169,7 +169,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MyFieldsSink extends SinkFunction<Integer> {
+	public static final class MyFieldsSink implements SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -178,7 +178,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MyDiffFieldsSink extends SinkFunction<Integer> {
+	public static final class MyDiffFieldsSink implements SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -187,7 +187,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class MyGraphSink extends SinkFunction<Integer> {
+	public static final class MyGraphSink implements SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -196,7 +196,7 @@ public class MapTest {
 		}
 	}
 
-	public static final class JoinSink extends SinkFunction<Integer> {
+	public static final class JoinSink implements SinkFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

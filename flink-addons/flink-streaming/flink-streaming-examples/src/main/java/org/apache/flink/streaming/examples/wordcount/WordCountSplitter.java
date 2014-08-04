@@ -19,16 +19,16 @@
 
 package org.apache.flink.streaming.examples.wordcount;
 
-import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
 
-public class WordCountSplitter extends RichFlatMapFunction<String, String> {
+public class WordCountSplitter implements FlatMapFunction<String, String> {
 	private static final long serialVersionUID = 1L;
 
 	// Splits the lines according on spaces
 	@Override
 	public void flatMap(String inTuple, Collector<String> out) throws Exception {
-		
+
 		for (String word : inTuple.split(" ")) {
 			out.collect(word);
 		}

@@ -51,10 +51,10 @@ public abstract class OutputSelector<T> implements Serializable {
 	 * directTo operator. The tuple will be emitted only to output names which
 	 * are added to the outputs collection.
 	 * 
-	 * @param outputObject
+	 * @param value
 	 *            Output object for which the output selection should be made.
 	 * @param outputs
 	 *            Selected output names should be added to this collection.
 	 */
-	public abstract void select(T outputObject, Collection<String> outputs);
+	public abstract void select(T value, Collection<String> outputs);
 }

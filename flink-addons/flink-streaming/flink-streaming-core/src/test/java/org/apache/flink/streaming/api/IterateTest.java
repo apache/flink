@@ -64,7 +64,7 @@ public class IterateTest {
 
 	}
 
-	public static final class MySink extends SinkFunction<Boolean> {
+	public static final class MySink implements SinkFunction<Boolean> {
 
 		private static final long serialVersionUID = 1L;
 

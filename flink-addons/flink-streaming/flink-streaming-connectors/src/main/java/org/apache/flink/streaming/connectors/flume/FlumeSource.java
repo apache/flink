@@ -22,7 +22,7 @@ package org.apache.flink.streaming.connectors.flume;
 import java.util.List;
 
 import org.apache.flink.streaming.api.DataStream;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.streaming.api.function.source.RichSourceFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flume.Context;
 import org.apache.flume.channel.ChannelProcessor;
@@ -30,7 +30,7 @@ import org.apache.flume.source.AvroSource;
 import org.apache.flume.source.avro.AvroFlumeEvent;
 import org.apache.flume.source.avro.Status;
 
-public abstract class FlumeSource<OUT> extends SourceFunction<OUT> {
+public abstract class FlumeSource<OUT> extends RichSourceFunction<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	String host;

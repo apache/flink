@@ -22,7 +22,7 @@ package org.apache.flink.streaming.examples.iterative.collaborativefilter;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.api.java.tuple.Tuple4;
 
-public class CollaborativeFilteringSink extends
+public class CollaborativeFilteringSink implements
 		SinkFunction<Tuple4<Integer, Integer, Integer, Long>> {
 	private static final long serialVersionUID = 1L;
 

@@ -23,7 +23,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 
-import org.apache.flink.api.java.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.DataStream;
 import org.apache.flink.streaming.api.LocalStreamEnvironment;
@@ -42,8 +42,8 @@ public class BatchReduceTest {
 	private static final int PARALlELISM = 1;
 	private static final long MEMORYSIZE = 32;
 
-	public static final class MyBatchReduce extends
-			RichGroupReduceFunction<Tuple1<Double>, Tuple1<Double>> {
+	public static final class MyBatchReduce implements
+			GroupReduceFunction<Tuple1<Double>, Tuple1<Double>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -62,7 +62,7 @@ public class BatchReduceTest {
 		}
 	}
 
-	public static final class MySink extends SinkFunction<Tuple1<Double>> {
+	public static final class MySink implements SinkFunction<Tuple1<Double>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -72,7 +72,7 @@ public class BatchReduceTest {
 
 	}
 
-	public static final class MySource extends SourceFunction<Tuple1<Double>> {
+	public static final class MySource implements SourceFunction<Tuple1<Double>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

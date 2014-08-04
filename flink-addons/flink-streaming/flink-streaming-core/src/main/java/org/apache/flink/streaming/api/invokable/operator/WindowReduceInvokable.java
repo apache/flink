@@ -22,7 +22,7 @@ package org.apache.flink.streaming.api.invokable.operator;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.api.java.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 
 public class WindowReduceInvokable<IN, OUT> extends StreamReduceInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
@@ -30,7 +30,7 @@ public class WindowReduceInvokable<IN, OUT> extends StreamReduceInvokable<IN, OU
 	volatile boolean isRunning;
 	boolean window;
 
-	public WindowReduceInvokable(RichGroupReduceFunction<IN, OUT> reduceFunction, long windowSize) {
+	public WindowReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize) {
 		this.reducer = reduceFunction;
 		this.windowSize = windowSize;
 		this.window = true;

@@ -39,7 +39,7 @@ public class CoMapTest implements Serializable {
 	private static Set<String> result;
 	private static Set<String> expected = new HashSet<String>();
 
-	private final static class EmptySink extends SinkFunction<Boolean> {
+	private final static class EmptySink implements SinkFunction<Boolean> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -47,7 +47,7 @@ public class CoMapTest implements Serializable {
 		}
 	}
 
-	private final static class MyCoMap extends
+	private final static class MyCoMap implements
 			CoMapFunction<String, Integer, Boolean> {
 		private static final long serialVersionUID = 1L;
 

@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.util.Collector;
 
-public class WindowJoinSourceOne extends SourceFunction<Tuple4<String, String, Integer, Long>> {
+public class WindowJoinSourceOne implements SourceFunction<Tuple4<String, String, Integer, Long>> {
 
 	private static final long serialVersionUID = 6670933703432267728L;
 
