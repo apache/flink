@@ -23,12 +23,12 @@ import org.apache.flink.streaming.partitioner.ForwardPartitioner;
 
 /**
  * The iterative data stream represents the start of an iteration in a
- * DataStream.
+ * {@link DataStream}.
  * 
  * @param <T>
  *            Type of the DataStream
  */
-public class IterativeDataStream<T> extends StreamOperator<T, T> {
+public class IterativeDataStream<T> extends SingleInputStreamOperator<T, T> {
 
 	static Integer iterationCount = 0;
 	protected Integer iterationID;

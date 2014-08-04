@@ -20,25 +20,30 @@
 package org.apache.flink.streaming.api;
 
 /**
- * The StreamOperator represents a {@link DataStream} transformed with some user
- * defined operator.
+ * The TwoInputStreamOperator represents a {@link StreamOperator} with two
+ * inputs.
  *
+ * @param <IN1>
+ *            Type of the first input.
+ * 
+ * @param <IN2>
+ *            Type of the second input.
  * @param <OUT>
  *            Output Type of the operator.
  */
-public class StreamOperator<OUT> extends DataStream<OUT> {
+public class TwoInputStreamOperator<IN1, IN2, OUT> extends StreamOperator<OUT> {
 
-	protected StreamOperator(StreamExecutionEnvironment environment, String operatorType) {
+	protected TwoInputStreamOperator(StreamExecutionEnvironment environment, String operatorType) {
 		super(environment, operatorType);
 	}
 
-	protected StreamOperator(DataStream<OUT> dataStream) {
+	protected TwoInputStreamOperator(DataStream<OUT> dataStream) {
 		super(dataStream);
 	}
 
 	@Override
 	protected DataStream<OUT> copy() {
-		return new StreamOperator<OUT>(this);
+		return new TwoInputStreamOperator<IN1, IN2, OUT>(this);
 	}
 
 }
