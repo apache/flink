@@ -33,6 +33,8 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Mapper;
+import org.apache.hadoop.mapred.OutputCollector;
+import org.apache.hadoop.mapred.Reporter;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -40,35 +42,40 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 /**
- * The wrapper for a Hadoop Mapper (mapred API).
+ * The wrapper for a Hadoop Mapper (mapred API). Parses a Hadoop JobConf object and initialises all operations related
+ * mappers.
  */
-public class HadoopMapFunction<KEYIN extends WritableComparable, VALUEIN extends Writable,
+public final class HadoopMapFunction<KEYIN extends WritableComparable, VALUEIN extends Writable,
 		KEYOUT extends WritableComparable, VALUEOUT extends Writable> extends FlatMapFunction<Tuple2<KEYIN,VALUEIN>,
 		Tuple2<KEYOUT,VALUEOUT>> implements Serializable, ResultTypeQueryable<Tuple2<KEYOUT,VALUEOUT>> {
 
 	private static final long serialVersionUID = 1L;
 
-	private Class<KEYOUT> keyoutClass;
-	private Class<VALUEOUT> valueoutClass;
+	private transient Mapper<KEYIN,VALUEIN,KEYOUT,VALUEOUT> mapper;
+	private transient HadoopOutputCollector<KEYOUT,VALUEOUT> outputCollector;
+	private transient Reporter reporter;
+	private transient Class<KEYOUT> keyoutClass;
+	private transient Class<VALUEOUT> valueoutClass;
 
 	private JobConf jobConf;
-	private Mapper<KEYIN,VALUEIN,KEYOUT,VALUEOUT> mapper;
-	private HadoopOutputCollector<KEYOUT,VALUEOUT> outputCollector;
-	private HadoopDummyReporter reporter;
 
 	@SuppressWarnings("unchecked")
-	public HadoopMapFunction(JobConf jobConf) {
+	public HadoopMapFunction(final JobConf jobConf) {
 		this.jobConf = jobConf;
-		this.mapper = InstantiationUtil.instantiate(jobConf.getMapperClass());
 		this.keyoutClass = (Class<KEYOUT>) jobConf.getMapOutputKeyClass();
 		this.valueoutClass = (Class<VALUEOUT>) jobConf.getMapOutputValueClass();
-		this.outputCollector = new HadoopOutputCollector<KEYOUT, VALUEOUT>();
-		this.reporter = new HadoopDummyReporter();
-
 	}
 
+	/**
+	 * Wrap a hadoop map() function call and use a Flink collector to collect the result values.
+	 * @param value The input value.
+	 * @param out The collector for emitting result values.
+	 *
+	 * @throws Exception
+	 */
 	@Override
-	public void flatMap(Tuple2<KEYIN,VALUEIN> value, Collector<Tuple2<KEYOUT,VALUEOUT>> out) throws Exception {
+	public void flatMap(final Tuple2<KEYIN,VALUEIN> value, final Collector<Tuple2<KEYOUT,VALUEOUT>> out)
+			throws Exception {
 		outputCollector.set(out);
 		mapper.map(value.f0, value.f1, outputCollector, reporter);
 	}
@@ -84,28 +91,28 @@ public class HadoopMapFunction<KEYIN extends WritableComparable, VALUEIN extends
 	 * Custom serialization methods.
 	 *  @see http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html
 	 */
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		jobConf.write(out);
-		out.writeObject(keyoutClass);
-		out.writeObject(valueoutClass);
+	private void writeObject(final ObjectOutputStream out) throws IOException {
+		HadoopConfiguration.writeHadoopJobConf(jobConf,out);
 	}
 
 	@SuppressWarnings("unchecked")
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
 		jobConf = new JobConf();
 		jobConf.readFields(in);
-		keyoutClass = (Class<KEYOUT>) in.readObject();
-		valueoutClass = (Class<VALUEOUT>) in.readObject();
-		try {
-			this.mapper = InstantiationUtil.instantiate(this.jobConf.getMapperClass());
-		} catch (Exception e) {
-			throw new RuntimeException("Unable to instantiate the hadoop mapper", e);
-		}
-		outputCollector = (HadoopOutputCollector) InstantiationUtil.instantiate(
-				HadoopConfiguration.getOutputCollectorFromConf(jobConf));
-		outputCollector.setExpectedKeyValueClasses(keyoutClass, valueoutClass);
-		reporter = (HadoopDummyReporter) InstantiationUtil.instantiate(HadoopConfiguration.getReporterFromConf(jobConf));
+
+		keyoutClass = (Class<KEYOUT>) jobConf.getMapOutputKeyClass();
+		valueoutClass = (Class<VALUEOUT>) jobConf.getMapOutputValueClass();
+
 		mapper = InstantiationUtil.instantiate(jobConf.getMapperClass());
 		mapper.configure(jobConf);
+
+		final Class<? extends OutputCollector> collectorClass = jobConf.getClass("flink.map.collector",
+				HadoopOutputCollector.class,
+				OutputCollector.class);
+		outputCollector = (HadoopOutputCollector) InstantiationUtil.instantiate(collectorClass);
+		outputCollector.setExpectedKeyValueClasses(keyoutClass, valueoutClass);
+
+		reporter = InstantiationUtil.instantiate(jobConf.getClass("flink.reporter",
+				HadoopDummyReporter.class, Reporter.class));
 	}
 }

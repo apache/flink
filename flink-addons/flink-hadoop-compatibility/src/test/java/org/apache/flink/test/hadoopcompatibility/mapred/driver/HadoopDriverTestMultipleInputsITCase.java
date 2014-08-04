@@ -19,63 +19,38 @@
 package org.apache.flink.test.hadoopcompatibility.mapred.driver;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.test.hadoopcompatibility.HadoopTestBase;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.JavaProgramTestBase;
 
 
-public class HadoopDriverMapperOnlyITCase extends JavaProgramTestBase {
-
+public class HadoopDriverTestMultipleInputsITCase extends HadoopTestBase {
 	protected String textPath;
+	protected String textPath2;
 	protected String resultPath;
 
-	private static final String RESULT = "goethe 1\n" +
-			"faust 1\n" +
-			"der 1\n" +
-			"tragoedie 1\n" +
-			"erster 1\n" +
-			"teil 1\n" +
-			"prolog 1\n" +
-			"im 1\n" +
-			"himmel 1\n" +
-			"der 1\n" +
-			"herr 1\n" +
-			"die 1\n" +
-			"himmlischen 1\n" +
-			"heerscharen 1\n" +
-			"nachher 1\n" +
-			"mephistopheles 1\n" +
-			"die 1\n" +
-			"drei 1\n" +
-			"erzengel 1\n" +
-			"treten 1\n" +
-			"vor 1\n" +
-			"raphael 1\n" +
-			"die 1\n" +
-			"sonne 1\n" +
-			"toent 1\n" +
-			"nach 1\n" +
-			"alter 1\n" +
-			"weise 1\n" +
-			"in 1\n" +
-			"brudersphaeren 1\n" +
-			"wettgesang 1";
 
 	@Override
 	protected void preSubmit() throws Exception {
-		textPath = createTempFile("text.txt", WordCountData.TEXT.substring(0,
-				StringUtils.ordinalIndexOf(WordCountData.TEXT, "\n", 5)));
+		String[] splits = WordCountData.TEXT.split("\n");
+		String[] split1 = new String[splits.length / 2];
+		String[] split2 = new String[splits.length - split1.length];
+
+		System.arraycopy(splits, 0 , split1, 0, split1.length);
+		System.arraycopy(splits, split1.length , split2, 0, split2.length);
+
+		textPath = createTempFile("text.txt", StringUtils.join(split1, "\n"));
+		textPath2 = createTempFile("text2.txt", StringUtils.join(split2, "\n"));
+
 		resultPath = getTempDirPath("result");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(RESULT, resultPath + "/1");
+		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath + "/1");
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		HadoopWordCountVariations.WordCountMapperOnly.main(new String[]{textPath, resultPath});
+		HadoopWordCountVariations.MultipleInputsWordCount.main(new String[]{textPath, textPath2, resultPath});
 	}
-
-
 }

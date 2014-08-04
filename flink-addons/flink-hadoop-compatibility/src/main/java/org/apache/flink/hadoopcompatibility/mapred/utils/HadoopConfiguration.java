@@ -18,13 +18,13 @@
 
 package org.apache.flink.hadoopcompatibility.mapred.utils;
 
-import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopDummyReporter;
-import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopOutputCollector;
 import org.apache.flink.runtime.fs.hdfs.DistributedFileSystem;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.OutputCollector;
-import org.apache.hadoop.mapred.Reporter;
 
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.Map;
 
 /**
@@ -39,25 +39,13 @@ public class HadoopConfiguration {
 	}
 
 	/**
-	 * Setters and getters for objects that follow Hadoop's serialization.
-	 * Generally, these should be called by the writeObject and readObject methods of the object
-	 * they are contained as fields. For an example, see the HadoopMapFunction.
+	 * Each task should gets its own jobConf object, when serialising.
+	 * @param jobConf the jobConf to write
+	 * @param out the outputstream to write to
+	 * @throws IOException
 	 */
-	public static void setOutputCollectorToConf(Class<? extends HadoopOutputCollector> outputClass, JobConf jobConf) {
-		jobConf.getClass("flink.collector", outputClass, HadoopOutputCollector.class );
-	}
-
-	@SuppressWarnings("unchecked")
-	public static Class<? extends HadoopOutputCollector> getOutputCollectorFromConf(JobConf jobConf) {
-		return  (Class<? extends HadoopOutputCollector>) jobConf.getClass("flink.collector",
-				HadoopOutputCollector.class, OutputCollector.class);
-	}
-
-	public static void setReporterToConf(Class<? extends Reporter> reporterClass, JobConf jobConf) {
-		jobConf.getClass("flink.reporter", reporterClass, Reporter.class );
-	}
-
-	public static Class<? extends Reporter> getReporterFromConf(JobConf jobConf) {
-		return  jobConf.getClass("flink.reporter", HadoopDummyReporter.class, Reporter.class );
+	public static void writeHadoopJobConf(final JobConf jobConf, final ObjectOutputStream out) throws IOException{
+		final JobConf clonedConf = WritableUtils.clone(jobConf, new Configuration());
+		clonedConf.write(out);
 	}
 }

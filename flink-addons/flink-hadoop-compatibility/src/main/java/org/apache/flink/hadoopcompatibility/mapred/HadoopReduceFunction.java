@@ -34,6 +34,7 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
 
@@ -44,43 +45,36 @@ import java.io.Serializable;
 import java.util.Iterator;
 
 /**
- * The wrapper for a Hadoop Reducer (mapred API).
+ * The wrapper for a Hadoop Reducer (mapred API). Parses a Hadoop JobConf object and initialises all operations related
+ * reducers and combiners.
  */
-public class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEIN extends Writable,
+public final class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEIN extends Writable,
 		KEYOUT extends WritableComparable, VALUEOUT extends Writable> extends GroupReduceFunction<Tuple2<KEYIN,VALUEIN>,
 		Tuple2<KEYOUT,VALUEOUT>> implements Serializable, ResultTypeQueryable<Tuple2<KEYOUT,VALUEOUT>> {
 
 	private static final long serialVersionUID = 1L;
 
-	private Class<KEYOUT> keyoutClass;
-	private Class<VALUEOUT> valueoutClass;
-	private JobConf jobConf;
+	private transient Class<KEYOUT> keyOutClass;
+	private transient Class<VALUEOUT> valueOutClass;
+	private transient Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> reducer;
+	private transient Reducer<KEYIN,VALUEIN,KEYIN,VALUEIN> combiner;
+	private transient HadoopOutputCollector<KEYIN,VALUEIN> combineCollector;
+	private transient HadoopOutputCollector<KEYOUT,VALUEOUT> reduceCollector;
+	private transient Reporter reporter;
+	private transient ReducerTransformingIterator iterator;
 
-	private Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> reducer;
-	private Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> combiner;
-	private HadoopOutputCollector outputCollector;
-	private Reporter reporter;
-	private ReducerTransformingIterator iterator;
+	private JobConf jobConf;
 
 	@SuppressWarnings("unchecked")
 	public HadoopReduceFunction(JobConf jobConf) {
+		this.keyOutClass = (Class<KEYOUT>) jobConf.getOutputKeyClass();
+		this.valueOutClass = (Class<VALUEOUT>) jobConf.getOutputValueClass();
 		this.jobConf = jobConf;
-
-		this.reducer = InstantiationUtil.instantiate(jobConf.getReducerClass());
-		final Class combinerClass = jobConf.getCombinerClass();
-		if (combinerClass != null) {
-			this.combiner = (Reducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT>) InstantiationUtil.instantiate(combinerClass);
-		}
-
-		this.keyoutClass = (Class<KEYOUT>) jobConf.getOutputKeyClass();
-		this.valueoutClass = (Class<VALUEOUT>) jobConf.getOutputValueClass();
-		this.outputCollector = new HadoopOutputCollector(keyoutClass, valueoutClass);
 		this.iterator = new ReducerTransformingIterator();
-		this.reporter = new HadoopDummyReporter();
 	}
 
 	/**
-	 * A wrapping iterator for an iterator of key-value tuples that can be used as an iterator of values.
+	 * A wrapping iterator for an iterator of key-value pairs that can be used as an iterator of values.
 	 */
 	private final class ReducerTransformingIterator extends TupleUnwrappingIterator<VALUEIN,KEYIN>
 			implements java.io.Serializable {
@@ -90,8 +84,12 @@ public class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEIN exte
 		private KEYIN key;
 		private Tuple2<KEYIN,VALUEIN> first;
 
+		/**
+		 * Set the iterator to wrap.
+		 * @param iterator iterator to wrap
+		 */
 		@Override()
-		public void set(Iterator<Tuple2<KEYIN,VALUEIN>> iterator) {
+		public void set(final Iterator<Tuple2<KEYIN,VALUEIN>> iterator) {
 			this.iterator = iterator;
 			if(this.hasNext()) {
 				this.first = iterator.next();
@@ -128,32 +126,46 @@ public class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEIN exte
 		}
 	}
 
+	/**
+	 * Wrap a hadoop reduce() function call and use a Flink collector to collect the result values.
+	 * @param values The iterator returning the group of values to be reduced.
+	 * @param out The collector to emit the returned values.
+	 *
+	 * @throws Exception
+	 */
 	@Override
-	@SuppressWarnings("unchecked")
-	public void reduce(Iterator<Tuple2<KEYIN,VALUEIN>> values, Collector<Tuple2<KEYOUT,VALUEOUT>> out)
+	public void reduce(final Iterator<Tuple2<KEYIN,VALUEIN>> values, final Collector<Tuple2<KEYOUT,VALUEOUT>> out)
 			throws Exception {
-		outputCollector.set(out);
+		reduceCollector.set(out);
 		iterator.set(values);
-		reducer.reduce(iterator.getKey(), iterator, outputCollector, reporter);
+		reducer.reduce(iterator.getKey(), iterator, reduceCollector, reporter);
 	}
 
+	/**
+	 * Wrap a hadoop combine() function call and use a Flink collector to collect the result values.
+	 * @param values The iterator returning the group of values to be reduced.
+	 * @param out The collector to emit the returned values.
+	 *
+	 * @throws Exception
+	 */
 	@Override
-	@SuppressWarnings("unchecked")
-	public void combine(Iterator<Tuple2<KEYIN,VALUEIN>> values, Collector<Tuple2<KEYIN,VALUEIN>> out) throws Exception {
+	public void combine(final Iterator<Tuple2<KEYIN,VALUEIN>> values, final Collector<Tuple2<KEYIN,VALUEIN>> out)
+			throws Exception {
 		if (this.combiner == null) {
-			super.combine(values, out);
+			throw new RuntimeException("No combiner has been specified in Hadoop job. Flink reduce function is" +
+					"declared combinable. Invalid behaviour.");  //This should not happen.
 		}
 		else {
-			outputCollector.set(out);
+			combineCollector.set(out);
 			iterator.set(values);
-			combiner.reduce(iterator.getKey(), iterator, outputCollector, reporter);
+			combiner.reduce(iterator.getKey(), iterator, combineCollector, reporter);
 		}
 	}
 
 	@Override
 	public TypeInformation<Tuple2<KEYOUT,VALUEOUT>> getProducedType() {
-		final WritableTypeInfo<KEYOUT> keyTypeInfo = new WritableTypeInfo<KEYOUT>(keyoutClass);
-		final WritableTypeInfo<VALUEOUT> valueTypleInfo = new WritableTypeInfo<VALUEOUT>(valueoutClass);
+		final WritableTypeInfo<KEYOUT> keyTypeInfo = new WritableTypeInfo<KEYOUT>(keyOutClass);
+		final WritableTypeInfo<VALUEOUT> valueTypleInfo = new WritableTypeInfo<VALUEOUT>(valueOutClass);
 		return new TupleTypeInfo<Tuple2<KEYOUT,VALUEOUT>>(keyTypeInfo, valueTypleInfo);
 	}
 
@@ -161,15 +173,12 @@ public class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEIN exte
 	 * Custom serialization methods.
 	 *  @see http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html
 	 */
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		jobConf.write(out);
-		out.writeObject(iterator);
-		out.writeObject(keyoutClass);
-		out.writeObject(valueoutClass);
+	private void writeObject(final ObjectOutputStream out) throws IOException {
+		HadoopConfiguration.writeHadoopJobConf(jobConf, out);
 	}
 
 	@SuppressWarnings("unchecked")
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
 		jobConf = new JobConf();
 		jobConf.readFields(in);
 		try {
@@ -177,9 +186,11 @@ public class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEIN exte
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to instantiate the hadoop reducer", e);
 		}
-		iterator = (ReducerTransformingIterator) in.readObject();
-		keyoutClass = (Class<KEYOUT>) in.readObject();
-		valueoutClass = (Class<VALUEOUT>) in.readObject();
+		iterator = new ReducerTransformingIterator();
+		keyOutClass = (Class<KEYOUT>) jobConf.getOutputKeyClass();
+		valueOutClass = (Class<VALUEOUT>) jobConf.getOutputValueClass();
+		final Class<KEYIN> mapKeyOutClass = (Class<KEYIN>) jobConf.getMapOutputKeyClass();
+		final Class<VALUEIN> mapValueOutClass = (Class<VALUEIN>) jobConf.getMapOutputValueClass();
 
 		final Class combinerClass = jobConf.getCombinerClass();
 		if (combinerClass != null) {
@@ -189,11 +200,21 @@ public class HadoopReduceFunction<KEYIN extends WritableComparable, VALUEIN exte
 		reducer.configure(jobConf);
 		reducer = InstantiationUtil.instantiate(jobConf.getReducerClass());
 		reducer.configure(jobConf);
-		outputCollector = InstantiationUtil.instantiate(
-				HadoopConfiguration.getOutputCollectorFromConf(jobConf));
-		outputCollector.setExpectedKeyValueClasses(keyoutClass, valueoutClass);
-		reporter = InstantiationUtil.instantiate(
-				HadoopConfiguration.getReporterFromConf(jobConf));
+
+		final Class<? extends OutputCollector> combineCollectorClass = jobConf.getClass("flink.map.collector",
+				HadoopOutputCollector.class,
+				OutputCollector.class);
+		combineCollector = (HadoopOutputCollector) InstantiationUtil.instantiate(combineCollectorClass);
+		combineCollector.setExpectedKeyValueClasses(mapKeyOutClass, mapValueOutClass);
+
+		final Class<? extends OutputCollector> reduceCollectorClass = jobConf.getClass("flink.reduce.collector",
+				HadoopOutputCollector.class,
+				OutputCollector.class);
+		reduceCollector = (HadoopOutputCollector) InstantiationUtil.instantiate(reduceCollectorClass);
+		reduceCollector.setExpectedKeyValueClasses(keyOutClass, valueOutClass);
+
+		reporter = InstantiationUtil.instantiate(jobConf.getClass("flink.reporter", HadoopDummyReporter.class,
+				Reporter.class));
 
 	}
 }

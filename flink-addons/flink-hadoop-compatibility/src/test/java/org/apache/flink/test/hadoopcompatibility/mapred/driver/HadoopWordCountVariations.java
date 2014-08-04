@@ -24,16 +24,16 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.WritableComparable;
-import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.MapReduceBase;
 import org.apache.hadoop.mapred.Mapper;
 import org.apache.hadoop.mapred.OutputCollector;
+import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.mapred.TextOutputFormat;
-import org.apache.hadoop.mapred.lib.HashPartitioner;
 import org.apache.hadoop.mapred.lib.LongSumReducer;
+import org.apache.hadoop.mapred.lib.MultipleInputs;
 import org.apache.hadoop.mapred.lib.TokenCountMapper;
 
 import java.io.IOException;
@@ -101,86 +101,6 @@ public class HadoopWordCountVariations {
 			conf.setOutputValueClass(LongWritable.class);
 
 			FlinkHadoopJobClient.runJob(conf);
-		}
-	}
-
-	public static class WordCountCustomGroupingComparator {
-
-		public static void main(String[] args) throws Exception {
-			final String inputPath = args[0];
-			final String outputPath = args[1];
-
-			final JobConf conf = new JobConf();
-
-			conf.setInputFormat(org.apache.hadoop.mapred.TextInputFormat.class);
-			org.apache.hadoop.mapred.TextInputFormat.addInputPath(conf, new Path(inputPath));
-
-			conf.setOutputFormat(TextOutputFormat.class);
-			TextOutputFormat.setOutputPath(conf, new Path(outputPath));
-
-			conf.setMapperClass(TestTokenizeMap.class);
-			conf.setReducerClass(LongSumReducer.class);
-			conf.setCombinerClass((LongSumReducer.class));
-			conf.setOutputValueGroupingComparator(FirstLetterComparator.class);
-
-			conf.set("mapred.textoutputformat.separator", " ");
-			conf.setOutputKeyClass(Text.class);
-			conf.setOutputValueClass(LongWritable.class);
-
-			FlinkHadoopJobClient.runJob(conf);
-		}
-
-		//First Letters only.
-		public static class FirstLetterComparator extends WritableComparator {
-
-			public FirstLetterComparator() {
-				super(Text.class, true);
-			}
-
-			@Override
-			public int compare(WritableComparable t1, WritableComparable t2) {
-				final Text key1 = (Text) t1;
-				final IntWritable key1Char = new IntWritable(key1.charAt(0));
-				final Text key2 = (Text) t2;
-				final IntWritable key2Char = new IntWritable(key2.charAt(0));
-				return key1Char.compareTo(key2Char);
-			}
-		}
-	}
-
-	public static class WordCountCustomPartitioner {
-		public static void main(String[] args) throws Exception {
-			final String inputPath = args[0];
-			final String outputPath = args[1];
-
-			final JobConf conf = new JobConf();
-
-			conf.setInputFormat(org.apache.hadoop.mapred.TextInputFormat.class);
-			org.apache.hadoop.mapred.TextInputFormat.addInputPath(conf, new Path(inputPath));
-
-			conf.setOutputFormat(TextOutputFormat.class);
-			TextOutputFormat.setOutputPath(conf, new Path(outputPath));
-
-			conf.setMapperClass(TestTokenizeMap.class);
-			conf.setReducerClass(LongSumReducer.class);
-			conf.setCombinerClass((LongSumReducer.class));
-			conf.setPartitionerClass(MyPartitioner.class);
-			conf.setNumReduceTasks(5);  //Will be ignored!
-
-			conf.set("mapred.textoutputformat.separator", " ");
-			conf.setOutputKeyClass(Text.class);
-			conf.setOutputValueClass(LongWritable.class);
-
-			FlinkHadoopJobClient.runJob(conf);
-		}
-
-
-		public static class MyPartitioner<Text, LongWritable> extends HashPartitioner<Text, LongWritable> {
-
-			@Override
-			public int getPartition(Text key, LongWritable value, int numReduceTasks) {
-				return 0;
-			}
 		}
 	}
 
@@ -313,4 +233,101 @@ public class HadoopWordCountVariations {
 			}
 		}
 	}
+
+	public static class WordCountDifferentReducerTypes {
+
+		public static void main(String[] args) throws Exception {
+			final String inputPath = args[0];
+			final String outputPath = args[1];
+
+			final JobConf conf = new JobConf();
+
+			conf.setInputFormat(org.apache.hadoop.mapred.TextInputFormat.class);
+			org.apache.hadoop.mapred.TextInputFormat.addInputPath(conf, new Path(inputPath));
+
+			conf.setOutputFormat(TextOutputFormat.class);
+			TextOutputFormat.setOutputPath(conf, new Path(outputPath));
+
+			conf.setMapperClass(TestTokenizeMap.class);
+			conf.setReducerClass(HashCodeReducer.class);
+			conf.setCombinerClass((LongSumReducer.class));
+
+			conf.set("mapred.textoutputformat.separator", " ");
+
+			conf.setMapOutputKeyClass(Text.class);
+			conf.setMapOutputValueClass(LongWritable.class);
+
+			conf.setOutputKeyClass(IntWritable.class);
+			conf.setOutputValueClass(LongWritable.class);
+
+			FlinkHadoopJobClient.runJob(conf);
+		}
+
+
+		public static class HashCodeReducer extends MapReduceBase implements Reducer<Text, LongWritable, IntWritable, LongWritable> {
+
+			@Override
+			public void reduce(final Text text, final Iterator<LongWritable> iterator,
+			                   final OutputCollector<IntWritable, LongWritable> collector,
+			                   final Reporter reporter) throws IOException {
+				long sum = 0;
+				while (iterator.hasNext()) {
+					sum += iterator.next().get();
+				}
+				collector.collect(new IntWritable(text.toString().hashCode()),new LongWritable(sum));
+			}
+		}
+	}
+
+	public static class MultipleInputsWordCount {
+		public static void main(String[] args) throws Exception{
+			final String inputPath1 = args[0];
+			final String inputPath2 = args[1];
+			final String outputPath = args[2];
+
+			final JobConf conf = new JobConf();
+
+			MultipleInputs.addInputPath(conf, new Path(inputPath1), TextInputFormat.class);
+			MultipleInputs.addInputPath(conf, new Path(inputPath2), TextInputFormat.class);
+
+			conf.setOutputFormat(TextOutputFormat.class);
+			TextOutputFormat.setOutputPath(conf, new Path(outputPath));
+
+			conf.setMapperClass(TestTokenizeMap.class);
+			conf.setReducerClass(LongSumReducer.class);
+			conf.setCombinerClass((LongSumReducer.class));
+
+			conf.set("mapred.textoutputformat.separator", " ");
+
+			conf.setOutputKeyClass(Text.class);
+			conf.setOutputValueClass(LongWritable.class);
+
+			FlinkHadoopJobClient.runJob(conf);
+		}
+	}
+
+	public static class WordCountMapperOnly {
+		public static void main(String[] args) throws Exception {
+			final String inputPath = args[0];
+			final String outputPath = args[1];
+
+			final JobConf conf = new JobConf();
+
+			conf.setInputFormat(org.apache.hadoop.mapred.TextInputFormat.class);
+			org.apache.hadoop.mapred.TextInputFormat.addInputPath(conf, new Path(inputPath));
+
+			conf.setOutputFormat(TextOutputFormat.class);
+			TextOutputFormat.setOutputPath(conf, new Path(outputPath));
+
+			conf.setMapperClass(TestTokenizeMap.class);
+			conf.setNumReduceTasks(0);
+
+			conf.set("mapred.textoutputformat.separator", " ");
+			conf.setOutputKeyClass(Text.class);
+			conf.setOutputValueClass(LongWritable.class);
+
+			FlinkHadoopJobClient.runJob(conf);
+		}
+	}
+
 }

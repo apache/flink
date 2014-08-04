@@ -24,6 +24,7 @@ import java.io.IOException;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.io.WritableFactories;
 import org.apache.hadoop.mapred.JobConf;
 
@@ -72,6 +73,9 @@ public class HadoopInputSplit implements InputSplit {
 			catch (Exception e) {
 				throw new RuntimeException("Unable to create InputSplit", e);
 			}
+		}
+		if (this.hadoopInputSplit instanceof Configurable) {
+			((Configurable) this.hadoopInputSplit).setConf(new JobConf());
 		}
 		this.hadoopInputSplit.readFields(in);
 	}

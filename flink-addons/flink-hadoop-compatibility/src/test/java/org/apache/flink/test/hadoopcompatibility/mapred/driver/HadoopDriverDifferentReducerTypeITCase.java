@@ -22,60 +22,31 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-
-public class HadoopDriverMapperOnlyITCase extends JavaProgramTestBase {
+public class HadoopDriverDifferentReducerTypeITCase extends JavaProgramTestBase{
 
 	protected String textPath;
 	protected String resultPath;
 
-	private static final String RESULT = "goethe 1\n" +
-			"faust 1\n" +
-			"der 1\n" +
-			"tragoedie 1\n" +
-			"erster 1\n" +
-			"teil 1\n" +
-			"prolog 1\n" +
-			"im 1\n" +
-			"himmel 1\n" +
-			"der 1\n" +
-			"herr 1\n" +
-			"die 1\n" +
-			"himmlischen 1\n" +
-			"heerscharen 1\n" +
-			"nachher 1\n" +
-			"mephistopheles 1\n" +
-			"die 1\n" +
-			"drei 1\n" +
-			"erzengel 1\n" +
-			"treten 1\n" +
-			"vor 1\n" +
-			"raphael 1\n" +
-			"die 1\n" +
-			"sonne 1\n" +
-			"toent 1\n" +
-			"nach 1\n" +
-			"alter 1\n" +
-			"weise 1\n" +
-			"in 1\n" +
-			"brudersphaeren 1\n" +
-			"wettgesang 1";
-
 	@Override
 	protected void preSubmit() throws Exception {
-		textPath = createTempFile("text.txt", WordCountData.TEXT.substring(0,
-				StringUtils.ordinalIndexOf(WordCountData.TEXT, "\n", 5)));
+		textPath = createTempFile("text.txt", WordCountData.TEXT);
 		resultPath = getTempDirPath("result");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(RESULT, resultPath + "/1");
+		final String[] counts = WordCountData.COUNTS.split("\n");
+		final String[] hashcodeCounts = new String[counts.length];
+		for (int i=0; i < counts.length; i++) {
+			final String[] curKeyValue = counts[i].split(" ");
+			hashcodeCounts[i] = curKeyValue[0].hashCode() + " " + curKeyValue[1];
+		}
+		compareResultsByLinesInMemory(StringUtils.join(hashcodeCounts, "\n"), resultPath + "/1");
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		HadoopWordCountVariations.WordCountMapperOnly.main(new String[]{textPath, resultPath});
+		HadoopWordCountVariations.WordCountDifferentReducerTypes.main(new String[]{textPath, resultPath});
 	}
-
 
 }

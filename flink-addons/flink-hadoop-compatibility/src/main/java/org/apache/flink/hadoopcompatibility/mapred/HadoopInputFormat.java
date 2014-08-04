@@ -36,6 +36,7 @@ import org.apache.flink.hadoopcompatibility.mapred.utils.HadoopUtils;
 import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopDummyReporter;
 import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopInputSplit;
 import org.apache.flink.types.TypeInformation;
+import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.JobConf;
@@ -152,6 +153,9 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 	@Override
 	public void open(HadoopInputSplit split) throws IOException {
 		this.recordReader = this.mapredInputFormat.getRecordReader(split.getHadoopInputSplit(), jobConf, new HadoopDummyReporter());
+		if (this.recordReader instanceof Configurable) {
+			((Configurable) this.recordReader).setConf(jobConf);
+		}
 		key = this.recordReader.createKey();
 		value = this.recordReader.createValue();
 		this.fetched = false;

@@ -22,27 +22,22 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.OutputCollector;
-import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TextOutputFormat;
 import org.apache.hadoop.mapred.lib.LongSumReducer;
 import org.apache.hadoop.mapred.lib.TokenCountMapper;
 
-import java.io.IOException;
-
 /**
- * A Hadoop job run on Flink.
+ * A Hadoop Job driver that runs on Flink (using a FlinkHadooJobClient).
  */
 public class FullWordCount {
 
-	@SuppressWarnings("unchecked")
-	public static void main(String[] args) throws Exception {
+	public static void main(final String[] args) throws Exception {
 		if (args.length < 2) {
 			System.err.println("Usage: FullWordCount <input path> <result path>");
 			return;
 		}
-		final String inputPath = args[0];
-		final String outputPath = args[1];
+		final String inputPath = "/tmp/input";
+		final String outputPath = "/tmp/output";
 
 		final JobConf conf = new JobConf();
 
@@ -52,7 +47,7 @@ public class FullWordCount {
 		conf.setOutputFormat(TextOutputFormat.class);
 		TextOutputFormat.setOutputPath(conf, new Path(outputPath));
 
-		conf.setMapperClass(TestTokenizeMap.class);
+		conf.setMapperClass(TokenCountMapper.class);
 		conf.setReducerClass(LongSumReducer.class);
 		conf.setCombinerClass((LongSumReducer.class));
 
@@ -61,14 +56,5 @@ public class FullWordCount {
 		conf.setOutputValueClass(LongWritable.class);
 
 		FlinkHadoopJobClient.runJob(conf);
-	}
-
-	public static class TestTokenizeMap<K> extends TokenCountMapper<K> {
-		@Override
-		public void map(K key, Text value, OutputCollector<Text, LongWritable> output, Reporter reporter)
-				throws IOException {
-			final Text strippedValue = new Text(value.toString().toLowerCase().replaceAll("\\W+", " "));
-			super.map(key, strippedValue, output, reporter);
-		}
 	}
 }

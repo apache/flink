@@ -30,29 +30,34 @@ import java.io.IOException;
  * A Hadoop OutputCollector that basically wraps a Flink OutputCollector.
  * This implies that on each call of collect() the data is actually collected.
  */
-public class HadoopOutputCollector<KEYOUT extends WritableComparable, VALUEOUT extends Writable>
+public final class HadoopOutputCollector<KEYOUT extends WritableComparable, VALUEOUT extends Writable>
 		implements OutputCollector<KEYOUT,VALUEOUT> {
 
 	private Collector<Tuple2<KEYOUT,VALUEOUT>> collector;
 	private Class<KEYOUT> keyoutClass;
 	private Class<VALUEOUT> valueoutClass;
 
-	public HadoopOutputCollector(Class<KEYOUT> keyoutClass, Class<VALUEOUT> valueoutClass) {
-		this.keyoutClass = keyoutClass;
-		this.valueoutClass = valueoutClass;
-	}
+	public HadoopOutputCollector() {super();}  //Useful when instantiating by reflection.
 
-	public HadoopOutputCollector() {}  //Useful when instantiating by reflection.
-
-	public void set(Collector<Tuple2<KEYOUT,VALUEOUT>> collector) {
+	/**
+	 * Set the Flink Collector to wrap. A Flink Collector should be set before calling collect().
+	 * @param collector the flink Collector to wrap
+	 */
+	public void set(final Collector<Tuple2<KEYOUT,VALUEOUT>> collector) {
 		this.collector = collector;
 	}
 
+	/**
+	 * Use the wrapped Flink collector to collect a key-value pair for Flink. Make sure a Flink collector is set before.
+	 * @param keyOut the key to collect
+	 * @param valueOut the value to collect
+	 * @throws IOException unexpected of key or value in key-value pair.
+	 */
 	@Override
-	public void collect(KEYOUT keyout, VALUEOUT valueout) throws IOException {
-		validateExpectedTypes(keyout, valueout);
+	public void collect(final KEYOUT keyOut, final VALUEOUT valueOut) throws IOException {
+		validateExpectedTypes(keyOut, valueOut);
 
-		final Tuple2<KEYOUT,VALUEOUT> tuple = new Tuple2<KEYOUT, VALUEOUT>(keyout, valueout);
+		final Tuple2<KEYOUT,VALUEOUT> tuple = new Tuple2<KEYOUT, VALUEOUT>(keyOut, valueOut);
 		if (this.collector != null) {
 			this.collector.collect(tuple);
 		}
@@ -65,16 +70,18 @@ public class HadoopOutputCollector<KEYOUT extends WritableComparable, VALUEOUT e
 	/**
 	 * Method to set the expected key and value output classes. Must be used if instantiating by reflection
 	 * (e.g. custom serialization).
+	 * @param keyClass the class of key that is expected for this output collector
+	 * @param valueClass the class of value that is expected for this output collector
 	 */
-	public void setExpectedKeyValueClasses(Class<KEYOUT> keyClass, Class<VALUEOUT> valueClass) {
+	public void setExpectedKeyValueClasses(final Class<KEYOUT> keyClass, final Class<VALUEOUT> valueClass) {
 		this.keyoutClass = keyClass;
 		this.valueoutClass = valueClass;
 	}
 
 	/**
-	 * Checking if types of current key and value are compatible with the expected ones.
+	 * Checks whether a key-value pair is of the expected type (as specified by setExpectedKeyValueClasses())
 	 */
-	private void validateExpectedTypes(KEYOUT keyout, VALUEOUT valueout) throws IOException{
+	private void validateExpectedTypes(final KEYOUT keyout, final VALUEOUT valueout) throws IOException{
 		if (this.keyoutClass == null) {
 			throw new IOException("Expected output key class has not been specified.");
 		}
@@ -88,7 +95,8 @@ public class HadoopOutputCollector<KEYOUT extends WritableComparable, VALUEOUT e
 		}
 		else if (! this.valueoutClass.isInstance(valueout)) {
 			final String vClassName = valueout.getClass().getCanonicalName();
-			throw new IOException("Type mismatch in value: expected " + this.valueoutClass + ", received " + vClassName);
+			throw new IOException("Type mismatch in value: expected " + this.valueoutClass +
+					", received " + vClassName);
 		}
 	}
 }

@@ -56,7 +56,7 @@ import org.apache.hadoop.mapred.TextInputFormat;
  * <b>Note</b>: This example uses the out dated Record API.
  * It is recommended to use the new Java API.
  * 
- * @see org.apache.flink.hadoopcompatibility.mapred.example.WordCount
+ * @see org.apache.flink.hadoopcompatibility.mapred.example.FullWordCount
  */
 public class WordCount implements Program, ProgramDescription {
 	
