@@ -22,7 +22,7 @@ package org.apache.flink.streaming.examples.iterative.pagerank;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 
-public class PageRankSink extends SinkFunction<Tuple3<Integer, Float, Long>> {
+public class PageRankSink implements SinkFunction<Tuple3<Integer, Float, Long>> {
 	private static final long serialVersionUID = 1L;
 
 	@Override

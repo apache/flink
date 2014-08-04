@@ -19,6 +19,7 @@
 
 package org.apache.flink.streaming.api.invokable.operator.co;
 
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
 
@@ -56,12 +57,16 @@ public class CoMapInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
-		mapper.open(parameters);
+		if (mapper instanceof RichFunction) {
+			((RichFunction) mapper).open(parameters);
+		}
 	}
 
 	@Override
 	public void close() throws Exception {
-		mapper.close();
+		if (mapper instanceof RichFunction) {
+			((RichFunction) mapper).close();
+		}
 	}
 
 }

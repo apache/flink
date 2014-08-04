@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.util.Collector;
 
-public class SSSPSource extends SourceFunction<Tuple3<Integer, Integer, Long>> {
+public class SSSPSource implements SourceFunction<Tuple3<Integer, Integer, Long>> {
 	private static final long serialVersionUID = 1L;
 
 	private Tuple3<Integer, Integer, Long> outRecord = new Tuple3<Integer, Integer, Long>();

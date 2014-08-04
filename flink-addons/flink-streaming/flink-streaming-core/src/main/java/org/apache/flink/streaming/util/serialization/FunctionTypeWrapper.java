@@ -21,22 +21,20 @@ package org.apache.flink.streaming.util.serialization;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
-public class FunctionTypeWrapper<IN1, IN2, OUT> extends
-		TypeSerializerWrapper<IN1, IN2, OUT> {
+public class FunctionTypeWrapper<IN1, IN2, OUT> extends TypeSerializerWrapper<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private AbstractRichFunction function;
-	private Class<? extends AbstractRichFunction> functionSuperClass;
+	private Function function;
+	private Class<? extends Function> functionSuperClass;
 	private int inTypeParameter1;
 	private int inTypeParameter2;
 	private int outTypeParameter;
 
-	public FunctionTypeWrapper(AbstractRichFunction function,
-			Class<? extends AbstractRichFunction> functionSuperClass, int inTypeParameter1,
-			int inTypeParameter2, int outTypeParameter) {
+	public FunctionTypeWrapper(Function function, Class<? extends Function> functionSuperClass,
+			int inTypeParameter1, int inTypeParameter2, int outTypeParameter) {
 		this.function = function;
 		this.functionSuperClass = functionSuperClass;
 		this.inTypeParameter1 = inTypeParameter1;
@@ -54,18 +52,18 @@ public class FunctionTypeWrapper<IN1, IN2, OUT> extends
 	@Override
 	protected void setTypeInfo() {
 		if (inTypeParameter1 != -1) {
-			inTypeInfo1 = TypeExtractor.createTypeInfo(functionSuperClass,
-					function.getClass(), inTypeParameter1, null, null);
+			inTypeInfo1 = TypeExtractor.createTypeInfo(functionSuperClass, function.getClass(),
+					inTypeParameter1, null, null);
 		}
 
 		if (inTypeParameter2 != -1) {
-			inTypeInfo2 = TypeExtractor.createTypeInfo(functionSuperClass,
-					function.getClass(), inTypeParameter2, null, null);
+			inTypeInfo2 = TypeExtractor.createTypeInfo(functionSuperClass, function.getClass(),
+					inTypeParameter2, null, null);
 		}
 
 		if (outTypeParameter != -1) {
-			outTypeInfo = TypeExtractor.createTypeInfo(functionSuperClass,
-					function.getClass(), outTypeParameter, null, null);
+			outTypeInfo = TypeExtractor.createTypeInfo(functionSuperClass, function.getClass(),
+					outTypeParameter, null, null);
 		}
 	}
 }

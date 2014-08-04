@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.util.Collector;
 
-public class CollaborativeFilteringSource extends
+public class CollaborativeFilteringSource implements
 		SourceFunction<Tuple4<Integer, Integer, Integer, Long>> {
 	private static final long serialVersionUID = 1L;
 

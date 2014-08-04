@@ -31,7 +31,8 @@ public class TwitterStreaming {
 	private static final int PARALLELISM = 1;
 	private static final int SOURCE_PARALLELISM = 1;
 
-	public static class TwitterSink extends SinkFunction<Tuple5<Long, Long, String, String, String>> {
+	public static class TwitterSink implements
+			SinkFunction<Tuple5<Long, Long, String, String, String>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -44,40 +45,38 @@ public class TwitterStreaming {
 		}
 
 	}
-	
+
 	public static class SelectDataFlatMap extends
 			JSONParseFlatMap<String, Tuple5<Long, Long, String, String, String>> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(String value,
-				Collector<Tuple5<Long, Long, String, String, String>> out)
+		public void flatMap(String value, Collector<Tuple5<Long, Long, String, String, String>> out)
 				throws Exception {
 
 			out.collect(new Tuple5<Long, Long, String, String, String>(
 					convertDateString2Long(getField(value, "id")),
 					convertDateString2LongDate(getField(value, "created_at")),
-					colationOfNull(getField(value, "user.name")),
-					colationOfNull(getField(value, "text")),
-					getField(value, "lang")));
+					colationOfNull(getField(value, "user.name")), colationOfNull(getField(value,
+							"text")), getField(value, "lang")));
 		}
-		
-		protected String colationOfNull(String in){
-			if(in==null){
+
+		protected String colationOfNull(String in) {
+			if (in == null) {
 				return " ";
 			}
 			return in;
 		}
-		
+
 		protected Long convertDateString2LongDate(String dateString) {
-			if (dateString!=(null)) {
+			if (dateString != (null)) {
 				String[] dateArray = dateString.split(" ");
-				return Long.parseLong(dateArray[2])*100000+Long.parseLong(dateArray[5]);
+				return Long.parseLong(dateArray[2]) * 100000 + Long.parseLong(dateArray[5]);
 			}
 			return 0L;
 		}
-		
+
 		protected Long convertDateString2Long(String dateString) {
 			if (dateString != null) {
 				return Long.parseLong(dateString);
@@ -87,14 +86,14 @@ public class TwitterStreaming {
 	}
 
 	public static void main(String[] args) {
-		
+
 		String path = "/home/eszes/git/auth.properties";
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(PARALLELISM);
 
-		DataStream<String> streamSource = env.addSource(
-				new TwitterSource(path,100), SOURCE_PARALLELISM);
+		DataStream<String> streamSource = env.addSource(new TwitterSource(path, 100),
+				SOURCE_PARALLELISM);
 
 		DataStream<Tuple5<Long, Long, String, String, String>> selectedDataStream = streamSource
 				.flatMap(new SelectDataFlatMap());

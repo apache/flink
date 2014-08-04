@@ -25,7 +25,7 @@ import java.io.IOException;
 
 import org.apache.flink.util.Collector;
 
-public class FileStreamFunction extends SourceFunction<String> {
+public class FileStreamFunction implements SourceFunction<String> {
 	private static final long serialVersionUID = 1L;
 
 	private final String path;

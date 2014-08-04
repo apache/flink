@@ -22,13 +22,13 @@ package org.apache.flink.streaming.api.invokable.operator;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.api.java.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 
 public class BatchReduceInvokable<IN, OUT> extends StreamReduceInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 	private int batchSize;
 
-	public BatchReduceInvokable(RichGroupReduceFunction<IN, OUT> reduceFunction, int batchSize) {
+	public BatchReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, int batchSize) {
 		this.reducer = reduceFunction;
 		this.batchSize = batchSize;
 	}

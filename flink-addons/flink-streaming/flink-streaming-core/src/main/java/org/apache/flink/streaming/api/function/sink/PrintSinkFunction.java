@@ -27,7 +27,7 @@ package org.apache.flink.streaming.api.function.sink;
  * @param <IN>
  *            Input tuple type
  */
-public class PrintSinkFunction<IN> extends SinkFunction<IN> {
+public class PrintSinkFunction<IN> implements SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
 	@Override

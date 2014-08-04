@@ -45,7 +45,7 @@ public class StreamComponentTest {
 
 	public static Map<Integer, Integer> data = new HashMap<Integer, Integer>();
 
-	public static class MySource extends SourceFunction<Tuple1<Integer>> {
+	public static class MySource implements SourceFunction<Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		private Tuple1<Integer> tuple = new Tuple1<Integer>(0);
@@ -82,7 +82,7 @@ public class StreamComponentTest {
 	// }
 	// }
 
-	public static class MySink extends SinkFunction<Tuple2<Integer, Integer>> {
+	public static class MySink implements SinkFunction<Tuple2<Integer, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

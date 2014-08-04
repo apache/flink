@@ -19,19 +19,24 @@
 
 package org.apache.flink.streaming.api;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.java.functions.RichFilterFunction;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
+import org.apache.flink.streaming.api.function.co.RichCoMapFunction;
 import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.sink.WriteFormatAsCsv;
@@ -184,7 +189,8 @@ public class DataStream<T> {
 	 * Sets the mutability of the operator represented by the DataStream. If the
 	 * operator is set to mutable, the tuples received in the user defined
 	 * functions, will be reused after the function call. Setting an operator to
-	 * mutable greatly reduces garbage collection overhead and thus scalability.
+	 * mutable reduces garbage collection overhead and thus increases
+	 * scalability.
 	 * 
 	 * @param isMutable
 	 *            The mutability of the operator.
@@ -309,38 +315,42 @@ public class DataStream<T> {
 
 	/**
 	 * Applies a Map transformation on a {@link DataStream}. The transformation
-	 * calls a {@link RichMapFunction} for each element of the DataStream. Each
-	 * MapFunction call returns exactly one element.
+	 * calls a {@link MapFunction} for each element of the DataStream. Each
+	 * MapFunction call returns exactly one element. The user can also extend
+	 * {@link RichMapFunction} to gain access to other features provided by the
+	 * {@link RichFuntion} interface.
 	 * 
 	 * @param mapper
-	 *            The RichMapFunction that is called for each element of the
+	 *            The MapFunction that is called for each element of the
 	 *            DataStream.
 	 * @param <R>
 	 *            output type
 	 * @return The transformed DataStream.
 	 */
-	public <R> StreamOperator<R> map(RichMapFunction<T, R> mapper) {
+	public <R> StreamOperator<R> map(MapFunction<T, R> mapper) {
 		return addFunction("map", mapper, new FunctionTypeWrapper<T, Tuple, R>(mapper,
-				RichMapFunction.class, 0, -1, 1), new MapInvokable<T, R>(mapper));
+				MapFunction.class, 0, -1, 1), new MapInvokable<T, R>(mapper));
 	}
 
 	/**
 	 * Applies a FlatMap transformation on a {@link DataStream}. The
-	 * transformation calls a {@link RichFlatMapFunction} for each element of
-	 * the DataStream. Each RichFlatMapFunction call can return any number of
-	 * elements including none.
+	 * transformation calls a {@link FlatMapFunction} for each element of the
+	 * DataStream. Each FlatMapFunction call can return any number of elements
+	 * including none. The user can also extend {@link RichFlatMapFunction} to
+	 * gain access to other features provided by the {@link RichFuntion}
+	 * interface.
 	 * 
 	 * @param flatMapper
-	 *            The RichFlatMapFunction that is called for each element of the
+	 *            The FlatMapFunction that is called for each element of the
 	 *            DataStream
 	 * 
 	 * @param <R>
 	 *            output type
 	 * @return The transformed DataStream.
 	 */
-	public <R> StreamOperator<R> flatMap(RichFlatMapFunction<T, R> flatMapper) {
+	public <R> StreamOperator<R> flatMap(FlatMapFunction<T, R> flatMapper) {
 		return addFunction("flatMap", flatMapper, new FunctionTypeWrapper<T, Tuple, R>(flatMapper,
-				RichFlatMapFunction.class, 0, -1, 1), new FlatMapInvokable<T, R>(flatMapper));
+				FlatMapFunction.class, 0, -1, 1), new FlatMapInvokable<T, R>(flatMapper));
 	}
 
 	/**
@@ -348,7 +358,9 @@ public class DataStream<T> {
 	 * transformation calls a {@link CoMapFunction#map1(Tuple)} for each element
 	 * of the first DataStream (on which .coMapWith was called) and
 	 * {@link CoMapFunction#map2(Tuple)} for each element of the second
-	 * DataStream. Each CoMapFunction call returns exactly one element.
+	 * DataStream. Each CoMapFunction call returns exactly one element. The user
+	 * can also extend {@link RichCoMapFunction} to gain access to other
+	 * features provided by the {@link RichFuntion} interface.
 	 * 
 	 * @param coMapper
 	 *            The CoMapFunction used to jointly transform the two input
@@ -367,63 +379,67 @@ public class DataStream<T> {
 
 	/**
 	 * Applies a reduce transformation on preset chunks of the DataStream. The
-	 * transformation calls a {@link RichGroupReduceFunction} for each tuple
-	 * batch of the predefined size. Each RichGroupReduceFunction call can
-	 * return any number of elements including none.
+	 * transformation calls a {@link GroupReduceFunction} for each tuple batch
+	 * of the predefined size. Each GroupReduceFunction call can return any
+	 * number of elements including none. The user can also extend
+	 * {@link RichGroupReduceFunction} to gain access to other features provided
+	 * by the {@link RichFuntion} interface.
 	 * 
 	 * 
 	 * @param reducer
-	 *            The RichGroupReduceFunction that is called for each tuple
-	 *            batch.
+	 *            The GroupReduceFunction that is called for each tuple batch.
 	 * @param batchSize
 	 *            The number of tuples grouped together in the batch.
 	 * @param <R>
 	 *            output type
 	 * @return The modified DataStream.
 	 */
-	public <R> StreamOperator<R> batchReduce(RichGroupReduceFunction<T, R> reducer, int batchSize) {
+	public <R> StreamOperator<R> batchReduce(GroupReduceFunction<T, R> reducer, int batchSize) {
 		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<T, Tuple, R>(reducer,
-				RichGroupReduceFunction.class, 0, -1, 1), new BatchReduceInvokable<T, R>(reducer,
+				GroupReduceFunction.class, 0, -1, 1), new BatchReduceInvokable<T, R>(reducer,
 				batchSize));
 	}
 
 	/**
 	 * Applies a reduce transformation on preset "time" chunks of the
-	 * DataStream. The transformation calls a {@link RichGroupReduceFunction} on
+	 * DataStream. The transformation calls a {@link GroupReduceFunction} on
 	 * records received during the predefined time window. The window shifted
-	 * after each reduce call. Each RichGroupReduceFunction call can return any
-	 * number of elements including none.
+	 * after each reduce call. Each GroupReduceFunction call can return any
+	 * number of elements including none.The user can also extend
+	 * {@link RichGroupReduceFunction} to gain access to other features provided
+	 * by the {@link RichFuntion} interface.
 	 * 
 	 * 
 	 * @param reducer
-	 *            The RichGroupReduceFunction that is called for each time
-	 *            window.
+	 *            The GroupReduceFunction that is called for each time window.
 	 * @param windowSize
 	 *            The time window to run the reducer on, in milliseconds.
 	 * @param <R>
 	 *            output type
 	 * @return The modified DataStream.
 	 */
-	public <R> StreamOperator<R> windowReduce(RichGroupReduceFunction<T, R> reducer, long windowSize) {
+	public <R> StreamOperator<R> windowReduce(GroupReduceFunction<T, R> reducer, long windowSize) {
 		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<T, Tuple, R>(reducer,
-				RichGroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<T, R>(reducer,
+				GroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<T, R>(reducer,
 				windowSize));
 	}
 
 	/**
 	 * Applies a Filter transformation on a {@link DataStream}. The
-	 * transformation calls a {@link RichFilterFunction} for each element of the
+	 * transformation calls a {@link FilterFunction} for each element of the
 	 * DataStream and retains only those element for which the function returns
-	 * true. Elements for which the function returns false are filtered.
+	 * true. Elements for which the function returns false are filtered. The
+	 * user can also extend {@link RichFilterFunction} to gain access to other
+	 * features provided by the {@link RichFuntion} interface.
 	 * 
 	 * @param filter
-	 *            The RichFilterFunction that is called for each element of the
+	 *            The FilterFunction that is called for each element of the
 	 *            DataSet.
 	 * @return The filtered DataStream.
 	 */
-	public StreamOperator<T> filter(RichFilterFunction<T> filter) {
+	public StreamOperator<T> filter(FilterFunction<T> filter) {
 		return addFunction("filter", filter, new FunctionTypeWrapper<T, Tuple, T>(filter,
-				RichFilterFunction.class, 0, -1, 0), new FilterInvokable<T>(filter));
+				FilterFunction.class, 0, -1, 0), new FilterInvokable<T>(filter));
 	}
 
 	/**
@@ -745,14 +761,15 @@ public class DataStream<T> {
 	/**
 	 * Initiates an iterative part of the program that executes multiple times
 	 * and feeds back data streams. The iterative part needs to be closed by
-	 * calling {@link IterativeDataStream#closeWith(DataStream)}. The data
-	 * stream given to the {@code closeWith(DataStream)} method is the data
-	 * stream that will be fed back and used as the input for the iteration
+	 * calling {@link IterativeDataStream#closeWith(DataStream)}. The
+	 * transformation of this IterativeDataStream will be the iteration head.
+	 * The data stream given to the {@code closeWith(DataStream)} method is the
+	 * data stream that will be fed back and used as the input for the iteration
 	 * head. Unlike in batch processing by default the output of the iteration
 	 * stream is directed to both to the iteration head and the next component.
 	 * To direct tuples to the iteration head or the output specifically one can
-	 * use the {@code directTo(OutputSelector)} while referencing the iteration
-	 * head as 'iterate'.
+	 * use the {@code split(OutputSelector)} on the iteration tail while
+	 * referencing the iteration head as 'iterate'.
 	 * 
 	 * The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head.
@@ -786,8 +803,8 @@ public class DataStream<T> {
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
-	private <R> StreamOperator<R> addFunction(String functionName,
-			final AbstractRichFunction function, TypeSerializerWrapper<T, Tuple, R> typeWrapper,
+	private <R> StreamOperator<R> addFunction(String functionName, final Function function,
+			TypeSerializerWrapper<T, Tuple, R> typeWrapper,
 			UserTaskInvokable<T, R> functionInvokable) {
 
 		DataStream<T> inputStream = this.copy();
@@ -796,7 +813,8 @@ public class DataStream<T> {
 
 		try {
 			jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, typeWrapper,
-					functionName, SerializationUtils.serialize(function), degreeOfParallelism);
+					functionName, SerializationUtils.serialize((Serializable) function),
+					degreeOfParallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize user defined function");
 		}
@@ -816,16 +834,16 @@ public class DataStream<T> {
 	}
 
 	protected <T1, T2, R> StreamOperator<R> addCoFunction(String functionName,
-			DataStream<T1> inputStream1, DataStream<T2> inputStream2,
-			final AbstractRichFunction function, TypeSerializerWrapper<T1, T2, R> typeWrapper,
-			CoInvokable<T1, T2, R> functionInvokable) {
+			DataStream<T1> inputStream1, DataStream<T2> inputStream2, final Function function,
+			TypeSerializerWrapper<T1, T2, R> typeWrapper, CoInvokable<T1, T2, R> functionInvokable) {
 
 		StreamOperator<R> returnStream = new TwoInputStreamOperator<T1, T2, R>(environment,
 				functionName);
 
 		try {
 			jobGraphBuilder.addCoTask(returnStream.getId(), functionInvokable, typeWrapper,
-					functionName, SerializationUtils.serialize(function), degreeOfParallelism);
+					functionName, SerializationUtils.serialize((Serializable) function),
+					degreeOfParallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize user defined function");
 		}

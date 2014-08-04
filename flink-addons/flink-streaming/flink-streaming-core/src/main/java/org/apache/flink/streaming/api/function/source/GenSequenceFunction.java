@@ -26,7 +26,7 @@ import org.apache.flink.util.Collector;
  * Source Function used to generate the number sequence
  * 
  */
-public class GenSequenceFunction extends SourceFunction<Long> {
+public class GenSequenceFunction implements SourceFunction<Long> {
 
 	private static final long serialVersionUID = 1L;
 

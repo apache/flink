@@ -37,7 +37,7 @@ public class CellInfoLocal {
 	private final static int PARALLELISM = 1;
 	private final static int SOURCE_PARALLELISM = 1;
 
-	private final static class QuerySource extends
+	private final static class QuerySource implements
 			SourceFunction<Tuple4<Boolean, Integer, Long, Integer>> {
 		private static final long serialVersionUID = 1L;
 
@@ -56,7 +56,7 @@ public class CellInfoLocal {
 		}
 	}
 
-	public final static class InfoSource extends
+	public final static class InfoSource implements
 			SourceFunction<Tuple4<Boolean, Integer, Long, Integer>> {
 		private static final long serialVersionUID = 1L;
 

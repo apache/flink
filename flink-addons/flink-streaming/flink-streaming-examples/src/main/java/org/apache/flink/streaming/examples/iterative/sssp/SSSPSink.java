@@ -22,7 +22,7 @@ package org.apache.flink.streaming.examples.iterative.sssp;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 
-public class SSSPSink extends SinkFunction<Tuple3<Integer, Integer, Long>> {
+public class SSSPSink implements SinkFunction<Tuple3<Integer, Integer, Long>> {
 	private static final long serialVersionUID = 1L;
 
 	@Override

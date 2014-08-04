@@ -24,7 +24,7 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.streaming.api.DataStream;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.streaming.api.function.source.RichSourceFunction;
 import org.apache.flink.util.Collector;
 
 import com.rabbitmq.client.Channel;
@@ -32,7 +32,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
 
-public abstract class RMQSource<OUT> extends SourceFunction<OUT> {
+public abstract class RMQSource<OUT> extends RichSourceFunction<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Log LOG = LogFactory.getLog(RMQSource.class);

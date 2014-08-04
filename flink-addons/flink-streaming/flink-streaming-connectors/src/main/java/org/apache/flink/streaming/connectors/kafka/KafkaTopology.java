@@ -27,7 +27,7 @@ import org.apache.flink.util.Collector;
 
 public class KafkaTopology {
 
-	public static final class MySource extends SourceFunction<Tuple1<String>> {
+	public static final class MySource implements SourceFunction<Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

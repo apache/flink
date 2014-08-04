@@ -27,7 +27,7 @@ import kafka.producer.ProducerConfig;
 
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 
-public abstract class KafkaSink<IN, OUT> extends SinkFunction<IN> {
+public abstract class KafkaSink<IN, OUT> implements SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
 	private kafka.javaapi.producer.Producer<Integer, OUT> producer;
@@ -62,16 +62,16 @@ public abstract class KafkaSink<IN, OUT> extends SinkFunction<IN> {
 	/**
 	 * Called when new data arrives to the sink, and forwards it to Kafka.
 	 * 
-	 * @param tuple
+	 * @param value
 	 *            The incoming data
 	 */
 	@Override
-	public void invoke(IN tuple) {
+	public void invoke(IN value) {
 		if (!initDone) {
 			initialize();
 		}
 
-		OUT out = serialize(tuple);
+		OUT out = serialize(value);
 		KeyedMessage<Integer, OUT> data = new KeyedMessage<Integer, OUT>(topicId, out);
 
 		if (!closeWithoutSend) {
@@ -86,11 +86,11 @@ public abstract class KafkaSink<IN, OUT> extends SinkFunction<IN> {
 	/**
 	 * Serializes tuples into byte arrays.
 	 * 
-	 * @param tuple
+	 * @param value
 	 *            The tuple used for the serialization
 	 * @return The serialized byte array.
 	 */
-	public abstract OUT serialize(IN tuple);
+	public abstract OUT serialize(IN value);
 
 	/**
 	 * Closes the connection immediately and no further data will be sent.

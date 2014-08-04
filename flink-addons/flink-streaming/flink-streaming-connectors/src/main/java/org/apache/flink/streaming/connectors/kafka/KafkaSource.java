@@ -30,10 +30,10 @@ import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 
 import org.apache.flink.streaming.api.DataStream;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.streaming.api.function.source.RichSourceFunction;
 import org.apache.flink.util.Collector;
 
-public abstract class KafkaSource<OUT> extends SourceFunction<OUT> {
+public abstract class KafkaSource<OUT> extends RichSourceFunction<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private final String zkQuorum;
