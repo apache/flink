@@ -78,11 +78,11 @@ public class CoDataStream<IN1, IN2> {
 
 	/**
 	 * Applies a CoMap transformation on two separate {@link DataStream}s. The
-	 * transformation calls a {@link CoMapFunction#map1} for each element
-	 * of the first input and {@link CoMapFunction#map2} for each element
-	 * of the second input. Each CoMapFunction call returns exactly one element.
-	 * The user can also extend {@link RichCoMapFunction} to gain access to
-	 * other features provided by the {@link RichFuntion} interface.
+	 * transformation calls a {@link CoMapFunction#map1} for each element of the
+	 * first input and {@link CoMapFunction#map2} for each element of the second
+	 * input. Each CoMapFunction call returns exactly one element. The user can
+	 * also extend {@link RichCoMapFunction} to gain access to other features
+	 * provided by the {@link RichFuntion} interface.
 	 * 
 	 * @param coMapper
 	 *            The CoMapFunction used to jointly transform the two input
@@ -113,17 +113,6 @@ public class CoDataStream<IN1, IN2> {
 		input1.connectGraph(input1, returnStream.getId(), 1);
 		input1.connectGraph(input2, returnStream.getId(), 2);
 
-		if ((input1.userDefinedName != null) && (input2.userDefinedName != null)) {
-			throw new RuntimeException("An operator cannot have two names");
-		} else {
-			if (input1.userDefinedName != null) {
-				returnStream.name(input1.getUserDefinedNames());
-			}
-
-			if (input2.userDefinedName != null) {
-				returnStream.name(input2.getUserDefinedNames());
-			}
-		}
 		// TODO consider iteration
 
 		return returnStream;
