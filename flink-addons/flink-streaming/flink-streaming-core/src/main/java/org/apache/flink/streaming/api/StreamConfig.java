@@ -20,6 +20,8 @@
 package org.apache.flink.streaming.api;
 
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.List;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
@@ -164,9 +166,9 @@ public class StreamConfig {
 		return config.getString(FUNCTION_NAME, "");
 	}
 
-	public void setUserDefinedName(String userDefinedName) {
-		if (userDefinedName != null) {
-			config.setString(USER_DEFINED_NAME, userDefinedName);
+	public void setUserDefinedName(List<String> userDefinedName) {
+		if (!userDefinedName.isEmpty()) {
+			config.setBytes(USER_DEFINED_NAME, SerializationUtils.serialize((Serializable) userDefinedName));
 		}
 	}
 
@@ -223,14 +225,15 @@ public class StreamConfig {
 				SerializationUtils.serialize(new ShufflePartitioner<T>())));
 	}
 
-	public void setOutputName(int outputIndex, String outputName) {
+	public void setOutputName(int outputIndex, List<String> outputName) {
 		if (outputName != null) {
-			config.setString(OUTPUT_NAME + outputIndex, outputName);
+			config.setBytes(OUTPUT_NAME + outputIndex, SerializationUtils.serialize((Serializable) outputName));
 		}
 	}
 
-	public String getOutputName(int outputIndex) {
-		return config.getString(OUTPUT_NAME + outputIndex, null);
+	@SuppressWarnings("unchecked")
+	public List<String> getOutputName(int outputIndex) {
+		return (List<String>) SerializationUtils.deserialize(config.getBytes(OUTPUT_NAME + outputIndex, null));
 	}
 
 	public void setNumberOfInputs(int numberOfInputs) {

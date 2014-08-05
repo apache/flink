@@ -22,6 +22,17 @@ import java.io.Serializable;
 
 import org.apache.flink.api.common.functions.Function;
 
+/**
+ * A CoMapFunction represents a Map transformation with two different input
+ * types.
+ *
+ * @param <IN1>
+ *            Type of the first input.
+ * @param <IN2>
+ *            Type of the second input.
+ * @param <OUT>
+ *            Output type.
+ */
 public interface CoMapFunction<IN1, IN2, OUT> extends Function, Serializable {
 
 	public OUT map1(IN1 value);

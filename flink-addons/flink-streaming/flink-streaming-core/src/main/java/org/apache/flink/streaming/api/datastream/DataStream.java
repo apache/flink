@@ -17,7 +17,7 @@
  *
  */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.streaming.api.datastream;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -30,13 +30,14 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichFilterFunction;
 import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.collector.OutputSelector;
-import org.apache.flink.streaming.api.function.co.CoMapFunction;
-import org.apache.flink.streaming.api.function.co.RichCoMapFunction;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.sink.WriteFormatAsCsv;
@@ -50,8 +51,6 @@ import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.WindowReduceInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoMapInvokable;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.partitioner.DistributePartitioner;
 import org.apache.flink.streaming.partitioner.FieldsPartitioner;
@@ -71,21 +70,20 @@ import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
  * <li>{@link DataStream#batchReduce}.</li>
  * </ul>
  * 
- * @param <T>
+ * @param <OUT>
  *            The type of the DataStream, i.e., the type of the elements of the
  *            DataStream.
  */
-public class DataStream<T> {
+public abstract class DataStream<OUT> {
 
 	protected static Integer counter = 0;
 	protected final StreamExecutionEnvironment environment;
-	protected String id;
+	protected final String id;
 	protected int degreeOfParallelism;
 	protected String userDefinedName;
-	protected StreamPartitioner<T> partitioner;
-	protected List<DataStream<T>> connectedStreams;
+	protected StreamPartitioner<OUT> partitioner;
 
-	protected JobGraphBuilder jobGraphBuilder;
+	protected final JobGraphBuilder jobGraphBuilder;
 
 	/**
 	 * Create a new {@link DataStream} in the given execution environment with
@@ -96,7 +94,7 @@ public class DataStream<T> {
 	 * @param operatorType
 	 *            The type of the operator in the component
 	 */
-	protected DataStream(StreamExecutionEnvironment environment, String operatorType) {
+	public DataStream(StreamExecutionEnvironment environment, String operatorType) {
 		if (environment == null) {
 			throw new NullPointerException("context is null");
 		}
@@ -107,9 +105,8 @@ public class DataStream<T> {
 		this.environment = environment;
 		this.degreeOfParallelism = environment.getDegreeOfParallelism();
 		this.jobGraphBuilder = environment.getJobGraphBuilder();
-		this.partitioner = new ForwardPartitioner<T>();
-		this.connectedStreams = new ArrayList<DataStream<T>>();
-		this.connectedStreams.add(this.copy());
+		this.partitioner = new ForwardPartitioner<OUT>();
+
 	}
 
 	/**
@@ -118,27 +115,14 @@ public class DataStream<T> {
 	 * @param dataStream
 	 *            The DataStream that will be copied.
 	 */
-	protected DataStream(DataStream<T> dataStream) {
+	public DataStream(DataStream<OUT> dataStream) {
 		this.environment = dataStream.environment;
 		this.id = dataStream.id;
 		this.degreeOfParallelism = dataStream.degreeOfParallelism;
 		this.userDefinedName = dataStream.userDefinedName;
 		this.partitioner = dataStream.partitioner;
 		this.jobGraphBuilder = dataStream.jobGraphBuilder;
-		this.connectedStreams = new ArrayList<DataStream<T>>();
-		for (DataStream<T> stream : dataStream.connectedStreams) {
-			this.connectedStreams.add(stream.copy());
-		}
 
-	}
-
-	/**
-	 * Creates a copy of the DataStream
-	 * 
-	 * @return The copy
-	 */
-	protected DataStream<T> copy() {
-		return new DataStream<T>(this);
 	}
 
 	/**
@@ -167,93 +151,34 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Sets the degree of parallelism for this operator. The degree must be 1 or
-	 * more.
-	 * 
-	 * @param dop
-	 *            The degree of parallelism for this operator.
-	 * @return The operator with set degree of parallelism.
-	 */
-	public DataStream<T> setParallelism(int dop) {
-		if (dop < 1) {
-			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
-		}
-		this.degreeOfParallelism = dop;
-
-		jobGraphBuilder.setParallelism(id, degreeOfParallelism);
-
-		return this;
-	}
-
-	/**
-	 * Sets the mutability of the operator represented by the DataStream. If the
-	 * operator is set to mutable, the tuples received in the user defined
-	 * functions, will be reused after the function call. Setting an operator to
-	 * mutable reduces garbage collection overhead and thus increases
-	 * scalability.
-	 * 
-	 * @param isMutable
-	 *            The mutability of the operator.
-	 * @return The DataStream with mutability set.
-	 */
-	public DataStream<T> setMutability(boolean isMutable) {
-		jobGraphBuilder.setMutability(id, isMutable);
-		return this;
-	}
-
-	/**
-	 * Sets the maximum time frequency (ms) for the flushing of the output
-	 * buffer. By default the output buffers flush only when they are full.
-	 * 
-	 * @param timeoutMillis
-	 *            The maximum time between two output flushes.
-	 * @return The DataStream with buffer timeout set.
-	 */
-	public DataStream<T> setBufferTimeout(long timeoutMillis) {
-		jobGraphBuilder.setBufferTimeout(id, timeoutMillis);
-		return this;
-	}
-
-	/**
-	 * Connecting {@link DataStream} outputs with each other for applying joint
-	 * operators on them. The DataStreams connected using this operator will be
-	 * transformed simultaneously. It creates a joint output of the connected
-	 * DataStreams.
+	 * Creates a new by connecting {@link DataStream} outputs of the same type
+	 * with each other. The DataStreams connected using this operator will be
+	 * transformed simultaneously.
 	 * 
 	 * @param streams
 	 *            The DataStreams to connect output with.
-	 * @return The connected DataStream.
+	 * @return The {@link ConnectedDataStream}.
 	 */
-	public DataStream<T> connectWith(DataStream<T>... streams) {
-		DataStream<T> returnStream = this.copy();
+	public ConnectedDataStream<OUT> connectWith(DataStream<OUT>... streams) {
+		ConnectedDataStream<OUT> returnStream = new ConnectedDataStream<OUT>(this);
 
-		for (DataStream<T> stream : streams) {
-			addConnection(returnStream, stream);
+		for (DataStream<OUT> stream : streams) {
+			returnStream.addConnection(stream);
 		}
 		return returnStream;
 	}
 
 	/**
-	 * Operator used for directing tuples to specific named outputs. Sets an
-	 * {@link OutputSelector} for the vertex. The tuples emitted from this
-	 * vertex will be sent to the output names selected by the OutputSelector.
-	 * Unnamed outputs will not receive any tuples.
+	 * Creates a new {@link CoDataStream} bye connecting {@link DataStream}
+	 * outputs of different type with each other. The DataStreams connected
+	 * using this operators can be used with CoFunctions.
 	 * 
-	 * @param outputSelector
-	 *            The user defined OutputSelector for directing the tuples.
-	 * @return The {@link SplitDataStream}
+	 * @param dataStream
+	 *            The DataStream with which this stream will be joined.
+	 * @return The {@link CoDataStream}.
 	 */
-	public SplitDataStream<T> split(OutputSelector<T> outputSelector) {
-		try {
-			for (DataStream<T> stream : connectedStreams) {
-				jobGraphBuilder.setOutputSelector(stream.id,
-						SerializationUtils.serialize(outputSelector));
-			}
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize OutputSelector");
-		}
-
-		return new SplitDataStream<T>(this);
+	public <R> CoDataStream<OUT, R> co(DataStream<R> dataStream) {
+		return new CoDataStream<OUT, R>(environment, jobGraphBuilder, this, dataStream);
 	}
 
 	/**
@@ -264,12 +189,12 @@ public class DataStream<T> {
 	 *            The field used to compute the hashcode.
 	 * @return The DataStream with field partitioning set.
 	 */
-	public DataStream<T> partitionBy(int keyposition) {
+	public DataStream<OUT> partitionBy(int keyposition) {
 		if (keyposition < 0) {
 			throw new IllegalArgumentException("The position of the field must be non-negative");
 		}
 
-		return setConnectionType(new FieldsPartitioner<T>(keyposition));
+		return setConnectionType(new FieldsPartitioner<OUT>(keyposition));
 	}
 
 	/**
@@ -278,8 +203,8 @@ public class DataStream<T> {
 	 * 
 	 * @return The DataStream with broadcast partitioning set.
 	 */
-	public DataStream<T> broadcast() {
-		return setConnectionType(new BroadcastPartitioner<T>());
+	public DataStream<OUT> broadcast() {
+		return setConnectionType(new BroadcastPartitioner<OUT>());
 	}
 
 	/**
@@ -288,8 +213,8 @@ public class DataStream<T> {
 	 * 
 	 * @return The DataStream with shuffle partitioning set.
 	 */
-	public DataStream<T> shuffle() {
-		return setConnectionType(new ShufflePartitioner<T>());
+	public DataStream<OUT> shuffle() {
+		return setConnectionType(new ShufflePartitioner<OUT>());
 	}
 
 	/**
@@ -299,8 +224,8 @@ public class DataStream<T> {
 	 * 
 	 * @return The DataStream with shuffle partitioning set.
 	 */
-	public DataStream<T> forward() {
-		return setConnectionType(new ForwardPartitioner<T>());
+	public DataStream<OUT> forward() {
+		return setConnectionType(new ForwardPartitioner<OUT>());
 	}
 
 	/**
@@ -309,8 +234,8 @@ public class DataStream<T> {
 	 * 
 	 * @return The DataStream with shuffle partitioning set.
 	 */
-	public DataStream<T> distribute() {
-		return setConnectionType(new DistributePartitioner<T>());
+	public DataStream<OUT> distribute() {
+		return setConnectionType(new DistributePartitioner<OUT>());
 	}
 
 	/**
@@ -325,11 +250,11 @@ public class DataStream<T> {
 	 *            DataStream.
 	 * @param <R>
 	 *            output type
-	 * @return The transformed DataStream.
+	 * @return The transformed {@link DataStream}.
 	 */
-	public <R> StreamOperator<R> map(MapFunction<T, R> mapper) {
-		return addFunction("map", mapper, new FunctionTypeWrapper<T, Tuple, R>(mapper,
-				MapFunction.class, 0, -1, 1), new MapInvokable<T, R>(mapper));
+	public <R> SingleOutputStreamOperator<R, ?> map(MapFunction<OUT, R> mapper) {
+		return addFunction("map", mapper, new FunctionTypeWrapper<OUT, Tuple, R>(mapper,
+				MapFunction.class, 0, -1, 1), new MapInvokable<OUT, R>(mapper));
 	}
 
 	/**
@@ -346,35 +271,12 @@ public class DataStream<T> {
 	 * 
 	 * @param <R>
 	 *            output type
-	 * @return The transformed DataStream.
+	 * @return The transformed {@link DataStream}.
 	 */
-	public <R> StreamOperator<R> flatMap(FlatMapFunction<T, R> flatMapper) {
-		return addFunction("flatMap", flatMapper, new FunctionTypeWrapper<T, Tuple, R>(flatMapper,
-				FlatMapFunction.class, 0, -1, 1), new FlatMapInvokable<T, R>(flatMapper));
-	}
-
-	/**
-	 * Applies a CoMap transformation on two separate {@link DataStream}s. The
-	 * transformation calls a {@link CoMapFunction#map1(Tuple)} for each element
-	 * of the first DataStream (on which .coMapWith was called) and
-	 * {@link CoMapFunction#map2(Tuple)} for each element of the second
-	 * DataStream. Each CoMapFunction call returns exactly one element. The user
-	 * can also extend {@link RichCoMapFunction} to gain access to other
-	 * features provided by the {@link RichFuntion} interface.
-	 * 
-	 * @param coMapper
-	 *            The CoMapFunction used to jointly transform the two input
-	 *            DataStreams
-	 * @param otherStream
-	 *            The DataStream that will be transformed with
-	 *            {@link CoMapFunction#map2(Tuple)}
-	 * @return The transformed DataStream
-	 */
-	public <T2, R> StreamOperator<R> coMapWith(CoMapFunction<T, T2, R> coMapper,
-			DataStream<T2> otherStream) {
-		return addCoFunction("coMap", this.copy(), otherStream.copy(), coMapper,
-				new FunctionTypeWrapper<T, T2, R>(coMapper, CoMapFunction.class, 0, 1, 2),
-				new CoMapInvokable<T, T2, R>(coMapper));
+	public <R> SingleOutputStreamOperator<R, ?> flatMap(FlatMapFunction<OUT, R> flatMapper) {
+		return addFunction("flatMap", flatMapper, new FunctionTypeWrapper<OUT, Tuple, R>(
+				flatMapper, FlatMapFunction.class, 0, -1, 1), new FlatMapInvokable<OUT, R>(
+				flatMapper));
 	}
 
 	/**
@@ -392,11 +294,12 @@ public class DataStream<T> {
 	 *            The number of tuples grouped together in the batch.
 	 * @param <R>
 	 *            output type
-	 * @return The modified DataStream.
+	 * @return The transformed {@link DataStream}.
 	 */
-	public <R> StreamOperator<R> batchReduce(GroupReduceFunction<T, R> reducer, int batchSize) {
-		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<T, Tuple, R>(reducer,
-				GroupReduceFunction.class, 0, -1, 1), new BatchReduceInvokable<T, R>(reducer,
+	public <R> SingleOutputStreamOperator<R, ?> batchReduce(GroupReduceFunction<OUT, R> reducer,
+			int batchSize) {
+		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT, Tuple, R>(reducer,
+				GroupReduceFunction.class, 0, -1, 1), new BatchReduceInvokable<OUT, R>(reducer,
 				batchSize));
 	}
 
@@ -416,11 +319,12 @@ public class DataStream<T> {
 	 *            The time window to run the reducer on, in milliseconds.
 	 * @param <R>
 	 *            output type
-	 * @return The modified DataStream.
+	 * @return The transformed DataStream.
 	 */
-	public <R> StreamOperator<R> windowReduce(GroupReduceFunction<T, R> reducer, long windowSize) {
-		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<T, Tuple, R>(reducer,
-				GroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<T, R>(reducer,
+	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
+			long windowSize) {
+		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT, Tuple, R>(reducer,
+				GroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<OUT, R>(reducer,
 				windowSize));
 	}
 
@@ -437,9 +341,9 @@ public class DataStream<T> {
 	 *            DataSet.
 	 * @return The filtered DataStream.
 	 */
-	public StreamOperator<T> filter(FilterFunction<T> filter) {
-		return addFunction("filter", filter, new FunctionTypeWrapper<T, Tuple, T>(filter,
-				FilterFunction.class, 0, -1, 0), new FilterInvokable<T>(filter));
+	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
+		return addFunction("filter", filter, new FunctionTypeWrapper<OUT, Tuple, OUT>(filter,
+				FilterFunction.class, 0, -1, 0), new FilterInvokable<OUT>(filter));
 	}
 
 	/**
@@ -449,10 +353,10 @@ public class DataStream<T> {
 	 * 
 	 * @return The closed DataStream.
 	 */
-	public DataStream<T> print() {
-		DataStream<T> inputStream = this.copy();
-		PrintSinkFunction<T> printFunction = new PrintSinkFunction<T>();
-		DataStream<T> returnStream = addSink(inputStream, printFunction, null);
+	public DataStream<OUT> print() {
+		DataStream<OUT> inputStream = this.copy();
+		PrintSinkFunction<OUT> printFunction = new PrintSinkFunction<OUT>();
+		DataStream<OUT> returnStream = addSink(inputStream, printFunction, null);
 
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 
@@ -469,8 +373,8 @@ public class DataStream<T> {
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStream<T> writeAsText(String path) {
-		return writeAsText(this, path, new WriteFormatAsText<T>(), 1, null);
+	public DataStream<OUT> writeAsText(String path) {
+		return writeAsText(this, path, new WriteFormatAsText<OUT>(), 1, null);
 	}
 
 	/**
@@ -486,8 +390,8 @@ public class DataStream<T> {
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStream<T> writeAsText(String path, long millis) {
-		return writeAsText(this, path, new WriteFormatAsText<T>(), millis, null);
+	public DataStream<OUT> writeAsText(String path, long millis) {
+		return writeAsText(this, path, new WriteFormatAsText<OUT>(), millis, null);
 	}
 
 	/**
@@ -504,8 +408,8 @@ public class DataStream<T> {
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStream<T> writeAsText(String path, int batchSize) {
-		return writeAsText(this, path, new WriteFormatAsText<T>(), batchSize, null);
+	public DataStream<OUT> writeAsText(String path, int batchSize) {
+		return writeAsText(this, path, new WriteFormatAsText<OUT>(), batchSize, null);
 	}
 
 	/**
@@ -526,8 +430,8 @@ public class DataStream<T> {
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStream<T> writeAsText(String path, long millis, T endTuple) {
-		return writeAsText(this, path, new WriteFormatAsText<T>(), millis, endTuple);
+	public DataStream<OUT> writeAsText(String path, long millis, OUT endTuple) {
+		return writeAsText(this, path, new WriteFormatAsText<OUT>(), millis, endTuple);
 	}
 
 	/**
@@ -549,8 +453,8 @@ public class DataStream<T> {
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStream<T> writeAsText(String path, int batchSize, T endTuple) {
-		return writeAsText(this, path, new WriteFormatAsText<T>(), batchSize, endTuple);
+	public DataStream<OUT> writeAsText(String path, int batchSize, OUT endTuple) {
+		return writeAsText(this, path, new WriteFormatAsText<OUT>(), batchSize, endTuple);
 	}
 
 	/**
@@ -571,10 +475,10 @@ public class DataStream<T> {
 	 * 
 	 * @return the data stream constructed
 	 */
-	private DataStream<T> writeAsText(DataStream<T> inputStream, String path,
-			WriteFormatAsText<T> format, long millis, T endTuple) {
-		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<T>(path,
-				format, millis, endTuple), null);
+	private DataStream<OUT> writeAsText(DataStream<OUT> inputStream, String path,
+			WriteFormatAsText<OUT> format, long millis, OUT endTuple) {
+		DataStream<OUT> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<OUT>(
+				path, format, millis, endTuple), null);
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
@@ -599,10 +503,10 @@ public class DataStream<T> {
 	 * 
 	 * @return the data stream constructed
 	 */
-	private DataStream<T> writeAsText(DataStream<T> inputStream, String path,
-			WriteFormatAsText<T> format, int batchSize, T endTuple) {
-		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByBatches<T>(path,
-				format, batchSize, endTuple), null);
+	private DataStream<OUT> writeAsText(DataStream<OUT> inputStream, String path,
+			WriteFormatAsText<OUT> format, int batchSize, OUT endTuple) {
+		DataStream<OUT> returnStream = addSink(inputStream, new WriteSinkFunctionByBatches<OUT>(
+				path, format, batchSize, endTuple), null);
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
@@ -618,8 +522,8 @@ public class DataStream<T> {
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStream<T> writeAsCsv(String path) {
-		return writeAsCsv(this, path, new WriteFormatAsCsv<T>(), 1, null);
+	public DataStream<OUT> writeAsCsv(String path) {
+		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), 1, null);
 	}
 
 	/**
@@ -635,8 +539,8 @@ public class DataStream<T> {
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStream<T> writeAsCsv(String path, long millis) {
-		return writeAsCsv(this, path, new WriteFormatAsCsv<T>(), millis, null);
+	public DataStream<OUT> writeAsCsv(String path, long millis) {
+		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), millis, null);
 	}
 
 	/**
@@ -653,8 +557,8 @@ public class DataStream<T> {
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStream<T> writeAsCsv(String path, int batchSize) {
-		return writeAsCsv(this, path, new WriteFormatAsCsv<T>(), batchSize, null);
+	public DataStream<OUT> writeAsCsv(String path, int batchSize) {
+		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), batchSize, null);
 	}
 
 	/**
@@ -675,8 +579,8 @@ public class DataStream<T> {
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStream<T> writeAsCsv(String path, long millis, T endTuple) {
-		return writeAsCsv(this, path, new WriteFormatAsCsv<T>(), millis, endTuple);
+	public DataStream<OUT> writeAsCsv(String path, long millis, OUT endTuple) {
+		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), millis, endTuple);
 	}
 
 	/**
@@ -698,9 +602,11 @@ public class DataStream<T> {
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStream<T> writeAsCsv(String path, int batchSize, T endTuple) {
-		setMutability(false);
-		return writeAsCsv(this, path, new WriteFormatAsCsv<T>(), batchSize, endTuple);
+	public DataStream<OUT> writeAsCsv(String path, int batchSize, OUT endTuple) {
+		if (this instanceof SingleOutputStreamOperator) {
+			((SingleOutputStreamOperator<?, ?>) this).setMutability(false);
+		}
+		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), batchSize, endTuple);
 	}
 
 	/**
@@ -721,10 +627,10 @@ public class DataStream<T> {
 	 * 
 	 * @return the data stream constructed
 	 */
-	private DataStream<T> writeAsCsv(DataStream<T> inputStream, String path,
-			WriteFormatAsCsv<T> format, long millis, T endTuple) {
-		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<T>(path,
-				format, millis, endTuple));
+	private DataStream<OUT> writeAsCsv(DataStream<OUT> inputStream, String path,
+			WriteFormatAsCsv<OUT> format, long millis, OUT endTuple) {
+		DataStream<OUT> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<OUT>(
+				path, format, millis, endTuple));
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
@@ -749,10 +655,10 @@ public class DataStream<T> {
 	 * 
 	 * @return the data stream constructed
 	 */
-	private DataStream<T> writeAsCsv(DataStream<T> inputStream, String path,
-			WriteFormatAsCsv<T> format, int batchSize, T endTuple) {
-		DataStream<T> returnStream = addSink(inputStream, new WriteSinkFunctionByBatches<T>(path,
-				format, batchSize, endTuple), null);
+	private DataStream<OUT> writeAsCsv(DataStream<OUT> inputStream, String path,
+			WriteFormatAsCsv<OUT> format, int batchSize, OUT endTuple) {
+		DataStream<OUT> returnStream = addSink(inputStream, new WriteSinkFunctionByBatches<OUT>(
+				path, format, batchSize, endTuple), null);
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
@@ -776,12 +682,13 @@ public class DataStream<T> {
 	 * 
 	 * @return The iterative data stream created.
 	 */
-	public IterativeDataStream<T> iterate() {
-		return new IterativeDataStream<T>(this);
+	public IterativeDataStream<OUT> iterate() {
+		return new IterativeDataStream<OUT>(this);
 	}
 
-	protected <R> DataStream<T> addIterationSource(String iterationID) {
-		DataStream<R> returnStream = new DataStream<R>(environment, "iterationSource");
+	protected <R> DataStream<OUT> addIterationSource(String iterationID) {
+
+		DataStream<R> returnStream = new DataStreamSource<R>(environment, "iterationSource");
 
 		jobGraphBuilder.addIterationSource(returnStream.getId(), this.getId(), iterationID,
 				degreeOfParallelism);
@@ -803,12 +710,13 @@ public class DataStream<T> {
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
-	private <R> StreamOperator<R> addFunction(String functionName, final Function function,
-			TypeSerializerWrapper<T, Tuple, R> typeWrapper,
-			UserTaskInvokable<T, R> functionInvokable) {
+	private <R> SingleOutputStreamOperator<R, ?> addFunction(String functionName,
+			final Function function, TypeSerializerWrapper<OUT, Tuple, R> typeWrapper,
+			UserTaskInvokable<OUT, R> functionInvokable) {
 
-		DataStream<T> inputStream = this.copy();
-		StreamOperator<R> returnStream = new SingleInputStreamOperator<T, R>(environment,
+		DataStream<OUT> inputStream = this.copy();
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
 				functionName);
 
 		try {
@@ -822,49 +730,21 @@ public class DataStream<T> {
 		connectGraph(inputStream, returnStream.getId(), 0);
 
 		if (inputStream instanceof IterativeDataStream) {
-			returnStream.addIterationSource(((IterativeDataStream<T>) inputStream).iterationID
+			returnStream.addIterationSource(((IterativeDataStream<OUT>) inputStream).iterationID
 					.toString());
 		}
 
-		if (inputStream instanceof NamedDataStream) {
-			returnStream.name(inputStream.userDefinedName);
+		if (userDefinedName != null) {
+			returnStream.name(getUserDefinedNames());
 		}
 
 		return returnStream;
 	}
 
-	protected <T1, T2, R> StreamOperator<R> addCoFunction(String functionName,
-			DataStream<T1> inputStream1, DataStream<T2> inputStream2, final Function function,
-			TypeSerializerWrapper<T1, T2, R> typeWrapper, CoInvokable<T1, T2, R> functionInvokable) {
-
-		StreamOperator<R> returnStream = new TwoInputStreamOperator<T1, T2, R>(environment,
-				functionName);
-
-		try {
-			jobGraphBuilder.addCoTask(returnStream.getId(), functionInvokable, typeWrapper,
-					functionName, SerializationUtils.serialize((Serializable) function),
-					degreeOfParallelism);
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize user defined function");
-		}
-
-		connectGraph(inputStream1, returnStream.getId(), 1);
-		connectGraph(inputStream2, returnStream.getId(), 2);
-
-		if ((inputStream1 instanceof NamedDataStream) && (inputStream2 instanceof NamedDataStream)) {
-			throw new RuntimeException("An operator cannot have two names");
-		} else {
-			if (inputStream1 instanceof NamedDataStream) {
-				returnStream.name(inputStream1.userDefinedName);
-			}
-
-			if (inputStream2 instanceof NamedDataStream) {
-				returnStream.name(inputStream2.userDefinedName);
-			}
-		}
-		// TODO consider iteration
-
-		return returnStream;
+	protected List<String> getUserDefinedNames() {
+		List<String> nameList = new ArrayList<String>();
+		nameList.add(userDefinedName);
+		return nameList;
 	}
 
 	/**
@@ -876,41 +756,25 @@ public class DataStream<T> {
 	 *            The name to set
 	 * @return The named DataStream.
 	 */
-	protected DataStream<T> name(String name) {
-		// TODO copy DataStream?
-		if (name == "") {
-			throw new IllegalArgumentException("User defined name must not be empty string");
-		}
+	protected DataStream<OUT> name(List<String> name) {
 
-		userDefinedName = name;
+		userDefinedName = name.get(0);
 		jobGraphBuilder.setUserDefinedName(id, name);
 
 		return this;
 	}
 
 	/**
-	 * Connects two DataStreams
+	 * Internal function for setting the partitioner for the DataStream
 	 * 
-	 * @param returnStream
-	 *            The other DataStream will connected to this
-	 * @param stream
-	 *            This DataStream will be connected to returnStream
+	 * @param partitioner
+	 *            Partitioner to set.
+	 * @return The modified DataStream.
 	 */
-	private void addConnection(DataStream<T> returnStream, DataStream<T> stream) {
-		if ((stream instanceof NamedDataStream) || (returnStream instanceof NamedDataStream)) {
-			if (!returnStream.userDefinedName.equals(stream.userDefinedName)) {
-				throw new RuntimeException("Error: Connected NamedDataStreams must have same names");
-			}
-		}
-		returnStream.connectedStreams.add(stream.copy());
-	}
+	protected DataStream<OUT> setConnectionType(StreamPartitioner<OUT> partitioner) {
+		DataStream<OUT> returnStream = this.copy();
 
-	private DataStream<T> setConnectionType(StreamPartitioner<T> partitioner) {
-		DataStream<T> returnStream = this.copy();
-
-		for (DataStream<T> stream : returnStream.connectedStreams) {
-			stream.partitioner = partitioner;
-		}
+		returnStream.partitioner = partitioner;
 
 		return returnStream;
 	}
@@ -928,10 +792,16 @@ public class DataStream<T> {
 	 * @param typeNumber
 	 *            Number of the type (used at co-functions)
 	 */
-	private <X> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
-		for (DataStream<X> stream : inputStream.connectedStreams) {
-			jobGraphBuilder.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber);
+	protected <X> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
+		if (inputStream instanceof ConnectedDataStream) {
+			for (DataStream<X> stream : ((ConnectedDataStream<X>) inputStream).connectedStreams) {
+				jobGraphBuilder.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber);
+			}
+		} else {
+			jobGraphBuilder.setEdge(inputStream.getId(), outputID, inputStream.partitioner,
+					typeNumber);
 		}
+
 	}
 
 	/**
@@ -943,21 +813,21 @@ public class DataStream<T> {
 	 *            The object containing the sink's invoke function.
 	 * @return The closed DataStream.
 	 */
-	public DataStream<T> addSink(SinkFunction<T> sinkFunction) {
+	public DataStream<OUT> addSink(SinkFunction<OUT> sinkFunction) {
 		return addSink(this.copy(), sinkFunction);
 	}
 
-	private DataStream<T> addSink(DataStream<T> inputStream, SinkFunction<T> sinkFunction) {
-		return addSink(inputStream, sinkFunction, new FunctionTypeWrapper<T, Tuple, T>(
+	private DataStream<OUT> addSink(DataStream<OUT> inputStream, SinkFunction<OUT> sinkFunction) {
+		return addSink(inputStream, sinkFunction, new FunctionTypeWrapper<OUT, Tuple, OUT>(
 				sinkFunction, SinkFunction.class, 0, -1, 0));
 	}
 
-	private DataStream<T> addSink(DataStream<T> inputStream, SinkFunction<T> sinkFunction,
-			TypeSerializerWrapper<T, Tuple, T> typeWrapper) {
-		DataStream<T> returnStream = new DataStream<T>(environment, "sink");
+	private DataStream<OUT> addSink(DataStream<OUT> inputStream, SinkFunction<OUT> sinkFunction,
+			TypeSerializerWrapper<OUT, Tuple, OUT> typeWrapper) {
+		DataStream<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink");
 
 		try {
-			jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<T>(sinkFunction),
+			jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<OUT>(sinkFunction),
 					typeWrapper, "sink", SerializationUtils.serialize(sinkFunction),
 					degreeOfParallelism);
 		} catch (SerializationException e) {
@@ -966,10 +836,17 @@ public class DataStream<T> {
 
 		inputStream.connectGraph(inputStream, returnStream.getId(), 0);
 
-		if (this.copy() instanceof NamedDataStream) {
-			returnStream.name(inputStream.userDefinedName);
+		if (this.copy().userDefinedName != null) {
+			returnStream.name(getUserDefinedNames());
 		}
 
 		return returnStream;
 	}
+
+	/**
+	 * Creates a copy of the {@link DataStream}
+	 * 
+	 * @return The copy
+	 */
+	protected abstract DataStream<OUT> copy();
 }

@@ -19,6 +19,8 @@
 
 package org.apache.flink.streaming.api;
 
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.LogUtils;
 import org.apache.log4j.Level;
 import org.junit.Test;

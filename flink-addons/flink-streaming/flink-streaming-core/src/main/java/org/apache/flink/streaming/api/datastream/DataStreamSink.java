@@ -17,30 +17,29 @@
  *
  */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.streaming.api.datastream;
+
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
- * The SingleInputStreamOperator represents a {@link DataStream} transformed
- * with some user defined operator.
+ * Represents the end of a DataStream.
  *
  * @param <IN>
- *            Input type of the operator.
- * @param <OUT>
- *            Output Type of the operator.
+ *            The type of the DataStream closed by the sink.
  */
-public class SingleInputStreamOperator<IN, OUT> extends StreamOperator<OUT> {
+public class DataStreamSink<IN> extends DataStream<IN> {
 
-	protected SingleInputStreamOperator(StreamExecutionEnvironment environment, String operatorType) {
+	protected DataStreamSink(StreamExecutionEnvironment environment, String operatorType) {
 		super(environment, operatorType);
 	}
 
-	protected SingleInputStreamOperator(DataStream<OUT> dataStream) {
+	protected DataStreamSink(DataStream<IN> dataStream) {
 		super(dataStream);
 	}
 
 	@Override
-	protected DataStream<OUT> copy() {
-		return new SingleInputStreamOperator<IN, OUT>(this);
+	protected DataStream<IN> copy() {
+		throw new RuntimeException("Data stream sinks cannot be copied");
 	}
 
 }

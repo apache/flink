@@ -19,7 +19,9 @@
 
 package org.apache.flink.streaming.api.collector;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -39,6 +41,7 @@ public class DirectedStreamCollector<T> extends StreamCollector<T> {
 
 	OutputSelector<T> outputSelector;
 	private static final Log log = LogFactory.getLog(DirectedStreamCollector.class);
+	private List<RecordWriter<SerializationDelegate<StreamRecord<T>>>> emitted;
 
 	/**
 	 * Creates a new DirectedStreamCollector
@@ -55,6 +58,7 @@ public class DirectedStreamCollector<T> extends StreamCollector<T> {
 			OutputSelector<T> outputSelector) {
 		super(channelID, serializationDelegate);
 		this.outputSelector = outputSelector;
+		this.emitted = new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<T>>>>();
 
 	}
 
@@ -82,11 +86,14 @@ public class DirectedStreamCollector<T> extends StreamCollector<T> {
 		Collection<String> outputNames = outputSelector.getOutputs(streamRecord.getObject());
 		streamRecord.setId(channelID);
 		serializationDelegate.setInstance(streamRecord);
+		emitted.clear();
 		for (String outputName : outputNames) {
 			try {
-				for (RecordWriter<SerializationDelegate<StreamRecord<T>>> output : outputMap
-						.get(outputName)) {
+				RecordWriter<SerializationDelegate<StreamRecord<T>>> output = outputMap
+						.get(outputName);
+				if (!emitted.contains(output)) {
 					output.emit(serializationDelegate);
+					emitted.add(output);
 				}
 			} catch (Exception e) {
 				if (log.isErrorEnabled()) {

@@ -19,11 +19,10 @@
 
 package org.apache.flink.streaming.examples.join;
 
-import org.apache.flink.streaming.api.DataStream;
-import org.apache.flink.streaming.api.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.LogUtils;
 import org.apache.log4j.Level;
-
 import org.apache.flink.api.java.tuple.Tuple3;
 
 public class JoinLocal {

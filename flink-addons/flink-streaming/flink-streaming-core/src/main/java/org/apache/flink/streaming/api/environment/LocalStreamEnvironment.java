@@ -17,17 +17,24 @@
  *
  */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.streaming.api.environment;
 
-public class NamedDataStream<T> extends DataStream<T> {
+import org.apache.flink.streaming.util.ClusterUtil;
 
-	protected NamedDataStream(DataStream<T> dataStream) {
-		super(dataStream);
-	}
-	
+public class LocalStreamEnvironment extends StreamExecutionEnvironment {
+
+	/**
+	 * Executes the JobGraph of the on a mini cluster of CLusterUtil.
+	 * 
+	 */
 	@Override
-	protected DataStream<T> copy() {
-		return new NamedDataStream<T>(this);
+	public void execute() {
+		ClusterUtil.runOnMiniCluster(this.jobGraphBuilder.getJobGraph(), getExecutionParallelism());
+	}
+
+	public void executeTest(long memorySize) {
+		ClusterUtil.runOnMiniCluster(this.jobGraphBuilder.getJobGraph(), getExecutionParallelism(),
+				memorySize);
 	}
 
 }

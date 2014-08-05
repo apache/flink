@@ -17,31 +17,23 @@
  *
  */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.streaming.api.datastream;
 
-public class SplitDataStream<T> extends DataStream<T> {
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-	protected SplitDataStream(DataStream<T> dataStream) {
+/**
+ * The DataStreamSource represents the starting point of a DataStream.
+ *
+ * @param <OUT>
+ *            Type of the DataStream created.
+ */
+public class DataStreamSource<OUT> extends SingleOutputStreamOperator<OUT, DataStreamSource<OUT>> {
+
+	public DataStreamSource(StreamExecutionEnvironment environment, String operatorType) {
+		super(environment, operatorType);
+	}
+
+	public DataStreamSource(DataStream<OUT> dataStream) {
 		super(dataStream);
 	}
-
-	/**
-	 * Sets the output name for which the vertex will receive tuples from the
-	 * preceding Directed stream
-	 * 
-	 * @param outputName
-	 *            The output name for which the operator will receive the input.
-	 * @return Returns the modified DataStream
-	 */
-	public NamedDataStream<T> select(String outputName) {
-		NamedDataStream<T> returnStream = new NamedDataStream<T>(this);
-		returnStream.userDefinedName = outputName;
-		return returnStream;
-	}
-
-	@Override
-	protected DataStream<T> copy() {
-		return new SplitDataStream<T>(this);
-	}
-
 }

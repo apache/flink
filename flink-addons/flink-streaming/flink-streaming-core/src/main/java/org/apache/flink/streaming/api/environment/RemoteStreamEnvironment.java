@@ -17,7 +17,7 @@
  *
  */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.streaming.api.environment;
 
 import java.io.File;
 import java.io.IOException;

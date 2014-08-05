@@ -141,7 +141,7 @@ public abstract class AbstractStreamComponent<OUT> extends AbstractInvokable {
 			}
 
 			outputs.add(output);
-			String outputName = configuration.getOutputName(outputNumber);
+			List<String> outputName = configuration.getOutputName(outputNumber);
 
 			if (collector != null) {
 				collector.addOutput(output, outputName);

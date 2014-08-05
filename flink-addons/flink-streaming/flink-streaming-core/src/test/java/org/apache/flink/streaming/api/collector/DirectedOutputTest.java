@@ -27,9 +27,10 @@ import java.util.Collection;
 import java.util.HashSet;
 
 import org.apache.flink.api.java.functions.RichMapFunction;
-import org.apache.flink.streaming.api.DataStream;
-import org.apache.flink.streaming.api.SplitDataStream;
-import org.apache.flink.streaming.api.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SplitDataStream;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.util.LogUtils;
 import org.apache.log4j.Level;
@@ -94,13 +95,11 @@ public class DirectedOutputTest {
 	public void directOutputTest() throws Exception {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 		SplitDataStream<Long> s = env.generateSequence(1, 6).split(new MySelector());
 		DataStream<Long> ds1 = s.select("ds1").shuffle().map(new PlusTwo()).addSink(new EvenSink());
 		DataStream<Long> ds2 = s.select("ds2").map(new PlusTwo()).addSink(new OddSink());
-		DataStream<Long> ds3 = s.map(new PlusTwo()).addSink(new OddSink());
-
-		env.execute();
+		env.executeTest(32);
 
 		HashSet<Long> expectedEven = new HashSet<Long>(Arrays.asList(4L, 6L, 8L));
 		HashSet<Long> expectedOdd = new HashSet<Long>(Arrays.asList(3L, 5L, 7L));
@@ -114,7 +113,7 @@ public class DirectedOutputTest {
 	public void directNamingTest() {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 		SplitDataStream<Long> s = env.generateSequence(1, 10).split(new MySelector());
 		try {
 			s.select("ds2").connectWith(s.select("ds1"));
@@ -122,20 +121,6 @@ public class DirectedOutputTest {
 		} catch (Exception e) {
 			// Exception thrown
 		}
-		try {
-			s.shuffle().connectWith(s.select("ds1"));
-			fail();
-		} catch (Exception e) {
-			// Exception thrown
-		}
-		try {
-			s.select("ds2").connectWith(s);
-			fail();
-		} catch (Exception e) {
-			// Exception thrown
-		}
-		s.connectWith(s);
-		s.select("ds2").connectWith(s.select("ds2"));
 
 	}
 }

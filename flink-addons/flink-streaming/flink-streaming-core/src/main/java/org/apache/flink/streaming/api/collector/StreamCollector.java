@@ -34,7 +34,7 @@ import org.apache.flink.util.StringUtils;
 
 /**
  * Collector for tuples in Apache Flink stream processing. The collected
- * tuples/obecjts will be wrapped with ID in a {@link StreamRecord} and then
+ * values will be wrapped with ID in a {@link StreamRecord} and then
  * emitted to the outputs.
  * 
  * @param <T>
@@ -47,7 +47,7 @@ public class StreamCollector<T> implements Collector<T> {
 	protected StreamRecord<T> streamRecord;
 	protected int channelID;
 	private List<RecordWriter<SerializationDelegate<StreamRecord<T>>>> outputs;
-	protected Map<String, List<RecordWriter<SerializationDelegate<StreamRecord<T>>>>> outputMap;
+	protected Map<String, RecordWriter<SerializationDelegate<StreamRecord<T>>>> outputMap;
 	protected SerializationDelegate<StreamRecord<T>> serializationDelegate;
 
 	/**
@@ -65,7 +65,7 @@ public class StreamCollector<T> implements Collector<T> {
 		this.streamRecord = new StreamRecord<T>();
 		this.channelID = channelID;
 		this.outputs = new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<T>>>>();
-		this.outputMap = new HashMap<String, List<RecordWriter<SerializationDelegate<StreamRecord<T>>>>>();
+		this.outputMap = new HashMap<String, RecordWriter<SerializationDelegate<StreamRecord<T>>>>();
 	}
 
 	/**
@@ -73,21 +73,19 @@ public class StreamCollector<T> implements Collector<T> {
 	 * 
 	 * @param output
 	 *            The RecordWriter object representing the output.
-	 * @param outputName
-	 *            User defined name of the output.
+	 * @param outputNames
+	 *            User defined names of the output.
 	 */
 	public void addOutput(RecordWriter<SerializationDelegate<StreamRecord<T>>> output,
-			String outputName) {
+			List<String> outputNames) {
 		outputs.add(output);
-		if (outputName != null) {
-			if (outputMap.containsKey(outputName)) {
-				outputMap.get(outputName).add(output);
-			} else {
-				outputMap.put(outputName,
-						new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<T>>>>());
-				outputMap.get(outputName).add(output);
-			}
+		for (String outputName : outputNames) {
+			if (outputName != null) {
+				if (!outputMap.containsKey(outputName)) {
+					outputMap.put(outputName, output);
+				}
 
+			}
 		}
 	}
 

@@ -23,13 +23,16 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.datastream.SplitDataStream;
+
 /**
- * Class for defining an OutputSelector for the directTo operator. Every output
- * object of a directed DataStream will run through this operator to select
- * outputs.
+ * Class for defining an OutputSelector for a {@link SplitDataStream} using the
+ * {@link SingleOutputStreamOperator#split} call. Every output object of a
+ * {@link SplitDataStream} will run through this operator to select outputs.
  * 
  * @param <T>
- *            Type parameter of the directed tuples/objects.
+ *            Type parameter of the split values.
  */
 public abstract class OutputSelector<T> implements Serializable {
 	private static final long serialVersionUID = 1L;
@@ -48,8 +51,9 @@ public abstract class OutputSelector<T> implements Serializable {
 
 	/**
 	 * Method for selecting output names for the emitted objects when using the
-	 * directTo operator. The tuple will be emitted only to output names which
-	 * are added to the outputs collection.
+	 * {@link SingleOutputStreamOperator#split} method. The values will be
+	 * emitted only to output names which are added to the outputs collection.
+	 * The outputs collection is cleared automatically after each select call.
 	 * 
 	 * @param value
 	 *            Output object for which the output selection should be made.

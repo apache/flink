@@ -17,7 +17,7 @@
  *
  */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.streaming.partitioner.ForwardPartitioner;
 
@@ -28,7 +28,7 @@ import org.apache.flink.streaming.partitioner.ForwardPartitioner;
  * @param <T>
  *            Type of the DataStream
  */
-public class IterativeDataStream<T> extends SingleInputStreamOperator<T, T> {
+public class IterativeDataStream<T> extends SingleOutputStreamOperator<T, IterativeDataStream<T>> {
 
 	static Integer iterationCount = 0;
 	protected Integer iterationID;
@@ -66,32 +66,38 @@ public class IterativeDataStream<T> extends SingleInputStreamOperator<T, T> {
 	 * which tuples should be iterated by {@code directTo(OutputSelector)}.
 	 * Tuples directed to 'iterate' will be fed back to the iteration head.
 	 * 
-	 * @param iterationResult
+	 * @param iterationTail
 	 *            The data stream that can be fed back to the next iteration.
 	 * @param iterationName
 	 *            Name of the iteration edge (backward edge to iteration head)
 	 *            when used with directed emits
 	 * 
 	 */
-	public <R> DataStream<T> closeWith(DataStream<T> iterationResult, String iterationName) {
-		DataStream<R> returnStream = new DataStream<R>(environment, "iterationSink");
+	public <R> DataStream<T> closeWith(DataStream<T> iterationTail, String iterationName) {
+		DataStream<R> returnStream = new DataStreamSink<R>(environment, "iterationSink");
 
-		jobGraphBuilder.addIterationSink(returnStream.getId(), iterationResult.getId(),
-				iterationID.toString(), iterationResult.getParallelism(), iterationName);
+		jobGraphBuilder.addIterationSink(returnStream.getId(), iterationTail.getId(),
+				iterationID.toString(), iterationTail.getParallelism(), iterationName);
 
 		jobGraphBuilder.setIterationSourceParallelism(iterationID.toString(),
-				iterationResult.getParallelism());
+				iterationTail.getParallelism());
 
-		for (DataStream<T> stream : iterationResult.connectedStreams) {
-			String inputID = stream.getId();
-			jobGraphBuilder.setEdge(inputID, returnStream.getId(), new ForwardPartitioner<T>(), 0);
+		if (iterationTail instanceof ConnectedDataStream) {
+			for (DataStream<T> stream : ((ConnectedDataStream<T>) iterationTail).connectedStreams) {
+				String inputID = stream.getId();
+				jobGraphBuilder.setEdge(inputID, returnStream.getId(), new ForwardPartitioner<T>(),
+						0);
+			}
+		} else {
+			jobGraphBuilder.setEdge(iterationTail.getId(), returnStream.getId(),
+					new ForwardPartitioner<T>(), 0);
 		}
 
-		return iterationResult;
+		return iterationTail;
 	}
 
 	@Override
-	protected DataStream<T> copy() {
+	protected IterativeDataStream<T> copy() {
 		return new IterativeDataStream<T>(this, iterationID);
 	}
 }
