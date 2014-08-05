@@ -189,15 +189,21 @@ function createLabelEdge(el) {
 
 //creates the label of a node, in info is stored, whether it is a special node (like a mirror in an iteration)
 function createLabelNode(el, info) {
-	if (info != "") {
-		console.log("The node " + el.id + " is a " + info);	
-	}
+//	if (info != "") {
+//		console.log("The node " + el.id + " is a " + info);	
+//	}
+	
+	//true, if the node is a special node from an iteration
+	var specialIterationNode = (info == "partialSolution" || info == "nextPartialSolution" || info == "workset" || info == "nextWorkset" || info == "solutionSet" || info == "solutionDelta" );
 	
 	var labelValue = "<div style=\"margin-top: 0\">";
 	//set color of panel
 	if (info == "mirror") {
 		labelValue += "<div style=\"border-color:#a8a8a8; border-width:4px; border-style:solid\">";
+	} else if (specialIterationNode) {
+		labelValue += "<div style=\"border-color:#CD3333; border-width:4px; border-style:solid\">";
 	} else {
+		//there is no info value, set normal color
 		if (el.pact == "Data Source") {
 			labelValue += "<div style=\"border-color:#4ce199; border-width:4px; border-style:solid\">";
 		} else if (el.pact == "Data Sink") {
@@ -227,7 +233,11 @@ function createLabelNode(el, info) {
 	if (el.step_function != null) {
 		labelValue += extendLabelNodeForIteration(el.id);
 	} else {
-		//Otherwise add infos
+		//Otherwise add infos		
+		if (specialIterationNode) {
+			labelValue += "<h5 style=\"font-size:115%; text-align: center; color:#CD3333\">" + info + " Node</h5>";
+		}
+		
 		if (el.parallelism != "") {
 			labelValue += "<h5 style=\"font-size:115%\">Parallelism: " + el.parallelism + "</h5>";
 		}
@@ -235,6 +245,7 @@ function createLabelNode(el, info) {
 		if (el.driver_strategy != undefined) {
 			labelValue += "<h5 style=\"font-size:115%\">Driver Strategy: " + el.driver_strategy + "</h5";
 		}
+		
 	}
 	//close divs
 	labelValue += "</div></div>";
