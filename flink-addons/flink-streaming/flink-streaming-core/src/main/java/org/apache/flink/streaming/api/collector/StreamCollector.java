@@ -33,22 +33,22 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.StringUtils;
 
 /**
- * Collector for tuples in Apache Flink stream processing. The collected
- * values will be wrapped with ID in a {@link StreamRecord} and then
- * emitted to the outputs.
+ * Collector for tuples in Apache Flink stream processing. The collected values
+ * will be wrapped with ID in a {@link StreamRecord} and then emitted to the
+ * outputs.
  * 
- * @param <T>
+ * @param <OUT>
  *            Type of the Tuples/Objects collected.
  */
-public class StreamCollector<T> implements Collector<T> {
+public class StreamCollector<OUT> implements Collector<OUT> {
 
 	private static final Log LOG = LogFactory.getLog(StreamCollector.class);
 
-	protected StreamRecord<T> streamRecord;
+	protected StreamRecord<OUT> streamRecord;
 	protected int channelID;
-	private List<RecordWriter<SerializationDelegate<StreamRecord<T>>>> outputs;
-	protected Map<String, RecordWriter<SerializationDelegate<StreamRecord<T>>>> outputMap;
-	protected SerializationDelegate<StreamRecord<T>> serializationDelegate;
+	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
+	protected Map<String, List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>> outputMap;
+	protected SerializationDelegate<StreamRecord<OUT>> serializationDelegate;
 
 	/**
 	 * Creates a new StreamCollector
@@ -59,13 +59,13 @@ public class StreamCollector<T> implements Collector<T> {
 	 *            Serialization delegate used for serialization
 	 */
 	public StreamCollector(int channelID,
-			SerializationDelegate<StreamRecord<T>> serializationDelegate) {
+			SerializationDelegate<StreamRecord<OUT>> serializationDelegate) {
 
 		this.serializationDelegate = serializationDelegate;
-		this.streamRecord = new StreamRecord<T>();
+		this.streamRecord = new StreamRecord<OUT>();
 		this.channelID = channelID;
-		this.outputs = new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<T>>>>();
-		this.outputMap = new HashMap<String, RecordWriter<SerializationDelegate<StreamRecord<T>>>>();
+		this.outputs = new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
+		this.outputMap = new HashMap<String, List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>>();
 	}
 
 	/**
@@ -76,13 +76,19 @@ public class StreamCollector<T> implements Collector<T> {
 	 * @param outputNames
 	 *            User defined names of the output.
 	 */
-	public void addOutput(RecordWriter<SerializationDelegate<StreamRecord<T>>> output,
+	public void addOutput(RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output,
 			List<String> outputNames) {
 		outputs.add(output);
 		for (String outputName : outputNames) {
 			if (outputName != null) {
 				if (!outputMap.containsKey(outputName)) {
-					outputMap.put(outputName, output);
+					outputMap.put(outputName,
+							new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>());
+					outputMap.get(outputName).add(output);
+				} else {
+					if (!outputMap.get(outputName).contains(output)) {
+						outputMap.get(outputName).add(output);
+					}
 				}
 
 			}
@@ -97,7 +103,7 @@ public class StreamCollector<T> implements Collector<T> {
 	 *            Object to be collected and emitted.
 	 */
 	@Override
-	public void collect(T outputObject) {
+	public void collect(OUT outputObject) {
 		streamRecord.setObject(outputObject);
 		emit(streamRecord);
 	}
@@ -108,10 +114,10 @@ public class StreamCollector<T> implements Collector<T> {
 	 * @param streamRecord
 	 *            StreamRecord to emit.
 	 */
-	private void emit(StreamRecord<T> streamRecord) {
+	private void emit(StreamRecord<OUT> streamRecord) {
 		streamRecord.setId(channelID);
 		serializationDelegate.setInstance(streamRecord);
-		for (RecordWriter<SerializationDelegate<StreamRecord<T>>> output : outputs) {
+		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
 			try {
 				output.emit(serializationDelegate);
 			} catch (Exception e) {

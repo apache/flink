@@ -105,6 +105,22 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 * @return The {@link SplitDataStream}
 	 */
 	public SplitDataStream<OUT> split(OutputSelector<OUT> outputSelector) {
+		return split(outputSelector, null);
+	}
+
+	/**
+	 * Operator used for directing tuples to specific named outputs using an
+	 * {@link OutputSelector}. Calling this method on an operator creates a new
+	 * {@link SplitDataStream}.
+	 * 
+	 * @param outputSelector
+	 *            The user defined {@link OutputSelector} for directing the
+	 *            tuples.
+	 * @param outputNames
+	 *            An array of all the output names to be used for selectAll
+	 * @return The {@link SplitDataStream}
+	 */
+	public SplitDataStream<OUT> split(OutputSelector<OUT> outputSelector, String[] outputNames) {
 		try {
 			jobGraphBuilder.setOutputSelector(id, SerializationUtils.serialize(outputSelector));
 
@@ -112,7 +128,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 			throw new RuntimeException("Cannot serialize OutputSelector");
 		}
 
-		return new SplitDataStream<OUT>(this);
+		return new SplitDataStream<OUT>(this, outputNames);
 	}
 
 	@SuppressWarnings("unchecked")

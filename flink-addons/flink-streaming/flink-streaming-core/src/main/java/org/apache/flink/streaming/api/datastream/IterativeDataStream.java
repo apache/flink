@@ -19,27 +19,30 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.flink.streaming.partitioner.ForwardPartitioner;
 
 /**
  * The iterative data stream represents the start of an iteration in a
  * {@link DataStream}.
  * 
- * @param <T>
+ * @param <IN>
  *            Type of the DataStream
  */
-public class IterativeDataStream<T> extends SingleOutputStreamOperator<T, IterativeDataStream<T>> {
+public class IterativeDataStream<IN> extends SingleOutputStreamOperator<IN, IterativeDataStream<IN>> {
 
 	static Integer iterationCount = 0;
 	protected Integer iterationID;
 
-	protected IterativeDataStream(DataStream<T> dataStream) {
+	protected IterativeDataStream(DataStream<IN> dataStream) {
 		super(dataStream);
 		iterationID = iterationCount;
 		iterationCount++;
 	}
 
-	protected IterativeDataStream(DataStream<T> dataStream, Integer iterationID) {
+	protected IterativeDataStream(DataStream<IN> dataStream, Integer iterationID) {
 		super(dataStream);
 		this.iterationID = iterationID;
 	}
@@ -55,8 +58,8 @@ public class IterativeDataStream<T> extends SingleOutputStreamOperator<T, Iterat
 	 *            The data stream that can be fed back to the next iteration.
 	 * 
 	 */
-	public DataStream<T> closeWith(DataStream<T> iterationResult) {
-		return closeWith(iterationResult, null);
+	public DataStream<IN> closeWith(DataStream<IN> iterationResult) {
+		return closeWith(iterationResult, "iterate");
 	}
 
 	/**
@@ -73,31 +76,34 @@ public class IterativeDataStream<T> extends SingleOutputStreamOperator<T, Iterat
 	 *            when used with directed emits
 	 * 
 	 */
-	public <R> DataStream<T> closeWith(DataStream<T> iterationTail, String iterationName) {
+	public <R> DataStream<IN> closeWith(DataStream<IN> iterationTail, String iterationName) {
 		DataStream<R> returnStream = new DataStreamSink<R>(environment, "iterationSink");
 
 		jobGraphBuilder.addIterationSink(returnStream.getId(), iterationTail.getId(),
-				iterationID.toString(), iterationTail.getParallelism(), iterationName);
+				iterationID.toString(), iterationTail.getParallelism());
 
 		jobGraphBuilder.setIterationSourceParallelism(iterationID.toString(),
 				iterationTail.getParallelism());
 
+		List<String> name = Arrays.asList(new String[] { iterationName });
+
 		if (iterationTail instanceof ConnectedDataStream) {
-			for (DataStream<T> stream : ((ConnectedDataStream<T>) iterationTail).connectedStreams) {
+			for (DataStream<IN> stream : ((ConnectedDataStream<IN>) iterationTail).connectedStreams) {
 				String inputID = stream.getId();
-				jobGraphBuilder.setEdge(inputID, returnStream.getId(), new ForwardPartitioner<T>(),
-						0);
+				jobGraphBuilder.setEdge(inputID, returnStream.getId(), new ForwardPartitioner<IN>(),
+						0, name);
 			}
 		} else {
+
 			jobGraphBuilder.setEdge(iterationTail.getId(), returnStream.getId(),
-					new ForwardPartitioner<T>(), 0);
+					new ForwardPartitioner<IN>(), 0, name);
 		}
 
 		return iterationTail;
 	}
 
 	@Override
-	protected IterativeDataStream<T> copy() {
-		return new IterativeDataStream<T>(this, iterationID);
+	protected IterativeDataStream<IN> copy() {
+		return new IterativeDataStream<IN>(this, iterationID);
 	}
 }

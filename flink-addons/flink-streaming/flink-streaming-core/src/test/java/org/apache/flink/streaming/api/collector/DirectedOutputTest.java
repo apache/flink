@@ -20,7 +20,6 @@
 package org.apache.flink.streaming.api.collector;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -96,9 +95,11 @@ public class DirectedOutputTest {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
 
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-		SplitDataStream<Long> s = env.generateSequence(1, 6).split(new MySelector());
+		SplitDataStream<Long> s = env.generateSequence(1, 6).split(new MySelector(),
+				new String[] { "ds1", "ds2" });
 		DataStream<Long> ds1 = s.select("ds1").shuffle().map(new PlusTwo()).addSink(new EvenSink());
 		DataStream<Long> ds2 = s.select("ds2").map(new PlusTwo()).addSink(new OddSink());
+
 		env.executeTest(32);
 
 		HashSet<Long> expectedEven = new HashSet<Long>(Arrays.asList(4L, 6L, 8L));
@@ -106,21 +107,5 @@ public class DirectedOutputTest {
 
 		assertEquals(expectedEven, evenSet);
 		assertEquals(expectedOdd, oddSet);
-	}
-
-	@SuppressWarnings({ "unchecked" })
-	@Test
-	public void directNamingTest() {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
-
-		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-		SplitDataStream<Long> s = env.generateSequence(1, 10).split(new MySelector());
-		try {
-			s.select("ds2").connectWith(s.select("ds1"));
-			fail();
-		} catch (Exception e) {
-			// Exception thrown
-		}
-
 	}
 }

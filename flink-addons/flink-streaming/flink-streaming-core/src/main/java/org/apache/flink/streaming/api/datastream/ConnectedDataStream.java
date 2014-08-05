@@ -62,21 +62,7 @@ public class ConnectedDataStream<OUT> extends DataStream<OUT> {
 	// }
 
 	protected void addConnection(DataStream<OUT> stream) {
-		if ((stream.userDefinedName != null) || (this.userDefinedName != null)) {
-			if (!this.userDefinedName.equals(stream.userDefinedName)) {
-				throw new RuntimeException("Error: Connected NamedDataStreams must have same names");
-			}
-		}
 		connectedStreams.add(stream.copy());
-	}
-
-	@Override
-	protected List<String> getUserDefinedNames() {
-		List<String> nameList = new ArrayList<String>();
-		for (DataStream<OUT> stream : connectedStreams) {
-			nameList.add(stream.userDefinedName);
-		}
-		return nameList;
 	}
 
 	@Override

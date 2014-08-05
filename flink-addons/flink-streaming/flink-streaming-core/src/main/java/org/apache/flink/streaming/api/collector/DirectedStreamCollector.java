@@ -34,14 +34,14 @@ import org.apache.flink.util.StringUtils;
  * A StreamCollector that uses user defined output names and a user defined
  * output selector to make directed emits.
  * 
- * @param <T>
+ * @param <OUT>
  *            Type of the Tuple collected.
  */
-public class DirectedStreamCollector<T> extends StreamCollector<T> {
+public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 
-	OutputSelector<T> outputSelector;
+	OutputSelector<OUT> outputSelector;
 	private static final Log log = LogFactory.getLog(DirectedStreamCollector.class);
-	private List<RecordWriter<SerializationDelegate<StreamRecord<T>>>> emitted;
+	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> emitted;
 
 	/**
 	 * Creates a new DirectedStreamCollector
@@ -54,11 +54,11 @@ public class DirectedStreamCollector<T> extends StreamCollector<T> {
 	 *            User defined {@link OutputSelector}
 	 */
 	public DirectedStreamCollector(int channelID,
-			SerializationDelegate<StreamRecord<T>> serializationDelegate,
-			OutputSelector<T> outputSelector) {
+			SerializationDelegate<StreamRecord<OUT>> serializationDelegate,
+			OutputSelector<OUT> outputSelector) {
 		super(channelID, serializationDelegate);
 		this.outputSelector = outputSelector;
-		this.emitted = new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<T>>>>();
+		this.emitted = new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
 
 	}
 
@@ -70,7 +70,7 @@ public class DirectedStreamCollector<T> extends StreamCollector<T> {
 	 *            Object to be collected and emitted.
 	 */
 	@Override
-	public void collect(T outputObject) {
+	public void collect(OUT outputObject) {
 		streamRecord.setObject(outputObject);
 		emit(streamRecord);
 	}
@@ -82,18 +82,19 @@ public class DirectedStreamCollector<T> extends StreamCollector<T> {
 	 * @param streamRecord
 	 *            Record to emit.
 	 */
-	private void emit(StreamRecord<T> streamRecord) {
+	private void emit(StreamRecord<OUT> streamRecord) {
 		Collection<String> outputNames = outputSelector.getOutputs(streamRecord.getObject());
 		streamRecord.setId(channelID);
 		serializationDelegate.setInstance(streamRecord);
 		emitted.clear();
 		for (String outputName : outputNames) {
 			try {
-				RecordWriter<SerializationDelegate<StreamRecord<T>>> output = outputMap
-						.get(outputName);
-				if (!emitted.contains(output)) {
-					output.emit(serializationDelegate);
-					emitted.add(output);
+				for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputMap
+						.get(outputName)) {
+					if (!emitted.contains(output)) {
+						output.emit(serializationDelegate);
+						emitted.add(output);
+					}
 				}
 			} catch (Exception e) {
 				if (log.isErrorEnabled()) {

@@ -31,10 +31,10 @@ import org.apache.flink.streaming.api.datastream.SplitDataStream;
  * {@link SingleOutputStreamOperator#split} call. Every output object of a
  * {@link SplitDataStream} will run through this operator to select outputs.
  * 
- * @param <T>
+ * @param <OUT>
  *            Type parameter of the split values.
  */
-public abstract class OutputSelector<T> implements Serializable {
+public abstract class OutputSelector<OUT> implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private Collection<String> outputs;
@@ -43,7 +43,7 @@ public abstract class OutputSelector<T> implements Serializable {
 		outputs = new ArrayList<String>();
 	}
 
-	Collection<String> getOutputs(T outputObject) {
+	Collection<String> getOutputs(OUT outputObject) {
 		outputs.clear();
 		select(outputObject, outputs);
 		return outputs;
@@ -60,5 +60,5 @@ public abstract class OutputSelector<T> implements Serializable {
 	 * @param outputs
 	 *            Selected output names should be added to this collection.
 	 */
-	public abstract void select(T value, Collection<String> outputs);
+	public abstract void select(OUT value, Collection<String> outputs);
 }

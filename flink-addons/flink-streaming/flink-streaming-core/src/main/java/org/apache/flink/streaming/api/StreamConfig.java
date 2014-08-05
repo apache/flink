@@ -40,7 +40,6 @@ public class StreamConfig {
 	private static final String NUMBER_OF_INPUTS = "numberOfInputs";
 	private static final String OUTPUT_NAME = "outputName_";
 	private static final String PARTITIONER_OBJECT = "partitionerObject_";
-	private static final String USER_DEFINED_NAME = "userDefinedName";
 	private static final String NUMBER_OF_OUTPUT_CHANNELS = "numOfOutputs_";
 	private static final String ITERATION_ID = "iteration-id";
 	private static final String OUTPUT_SELECTOR = "outputSelector";
@@ -74,8 +73,7 @@ public class StreamConfig {
 
 	// CONFIGS
 
-	public void setTypeWrapper(
-			TypeSerializerWrapper<?, ?, ?> typeWrapper) {
+	public void setTypeWrapper(TypeSerializerWrapper<?, ?, ?> typeWrapper) {
 		config.setBytes("typeWrapper", SerializationUtils.serialize(typeWrapper));
 	}
 
@@ -166,12 +164,6 @@ public class StreamConfig {
 		return config.getString(FUNCTION_NAME, "");
 	}
 
-	public void setUserDefinedName(List<String> userDefinedName) {
-		if (!userDefinedName.isEmpty()) {
-			config.setBytes(USER_DEFINED_NAME, SerializationUtils.serialize((Serializable) userDefinedName));
-		}
-	}
-
 	public void setDirectedEmit(boolean directedEmit) {
 		config.setBoolean(DIRECTED_EMIT, directedEmit);
 	}
@@ -212,28 +204,29 @@ public class StreamConfig {
 		return config.getInteger(NUMBER_OF_OUTPUT_CHANNELS + outputIndex, 0);
 	}
 
-	public <T> void setPartitioner(int outputIndex,
-			StreamPartitioner<T> partitionerObject) {
+	public <T> void setPartitioner(int outputIndex, StreamPartitioner<T> partitionerObject) {
 
 		config.setBytes(PARTITIONER_OBJECT + outputIndex,
 				SerializationUtils.serialize(partitionerObject));
 	}
 
-	public <T> StreamPartitioner<T> getPartitioner(int outputIndex)
-			throws ClassNotFoundException, IOException {
+	public <T> StreamPartitioner<T> getPartitioner(int outputIndex) throws ClassNotFoundException,
+			IOException {
 		return deserializeObject(config.getBytes(PARTITIONER_OBJECT + outputIndex,
 				SerializationUtils.serialize(new ShufflePartitioner<T>())));
 	}
 
 	public void setOutputName(int outputIndex, List<String> outputName) {
 		if (outputName != null) {
-			config.setBytes(OUTPUT_NAME + outputIndex, SerializationUtils.serialize((Serializable) outputName));
+			config.setBytes(OUTPUT_NAME + outputIndex,
+					SerializationUtils.serialize((Serializable) outputName));
 		}
 	}
 
 	@SuppressWarnings("unchecked")
 	public List<String> getOutputName(int outputIndex) {
-		return (List<String>) SerializationUtils.deserialize(config.getBytes(OUTPUT_NAME + outputIndex, null));
+		return (List<String>) SerializationUtils.deserialize(config.getBytes(OUTPUT_NAME
+				+ outputIndex, null));
 	}
 
 	public void setNumberOfInputs(int numberOfInputs) {

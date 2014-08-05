@@ -36,7 +36,6 @@ import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.JobGraphBuilder;
-import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
@@ -80,7 +79,7 @@ public abstract class DataStream<OUT> {
 	protected final StreamExecutionEnvironment environment;
 	protected final String id;
 	protected int degreeOfParallelism;
-	protected String userDefinedName;
+	protected List<String> userDefinedNames;
 	protected StreamPartitioner<OUT> partitioner;
 
 	protected final JobGraphBuilder jobGraphBuilder;
@@ -105,6 +104,7 @@ public abstract class DataStream<OUT> {
 		this.environment = environment;
 		this.degreeOfParallelism = environment.getDegreeOfParallelism();
 		this.jobGraphBuilder = environment.getJobGraphBuilder();
+		this.userDefinedNames = new ArrayList<String>();
 		this.partitioner = new ForwardPartitioner<OUT>();
 
 	}
@@ -119,7 +119,7 @@ public abstract class DataStream<OUT> {
 		this.environment = dataStream.environment;
 		this.id = dataStream.id;
 		this.degreeOfParallelism = dataStream.degreeOfParallelism;
-		this.userDefinedName = dataStream.userDefinedName;
+		this.userDefinedNames = new ArrayList<String>(dataStream.userDefinedNames);
 		this.partitioner = dataStream.partitioner;
 		this.jobGraphBuilder = dataStream.jobGraphBuilder;
 
@@ -734,34 +734,7 @@ public abstract class DataStream<OUT> {
 					.toString());
 		}
 
-		if (userDefinedName != null) {
-			returnStream.name(getUserDefinedNames());
-		}
-
 		return returnStream;
-	}
-
-	protected List<String> getUserDefinedNames() {
-		List<String> nameList = new ArrayList<String>();
-		nameList.add(userDefinedName);
-		return nameList;
-	}
-
-	/**
-	 * Gives the data transformation(vertex) a user defined name in order to use
-	 * with directed outputs. The {@link OutputSelector} of the input vertex
-	 * should use this name for directed emits.
-	 * 
-	 * @param name
-	 *            The name to set
-	 * @return The named DataStream.
-	 */
-	protected DataStream<OUT> name(List<String> name) {
-
-		userDefinedName = name.get(0);
-		jobGraphBuilder.setUserDefinedName(id, name);
-
-		return this;
 	}
 
 	/**
@@ -795,11 +768,12 @@ public abstract class DataStream<OUT> {
 	protected <X> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
 		if (inputStream instanceof ConnectedDataStream) {
 			for (DataStream<X> stream : ((ConnectedDataStream<X>) inputStream).connectedStreams) {
-				jobGraphBuilder.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber);
+				jobGraphBuilder.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
+						inputStream.userDefinedNames);
 			}
 		} else {
 			jobGraphBuilder.setEdge(inputStream.getId(), outputID, inputStream.partitioner,
-					typeNumber);
+					typeNumber, inputStream.userDefinedNames);
 		}
 
 	}
@@ -834,11 +808,7 @@ public abstract class DataStream<OUT> {
 			throw new RuntimeException("Cannot serialize SinkFunction");
 		}
 
-		inputStream.connectGraph(inputStream, returnStream.getId(), 0);
-
-		if (this.copy().userDefinedName != null) {
-			returnStream.name(getUserDefinedNames());
-		}
+		inputStream.connectGraph(inputStream.copy(), returnStream.getId(), 0);
 
 		return returnStream;
 	}

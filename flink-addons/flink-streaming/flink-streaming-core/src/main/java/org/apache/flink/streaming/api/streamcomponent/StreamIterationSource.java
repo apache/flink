@@ -58,6 +58,7 @@ public class StreamIterationSource<OUT extends Tuple> extends
 			setConfigOutputs(outputs);
 			setSinkSerializer();
 		} catch (StreamComponentException e) {
+			e.printStackTrace();
 			throw new StreamComponentException("Cannot register outputs", e);
 		}
 
