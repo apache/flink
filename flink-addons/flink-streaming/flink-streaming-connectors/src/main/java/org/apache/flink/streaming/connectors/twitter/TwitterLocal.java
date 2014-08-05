@@ -20,8 +20,8 @@
 package org.apache.flink.streaming.connectors.twitter;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.DataStream;
-import org.apache.flink.streaming.api.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.examples.function.JSONParseFlatMap;
 import org.apache.flink.streaming.examples.wordcount.WordCountCounter;
@@ -73,7 +73,7 @@ public class TwitterLocal {
 		if (args != null && args.length == 1) {
 			path = args[0];
 		} else {
-			System.err.println("USAGE:\n haho TwitterLocal itt <pathToPropertiesFile>");
+			System.err.println("USAGE:\nTwitterLocal <pathToPropertiesFile>");
 			return;
 		}
 

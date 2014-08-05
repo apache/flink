@@ -29,7 +29,7 @@ import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 
-import org.apache.flink.streaming.api.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.function.source.RichSourceFunction;
 import org.apache.flink.util.Collector;
 

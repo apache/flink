@@ -21,7 +21,7 @@ package org.apache.flink.streaming.connectors.flume;
 
 import java.util.List;
 
-import org.apache.flink.streaming.api.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.function.source.RichSourceFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flume.Context;

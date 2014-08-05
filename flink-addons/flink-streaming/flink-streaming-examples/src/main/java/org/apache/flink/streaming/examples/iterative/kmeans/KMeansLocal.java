@@ -19,7 +19,7 @@
 
 package org.apache.flink.streaming.examples.iterative.kmeans;
 
-import org.apache.flink.streaming.api.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 public class KMeansLocal {
 

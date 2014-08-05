@@ -21,7 +21,7 @@ package org.apache.flink.streaming.connectors.flume;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.streaming.api.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flume.Event;
 import org.apache.flume.EventDeliveryException;

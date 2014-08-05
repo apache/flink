@@ -20,8 +20,8 @@
 package org.apache.flink.streaming.connectors.rabbitmq;
 
 import org.apache.commons.lang.SerializationUtils;
-import org.apache.flink.streaming.api.DataStream;
-import org.apache.flink.streaming.api.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 public class RMQTopology {
 

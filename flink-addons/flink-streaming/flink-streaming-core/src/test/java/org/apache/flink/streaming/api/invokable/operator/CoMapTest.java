@@ -23,9 +23,9 @@ import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.flink.streaming.api.DataStream;
-import org.apache.flink.streaming.api.LocalStreamEnvironment;
-import org.apache.flink.streaming.api.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.util.LogUtils;
@@ -47,8 +47,7 @@ public class CoMapTest implements Serializable {
 		}
 	}
 
-	private final static class MyCoMap implements
-			CoMapFunction<String, Integer, Boolean> {
+	private final static class MyCoMap implements CoMapFunction<String, Integer, Boolean> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -86,10 +85,8 @@ public class CoMapTest implements Serializable {
 		DataStream<String> ds3 = env.fromElements("a", "b");
 
 		@SuppressWarnings({ "unused", "unchecked" })
-		DataStream<Boolean> ds4 = env.fromElements("c").connectWith(ds3)
-				.coMapWith(new MyCoMap(),
-
-				ds2).addSink(new EmptySink());
+		DataStream<Boolean> ds4 = env.fromElements("c").connectWith(ds3).co(ds2).map(new MyCoMap())
+				.addSink(new EmptySink());
 
 		env.executeTest(32);
 		Assert.assertEquals(expected, result);
