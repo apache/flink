@@ -29,6 +29,7 @@ public class BatchReduceInvokable<IN, OUT> extends StreamReduceInvokable<IN, OUT
 	private int batchSize;
 
 	public BatchReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, int batchSize) {
+		super(reduceFunction);
 		this.reducer = reduceFunction;
 		this.batchSize = batchSize;
 	}

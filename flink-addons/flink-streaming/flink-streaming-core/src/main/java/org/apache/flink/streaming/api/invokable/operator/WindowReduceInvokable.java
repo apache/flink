@@ -31,6 +31,7 @@ public class WindowReduceInvokable<IN, OUT> extends StreamReduceInvokable<IN, OU
 	boolean window;
 
 	public WindowReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize) {
+		super(reduceFunction);
 		this.reducer = reduceFunction;
 		this.windowSize = windowSize;
 		this.window = true;

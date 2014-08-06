@@ -19,6 +19,7 @@
 
 package org.apache.flink.streaming.api.invokable.operator.co;
 
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
@@ -27,6 +28,10 @@ import org.apache.flink.util.MutableObjectIterator;
 
 public abstract class CoInvokable<IN1, IN2, OUT> extends
 		StreamComponentInvokable<OUT> {
+
+	public CoInvokable(Function userFunction) {
+		super(userFunction);
+	}
 
 	private static final long serialVersionUID = 1L;
 

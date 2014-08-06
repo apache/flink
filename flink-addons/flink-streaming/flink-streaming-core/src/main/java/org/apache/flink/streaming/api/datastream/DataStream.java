@@ -30,10 +30,12 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.RichFilterFunction;
 import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.RichMapFunction;
+import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -48,6 +50,7 @@ import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 import org.apache.flink.streaming.api.invokable.operator.BatchReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
+import org.apache.flink.streaming.api.invokable.operator.GroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.WindowReduceInvokable;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
@@ -185,16 +188,16 @@ public abstract class DataStream<OUT> {
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
 	 * are partitioned by their hashcode and are sent to only one component.
 	 * 
-	 * @param keyposition
+	 * @param keyPosition
 	 *            The field used to compute the hashcode.
 	 * @return The DataStream with field partitioning set.
 	 */
-	public DataStream<OUT> partitionBy(int keyposition) {
-		if (keyposition < 0) {
+	public DataStream<OUT> partitionBy(int keyPosition) {
+		if (keyPosition < 0) {
 			throw new IllegalArgumentException("The position of the field must be non-negative");
 		}
 
-		return setConnectionType(new FieldsPartitioner<OUT>(keyposition));
+		return setConnectionType(new FieldsPartitioner<OUT>(keyPosition));
 	}
 
 	/**
@@ -277,6 +280,29 @@ public abstract class DataStream<OUT> {
 		return addFunction("flatMap", flatMapper, new FunctionTypeWrapper<OUT, Tuple, R>(
 				flatMapper, FlatMapFunction.class, 0, -1, 1), new FlatMapInvokable<OUT, R>(
 				flatMapper));
+	}
+
+	/**
+	 * Applies a group and a reduce transformation on the DataStream grouped on
+	 * the given key position. The {@link ReduceFunction} will receive input
+	 * values based on the key value. Only input values with the same key will
+	 * go to the same reducer.The user can also extend
+	 * {@link RichReduceFunction} to gain access to other features provided
+	 * by the {@link RichFuntion} interface.
+	 * 
+	 * @param reducer
+	 *            The {@link ReduceFunction} that will be called for every
+	 *            element of the input values with the same key.
+	 * @param keyPosition
+	 *            The key position in the input values on which the grouping is
+	 *            made.
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> groupReduce(ReduceFunction<OUT> reducer,
+			int keyPosition) {
+		return addFunction("groupReduce", reducer,
+				new FunctionTypeWrapper<OUT, Tuple, OUT>(reducer, ReduceFunction.class, 0, -1, 0),
+				new GroupReduceInvokable<OUT>(reducer, keyPosition)).partitionBy(keyPosition);
 	}
 
 	/**
@@ -505,8 +531,8 @@ public abstract class DataStream<OUT> {
 	 */
 	private DataStreamSink<OUT> writeAsText(DataStream<OUT> inputStream, String path,
 			WriteFormatAsText<OUT> format, int batchSize, OUT endTuple) {
-		DataStreamSink<OUT> returnStream = addSink(inputStream, new WriteSinkFunctionByBatches<OUT>(
-				path, format, batchSize, endTuple), null);
+		DataStreamSink<OUT> returnStream = addSink(inputStream,
+				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize, endTuple), null);
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
@@ -657,8 +683,8 @@ public abstract class DataStream<OUT> {
 	 */
 	private DataStreamSink<OUT> writeAsCsv(DataStream<OUT> inputStream, String path,
 			WriteFormatAsCsv<OUT> format, int batchSize, OUT endTuple) {
-		DataStreamSink<OUT> returnStream = addSink(inputStream, new WriteSinkFunctionByBatches<OUT>(
-				path, format, batchSize, endTuple), null);
+		DataStreamSink<OUT> returnStream = addSink(inputStream,
+				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize, endTuple), null);
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
@@ -801,8 +827,8 @@ public abstract class DataStream<OUT> {
 				sinkFunction, SinkFunction.class, 0, -1, 0));
 	}
 
-	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream, SinkFunction<OUT> sinkFunction,
-			TypeSerializerWrapper<OUT, Tuple, OUT> typeWrapper) {
+	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream,
+			SinkFunction<OUT> sinkFunction, TypeSerializerWrapper<OUT, Tuple, OUT> typeWrapper) {
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink");
 
 		try {

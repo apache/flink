@@ -29,6 +29,7 @@ public class CoMapInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
 	private CoMapFunction<IN1, IN2, OUT> mapper;
 
 	public CoMapInvokable(CoMapFunction<IN1, IN2, OUT> mapper) {
+		super(mapper);
 		this.mapper = mapper;
 	}
 

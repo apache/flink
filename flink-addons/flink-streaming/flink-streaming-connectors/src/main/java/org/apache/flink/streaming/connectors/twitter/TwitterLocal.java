@@ -19,6 +19,9 @@
 
 package org.apache.flink.streaming.connectors.twitter;
 
+import java.io.Serializable;
+
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -28,19 +31,19 @@ import org.apache.flink.streaming.examples.wordcount.WordCountCounter;
 import org.apache.flink.util.Collector;
 
 /**
- * This program demonstrate the use of TwitterSource. 
- * Its aim is to count the frequency of the languages of tweets
+ * This program demonstrate the use of TwitterSource. Its aim is to count the
+ * frequency of the languages of tweets
  */
-public class TwitterLocal {
+public class TwitterLocal implements Serializable {
 
+	private static final long serialVersionUID = 1L;
 	private static final int PARALLELISM = 1;
 	private static final int SOURCE_PARALLELISM = 1;
 
 	/**
-	 * FlatMapFunction to determine the language of tweets if possible 
+	 * FlatMapFunction to determine the language of tweets if possible
 	 */
-	public static class SelectLanguageFlatMap extends
-			JSONParseFlatMap<String, String> {
+	public static class SelectLanguageFlatMap extends JSONParseFlatMap<String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -54,7 +57,9 @@ public class TwitterLocal {
 		}
 
 		/**
-		 * Change the null String to space character. Useful when null is undesirable.
+		 * Change the null String to space character. Useful when null is
+		 * undesirable.
+		 * 
 		 * @param in
 		 * @return
 		 */
@@ -83,11 +88,18 @@ public class TwitterLocal {
 		DataStream<String> streamSource = env.addSource(new TwitterSource(path, 100),
 				SOURCE_PARALLELISM);
 
-
 		DataStream<Tuple2<String, Integer>> dataStream = streamSource
-				.flatMap(new SelectLanguageFlatMap())
-				.partitionBy(0)
-				.map(new WordCountCounter());
+				.flatMap(new SelectLanguageFlatMap()).partitionBy(0)
+				.map(new MapFunction<String, Tuple2<String, Integer>>() {
+
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Tuple2<String, Integer> map(String value) throws Exception {
+
+						return new Tuple2<String, Integer>(value, 1);
+					}
+				}).groupReduce(new WordCountCounter(), 0);
 
 		dataStream.addSink(new SinkFunction<Tuple2<String, Integer>>() {
 

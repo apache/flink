@@ -20,8 +20,6 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 
 public class FlatMapInvokable<IN, OUT> extends UserTaskInvokable<IN, OUT> {
@@ -30,6 +28,7 @@ public class FlatMapInvokable<IN, OUT> extends UserTaskInvokable<IN, OUT> {
 	private FlatMapFunction<IN, OUT> flatMapper;
 
 	public FlatMapInvokable(FlatMapFunction<IN, OUT> flatMapper) {
+		super(flatMapper);
 		this.flatMapper = flatMapper;
 	}
 
@@ -48,17 +47,4 @@ public class FlatMapInvokable<IN, OUT> extends UserTaskInvokable<IN, OUT> {
 		}
 	}
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		if (flatMapper instanceof RichFunction) {
-			((RichFunction) flatMapper).open(parameters);
-		}
-	}
-
-	@Override
-	public void close() throws Exception {
-		if (flatMapper instanceof RichFunction) {
-			((RichFunction) flatMapper).close();
-		}
-	}
 }
