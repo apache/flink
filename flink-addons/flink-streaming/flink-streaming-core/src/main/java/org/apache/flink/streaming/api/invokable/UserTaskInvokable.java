@@ -21,8 +21,14 @@ package org.apache.flink.streaming.api.invokable;
 
 import java.io.Serializable;
 
+import org.apache.flink.api.common.functions.Function;
+
 public abstract class UserTaskInvokable<IN, OUT> extends
 		StreamRecordInvokable<IN, OUT> implements Serializable {
+
+	public UserTaskInvokable(Function userFunction) {
+		super(userFunction);
+	}
 
 	private static final long serialVersionUID = 1L;
 }

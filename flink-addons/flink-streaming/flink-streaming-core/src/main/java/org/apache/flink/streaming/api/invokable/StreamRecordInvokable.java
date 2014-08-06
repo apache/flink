@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.invokable;
 
 import java.io.IOException;
 
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.util.Collector;
@@ -28,6 +29,10 @@ import org.apache.flink.util.MutableObjectIterator;
 
 public abstract class StreamRecordInvokable<IN, OUT> extends
 		StreamComponentInvokable<OUT> {
+
+	public StreamRecordInvokable(Function userFunction) {
+		super(userFunction);
+	}
 
 	private static final long serialVersionUID = 1L;
 

@@ -21,12 +21,17 @@ package org.apache.flink.streaming.api.invokable.operator;
 
 import java.util.Iterator;
 
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 
 public abstract class StreamReduceInvokable<IN, OUT> extends UserTaskInvokable<IN, OUT> {
+
+	public StreamReduceInvokable(Function userFunction) {
+		super(userFunction);
+	}
+
 	private static final long serialVersionUID = 1L;
 	protected GroupReduceFunction<IN, OUT> reducer;
 	protected BatchIterator<IN> userIterator;
@@ -35,16 +40,7 @@ public abstract class StreamReduceInvokable<IN, OUT> extends UserTaskInvokable<I
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		userIterable = new BatchIterable();
-		if (reducer instanceof RichFunction) {
-			((RichFunction) reducer).open(parameters);
-		}
-	}
-
-	@Override
-	public void close() throws Exception {
-		if (reducer instanceof RichFunction) {
-			((RichFunction) reducer).close();
-		}
+		super.open(parameters);
 	}
 
 	protected class BatchIterable implements Iterable<IN> {

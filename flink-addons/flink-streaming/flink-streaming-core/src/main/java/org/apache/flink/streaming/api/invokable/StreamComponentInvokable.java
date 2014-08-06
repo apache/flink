@@ -22,6 +22,8 @@ package org.apache.flink.streaming.api.invokable;
 import java.io.Serializable;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
@@ -35,6 +37,11 @@ public abstract class StreamComponentInvokable<OUT> extends AbstractRichFunction
 	@SuppressWarnings("unused")
 	private int channelID;
 	protected Collector<OUT> collector;
+	protected Function userFunction;
+
+	public StreamComponentInvokable(Function userFunction) {
+		this.userFunction = userFunction;
+	}
 
 	public void setCollector(Collector<OUT> collector) {
 		this.collector = collector;
@@ -47,12 +54,16 @@ public abstract class StreamComponentInvokable<OUT> extends AbstractRichFunction
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
-		System.out.println("Open not implemented");
+		if (userFunction instanceof RichFunction) {
+			((RichFunction) userFunction).open(parameters);
+		}
 	}
 
 	@Override
 	public void close() throws Exception {
-		System.out.println("Close not implemented");
+		if (userFunction instanceof RichFunction) {
+			((RichFunction) userFunction).close();
+		}
 	}
 
 }

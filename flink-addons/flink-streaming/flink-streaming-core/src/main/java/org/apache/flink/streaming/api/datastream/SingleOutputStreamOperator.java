@@ -77,7 +77,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 *            The mutability of the operator.
 	 * @return The operator with mutability set.
 	 */
-	public DataStream<OUT> setMutability(boolean isMutable) {
+	public SingleOutputStreamOperator<OUT, O> setMutability(boolean isMutable) {
 		jobGraphBuilder.setMutability(id, isMutable);
 		return this;
 	}
@@ -90,7 +90,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 *            The maximum time between two output flushes.
 	 * @return The operator with buffer timeout set.
 	 */
-	public DataStream<OUT> setBufferTimeout(long timeoutMillis) {
+	public SingleOutputStreamOperator<OUT, O> setBufferTimeout(long timeoutMillis) {
 		jobGraphBuilder.setBufferTimeout(id, timeoutMillis);
 		return this;
 	}

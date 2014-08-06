@@ -19,8 +19,6 @@
 
 package org.apache.flink.streaming.api.invokable;
 
-import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 
 public class SinkInvokable<IN> extends StreamRecordInvokable<IN, IN> {
@@ -29,6 +27,7 @@ public class SinkInvokable<IN> extends StreamRecordInvokable<IN, IN> {
 	private SinkFunction<IN> sinkFunction;
 
 	public SinkInvokable(SinkFunction<IN> sinkFunction) {
+		super(sinkFunction);
 		this.sinkFunction = sinkFunction;
 	}
 
@@ -47,17 +46,4 @@ public class SinkInvokable<IN> extends StreamRecordInvokable<IN, IN> {
 		}
 	}
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		if (sinkFunction instanceof RichFunction) {
-			((RichFunction) sinkFunction).open(parameters);
-		}
-	}
-
-	@Override
-	public void close() throws Exception {
-		if (sinkFunction instanceof RichFunction) {
-			((RichFunction) sinkFunction).close();
-		}
-	}
 }

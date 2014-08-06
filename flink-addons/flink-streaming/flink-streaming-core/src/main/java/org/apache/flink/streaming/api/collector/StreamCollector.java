@@ -60,9 +60,12 @@ public class StreamCollector<OUT> implements Collector<OUT> {
 	 */
 	public StreamCollector(int channelID,
 			SerializationDelegate<StreamRecord<OUT>> serializationDelegate) {
-
 		this.serializationDelegate = serializationDelegate;
-		this.streamRecord = new StreamRecord<OUT>();
+		if (serializationDelegate != null) {
+			this.streamRecord = serializationDelegate.getInstance();
+		} else {
+			this.streamRecord = new StreamRecord<OUT>();
+		}
 		this.channelID = channelID;
 		this.outputs = new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
 		this.outputMap = new HashMap<String, List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>>();
@@ -82,8 +85,9 @@ public class StreamCollector<OUT> implements Collector<OUT> {
 		for (String outputName : outputNames) {
 			if (outputName != null) {
 				if (!outputMap.containsKey(outputName)) {
-					outputMap.put(outputName,
-							new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>());
+					outputMap
+							.put(outputName,
+									new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>());
 					outputMap.get(outputName).add(output);
 				} else {
 					if (!outputMap.get(outputName).contains(output)) {

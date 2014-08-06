@@ -19,38 +19,16 @@
 
 package org.apache.flink.streaming.examples.wordcount;
 
-import java.util.HashMap;
-import java.util.Map;
-
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.common.functions.MapFunction;
 
-public class WordCountCounter implements MapFunction<String, Tuple2<String, Integer>> {
+public class WordCountCounter implements ReduceFunction<Tuple2<String, Integer>> {
 	private static final long serialVersionUID = 1L;
 
-	private Map<String, Integer> wordCounts = new HashMap<String, Integer>();
-	private String word = "";
-	private Integer count = 0;
-
-	private Tuple2<String, Integer> outTuple = new Tuple2<String, Integer>();
-
-	// Increments the counter of the occurrence of the input word
 	@Override
-	public Tuple2<String, Integer> map(String inTuple) throws Exception {
-		word = inTuple;
-
-		if (wordCounts.containsKey(word)) {
-			count = wordCounts.get(word) + 1;
-			wordCounts.put(word, count);
-		} else {
-			count = 1;
-			wordCounts.put(word, 1);
-		}
-
-		outTuple.f0 = word;
-		outTuple.f1 = count;
-
-		return outTuple;
+	public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,
+			Tuple2<String, Integer> value2) throws Exception {
+		return new Tuple2<String, Integer>(value1.f0, value1.f1 + value2.f1);
 	}
 
 }

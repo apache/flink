@@ -19,10 +19,10 @@
 
 package org.apache.flink.streaming.examples.wordcount;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestDataUtil;
-import org.apache.flink.api.java.tuple.Tuple2;
 
 public class WordCountLocal {
 
@@ -35,7 +35,8 @@ public class WordCountLocal {
 
 		DataStream<Tuple2<String, Integer>> dataStream = env
 				.readTextFile("src/test/resources/testdata/hamlet.txt")
-				.flatMap(new WordCountSplitter()).partitionBy(0).map(new WordCountCounter());
+				.flatMap(new WordCountSplitter())
+				.groupReduce(new WordCountCounter(), 0);
 
 		dataStream.print();
 

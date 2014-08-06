@@ -108,6 +108,7 @@ public abstract class AbstractStreamComponent<OUT> extends AbstractInvokable {
 		outTypeInfo = typeWrapper.getOutputTypeInfo();
 		outSerializer = new StreamRecordSerializer<OUT>(outTypeInfo);
 		outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(outSerializer);
+		outSerializationDelegate.setInstance(outSerializer.createInstance());
 	}
 
 	protected void setConfigOutputs(
@@ -116,8 +117,8 @@ public abstract class AbstractStreamComponent<OUT> extends AbstractInvokable {
 		setCollector();
 
 		int numberOfOutputs = configuration.getNumberOfOutputs();
-		bufferTimeout= configuration.getBufferTimeout();
-		
+		bufferTimeout = configuration.getBufferTimeout();
+
 		for (int i = 0; i < numberOfOutputs; i++) {
 			setPartitioner(i, outputs);
 		}
