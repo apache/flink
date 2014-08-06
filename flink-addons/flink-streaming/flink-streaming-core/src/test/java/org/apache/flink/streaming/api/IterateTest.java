@@ -21,9 +21,6 @@ package org.apache.flink.streaming.api;
 
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeDataStream;
@@ -84,13 +81,11 @@ public class IterateTest {
 
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
-		List<Boolean> bl = new ArrayList<Boolean>();
-		for (int i = 0; i < 100000; i++) {
-			bl.add(false);
-		}
-		DataStream<Boolean> source = env.fromCollection(bl);
+		env.setBufferTimeout(10);
 
-		IterativeDataStream<Boolean> iteration = source.iterate();
+		DataStream<Boolean> source = env.fromElements(false, false, false);
+
+		IterativeDataStream<Boolean> iteration = source.iterate().setMaxWaitTime(3000);
 
 		DataStream<Boolean> increment = iteration.flatMap(new IterationHead()).flatMap(
 				new IterationTail());

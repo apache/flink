@@ -42,6 +42,8 @@ public class StreamIterationSource<OUT extends Tuple> extends
 	private String iterationId;
 	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;
+	private long iterationWaitTime;
+	private boolean shouldWait;
 
 	@SuppressWarnings("rawtypes")
 	public StreamIterationSource() {
@@ -56,13 +58,15 @@ public class StreamIterationSource<OUT extends Tuple> extends
 	public void setInputsOutputs() {
 		try {
 			setConfigOutputs(outputs);
-			setSinkSerializer();
 		} catch (StreamComponentException e) {
 			e.printStackTrace();
 			throw new StreamComponentException("Cannot register outputs", e);
 		}
 
 		iterationId = configuration.getIterationId();
+		iterationWaitTime = configuration.getIterationWaitTime();
+		shouldWait = iterationWaitTime > 0;
+
 		try {
 			BlockingQueueBroker.instance().handIn(iterationId, dataChannel);
 		} catch (Exception e) {
@@ -71,6 +75,7 @@ public class StreamIterationSource<OUT extends Tuple> extends
 
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void invoke() throws Exception {
 		if (LOG.isDebugEnabled()) {
@@ -80,10 +85,14 @@ public class StreamIterationSource<OUT extends Tuple> extends
 		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
 			output.initializeSerializers();
 		}
+		StreamRecord<OUT> nextRecord;
 
 		while (true) {
-			@SuppressWarnings("unchecked")
-			StreamRecord<OUT> nextRecord = dataChannel.poll(3, TimeUnit.SECONDS);
+			if (shouldWait) {
+				nextRecord = dataChannel.poll(iterationWaitTime, TimeUnit.MILLISECONDS);
+			} else {
+				nextRecord = dataChannel.take();
+			}
 			if (nextRecord == null) {
 				break;
 			}

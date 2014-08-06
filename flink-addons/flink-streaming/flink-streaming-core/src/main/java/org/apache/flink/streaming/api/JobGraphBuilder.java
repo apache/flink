@@ -76,8 +76,10 @@ public class JobGraphBuilder {
 	private Map<String, byte[]> outputSelectors;
 	private Map<String, Class<? extends AbstractInvokable>> componentClasses;
 	private Map<String, String> iterationIds;
-	private Map<String, String> iterationHeadNames;
+	private Map<String, String> iterationIDtoSourceName;
+	private Map<String, String> iterationIDtoSinkName;
 	private Map<String, Integer> iterationTailCount;
+	private Map<String, Long> iterationWaitTime;
 
 	private int degreeOfParallelism;
 	private int executionParallelism;
@@ -113,8 +115,10 @@ public class JobGraphBuilder {
 		outputSelectors = new HashMap<String, byte[]>();
 		componentClasses = new HashMap<String, Class<? extends AbstractInvokable>>();
 		iterationIds = new HashMap<String, String>();
-		iterationHeadNames = new HashMap<String, String>();
+		iterationIDtoSourceName = new HashMap<String, String>();
+		iterationIDtoSinkName = new HashMap<String, String>();
 		iterationTailCount = new HashMap<String, Integer>();
+		iterationWaitTime = new HashMap<String, Long>();
 
 		maxParallelismVertexName = "";
 		maxParallelism = 0;
@@ -177,20 +181,24 @@ public class JobGraphBuilder {
 	 *            ID of iteration for multiple iterations
 	 * @param parallelism
 	 *            Number of parallel instances created
+	 * @param waitTime
+	 *            Max wait time for next record
 	 */
 	public void addIterationSource(String componentName, String iterationHead, String iterationID,
-			int parallelism) {
+			int parallelism, long waitTime) {
 
 		addComponent(componentName, StreamIterationSource.class, null, null, null, null,
 				parallelism);
 		iterationIds.put(componentName, iterationID);
-		iterationHeadNames.put(iterationID, componentName);
+		iterationIDtoSourceName.put(iterationID, componentName);
 
 		setBytesFrom(iterationHead, componentName);
 
 		setEdge(componentName, iterationHead,
 				connectionTypes.get(inEdgeList.get(iterationHead).get(0)).get(0), 0,
 				new ArrayList<String>());
+
+		iterationWaitTime.put(iterationIDtoSourceName.get(iterationID), waitTime);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("ITERATION SOURCE: " + componentName);
@@ -279,13 +287,17 @@ public class JobGraphBuilder {
 	 *            Number of parallel instances created
 	 * @param directName
 	 *            Id of the output direction
+	 * @param waitTime
+	 *            Max waiting time for next record
 	 */
 	public void addIterationSink(String componentName, String iterationTail, String iterationID,
-			int parallelism) {
+			int parallelism, long waitTime) {
 
 		addComponent(componentName, StreamIterationSink.class, null, null, null, null, parallelism);
 		iterationIds.put(componentName, iterationID);
+		iterationIDtoSinkName.put(iterationID, componentName);
 		setBytesFrom(iterationTail, componentName);
+		iterationWaitTime.put(iterationIDtoSinkName.get(iterationID), waitTime);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("ITERATION SINK: " + componentName);
@@ -320,7 +332,6 @@ public class JobGraphBuilder {
 		componentClasses.put(componentName, componentClass);
 		typeWrappers.put(componentName, typeWrapper);
 		setParallelism(componentName, parallelism);
-		bufferTimeout.put(componentName, 0L);
 		mutability.put(componentName, false);
 		invokableObjects.put(componentName, invokableObject);
 		operatorNames.put(componentName, operatorName);
@@ -383,6 +394,7 @@ public class JobGraphBuilder {
 		if (componentClass.equals(StreamIterationSource.class)
 				|| componentClass.equals(StreamIterationSink.class)) {
 			config.setIterationId(iterationIds.get(componentName));
+			config.setIterationWaitTime(iterationWaitTime.get(componentName));
 		}
 
 		components.put(componentName, component);
@@ -484,17 +496,18 @@ public class JobGraphBuilder {
 	}
 
 	/**
-	 * Sets the parallelism of the iteration head of the given iteration id to
-	 * the parallelism given.
+	 * Sets the parallelism and buffertimeout of the iteration head of the given
+	 * iteration id to the parallelism given.
 	 * 
 	 * @param iterationID
 	 *            ID of the iteration
-	 * @param parallelism
-	 *            Parallelism to set, typically the parallelism of the iteration
-	 *            tail.
+	 * @param iterationTail
+	 *            ID of the iteration tail
 	 */
-	public void setIterationSourceParallelism(String iterationID, int parallelism) {
-		setParallelism(iterationHeadNames.get(iterationID), parallelism);
+	public void setIterationSourceSettings(String iterationID, String iterationTail) {
+		setParallelism(iterationIDtoSourceName.get(iterationID),
+				componentParallelism.get(iterationTail));
+		setBufferTimeout(iterationIDtoSourceName.get(iterationID), bufferTimeout.get(iterationTail));
 	}
 
 	/**

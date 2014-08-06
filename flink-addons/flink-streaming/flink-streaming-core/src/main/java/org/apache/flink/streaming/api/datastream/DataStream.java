@@ -169,7 +169,7 @@ public abstract class DataStream<OUT> {
 	}
 
 	/**
-	 * Creates a new {@link CoDataStream} bye connecting {@link DataStream}
+	 * Creates a new {@link CoDataStream} by connecting {@link DataStream}
 	 * outputs of different type with each other. The DataStreams connected
 	 * using this operators can be used with CoFunctions.
 	 * 
@@ -676,9 +676,13 @@ public abstract class DataStream<OUT> {
 	 * To direct tuples to the iteration head or the output specifically one can
 	 * use the {@code split(OutputSelector)} on the iteration tail while
 	 * referencing the iteration head as 'iterate'.
-	 * 
+	 * <p>
 	 * The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head.
+	 * <p>
+	 * By default a DataStream with iteration will never terminate, but the user
+	 * can use the {@link IterativeDataStream#setMaxWaitTime} call to set a max
+	 * waiting time for the iteration.
 	 * 
 	 * @return The iterative data stream created.
 	 */
@@ -686,12 +690,12 @@ public abstract class DataStream<OUT> {
 		return new IterativeDataStream<OUT>(this);
 	}
 
-	protected <R> DataStream<OUT> addIterationSource(String iterationID) {
+	protected <R> DataStream<OUT> addIterationSource(String iterationID, long waitTime) {
 
 		DataStream<R> returnStream = new DataStreamSource<R>(environment, "iterationSource");
 
 		jobGraphBuilder.addIterationSource(returnStream.getId(), this.getId(), iterationID,
-				degreeOfParallelism);
+				degreeOfParallelism, waitTime);
 
 		return this.copy();
 	}
@@ -730,8 +734,9 @@ public abstract class DataStream<OUT> {
 		connectGraph(inputStream, returnStream.getId(), 0);
 
 		if (inputStream instanceof IterativeDataStream) {
-			returnStream.addIterationSource(((IterativeDataStream<OUT>) inputStream).iterationID
-					.toString());
+			IterativeDataStream<OUT> iterativeStream = (IterativeDataStream<OUT>) inputStream;
+			returnStream.addIterationSource(iterativeStream.iterationID.toString(),
+					iterativeStream.waitTime);
 		}
 
 		return returnStream;

@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * @param <IN>
  *            The type of the DataStream closed by the sink.
  */
-public class DataStreamSink<IN> extends DataStream<IN> {
+public class DataStreamSink<IN> extends SingleOutputStreamOperator<IN, DataStreamSink<IN>> {
 
 	protected DataStreamSink(StreamExecutionEnvironment environment, String operatorType) {
 		super(environment, operatorType);
@@ -38,7 +38,7 @@ public class DataStreamSink<IN> extends DataStream<IN> {
 	}
 
 	@Override
-	protected DataStream<IN> copy() {
+	protected DataStreamSink<IN> copy() {
 		throw new RuntimeException("Data stream sinks cannot be copied");
 	}
 
