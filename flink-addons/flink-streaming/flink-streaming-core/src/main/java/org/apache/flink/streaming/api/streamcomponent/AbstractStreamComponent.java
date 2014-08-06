@@ -64,6 +64,7 @@ public abstract class AbstractStreamComponent<OUT> extends AbstractInvokable {
 	protected boolean isMutable;
 	protected Object function;
 	protected String functionName;
+	protected long bufferTimeout;
 
 	protected static int newComponent() {
 		numComponents++;
@@ -115,7 +116,8 @@ public abstract class AbstractStreamComponent<OUT> extends AbstractInvokable {
 		setCollector();
 
 		int numberOfOutputs = configuration.getNumberOfOutputs();
-
+		bufferTimeout= configuration.getBufferTimeout();
+		
 		for (int i = 0; i < numberOfOutputs; i++) {
 			setPartitioner(i, outputs);
 		}
@@ -129,8 +131,6 @@ public abstract class AbstractStreamComponent<OUT> extends AbstractInvokable {
 			outputPartitioner = configuration.getPartitioner(outputNumber);
 
 			RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output;
-
-			long bufferTimeout = configuration.getBufferTimeout();
 
 			if (bufferTimeout > 0) {
 				output = new StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>(this,

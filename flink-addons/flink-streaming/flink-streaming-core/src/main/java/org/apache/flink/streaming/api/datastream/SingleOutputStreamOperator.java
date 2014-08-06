@@ -38,6 +38,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment, String operatorType) {
 		super(environment, operatorType);
+		setBufferTimeout(environment.getBufferTimeout());
 	}
 
 	protected SingleOutputStreamOperator(DataStream<OUT> dataStream) {

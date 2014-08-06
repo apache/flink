@@ -31,20 +31,25 @@ import org.apache.flink.streaming.partitioner.ForwardPartitioner;
  * @param <IN>
  *            Type of the DataStream
  */
-public class IterativeDataStream<IN> extends SingleOutputStreamOperator<IN, IterativeDataStream<IN>> {
+public class IterativeDataStream<IN> extends
+		SingleOutputStreamOperator<IN, IterativeDataStream<IN>> {
 
 	static Integer iterationCount = 0;
 	protected Integer iterationID;
+	protected long waitTime;
 
 	protected IterativeDataStream(DataStream<IN> dataStream) {
 		super(dataStream);
+		setBufferTimeout(dataStream.environment.getBufferTimeout());
 		iterationID = iterationCount;
 		iterationCount++;
+		waitTime = 0;
 	}
 
-	protected IterativeDataStream(DataStream<IN> dataStream, Integer iterationID) {
+	protected IterativeDataStream(DataStream<IN> dataStream, Integer iterationID, long waitTime) {
 		super(dataStream);
 		this.iterationID = iterationID;
+		this.waitTime = waitTime;
 	}
 
 	/**
@@ -80,18 +85,17 @@ public class IterativeDataStream<IN> extends SingleOutputStreamOperator<IN, Iter
 		DataStream<R> returnStream = new DataStreamSink<R>(environment, "iterationSink");
 
 		jobGraphBuilder.addIterationSink(returnStream.getId(), iterationTail.getId(),
-				iterationID.toString(), iterationTail.getParallelism());
+				iterationID.toString(), iterationTail.getParallelism(), waitTime);
 
-		jobGraphBuilder.setIterationSourceParallelism(iterationID.toString(),
-				iterationTail.getParallelism());
+		jobGraphBuilder.setIterationSourceSettings(iterationID.toString(), iterationTail.getId());
 
 		List<String> name = Arrays.asList(new String[] { iterationName });
 
 		if (iterationTail instanceof ConnectedDataStream) {
 			for (DataStream<IN> stream : ((ConnectedDataStream<IN>) iterationTail).connectedStreams) {
 				String inputID = stream.getId();
-				jobGraphBuilder.setEdge(inputID, returnStream.getId(), new ForwardPartitioner<IN>(),
-						0, name);
+				jobGraphBuilder.setEdge(inputID, returnStream.getId(),
+						new ForwardPartitioner<IN>(), 0, name);
 			}
 		} else {
 
@@ -102,8 +106,22 @@ public class IterativeDataStream<IN> extends SingleOutputStreamOperator<IN, Iter
 		return iterationTail;
 	}
 
+	/**
+	 * Sets the max waiting time for the next record before shutting down the
+	 * stream. If not set, then the user needs to manually kill the process to
+	 * stop.
+	 * 
+	 * @param waitTimeMillis
+	 *            Max waiting time in milliseconds
+	 * @return The modified DataStream.
+	 */
+	public IterativeDataStream<IN> setMaxWaitTime(long waitTimeMillis) {
+		this.waitTime = waitTimeMillis;
+		return this;
+	}
+
 	@Override
 	protected IterativeDataStream<IN> copy() {
-		return new IterativeDataStream<IN>(this, iterationID);
+		return new IterativeDataStream<IN>(this, iterationID, waitTime);
 	}
 }

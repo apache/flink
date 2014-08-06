@@ -60,6 +60,7 @@ public class StreamConfig {
 	// STRINGS
 
 	private static final String MUTABILITY = "isMutable";
+	private static final String ITERATON_WAIT = "iterationWait";
 
 	private Configuration config;
 
@@ -196,6 +197,14 @@ public class StreamConfig {
 		return config.getString(ITERATION_ID, "iteration-0");
 	}
 
+	public void setIterationWaitTime(long time) {
+		config.setLong(ITERATON_WAIT, time);
+	}
+
+	public long getIterationWaitTime() {
+		return config.getLong(ITERATON_WAIT, 0);
+	}
+
 	public void setNumberOfOutputChannels(int outputIndex, Integer numberOfOutputChannels) {
 		config.setInteger(NUMBER_OF_OUTPUT_CHANNELS + outputIndex, numberOfOutputChannels);
 	}
@@ -267,4 +276,5 @@ public class StreamConfig {
 			ClassNotFoundException {
 		return (T) SerializationUtils.deserialize(serializedObject);
 	}
+
 }
