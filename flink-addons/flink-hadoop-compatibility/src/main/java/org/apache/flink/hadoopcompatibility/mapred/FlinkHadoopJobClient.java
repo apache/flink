@@ -65,9 +65,8 @@ import java.io.IOException;
  */
 public final class FlinkHadoopJobClient extends JobClient {
 
-	private final static int TASK_SLOTS = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, -1);
-	private static final Log LOG = LogFactory.getLog(FlinkHadoopJobClient.class);
-
+	private final static Log LOG = LogFactory.getLog(FlinkHadoopJobClient.class);
+	private final static int MAX_SLOTS = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,-1);
 
 	private ExecutionEnvironment environment;
 	private Configuration hadoopConf;
@@ -87,6 +86,10 @@ public final class FlinkHadoopJobClient extends JobClient {
 			throws IOException {
 		this.hadoopConf = hadoopConf;
 		this.environment = environment;
+		if (MAX_SLOTS < 0) {
+			LOG.warn("The number of maximum parallel Flink task slots has not been set. Continuing without" +
+					"an upper bound for parallel Hadoop Tasks.");
+		}
 	}
 
 	@Override
@@ -117,6 +120,7 @@ public final class FlinkHadoopJobClient extends JobClient {
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public RunningJob submitJob(final JobConf hadoopJobConf) throws IOException{
+
 
 		final int mapParallelism = getMapParallelism(hadoopJobConf);
 		final int reduceParallelism = getReduceParallelism(hadoopJobConf);
@@ -200,7 +204,12 @@ public final class FlinkHadoopJobClient extends JobClient {
 		final int noOfSplits = conf.getInputFormat().getSplits(conf, 0).length;
 		final int hintedMapTasks = conf.getNumMapTasks();
 		final int mapTasks = Math.min(noOfSplits, hintedMapTasks);
-		return mapTasks > TASK_SLOTS ? TASK_SLOTS : mapTasks;
+		if (MAX_SLOTS >= 0) {
+			return mapTasks > MAX_SLOTS ? MAX_SLOTS : mapTasks;
+		}
+		else {
+			return mapTasks;
+		}
 	}
 
 	/**
@@ -209,13 +218,13 @@ public final class FlinkHadoopJobClient extends JobClient {
 	 */
 	private int getReduceParallelism(final JobConf conf) {
 		final int reduceTasks = conf.getNumReduceTasks();
-		if (reduceTasks <= TASK_SLOTS) {
+		if ((MAX_SLOTS < 0) || reduceTasks <= MAX_SLOTS) {
 			return reduceTasks;
 		}
 		else {
 			LOG.warn("The number of reduce tasks (" + reduceTasks + ") exceeds the number of available Flink slots ("
-					+ TASK_SLOTS + "). " + TASK_SLOTS + " tasks will be run.");
-			return TASK_SLOTS;
+					+ MAX_SLOTS + "). " + MAX_SLOTS + " tasks will be run.");
+			return MAX_SLOTS;
 		}
 	}
 	
