@@ -22,10 +22,14 @@ package org.apache.flink.streaming.api.invokable.operator;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
@@ -39,64 +43,155 @@ public class BatchReduceTest {
 
 	private static ArrayList<Double> avgs = new ArrayList<Double>();
 	private static final int BATCH_SIZE = 5;
-	private static final int PARALlELISM = 1;
+	private static final int PARALLELISM = 1;
 	private static final long MEMORYSIZE = 32;
 
-	public static final class MyBatchReduce implements
-			GroupReduceFunction<Tuple1<Double>, Tuple1<Double>> {
+	public static final class MyBatchReduce implements GroupReduceFunction<Double, Double> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterable<Tuple1<Double>> values, Collector<Tuple1<Double>> out)
-				throws Exception {
+		public void reduce(Iterable<Double> values, Collector<Double> out) throws Exception {
 
 			Double sum = 0.;
 			Double count = 0.;
-			for (Tuple1<Double> value : values) {
-				sum += value.f0;
+			for (Double value : values) {
+				sum += value;
 				count++;
 			}
 			if (count > 0) {
-				out.collect(new Tuple1<Double>(sum / count));
+				out.collect(new Double(sum / count));
 			}
 		}
 	}
 
-	public static final class MySink implements SinkFunction<Tuple1<Double>> {
+	public static final class MySink implements SinkFunction<Double> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<Double> tuple) {
-			avgs.add(tuple.f0);
+		public void invoke(Double tuple) {
+			avgs.add(tuple);
 		}
 
 	}
 
-	public static final class MySource implements SourceFunction<Tuple1<Double>> {
+	public static final class MySource implements SourceFunction<Double> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Collector<Tuple1<Double>> collector) {
+		public void invoke(Collector<Double> collector) {
 			for (Double i = 1.; i <= 100; i++) {
-				collector.collect(new Tuple1<Double>(i));
+				collector.collect(new Double(i));
 			}
 		}
 	}
 
-	@Test
-	public void test() throws Exception {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
+	public static final class MySlidingBatchReduce implements RichFunction,
+			GroupReduceFunction<Long, String> {
+		private static final long serialVersionUID = 1L;
 
-		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALlELISM);
+		double startTime;
 
-		@SuppressWarnings("unused")
-		DataStream<Tuple1<Double>> dataStream = env.addSource(new MySource())
-				.batchReduce(new MyBatchReduce(), BATCH_SIZE).addSink(new MySink());
+		@Override
+		public void reduce(Iterable<Long> values, Collector<String> out) throws Exception {
+			for (Long value : values) {
+				out.collect(value.toString());
+			}
+			out.collect(END_OF_BATCH);
+		}
 
-		env.executeTest(MEMORYSIZE);
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			startTime = (double) System.currentTimeMillis() / 1000;
+		}
 
+		@Override
+		public void close() throws Exception {
+		}
+
+		@Override
+		public RuntimeContext getRuntimeContext() {
+			return null;
+		}
+
+		@Override
+		public void setRuntimeContext(RuntimeContext t) {
+			// TODO Auto-generated method stub
+
+		}
+	}
+
+	private static List<SortedSet<String>> sink = new ArrayList<SortedSet<String>>();
+	private static final String END_OF_BATCH = "end of batch";
+
+	public static final class MySlidingSink implements SinkFunction<String> {
+
+		private static final long serialVersionUID = 1L;
+
+		SortedSet<String> currentSet = new TreeSet<String>();
+
+		@Override
+		public void invoke(String string) {
+			if (string.equals(END_OF_BATCH)) {
+				sink.add(currentSet);
+				currentSet = new TreeSet<String>();
+			} else {
+				currentSet.add(string);
+			}
+		}
+	}
+
+	private final static int SLIDING_BATCH_SIZE = 9;
+	private final static int SLIDE_SIZE = 6;
+	private static final int SEQUENCE_SIZE = 30;
+	private LocalStreamEnvironment env;
+	
+	private void slidingStream() {
+		env.generateSequence(1, SEQUENCE_SIZE)
+		.batchReduce(new MySlidingBatchReduce(), SLIDING_BATCH_SIZE, SLIDE_SIZE)
+		.addSink(new MySlidingSink());
+	}
+	
+	private void slidingTest() {
+		int firstInBatch = 1;
+
+		for (SortedSet<String> set : sink) {
+			int to = Math.min(firstInBatch + SLIDING_BATCH_SIZE - 1, SEQUENCE_SIZE);
+			assertEquals(getExpectedSet(to), set);
+			firstInBatch += SLIDE_SIZE;
+		}
+	}
+	
+	private void nonSlidingStream() {
+		env.addSource(new MySource()).batchReduce(new MyBatchReduce(), BATCH_SIZE)
+		.addSink(new MySink());
+	}
+	
+	private void nonSlidingTest() {
 		for (int i = 0; i < avgs.size(); i++) {
 			assertEquals(3.0 + i * BATCH_SIZE, avgs.get(i), 0);
 		}
+	}
+	
+	@Test
+	public void test() {
+		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
+
+		env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
+
+		slidingStream();
+		nonSlidingStream();
+		
+		env.executeTest(MEMORYSIZE);
+
+		slidingTest();
+		nonSlidingTest();
+	}
+
+	private SortedSet<String> getExpectedSet(int to) {
+		SortedSet<String> expectedSet = new TreeSet<String>();
+		for (int i = to; i > to - SLIDING_BATCH_SIZE; i--) {
+			expectedSet.add(Integer.toString(i));
+		}
+		return expectedSet;
 	}
 }

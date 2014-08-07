@@ -20,106 +20,87 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import java.util.ArrayList;
-import java.util.List;
 
+import org.apache.commons.math.util.MathUtils;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.state.SlidingWindowState;
 
 public class BatchReduceInvokable<IN, OUT> extends StreamReduceInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 	private int batchSize;
+	private int slideSize;
+	private int granularity;
+	private boolean emitted;
+	private transient SlidingWindowState<IN> state;
 
-	public BatchReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, int batchSize) {
-		super(reduceFunction);
+	public BatchReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, int batchSize,
+			int slideSize) {
+		super(reduceFunction);		
 		this.reducer = reduceFunction;
 		this.batchSize = batchSize;
+		this.slideSize = slideSize;
+		this.granularity = MathUtils.gcd(batchSize, slideSize);
 	}
 
 	@Override
 	protected void immutableInvoke() throws Exception {
-		List<IN> tupleBatch = new ArrayList<IN>();
-		boolean batchStart;
-		int counter = 0;
+		reuse = loadNextRecord();
+		ArrayList<IN> list;
 
-		while (loadNextRecord() != null) {
-			batchStart = true;
-			do {
-				if (batchStart) {
-					batchStart = false;
-				} else {
-					reuse = loadNextRecord();
-					if (reuse == null) {
-						break;
-					}
-				}
-				counter++;
-				tupleBatch.add(reuse.getObject());
-				resetReuse();
-			} while (counter < batchSize);
-			reducer.reduce(tupleBatch, collector);
-			tupleBatch.clear();
-			counter = 0;
+		while (!state.isFull()) {
+			list = new ArrayList<IN>(granularity);
+			try {
+				state.pushBack(fillArray(list));
+			} catch (NullPointerException e) {
+				throw new RuntimeException("DataStream length must be greater than batchsize");
+			}
 		}
 
+		boolean go = reduce();
+
+		while (go) {
+			if (state.isEmittable()) {
+				go = reduce();
+			} else {
+				list = (ArrayList<IN>) state.popFront();
+				list.clear();
+				state.pushBack(fillArray(list));
+				emitted = false;
+				go = reuse != null;
+			}
+		}
+		if (!emitted) {
+			reduce();
+		}
+	}
+
+	private boolean reduce() throws Exception {
+		userIterator = state.getIterator();
+		reducer.reduce(userIterable, collector);
+		emitted = true;
+		return reuse != null;
+	}
+
+	private ArrayList<IN> fillArray(ArrayList<IN> list) {
+		int counter = 0;
+		do {
+			counter++;
+			list.add(reuse.getObject());
+			resetReuse();
+		} while ((reuse = loadNextRecord()) != null && counter < granularity);
+		return list;
 	}
 
 	@Override
 	protected void mutableInvoke() throws Exception {
-		userIterator = new CounterIterator();
-
-		do {
-			if (userIterator.hasNext()) {
-				reducer.reduce(userIterable, collector);
-				userIterator.reset();
-			}
-		} while (reuse != null);
+		throw new RuntimeException("Reducing mutable sliding batch is not supported.");
 	}
-
-	private class CounterIterator implements BatchIterator<IN> {
-		private int counter;
-		private boolean loadedNext;
-
-		public CounterIterator() {
-			counter = 1;
-		}
-
-		@Override
-		public boolean hasNext() {
-			if (counter > batchSize) {
-				return false;
-			} else if (!loadedNext) {
-				loadNextRecord();
-				loadedNext = true;
-			}
-			return (reuse != null);
-		}
-
-		@Override
-		public IN next() {
-			if (hasNext()) {
-				counter++;
-				loadedNext = false;
-				return reuse.getObject();
-			} else {
-				counter++;
-				loadedNext = false;
-				return null;
-			}
-		}
-
-		public void reset() {
-			for (int i = 0; i < (batchSize - counter); i++) {
-				loadNextRecord();
-			}
-			loadNextRecord();
-			loadedNext = true;
-			counter = 1;
-		}
-
-		@Override
-		public void remove() {
-
-		}
-
+	
+	@Override
+	public void open(Configuration parameters) throws Exception{
+		super.open(parameters);
+		this.state = new SlidingWindowState<IN>(batchSize, slideSize, granularity);
 	}
 
 }

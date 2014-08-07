@@ -326,7 +326,34 @@ public abstract class DataStream<OUT> {
 			int batchSize) {
 		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT, Tuple, R>(reducer,
 				GroupReduceFunction.class, 0, -1, 1), new BatchReduceInvokable<OUT, R>(reducer,
-				batchSize));
+				batchSize, batchSize));
+	}
+
+	/**
+	 * Applies a reduce transformation on preset sliding chunks of the
+	 * DataStream. The transformation calls a {@link GroupReduceFunction} for
+	 * each tuple batch of the predefined size. The tuple batch gets slid by the
+	 * given number of tuples. Each GroupReduceFunction call can return any
+	 * number of elements including none. The user can also extend
+	 * {@link RichGroupReduceFunction} to gain access to other features provided
+	 * by the {@link RichFuntion} interface.
+	 * 
+	 * 
+	 * @param reducer
+	 *            The GroupReduceFunction that is called for each tuple batch.
+	 * @param batchSize
+	 *            The number of tuples grouped together in the batch.
+	 * @param slideSize
+	 *            The number of tuples the batch is slid by.
+	 * @param <R>
+	 *            output type
+	 * @return The transformed {@link DataStream}.
+	 */
+	public <R> SingleOutputStreamOperator<R, ?> batchReduce(GroupReduceFunction<OUT, R> reducer,
+			int batchSize, int slideSize) {
+		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT, Tuple, R>(reducer,
+				GroupReduceFunction.class, 0, -1, 1), new BatchReduceInvokable<OUT, R>(reducer,
+				batchSize, slideSize));
 	}
 
 	/**
@@ -342,7 +369,8 @@ public abstract class DataStream<OUT> {
 	 * @param reducer
 	 *            The GroupReduceFunction that is called for each time window.
 	 * @param windowSize
-	 *            The time window to run the reducer on, in milliseconds.
+	 *            SingleOutputStreamOperator The time window to run the reducer
+	 *            on, in milliseconds.
 	 * @param <R>
 	 *            output type
 	 * @return The transformed DataStream.
@@ -351,7 +379,14 @@ public abstract class DataStream<OUT> {
 			long windowSize) {
 		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT, Tuple, R>(reducer,
 				GroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<OUT, R>(reducer,
-				windowSize));
+				windowSize, windowSize, windowSize));
+	}
+
+	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
+			long windowSize, long slideInterval, long timeUnitInMillis) {
+		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT, Tuple, R>(reducer,
+				GroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<OUT, R>(reducer,
+				windowSize, slideInterval, timeUnitInMillis));
 	}
 
 	/**
