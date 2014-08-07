@@ -20,105 +20,71 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.state.SlidingWindowState;
 
 public class WindowReduceInvokable<IN, OUT> extends StreamReduceInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 	private long windowSize;
+	private long slideInterval;
+	private long timeUnitInMillis;
+	private transient SlidingWindowState<IN> state;
 	volatile boolean isRunning;
-	boolean window;
 
-	public WindowReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize) {
+	public WindowReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize,
+			long slideInterval, long timeUnitInMillis) {
 		super(reduceFunction);
-		this.reducer = reduceFunction;
 		this.windowSize = windowSize;
-		this.window = true;
+		this.slideInterval = slideInterval;
+		this.timeUnitInMillis = timeUnitInMillis;
 	}
 
 	protected void immutableInvoke() throws Exception {
-		List<IN> tupleBatch = new ArrayList<IN>();
-		boolean batchStart;
-
-		long startTime = System.currentTimeMillis();
-		while (loadNextRecord() != null) {
-			batchStart = true;
-			do {
-				if (batchStart) {
-					batchStart = false;
-				} else {
-					reuse = loadNextRecord();
-					if (reuse == null) {
-						break;
-					}
-				}
-				tupleBatch.add(reuse.getObject());
-				resetReuse();
-			} while (System.currentTimeMillis() - startTime < windowSize);
-			reducer.reduce(tupleBatch, collector);
-			tupleBatch.clear();
-			startTime = System.currentTimeMillis();
+		if ((reuse = loadNextRecord()) == null) {
+			throw new RuntimeException("DataStream must not be empty");
 		}
 
+		while (reuse != null && !state.isFull()) {
+			collectOneTimeUnit();
+		}
+		reduce();
+
+		while (reuse != null) {
+			for (int i = 0; i < slideInterval / timeUnitInMillis; i++) {
+				collectOneTimeUnit();
+			}
+			reduce();
+		}
+	}
+
+	private void collectOneTimeUnit() {
+		ArrayList<IN> list;
+		list = new ArrayList<IN>();
+		long startTime = System.currentTimeMillis();
+
+		do {
+			list.add(reuse.getObject());
+			resetReuse();
+		} while ((reuse = loadNextRecord()) != null
+				&& System.currentTimeMillis() - startTime < timeUnitInMillis);
+		state.pushBack(list);
+	}
+
+	private boolean reduce() throws Exception {
+		userIterator = state.forceGetIterator();
+		reducer.reduce(userIterable, collector);
+		return reuse != null;
+	}
+
+	@Override
+	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
+		this.state = new SlidingWindowState<IN>(windowSize, slideInterval, timeUnitInMillis);
 	}
 
 	protected void mutableInvoke() throws Exception {
-		userIterator = new WindowIterator();
-
-		do {
-			if (userIterator.hasNext()) {
-				reducer.reduce(userIterable, collector);
-				userIterator.reset();
-			}
-		} while (reuse != null);
+		throw new RuntimeException("Reducing mutable sliding window is not supported.");
 	}
-
-	private class WindowIterator implements BatchIterator<IN> {
-
-		private boolean loadedNext;
-		private long startTime;
-
-		public WindowIterator() {
-			startTime = System.currentTimeMillis();
-		}
-
-		@Override
-		public boolean hasNext() {
-			if (System.currentTimeMillis() - startTime > windowSize) {
-				return false;
-			} else if (!loadedNext) {
-				loadNextRecord();
-				loadedNext = true;
-			}
-			return (reuse != null);
-		}
-
-		@Override
-		public IN next() {
-			if (hasNext()) {
-				loadedNext = false;
-				return reuse.getObject();
-			} else {
-				loadedNext = false;
-				return reuse.getObject();
-			}
-		}
-
-		public void reset() {
-			while (System.currentTimeMillis() - startTime < windowSize) {
-				loadNextRecord();
-			}
-			loadNextRecord();
-			loadedNext = true;
-			startTime = System.currentTimeMillis();
-		}
-
-		@Override
-		public void remove() {
-
-		}
-
-	}
-
 }

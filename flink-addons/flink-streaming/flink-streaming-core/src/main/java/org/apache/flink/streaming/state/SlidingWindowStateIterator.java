@@ -19,18 +19,45 @@
 
 package org.apache.flink.streaming.state;
 
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import java.util.Collection;
+import java.util.Iterator;
 
-public class SlidingWindowStateIterator<K>{
+import org.apache.commons.collections.buffer.CircularFifoBuffer;
+import org.apache.flink.streaming.api.invokable.operator.BatchIterator;
+
+public class SlidingWindowStateIterator<T> implements BatchIterator<T> {
+
+	private CircularFifoBuffer buffer;
+	private Iterator<Collection<T>> iterator;
+	private Iterator<T> subIterator;
+	
+	public SlidingWindowStateIterator(CircularFifoBuffer buffer) {
+		this.buffer = buffer;
+	}
 
 	public boolean hasNext() {
-		return false;
+		return subIterator.hasNext();
 	}
 
-	public Tuple2<K, StreamRecord<Tuple>> next() {
-		return null;
+	public T next() {
+		T nextElement = subIterator.next();
+		if (!subIterator.hasNext()) {
+			if (iterator.hasNext()) {
+				subIterator = iterator.next().iterator();
+			}
+		}
+		return nextElement;
 	}
 
+	@Override
+	public void remove() {
+		throw new RuntimeException("Cannot use remove on reducing iterator.");
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public void reset() {
+		iterator = buffer.iterator();
+		subIterator = iterator.next().iterator();
+	}
 }
