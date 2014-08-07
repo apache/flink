@@ -26,6 +26,8 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.runtime.io.network.api.BufferWriter;
 import org.apache.flink.runtime.io.network.channels.EndOfSuperstepEvent;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
+import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatch;
+import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatchBroker;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.runtime.iterative.io.WorksetUpdateOutputCollector;
 import org.apache.flink.util.Collector;
@@ -78,6 +80,8 @@ public class IterationIntermediatePactTask<S extends Function, OT> extends Abstr
 
 	@Override
 	public void run() throws Exception {
+		
+		SuperstepKickoffLatch nextSuperstepLatch = SuperstepKickoffLatchBroker.instance().get(brokerKey());
 
 		while (this.running && !terminationRequested()) {
 
@@ -88,26 +92,31 @@ public class IterationIntermediatePactTask<S extends Function, OT> extends Abstr
 			super.run();
 
 			// check if termination was requested
-			checkForTerminationAndResetEndOfSuperstepState();
+			verifyEndOfSuperstepState();
 
 			if (isWorksetUpdate && isWorksetIteration) {
 				long numCollected = worksetUpdateOutputCollector.getElementsCollectedAndReset();
 				worksetAggregator.aggregate(numCollected);
 			}
-
+			
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
 			}
+			
+			// let the successors know that the end of this superstep data is reached
+			sendEndOfSuperstep();
+			
+			if (isWorksetUpdate) {
+				// notify iteration head if responsible for workset update
+				worksetBackChannel.notifyOfEndOfSuperstep();
+			}
+			
+			boolean terminated = nextSuperstepLatch.awaitStartOfSuperstepOrTermination(currentIteration() + 1);
 
-			if (!terminationRequested()) {
-				if (isWorksetUpdate) {
-					// notify iteration head if responsible for workset update
-					worksetBackChannel.notifyOfEndOfSuperstep();
-				}
-
-				// send the end-of-superstep
-				sendEndOfSuperstep();
-
+			if (terminated) {
+				requestTermination();
+			}
+			else {
 				incrementIterationCounter();
 			}
 		}
