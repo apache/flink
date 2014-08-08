@@ -353,12 +353,12 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		 * @see Tuple
 		 * @see DataSet
 		 */
-		public CoGroupOperatorSetsPredicate where(String field0, String... fields) {
-			String[] actualFields = new String[fields.length + 1];
-			actualFields[0] = field0;
-			System.arraycopy(fields, 0, actualFields, 1, fields.length);
-			return new CoGroupOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(actualFields, input1.getType()));
-		}
+//		public CoGroupOperatorSetsPredicate where(String field0, String... fields) {
+//			String[] actualFields = new String[fields.length + 1];
+//			actualFields[0] = field0;
+//			System.arraycopy(fields, 0, actualFields, 1, fields.length);
+//			return new CoGroupOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(actualFields, input1.getType()));
+//		}
 
 		/**
 		 * Continues a CoGroup transformation and defines a {@link KeySelector} function for the first co-grouped {@link DataSet}.</br>
@@ -426,12 +426,12 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			 * @return An incomplete CoGroup transformation.
 			 *           Call {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate.CoGroupOperatorWithoutFunction#with(org.apache.flink.api.java.functions.RichCoGroupFunction)} to finalize the CoGroup transformation.
 			 */
-			public CoGroupOperatorWithoutFunction equalTo(String field0, String... fields) {
-				String[] actualFields = new String[fields.length + 1];
-				actualFields[0] = field0;
-				System.arraycopy(fields, 0, actualFields, 1, fields.length);
-				return createCoGroupOperator(new Keys.ExpressionKeys<I2>(actualFields, input2.getType()));
-			}
+//			public CoGroupOperatorWithoutFunction equalTo(String field0, String... fields) {
+//				String[] actualFields = new String[fields.length + 1];
+//				actualFields[0] = field0;
+//				System.arraycopy(fields, 0, actualFields, 1, fields.length);
+//				return createCoGroupOperator(new Keys.ExpressionKeys<I2>(actualFields, input2.getType()));
+//			}
 
 			/**
 			 * Continues a CoGroup transformation and defines a {@link KeySelector} function for the second co-grouped {@link DataSet}.</br>

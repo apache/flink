@@ -743,12 +743,12 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see Tuple
 		 * @see DataSet
 		 */
-		public JoinOperatorSetsPredicate where(String field0, String... fields) {
-			String[] actualFields = new String[fields.length + 1];
-			actualFields[0] = field0;
-			System.arraycopy(fields, 0, actualFields, 1, fields.length);
-			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(actualFields, input1.getType()));
-		}
+//		public JoinOperatorSetsPredicate where(String field0, String... fields) {
+//			String[] actualFields = new String[fields.length + 1];
+//			actualFields[0] = field0;
+//			System.arraycopy(fields, 0, actualFields, 1, fields.length);
+//			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(actualFields, input1.getType()));
+//		}
 		
 		/**
 		 * Continues a Join transformation and defines a {@link KeySelector} function for the first join {@link DataSet}.</br>
@@ -825,12 +825,12 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			 * @param fields The fields of the second join DataSet that should be used as keys.
 			 * @return A DefaultJoin that represents the joined DataSet.
 			 */
-			public DefaultJoin<I1, I2> equalTo(String field0, String... fields) {
-				String[] actualFields = new String[fields.length + 1];
-				actualFields[0] = field0;
-				System.arraycopy(fields, 0, actualFields, 1, fields.length);
-				return createJoinOperator(new Keys.ExpressionKeys<I2>(actualFields, input2.getType()));
-			}
+//			public DefaultJoin<I1, I2> equalTo(String field0, String... fields) {
+//				String[] actualFields = new String[fields.length + 1];
+//				actualFields[0] = field0;
+//				System.arraycopy(fields, 0, actualFields, 1, fields.length);
+//				return createJoinOperator(new Keys.ExpressionKeys<I2>(actualFields, input2.getType()));
+//			}
 
 			/**
 			 * Continues a Join transformation and defines a {@link KeySelector} function for the second join {@link DataSet}.</br>

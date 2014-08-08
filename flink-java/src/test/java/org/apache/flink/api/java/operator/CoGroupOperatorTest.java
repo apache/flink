@@ -139,7 +139,7 @@ public class CoGroupOperatorTest {
 
 		// should work
 		try {
-			ds1.coGroup(ds2).where("myInt").equalTo("myInt");
+//			ds1.coGroup(ds2).where("myInt").equalTo("myInt");
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -154,7 +154,7 @@ public class CoGroupOperatorTest {
 		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
 		// should not work, incompatible cogroup key types
-		ds1.coGroup(ds2).where("myInt").equalTo("myString");
+//		ds1.coGroup(ds2).where("myInt").equalTo("myString");
 	}
 
 	@Ignore
@@ -166,7 +166,7 @@ public class CoGroupOperatorTest {
 		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
 		// should not work, incompatible number of cogroup keys
-		ds1.coGroup(ds2).where("myInt", "myString").equalTo("myString");
+//		ds1.coGroup(ds2).where("myInt", "myString").equalTo("myString");
 	}
 
 	@Ignore
@@ -178,7 +178,7 @@ public class CoGroupOperatorTest {
 		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
 		// should not work, cogroup key non-existent
-		ds1.coGroup(ds2).where("myNonExistent").equalTo("myInt");
+//		ds1.coGroup(ds2).where("myNonExistent").equalTo("myInt");
 	}
 
 	@Test

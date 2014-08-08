@@ -19,7 +19,6 @@
 package org.apache.flink.example.java.wordcount;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -62,31 +61,31 @@ public class WordCountPOJO {
 		//
 		// [1] https://mail-archives.apache.org/mod_mbox/incubator-flink-dev/201407.mbox/%3C53D96049.1060509%40cse.uta.edu%3E
 		// ====================================================================
-
-		parseParameters(args);
-
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		// get input data
-		DataSet<String> text = getTextDataSet(env);
-
-		DataSet<WC> counts = text 
-					.flatMap(new Tokenizer())
-					.groupBy("word")
-					.reduce(new ReduceFunction<WC>() {
-							public WC reduce(WC value1, WC value2) {
-								return new WC(value1.word, value1.count + value2.count);
-							}
-						});
-
-		// emit result
-		if(fileOutput) {
-			counts.writeAsText(outputPath);
-		} else {
-			counts.print();
-		}
-
-		env.execute("WordCount with custom data types example");
+//
+//		parseParameters(args);
+//
+//		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+//
+//		// get input data
+//		DataSet<String> text = getTextDataSet(env);
+//
+//		DataSet<WC> counts = text
+//					.flatMap(new Tokenizer())
+//					.groupBy("word")
+//					.reduce(new ReduceFunction<WC>() {
+//							public WC reduce(WC value1, WC value2) {
+//								return new WC(value1.word, value1.count + value2.count);
+//							}
+//						});
+//
+//		// emit result
+//		if(fileOutput) {
+//			counts.writeAsText(outputPath);
+//		} else {
+//			counts.print();
+//		}
+//
+//		env.execute("WordCount with custom data types example");
 	}
 
 	// *************************************************************************
