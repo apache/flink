@@ -123,7 +123,7 @@ public class CellInfoLocal {
 				new QuerySource(), SOURCE_PARALLELISM);
 
 		DataStream<Tuple1<String>> stream = env.addSource(new InfoSource(), SOURCE_PARALLELISM)
-				.connectWith(querySource).partitionBy(1).flatMap(new CellTask());
+				.merge(querySource).partitionBy(1).flatMap(new CellTask());
 		stream.print();
 
 		env.execute();

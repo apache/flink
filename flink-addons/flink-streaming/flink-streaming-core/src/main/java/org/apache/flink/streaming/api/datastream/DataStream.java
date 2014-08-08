@@ -30,12 +30,10 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.RichFilterFunction;
 import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.RichMapFunction;
-import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -50,7 +48,6 @@ import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 import org.apache.flink.streaming.api.invokable.operator.BatchReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
-import org.apache.flink.streaming.api.invokable.operator.GroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.WindowReduceInvokable;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
@@ -154,16 +151,16 @@ public abstract class DataStream<OUT> {
 	}
 
 	/**
-	 * Creates a new by connecting {@link DataStream} outputs of the same type
-	 * with each other. The DataStreams connected using this operator will be
-	 * transformed simultaneously.
+	 * Creates a new {@link MergedDataStream} by merging {@link DataStream}
+	 * outputs of the same type with each other. The DataStreams merged using
+	 * this operator will be transformed simultaneously.
 	 * 
 	 * @param streams
-	 *            The DataStreams to connect output with.
-	 * @return The {@link ConnectedDataStream}.
+	 *            The DataStreams to merge output with.
+	 * @return The {@link MergedDataStream}.
 	 */
-	public ConnectedDataStream<OUT> connectWith(DataStream<OUT>... streams) {
-		ConnectedDataStream<OUT> returnStream = new ConnectedDataStream<OUT>(this);
+	public MergedDataStream<OUT> merge(DataStream<OUT>... streams) {
+		MergedDataStream<OUT> returnStream = new MergedDataStream<OUT>(this);
 
 		for (DataStream<OUT> stream : streams) {
 			returnStream.addConnection(stream);
@@ -172,16 +169,16 @@ public abstract class DataStream<OUT> {
 	}
 
 	/**
-	 * Creates a new {@link CoDataStream} by connecting {@link DataStream}
-	 * outputs of different type with each other. The DataStreams connected
-	 * using this operators can be used with CoFunctions.
+	 * Creates a new {@link ConnectedDataStream} by connecting
+	 * {@link DataStream} outputs of different type with each other. The
+	 * DataStreams connected using this operators can be used with CoFunctions.
 	 * 
 	 * @param dataStream
 	 *            The DataStream with which this stream will be joined.
-	 * @return The {@link CoDataStream}.
+	 * @return The {@link ConnectedDataStream}.
 	 */
-	public <R> CoDataStream<OUT, R> co(DataStream<R> dataStream) {
-		return new CoDataStream<OUT, R>(environment, jobGraphBuilder, this, dataStream);
+	public <R> ConnectedDataStream<OUT, R> connect(DataStream<R> dataStream) {
+		return new ConnectedDataStream<OUT, R>(environment, jobGraphBuilder, this, dataStream);
 	}
 
 	/**
@@ -282,27 +279,8 @@ public abstract class DataStream<OUT> {
 				flatMapper));
 	}
 
-	/**
-	 * Applies a group and a reduce transformation on the DataStream grouped on
-	 * the given key position. The {@link ReduceFunction} will receive input
-	 * values based on the key value. Only input values with the same key will
-	 * go to the same reducer.The user can also extend
-	 * {@link RichReduceFunction} to gain access to other features provided
-	 * by the {@link RichFuntion} interface.
-	 * 
-	 * @param reducer
-	 *            The {@link ReduceFunction} that will be called for every
-	 *            element of the input values with the same key.
-	 * @param keyPosition
-	 *            The key position in the input values on which the grouping is
-	 *            made.
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> groupReduce(ReduceFunction<OUT> reducer,
-			int keyPosition) {
-		return addFunction("groupReduce", reducer,
-				new FunctionTypeWrapper<OUT, Tuple, OUT>(reducer, ReduceFunction.class, 0, -1, 0),
-				new GroupReduceInvokable<OUT>(reducer, keyPosition)).partitionBy(keyPosition);
+	public GroupedDataStream<OUT> groupBy(int keyPosition) {
+		return new GroupedDataStream<OUT>(this.partitionBy(keyPosition), keyPosition);
 	}
 
 	/**
@@ -359,7 +337,7 @@ public abstract class DataStream<OUT> {
 	/**
 	 * Applies a reduce transformation on preset "time" chunks of the
 	 * DataStream. The transformation calls a {@link GroupReduceFunction} on
-	 * records received during the predefined time window. The window shifted
+	 * records received during the predefined time window. The window is shifted
 	 * after each reduce call. Each GroupReduceFunction call can return any
 	 * number of elements including none.The user can also extend
 	 * {@link RichGroupReduceFunction} to gain access to other features provided
@@ -379,14 +357,35 @@ public abstract class DataStream<OUT> {
 			long windowSize) {
 		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT, Tuple, R>(reducer,
 				GroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<OUT, R>(reducer,
-				windowSize, windowSize, windowSize));
+				windowSize, windowSize));
 	}
 
+	/**
+	 * Applies a reduce transformation on preset "time" chunks of the
+	 * DataStream. The transformation calls a {@link GroupReduceFunction} on
+	 * records received during the predefined time window. The window is shifted
+	 * after each reduce call. Each GroupReduceFunction call can return any
+	 * number of elements including none.The user can also extend
+	 * {@link RichGroupReduceFunction} to gain access to other features provided
+	 * by the {@link RichFuntion} interface.
+	 * 
+	 * 
+	 * @param reducer
+	 *            The GroupReduceFunction that is called for each time window.
+	 * @param windowSize
+	 *            SingleOutputStreamOperator The time window to run the reducer
+	 *            on, in milliseconds.
+	 * @param slideInterval
+	 *            The time interval, batch is slid by.
+	 * @param <R>
+	 *            output type
+	 * @return The transformed DataStream.
+	 */
 	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
-			long windowSize, long slideInterval, long timeUnitInMillis) {
+			long windowSize, long slideInterval) {
 		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT, Tuple, R>(reducer,
 				GroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<OUT, R>(reducer,
-				windowSize, slideInterval, timeUnitInMillis));
+				windowSize, slideInterval));
 	}
 
 	/**
@@ -775,7 +774,7 @@ public abstract class DataStream<OUT> {
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
-	private <R> SingleOutputStreamOperator<R, ?> addFunction(String functionName,
+	protected <R> SingleOutputStreamOperator<R, ?> addFunction(String functionName,
 			final Function function, TypeSerializerWrapper<OUT, Tuple, R> typeWrapper,
 			UserTaskInvokable<OUT, R> functionInvokable) {
 
@@ -832,8 +831,8 @@ public abstract class DataStream<OUT> {
 	 *            Number of the type (used at co-functions)
 	 */
 	protected <X> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
-		if (inputStream instanceof ConnectedDataStream) {
-			for (DataStream<X> stream : ((ConnectedDataStream<X>) inputStream).connectedStreams) {
+		if (inputStream instanceof MergedDataStream) {
+			for (DataStream<X> stream : ((MergedDataStream<X>) inputStream).mergedStreams) {
 				jobGraphBuilder.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
 						inputStream.userDefinedNames);
 			}

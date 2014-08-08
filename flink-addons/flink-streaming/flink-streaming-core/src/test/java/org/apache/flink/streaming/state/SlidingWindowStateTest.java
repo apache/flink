@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.junit.Test;
 
 public class SlidingWindowStateTest {
@@ -34,14 +35,15 @@ public class SlidingWindowStateTest {
 	private final static int SLIDE_SIZE = 2;
 	private static final int UNIT = 1;
 
+	@SuppressWarnings("unchecked")
 	@Test
 	public void test() {
 		SlidingWindowState<Integer> state = new SlidingWindowState<Integer>(SLIDING_BATCH_SIZE,
 				SLIDE_SIZE, UNIT);
-		state.pushBack(Arrays.asList(0));
-		state.pushBack(Arrays.asList(1));
+		state.pushBack(Arrays.asList(new StreamRecord<Integer>().setObject(0)));
+		state.pushBack(Arrays.asList(new StreamRecord<Integer>().setObject(1)));
 		assertEquals(false, state.isFull());
-		state.pushBack(Arrays.asList(2));
+		state.pushBack(Arrays.asList(new StreamRecord<Integer>().setObject(2)));
 		assertTrue(state.isFull());
 
 		SlidingWindowStateIterator<Integer> iterator = state.getIterator();
@@ -53,9 +55,9 @@ public class SlidingWindowStateTest {
 		assertEquals(getExpectedSet(0, 2), actualSet);
 		actualSet.clear();
 
-		state.pushBack(Arrays.asList(3));
+		state.pushBack(Arrays.asList(new StreamRecord<Integer>().setObject(3)));
 		assertEquals(false, state.isEmittable());
-		state.pushBack(Arrays.asList(4));
+		state.pushBack(Arrays.asList(new StreamRecord<Integer>().setObject(4)));
 		assertTrue(state.isEmittable());
 
 		iterator = state.getIterator();

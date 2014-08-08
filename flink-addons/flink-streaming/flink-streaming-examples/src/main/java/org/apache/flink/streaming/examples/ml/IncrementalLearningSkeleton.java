@@ -135,7 +135,7 @@ public class IncrementalLearningSkeleton {
 
 		@SuppressWarnings("unchecked")
 		DataStream<Tuple1<Integer>> prediction = env
-				.addSource(new NewDataSource(), SOURCE_PARALLELISM).connectWith(model)
+				.addSource(new NewDataSource(), SOURCE_PARALLELISM).merge(model)
 				.map(new Predictor());
 
 		prediction.print();

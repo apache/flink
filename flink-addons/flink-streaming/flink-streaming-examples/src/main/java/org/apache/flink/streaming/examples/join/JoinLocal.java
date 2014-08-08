@@ -46,7 +46,7 @@ public class JoinLocal {
 
 		@SuppressWarnings("unused")
 		DataStream<Tuple3<String, Integer, Integer>> source2 = env
-				.addSource(new JoinSourceTwo(), SOURCE_PARALLELISM).connectWith(source1)
+				.addSource(new JoinSourceTwo(), SOURCE_PARALLELISM).merge(source1)
 				.partitionBy(1).flatMap(new JoinTask()).addSink(new JoinSink());
 
 		env.execute();
