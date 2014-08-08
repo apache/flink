@@ -434,9 +434,9 @@ public abstract class DataSet<T> {
 	 * @see org.apache.flink.api.java.operators.GroupReduceOperator
 	 * @see DataSet
 	 */
-	public UnsortedGrouping<T> groupBy(String... fields) {
-		return new UnsortedGrouping<T>(this, new Keys.ExpressionKeys<T>(fields, getType()));
-	}
+//	public UnsortedGrouping<T> groupBy(String... fields) {
+//		return new UnsortedGrouping<T>(this, new Keys.ExpressionKeys<T>(fields, getType()));
+//	}
 	
 	// --------------------------------------------------------------------------------------------
 	//  Joining
