@@ -291,7 +291,10 @@ under the License.
 						</configuration>
 					</execution>
 
-					<!-- WordCountPOJO -->
+					<!-- WordCountPOJO
+
+					Note: disabled for now, because of problems with POJO types
+
 					<execution>
 						<id>WordCountPOJO</id>
 						<phase>package</phase>
@@ -313,8 +316,7 @@ under the License.
 								<include>**/java/wordcount/util/WordCountData.class</include>
 							</includes>
 						</configuration>
-					</execution>
-					
+					</execution> -->
 				</executions>
 			</plugin>
 		</plugins>
