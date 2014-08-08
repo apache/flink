@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.TypeInformation;
+import org.junit.Ignore;
 import org.junit.Test;
 
 @SuppressWarnings("unused")
@@ -51,6 +52,7 @@ public class PojoTypeInformationTest {
 		Integer[] intWrapperArray;
 	}
 
+	@Ignore
 	@Test
 	public void testSimplePojoTypeExtraction() {
 		TypeInformation<SimplePojo> type = TypeExtractor.getForClass(SimplePojo.class);
@@ -66,6 +68,7 @@ public class PojoTypeInformationTest {
 		NestedPojoInner inner;
 	}
 
+	@Ignore
 	@Test
 	public void testNestedPojoTypeExtraction() {
 		TypeInformation<NestedPojoOuter> type = TypeExtractor.getForClass(NestedPojoOuter.class);
@@ -82,6 +85,7 @@ public class PojoTypeInformationTest {
 		Recursive1Pojo rec;
 	}
 
+	@Ignore
 	@Test
 	public void testRecursivePojoTypeExtraction() {
 		// This one tests whether a recursive pojo is detected using the set of visited
@@ -89,7 +93,8 @@ public class PojoTypeInformationTest {
 		TypeInformation<Recursive1Pojo> type = TypeExtractor.getForClass(Recursive1Pojo.class);
 		assertTrue("Extracted type is not a Pojo type but should be.", type instanceof PojoTypeInfo);
 	}
-	
+
+	@Ignore
 	@Test
 	public void testRecursivePojoObjectTypeExtraction() {
 		TypeInformation<Recursive1Pojo> type = TypeExtractor.getForObject(new Recursive1Pojo());

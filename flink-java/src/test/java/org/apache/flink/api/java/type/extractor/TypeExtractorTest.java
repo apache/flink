@@ -41,7 +41,6 @@ import org.apache.flink.api.java.typeutils.BasicArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -62,7 +61,6 @@ import org.junit.Test;
 
 public class TypeExtractorTest {
 
-	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testBasicType() {
@@ -307,11 +305,11 @@ public class TypeExtractorTest {
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertFalse(ti.isTupleType());
-		Assert.assertTrue(ti instanceof PojoTypeInfo);
+		Assert.assertTrue(ti instanceof GenericTypeInfo);
 		Assert.assertEquals(ti.getTypeClass(), CustomType.class);
 
 		// use getForClass()
-		Assert.assertTrue(TypeExtractor.getForClass(CustomType.class) instanceof PojoTypeInfo);
+		Assert.assertTrue(TypeExtractor.getForClass(CustomType.class) instanceof GenericTypeInfo);
 		Assert.assertEquals(TypeExtractor.getForClass(CustomType.class).getTypeClass(), ti.getTypeClass());
 
 		// use getForObject()
@@ -320,7 +318,7 @@ public class TypeExtractorTest {
 
 		Assert.assertFalse(ti2.isBasicType());
 		Assert.assertFalse(ti2.isTupleType());
-		Assert.assertTrue(ti2 instanceof PojoTypeInfo);
+		Assert.assertTrue(ti2 instanceof GenericTypeInfo);
 		Assert.assertEquals(ti2.getTypeClass(), CustomType.class);
 	}
 
@@ -360,7 +358,7 @@ public class TypeExtractorTest {
 		Assert.assertEquals(Tuple2.class, tti.getTypeClass());
 		
 		Assert.assertEquals(Long.class, tti.getTypeAt(0).getTypeClass());
-		Assert.assertTrue(tti.getTypeAt(1) instanceof PojoTypeInfo);
+		Assert.assertTrue(tti.getTypeAt(1) instanceof GenericTypeInfo);
 		Assert.assertEquals(CustomType.class, tti.getTypeAt(1).getTypeClass());
 
 		// use getForObject()
@@ -373,7 +371,7 @@ public class TypeExtractorTest {
 		
 		Assert.assertEquals(Tuple2.class, tti2.getTypeClass());
 		Assert.assertEquals(Long.class, tti2.getTypeAt(0).getTypeClass());
-		Assert.assertTrue(tti2.getTypeAt(1) instanceof PojoTypeInfo);
+		Assert.assertTrue(tti2.getTypeAt(1) instanceof GenericTypeInfo);
 		Assert.assertEquals(CustomType.class, tti2.getTypeAt(1).getTypeClass());
 	}
 

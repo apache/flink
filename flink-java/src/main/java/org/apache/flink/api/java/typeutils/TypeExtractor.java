@@ -792,11 +792,13 @@ public class TypeExtractor {
 			// special case handling for Class, this should not be handled by the POJO logic
 			return new GenericTypeInfo<X>(clazz);
 		}
-		TypeInformation<X> pojoType =  analyzePojo(clazz);
-		if (pojoType != null) {
-			return pojoType;
-		}
 
+//		Disable POJO types for now (see https://mail-archives.apache.org/mod_mbox/incubator-flink-dev/201407.mbox/%3C53D96049.1060509%40cse.uta.edu%3E)
+//
+//		TypeInformation<X> pojoType =  analyzePojo(clazz);
+//		if (pojoType != null) {
+//			return pojoType;
+//		}
 
 		// return a generic type
 		return new GenericTypeInfo<X>(clazz);

@@ -21,8 +21,9 @@ package org.apache.flink.test.exampleJavaPrograms;
 import org.apache.flink.example.java.wordcount.WordCountPOJO;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.junit.Ignore;
 
-
+@Ignore
 public class WordCountPOJOITCase extends JavaProgramTestBase {
 
 	protected String textPath;
