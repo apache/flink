@@ -53,6 +53,15 @@ public class WordCountPOJO {
 	// *************************************************************************
 
 	public static void main(String[] args) throws Exception {
+		// ====================================================================
+		// IMPORTANT
+		//
+		// Note: this example is currently not working, because support for
+		// POJO types has been disabled. As soon as all known issues (see [1])
+		// are fixed, we will enable POJO support again.
+		//
+		// [1] https://mail-archives.apache.org/mod_mbox/incubator-flink-dev/201407.mbox/%3C53D96049.1060509%40cse.uta.edu%3E
+		// ====================================================================
 
 		parseParameters(args);
 
