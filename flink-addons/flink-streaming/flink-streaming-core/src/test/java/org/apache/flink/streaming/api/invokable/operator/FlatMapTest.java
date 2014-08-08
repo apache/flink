@@ -20,19 +20,13 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Arrays;
+import java.util.List;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.util.LogUtils;
+import org.apache.flink.streaming.util.MockInvokable;
 import org.apache.flink.util.Collector;
-import org.apache.log4j.Level;
 import org.junit.Test;
 
 public class FlatMapTest {
@@ -43,180 +37,20 @@ public class FlatMapTest {
 
 		@Override
 		public void flatMap(Integer value, Collector<Integer> out) throws Exception {
-			out.collect(value * value);
-
-		}
-
-	}
-
-	public static final class ParallelFlatMap implements FlatMapFunction<Integer, Integer> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void flatMap(Integer value, Collector<Integer> out) throws Exception {
-			numberOfElements++;
-
-		}
-
-	}
-
-	public static final class GenerateSequenceFlatMap implements FlatMapFunction<Long, Long> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void flatMap(Long value, Collector<Long> out) throws Exception {
-			out.collect(value * value);
-
-		}
-
-	}
-
-	public static final class MySink implements SinkFunction<Integer> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void invoke(Integer tuple) {
-			result.add(tuple);
-		}
-
-	}
-
-	public static final class FromElementsSink implements SinkFunction<Integer> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void invoke(Integer tuple) {
-			fromElementsResult.add(tuple);
-		}
-
-	}
-
-	public static final class FromCollectionSink implements SinkFunction<Integer> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void invoke(Integer tuple) {
-			fromCollectionResult.add(tuple);
-		}
-
-	}
-
-	public static final class GenerateSequenceSink implements SinkFunction<Long> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void invoke(Long tuple) {
-			generateSequenceResult.add(tuple);
-		}
-
-	}
-
-	private static void fillExpectedList() {
-		for (int i = 0; i < 10; i++) {
-			expected.add(i * i);
-		}
-	}
-
-	private static void fillFromElementsExpected() {
-		fromElementsExpected.add(4);
-		fromElementsExpected.add(25);
-		fromElementsExpected.add(81);
-	}
-
-	private static void fillSequenceSet() {
-		for (int i = 0; i < 10; i++) {
-			sequenceExpected.add(i * i);
-		}
-	}
-
-	private static void fillLongSequenceSet() {
-		for (int i = 0; i < 10; i++) {
-			sequenceLongExpected.add((long) (i * i));
-		}
-	}
-
-	private static void fillFromCollectionSet() {
-		if (fromCollectionSet.isEmpty()) {
-			for (int i = 0; i < 10; i++) {
-				fromCollectionSet.add(i);
+			if (value % 2 == 0) {
+				out.collect(value);
+				out.collect(value * value);
 			}
 		}
 	}
 
-	private static final int PARALLELISM = 1;
-	private static final long MEMORYSIZE = 32;
-
-	private static int numberOfElements = 0;
-	private static Set<Integer> expected = new HashSet<Integer>();
-	private static Set<Integer> result = new HashSet<Integer>();
-	private static Set<Integer> fromElementsExpected = new HashSet<Integer>();
-	private static Set<Integer> fromElementsResult = new HashSet<Integer>();
-	private static Set<Integer> fromCollectionSet = new HashSet<Integer>();
-	private static Set<Integer> sequenceExpected = new HashSet<Integer>();
-	private static Set<Long> sequenceLongExpected = new HashSet<Long>();
-	private static Set<Integer> fromCollectionResult = new HashSet<Integer>();
-	private static Set<Long> generateSequenceResult = new HashSet<Long>();
-
 	@Test
-	public void test() throws Exception {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
-
-		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(PARALLELISM);
-		// flatmapTest
-
-		fillFromCollectionSet();
-
-		@SuppressWarnings("unused")
-		DataStream<Integer> dataStream = env.fromCollection(fromCollectionSet)
-				.flatMap(new MyFlatMap()).addSink(new MySink());
-
-		fillExpectedList();
-
-		// parallelShuffleconnectTest
-		fillFromCollectionSet();
-
-		DataStream<Integer> source = env.fromCollection(fromCollectionSet);
-		@SuppressWarnings("unused")
-		DataStream<Integer> map = source.flatMap(new ParallelFlatMap()).addSink(
-				new MySink());
-		@SuppressWarnings("unused")
-		DataStream<Integer> map2 = source.flatMap(new ParallelFlatMap()).addSink(
-				new MySink());
-
-		// fromElementsTest
-		DataStream<Integer> fromElementsMap = env.fromElements(2, 5, 9).flatMap(
-				new MyFlatMap());
-		@SuppressWarnings("unused")
-		DataStream<Integer> sink = fromElementsMap.addSink(new FromElementsSink());
-
-		fillFromElementsExpected();
-
-		// fromCollectionTest
-		fillFromCollectionSet();
-
-		DataStream<Integer> fromCollectionMap = env.fromCollection(fromCollectionSet)
-				.flatMap(new MyFlatMap());
-		@SuppressWarnings("unused")
-		DataStream<Integer> fromCollectionSink = fromCollectionMap
-				.addSink(new FromCollectionSink());
-
-		// generateSequenceTest
-		fillSequenceSet();
-
-		DataStream<Long> generateSequenceMap = env.generateSequence(0, 9).flatMap(
-				new GenerateSequenceFlatMap());
-		@SuppressWarnings("unused")
-		DataStream<Long> generateSequenceSink = generateSequenceMap
-				.addSink(new GenerateSequenceSink());
-
-		fillLongSequenceSet();
-
-		env.executeTest(MEMORYSIZE);
-
-		assertTrue(expected.equals(result));
-		assertEquals(20, numberOfElements);
-		assertEquals(fromElementsExpected, fromElementsResult);
-		assertEquals(sequenceExpected, fromCollectionResult);
-		assertEquals(sequenceLongExpected, generateSequenceResult);
+	public void flatMapTest() {
+		FlatMapInvokable<Integer, Integer> invokable = new FlatMapInvokable<Integer, Integer>(new MyFlatMap());
+		
+		List<Integer> expected = Arrays.asList(2, 4, 4, 16, 6, 36, 8, 64);
+		List<Integer> actual = MockInvokable.createAndExecute(invokable, Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8));
+		
+		assertEquals(expected, actual);
 	}
 }
