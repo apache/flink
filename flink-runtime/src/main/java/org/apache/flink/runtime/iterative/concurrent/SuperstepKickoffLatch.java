@@ -29,7 +29,7 @@ public class SuperstepKickoffLatch {
 	public void triggerNextSuperstep() {
 		synchronized (monitor) {
 			if (terminated) {
-				throw new IllegalStateException("Already teriminated.");
+				throw new IllegalStateException("Already terminated.");
 			}
 			superstepNumber++;
 			monitor.notifyAll();

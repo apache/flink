@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.concurrent;
 
 public class SuperstepKickoffLatchBroker extends Broker<SuperstepKickoffLatch> {

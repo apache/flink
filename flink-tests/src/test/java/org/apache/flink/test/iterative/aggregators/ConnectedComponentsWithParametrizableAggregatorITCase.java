@@ -96,11 +96,14 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(expectedResult, resultPath);
 		long[] aggr_values = ConnectedComponentsWithAggregatorProgram.aggr_value;
+		
+		// note that position 0 has the end result from superstep 1, retrieved at the start of iteration 2
+		// position one as superstep 2, retrieved at the start of iteration 3.
+		// the result from iteration 5 is not available, because no iteration 6 happens
 		Assert.assertEquals(3, aggr_values[0]);
 		Assert.assertEquals(4, aggr_values[1]);
 		Assert.assertEquals(5, aggr_values[2]);
 		Assert.assertEquals(6, aggr_values[3]);
-		Assert.assertEquals(6, aggr_values[4]);
 	}
 
 
