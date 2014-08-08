@@ -99,7 +99,7 @@ public class TwitterLocal implements Serializable {
 
 						return new Tuple2<String, Integer>(value, 1);
 					}
-				}).groupReduce(new WordCountCounter(), 0);
+				}).groupBy(0).reduce(new WordCountCounter());
 
 		dataStream.addSink(new SinkFunction<Tuple2<String, Integer>>() {
 

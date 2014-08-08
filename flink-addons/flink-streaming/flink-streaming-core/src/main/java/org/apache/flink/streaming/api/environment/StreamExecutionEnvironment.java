@@ -220,7 +220,6 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the returned stream
 	 * @return The DataStream representing the elements.
 	 */
-	@SuppressWarnings("unchecked")
 	public <OUT extends Serializable> DataStreamSource<OUT> fromCollection(Collection<OUT> data) {
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements");
 
@@ -233,7 +232,7 @@ public abstract class StreamExecutionEnvironment {
 
 			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(
 					new FromElementsFunction<OUT>(data)), new ObjectTypeWrapper<OUT, Tuple, OUT>(
-					(OUT) data.toArray()[0], null, (OUT) data.toArray()[0]), "source",
+					data.iterator().next(), null, data.iterator().next()), "source",
 					SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize collection");

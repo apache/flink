@@ -17,35 +17,38 @@
  *
  */
 
-package org.apache.flink.streaming.api.invokable.operator;
+package org.apache.flink.streaming.api;
 
 import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.streaming.util.MockInvokable;
+import org.apache.flink.streaming.api.function.source.FromElementsFunction;
+import org.apache.flink.streaming.api.function.source.GenSequenceFunction;
+import org.apache.flink.streaming.util.MockSource;
 import org.junit.Test;
 
-public class MapTest {
+public class SourceTest {
+	
+	@Test
+	public void fromElementsTest() {
+		List<Integer> expectedList = Arrays.asList(1, 2, 3);
+		List<Integer> actualList = MockSource.createAndExecute(new FromElementsFunction<Integer>(1, 2, 3));
+		assertEquals(expectedList, actualList);
+	}
 
-	private static class Map implements MapFunction<Integer, String> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public String map(Integer value) throws Exception {
-			return "+" + (value + 1);
-		}
+	@Test
+	public void fromCollectionTest() {
+		List<Integer> expectedList = Arrays.asList(1, 2, 3);
+		List<Integer> actualList = MockSource.createAndExecute(new FromElementsFunction<Integer>(Arrays.asList(1, 2, 3)));
+		assertEquals(expectedList, actualList);
 	}
 	
 	@Test
-	public void mapInvokableTest() {
-		MapInvokable<Integer, String> invokable = new MapInvokable<Integer, String>(new Map());
-		
-		List<String> expectedList = Arrays.asList("+2", "+3", "+4");
-		List<String> actualList = MockInvokable.createAndExecute(invokable, Arrays.asList(1, 2, 3));
-		
+	public void genSequenceTest() {
+		List<Long> expectedList = Arrays.asList(1L, 2L, 3L);
+		List<Long> actualList = MockSource.createAndExecute(new GenSequenceFunction(1, 3));
 		assertEquals(expectedList, actualList);
 	}
 }

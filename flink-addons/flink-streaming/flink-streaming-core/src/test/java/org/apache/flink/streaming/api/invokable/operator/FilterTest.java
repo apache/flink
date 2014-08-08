@@ -19,31 +19,18 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.Serializable;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Arrays;
+import java.util.List;
 
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.util.LogUtils;
-import org.apache.log4j.Level;
-import org.junit.Assert;
+import org.apache.flink.streaming.util.MockInvokable;
 import org.junit.Test;
 
 public class FilterTest implements Serializable {
 	private static final long serialVersionUID = 1L;
-
-	private static Set<Integer> set = new HashSet<Integer>();
-
-	private static class MySink implements SinkFunction<Integer> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void invoke(Integer value) {
-			set.add(value);
-		}
-	}
 
 	static class MyFilter implements FilterFunction<Integer> {
 		private static final long serialVersionUID = 1L;
@@ -54,16 +41,13 @@ public class FilterTest implements Serializable {
 		}
 	}
 
-	@Test
+	@Test 
 	public void test() {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
+		FilterInvokable<Integer> invokable = new FilterInvokable<Integer>(new MyFilter());
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-
-		env.fromElements(1, 2, 3, 4, 5, 6, 7).filter(new MyFilter()).addSink(new MySink());
-
-		env.execute();
-
-		Assert.assertArrayEquals(new Integer[] { 2, 4, 6 }, set.toArray());
+		List<Integer> expected = Arrays.asList(2, 4, 6);
+		List<Integer> actual = MockInvokable.createAndExecute(invokable, Arrays.asList(1, 2, 3, 4, 5, 6, 7));
+		
+		assertEquals(expected, actual);
 	}
 }
