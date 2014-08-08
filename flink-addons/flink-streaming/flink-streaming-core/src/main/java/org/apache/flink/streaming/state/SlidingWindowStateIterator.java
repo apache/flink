@@ -24,15 +24,18 @@ import java.util.Iterator;
 
 import org.apache.commons.collections.buffer.CircularFifoBuffer;
 import org.apache.flink.streaming.api.invokable.operator.BatchIterator;
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class SlidingWindowStateIterator<T> implements BatchIterator<T> {
 
 	private CircularFifoBuffer buffer;
-	private Iterator<Collection<T>> iterator;
-	private Iterator<T> subIterator;
-	
+	private Iterator<Collection<StreamRecord<T>>> iterator;
+	private Iterator<StreamRecord<T>> subIterator;
+	private Iterator<StreamRecord<T>> streamRecordIterator;
+
 	public SlidingWindowStateIterator(CircularFifoBuffer buffer) {
 		this.buffer = buffer;
+		this.streamRecordIterator = new StreamRecordIterator();
 	}
 
 	public boolean hasNext() {
@@ -40,7 +43,7 @@ public class SlidingWindowStateIterator<T> implements BatchIterator<T> {
 	}
 
 	public T next() {
-		T nextElement = subIterator.next();
+		T nextElement = subIterator.next().getObject();
 		if (!subIterator.hasNext()) {
 			if (iterator.hasNext()) {
 				subIterator = iterator.next().iterator();
@@ -59,5 +62,34 @@ public class SlidingWindowStateIterator<T> implements BatchIterator<T> {
 	public void reset() {
 		iterator = buffer.iterator();
 		subIterator = iterator.next().iterator();
+	}
+
+	public Iterator<StreamRecord<T>> getStreamRecordIterator() {
+		return this.streamRecordIterator;
+	}
+
+	private class StreamRecordIterator implements Iterator<StreamRecord<T>> {
+
+		@Override
+		public boolean hasNext() {
+			return SlidingWindowStateIterator.this.hasNext();
+		}
+
+		@Override
+		public StreamRecord<T> next() {
+			StreamRecord<T> nextElement = subIterator.next();
+			if (!subIterator.hasNext()) {
+				if (iterator.hasNext()) {
+					subIterator = iterator.next().iterator();
+				}
+			}
+			return nextElement;
+		}
+
+		@Override
+		public void remove() {
+			SlidingWindowStateIterator.this.remove();
+		}
+
 	}
 }

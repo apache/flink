@@ -36,7 +36,8 @@ public class WordCountLocal {
 		DataStream<Tuple2<String, Integer>> dataStream = env
 				.readTextFile("src/test/resources/testdata/hamlet.txt")
 				.flatMap(new WordCountSplitter())
-				.groupReduce(new WordCountCounter(), 0);
+				.groupBy(0)
+				.reduce(new WordCountCounter());
 
 		dataStream.print();
 

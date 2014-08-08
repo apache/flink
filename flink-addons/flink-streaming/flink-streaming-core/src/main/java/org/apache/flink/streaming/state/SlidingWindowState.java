@@ -20,9 +20,11 @@
 package org.apache.flink.streaming.state;
 
 import java.io.Serializable;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.collections.buffer.CircularFifoBuffer;
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 /**
  * The window state for window operator. To be general enough, this class
@@ -49,14 +51,14 @@ public class SlidingWindowState<T> implements Serializable {
 		this.iterator = new SlidingWindowStateIterator<T>(buffer);
 	}
 
-	public void pushBack(List<T> array) {
+	public void pushBack(List<StreamRecord<T>> array) {
 		buffer.add(array);
 		currentRecordCount += 1;
 	}
 
 	@SuppressWarnings("unchecked")
-	public List<T> popFront() {
-		List<T> frontRecord = (List<T>) buffer.get();
+	public List<StreamRecord<T>> popFront() {
+		List<StreamRecord<T>> frontRecord = (List<StreamRecord<T>>) buffer.get();
 		buffer.remove();
 		return frontRecord;
 	}
@@ -66,17 +68,13 @@ public class SlidingWindowState<T> implements Serializable {
 	}
 
 	public SlidingWindowStateIterator<T> getIterator() {
-		if (isFull()) {
-			iterator.reset();
-			return iterator;
-		} else {
-			return null;
-		}
-	}
-
-	public SlidingWindowStateIterator<T> forceGetIterator() {
 		iterator.reset();
 		return iterator;
+	}
+
+	public Iterator<StreamRecord<T>> getStreamRecordIterator() {
+		iterator.reset();
+		return iterator.getStreamRecordIterator();
 	}
 
 	public boolean isEmittable() {

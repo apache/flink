@@ -318,7 +318,7 @@ public class MapTest {
 		DataStream<Integer> source1 = env.addSource(new MySource1(), 1);
 
 		@SuppressWarnings({ "unused", "unchecked" })
-		DataStream<Integer> source2 = env.addSource(new MySource2(), 1).connectWith(source1)
+		DataStream<Integer> source2 = env.addSource(new MySource2(), 1).merge(source1)
 				.partitionBy(0).map(new MySingleJoinMap()).setParallelism(1)
 				.addSink(new JoinSink());
 
@@ -331,7 +331,7 @@ public class MapTest {
 
 		@SuppressWarnings({ "unused", "unchecked" })
 		DataStream<Integer> source5 = env.addSource(new MySource3(), 1)
-				.connectWith(source3, source4).partitionBy(0).map(new MyMultipleJoinMap())
+				.merge(source3, source4).partitionBy(0).map(new MyMultipleJoinMap())
 				.setParallelism(1).addSink(new JoinSink());
 
 		env.executeTest(MEMORYSIZE);

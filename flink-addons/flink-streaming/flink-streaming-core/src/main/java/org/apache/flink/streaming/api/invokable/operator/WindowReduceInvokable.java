@@ -19,72 +19,57 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import java.util.ArrayList;
-
+import org.apache.commons.math.util.MathUtils;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.state.SlidingWindowState;
 
 public class WindowReduceInvokable<IN, OUT> extends StreamReduceInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 	private long windowSize;
-	private long slideInterval;
-	private long timeUnitInMillis;
-	private transient SlidingWindowState<IN> state;
 	volatile boolean isRunning;
+	private long startTime;
 
 	public WindowReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize,
-			long slideInterval, long timeUnitInMillis) {
+			long slideInterval) {
+		super(reduceFunction);
+		this.reducer = reduceFunction;
+		this.windowSize = windowSize;
+		this.slideSize = slideInterval;
+		this.granularity = MathUtils.gcd(windowSize, slideSize);
+		this.listSize = (int) granularity;
+	}
+	
+	public WindowReduceInvokable(ReduceFunction<IN> reduceFunction, long windowSize,
+			long slideInterval) {
 		super(reduceFunction);
 		this.windowSize = windowSize;
-		this.slideInterval = slideInterval;
-		this.timeUnitInMillis = timeUnitInMillis;
+		this.slideSize = slideInterval;
+		this.granularity = MathUtils.gcd(windowSize, slideSize);
+		this.listSize = (int) granularity;
 	}
 
-	protected void immutableInvoke() throws Exception {
-		if ((reuse = loadNextRecord()) == null) {
-			throw new RuntimeException("DataStream must not be empty");
+	@Override
+	protected boolean batchNotFull() {
+		long time = System.currentTimeMillis();
+		if (time - startTime < granularity) {
+			return true;
+		} else {
+			startTime = time;
+			return false;
 		}
-
-		while (reuse != null && !state.isFull()) {
-			collectOneTimeUnit();
-		}
-		reduce();
-
-		while (reuse != null) {
-			for (int i = 0; i < slideInterval / timeUnitInMillis; i++) {
-				collectOneTimeUnit();
-			}
-			reduce();
-		}
-	}
-
-	private void collectOneTimeUnit() {
-		ArrayList<IN> list;
-		list = new ArrayList<IN>();
-		long startTime = System.currentTimeMillis();
-
-		do {
-			list.add(reuse.getObject());
-			resetReuse();
-		} while ((reuse = loadNextRecord()) != null
-				&& System.currentTimeMillis() - startTime < timeUnitInMillis);
-		state.pushBack(list);
-	}
-
-	private boolean reduce() throws Exception {
-		userIterator = state.forceGetIterator();
-		reducer.reduce(userIterable, collector);
-		return reuse != null;
 	}
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
-		this.state = new SlidingWindowState<IN>(windowSize, slideInterval, timeUnitInMillis);
+		startTime = System.currentTimeMillis();
+		this.state = new SlidingWindowState<IN>(windowSize, slideSize, granularity);
 	}
 
 	protected void mutableInvoke() throws Exception {
 		throw new RuntimeException("Reducing mutable sliding window is not supported.");
 	}
+
 }

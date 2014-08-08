@@ -46,7 +46,7 @@ public class WindowJoinLocal {
 
 		@SuppressWarnings("unchecked")
 		DataStream<Tuple3<String, Integer, Integer>> dataStream2 = env
-				.addSource(new WindowJoinSourceTwo(), SOURCE_PARALLELISM).connectWith(dataStream1)
+				.addSource(new WindowJoinSourceTwo(), SOURCE_PARALLELISM).merge(dataStream1)
 				.partitionBy(1).flatMap(new WindowJoinTask());
 
 		dataStream2.print();

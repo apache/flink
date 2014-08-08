@@ -29,7 +29,7 @@ import java.util.Map;
 @SuppressWarnings("serial")
 public class TableState<K, V> implements Serializable {
 
-	private Map<K, V> state=new LinkedHashMap<K, V>();
+	protected Map<K, V> state=new LinkedHashMap<K, V>();
 
 	public void put(K key, V value) {
 		state.put(key, value);
@@ -49,5 +49,9 @@ public class TableState<K, V> implements Serializable {
 
 	public TableStateIterator<K, V> getIterator() {
 		return new TableStateIterator<K, V>(state.entrySet().iterator());
+	}
+	
+	public void clear(){
+		state.clear();
 	}
 }

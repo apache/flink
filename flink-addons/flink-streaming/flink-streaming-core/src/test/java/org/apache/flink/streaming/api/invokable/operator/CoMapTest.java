@@ -80,12 +80,12 @@ public class CoMapTest implements Serializable {
 
 		DataStream<Integer> ds1 = env.fromElements(1, 3);
 		@SuppressWarnings("unchecked")
-		DataStream<Integer> ds2 = env.fromElements(2, 4).connectWith(ds1);
+		DataStream<Integer> ds2 = env.fromElements(2, 4).merge(ds1);
 
 		DataStream<String> ds3 = env.fromElements("a", "b");
 
 		@SuppressWarnings({ "unused", "unchecked" })
-		DataStream<Boolean> ds4 = env.fromElements("c").connectWith(ds3).co(ds2).map(new MyCoMap())
+		DataStream<Boolean> ds4 = env.fromElements("c").merge(ds3).connect(ds2).map(new MyCoMap())
 				.addSink(new EmptySink());
 
 		env.executeTest(32);

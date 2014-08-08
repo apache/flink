@@ -19,51 +19,49 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
+import java.util.Iterator;
+
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.state.MutableTableState;
 
-public class GroupReduceInvokable<IN> extends UserTaskInvokable<IN, IN> {
-	private static final long serialVersionUID = 1L;
+public class WindowGroupReduceInvokable<IN> extends WindowReduceInvokable<IN, IN> {
 
-	private ReduceFunction<IN> reducer;
-	private int keyPosition;
+	int keyPosition;
+	protected ReduceFunction<IN> reducer;
+	private Iterator<StreamRecord<IN>> iterator;
 	private MutableTableState<Object, IN> values;
 
-	public GroupReduceInvokable(ReduceFunction<IN> reducer, int keyPosition) {
-		super(reducer);
-		this.reducer = reducer;
+	public WindowGroupReduceInvokable(ReduceFunction<IN> reduceFunction, long windowSize,
+			long slideInterval, int keyPosition) {
+		super(reduceFunction, windowSize, slideInterval);
 		this.keyPosition = keyPosition;
+		this.reducer = reduceFunction;
 		values = new MutableTableState<Object, IN>();
 	}
 
 	@Override
-	protected void immutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
-			reduce();
-			resetReuse();
+	protected void reduce() throws Exception {
+		iterator = state.getStreamRecordIterator();
+		while (iterator.hasNext()) {
+			StreamRecord<IN> nextRecord = iterator.next();
+
+			IN nextValue = nextRecord.getObject();
+			Object key = nextRecord.getField(keyPosition);
+
+			IN currentValue = values.get(key);
+			if (currentValue != null) {
+				IN reduced = reducer.reduce(currentValue, nextValue);
+				values.put(key, reduced);
+				collector.collect(reduced);
+			} else {
+				values.put(key, nextValue);
+				collector.collect(nextValue);
+			}
 		}
+		values.clear();
 	}
 
-	@Override
-	protected void mutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
-			reduce();
-		}
-	}
-
-	private void reduce() throws Exception {
-		Object key = reuse.getField(keyPosition);
-		IN currentValue = values.get(key);
-		IN nextValue = reuse.getObject();
-		if (currentValue != null) {
-			IN reduced = reducer.reduce(currentValue, nextValue);
-			values.put(key, reduced);
-			collector.collect(reduced);
-		} else {
-			values.put(key, nextValue);
-			collector.collect(nextValue);
-		}
-	}
+	private static final long serialVersionUID = 1L;
 
 }

@@ -25,18 +25,15 @@ import org.apache.flink.streaming.util.LogUtils;
 import org.apache.log4j.Level;
 import org.junit.Test;
 
-public class PrintTest {
+public class PrintTest{
 
-	
 	private static final long MEMORYSIZE = 32;
-
 
 	@Test
 	public void test() throws Exception {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
 
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-
 		env.generateSequence(1, 10).print();
 		env.executeTest(MEMORYSIZE);
 
