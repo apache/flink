@@ -18,48 +18,48 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.util.Random;
-
+import com.google.common.base.Objects;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.types.TypeInformation;
+import org.junit.Ignore;
 
-import com.google.common.base.Objects;
+import java.util.Random;
 
 /**
  * A test for the {@link org.apache.flink.api.java.typeutils.runtime.PojoSerializer}.
  */
+@Ignore
 public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserClass> {
 	private TypeInformation<TestUserClass> type = TypeExtractor.getForClass(TestUserClass.class);
 
 	@Override
 	protected TypeSerializer<TestUserClass> createSerializer() {
 		TypeSerializer<TestUserClass> serializer = type.createSerializer();
-		assert(serializer instanceof PojoSerializer);
+		assert (serializer instanceof PojoSerializer);
 		return serializer;
 	}
-	
+
 	@Override
 	protected int getLength() {
 		return -1;
 	}
-	
+
 	@Override
 	protected Class<TestUserClass> getTypeClass() {
 		return TestUserClass.class;
 	}
-	
+
 	@Override
 	protected TestUserClass[] getTestData() {
 		Random rnd = new Random(874597969123412341L);
 
-		return new TestUserClass[] {
-			new TestUserClass(rnd.nextInt(), "foo", rnd.nextDouble(), new int[] {1,2,3},
-					new NestedTestUserClass(rnd.nextInt(), "foo@boo", rnd.nextDouble(), new int[] {10, 11, 12})),
-			new TestUserClass(rnd.nextInt(), "bar", rnd.nextDouble(), new int[] {4,5,6},
-					new NestedTestUserClass(rnd.nextInt(), "bar@bas", rnd.nextDouble(), new int[] {20, 21, 22}))
+		return new TestUserClass[]{
+				new TestUserClass(rnd.nextInt(), "foo", rnd.nextDouble(), new int[]{1, 2, 3},
+						new NestedTestUserClass(rnd.nextInt(), "foo@boo", rnd.nextDouble(), new int[]{10, 11, 12})),
+				new TestUserClass(rnd.nextInt(), "bar", rnd.nextDouble(), new int[]{4, 5, 6},
+						new NestedTestUserClass(rnd.nextInt(), "bar@bas", rnd.nextDouble(), new int[]{20, 21, 22}))
 		};
 
 	}
@@ -73,7 +73,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 
 		private NestedTestUserClass nestedClass;
 
-		public TestUserClass() {}
+		public TestUserClass() {
+		}
 
 		public TestUserClass(int dumm1, String dumm2, double dumm3, int[] dumm4, NestedTestUserClass nestedClass) {
 			this.dumm1 = dumm1;
@@ -124,7 +125,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		public double dumm3;
 		private int[] dumm4;
 
-		public NestedTestUserClass() {}
+		public NestedTestUserClass() {
+		}
 
 		public NestedTestUserClass(int dumm1, String dumm2, double dumm3, int[] dumm4) {
 			this.dumm1 = dumm1;

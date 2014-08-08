@@ -30,6 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.apache.flink.api.java.DataSet;
@@ -128,6 +129,7 @@ public class JoinOperatorTest {
 		ds1.join(ds2).where(5).equalTo(0);
 	}
 
+	@Ignore
 	@Test
 	public void testJoinKeyExpressions1() {
 
@@ -143,6 +145,7 @@ public class JoinOperatorTest {
 		}
 	}
 
+	@Ignore
 	@Test(expected = InvalidProgramException.class)
 	public void testJoinKeyExpressions2() {
 
@@ -154,6 +157,7 @@ public class JoinOperatorTest {
 		ds1.join(ds2).where("myInt").equalTo("myString");
 	}
 
+	@Ignore
 	@Test(expected = InvalidProgramException.class)
 	public void testJoinKeyExpressions3() {
 
@@ -165,6 +169,7 @@ public class JoinOperatorTest {
 		ds1.join(ds2).where("myInt", "myString").equalTo("myString");
 	}
 
+	@Ignore
 	@Test(expected = IllegalArgumentException.class)
 	public void testJoinKeyExpressions4() {
 
