@@ -106,11 +106,15 @@ public class UID implements IOReadableWritable, Serializable {
 
 	@Override
 	public boolean equals(Object obj) {
-		try {
-			UID other = (UID) obj;
-			return Arrays.equals(this.getId(), other.getId());
-		} catch (ClassCastException e) {
+		if (obj == null) {
 			return false;
+		} else {
+			try {
+				UID other = (UID) obj;
+				return Arrays.equals(this.getId(), other.getId());
+			} catch (ClassCastException e) {
+				return false;
+			}
 		}
 	}
 

@@ -101,7 +101,7 @@ public abstract class FlumeSink<IN> implements SinkFunction<IN> {
 			int initCounter = 0;
 			while (true) {
 				if (initCounter >= 90) {
-					new RuntimeException("Cannot establish connection with" + port + " at " + host);
+					throw new RuntimeException("Cannot establish connection with" + port + " at " + host);
 				}
 				try {
 					this.client = RpcClientFactory.getDefaultInstance(hostname, port);

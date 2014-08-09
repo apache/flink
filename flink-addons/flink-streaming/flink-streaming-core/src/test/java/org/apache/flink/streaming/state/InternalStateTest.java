@@ -19,12 +19,8 @@
 
 package org.apache.flink.streaming.state;
 
-import org.apache.flink.streaming.state.SlidingWindowState;
-import org.apache.flink.streaming.state.TableState;
-import org.apache.flink.streaming.state.TableStateIterator;
-import org.junit.Test;
-
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.junit.Test;
 
 public class InternalStateTest {
 
@@ -52,12 +48,5 @@ public class InternalStateTest {
 			Tuple2<String, String> tuple = iterator.next();
 			System.out.println(tuple.getField(0) + ", " + tuple.getField(1));
 		}
-	}
-
-	@SuppressWarnings({ "rawtypes", "unused" })
-	@Test
-	public void WindowStateTest() {
-		SlidingWindowState state = new SlidingWindowState(100, 20, 10);
-
 	}
 }

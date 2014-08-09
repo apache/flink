@@ -129,9 +129,8 @@ public class StreamConfig {
 		try {
 			return deserializeObject(config.getBytes(SERIALIZEDUDF, null));
 		} catch (Exception e) {
-			new StreamComponentException("Cannot instantiate user function");
+			throw new StreamComponentException("Cannot instantiate user function");
 		}
-		return null;
 	}
 
 	public void setComponentName(String componentName) {

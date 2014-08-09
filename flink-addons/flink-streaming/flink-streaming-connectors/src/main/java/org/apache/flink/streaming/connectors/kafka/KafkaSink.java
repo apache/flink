@@ -31,7 +31,7 @@ public abstract class KafkaSink<IN, OUT> implements SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
 	private kafka.javaapi.producer.Producer<Integer, OUT> producer;
-	static Properties props;
+	private Properties props;
 	private String topicId;
 	private String brokerAddr;
 	private boolean sendAndClose = false;

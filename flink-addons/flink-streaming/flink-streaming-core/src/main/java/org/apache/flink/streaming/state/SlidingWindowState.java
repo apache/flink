@@ -19,7 +19,6 @@
 
 package org.apache.flink.streaming.state;
 
-import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
 
@@ -32,8 +31,7 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
  * compose time based window operator by extending this class by splitting the
  * stream into multiple mini batches.
  */
-public class SlidingWindowState<T> implements Serializable {
-	private static final long serialVersionUID = -2376149970115888901L;
+public class SlidingWindowState<T> {
 	private long currentRecordCount;
 	private int fullRecordCount;
 	private int slideRecordCount;

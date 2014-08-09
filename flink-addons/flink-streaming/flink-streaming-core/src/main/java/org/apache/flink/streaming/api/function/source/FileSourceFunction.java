@@ -39,7 +39,7 @@ public class FileSourceFunction implements SourceFunction<String> {
 		BufferedReader br = new BufferedReader(new FileReader(path));
 		String line = br.readLine();
 		while (line != null) {
-			if (line != "") {
+			if (!line.equals("")) {
 				collector.collect(line);
 			}
 			line = br.readLine();

@@ -145,7 +145,7 @@ public class TwitterSource implements SourceFunction<String> {
 			properties.load(input);
 			input.close();
 		} catch (IOException ioe) {
-			new RuntimeException("Cannot open .properties file: " + authPath,
+			throw new RuntimeException("Cannot open .properties file: " + authPath,
 					ioe);
 		}
 		return properties;
@@ -221,7 +221,7 @@ public class TwitterSource implements SourceFunction<String> {
 				}
 			}
 		} catch (InterruptedException e) {
-			new RuntimeException("'Waiting for tweet' thread is interrupted", e);
+			throw new RuntimeException("'Waiting for tweet' thread is interrupted", e);
 		}
 
 	}

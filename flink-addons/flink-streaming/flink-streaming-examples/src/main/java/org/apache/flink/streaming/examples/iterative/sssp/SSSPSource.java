@@ -42,7 +42,7 @@ public class SSSPSource implements SourceFunction<Tuple3<Integer, Integer, Long>
 			if (line == null) {
 				break;
 			}
-			if (line != "") {
+			if (!line.equals("")) {
 				String[] link = line.split(":");
 				outRecord.f0 = Integer.valueOf(link[0]);
 				outRecord.f1 = Integer.valueOf(link[1]);

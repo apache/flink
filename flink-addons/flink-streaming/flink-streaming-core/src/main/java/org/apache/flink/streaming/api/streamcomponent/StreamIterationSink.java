@@ -26,7 +26,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.StringUtils;
 
 public class StreamIterationSink<IN extends Tuple> extends
@@ -34,7 +33,6 @@ public class StreamIterationSink<IN extends Tuple> extends
 
 	private static final Log LOG = LogFactory.getLog(StreamIterationSink.class);
 
-	MutableObjectIterator<StreamRecord<IN>> inputIter;
 	private String iterationId;
 	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;

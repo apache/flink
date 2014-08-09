@@ -112,7 +112,7 @@ public abstract class RMQSink<IN> implements SinkFunction<IN> {
 			channel.close();
 			connection.close();
 		} catch (IOException e) {
-			new RuntimeException("Error while closing RMQ connection with " + QUEUE_NAME + " at "
+			throw new RuntimeException("Error while closing RMQ connection with " + QUEUE_NAME + " at "
 					+ HOST_NAME, e);
 		}
 
