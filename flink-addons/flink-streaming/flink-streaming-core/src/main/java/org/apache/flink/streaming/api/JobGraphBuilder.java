@@ -372,6 +372,8 @@ public class JobGraphBuilder {
 		} else if (componentClass.equals(StreamSink.class)
 				|| componentClass.equals(StreamIterationSink.class)) {
 			component = new JobOutputVertex(componentName, this.jobGraph);
+		} else {
+			throw new RuntimeException("Unsupported component class");
 		}
 
 		component.setInvokableClass(componentClass);
@@ -568,7 +570,7 @@ public class JobGraphBuilder {
 		AbstractJobVertex maxParallelismVertex = components.get(maxParallelismVertexName);
 
 		for (String componentName : components.keySet()) {
-			if (componentName != maxParallelismVertexName) {
+			if (!componentName.equals(maxParallelismVertexName)) {
 				components.get(componentName).setVertexToShareInstancesWith(maxParallelismVertex);
 			}
 		}

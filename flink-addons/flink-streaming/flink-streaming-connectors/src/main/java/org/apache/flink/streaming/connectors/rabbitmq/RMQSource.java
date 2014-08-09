@@ -68,7 +68,7 @@ public abstract class RMQSource<OUT> extends RichSourceFunction<OUT> {
 			consumer = new QueueingConsumer(channel);
 			channel.basicConsume(QUEUE_NAME, true, consumer);
 		} catch (IOException e) {
-			new RuntimeException("Cannot create RMQ connection with " + QUEUE_NAME + " at "
+			throw new RuntimeException("Cannot create RMQ connection with " + QUEUE_NAME + " at "
 					+ HOST_NAME, e);
 		}
 	}
@@ -107,7 +107,7 @@ public abstract class RMQSource<OUT> extends RichSourceFunction<OUT> {
 		try {
 			connection.close();
 		} catch (IOException e) {
-			new RuntimeException("Error while closing RMQ connection with " + QUEUE_NAME + " at "
+			throw new RuntimeException("Error while closing RMQ connection with " + QUEUE_NAME + " at "
 					+ HOST_NAME, e);
 		}
 

@@ -43,8 +43,8 @@ public class FieldsPartitioner<T> implements StreamPartitioner<T> {
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numberOfOutputChannels) {
-		returnArray[0] = Math.abs(record.getInstance().getField(keyPosition).hashCode())
-				% numberOfOutputChannels;
+		returnArray[0] = Math.abs(record.getInstance().getField(keyPosition).hashCode()
+				% numberOfOutputChannels);
 		return returnArray;
 	}
 }

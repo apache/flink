@@ -45,7 +45,7 @@ public class CollaborativeFilteringSource implements
 			if (line == null) {
 				break;
 			}
-			if (line != "") {
+			if (!line.equals("")) {
 				String[] items = line.split("\t");
 				outRecord.f0 = Integer.valueOf(items[0]);
 				outRecord.f1 = Integer.valueOf(items[1]);

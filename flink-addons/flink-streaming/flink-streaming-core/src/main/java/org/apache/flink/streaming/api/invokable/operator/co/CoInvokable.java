@@ -35,7 +35,6 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends
 
 	private static final long serialVersionUID = 1L;
 
-	protected Collector<OUT> collector;
 	protected MutableObjectIterator<StreamRecord<IN1>> recordIterator1;
 	protected MutableObjectIterator<StreamRecord<IN2>> recordIterator2;
 	protected StreamRecord<IN1> reuse1;

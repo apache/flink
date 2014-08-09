@@ -38,7 +38,7 @@ public class FlumeTopology {
 				try {
 					sendAndClose();
 				} catch (Exception e) {
-					new RuntimeException("Error while closing Flume connection with " + port + " at "
+					throw new RuntimeException("Error while closing Flume connection with " + port + " at "
 							+ host, e);
 				}
 			}
