@@ -50,6 +50,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.accumulators.AccumulatorEvent;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.AbstractJobResult;
 import org.apache.flink.runtime.client.JobCancelResult;
 import org.apache.flink.runtime.client.JobProgressResult;
@@ -135,6 +136,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	private final EventCollector eventCollector;
 	
+	private final BlobServer blobServer;
+	
 	private final ArchiveListener archive;
 
 	private final InputSplitManager inputSplitManager;
@@ -180,6 +183,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Load the job progress collector
 		this.eventCollector = new EventCollector(this.recommendedClientPollingInterval);
+		
+		// Start the BLOB server
+		this.blobServer = new BlobServer();
 		
 		// Register simple job archive
 		int archived_items = GlobalConfiguration.getInteger(
@@ -279,6 +285,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			}
 		}
 
+		// Stop the BLOB server
+		if (this.blobServer != null) {
+			this.blobServer.shutDown();
+		}
+		
 		// Stop and clean up the job progress collector
 		if (this.eventCollector != null) {
 			this.eventCollector.shutdown();
@@ -1058,13 +1069,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			 */
 			@Override
 			public void run() {
-
-				// Check if all required libraries are available on the instance
-				try {
-					instance.checkLibraryAvailability(jobID);
-				} catch (IOException ioe) {
-					LOG.error("Cannot check library availability: " + StringUtils.stringifyException(ioe));
-				}
 
 				final List<TaskDeploymentDescriptor> submissionList = new SerializableArrayList<TaskDeploymentDescriptor>();
 
