@@ -16,10 +16,10 @@ public final class BlobClient implements Closeable {
 
 	private Socket socket;
 
-	public BlobClient(final int port) throws IOException {
+	public BlobClient(final InetSocketAddress serverAddress) throws IOException {
 
 		this.socket = new Socket();
-		this.socket.connect(new InetSocketAddress("localhost", port));
+		this.socket.connect(serverAddress);
 	}
 
 	private void sendPutHeader(final OutputStream outputStream, final JobID jobID, final String key, final byte[] buf)
