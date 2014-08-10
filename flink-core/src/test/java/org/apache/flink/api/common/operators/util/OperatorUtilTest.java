@@ -21,12 +21,12 @@ package org.apache.flink.api.common.operators.util;
 
 import static org.junit.Assert.assertEquals;
 
-import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.GenericCoGrouper;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
-import org.apache.flink.api.common.functions.GenericCrosser;
-import org.apache.flink.api.common.functions.GenericGroupReduce;
-import org.apache.flink.api.common.functions.GenericJoiner;
+import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.io.DelimitedInputFormat;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
@@ -36,13 +36,13 @@ import org.apache.flink.api.common.operators.base.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
-import org.apache.flink.api.common.operators.util.OperatorUtil;
 import org.apache.flink.types.IntValue;
 import org.junit.Test;
 
 /**
  * Tests {@link OperatorUtil}.
  */
+@SuppressWarnings("deprecation")
 public class OperatorUtilTest {
 	/**
 	 * Test {@link OperatorUtil#getContractClass(Class)}
@@ -85,7 +85,7 @@ public class OperatorUtilTest {
 	 */
 	@Test
 	public void getContractClassShouldReturnNullForStub() {
-		final Class<?> result = OperatorUtil.getContractClass(Function.class);
+		final Class<?> result = OperatorUtil.getContractClass(RichFunction.class);
 		assertEquals(null, result);
 	}
 
@@ -116,13 +116,17 @@ public class OperatorUtilTest {
 		assertEquals(GenericDataSourceBase.class, result);
 	}
 
-	static abstract class CoGrouper implements GenericCoGrouper<IntValue, IntValue, IntValue> {}
+	@SuppressWarnings("serial")
+	static abstract class CoGrouper implements CoGroupFunction<IntValue, IntValue, IntValue> {}
 
-	static abstract class Crosser implements GenericCrosser<IntValue, IntValue, IntValue> {}
+	@SuppressWarnings("serial")
+	static abstract class Crosser implements CrossFunction<IntValue, IntValue, IntValue> {}
 
 	static abstract class Mapper implements GenericCollectorMap<IntValue, IntValue> {}
 
-	static abstract class Matcher implements GenericJoiner<IntValue, IntValue, IntValue> {}
+	@SuppressWarnings("serial")
+	static abstract class Matcher implements FlatJoinFunction<IntValue, IntValue, IntValue> {}
 
-	static abstract class Reducer implements GenericGroupReduce<IntValue, IntValue> {}
+	@SuppressWarnings("serial")
+	static abstract class Reducer implements GroupReduceFunction<IntValue, IntValue> {}
 }

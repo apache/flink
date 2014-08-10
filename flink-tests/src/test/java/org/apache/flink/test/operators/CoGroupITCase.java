@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.operators;
 
 import java.io.FileNotFoundException;
@@ -26,8 +25,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.CoGroupFunction;
 import org.apache.flink.api.java.record.io.DelimitedInputFormat;
@@ -46,12 +43,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- */
 @RunWith(Parameterized.class)
 public class CoGroupITCase extends RecordAPITestBase {
-
-	private static final Log LOG = LogFactory.getLog(CoGroupITCase.class);
 
 	String leftInPath = null;
 	String rightInPath = null;
@@ -89,8 +82,6 @@ public class CoGroupITCase extends RecordAPITestBase {
 			target.setField(0, keyString);
 			target.setField(1, valueString);
 
-			LOG.debug("Read in: [" + keyString.getValue() + "," + valueString.getValue() + "]");
-
 			return target;
 		}
 
@@ -112,9 +103,6 @@ public class CoGroupITCase extends RecordAPITestBase {
 			this.buffer.append('\n');
 			
 			byte[] bytes = this.buffer.toString().getBytes();
-
-			LOG.debug("Writing out: [" + keyString.toString() + "," + valueInteger.getValue() + "]");
-
 			this.stream.write(bytes);
 		}
 	}
@@ -124,33 +112,28 @@ public class CoGroupITCase extends RecordAPITestBase {
 
 		private StringValue keyString = new StringValue();
 		private StringValue valueString = new StringValue();
-		private Record record = new Record();
 		
 		@Override
 		public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) {
-			// TODO Auto-generated method stub
 			
+			Record record = null;
 			int sum = 0;
-			LOG.debug("Start iterating over input1");
+			
 			while (records1.hasNext()) {
 				record = records1.next();
 				keyString = record.getField(0, keyString);
 				valueString = record.getField(1, valueString);
 				sum += Integer.parseInt(valueString.getValue());
-
-				LOG.debug("Processed: [" + keyString.getValue() + "," + valueString.getValue() + "]");
 			}
-			LOG.debug("Start iterating over input2");
+			
+			
 			while (records2.hasNext()) {
 				record = records2.next();
 				keyString = record.getField(0, keyString);
 				valueString = record.getField(1, valueString);
 				sum -= Integer.parseInt(valueString.getValue());
-
-				LOG.debug("Processed: [" + keyString.getValue() + "," + valueString.getValue() + "]");
 			}
 			record.setField(1, new IntValue(sum));
-			LOG.debug("Finished");
 			
 			out.collect(record);
 		}
@@ -197,9 +180,9 @@ public class CoGroupITCase extends RecordAPITestBase {
 
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
-		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE};
+		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE };
 
-		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH, };
+		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH };
 
 		for (String localStrategy : localStrategies) {
 			for (String shipStrategy : shipStrategies) {

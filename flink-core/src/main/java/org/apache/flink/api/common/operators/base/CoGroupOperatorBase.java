@@ -19,7 +19,7 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import org.apache.flink.api.common.functions.GenericCoGrouper;
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputOperator;
 import org.apache.flink.api.common.operators.Ordering;
@@ -28,9 +28,9 @@ import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 
 /**
- * @see GenericCoGrouper
+ * @see org.apache.flink.api.common.functions.CoGroupFunction
  */
-public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends GenericCoGrouper<IN1, IN2, OUT>> extends DualInputOperator<IN1, IN2, OUT, FT> {
+public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, IN2, OUT>> extends DualInputOperator<IN1, IN2, OUT, FT> {
 	
 	/**
 	 * The ordering for the order inside a group from input one.

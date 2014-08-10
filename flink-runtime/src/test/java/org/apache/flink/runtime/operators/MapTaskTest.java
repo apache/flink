@@ -37,6 +37,7 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
+@SuppressWarnings("deprecation")
 public class MapTaskTest extends DriverTestBase<GenericCollectorMap<Record, Record>> {
 	
 	private static final Log LOG = LogFactory.getLog(MapTaskTest.class);

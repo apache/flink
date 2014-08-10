@@ -21,12 +21,11 @@ package org.apache.flink.example.java.graph;
 import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 
-import org.apache.flink.api.java.functions.FilterFunction;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -139,7 +138,7 @@ public class PageRankBasic {
 	/** 
 	 * A map function that assigns an initial rank to all pages. 
 	 */
-	public static final class RankAssigner extends MapFunction<Tuple1<Long>, Tuple2<Long, Double>> {
+	public static final class RankAssigner implements MapFunction<Tuple1<Long>, Tuple2<Long, Double>> {
 		Tuple2<Long, Double> outPageWithRank;
 		
 		public RankAssigner(double rank) {
@@ -158,17 +157,16 @@ public class PageRankBasic {
 	 * originate. Run as a pre-processing step.
 	 */
 	@ConstantFields("0")
-	public static final class BuildOutgoingEdgeList extends GroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long[]>> {
+	public static final class BuildOutgoingEdgeList implements GroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long[]>> {
 		
 		private final ArrayList<Long> neighbors = new ArrayList<Long>();
 		
 		@Override
-		public void reduce(Iterator<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long[]>> out) {
+		public void reduce(Iterable<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long[]>> out) {
 			neighbors.clear();
 			Long id = 0L;
 			
-			while (values.hasNext()) {
-				Tuple2<Long, Long> n = values.next();
+			for (Tuple2<Long, Long> n : values) {
 				id = n.f0;
 				neighbors.add(n.f1);
 			}
@@ -179,7 +177,7 @@ public class PageRankBasic {
 	/**
 	 * Join function that distributes a fraction of a vertex's rank to all neighbors.
 	 */
-	public static final class JoinVertexWithEdgesMatch extends FlatMapFunction<Tuple2<Tuple2<Long, Double>, Tuple2<Long, Long[]>>, Tuple2<Long, Double>> {
+	public static final class JoinVertexWithEdgesMatch implements FlatMapFunction<Tuple2<Tuple2<Long, Double>, Tuple2<Long, Long[]>>, Tuple2<Long, Double>> {
 
 		@Override
 		public void flatMap(Tuple2<Tuple2<Long, Double>, Tuple2<Long, Long[]>> value, Collector<Tuple2<Long, Double>> out){
@@ -197,7 +195,7 @@ public class PageRankBasic {
 	 * The function that applies the page rank dampening formula
 	 */
 	@ConstantFields("0")
-	public static final class Dampener extends MapFunction<Tuple2<Long,Double>, Tuple2<Long,Double>> {
+	public static final class Dampener implements MapFunction<Tuple2<Long,Double>, Tuple2<Long,Double>> {
 
 		private final double dampening;
 		private final double randomJump;
@@ -217,7 +215,7 @@ public class PageRankBasic {
 	/**
 	 * Filter that filters vertices where the rank difference is below a threshold.
 	 */
-	public static final class EpsilonFilter extends FilterFunction<Tuple2<Tuple2<Long, Double>, Tuple2<Long, Double>>> {
+	public static final class EpsilonFilter implements FilterFunction<Tuple2<Tuple2<Long, Double>, Tuple2<Long, Double>>> {
 
 		@Override
 		public boolean filter(Tuple2<Tuple2<Long, Double>, Tuple2<Long, Double>> value) {

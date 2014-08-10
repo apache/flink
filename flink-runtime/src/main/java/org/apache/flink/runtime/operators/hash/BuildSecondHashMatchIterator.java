@@ -22,7 +22,7 @@ package org.apache.flink.runtime.operators.hash;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.GenericJoiner;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -100,7 +100,7 @@ public class BuildSecondHashMatchIterator<V1, V2, O> implements JoinTaskIterator
 	}
 
 	@Override
-	public boolean callWithNextKey(GenericJoiner<V1, V2, O> matchFunction, Collector<O> collector)
+	public boolean callWithNextKey(FlatJoinFunction<V1, V2, O> matchFunction, Collector<O> collector)
 	throws Exception
 	{
 		if (this.hashJoin.nextRecord())

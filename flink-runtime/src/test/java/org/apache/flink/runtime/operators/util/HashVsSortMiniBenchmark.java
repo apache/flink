@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.hash.BuildFirstHashMatchIterator;
 import org.apache.flink.runtime.operators.hash.BuildSecondHashMatchIterator;
 import org.apache.flink.runtime.operators.sort.MergeMatchIterator;
@@ -250,6 +251,7 @@ public class HashVsSortMiniBenchmark {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void join(Record rec1, Record rec2, Collector<Record> out) {}
+		public void join(Record rec1, Record rec2, Collector<Record> out) throws Exception {
+		}
 	}
 }

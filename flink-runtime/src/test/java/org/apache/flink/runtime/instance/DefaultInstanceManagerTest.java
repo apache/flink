@@ -31,7 +31,6 @@ import java.util.Set;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.runtime.instance.*;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.util.LogUtils;
 import org.junit.Assert;

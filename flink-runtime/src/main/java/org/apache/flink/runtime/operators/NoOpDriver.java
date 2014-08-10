@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -28,15 +28,15 @@ import org.apache.flink.util.MutableObjectIterator;
  * 
  * @param <T> The data type.
  */
-public class NoOpDriver<T> implements PactDriver<AbstractFunction, T> {
+public class NoOpDriver<T> implements PactDriver<AbstractRichFunction, T> {
 	
-	private PactTaskContext<AbstractFunction, T> taskContext;
+	private PactTaskContext<AbstractRichFunction, T> taskContext;
 	
 	private volatile boolean running;
 	
 	
 	@Override
-	public void setup(PactTaskContext<AbstractFunction, T> context) {
+	public void setup(PactTaskContext<AbstractRichFunction, T> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -47,7 +47,7 @@ public class NoOpDriver<T> implements PactDriver<AbstractFunction, T> {
 	}
 	
 	@Override
-	public Class<AbstractFunction> getStubType() {
+	public Class<AbstractRichFunction> getStubType() {
 		return null;
 	}
 

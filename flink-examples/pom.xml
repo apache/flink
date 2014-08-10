@@ -50,5 +50,4 @@ under the License.
 		<module>flink-java-examples</module>
 		<module>flink-scala-examples</module>
 	</modules>
-
 </project>

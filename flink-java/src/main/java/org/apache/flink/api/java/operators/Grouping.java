@@ -26,8 +26,8 @@ import org.apache.flink.api.java.DataSet;
  * Grouping is an intermediate step for a transformation on a grouped DataSet.<br/>
  * The following transformation can be applied on Grouping:
  * <ul>
- * 	<li>{@link UnsortedGrouping#reduce(org.apache.flink.api.java.functions.ReduceFunction)},</li>
- * <li>{@link UnsortedGrouping#reduceGroup(org.apache.flink.api.java.functions.GroupReduceFunction)}, and</li>
+ * 	<li>{@link UnsortedGrouping#reduce(org.apache.flink.api.common.functions.ReduceFunction)},</li>
+ * <li>{@link UnsortedGrouping#reduceGroup(org.apache.flink.api.common.functions.GroupReduceFunction)}, and</li>
  * <li>{@link UnsortedGrouping#aggregate(org.apache.flink.api.java.aggregation.Aggregations, int)}.</li>
  * </ul>
  *

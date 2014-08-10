@@ -19,7 +19,7 @@
 
 package org.apache.flink.api.java.tuple;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.junit.Test;

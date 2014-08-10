@@ -19,7 +19,7 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import org.apache.flink.api.common.functions.GenericCrosser;
+import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputOperator;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
@@ -28,9 +28,9 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 
 
 /**
- * @see GenericCrosser
+ * @see org.apache.flink.api.common.functions.CrossFunction
  */
-public class CrossOperatorBase<IN1, IN2, OUT, FT extends GenericCrosser<?, ?, ?>> extends DualInputOperator<IN1, IN2, OUT, FT> {
+public class CrossOperatorBase<IN1, IN2, OUT, FT extends CrossFunction<?, ?, ?>> extends DualInputOperator<IN1, IN2, OUT, FT> {
 	
 	public CrossOperatorBase(UserCodeWrapper<FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, String name) {
 		super(udf, operatorInfo, name);

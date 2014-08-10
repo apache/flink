@@ -25,7 +25,7 @@ import java.util.NoSuchElementException;
 /**
  * An empty iterator that never returns anything.
  */
-public final class EmptyIterator<E> implements Iterator<E> {
+public final class EmptyIterator<E> implements Iterator<E>, Iterable<E> {
 
 	/**
 	 * The singleton instance.
@@ -38,9 +38,9 @@ public final class EmptyIterator<E> implements Iterator<E> {
 	 * @param <E> The type of the objects (not) returned by the iterator.
 	 * @return An instance of the iterator.
 	 */
-	public static <E> Iterator<E> get() {
+	public static <E> EmptyIterator<E> get() {
 		@SuppressWarnings("unchecked")
-		Iterator<E> iter = (Iterator<E>) INSTANCE;
+		EmptyIterator<E> iter = (EmptyIterator<E>) INSTANCE;
 		return iter;
 	}
 	
@@ -72,5 +72,10 @@ public final class EmptyIterator<E> implements Iterator<E> {
 	@Override
 	public void remove() {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Iterator<E> iterator() {
+		return this;
 	}
 }

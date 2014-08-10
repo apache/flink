@@ -23,8 +23,10 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
-import org.apache.flink.api.java.functions.JoinFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.functions.RichFlatJoinFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -33,6 +35,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.util.Collector;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -101,7 +104,7 @@ public class JoinITCase extends JavaProgramTestBase {
 						ds1.join(ds2)
 						.where(1)
 						.equalTo(1)
-						.with(new T3T5Join());
+						.with(new T3T5FlatJoin());
 				
 				joinDs.writeAsCsv(resultPath);
 				env.execute();
@@ -126,7 +129,7 @@ public class JoinITCase extends JavaProgramTestBase {
 						ds1.join(ds2)
 						   .where(0,1)
 						   .equalTo(0,4)
-						   .with(new T3T5Join());
+						   .with(new T3T5FlatJoin());
 				
 				joinDs.writeAsCsv(resultPath);
 				env.execute();
@@ -177,7 +180,7 @@ public class JoinITCase extends JavaProgramTestBase {
 				DataSet<Tuple2<String, String>> joinDs = ds1.joinWithHuge(ds2)
 															.where(1)
 															.equalTo(1)
-															.with(new T3T5Join());
+															.with(new T3T5FlatJoin());
 				
 				joinDs.writeAsCsv(resultPath);
 				env.execute();
@@ -202,7 +205,7 @@ public class JoinITCase extends JavaProgramTestBase {
 						ds1.joinWithTiny(ds2)
 						   .where(1)
 						   .equalTo(1)
-						   .with(new T3T5Join());
+						   .with(new T3T5FlatJoin());
 				
 				joinDs.writeAsCsv(resultPath);
 				env.execute();
@@ -292,35 +295,35 @@ public class JoinITCase extends JavaProgramTestBase {
 			}
 			case 9: {
 			
-			/*
-			 * Join on a tuple input with key field selector and a custom type input with key extractor
-			 */
-			
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				/*
+				 * Join on a tuple input with key field selector and a custom type input with key extractor
+				 */
 
-			DataSet<CustomType> ds1 = CollectionDataSets.getSmallCustomTypeDataSet(env);
-			DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.get3TupleDataSet(env);
-			DataSet<Tuple2<String, String>> joinDs = 
-					ds1.join(ds2)
-					   .where(new KeySelector<CustomType, Integer>() {
-								   @Override
-								   public Integer getKey(CustomType value) {
-									   return value.myInt;
-								   }
-							   }
-							   )
-					   .equalTo(0)
-					   .with(new CustT3Join());
-			
-			joinDs.writeAsCsv(resultPath);
-			env.execute();
-			
-			// return expected result
-			return "Hi,Hi\n" +
-					"Hello,Hello\n" +
-					"Hello world,Hello\n";
-			
-			}
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+				DataSet<CustomType> ds1 = CollectionDataSets.getSmallCustomTypeDataSet(env);
+				DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.get3TupleDataSet(env);
+				DataSet<Tuple2<String, String>> joinDs =
+						ds1.join(ds2)
+						   .where(new KeySelector<CustomType, Integer>() {
+									  @Override
+									  public Integer getKey(CustomType value) {
+										  return value.myInt;
+									  }
+								  }
+						   )
+						   .equalTo(0)
+						   .with(new CustT3Join());
+
+				joinDs.writeAsCsv(resultPath);
+				env.execute();
+
+				// return expected result
+				return "Hi,Hi\n" +
+						"Hello,Hello\n" +
+						"Hello world,Hello\n";
+
+				}
 			case 10: {
 				
 				/*
@@ -458,38 +461,39 @@ public class JoinITCase extends JavaProgramTestBase {
 	
 	}
 	
-	public static class T3T5Join extends JoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple2<String, String>> {
+	public static class T3T5FlatJoin implements FlatJoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple2<String, String>> {
 
 		@Override
-		public Tuple2<String, String> join(Tuple3<Integer, Long, String> first,
-				Tuple5<Integer, Long, Integer, String, Long> second)  {
-			
-			return new Tuple2<String,String>(first.f2, second.f3);
+		public void join(Tuple3<Integer, Long, String> first,
+				Tuple5<Integer, Long, Integer, String, Long> second,
+				Collector<Tuple2<String,String>> out)  {
+
+			out.collect (new Tuple2<String,String> (first.f2, second.f3));
 		}
-		
+
 	}
 	
-	public static class LeftReturningJoin extends JoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Long, String>> {
+	public static class LeftReturningJoin implements JoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Long, String>> {
 
 		@Override
 		public Tuple3<Integer, Long, String> join(Tuple3<Integer, Long, String> first,
-				Tuple5<Integer, Long, Integer, String, Long> second) {
+												  Tuple5<Integer, Long, Integer, String, Long> second) {
 			
 			return first;
 		}
 	}
 	
-	public static class RightReturningJoin extends JoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
+	public static class RightReturningJoin implements JoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
 
 		@Override
 		public Tuple5<Integer, Long, Integer, String, Long> join(Tuple3<Integer, Long, String> first,
-				Tuple5<Integer, Long, Integer, String, Long> second) {
+																 Tuple5<Integer, Long, Integer, String, Long> second) {
 			
 			return second;
 		}
 	}
 		
-	public static class T3T5BCJoin extends JoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<String, String, Integer>> {
+	public static class T3T5BCJoin extends RichFlatJoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<String, String, Integer>> {
 
 		private int broadcast;
 		
@@ -505,6 +509,7 @@ public class JoinITCase extends JavaProgramTestBase {
 			
 		}
 
+		/*
 		@Override
 		public Tuple3<String, String, Integer> join(
 				Tuple3<Integer, Long, String> first,
@@ -512,19 +517,25 @@ public class JoinITCase extends JavaProgramTestBase {
 
 			return new Tuple3<String, String, Integer>(first.f2, second.f3, broadcast);
 		}
+		*/
+
+		@Override
+		public void join(Tuple3<Integer, Long, String> first, Tuple5<Integer, Long, Integer, String, Long> second, Collector<Tuple3<String, String, Integer>> out) throws Exception {
+			out.collect(new Tuple3<String, String, Integer> (first.f2, second.f3, broadcast));
+		}
 	}
 	
-	public static class T3CustJoin extends JoinFunction<Tuple3<Integer, Long, String>, CustomType, Tuple2<String, String>> {
+	public static class T3CustJoin implements JoinFunction<Tuple3<Integer, Long, String>, CustomType, Tuple2<String, String>> {
 
 		@Override
 		public Tuple2<String, String> join(Tuple3<Integer, Long, String> first,
-				CustomType second) {
+										   CustomType second) {
 
 			return new Tuple2<String, String>(first.f2, second.myString);
 		}
 	}
 	
-	public static class CustT3Join extends JoinFunction<CustomType, Tuple3<Integer, Long, String>, Tuple2<String, String>> {
+	public static class CustT3Join implements JoinFunction<CustomType, Tuple3<Integer, Long, String>, Tuple2<String, String>> {
 
 		@Override
 		public Tuple2<String, String> join(CustomType first, Tuple3<Integer, Long, String> second) {

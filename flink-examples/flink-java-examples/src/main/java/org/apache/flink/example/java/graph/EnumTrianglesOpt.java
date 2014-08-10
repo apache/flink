@@ -22,12 +22,12 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Order;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.JoinFunction;
-import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.DataSet;
@@ -38,7 +38,7 @@ import org.apache.flink.example.java.graph.util.EnumTrianglesDataTypes.EdgeWithD
 import org.apache.flink.example.java.graph.util.EnumTrianglesDataTypes.Triad;
 
 /**
- * Triangle enumeration is a preprocessing step to find closely connected parts in graphs.
+ * Triangle enumeration is a pre-processing step to find closely connected parts in graphs.
  * A triangle consists of three edges that connect three vertices with each other.
  * 
  * <p>
@@ -134,7 +134,7 @@ public class EnumTrianglesOpt {
 	// *************************************************************************
 	
 	/** Converts a Tuple2 into an Edge */
-	public static class TupleEdgeConverter extends MapFunction<Tuple2<Integer, Integer>, Edge> {
+	public static class TupleEdgeConverter implements MapFunction<Tuple2<Integer, Integer>, Edge> {
 		private final Edge outEdge = new Edge();
 		
 		@Override
@@ -145,7 +145,7 @@ public class EnumTrianglesOpt {
 	}
 	
 	/** Emits for an edge the original edge and its switched version. */
-	private static class EdgeDuplicator extends FlatMapFunction<Edge, Edge> {
+	private static class EdgeDuplicator implements FlatMapFunction<Edge, Edge> {
 		
 		@Override
 		public void flatMap(Edge edge, Collector<Edge> out) throws Exception {
@@ -160,14 +160,15 @@ public class EnumTrianglesOpt {
 	 * Emits one edge for each input edge with a degree annotation for the shared vertex.
 	 * For each emitted edge, the first vertex is the vertex with the smaller id.
 	 */
-	private static class DegreeCounter extends GroupReduceFunction<Edge, EdgeWithDegrees> {
+	private static class DegreeCounter implements GroupReduceFunction<Edge, EdgeWithDegrees> {
 		
 		final ArrayList<Integer> otherVertices = new ArrayList<Integer>();
 		final EdgeWithDegrees outputEdge = new EdgeWithDegrees();
 		
 		@Override
-		public void reduce(Iterator<Edge> edges, Collector<EdgeWithDegrees> out) throws Exception {
+		public void reduce(Iterable<Edge> edgesIter, Collector<EdgeWithDegrees> out) {
 			
+			Iterator<Edge> edges = edgesIter.iterator();
 			otherVertices.clear();
 			
 			// get first edge
@@ -176,7 +177,7 @@ public class EnumTrianglesOpt {
 			this.otherVertices.add(edge.getSecondVertex());
 			
 			// get all other edges (assumes edges are sorted by second vertex)
-			while(edges.hasNext()) {
+			while (edges.hasNext()) {
 				edge = edges.next();
 				Integer otherVertex = edge.getSecondVertex();
 				// collect unique vertices
@@ -208,7 +209,7 @@ public class EnumTrianglesOpt {
 	 * Builds an edge with degree annotation from two edges that have the same vertices and only one 
 	 * degree annotation.
 	 */
-	private static class DegreeJoiner extends ReduceFunction<EdgeWithDegrees> {
+	private static class DegreeJoiner implements ReduceFunction<EdgeWithDegrees> {
 		private final EdgeWithDegrees outEdge = new EdgeWithDegrees();
 		
 		@Override
@@ -228,7 +229,7 @@ public class EnumTrianglesOpt {
 	}
 		
 	/** Projects an edge (pair of vertices) such that the first vertex is the vertex with the smaller degree. */
-	private static class EdgeByDegreeProjector extends MapFunction<EdgeWithDegrees, Edge> {
+	private static class EdgeByDegreeProjector implements MapFunction<EdgeWithDegrees, Edge> {
 		
 		private final Edge outEdge = new Edge();
 		
@@ -249,7 +250,7 @@ public class EnumTrianglesOpt {
 	}
 	
 	/** Projects an edge (pair of vertices) such that the id of the first is smaller than the id of the second. */
-	private static class EdgeByIdProjector extends MapFunction<Edge, Edge> {
+	private static class EdgeByIdProjector implements MapFunction<Edge, Edge> {
 	
 		@Override
 		public Edge map(Edge inEdge) throws Exception {
@@ -268,13 +269,14 @@ public class EnumTrianglesOpt {
 	 *  The first vertex of a triad is the shared vertex, the second and third vertex are ordered by vertexId. 
 	 *  Assumes that input edges share the first vertex and are in ascending order of the second vertex.
 	 */
-	private static class TriadBuilder extends GroupReduceFunction<Edge, Triad> {
+	private static class TriadBuilder implements GroupReduceFunction<Edge, Triad> {
 		
 		private final List<Integer> vertices = new ArrayList<Integer>();
 		private final Triad outTriad = new Triad();
 		
 		@Override
-		public void reduce(Iterator<Edge> edges, Collector<Triad> out) throws Exception {
+		public void reduce(Iterable<Edge> edgesIter, Collector<Triad> out) throws Exception {
+			final Iterator<Edge> edges = edgesIter.iterator();
 			
 			// clear vertex list
 			vertices.clear();
@@ -285,7 +287,7 @@ public class EnumTrianglesOpt {
 			vertices.add(firstEdge.getSecondVertex());
 			
 			// build and emit triads
-			while(edges.hasNext()) {
+			while (edges.hasNext()) {
 				Integer higherVertexId = edges.next().getSecondVertex();
 				
 				// combine vertex with all previously read vertices
@@ -300,7 +302,7 @@ public class EnumTrianglesOpt {
 	}
 	
 	/** Filters triads (three vertices connected by two edges) without a closing third edge. */
-	private static class TriadFilter extends JoinFunction<Triad, Edge, Triad> {
+	private static class TriadFilter implements JoinFunction<Triad, Edge, Triad> {
 		
 		@Override
 		public Triad join(Triad triad, Edge edge) throws Exception {
@@ -332,7 +334,7 @@ public class EnumTrianglesOpt {
 			System.out.println("Executing Enum Triangles Opt example with built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
 			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: EnumTriangleBasic <edge path> <result path>");
+			System.out.println("  Usage: EnumTriangleOpt <edge path> <result path>");
 		}
 		return true;
 	}

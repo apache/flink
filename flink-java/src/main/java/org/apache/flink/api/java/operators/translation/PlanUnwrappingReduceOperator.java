@@ -18,10 +18,9 @@
 
 package org.apache.flink.api.java.operators.translation;
 
-import org.apache.flink.api.common.functions.GenericReduce;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
-import org.apache.flink.api.java.functions.ReduceFunction;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.TypeInformation;
@@ -31,7 +30,7 @@ import org.apache.flink.types.TypeInformation;
  * A reduce operator that takes 2-tuples (key-value pairs), and applies the reduce operation only
  * on the unwrapped values.
  */
-public class PlanUnwrappingReduceOperator<T, K> extends ReduceOperatorBase<Tuple2<K, T>, GenericReduce<Tuple2<K, T>>> {
+public class PlanUnwrappingReduceOperator<T, K> extends ReduceOperatorBase<Tuple2<K, T>, ReduceFunction<Tuple2<K, T>>> {
 
 	public PlanUnwrappingReduceOperator(ReduceFunction<T> udf, Keys.SelectorFunctionKeys<T, K> key, String name,
 			TypeInformation<T> type, TypeInformation<Tuple2<K, T>> typeInfoWithKey)
@@ -40,7 +39,7 @@ public class PlanUnwrappingReduceOperator<T, K> extends ReduceOperatorBase<Tuple
 	}
 
 	public static final class ReduceWrapper<T, K> extends WrappingFunction<ReduceFunction<T>>
-		implements GenericReduce<Tuple2<K, T>>
+		implements ReduceFunction<Tuple2<K, T>>
 	{
 		private static final long serialVersionUID = 1L;
 		

@@ -18,9 +18,10 @@
 
 package org.apache.flink.spargel.java.examples;
 
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
@@ -80,7 +81,7 @@ public class SpargelPageRankCountingVertices {
 		
 		// enumerate some sample edges and assign an initial uniform probability (rank)
 		DataSet<Tuple2<Long, Double>> intialRanks = vertices
-			.map(new MapFunction<Long, Tuple2<Long, Double>>() {
+			.map(new RichMapFunction<Long, Tuple2<Long, Double>>() {
 				
 				private long numVertices;
 				

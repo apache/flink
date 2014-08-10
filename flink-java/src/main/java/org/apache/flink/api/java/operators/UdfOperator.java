@@ -27,8 +27,8 @@ import org.apache.flink.api.java.DataSet;
 
 /**
  * This interface marks operators as operators that execute user-defined functions (UDFs), such as
- * {@link org.apache.flink.api.java.functions.MapFunction}, {@link org.apache.flink.api.java.functions.ReduceFunction},
- * or {@link org.apache.flink.api.java.functions.CoGroupFunction}.
+ * {@link org.apache.flink.api.java.functions.RichMapFunction}, {@link org.apache.flink.api.java.functions.RichReduceFunction},
+ * or {@link org.apache.flink.api.java.functions.RichCoGroupFunction}.
  * The UDF operators stand in contrast to operators that execute built-in operations, like aggregations.
  */
 public interface UdfOperator<O extends UdfOperator<O>> {
@@ -39,7 +39,7 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 	
 	/**
 	 * Gets the configuration parameters that will be passed to the UDF's open method
-	 * {@link org.apache.flink.api.common.functions.AbstractFunction#open(Configuration)}. 
+	 * {@link org.apache.flink.api.common.functions.AbstractRichFunction#open(Configuration)}.
 	 * The configuration is set via the {@link #withParameters(Configuration)}
 	 * method.
 	 * 
@@ -69,7 +69,7 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 	
 	/**
 	 * Sets the configuration parameters for the UDF. These are optional parameters that are passed
-	 * to the UDF in the {@link org.apache.flink.api.common.functions.AbstractFunction#open(Configuration)} method.
+	 * to the UDF in the {@link org.apache.flink.api.common.functions.AbstractRichFunction#open(Configuration)} method.
 	 * 
 	 * @param parameters The configuration parameters for the UDF.
 	 * @return The operator itself, to allow chaining function calls.
@@ -83,7 +83,7 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 	 * {@link org.apache.flink.api.common.functions.RuntimeContext#getBroadcastVariable(String)}.
 	 * 
 	 * The runtime context itself is available in all UDFs via
-	 * {@link org.apache.flink.api.common.functions.AbstractFunction#getRuntimeContext()}.
+	 * {@link org.apache.flink.api.common.functions.AbstractRichFunction#getRuntimeContext()}.
 	 * 
 	 * @param data The data set to be broadcasted.
 	 * @param name The name under which the broadcast data set retrieved.

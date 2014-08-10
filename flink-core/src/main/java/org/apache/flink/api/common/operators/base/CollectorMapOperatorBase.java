@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.functions.GenericCollectorMap;
@@ -33,6 +32,7 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
  * 
  * @see GenericCollectorMap
  */
+@Deprecated
 public class CollectorMapOperatorBase<IN, OUT, FT extends GenericCollectorMap<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 	
 	public CollectorMapOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {

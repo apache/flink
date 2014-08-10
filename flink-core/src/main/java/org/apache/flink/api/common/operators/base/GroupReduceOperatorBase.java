@@ -19,8 +19,9 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import org.apache.flink.api.common.functions.GenericCombine;
-import org.apache.flink.api.common.functions.GenericGroupReduce;
+
+import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -30,9 +31,9 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 
 
 /**
- * @see GenericGroupReduce
+ * @see org.apache.flink.api.common.functions.GroupReduceFunction
  */
-public class GroupReduceOperatorBase<IN, OUT, FT extends GenericGroupReduce<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
+public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 
 	/**
 	 * The ordering for the order inside a reduce group.
@@ -91,15 +92,15 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GenericGroupReduce<IN, 
 	/**
 	 * Marks the group reduce operation as combinable. Combinable operations may pre-reduce the
 	 * data before the actual group reduce operations. Combinable user-defined functions
-	 * must implement the interface {@link GenericCombine}.
+	 * must implement the interface {@link org.apache.flink.api.common.functions.FlatCombineFunction}.
 	 * 
 	 * @param combinable Flag to mark the group reduce operation as combinable.
 	 */
 	public void setCombinable(boolean combinable) {
 		// sanity check
-		if (combinable && !GenericCombine.class.isAssignableFrom(this.userFunction.getUserCodeClass())) {
-			throw new IllegalArgumentException("Cannot set a UDF as combinable if it does not implement the interface " + 
-					GenericCombine.class.getName());
+		if (combinable && !FlatCombineFunction.class.isAssignableFrom(this.userFunction.getUserCodeClass())) {
+			throw new IllegalArgumentException("Cannot set a UDF as combinable if it does not implement the interface " +
+					FlatCombineFunction.class.getName());
 		} else {
 			this.combinable = combinable;
 		}

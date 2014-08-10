@@ -189,7 +189,7 @@ public class DeltaIteration<ST, WT> {
 	 * The value of an aggregator can be accessed in the next iteration.
 	 * <p>
 	 * Aggregators can be accessed inside a function via the
-	 * {@link org.apache.flink.api.common.functions.AbstractFunction#getIterationRuntimeContext()} method.
+	 * {@link org.apache.flink.api.common.functions.AbstractRichFunction#getIterationRuntimeContext()} method.
 	 * 
 	 * @param name The name under which the aggregator is registered.
 	 * @param aggregator The aggregator class.

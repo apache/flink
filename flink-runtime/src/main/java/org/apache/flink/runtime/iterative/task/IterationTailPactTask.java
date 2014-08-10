@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.task;
 
 import org.apache.commons.logging.Log;
@@ -24,15 +23,17 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrier;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrierBroker;
+import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatch;
+import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatchBroker;
 import org.apache.flink.runtime.iterative.io.WorksetUpdateOutputCollector;
 import org.apache.flink.runtime.operators.PactTaskContext;
 import org.apache.flink.util.Collector;
 
 /**
- * An iteration tail, which runs a {@link PactDriver} inside.
+ * An iteration tail, which runs a driver inside.
  * <p/>
  * If the iteration state is updated, the output of this task will be send back to the {@link IterationHeadPactTask} via
- * a {@link BlockingBackChannel} for the workset -OR- a {@link MutableHashTable} for the solution set. Therefore this
+ * a BackChannel for the workset -OR- a HashTable for the solution set. Therefore this
  * task must be scheduled on the same instance as the head. It's also possible for the tail to update *both* the workset
  * and the solution set.
  * <p/>
@@ -96,23 +97,19 @@ public class IterationTailPactTask<S extends Function, OT> extends AbstractItera
 
 	@Override
 	public void run() throws Exception {
+		
+		SuperstepKickoffLatch nextSuperStepLatch = SuperstepKickoffLatchBroker.instance().get(brokerKey());
+		
 		while (this.running && !terminationRequested()) {
 
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
 			}
 
-			try {
-				super.run();
-			}
-			catch (NullPointerException e) {
-				boolean terminationRequested = terminationRequested();
-				System.out.println("Nullpoint exception when termination requested was " + terminationRequested);
-				e.printStackTrace();
-			}
+			super.run();
 
 			// check if termination was requested
-			checkForTerminationAndResetEndOfSuperstepState();
+			verifyEndOfSuperstepState();
 
 			if (isWorksetUpdate && isWorksetIteration) {
 				// aggregate workset update element count
@@ -124,16 +121,20 @@ public class IterationTailPactTask<S extends Function, OT> extends AbstractItera
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
 			}
+			
+			if (isWorksetUpdate) {
+				// notify iteration head if responsible for workset update
+				worksetBackChannel.notifyOfEndOfSuperstep();
+			} else if (isSolutionSetUpdate) {
+				// notify iteration head if responsible for solution set update
+				solutionSetUpdateBarrier.notifySolutionSetUpdate();
+			}
 
-			if (!terminationRequested()) {
-				if (isWorksetUpdate) {
-					// notify iteration head if responsible for workset update
-					worksetBackChannel.notifyOfEndOfSuperstep();
-				} else if (isSolutionSetUpdate) {
-					// notify iteration head if responsible for solution set update
-					solutionSetUpdateBarrier.notifySolutionSetUpdate();
-				}
-
+			boolean terminate = nextSuperStepLatch.awaitStartOfSuperstepOrTermination(currentIteration() + 1);
+			if (terminate) {
+				requestTermination();
+			}
+			else {
 				incrementIterationCounter();
 			}
 		}

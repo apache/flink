@@ -20,10 +20,11 @@
 package org.apache.flink.example.java.graph;
 
 import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.JoinFunction;
-import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsSecond;
@@ -127,7 +128,7 @@ public class ConnectedComponents implements ProgramDescription {
 	 * Function that turns a value into a 2-tuple where both fields are that value.
 	 */
 	@ConstantFields("0 -> 0,1") 
-	public static final class DuplicateValue<T> extends MapFunction<T, Tuple2<T, T>> {
+	public static final class DuplicateValue<T> implements MapFunction<T, Tuple2<T, T>> {
 		
 		@Override
 		public Tuple2<T, T> map(T vertex) {
@@ -138,7 +139,7 @@ public class ConnectedComponents implements ProgramDescription {
 	/**
 	 * Undirected edges by emitting for each input edge the input edges itself and an inverted version.
 	 */
-	public static final class UndirectEdge extends FlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class UndirectEdge implements FlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		Tuple2<Long, Long> invertedEdge = new Tuple2<Long, Long>();
 		
 		@Override
@@ -157,7 +158,7 @@ public class ConnectedComponents implements ProgramDescription {
 	 */
 	@ConstantFieldsFirst("1 -> 0")
 	@ConstantFieldsSecond("1 -> 1")
-	public static final class NeighborWithComponentIDJoin extends JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class NeighborWithComponentIDJoin implements JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		@Override
 		public Tuple2<Long, Long> join(Tuple2<Long, Long> vertexWithComponent, Tuple2<Long, Long> edge) {
@@ -165,11 +166,10 @@ public class ConnectedComponents implements ProgramDescription {
 		}
 	}
 	
-	/**
-	 * The input is nested tuples ( (vertex-id, candidate-component) , (vertex-id, current-component) )
-	 */
+
+
 	@ConstantFieldsFirst("0")
-	public static final class ComponentIdFilter extends JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class ComponentIdFilter implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		@Override
 		public void join(Tuple2<Long, Long> candidate, Tuple2<Long, Long> old, Collector<Tuple2<Long, Long>> out) {
@@ -177,9 +177,9 @@ public class ConnectedComponents implements ProgramDescription {
 				out.collect(candidate);
 			}
 		}
-		@Override
-		public Tuple2<Long, Long> join(Tuple2<Long, Long> first, Tuple2<Long, Long> second) { return null; }
 	}
+
+
 
 	@Override
 	public String getDescription() {

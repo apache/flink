@@ -197,8 +197,8 @@ public abstract class Keys<T> {
 		public ExpressionKeys(String[] expressions, TypeInformation<T> type) {
 			if (!(type instanceof PojoTypeInfo<?>)) {
 				throw new UnsupportedOperationException("Key expressions can only be used on POJOs." + " " +
-						"A POCO must have a default constructor without arguments and not have readObject" +
-						" and/or writeObject methods. Also, it can only have nested POJOs or primitive (also boxed)" +
+						"A POJO must have a default constructor without arguments and not have readObject" +
+						" and/or writeObject methods. A current restriction is that it can only have nested POJOs or primitive (also boxed)" +
 						" fields.");
 			}
 			PojoTypeInfo<?> pojoType = (PojoTypeInfo<?>) type;
@@ -212,7 +212,6 @@ public abstract class Keys<T> {
 							" type " + type.toString() + ".");
 				}
 			}
-
 		}
 
 		@Override

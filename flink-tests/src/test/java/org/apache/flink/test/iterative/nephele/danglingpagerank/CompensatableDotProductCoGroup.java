@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative.nephele.danglingpagerank;
 
 import java.util.Iterator;
@@ -102,7 +101,8 @@ public class CompensatableDotProductCoGroup extends CoGroupFunction {
 		long edges = 0;
 		double summedRank = 0;
 		while (partialRanks.hasNext()) {
-			summedRank += partialRanks.next().getField(1, doubleInstance).getValue();
+			Record pr = partialRanks.next();
+			summedRank += pr.getField(1, doubleInstance).getValue();
 			edges++;
 		}
 

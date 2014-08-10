@@ -24,8 +24,9 @@ import java.util.Collection;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
-import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.functions.RichMapFunction;
+import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
@@ -79,7 +80,12 @@ public class KMeansForTest implements Program {
 			.map(new SelectNearestCenter()).withBroadcastSet(loop, "centroids")
 			// count and sum point coordinates for each centroid
 			.map(new CountAppender())
-			.groupBy("f0").reduce(new CentroidAccumulator())
+			.groupBy(new KeySelector<DummyTuple3IntPointLong, Integer>() {
+				@Override
+				public Integer getKey(DummyTuple3IntPointLong value) throws Exception {
+					return value.f0;
+				}
+			}).reduce(new CentroidAccumulator())
 			// compute new centroids from point counts and coordinate sums
 			.map(new CentroidAverager());
 
@@ -170,7 +176,7 @@ public class KMeansForTest implements Program {
 	// *************************************************************************
 
 	/** Converts a Tuple2<Double,Double> into a Point. */
-	public static final class TuplePointConverter extends MapFunction<Tuple2<Double, Double>, Point> {
+	public static final class TuplePointConverter extends RichMapFunction<Tuple2<Double, Double>, Point> {
 
 		@Override
 		public Point map(Tuple2<Double, Double> t) throws Exception {
@@ -179,7 +185,7 @@ public class KMeansForTest implements Program {
 	}
 
 	/** Converts a Tuple3<Integer, Double,Double> into a Centroid. */
-	public static final class TupleCentroidConverter extends MapFunction<Tuple3<Integer, Double, Double>, Centroid> {
+	public static final class TupleCentroidConverter extends RichMapFunction<Tuple3<Integer, Double, Double>, Centroid> {
 
 		@Override
 		public Centroid map(Tuple3<Integer, Double, Double> t) throws Exception {
@@ -188,7 +194,7 @@ public class KMeansForTest implements Program {
 	}
 
 	/** Determines the closest cluster center for a data point. */
-	public static final class SelectNearestCenter extends MapFunction<Point, Tuple2<Integer, Point>> {
+	public static final class SelectNearestCenter extends RichMapFunction<Point, Tuple2<Integer, Point>> {
 		private Collection<Centroid> centroids;
 
 		/** Reads the centroid values from a broadcast variable into a collection. */
@@ -236,7 +242,7 @@ public class KMeansForTest implements Program {
 	}
 
 	/** Appends a count variable to the tuple. */
-	public static final class CountAppender extends MapFunction<Tuple2<Integer, Point>, DummyTuple3IntPointLong> {
+	public static final class CountAppender extends RichMapFunction<Tuple2<Integer, Point>, DummyTuple3IntPointLong> {
 
 		@Override
 		public DummyTuple3IntPointLong map(Tuple2<Integer, Point> t) {
@@ -245,7 +251,7 @@ public class KMeansForTest implements Program {
 	}
 
 	/** Sums and counts point coordinates. */
-	public static final class CentroidAccumulator extends ReduceFunction<DummyTuple3IntPointLong> {
+	public static final class CentroidAccumulator extends RichReduceFunction<DummyTuple3IntPointLong> {
 
 		@Override
 		public DummyTuple3IntPointLong reduce(DummyTuple3IntPointLong val1, DummyTuple3IntPointLong val2) {
@@ -254,7 +260,7 @@ public class KMeansForTest implements Program {
 	}
 
 	/** Computes new centroid from coordinate sum and count of points. */
-	public static final class CentroidAverager extends MapFunction<DummyTuple3IntPointLong, Centroid> {
+	public static final class CentroidAverager extends RichMapFunction<DummyTuple3IntPointLong, Centroid> {
 
 		@Override
 		public Centroid map(DummyTuple3IntPointLong value) {

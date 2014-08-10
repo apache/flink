@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.instance.local;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;

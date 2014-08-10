@@ -23,7 +23,8 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
-import org.apache.flink.api.java.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
@@ -323,7 +324,7 @@ public class FlatMapITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple3<Integer, Long, String>> bcFlatMapDs = ds.
-						flatMap(new FlatMapFunction<Tuple3<Integer,Long,String>, Tuple3<Integer,Long,String>>() {
+						flatMap(new RichFlatMapFunction<Tuple3<Integer,Long,String>, Tuple3<Integer,Long,String>>() {
 							private static final long serialVersionUID = 1L;
 							private final Tuple3<Integer, Long, String> outTuple = 
 									new Tuple3<Integer, Long, String>();

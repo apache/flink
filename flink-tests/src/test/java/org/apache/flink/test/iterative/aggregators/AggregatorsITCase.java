@@ -24,12 +24,12 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Random;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
@@ -287,7 +287,7 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class SubtractOneMap extends MapFunction<Integer, Integer> {
+	public static final class SubtractOneMap extends RichMapFunction<Integer, Integer> {
 
 		private LongSumAggregator aggr;
 
@@ -309,7 +309,7 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class SubtractOneMapWithParam extends MapFunction<Integer, Integer> {
+	public static final class SubtractOneMapWithParam extends RichMapFunction<Integer, Integer> {
 
 		private LongSumAggregatorWithParameter aggr;
 
@@ -345,7 +345,7 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class TupleMakerMap extends MapFunction<Integer, Tuple2<Integer, Integer>> {
+	public static final class TupleMakerMap extends RichMapFunction<Integer, Tuple2<Integer, Integer>> {
 
 		@Override
 		public Tuple2<Integer, Integer> map(Integer value) throws Exception {
@@ -357,7 +357,7 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class AggregateMapDelta extends MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
+	public static final class AggregateMapDelta extends RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
 
 		private LongSumAggregator aggr;
 		private LongValue previousAggr;
@@ -388,8 +388,8 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class UpdateFilter extends FlatMapFunction<Tuple2<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>, 
-		Tuple2<Integer, Integer>> {
+	public static final class UpdateFilter extends RichFlatMapFunction<Tuple2<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>,
+			Tuple2<Integer, Integer>> {
 
 		private int superstep;
 
@@ -411,7 +411,7 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class ProjectSecondMapper extends MapFunction<Tuple2<Integer, Integer>, Integer> {
+	public static final class ProjectSecondMapper extends RichMapFunction<Tuple2<Integer, Integer>, Integer> {
 
 		@Override
 		public Integer map(Tuple2<Integer, Integer> value) {
@@ -420,7 +420,7 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static final class AggregateMapDeltaWithParam extends MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
+	public static final class AggregateMapDeltaWithParam extends RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
 
 		private LongSumAggregatorWithParameter aggr;
 		private LongValue previousAggr;

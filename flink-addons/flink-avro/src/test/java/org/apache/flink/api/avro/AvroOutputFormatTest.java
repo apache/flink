@@ -30,7 +30,7 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.io.AvroOutputFormat;
 import org.apache.flink.api.java.record.io.avro.example.User;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -125,7 +125,7 @@ public class AvroOutputFormatTest extends JavaProgramTestBase {
 	}
 
 
-	public final static class ConvertToUser extends MapFunction<Tuple3<String, Integer, String>, User> {
+	public final static class ConvertToUser extends RichMapFunction<Tuple3<String, Integer, String>, User> {
 
 		@Override
 		public User map(Tuple3<String, Integer, String> value) throws Exception {
@@ -133,7 +133,7 @@ public class AvroOutputFormatTest extends JavaProgramTestBase {
 		}
 	}
 
-	public final static class ConvertToReflective extends MapFunction<User, ReflectiveUser> {
+	public final static class ConvertToReflective extends RichMapFunction<User, ReflectiveUser> {
 
 		@Override
 		public ReflectiveUser map(User value) throws Exception {

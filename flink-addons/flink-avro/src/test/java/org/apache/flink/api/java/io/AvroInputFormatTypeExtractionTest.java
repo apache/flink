@@ -19,16 +19,15 @@
 
 package org.apache.flink.api.java.io;
 
-import org.junit.Assert;
-import org.junit.Test;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.AvroInputFormat;
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.TypeInformation;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class AvroInputFormatTypeExtractionTest {
 
@@ -36,44 +35,43 @@ public class AvroInputFormatTypeExtractionTest {
 	public void testTypeExtraction() {
 		try {
 			InputFormat<MyAvroType, ?> format = new AvroInputFormat<MyAvroType>(new Path("file:///ignore/this/file"), MyAvroType.class);
-			
+
 			TypeInformation<?> typeInfoDirect = TypeExtractor.getInputFormatTypes(format);
-			
+
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			DataSet<MyAvroType> input = env.createInput(format);
 			TypeInformation<?> typeInfoDataSet = input.getType();
-			
-			
-			Assert.assertTrue(typeInfoDirect instanceof PojoTypeInfo);
-			Assert.assertTrue(typeInfoDataSet instanceof PojoTypeInfo);
-			
+
+
+			Assert.assertTrue(typeInfoDirect instanceof GenericTypeInfo);
+			Assert.assertTrue(typeInfoDataSet instanceof GenericTypeInfo);
+
 			Assert.assertEquals(MyAvroType.class, typeInfoDirect.getTypeClass());
 			Assert.assertEquals(MyAvroType.class, typeInfoDataSet.getTypeClass());
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}
 	}
-	
+
 	public static final class MyAvroType {
-		
+
 		public String theString;
-		
+
 		private double aDouble;
-		
+
 		public double getaDouble() {
 			return aDouble;
 		}
-		
+
 		public void setaDouble(double aDouble) {
 			this.aDouble = aDouble;
 		}
-		
+
 		public void setTheString(String theString) {
 			this.theString = theString;
 		}
-		
+
 		public String getTheString() {
 			return theString;
 		}

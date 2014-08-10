@@ -16,34 +16,27 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative.aggregators;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.JoinFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
-
-import junit.framework.Assert;
-
+import org.junit.Assert;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.IterativeDataSet;
 
-
 /**
- * 
- * Connected Components test case that uses a parametrizable aggregator
- *
+ * Connected Components test case that uses a parameterizable aggregator
  */
 public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaProgramTestBase {
 
@@ -103,11 +96,14 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(expectedResult, resultPath);
 		long[] aggr_values = ConnectedComponentsWithAggregatorProgram.aggr_value;
+		
+		// note that position 0 has the end result from superstep 1, retrieved at the start of iteration 2
+		// position one as superstep 2, retrieved at the start of iteration 3.
+		// the result from iteration 5 is not available, because no iteration 6 happens
 		Assert.assertEquals(3, aggr_values[0]);
 		Assert.assertEquals(4, aggr_values[1]);
 		Assert.assertEquals(5, aggr_values[2]);
 		Assert.assertEquals(6, aggr_values[3]);
-		Assert.assertEquals(6, aggr_values[4]);
 	}
 
 
@@ -147,7 +143,7 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 		}
 	}
 
-	public static final class NeighborWithComponentIDJoin extends JoinFunction
+	public static final class NeighborWithComponentIDJoin implements JoinFunction
 		<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
@@ -161,36 +157,33 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 		}
 	}
 
-	public static final class MinimumReduce extends GroupReduceFunction
-		<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class MinimumReduce extends RichGroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
-		final Tuple2<Long, Long> resultVertex = new Tuple2<Long, Long>();
+		
+		private final Tuple2<Long, Long> resultVertex = new Tuple2<Long, Long>();
 
 		@Override
-		public void reduce(Iterator<Tuple2<Long, Long>> values,
-				Collector<Tuple2<Long, Long>> out) throws Exception {
+		public void reduce(Iterable<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long>> out) {
+			Long vertexId = 0L;
+			Long minimumCompId = Long.MAX_VALUE;
 
-			final Tuple2<Long, Long> first = values.next();
-			final Long vertexId = first.f0;
-			Long minimumCompId = first.f1;
-
-			while (values.hasNext()) {
-				Long candidateCompId = values.next().f1;
+			for (Tuple2<Long, Long> value: values) {
+				vertexId = value.f0;
+				Long candidateCompId = value.f1;
 				if (candidateCompId < minimumCompId) {
 					minimumCompId = candidateCompId;
 				}
 			}
-			resultVertex.setField(vertexId, 0);
-			resultVertex.setField(minimumCompId, 1);
+			resultVertex.f0 = vertexId;
+			resultVertex.f1 = minimumCompId;
 
 			out.collect(resultVertex);
 		}
 	}
 
 	@SuppressWarnings("serial")
-	public static final class MinimumIdFilter extends FlatMapFunction
-		<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
+	public static final class MinimumIdFilter extends RichFlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
 
 		private static LongSumAggregatorWithParameter aggr;
 

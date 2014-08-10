@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
-import java.util.Iterator;
+import java.util.Collections;
 
-import org.apache.flink.api.common.functions.GenericCoGrouper;
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
@@ -29,14 +28,13 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetBroker;
 import org.apache.flink.runtime.iterative.task.AbstractIterativePactTask;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
-import org.apache.flink.runtime.util.EmptyIterator;
 import org.apache.flink.runtime.util.KeyGroupedIterator;
 import org.apache.flink.runtime.util.SingleElementIterator;
 import org.apache.flink.util.Collector;
 
-public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements ResettablePactDriver<GenericCoGrouper<IT1, IT2, OT>, OT> {
+public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements ResettablePactDriver<CoGroupFunction<IT1, IT2, OT>, OT> {
 	
-	private PactTaskContext<GenericCoGrouper<IT1, IT2, OT>, OT> taskContext;
+	private PactTaskContext<CoGroupFunction<IT1, IT2, OT>, OT> taskContext;
 	
 	private CompactingHashTable<IT1> hashTable;
 	
@@ -53,7 +51,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public void setup(PactTaskContext<GenericCoGrouper<IT1, IT2, OT>, OT> context) {
+	public void setup(PactTaskContext<CoGroupFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -64,9 +62,9 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 	}
 	
 	@Override
-	public Class<GenericCoGrouper<IT1, IT2, OT>> getStubType() {
+	public Class<CoGroupFunction<IT1, IT2, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericCoGrouper<IT1, IT2, OT>> clazz = (Class<GenericCoGrouper<IT1, IT2, OT>>) (Class<?>) GenericCoGrouper.class;
+		final Class<CoGroupFunction<IT1, IT2, OT>> clazz = (Class<CoGroupFunction<IT1, IT2, OT>>) (Class<?>) CoGroupFunction.class;
 		return clazz;
 	}
 	
@@ -123,7 +121,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 	@Override
 	public void run() throws Exception {
 
-		final GenericCoGrouper<IT1, IT2, OT> coGroupStub = taskContext.getStub();
+		final CoGroupFunction<IT1, IT2, OT> coGroupStub = taskContext.getStub();
 		final Collector<OT> collector = taskContext.getOutputCollector();
 		
 		IT1 buildSideRecord = solutionSideRecord;
@@ -132,7 +130,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 		
 		final KeyGroupedIterator<IT2> probeSideInput = new KeyGroupedIterator<IT2>(taskContext.<IT2>getInput(0), probeSideSerializer, probeSideComparator);
 		final SingleElementIterator<IT1> siIter = new SingleElementIterator<IT1>();
-		final Iterator<IT1> emptySolutionSide = EmptyIterator.<IT1>get();
+		final Iterable<IT1> emptySolutionSide = Collections.emptySet();
 		
 		final CompactingHashTable<IT1>.HashTableProber<IT2> prober = join.getProber(this.probeSideComparator, this.pairComparator);
 		

@@ -44,85 +44,81 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class IterationWithChainingITCase extends RecordAPITestBase {
 
-    private static final String DATA_POINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n";
+	private static final String DATA_POINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n";
 
-    private String dataPath;
-    private String resultPath;
+	private String dataPath;
+	private String resultPath;
 
-    public IterationWithChainingITCase(Configuration config) {
-        super(config);
+	public IterationWithChainingITCase(Configuration config) {
+		super(config);
 		setTaskManagerNumSlots(DOP);
-    }
+	}
 
-    @Override
-    protected void preSubmit() throws Exception {
-        dataPath = createTempFile("data_points.txt", DATA_POINTS);
-        resultPath = getTempFilePath("result");
-    }
+	@Override
+	protected void preSubmit() throws Exception {
+		dataPath = createTempFile("data_points.txt", DATA_POINTS);
+		resultPath = getTempFilePath("result");
+	}
 
-    @Override
-    protected void postSubmit() throws Exception {
-        compareResultsByLinesInMemory(DATA_POINTS, resultPath);
-    }
+	@Override
+	protected void postSubmit() throws Exception {
+		compareResultsByLinesInMemory(DATA_POINTS, resultPath);
+	}
 
+	@Override
+	protected Plan getTestJob() {
+		Plan plan = getTestPlan(config.getInteger("ChainedMapperITCase#NoSubtasks", 1), dataPath, resultPath);
+		return plan;
+	}
 
-    @Override
-    protected Plan getTestJob() {
-        Plan plan = getTestPlan(config.getInteger("ChainedMapperITCase#NoSubtasks", 1), dataPath, resultPath);
-        return plan;
-    }
+	@Parameters
+	public static Collection<Object[]> getConfigurations() {
+		Configuration config1 = new Configuration();
+		config1.setInteger("ChainedMapperITCase#NoSubtasks", DOP);
+		return toParameterList(config1);
+	}
 
-    @Parameters
-    public static Collection<Object[]> getConfigurations() {
-        Configuration config1 = new Configuration();
-        config1.setInteger("ChainedMapperITCase#NoSubtasks", DOP);
-        return toParameterList(config1);
-    }
+	public static final class IdentityMapper extends MapFunction implements Serializable {
 
-    public static final class IdentityMapper extends MapFunction implements Serializable {
+		private static final long serialVersionUID = 1L;
 
-        private static final long serialVersionUID = 1L;
+		@Override
+		public void map(Record rec, Collector<Record> out) {
+			out.collect(rec);
+		}
+	}
 
-        @Override
-        public void map(Record rec, Collector<Record> out) {
-            out.collect(rec);
-        }
-    }
+	public static final class DummyReducer extends ReduceFunction implements Serializable {
 
-    public static final class DummyReducer extends ReduceFunction implements Serializable {
+		private static final long serialVersionUID = 1L;
 
-        private static final long serialVersionUID = 1L;
+		@Override
+		public void reduce(Iterator<Record> it, Collector<Record> out) {
+			while (it.hasNext()) {
+				out.collect(it.next());
+			}
+		}
+	}
 
-        @Override
-        public void reduce(Iterator<Record> it, Collector<Record> out) {
-            while (it.hasNext()) {
-                out.collect(it.next());
-            }
-        }
-    }
+	static Plan getTestPlan(int numSubTasks, String input, String output) {
 
-    static Plan getTestPlan(int numSubTasks, String input, String output) {
+		FileDataSource initialInput = new FileDataSource(new PointInFormat(), input, "Input");
+		initialInput.setDegreeOfParallelism(1);
 
-        FileDataSource initialInput = new FileDataSource(new PointInFormat(), input, "Input");
-        initialInput.setDegreeOfParallelism(1);
+		BulkIteration iteration = new BulkIteration("Loop");
+		iteration.setInput(initialInput);
+		iteration.setMaximumNumberOfIterations(2);
 
-        BulkIteration iteration = new BulkIteration("Loop");
-        iteration.setInput(initialInput);
-        iteration.setMaximumNumberOfIterations(2);
+		ReduceOperator dummyReduce = ReduceOperator.builder(new DummyReducer(), IntValue.class, 0).input(iteration.getPartialSolution())
+				.name("Reduce something").build();
 
-        ReduceOperator dummyReduce = ReduceOperator.builder(new DummyReducer(), IntValue.class, 0)
-                .input(iteration.getPartialSolution())
-                .name("Reduce something")
-                .build();
+		MapOperator dummyMap = MapOperator.builder(new IdentityMapper()).input(dummyReduce).build();
+		iteration.setNextPartialSolution(dummyMap);
 
+		FileDataSink finalResult = new FileDataSink(new PointOutFormat(), output, iteration, "Output");
 
-        MapOperator dummyMap = MapOperator.builder(new IdentityMapper()).input(dummyReduce).build();
-        iteration.setNextPartialSolution(dummyMap);
-
-        FileDataSink finalResult = new FileDataSink(new PointOutFormat(), output, iteration, "Output");
-
-        Plan plan = new Plan(finalResult, "Iteration with chained map test");
-        plan.setDefaultParallelism(numSubTasks);
-        return plan;
-    }
+		Plan plan = new Plan(finalResult, "Iteration with chained map test");
+		plan.setDefaultParallelism(numSubTasks);
+		return plan;
+	}
 }

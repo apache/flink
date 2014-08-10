@@ -19,25 +19,26 @@
 
 package org.apache.flink.runtime.operators.chaining;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.GenericFlatMap;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.RegularPactTask;
 
 public class ChainedFlatMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 
-	private GenericFlatMap<IT, OT> mapper;
+	private FlatMapFunction<IT, OT> mapper;
 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void setup(AbstractInvokable parent) {
 		@SuppressWarnings("unchecked")
-		final GenericFlatMap<IT, OT> mapper =
-			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GenericFlatMap.class);
+		final FlatMapFunction<IT, OT> mapper =
+			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, FlatMapFunction.class);
 		this.mapper = mapper;
-		mapper.setRuntimeContext(getUdfRuntimeContext());
+		FunctionUtils.setFunctionRuntimeContext(mapper, getUdfRuntimeContext());
 	}
 
 	@Override
@@ -54,8 +55,9 @@ public class ChainedFlatMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	@Override
 	public void cancelTask() {
 		try {
-			this.mapper.close();
-		} catch (Throwable t) {
+			FunctionUtils.closeFunction(this.mapper);
+		}
+		catch (Throwable t) {
 		}
 	}
 
@@ -84,4 +86,5 @@ public class ChainedFlatMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	public void close() {
 		this.outputCollector.close();
 	}
+
 }

@@ -18,20 +18,19 @@
 
 package org.apache.flink.api.java.operators.translation;
 
-import org.apache.flink.api.common.functions.GenericJoiner;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
-import org.apache.flink.api.java.functions.JoinFunction;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.Collector;
 
 public class PlanUnwrappingJoinOperator<I1, I2, OUT, K> 
-	extends JoinOperatorBase<Tuple2<K, I1>, Tuple2<K, I2>, OUT, GenericJoiner<Tuple2<K, I1>, Tuple2<K, I2>, OUT>>
+	extends JoinOperatorBase<Tuple2<K, I1>, Tuple2<K, I2>, OUT, FlatJoinFunction<Tuple2<K, I1>, Tuple2<K, I2>, OUT>>
 {
 
-	public PlanUnwrappingJoinOperator(JoinFunction<I1, I2, OUT> udf, 
+	public PlanUnwrappingJoinOperator(FlatJoinFunction<I1, I2, OUT> udf,
 			Keys.SelectorFunctionKeys<I1, K> key1, Keys.SelectorFunctionKeys<I2, K> key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
@@ -40,7 +39,7 @@ public class PlanUnwrappingJoinOperator<I1, I2, OUT, K>
 				key1.computeLogicalKeyPositions(), key2.computeLogicalKeyPositions(), name);
 	}
 	
-	public PlanUnwrappingJoinOperator(JoinFunction<I1, I2, OUT> udf, 
+	public PlanUnwrappingJoinOperator(FlatJoinFunction<I1, I2, OUT> udf,
 			int[] key1, Keys.SelectorFunctionKeys<I2, K> key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
@@ -49,7 +48,7 @@ public class PlanUnwrappingJoinOperator<I1, I2, OUT, K>
 				new int[]{0}, key2.computeLogicalKeyPositions(), name);
 	}
 	
-	public PlanUnwrappingJoinOperator(JoinFunction<I1, I2, OUT> udf, 
+	public PlanUnwrappingJoinOperator(FlatJoinFunction<I1, I2, OUT> udf,
 			Keys.SelectorFunctionKeys<I1, K> key1, int[] key2, String name,
 			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
 	{
@@ -59,23 +58,20 @@ public class PlanUnwrappingJoinOperator<I1, I2, OUT, K>
 	}
 
 	public static final class TupleUnwrappingJoiner<I1, I2, OUT, K>
-		extends WrappingFunction<JoinFunction<I1, I2, OUT>>
-		implements GenericJoiner<Tuple2<K, I1>, Tuple2<K, I2>, OUT>
+		extends WrappingFunction<FlatJoinFunction<I1, I2, OUT>>
+		implements FlatJoinFunction<Tuple2<K, I1>, Tuple2<K, I2>, OUT>
 	{
 
 		private static final long serialVersionUID = 1L;
 		
-		private TupleUnwrappingJoiner(JoinFunction<I1, I2, OUT> wrapped) {
+		private TupleUnwrappingJoiner(FlatJoinFunction<I1, I2, OUT> wrapped) {
 			super(wrapped);
 		}
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public void join(Tuple2<K, I1> value1, Tuple2<K, I2> value2,
-				Collector<OUT> out) throws Exception {
-			out.collect(wrappedFunction.join((I1)(value1.getField(1)), (I2)(value2.getField(1))));
+		public void join (Tuple2<K, I1> value1, Tuple2<K, I2> value2, Collector<OUT> collector) throws Exception {
+			wrappedFunction.join ((I1)(value1.getField(1)), (I2)(value2.getField(1)), collector);
 		}
-		
 	}
-
 }

@@ -21,8 +21,9 @@ package org.apache.flink.example.java.clustering;
 import java.io.Serializable;
 import java.util.Collection;
 
-import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
@@ -197,7 +198,7 @@ public class KMeans {
 	// *************************************************************************
 	
 	/** Converts a Tuple2<Double,Double> into a Point. */
-	public static final class TuplePointConverter extends MapFunction<Tuple2<Double, Double>, Point> {
+	public static final class TuplePointConverter implements MapFunction<Tuple2<Double, Double>, Point> {
 
 		@Override
 		public Point map(Tuple2<Double, Double> t) throws Exception {
@@ -206,7 +207,7 @@ public class KMeans {
 	}
 	
 	/** Converts a Tuple3<Integer, Double,Double> into a Centroid. */
-	public static final class TupleCentroidConverter extends MapFunction<Tuple3<Integer, Double, Double>, Centroid> {
+	public static final class TupleCentroidConverter implements MapFunction<Tuple3<Integer, Double, Double>, Centroid> {
 
 		@Override
 		public Centroid map(Tuple3<Integer, Double, Double> t) throws Exception {
@@ -215,7 +216,7 @@ public class KMeans {
 	}
 	
 	/** Determines the closest cluster center for a data point. */
-	public static final class SelectNearestCenter extends MapFunction<Point, Tuple2<Integer, Point>> {
+	public static final class SelectNearestCenter extends RichMapFunction<Point, Tuple2<Integer, Point>> {
 		private Collection<Centroid> centroids;
 
 		/** Reads the centroid values from a broadcast variable into a collection. */
@@ -248,7 +249,7 @@ public class KMeans {
 	}
 	
 	/** Appends a count variable to the tuple. */ 
-	public static final class CountAppender extends MapFunction<Tuple2<Integer, Point>, Tuple3<Integer, Point, Long>> {
+	public static final class CountAppender implements MapFunction<Tuple2<Integer, Point>, Tuple3<Integer, Point, Long>> {
 
 		@Override
 		public Tuple3<Integer, Point, Long> map(Tuple2<Integer, Point> t) {
@@ -257,7 +258,7 @@ public class KMeans {
 	}
 	
 	/** Sums and counts point coordinates. */
-	public static final class CentroidAccumulator extends ReduceFunction<Tuple3<Integer, Point, Long>> {
+	public static final class CentroidAccumulator implements ReduceFunction<Tuple3<Integer, Point, Long>> {
 
 		@Override
 		public Tuple3<Integer, Point, Long> reduce(Tuple3<Integer, Point, Long> val1, Tuple3<Integer, Point, Long> val2) {
@@ -266,7 +267,7 @@ public class KMeans {
 	}
 	
 	/** Computes new centroid from coordinate sum and count of points. */
-	public static final class CentroidAverager extends MapFunction<Tuple3<Integer, Point, Long>, Centroid> {
+	public static final class CentroidAverager implements MapFunction<Tuple3<Integer, Point, Long>, Centroid> {
 
 		@Override
 		public Centroid map(Tuple3<Integer, Point, Long> value) {

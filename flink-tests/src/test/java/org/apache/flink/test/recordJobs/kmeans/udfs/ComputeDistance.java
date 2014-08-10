@@ -47,19 +47,19 @@ public class ComputeDistance extends CrossFunction implements Serializable {
 	 * 3: distance
 	 */
 	@Override
-	public void cross(Record dataPointRecord, Record clusterCenterRecord, Collector<Record> out) {
-		
+	public Record cross(Record dataPointRecord, Record clusterCenterRecord) throws Exception {
+
 		CoordVector dataPoint = dataPointRecord.getField(1, CoordVector.class);
-		
+
 		IntValue clusterCenterId = clusterCenterRecord.getField(0, IntValue.class);
 		CoordVector clusterPoint = clusterCenterRecord.getField(1, CoordVector.class);
-	
+
 		this.distance.setValue(dataPoint.computeEuclidianDistance(clusterPoint));
-		
-		// add cluster center id and distance to the data point record 
+
+		// add cluster center id and distance to the data point record
 		dataPointRecord.setField(2, clusterCenterId);
 		dataPointRecord.setField(3, this.distance);
-		
-		out.collect(dataPointRecord);
+
+		return dataPointRecord;
 	}
 }

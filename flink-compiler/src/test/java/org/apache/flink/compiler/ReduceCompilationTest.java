@@ -22,7 +22,7 @@ package org.apache.flink.compiler;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
@@ -46,7 +46,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			
 			DataSet<Double> data = env.fromElements(0.2, 0.3, 0.4, 0.5).name("source");
 			
-			data.reduce(new ReduceFunction<Double>() {
+			data.reduce(new RichReduceFunction<Double>() {
 				
 				@Override
 				public Double reduce(Double value1, Double value2){
@@ -91,7 +91,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			
 			DataSet<Long> data = env.generateSequence(1, 8000000).name("source");
 			
-			data.reduce(new ReduceFunction<Long>() {
+			data.reduce(new RichReduceFunction<Long>() {
 				
 				@Override
 				public Long reduce(Long value1, Long value2){
@@ -145,7 +145,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			
 			data
 				.groupBy(1)
-				.reduce(new ReduceFunction<Tuple2<String,Double>>() {
+				.reduce(new RichReduceFunction<Tuple2<String,Double>>() {
 				@Override
 				public Tuple2<String, Double> reduce(Tuple2<String, Double> value1, Tuple2<String, Double> value2){
 					return null;
@@ -205,7 +205,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 				.groupBy(new KeySelector<Tuple2<String,Double>, String>() { 
 					public String getKey(Tuple2<String, Double> value) { return value.f0; }
 				})
-				.reduce(new ReduceFunction<Tuple2<String,Double>>() {
+				.reduce(new RichReduceFunction<Tuple2<String,Double>>() {
 				@Override
 				public Tuple2<String, Double> reduce(Tuple2<String, Double> value1, Tuple2<String, Double> value2){
 					return null;

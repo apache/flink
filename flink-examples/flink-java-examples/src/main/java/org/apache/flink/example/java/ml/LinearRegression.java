@@ -22,8 +22,9 @@ package org.apache.flink.example.java.ml;
 import java.io.Serializable;
 import java.util.Collection;
 
-import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.example.java.ml.util.LinearRegressionData;
@@ -183,7 +184,7 @@ public class LinearRegression {
 	// *************************************************************************
 
 	/** Converts a Tuple2<Double,Double> into a Data. */
-	public static final class TupleDataConverter extends MapFunction<Tuple2<Double, Double>, Data> {
+	public static final class TupleDataConverter implements MapFunction<Tuple2<Double, Double>, Data> {
 
 		@Override
 		public Data map(Tuple2<Double, Double> t) throws Exception {
@@ -192,7 +193,7 @@ public class LinearRegression {
 	}
 
 	/** Converts a Tuple2<Double,Double> into a Params. */
-	public static final class TupleParamsConverter extends MapFunction<Tuple2<Double, Double>,Params> {
+	public static final class TupleParamsConverter implements MapFunction<Tuple2<Double, Double>,Params> {
 
 		@Override
 		public Params map(Tuple2<Double, Double> t)throws Exception {
@@ -203,7 +204,7 @@ public class LinearRegression {
 	/**
 	 * Compute a single BGD type update for every parameters.
 	 */
-	public static class SubUpdate extends MapFunction<Data,Tuple2<Params,Integer>>{
+	public static class SubUpdate extends RichMapFunction<Data,Tuple2<Params,Integer>> {
 
 		private Collection<Params> parameters; 
 
@@ -234,7 +235,7 @@ public class LinearRegression {
 	/**  
 	 * Accumulator all the update.
 	 * */
-	public static class UpdateAccumulator extends ReduceFunction<Tuple2<Params, Integer>> {
+	public static class UpdateAccumulator implements ReduceFunction<Tuple2<Params, Integer>> {
 
 		@Override
 		public Tuple2<Params, Integer> reduce(Tuple2<Params, Integer> val1, Tuple2<Params, Integer> val2) {
@@ -250,7 +251,7 @@ public class LinearRegression {
 	/**
 	 * Compute the final update by average them.
 	 */
-	public static class Update extends MapFunction<Tuple2<Params, Integer>,Params>{
+	public static class Update implements MapFunction<Tuple2<Params, Integer>,Params> {
 
 		@Override
 		public Params map(Tuple2<Params, Integer> arg0) throws Exception {

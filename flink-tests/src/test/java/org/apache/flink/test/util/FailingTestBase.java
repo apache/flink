@@ -19,7 +19,7 @@
 
 package org.apache.flink.test.util;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.runtime.client.JobClient;

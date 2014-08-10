@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.record.operators;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,13 +31,15 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.RecordOperator;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
-import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.api.java.record.functions.CoGroupFunction;
 import org.apache.flink.api.java.record.functions.FunctionAnnotation;
 import org.apache.flink.types.Key;
 import org.apache.flink.types.Record;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.InstantiationUtil;
 
 /**
  * CoGroupOperator that applies a {@link CoGroupFunction} to groups of records sharing
@@ -43,7 +47,7 @@ import org.apache.flink.types.Record;
  * 
  * @see CoGroupFunction
  */
-public class CoGroupOperator extends CoGroupOperatorBase<Record, Record, Record, CoGroupFunction> implements RecordOperator {
+public class CoGroupOperator extends CoGroupOperatorBase<Record, Record, Record, org.apache.flink.api.common.functions.CoGroupFunction<Record, Record, Record>> implements RecordOperator {
 	
 	/**
 	 * The types of the keys that the operator groups on.
@@ -61,7 +65,8 @@ public class CoGroupOperator extends CoGroupOperatorBase<Record, Record, Record,
 	 * @param keyColumn2 The position of the key in the second input's records.
 	 */
 	public static Builder builder(CoGroupFunction udf, Class<? extends Key<?>> keyClass, int keyColumn1, int keyColumn2) {
-		return new Builder(new UserCodeObjectWrapper<CoGroupFunction>(udf), keyClass, keyColumn1, keyColumn2);
+		WrappingCoGroupFunction wrapper = new WrappingCoGroupFunction(udf);
+		return new Builder(new UserCodeObjectWrapper<org.apache.flink.api.common.functions.CoGroupFunction<Record, Record, Record>>(wrapper), keyClass, keyColumn1, keyColumn2);
 	}
 	
 	/**
@@ -75,7 +80,8 @@ public class CoGroupOperator extends CoGroupOperatorBase<Record, Record, Record,
 	public static Builder builder(Class<? extends CoGroupFunction> udf, Class<? extends Key<?>> keyClass,
 			int keyColumn1, int keyColumn2)
 	{
-		return new Builder(new UserCodeClassWrapper<CoGroupFunction>(udf), keyClass, keyColumn1, keyColumn2);
+		WrappingCoGroupFunction wrapper = new WrappingClassCoGroupFunction(udf);
+		return new Builder(new UserCodeObjectWrapper<org.apache.flink.api.common.functions.CoGroupFunction<Record, Record, Record>>(wrapper), keyClass, keyColumn1, keyColumn2);
 	}
 	
 	/**
@@ -96,7 +102,9 @@ public class CoGroupOperator extends CoGroupOperatorBase<Record, Record, Record,
 		setBroadcastVariables(builder.broadcastInputs);
 		setGroupOrderForInputOne(builder.secondaryOrder1);
 		setGroupOrderForInputTwo(builder.secondaryOrder2);
-		setSemanticProperties(FunctionAnnotation.readDualConstantAnnotations(builder.udf));
+		
+		CoGroupFunction function = ((WrappingCoGroupFunction) builder.udf.getUserCodeObject()).getWrappedFunction();
+		setSemanticProperties(FunctionAnnotation.readDualConstantAnnotations(new UserCodeObjectWrapper<CoGroupFunction>(function)));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -115,7 +123,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<Record, Record, Record,
 	public static class Builder {
 		
 		/* The required parameters */
-		private final UserCodeWrapper<CoGroupFunction> udf;
+		private final UserCodeWrapper<org.apache.flink.api.common.functions.CoGroupFunction<Record, Record, Record>> udf;
 		private final List<Class<? extends Key<?>>> keyClasses;
 		private final List<Integer> keyColumns1;
 		private final List<Integer> keyColumns2;
@@ -136,7 +144,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<Record, Record, Record,
 		 * @param keyColumn1 The position of the key in the first input's records.
 		 * @param keyColumn2 The position of the key in the second input's records.
 		 */
-		protected Builder(UserCodeWrapper<CoGroupFunction> udf, Class<? extends Key<?>> keyClass,
+		protected Builder(UserCodeWrapper<org.apache.flink.api.common.functions.CoGroupFunction<Record, Record, Record>> udf, Class<? extends Key<?>> keyClass,
 				int keyColumn1, int keyColumn2)
 		{
 			this.udf = udf;
@@ -157,7 +165,7 @@ public class CoGroupOperator extends CoGroupOperatorBase<Record, Record, Record,
 		 * 
 		 * @param udf The {@link CoGroupFunction} implementation for this CoGroup operator.
 		 */
-		protected Builder(UserCodeWrapper<CoGroupFunction> udf) {
+		protected Builder(UserCodeWrapper<org.apache.flink.api.common.functions.CoGroupFunction<Record, Record, Record>> udf) {
 			this.udf = udf;
 			this.keyClasses = new ArrayList<Class<? extends Key<?>>>();
 			this.keyColumns1 = new ArrayList<Integer>();
@@ -336,6 +344,41 @@ public class CoGroupOperator extends CoGroupOperatorBase<Record, Record, Record,
 				name = udf.getUserCodeClass().getName();
 			}
 			return new CoGroupOperator(this);
+		}
+	}
+	
+	// ============================================================================================
+	
+	public static class WrappingCoGroupFunction extends WrappingFunction<CoGroupFunction> 
+			implements org.apache.flink.api.common.functions.CoGroupFunction<Record, Record, Record> {
+		
+		private static final long serialVersionUID = 1L;
+		
+		public WrappingCoGroupFunction(CoGroupFunction coGrouper) {
+			super(coGrouper);
+		}
+		
+		@Override
+		public void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) throws Exception {
+			this.wrappedFunction.coGroup(records1.iterator(), records2.iterator(), out);
+		}
+	}
+	
+	public static final class WrappingClassCoGroupFunction extends WrappingCoGroupFunction {
+		
+		private static final long serialVersionUID = 1L;
+		
+		public WrappingClassCoGroupFunction(Class<? extends CoGroupFunction> reducer) {
+			super(InstantiationUtil.instantiate(reducer));
+		}
+		
+		private void writeObject(ObjectOutputStream out) throws IOException {
+			out.writeObject(wrappedFunction.getClass());
+		}
+
+		private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+			Class<?> clazz = (Class<?>) in.readObject();
+			this.wrappedFunction = (CoGroupFunction) InstantiationUtil.instantiate(clazz);
 		}
 	}
 }

@@ -40,8 +40,8 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.flink.api.avro.AvroBaseValue;
-import org.apache.flink.api.java.functions.MapFunction;
-import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.RichMapFunction;
+import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -141,7 +141,7 @@ public class AvroExternalJarProgram  {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class NameExtractor extends MapFunction<MyUser, Tuple2<String, MyUser>> {
+	public static final class NameExtractor extends RichMapFunction<MyUser, Tuple2<String, MyUser>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -151,7 +151,7 @@ public class AvroExternalJarProgram  {
 		}
 	}
 	
-	public static final class NameGrouper extends ReduceFunction<Tuple2<String, MyUser>> {
+	public static final class NameGrouper extends RichReduceFunction<Tuple2<String, MyUser>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

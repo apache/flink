@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.scala.operators
 
 import language.experimental.macros
@@ -191,7 +190,9 @@ object ReduceMacros {
       implicit val outputUDT: UDT[Out] = c.Expr[UDT[Out]](createUdtOut).splice
 
       new ReduceFunctionBase[In, Out] {
-        override def reduce(records: JIterator[Record], out: Collector[Record]) = {
+        override def reduce(recordsIterable: JIterator[Record], out: Collector[Record]) = {
+          val records: JIterator[Record] = recordsIterable
+          
           if (records.hasNext) {
             val firstRecord = reduceIterator.initialize(records)
             reduceRecord.copyFrom(firstRecord, reduceForwardFrom, reduceForwardTo)

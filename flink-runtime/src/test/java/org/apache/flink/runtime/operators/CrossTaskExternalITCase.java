@@ -19,11 +19,9 @@
 
 package org.apache.flink.runtime.operators;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
-import org.apache.flink.api.common.functions.GenericCrosser;
-import org.apache.flink.runtime.operators.CrossDriver;
-import org.apache.flink.runtime.operators.DriverStrategy;
+import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.runtime.operators.CrossTaskTest.MockCrossStub;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
@@ -31,7 +29,7 @@ import org.apache.flink.types.Record;
 import org.junit.Test;
 
 
-public class CrossTaskExternalITCase extends DriverTestBase<GenericCrosser<Record, Record, Record>>
+public class CrossTaskExternalITCase extends DriverTestBase<CrossFunction<Record, Record, Record>>
 {
 	private static final long CROSS_MEM = 1024 * 1024;
 

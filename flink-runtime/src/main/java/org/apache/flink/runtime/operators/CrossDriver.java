@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.GenericCrosser;
+import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.resettable.BlockResettableMutableObjectIterator;
@@ -40,12 +40,12 @@ import org.apache.flink.util.MutableObjectIterator;
  * 
  * @see org.apache.flink.api.java.functions.CrossFunction
  */
-public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2, OT>, OT> {
+public class CrossDriver<T1, T2, OT> implements PactDriver<CrossFunction<T1, T2, OT>, OT> {
 	
 	private static final Log LOG = LogFactory.getLog(CrossDriver.class);
 	
 	
-	private PactTaskContext<GenericCrosser<T1, T2, OT>, OT> taskContext;
+	private PactTaskContext<CrossFunction<T1, T2, OT>, OT> taskContext;
 	
 	private MemoryManager memManager;
 	
@@ -67,7 +67,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 
 
 	@Override
-	public void setup(PactTaskContext<GenericCrosser<T1, T2, OT>, OT> context) {
+	public void setup(PactTaskContext<CrossFunction<T1, T2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -80,9 +80,9 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 
 
 	@Override
-	public Class<GenericCrosser<T1, T2, OT>> getStubType() {
+	public Class<CrossFunction<T1, T2, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericCrosser<T1, T2, OT>> clazz = (Class<GenericCrosser<T1, T2, OT>>) (Class<?>) GenericCrosser.class;
+		final Class<CrossFunction<T1, T2, OT>> clazz = (Class<CrossFunction<T1, T2, OT>>) (Class<?>) CrossFunction.class;
 		return clazz;
 	}
 	
@@ -207,7 +207,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		final T2 val2Reuse = serializer2.createInstance();
 		T2 val2Copy = serializer2.createInstance();
 		
-		final GenericCrosser<T1, T2, OT> crosser = this.taskContext.getStub();
+		final CrossFunction<T1, T2, OT> crosser = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		// for all blocks
@@ -217,7 +217,8 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 				// for all values in the block
 				while ((val1 = blockVals.next(val1Reuse)) != null) {
 					val2Copy = serializer2.copy(val2, val2Copy);
-					crosser.cross(val1, val2Copy, collector);
+					collector.collect(crosser.cross(val1,val2Copy));
+					//crosser.cross(val1, val2Copy, collector);
 				}
 				blockVals.reset();
 			}
@@ -254,7 +255,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		T2 val2;
 		final T2 val2Reuse = serializer2.createInstance();
 
-		final GenericCrosser<T1, T2, OT> crosser = this.taskContext.getStub();
+		final CrossFunction<T1, T2, OT> crosser = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		// for all blocks
@@ -264,7 +265,8 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 				// for all values in the block
 				while (this.running && ((val2 = blockVals.next(val2Reuse)) != null)) {
 					val1Copy = serializer1.copy(val1, val1Copy);
-					crosser.cross(val1Copy, val2, collector);
+					collector.collect(crosser.cross(val1Copy, val2));
+					//crosser.cross(val1Copy, val2, collector);
 				}
 				blockVals.reset();
 			}
@@ -296,7 +298,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		T2 val2;
 		final T2 val2Reuse = serializer2.createInstance();
 
-		final GenericCrosser<T1, T2, OT> crosser = this.taskContext.getStub();
+		final CrossFunction<T1, T2, OT> crosser = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		// for all blocks
@@ -304,7 +306,8 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 			// for all values from the spilling side
 			while (this.running && ((val2 = spillVals.next(val2Reuse)) != null)) {
 				val1Copy = serializer1.copy(val1, val1Copy);
-				crosser.cross(val1Copy, val2, collector);
+				collector.collect(crosser.cross(val1Copy, val2));
+				//crosser.cross(val1Copy, val2, collector);
 			}
 			spillVals.reset();
 		}
@@ -332,7 +335,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 		final T2 val2Reuse = serializer2.createInstance();
 		T2 val2Copy = serializer2.createInstance();
 		
-		final GenericCrosser<T1, T2, OT> crosser = this.taskContext.getStub();
+		final CrossFunction<T1, T2, OT> crosser = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
 		// for all blocks
@@ -340,7 +343,8 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<GenericCrosser<T1, T2
 			// for all values from the spilling side
 			while (this.running && (val1 = spillVals.next(val1Reuse)) != null) {
 				val2Copy = serializer2.copy(val2, val2Copy);
-				crosser.cross(val1, val2Copy, collector);
+				collector.collect(crosser.cross(val1, val2Copy));
+				//crosser.cross(val1, val2Copy, collector);
 			}
 			spillVals.reset();
 		}

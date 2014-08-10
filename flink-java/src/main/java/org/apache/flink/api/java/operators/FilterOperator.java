@@ -18,9 +18,9 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.common.functions.GenericFlatMap;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.api.java.functions.FilterFunction;
 import org.apache.flink.api.java.operators.translation.PlanFilterOperator;
 
 import org.apache.flink.api.java.DataSet;
@@ -44,7 +44,7 @@ public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperat
 	}
 	
 	@Override
-	protected org.apache.flink.api.common.operators.base.FilterOperatorBase<T, GenericFlatMap<T,T>> translateToDataFlow(Operator<T> input) {
+	protected org.apache.flink.api.common.operators.base.FilterOperatorBase<T, FlatMapFunction<T,T>> translateToDataFlow(Operator<T> input) {
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator

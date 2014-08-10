@@ -25,11 +25,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.flink.api.common.functions.GenericCoGrouper;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.CrossFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
-import org.apache.flink.api.common.functions.GenericCrosser;
-import org.apache.flink.api.common.functions.GenericGroupReduce;
-import org.apache.flink.api.common.functions.GenericJoiner;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.InputFormat;
@@ -48,6 +48,7 @@ import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 /**
  * Convenience methods when dealing with {@link Operator}s.
  */
+@SuppressWarnings("deprecation")
 public class OperatorUtil {
 	
 	@SuppressWarnings("rawtypes")
@@ -56,10 +57,10 @@ public class OperatorUtil {
 
 	static {
 		STUB_CONTRACTS.put(GenericCollectorMap.class, CollectorMapOperatorBase.class);
-		STUB_CONTRACTS.put(GenericGroupReduce.class, GroupReduceOperatorBase.class);
-		STUB_CONTRACTS.put(GenericCoGrouper.class, CoGroupOperatorBase.class);
-		STUB_CONTRACTS.put(GenericCrosser.class, CrossOperatorBase.class);
-		STUB_CONTRACTS.put(GenericJoiner.class, JoinOperatorBase.class);
+		STUB_CONTRACTS.put(GroupReduceFunction.class, GroupReduceOperatorBase.class);
+		STUB_CONTRACTS.put(CoGroupFunction.class, CoGroupOperatorBase.class);
+		STUB_CONTRACTS.put(CrossFunction.class, CrossOperatorBase.class);
+		STUB_CONTRACTS.put(FlatJoinFunction.class, JoinOperatorBase.class);
 		STUB_CONTRACTS.put(FileInputFormat.class, GenericDataSourceBase.class);
 		STUB_CONTRACTS.put(FileOutputFormat.class, GenericDataSinkBase.class);
 		STUB_CONTRACTS.put(InputFormat.class, GenericDataSourceBase.class);
@@ -67,7 +68,7 @@ public class OperatorUtil {
 	}
 
 	/**
-	 * Returns the associated {@link Operator} type for the given {@link org.apache.flink.api.common.functions.Function} class.
+	 * Returns the associated {@link Operator} type for the given {@link org.apache.flink.api.common.functions.RichFunction} class.
 	 * 
 	 * @param stubClass
 	 *        the stub class
@@ -126,7 +127,7 @@ public class OperatorUtil {
 	 * @param inputs
 	 *        all input contracts to this contract
 	 */
-	@SuppressWarnings({ "deprecation", "rawtypes", "unchecked" })
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public static void setInputs(final Operator<?> contract, final List<List<Operator>> inputs) {
 		if (contract instanceof GenericDataSinkBase) {
 			if (inputs.size() != 1) {

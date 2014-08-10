@@ -16,20 +16,18 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
-import org.apache.flink.api.java.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -61,7 +59,7 @@ public class BulkIterationWithAllReducerITCase extends JavaProgramTestBase {
 	}
 
 	
-	public static class PickOneAllReduce extends GroupReduceFunction<Integer, Integer> {
+	public static class PickOneAllReduce extends RichGroupReduceFunction<Integer, Integer> {
 		
 		private Integer bcValue;
 		
@@ -72,15 +70,13 @@ public class BulkIterationWithAllReducerITCase extends JavaProgramTestBase {
 		}
 
 		@Override
-		public void reduce(Iterator<Integer> records, Collector<Integer> out) {
+		public void reduce(Iterable<Integer> records, Collector<Integer> out) {
 			if (bcValue == null) {
 				return;
 			}
 			final int x = bcValue;
 			
-			while (records.hasNext()) { 
-				int y = records.next();
-
+			for (Integer y : records) { 
 				if (y > x) {
 					out.collect(y);
 					return;

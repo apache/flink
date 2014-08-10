@@ -18,8 +18,7 @@
 
 package org.apache.flink.example.java.wordcount;
 
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -53,31 +52,40 @@ public class WordCountPOJO {
 	// *************************************************************************
 
 	public static void main(String[] args) throws Exception {
-
-		parseParameters(args);
-
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		// get input data
-		DataSet<String> text = getTextDataSet(env);
-
-		DataSet<WC> counts = text 
-					.flatMap(new Tokenizer())
-					.groupBy("word")
-					.reduce(new ReduceFunction<WC>() {
-							public WC reduce(WC value1, WC value2) {
-								return new WC(value1.word, value1.count + value2.count);
-							}
-						});
-
-		// emit result
-		if(fileOutput) {
-			counts.writeAsText(outputPath);
-		} else {
-			counts.print();
-		}
-
-		env.execute("WordCount with custom data types example");
+		// ====================================================================
+		// IMPORTANT
+		//
+		// Note: this example is currently not working, because support for
+		// POJO types has been disabled. As soon as all known issues (see [1])
+		// are fixed, we will enable POJO support again.
+		//
+		// [1] https://mail-archives.apache.org/mod_mbox/incubator-flink-dev/201407.mbox/%3C53D96049.1060509%40cse.uta.edu%3E
+		// ====================================================================
+//
+//		parseParameters(args);
+//
+//		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+//
+//		// get input data
+//		DataSet<String> text = getTextDataSet(env);
+//
+//		DataSet<WC> counts = text
+//					.flatMap(new Tokenizer())
+//					.groupBy("word")
+//					.reduce(new ReduceFunction<WC>() {
+//							public WC reduce(WC value1, WC value2) {
+//								return new WC(value1.word, value1.count + value2.count);
+//							}
+//						});
+//
+//		// emit result
+//		if(fileOutput) {
+//			counts.writeAsText(outputPath);
+//		} else {
+//			counts.print();
+//		}
+//
+//		env.execute("WordCount with custom data types example");
 	}
 
 	// *************************************************************************
@@ -111,7 +119,7 @@ public class WordCountPOJO {
 	 * FlatMapFunction. The function takes a line (String) and splits it into
 	 * multiple WC POJOs as "(word, 1)".
 	 */
-	public static final class Tokenizer extends FlatMapFunction<String, WC> {
+	public static final class Tokenizer implements FlatMapFunction<String, WC> {
 
 		@Override
 		public void flatMap(String value, Collector<WC> out) {

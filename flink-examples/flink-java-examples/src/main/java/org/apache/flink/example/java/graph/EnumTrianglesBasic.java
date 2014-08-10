@@ -22,10 +22,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Order;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.JoinFunction;
-import org.apache.flink.api.java.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.DataSet;
@@ -35,7 +35,7 @@ import org.apache.flink.example.java.graph.util.EnumTrianglesDataTypes.Edge;
 import org.apache.flink.example.java.graph.util.EnumTrianglesDataTypes.Triad;
 
 /**
- * Triangle enumeration is a preprocessing step to find closely connected parts in graphs.
+ * Triangle enumeration is a pre-processing step to find closely connected parts in graphs.
  * A triangle consists of three edges that connect three vertices with each other.
  * 
  * <p>
@@ -119,7 +119,7 @@ public class EnumTrianglesBasic {
 	// *************************************************************************
 
 	/** Converts a Tuple2 into an Edge */
-	public static class TupleEdgeConverter extends MapFunction<Tuple2<Integer, Integer>, Edge> {
+	public static class TupleEdgeConverter implements MapFunction<Tuple2<Integer, Integer>, Edge> {
 		private final Edge outEdge = new Edge();
 		
 		@Override
@@ -130,7 +130,7 @@ public class EnumTrianglesBasic {
 	}
 	
 	/** Projects an edge (pair of vertices) such that the id of the first is smaller than the id of the second. */
-	private static class EdgeByIdProjector extends MapFunction<Edge, Edge> {
+	private static class EdgeByIdProjector implements MapFunction<Edge, Edge> {
 	
 		@Override
 		public Edge map(Edge inEdge) throws Exception {
@@ -149,12 +149,14 @@ public class EnumTrianglesBasic {
 	 *  The first vertex of a triad is the shared vertex, the second and third vertex are ordered by vertexId. 
 	 *  Assumes that input edges share the first vertex and are in ascending order of the second vertex.
 	 */
-	private static class TriadBuilder extends GroupReduceFunction<Edge, Triad> {
+	private static class TriadBuilder implements GroupReduceFunction<Edge, Triad> {
 		private final List<Integer> vertices = new ArrayList<Integer>();
 		private final Triad outTriad = new Triad();
 		
 		@Override
-		public void reduce(Iterator<Edge> edges, Collector<Triad> out) throws Exception {
+		public void reduce(Iterable<Edge> edgesIter, Collector<Triad> out) throws Exception {
+			
+			final Iterator<Edge> edges = edgesIter.iterator();
 			
 			// clear vertex list
 			vertices.clear();
@@ -165,11 +167,11 @@ public class EnumTrianglesBasic {
 			vertices.add(firstEdge.getSecondVertex());
 			
 			// build and emit triads
-			while(edges.hasNext()) {
+			while (edges.hasNext()) {
 				Integer higherVertexId = edges.next().getSecondVertex();
 				
 				// combine vertex with all previously read vertices
-				for(Integer lowerVertexId : vertices) {
+				for (Integer lowerVertexId : vertices) {
 					outTriad.setSecondVertex(lowerVertexId);
 					outTriad.setThirdVertex(higherVertexId);
 					out.collect(outTriad);
@@ -180,7 +182,7 @@ public class EnumTrianglesBasic {
 	}
 	
 	/** Filters triads (three vertices connected by two edges) without a closing third edge. */
-	private static class TriadFilter extends JoinFunction<Triad, Edge, Triad> {
+	private static class TriadFilter implements JoinFunction<Triad, Edge, Triad> {
 		
 		@Override
 		public Triad join(Triad triad, Edge edge) throws Exception {

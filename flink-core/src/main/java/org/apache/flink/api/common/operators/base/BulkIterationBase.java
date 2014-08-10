@@ -29,7 +29,7 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
 import org.apache.flink.api.common.operators.IterationOperator;
 import org.apache.flink.api.common.operators.Operator;
@@ -48,7 +48,8 @@ import org.apache.flink.util.Visitor;
 /**
  * 
  */
-public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractFunction> implements IterationOperator {
+@SuppressWarnings("deprecation")
+public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRichFunction> implements IterationOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Bulk Iteration>";
 	
@@ -78,7 +79,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractFunc
 	 * @param name
 	 */
 	public BulkIterationBase(UnaryOperatorInformation<T, T> operatorInfo, String name) {
-		super(new UserCodeClassWrapper<AbstractFunction>(AbstractFunction.class), operatorInfo, name);
+		super(new UserCodeClassWrapper<AbstractRichFunction>(AbstractRichFunction.class), operatorInfo, name);
 		inputPlaceHolder = new PartialSolutionPlaceHolder<T>(this, this.getOperatorInfo());
 	}
 
@@ -230,7 +231,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractFunc
 	/**
 	 * Special Mapper that is added before a termination criterion and is only a container for an special aggregator
 	 */
-	public static class TerminationCriterionMapper<X> extends AbstractFunction implements Serializable, GenericCollectorMap<X, Nothing> {
+	public static class TerminationCriterionMapper<X> extends AbstractRichFunction implements Serializable, GenericCollectorMap<X, Nothing> {
 		private static final long serialVersionUID = 1L;
 		
 		private TerminationCriterionAggregator aggregator;

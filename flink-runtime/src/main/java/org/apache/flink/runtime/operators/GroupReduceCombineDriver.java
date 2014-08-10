@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.GenericCombine;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
@@ -39,12 +39,12 @@ import org.apache.flink.util.MutableObjectIterator;
  * 
  * @param <T> The data type consumed and produced by the combiner.
  */
-public class GroupReduceCombineDriver<T> implements PactDriver<GenericCombine<T>, T> {
+public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFunction<T>, T> {
 	
 	private static final Log LOG = LogFactory.getLog(GroupReduceCombineDriver.class);
 
 	
-	private PactTaskContext<GenericCombine<T>, T> taskContext;
+	private PactTaskContext<FlatCombineFunction<T>, T> taskContext;
 	
 	private CloseableInputProvider<T> input;
 
@@ -57,7 +57,7 @@ public class GroupReduceCombineDriver<T> implements PactDriver<GenericCombine<T>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<GenericCombine<T>, T> context) {
+	public void setup(PactTaskContext<FlatCombineFunction<T>, T> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -68,9 +68,9 @@ public class GroupReduceCombineDriver<T> implements PactDriver<GenericCombine<T>
 	}
 
 	@Override
-	public Class<GenericCombine<T>> getStubType() {
+	public Class<FlatCombineFunction<T>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericCombine<T>> clazz = (Class<GenericCombine<T>>) (Class<?>) GenericCombine.class;
+		final Class<FlatCombineFunction<T>> clazz = (Class<FlatCombineFunction<T>>) (Class<?>) FlatCombineFunction.class;
 		return clazz;
 	}
 
@@ -111,7 +111,7 @@ public class GroupReduceCombineDriver<T> implements PactDriver<GenericCombine<T>
 				this.serializerFactory.getSerializer(), this.comparator);
 
 		// cache references on the stack
-		final GenericCombine<T> stub = this.taskContext.getStub();
+		final FlatCombineFunction<T> stub = this.taskContext.getStub();
 		final Collector<T> output = this.taskContext.getOutputCollector();
 
 		// run stub implementation

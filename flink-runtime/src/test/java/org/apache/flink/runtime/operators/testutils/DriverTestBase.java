@@ -22,9 +22,11 @@ package org.apache.flink.runtime.operators.testutils;
 import java.util.ArrayList;
 import java.util.List;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
@@ -173,7 +175,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 			
 			// open stub implementation
 			try {
-				this.stub.open(getTaskConfig().getStubParameters());
+				FunctionUtils.openFunction(this.stub, getTaskConfig().getStubParameters());
 				stubOpen = true;
 			}
 			catch (Throwable t) {
@@ -185,7 +187,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 			
 			// close. We close here such that a regular close throwing an exception marks a task as failed.
 			if (this.running) {
-				this.stub.close();
+				FunctionUtils.closeFunction (this.stub);
 				stubOpen = false;
 			}
 			
@@ -195,7 +197,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 			// close the input, but do not report any exceptions, since we already have another root cause
 			if (stubOpen) {
 				try {
-					this.stub.close();
+					FunctionUtils.closeFunction(this.stub);
 				}
 				catch (Throwable t) {}
 			}

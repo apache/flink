@@ -79,7 +79,7 @@ public class WorksetConnectedComponents implements Program, ProgramDescription {
 	}
 	
 	/**
-	 * Minimum aggregation over (Vertex-ID, Component-ID) pairs, selecting the pair with the smallest Comonent-ID.
+	 * Minimum aggregation over (Vertex-ID, Component-ID) pairs, selecting the pair with the smallest Component-ID.
 	 */
 	@Combinable
 	@ConstantFields(0)

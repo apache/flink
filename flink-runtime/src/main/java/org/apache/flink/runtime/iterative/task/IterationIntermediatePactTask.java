@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.task;
 
 import java.io.IOException;
@@ -27,18 +26,20 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.runtime.io.network.api.BufferWriter;
 import org.apache.flink.runtime.io.network.channels.EndOfSuperstepEvent;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
+import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatch;
+import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatchBroker;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.runtime.iterative.io.WorksetUpdateOutputCollector;
 import org.apache.flink.util.Collector;
 
 /**
- * An intermediate iteration task, which runs a {@link PactDriver} inside.
+ * An intermediate iteration task, which runs a Driver}inside.
  * <p/>
  * It will propagate {@link EndOfSuperstepEvent}s and {@link TerminationEvent}s to it's connected tasks. Furthermore
  * intermediate tasks can also update the iteration state, either the workset or the solution set.
  * <p/>
  * If the iteration state is updated, the output of this task will be send back to the {@link IterationHeadPactTask} via
- * a {@link BlockingBackChannel} for the workset -XOR- a {@link MutableHashTable} for the solution set. In this case
+ * a {@link BlockingBackChannel} for the workset -XOR- a eHashTable for the solution set. In this case
  * this task must be scheduled on the same instance as the head.
  */
 public class IterationIntermediatePactTask<S extends Function, OT> extends AbstractIterativePactTask<S, OT> {
@@ -79,6 +80,8 @@ public class IterationIntermediatePactTask<S extends Function, OT> extends Abstr
 
 	@Override
 	public void run() throws Exception {
+		
+		SuperstepKickoffLatch nextSuperstepLatch = SuperstepKickoffLatchBroker.instance().get(brokerKey());
 
 		while (this.running && !terminationRequested()) {
 
@@ -89,26 +92,31 @@ public class IterationIntermediatePactTask<S extends Function, OT> extends Abstr
 			super.run();
 
 			// check if termination was requested
-			checkForTerminationAndResetEndOfSuperstepState();
+			verifyEndOfSuperstepState();
 
 			if (isWorksetUpdate && isWorksetIteration) {
 				long numCollected = worksetUpdateOutputCollector.getElementsCollectedAndReset();
 				worksetAggregator.aggregate(numCollected);
 			}
-
+			
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
 			}
+			
+			// let the successors know that the end of this superstep data is reached
+			sendEndOfSuperstep();
+			
+			if (isWorksetUpdate) {
+				// notify iteration head if responsible for workset update
+				worksetBackChannel.notifyOfEndOfSuperstep();
+			}
+			
+			boolean terminated = nextSuperstepLatch.awaitStartOfSuperstepOrTermination(currentIteration() + 1);
 
-			if (!terminationRequested()) {
-				if (isWorksetUpdate) {
-					// notify iteration head if responsible for workset update
-					worksetBackChannel.notifyOfEndOfSuperstep();
-				}
-
-				// send the end-of-superstep
-				sendEndOfSuperstep();
-
+			if (terminated) {
+				requestTermination();
+			}
+			else {
 				incrementIterationCounter();
 			}
 		}

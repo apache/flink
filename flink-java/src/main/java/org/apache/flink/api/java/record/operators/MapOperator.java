@@ -41,6 +41,7 @@ import org.apache.flink.types.Record;
  * 
  * @see MapFunction
  */
+@SuppressWarnings("deprecation")
 public class MapOperator extends CollectorMapOperatorBase<Record, Record, MapFunction> implements RecordOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Mapper>";

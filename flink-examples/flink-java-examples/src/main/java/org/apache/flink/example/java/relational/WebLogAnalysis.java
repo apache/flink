@@ -16,13 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.example.java.relational;
 
-import java.util.Iterator;
 
-import org.apache.flink.api.java.functions.CoGroupFunction;
-import org.apache.flink.api.java.functions.FilterFunction;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -159,7 +157,7 @@ public class WebLogAnalysis {
 	 * MapFunction that filters for documents that contain a certain set of
 	 * keywords.
 	 */
-	public static class FilterDocByKeyWords extends FilterFunction<Tuple2<String, String>> {
+	public static class FilterDocByKeyWords implements FilterFunction<Tuple2<String, String>> {
 
 		private static final String[] KEYWORDS = { " editors ", " oscillations " };
 
@@ -187,7 +185,7 @@ public class WebLogAnalysis {
 	/**
 	 * MapFunction that filters for records where the rank exceeds a certain threshold.
 	 */
-	public static class FilterByRank extends FilterFunction<Tuple3<Integer, String, Integer>> {
+	public static class FilterByRank implements FilterFunction<Tuple3<Integer, String, Integer>> {
 
 		private static final int RANKFILTER = 40;
 
@@ -210,7 +208,7 @@ public class WebLogAnalysis {
 	 * MapFunction that filters for records of the visits relation where the year
 	 * (from the date string) is equal to a certain value.
 	 */
-	public static class FilterVisitsByDate extends FilterFunction<Tuple2<String, String>> {
+	public static class FilterVisitsByDate implements FilterFunction<Tuple2<String, String>> {
 
 		private static final int YEARFILTER = 2007;
 
@@ -237,7 +235,7 @@ public class WebLogAnalysis {
 	 * If the first input does not provide any pairs, all pairs of the second input are emitted.
 	 * Otherwise, no pair is emitted.
 	 */
-	public static class AntiJoinVisits extends CoGroupFunction<Tuple3<Integer, String, Integer>, Tuple1<String>, Tuple3<Integer, String, Integer>> {
+	public static class AntiJoinVisits implements CoGroupFunction<Tuple3<Integer, String, Integer>, Tuple1<String>, Tuple3<Integer, String, Integer>> {
 
 		/**
 		 * If the visit iterator is empty, all pairs of the rank iterator are emitted.
@@ -249,12 +247,12 @@ public class WebLogAnalysis {
 		 * 2: AVG_DURATION
 		 */
 		@Override
-		public void coGroup(Iterator<Tuple3<Integer, String, Integer>> ranks, Iterator<Tuple1<String>> visits, Collector<Tuple3<Integer, String, Integer>> out) {
+		public void coGroup(Iterable<Tuple3<Integer, String, Integer>> ranks, Iterable<Tuple1<String>> visits, Collector<Tuple3<Integer, String, Integer>> out) {
 			// Check if there is a entry in the visits relation
-			if (!visits.hasNext()) {
-				while (ranks.hasNext()) {
+			if (!visits.iterator().hasNext()) {
+				for (Tuple3<Integer, String, Integer> next : ranks) {
 					// Emit all rank pairs
-					out.collect(ranks.next());
+					out.collect(next);
 				}
 			}
 		}
