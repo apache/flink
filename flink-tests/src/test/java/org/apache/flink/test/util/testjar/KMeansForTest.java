@@ -24,7 +24,6 @@ import java.util.Collection;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -80,12 +79,7 @@ public class KMeansForTest implements Program {
 			.map(new SelectNearestCenter()).withBroadcastSet(loop, "centroids")
 			// count and sum point coordinates for each centroid
 			.map(new CountAppender())
-			.groupBy(new KeySelector<DummyTuple3IntPointLong, Integer>() {
-				@Override
-				public Integer getKey(DummyTuple3IntPointLong value) throws Exception {
-					return value.f0;
-				}
-			}).reduce(new CentroidAccumulator())
+			.groupBy("f0").reduce(new CentroidAccumulator())
 			// compute new centroids from point counts and coordinate sums
 			.map(new CentroidAverager());
 

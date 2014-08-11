@@ -51,6 +51,38 @@ public class WordCount {
 	// *************************************************************************
 	//     PROGRAM
 	// *************************************************************************
+
+	public static void main(String[] args) throws Exception {
+
+		parseParameters(args);
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		// get input data
+		DataSet<String> text = getTextDataSet(env);
+
+		DataSet<WC> counts = text 
+					.flatMap(new Tokenizer())
+					.groupBy("word")
+					.reduce(new ReduceFunction<WC>() {
+							public WC reduce(WC value1, WC value2) {
+								return new WC(value1.word, value1.count + value2.count);
+							}
+						});
+
+		// emit result
+		if(fileOutput) {
+			counts.writeAsText(outputPath);
+		} else {
+			counts.print();
+		}
+
+		env.execute("WordCount with custom data types example");
+	}
+
+	// *************************************************************************
+	//     USER DATA TYPES (POJOs)
+	// *************************************************************************
 	
 	public static void main(String[] args) throws Exception {
 		

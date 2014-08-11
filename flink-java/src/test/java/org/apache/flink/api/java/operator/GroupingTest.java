@@ -30,7 +30,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import org.apache.flink.api.java.DataSet;
@@ -113,7 +112,6 @@ public class GroupingTest {
 		tupleDs.groupBy(-1);
 	}
 
-	@Ignore
 	@Test
 	public void testGroupByKeyExpressions1() {
 
@@ -131,7 +129,6 @@ public class GroupingTest {
 		}
 	}
 
-	@Ignore
 	@Test(expected = UnsupportedOperationException.class)
 	public void testGroupByKeyExpressions2() {
 
@@ -142,7 +139,6 @@ public class GroupingTest {
 //		longDs.groupBy("myInt");
 	}
 
-	@Ignore
 	@Test(expected = InvalidProgramException.class)
 	public void testGroupByKeyExpressions3() {
 
@@ -156,7 +152,6 @@ public class GroupingTest {
 
 	}
 
-	@Ignore
 	@Test(expected = IllegalArgumentException.class)
 	public void testGroupByKeyExpressions4() {
 
