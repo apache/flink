@@ -174,11 +174,22 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public void serialize(T value, DataOutputView target) throws IOException {
+		// handle null values
+		if (value == null) {
+			target.writeBoolean(true);
+			return;
+		} else {
+			target.writeBoolean(false);
+		}
 		try {
-
 			for (int i = 0; i < numFields; i++) {
 				Object o = fields[i].get(value);
-				fieldSerializers[i].serialize(o, target);
+				if(o == null) {
+					target.writeBoolean(true); // null field handling
+				} else {
+					target.writeBoolean(false);
+					fieldSerializers[i].serialize(o, target);
+				}
 			}
 		} catch (IllegalAccessException e) {
 			throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" +
@@ -188,6 +199,10 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
+		boolean isNull = source.readBoolean();
+		if(isNull) {
+			return null;
+		}
 		T target;
 		try {
 			target = clazz.newInstance();
@@ -198,8 +213,13 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		
 		try {
 			for (int i = 0; i < numFields; i++) {
-				Object field = fieldSerializers[i].deserialize(source);
-				fields[i].set(target, field);
+				isNull = source.readBoolean();
+				if(isNull) {
+					fields[i].set(target, null);
+				} else {
+					Object field = fieldSerializers[i].deserialize(source);
+					fields[i].set(target, field);
+				}
 			}
 		} catch (IllegalAccessException e) {
 			throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" +
@@ -210,10 +230,20 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
+		// handle null values
+		boolean isNull = source.readBoolean();
+		if (isNull) {
+			return null;
+		}
 		try {
 			for (int i = 0; i < numFields; i++) {
-				Object field = fieldSerializers[i].deserialize(fields[i].get(reuse), source);
-				fields[i].set(reuse, field);
+				isNull = source.readBoolean();
+				if(isNull) {
+					fields[i].set(reuse, null);
+				} else {
+					Object field = fieldSerializers[i].deserialize(fields[i].get(reuse), source);
+					fields[i].set(reuse, field);
+				}
 			}
 		} catch (IllegalAccessException e) {
 			throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" +
@@ -224,7 +254,10 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
+		// copy the Non-Null/Null tag
+		target.writeBoolean(source.readBoolean());
 		for (int i = 0; i < numFields; i++) {
+			target.writeBoolean(source.readBoolean());
 			fieldSerializers[i].copy(source, target);
 		}
 	}

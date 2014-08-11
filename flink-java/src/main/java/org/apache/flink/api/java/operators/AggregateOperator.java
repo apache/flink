@@ -195,7 +195,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			return po;
 		}
 		
-		if (this.grouping.getKeys() instanceof Keys.FieldPositionKeys) {
+		if (this.grouping.getKeys() instanceof Keys.ExpressionKeys) {
 			// grouped aggregation
 			int[] logicalKeyPositions = this.grouping.getKeys().computeLogicalKeyPositions();
 			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getResultType());

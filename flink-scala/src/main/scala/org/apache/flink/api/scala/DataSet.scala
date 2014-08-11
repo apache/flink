@@ -27,7 +27,7 @@ import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
 import org.apache.flink.api.java.operators.JoinOperator.JoinHint
-import org.apache.flink.api.java.operators.Keys.FieldPositionKeys
+import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.scala.operators.{ScalaCsvOutputFormat, ScalaAggregateOperator}
@@ -544,7 +544,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def distinct(fields: Int*): DataSet[T] = {
     wrap(new DistinctOperator[T](
       javaSet,
-      new Keys.FieldPositionKeys[T](fields.toArray, javaSet.getType, true)))
+      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType, true)))
   }
 
   /**
@@ -557,7 +557,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val fieldIndices = fieldNames2Indices(javaSet.getType, firstField +: otherFields.toArray)
     wrap(new DistinctOperator[T](
       javaSet,
-      new Keys.FieldPositionKeys[T](fieldIndices, javaSet.getType, true)))
+      new Keys.ExpressionKeys[T](fieldIndices, javaSet.getType, true)))
   }
 
   /**
@@ -602,7 +602,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def groupBy(fields: Int*): GroupedDataSet[T] = {
     new GroupedDataSet[T](
       this,
-      new Keys.FieldPositionKeys[T](fields.toArray, javaSet.getType,false))
+      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType,false))
   }
 
   /**
@@ -619,7 +619,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 
     new GroupedDataSet[T](
       this,
-      new Keys.FieldPositionKeys[T](fieldIndices, javaSet.getType,false))
+      new Keys.ExpressionKeys[T](fieldIndices, javaSet.getType,false))
   }
 
   //  public UnsortedGrouping<T> groupBy(String... fields) {
@@ -835,7 +835,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[Int])(
       stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
-    val key = new FieldPositionKeys[T](keyFields, javaSet.getType, false)
+    val key = new ExpressionKeys[T](keyFields, javaSet.getType, false)
 
     val iterativeSet = new DeltaIteration[T, R](
       javaSet.getExecutionEnvironment,
@@ -864,8 +864,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
     val fieldIndices = fieldNames2Indices(javaSet.getType, keyFields)
 
-    val key = new FieldPositionKeys[T](fieldIndices, javaSet.getType, false)
 
+    val key = new ExpressionKeys[T](fieldIndices, javaSet.getType, false)
     val iterativeSet = new DeltaIteration[T, R](
       javaSet.getExecutionEnvironment,
       javaSet.getType,
@@ -920,7 +920,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val op = new PartitionOperator[T](
       javaSet,
       PartitionMethod.HASH,
-      new Keys.FieldPositionKeys[T](fields.toArray, javaSet.getType, false))
+      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType, false))
     wrap(op)
   }
 
@@ -936,7 +936,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val op = new PartitionOperator[T](
       javaSet,
       PartitionMethod.HASH,
-      new Keys.FieldPositionKeys[T](fieldIndices, javaSet.getType, false))
+      new Keys.ExpressionKeys[T](fieldIndices, javaSet.getType, false))
     wrap(op)
   }
 

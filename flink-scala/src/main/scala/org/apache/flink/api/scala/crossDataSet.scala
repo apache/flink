@@ -19,7 +19,7 @@ package org.apache.flink.api.scala
 
 import org.apache.commons.lang3.Validate
 import org.apache.flink.api.common.functions.{RichCrossFunction, CrossFunction}
-import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}

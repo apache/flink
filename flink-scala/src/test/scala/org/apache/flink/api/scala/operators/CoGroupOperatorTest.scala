@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.operators
 
 import java.io.Serializable
 import org.apache.flink.api.common.InvalidProgramException
+import org.apache.flink.api.java.operators.Keys.IncompatibleKeysException
 import org.junit.Assert
 import org.junit.Ignore
 import org.junit.Test
@@ -44,7 +45,7 @@ class CoGroupOperatorTest {
     }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[IncompatibleKeysException])
   def testCoGroupKeyFields2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -54,7 +55,7 @@ class CoGroupOperatorTest {
     ds1.coGroup(ds2).where(0).equalTo(2)
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[IncompatibleKeysException])
   def testCoGroupKeyFields3(): Unit =  {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -109,7 +110,7 @@ class CoGroupOperatorTest {
     }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[IncompatibleKeysException])
   def testCoGroupKeyFieldNames2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -119,7 +120,7 @@ class CoGroupOperatorTest {
     ds1.coGroup(ds2).where("_1").equalTo("_3")
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[IncompatibleKeysException])
   def testCoGroupKeyFieldNames3(): Unit =  {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -254,7 +255,7 @@ class CoGroupOperatorTest {
     }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[IncompatibleKeysException])
   def testCoGroupKeyMixing3(): Unit =  {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -264,7 +265,7 @@ class CoGroupOperatorTest {
     ds1.coGroup(ds2).where(2).equalTo { _.l }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[IncompatibleKeysException])
   def testCoGroupKeyMixing4(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)

@@ -33,4 +33,10 @@ public abstract class TypeInformation<T> {
 	public abstract boolean isKeyType();
 	
 	public abstract TypeSerializer<T> createSerializer();
+	
+	/**
+	 * @return The number of fields in this type, including its sub-fields (for compsite types) 
+	 */
+	public abstract int getTotalFields();
+
 }

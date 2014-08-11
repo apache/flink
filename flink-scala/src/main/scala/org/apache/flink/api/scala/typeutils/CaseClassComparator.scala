@@ -139,10 +139,10 @@ class CaseClassComparator[T <: Product](
     }
   }
 
-  def extractKeys(value: T) = {
+  def extractKeys(value: AnyRef, target: Array[AnyRef], index: Int) = {
     for (i <- 0 until keyPositions.length ) {
-      extractedKeys(i) = value.productElement(keyPositions(i)).asInstanceOf[AnyRef]
+      target(index + i) = value.asInstanceOf[T].productElement(keyPositions(i)).asInstanceOf[AnyRef]
     }
-    extractedKeys
+    keyPositions.length
   }
 }

@@ -430,7 +430,7 @@ public abstract class DataSet<T> {
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
 	public DistinctOperator<T> distinct(int... fields) {
-		return new DistinctOperator<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), true));
+		return new DistinctOperator<T>(this, new Keys.ExpressionKeys<T>(fields, getType(), true));
 	}
 	
 	/**
@@ -500,7 +500,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public UnsortedGrouping<T> groupBy(int... fields) {
-		return new UnsortedGrouping<T>(this, new Keys.FieldPositionKeys<T>(fields, getType(), false));
+		return new UnsortedGrouping<T>(this, new Keys.ExpressionKeys<T>(fields, getType(), false));
 	}
 
 	/**
@@ -526,9 +526,9 @@ public abstract class DataSet<T> {
 	 * @see org.apache.flink.api.java.operators.GroupReduceOperator
 	 * @see DataSet
 	 */
-//	public UnsortedGrouping<T> groupBy(String... fields) {
-//		return new UnsortedGrouping<T>(this, new Keys.ExpressionKeys<T>(fields, getType()));
-//	}
+	public UnsortedGrouping<T> groupBy(String... fields) {
+		return new UnsortedGrouping<T>(this, new Keys.ExpressionKeys<T>(fields, getType()));
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	//  Joining
@@ -541,7 +541,7 @@ public abstract class DataSet<T> {
 	 *   joining elements into one DataSet.</br>
 	 * 
 	 * This method returns a {@link JoinOperatorSets} on which 
-	 *   {@link JoinOperatorSets#where(int...)} needs to be called to define the join key of the first 
+	 *   {@link JoinOperatorSets#where()} needs to be called to define the join key of the first 
 	 *   joining (i.e., this) DataSet.
 	 *  
 	 * @param other The other DataSet with which this DataSet is joined.
@@ -562,7 +562,7 @@ public abstract class DataSet<T> {
 	 * This method also gives the hint to the optimizer that the second DataSet to join is much
 	 *   smaller than the first one.</br>
 	 * This method returns a {@link JoinOperatorSets} on which 
-	 *   {@link JoinOperatorSets#where(int...)} needs to be called to define the join key of the first 
+	 *   {@link JoinOperatorSets#where()} needs to be called to define the join key of the first 
 	 *   joining (i.e., this) DataSet.
 	 *  
 	 * @param other The other DataSet with which this DataSet is joined.
@@ -583,7 +583,7 @@ public abstract class DataSet<T> {
 	 * This method also gives the hint to the optimizer that the second DataSet to join is much
 	 *   larger than the first one.</br>
 	 * This method returns a {@link JoinOperatorSets JoinOperatorSet} on which 
-	 *   {@link JoinOperatorSets#where(int...)} needs to be called to define the join key of the first 
+	 *   {@link JoinOperatorSets#where()} needs to be called to define the join key of the first 
 	 *   joining (i.e., this) DataSet.
 	 *  
 	 * @param other The other DataSet with which this DataSet is joined.
@@ -610,7 +610,7 @@ public abstract class DataSet<T> {
 	 * The CoGroupFunction can iterate over the elements of both groups and return any number 
 	 *   of elements including none.</br>
 	 * This method returns a {@link CoGroupOperatorSets} on which 
-	 *   {@link CoGroupOperatorSets#where(int...)} needs to be called to define the grouping key of the first 
+	 *   {@link CoGroupOperatorSets#where()} needs to be called to define the grouping key of the first 
 	 *   (i.e., this) DataSet.
 	 * 
 	 * @param other The other DataSet of the CoGroup transformation.
@@ -814,7 +814,7 @@ public abstract class DataSet<T> {
 	 * @see org.apache.flink.api.java.operators.DeltaIteration
 	 */
 	public <R> DeltaIteration<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int... keyPositions) {
-		Keys.FieldPositionKeys<T> keys = new Keys.FieldPositionKeys<T>(keyPositions, getType(), false);
+		Keys.ExpressionKeys<T> keys = new Keys.ExpressionKeys<T>(keyPositions, getType(), false);
 		return new DeltaIteration<T, R>(getExecutionEnvironment(), getType(), this, workset, keys, maxIterations);
 	}
 
@@ -863,7 +863,7 @@ public abstract class DataSet<T> {
 	 * @return The partitioned DataSet.
 	 */
 	public PartitionOperator<T> partitionByHash(int... fields) {
-		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.FieldPositionKeys<T>(fields, getType(), false));
+		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.ExpressionKeys<T>(fields, getType(), false));
 	}
 	
 	/**

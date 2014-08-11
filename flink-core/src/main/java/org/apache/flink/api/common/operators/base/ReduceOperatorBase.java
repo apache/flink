@@ -28,8 +28,8 @@ import org.apache.flink.api.common.operators.util.TypeComparable;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
-import org.apache.flink.api.common.typeinfo.CompositeType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -125,7 +125,6 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 
 	// --------------------------------------------------------------------------------------------
 
-	@SuppressWarnings("unchecked")
 	@Override
 	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
 		// make sure we can handle empty inputs
@@ -151,7 +150,7 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 
 		if (inputColumns.length > 0) {
 			boolean[] inputOrderings = new boolean[inputColumns.length];
-			TypeComparator<T> inputComparator = ((CompositeType<T>) inputType).createComparator(inputColumns, inputOrderings);
+			TypeComparator<T> inputComparator = ((CompositeType<T>) inputType).createComparator(inputColumns, inputOrderings, 0);
 
 			Map<TypeComparable<T>, T> aggregateMap = new HashMap<TypeComparable<T>, T>(inputData.size() / 10);
 

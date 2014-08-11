@@ -33,10 +33,6 @@ public abstract class BasicTypeComparator<T extends Comparable<T>> extends TypeC
 	
 	protected final boolean ascendingComparison;
 
-	// This is used in extractKeys, so that we don't create a new array for every call.
-	@SuppressWarnings("rawtypes")
-	private final Comparable[] extractedKey = new Comparable[1];
-
 	// For use by getComparators
 	@SuppressWarnings("rawtypes")
 	private final TypeComparator[] comparators = new TypeComparator[] {this};
@@ -89,14 +85,14 @@ public abstract class BasicTypeComparator<T extends Comparable<T>> extends TypeC
 	}
 
 	@Override
-	public Object[] extractKeys(T record) {
-		extractedKey[0] = record;
-		return extractedKey;
+	public int extractKeys(Object record, Object[] target, int index) {
+		target[index] = record;
+		return 1;
 	}
 
-	@Override
 	@SuppressWarnings("rawtypes")
-	public TypeComparator[] getComparators() {
+	@Override
+	public TypeComparator[] getFlatComparators() {
 		return comparators;
 	}
 

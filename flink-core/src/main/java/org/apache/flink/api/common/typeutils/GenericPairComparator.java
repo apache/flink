@@ -36,13 +36,15 @@ public class GenericPairComparator<T1, T2> extends TypePairComparator<T1, T2>
 	private final TypeComparator<Object>[] comparators2;
 
 	private final Object[] referenceKeyFields;
+	
+	private final Object[] candidateKeyFields;
 
 	@SuppressWarnings("unchecked")
 	public GenericPairComparator(TypeComparator<T1> comparator1, TypeComparator<T2> comparator2) {
 		this.comparator1 = comparator1;
 		this.comparator2 = comparator2;
-		this.comparators1 = comparator1.getComparators();
-		this.comparators2 = comparator2.getComparators();
+		this.comparators1 = comparator1.getFlatComparators();
+		this.comparators2 = comparator2.getFlatComparators();
 
 		if(comparators1.length != comparators2.length) {
 			throw new IllegalArgumentException("Number of key fields and comparators differ.");
@@ -56,19 +58,19 @@ public class GenericPairComparator<T1, T2> extends TypePairComparator<T1, T2>
 		}
 
 		this.referenceKeyFields = new Object[numKeys];
+		this.candidateKeyFields = new Object[numKeys];
 	}
 	
 	@Override
 	public void setReference(T1 reference) {
-		Object[] keys = comparator1.extractKeys(reference);
-		System.arraycopy(keys, 0, referenceKeyFields, 0, keys.length);
+		comparator1.extractKeys(reference, referenceKeyFields, 0);
 	}
 
 	@Override
 	public boolean equalToReference(T2 candidate) {
-		Object[] keys = comparator2.extractKeys(candidate);
+		comparator2.extractKeys(candidate, candidateKeyFields, 0);
 		for (int i = 0; i < this.comparators1.length; i++) {
-			if (this.comparators1[i].compare(referenceKeyFields[i], keys[i]) != 0) {
+			if (this.comparators1[i].compare(referenceKeyFields[i], candidateKeyFields[i]) != 0) {
 				return false;
 			}
 		}
@@ -77,11 +79,11 @@ public class GenericPairComparator<T1, T2> extends TypePairComparator<T1, T2>
 
 	@Override
 	public int compareToReference(T2 candidate) {
-		Object[] keys = comparator2.extractKeys(candidate);
+		comparator2.extractKeys(candidate, candidateKeyFields, 0);
 		for (int i = 0; i < this.comparators1.length; i++) {
 			// We reverse ordering here because our "compareToReference" does work in a mirrored
 			// way compared to Comparable.compareTo
-			int res = this.comparators1[i].compare(keys[i], referenceKeyFields[i]);
+			int res = this.comparators1[i].compare(candidateKeyFields[i], referenceKeyFields[i]);
 			if(res != 0) {
 				return res;
 			}

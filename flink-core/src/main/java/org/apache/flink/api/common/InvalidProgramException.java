@@ -43,4 +43,8 @@ public class InvalidProgramException extends RuntimeException {
 	public InvalidProgramException(String message) {
 		super(message);
 	}
+
+	public InvalidProgramException(String message, Throwable e) {
+		super(message, e);
+	}
 }

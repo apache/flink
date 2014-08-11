@@ -27,7 +27,7 @@ class TupleComparatorISD1Test extends TupleComparatorTestBase[(Int, String, Doub
   protected def createComparator(ascending: Boolean): TypeComparator[(Int, String, Double)] = {
     val ti = createTypeInformation[(Int, String, Double)]
     ti.asInstanceOf[TupleTypeInfoBase[(Int, String, Double)]]
-      .createComparator(Array(0), Array(ascending))
+      .createComparator(Array(0), Array(ascending),0)
   }
 
   protected def createSerializer: TypeSerializer[(Int, String, Double)] = {

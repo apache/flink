@@ -25,6 +25,7 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.Operator;
@@ -33,23 +34,22 @@ import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.operators.DeltaIteration.SolutionSetPlaceHolder;
-import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
-import org.apache.flink.api.java.operators.Keys.FieldPositionKeys;
+import org.apache.flink.api.java.operators.DeltaIteration.SolutionSetPlaceHolder;
+import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
+import org.apache.flink.api.java.operators.Keys.IncompatibleKeysException;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
 import org.apache.flink.api.java.operators.translation.PlanBothUnwrappingJoinOperator;
 import org.apache.flink.api.java.operators.translation.PlanLeftUnwrappingJoinOperator;
 import org.apache.flink.api.java.operators.translation.PlanRightUnwrappingJoinOperator;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import org.apache.flink.api.java.tuple.*;
-import org.apache.flink.util.Collector;
 //CHECKSTYLE.ON: AvoidStarImport
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.util.Collector;
 
 /**
  * A {@link DataSet} that is the result of a Join transformation. 
@@ -124,16 +124,16 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 		// sanity check solution set key mismatches
 		if (input1 instanceof SolutionSetPlaceHolder) {
-			if (keys1 instanceof FieldPositionKeys) {
-				int[] positions = ((FieldPositionKeys<?>) keys1).computeLogicalKeyPositions();
+			if (keys1 instanceof ExpressionKeys) {
+				int[] positions = ((ExpressionKeys<?>) keys1).computeLogicalKeyPositions();
 				((SolutionSetPlaceHolder<?>) input1).checkJoinKeyFields(positions);
 			} else {
 				throw new InvalidProgramException("Currently, the solution set may only be joined with using tuple field positions.");
 			}
 		}
 		if (input2 instanceof SolutionSetPlaceHolder) {
-			if (keys2 instanceof FieldPositionKeys) {
-				int[] positions = ((FieldPositionKeys<?>) keys2).computeLogicalKeyPositions();
+			if (keys2 instanceof ExpressionKeys) {
+				int[] positions = ((ExpressionKeys<?>) keys2).computeLogicalKeyPositions();
 				((SolutionSetPlaceHolder<?>) input2).checkJoinKeyFields(positions);
 			} else {
 				throw new InvalidProgramException("Currently, the solution set may only be joined with using tuple field positions.");
@@ -247,12 +247,12 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		protected JoinOperatorBase<?, ?, OUT, ?> translateToDataFlow(
 				Operator<I1> input1,
 				Operator<I2> input2) {
-			
-			String name = getName() != null ? getName() : function.getClass().getName();
 
-			if (!keys1.areCompatibale(keys2)) {
-				throw new InvalidProgramException("The types of the key fields do not match. Left:" +
-						" " + keys1 + " Right: " + keys2);
+			String name = getName() != null ? getName() : function.getClass().getName();
+			try {
+				keys1.areCompatible(super.keys2);
+			} catch(IncompatibleKeysException ike) {
+				throw new InvalidProgramException("The types of the key fields do not match.", ike);
 			}
 
 			if (keys1 instanceof Keys.SelectorFunctionKeys
@@ -315,10 +315,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 				return po;
 			}
-			else if ((super.keys1 instanceof Keys.FieldPositionKeys
-						&& super.keys2 instanceof Keys.FieldPositionKeys) ||
-					((super.keys1 instanceof Keys.ExpressionKeys
-							&& super.keys2 instanceof Keys.ExpressionKeys)))
+			else if (super.keys1 instanceof Keys.ExpressionKeys && super.keys2 instanceof Keys.ExpressionKeys)
 			{
 				// Neither side needs the tuple wrapping/unwrapping
 
@@ -765,7 +762,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see DataSet
 		 */
 		public JoinOperatorSetsPredicate where(int... fields) {
-			return new JoinOperatorSetsPredicate(new Keys.FieldPositionKeys<I1>(fields, input1.getType()));
+			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(fields, input1.getType()));
 		}
 
 		/**
@@ -782,9 +779,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see Tuple
 		 * @see DataSet
 		 */
-//		public JoinOperatorSetsPredicate where(String... fields) {
-//			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(fields, input1.getType()));
-//		}
+		public JoinOperatorSetsPredicate where(String... fields) {
+			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(fields, input1.getType()));
+		}
 		
 		/**
 		 * Continues a Join transformation and defines a {@link KeySelector} function for the first join {@link DataSet}.</br>
@@ -843,7 +840,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			 * @return A DefaultJoin that represents the joined DataSet.
 			 */
 			public DefaultJoin<I1, I2> equalTo(int... fields) {
-				return createJoinOperator(new Keys.FieldPositionKeys<I2>(fields, input2.getType()));
+				return createJoinOperator(new Keys.ExpressionKeys<I2>(fields, input2.getType()));
 			}
 
 			/**
@@ -857,9 +854,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			 * @param fields The fields of the second join DataSet that should be used as keys.
 			 * @return A DefaultJoin that represents the joined DataSet.
 			 */
-//			public DefaultJoin<I1, I2> equalTo(String... fields) {
-//				return createJoinOperator(new Keys.ExpressionKeys<I2>(fields, input2.getType()));
-//			}
+			public DefaultJoin<I1, I2> equalTo(String... fields) {
+				return createJoinOperator(new Keys.ExpressionKeys<I2>(fields, input2.getType()));
+			}
 
 			/**
 			 * Continues a Join transformation and defines a {@link KeySelector} function for the second join {@link DataSet}.</br>
@@ -887,8 +884,10 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 					throw new InvalidProgramException("The join keys may not be empty.");
 				}
 				
-				if (!keys1.areCompatibale(keys2)) {
-					throw new InvalidProgramException("The pair of join keys are not compatible with each other.");
+				try {
+					keys1.areCompatible(keys2);
+				} catch (IncompatibleKeysException e) {
+					throw new InvalidProgramException("The pair of join keys are not compatible with each other.",e);
 				}
 
 				return new DefaultJoin<I1, I2>(input1, input2, keys1, keys2, joinHint);

@@ -30,26 +30,20 @@ import org.apache.flink.types.NullKeyFieldException;
 public final class TupleComparator<T extends Tuple> extends TupleComparatorBase<T> {
 
 	private static final long serialVersionUID = 1L;
-
-	private final Object[] extractedKeys;
-
-	@SuppressWarnings("unchecked")
+	
 	public TupleComparator(int[] keyPositions, TypeComparator<?>[] comparators, TypeSerializer<?>[] serializers) {
 		super(keyPositions, comparators, serializers);
-		extractedKeys = new Object[keyPositions.length];
 	}
 	
-	@SuppressWarnings("unchecked")
 	private TupleComparator(TupleComparator<T> toClone) {
 		super(toClone);
-		extractedKeys = new Object[keyPositions.length];
-
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	//  Comparator Methods
 	// --------------------------------------------------------------------------------------------
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	public int hash(T value) {
 		int i = 0;
@@ -70,6 +64,7 @@ public final class TupleComparator<T extends Tuple> extends TupleComparatorBase<
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void setReference(T toCompare) {
 		int i = 0;
@@ -86,6 +81,7 @@ public final class TupleComparator<T extends Tuple> extends TupleComparatorBase<
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public boolean equalToReference(T candidate) {
 		int i = 0;
@@ -105,6 +101,7 @@ public final class TupleComparator<T extends Tuple> extends TupleComparatorBase<
 		}
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	public int compare(T first, T second) {
 		int i = 0;
@@ -127,6 +124,7 @@ public final class TupleComparator<T extends Tuple> extends TupleComparatorBase<
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void putNormalizedKey(T value, MemorySegment target, int offset, int numBytes) {
 		int i = 0;
@@ -146,11 +144,19 @@ public final class TupleComparator<T extends Tuple> extends TupleComparatorBase<
 	}
 
 	@Override
-	public Object[] extractKeys(T record) {
-		for (int i = 0; i < keyPositions.length; i++) {
-			extractedKeys[i] = record.getField(keyPositions[i]);
+	public int extractKeys(Object record, Object[] target, int index) {
+		int localIndex = index;
+		for(int i = 0; i < comparators.length; i++) {
+			// handle nested case
+			if(comparators[i] instanceof TupleComparator || comparators[i] instanceof PojoComparator) {
+				localIndex += comparators[i].extractKeys(((Tuple) record).getField(keyPositions[i]), target, localIndex) -1;
+			} else {
+				// flat
+				target[localIndex] = ((Tuple) record).getField(keyPositions[i]);
+			}
+			localIndex++;
 		}
-		return extractedKeys;
+		return localIndex - index;
 	}
 
 	public TypeComparator<T> duplicate() {

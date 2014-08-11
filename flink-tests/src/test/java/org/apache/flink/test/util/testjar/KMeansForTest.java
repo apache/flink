@@ -24,17 +24,20 @@ import java.util.Collection;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
-
+import org.apache.flink.test.localDistributed.PackagedProgramEndToEndITCase;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 
+/**
+ * This class belongs to the @see {@link PackagedProgramEndToEndITCase} test
+ *
+ */
 @SuppressWarnings("serial")
 public class KMeansForTest implements Program {
 
@@ -80,12 +83,8 @@ public class KMeansForTest implements Program {
 			.map(new SelectNearestCenter()).withBroadcastSet(loop, "centroids")
 			// count and sum point coordinates for each centroid
 			.map(new CountAppender())
-			.groupBy(new KeySelector<DummyTuple3IntPointLong, Integer>() {
-				@Override
-				public Integer getKey(DummyTuple3IntPointLong value) throws Exception {
-					return value.f0;
-				}
-			}).reduce(new CentroidAccumulator())
+			// !test if key expressions are working!
+			.groupBy("field0").reduce(new CentroidAccumulator())
 			// compute new centroids from point counts and coordinate sums
 			.map(new CentroidAverager());
 
@@ -228,16 +227,16 @@ public class KMeansForTest implements Program {
 
 	// Use this so that we can check whether POJOs and the POJO comparator also work
 	public static final class DummyTuple3IntPointLong {
-		public Integer f0;
-		public Point f1;
-		public Long f2;
+		public Integer field0;
+		public Point field1;
+		public Long field2;
 
 		public DummyTuple3IntPointLong() {}
 
 		DummyTuple3IntPointLong(Integer f0, Point f1, Long f2) {
-			this.f0 = f0;
-			this.f1 = f1;
-			this.f2 = f2;
+			this.field0 = f0;
+			this.field1 = f1;
+			this.field2 = f2;
 		}
 	}
 
@@ -255,7 +254,7 @@ public class KMeansForTest implements Program {
 
 		@Override
 		public DummyTuple3IntPointLong reduce(DummyTuple3IntPointLong val1, DummyTuple3IntPointLong val2) {
-			return new DummyTuple3IntPointLong(val1.f0, val1.f1.add(val2.f1), val1.f2 + val2.f2);
+			return new DummyTuple3IntPointLong(val1.field0, val1.field1.add(val2.field1), val1.field2 + val2.field2);
 		}
 	}
 
@@ -264,7 +263,7 @@ public class KMeansForTest implements Program {
 
 		@Override
 		public Centroid map(DummyTuple3IntPointLong value) {
-			return new Centroid(value.f0, value.f1.div(value.f2));
+			return new Centroid(value.field0, value.field1.div(value.field2));
 		}
 	}
 }

@@ -139,7 +139,8 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			
 			return po;
 		}
-		else if (grouper.getKeys() instanceof Keys.FieldPositionKeys) {
+		else if (grouper.getKeys() instanceof Keys.ExpressionKeys) { //was field position key
+			//TODO ask stephan
 
 			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
 			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
@@ -166,19 +167,19 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			
 			return po;
 		}
-		else if (grouper.getKeys() instanceof Keys.ExpressionKeys) {
-
-			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
-			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
-			GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>> po =
-					new GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>>(function, operatorInfo, logicalKeyPositions, name);
-
-			po.setCombinable(combinable);
-			po.setInput(input);
-			po.setDegreeOfParallelism(this.getParallelism());
-			
-			return po;
-		}
+//		else if (grouper.getKeys() instanceof Keys.ExpressionKeys) {
+//
+//			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
+//			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
+//			GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>> po =
+//					new GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>>(function, operatorInfo, logicalKeyPositions, name);
+//
+//			po.setCombinable(combinable);
+//			po.setInput(input);
+//			po.setDegreeOfParallelism(this.getParallelism());
+//
+//			return po;
+//		}
 		else {
 			throw new UnsupportedOperationException("Unrecognized key type.");
 		}

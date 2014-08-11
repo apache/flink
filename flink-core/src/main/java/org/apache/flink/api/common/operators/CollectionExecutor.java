@@ -45,8 +45,8 @@ import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase.SolutionSetPlaceHolder;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase.WorksetPlaceHolder;
 import org.apache.flink.api.common.operators.util.TypeComparable;
-import org.apache.flink.api.common.typeinfo.CompositeType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Visitor;
@@ -349,7 +349,7 @@ public class CollectionExecutor {
 
 		int[] keyColumns = iteration.getSolutionSetKeyFields();
 		boolean[] inputOrderings = new boolean[keyColumns.length];
-		TypeComparator<T> inputComparator = ((CompositeType<T>) solutionType).createComparator(keyColumns, inputOrderings);
+		TypeComparator<T> inputComparator = ((CompositeType<T>) solutionType).createComparator(keyColumns, inputOrderings, 0);
 
 		Map<TypeComparable<T>, T> solutionMap = new HashMap<TypeComparable<T>, T>(solutionInputData.size());
 		// fill the solution from the initial input

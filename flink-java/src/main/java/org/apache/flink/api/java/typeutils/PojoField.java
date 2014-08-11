@@ -22,7 +22,7 @@ import java.lang.reflect.Field;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
-class PojoField {
+public class PojoField {
 	public Field field;
 	public TypeInformation<?> type;
 
@@ -30,4 +30,9 @@ class PojoField {
 		this.field = field;
 		this.type = type;
 	}
-}              
+
+	@Override
+	public String toString() {
+		return "PojoField " + field.getDeclaringClass() + "." + field.getName() + " (" + type + ")";
+	}
+}
