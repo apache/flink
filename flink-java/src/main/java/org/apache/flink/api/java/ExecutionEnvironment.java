@@ -791,4 +791,5 @@ public abstract class ExecutionEnvironment {
 	public static boolean localExecutionIsAllowed() {
 		return allowLocalExecution;
 	}
+
 }

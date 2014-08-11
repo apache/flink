@@ -62,6 +62,11 @@ public class KeyFieldOutOfBoundsException extends RuntimeException
 		this.fieldNumber = fieldNumber;
 	}
 	
+	public KeyFieldOutOfBoundsException(int fieldNumber, Throwable parent) {
+		super("Field " + fieldNumber + " is accessed for a key, but out of bounds in the record.", parent);
+		this.fieldNumber = fieldNumber;
+	}
+	
 	/**
 	 * Gets the field number that was attempted to access. If the number is not set, this method returns
 	 * {@code -1}.

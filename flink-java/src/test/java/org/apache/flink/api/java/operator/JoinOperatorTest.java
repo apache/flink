@@ -22,17 +22,20 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.junit.Assert;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 @SuppressWarnings("serial")
 public class JoinOperatorTest {
@@ -41,20 +44,51 @@ public class JoinOperatorTest {
 	private static final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData = 
 			new ArrayList<Tuple5<Integer, Long, String, Long, Integer>>();
 	
-	private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo = new 
-			TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>>(
+	private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo = 
+			new TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>>(
 					BasicTypeInfo.INT_TYPE_INFO,
 					BasicTypeInfo.LONG_TYPE_INFO,
 					BasicTypeInfo.STRING_TYPE_INFO,
 					BasicTypeInfo.LONG_TYPE_INFO,
 					BasicTypeInfo.INT_TYPE_INFO
 			);
+	// TUPLE DATA with nested Tuple2
+	private static final List<Tuple5<Tuple2<Integer, String>, Long, String, Long, Integer>> emptyNestedTupleData = 
+			new ArrayList<Tuple5<Tuple2<Integer, String>, Long, String, Long, Integer>>();
 
+	private final TupleTypeInfo<Tuple5<Tuple2<Integer, String>, Long, String, Long, Integer>> nestedTupleTypeInfo =
+			new TupleTypeInfo<Tuple5<Tuple2<Integer, String>, Long, String, Long, Integer>>(
+					new TupleTypeInfo<Tuple2<Integer, String>> (BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
+					BasicTypeInfo.LONG_TYPE_INFO,
+					BasicTypeInfo.STRING_TYPE_INFO,
+					BasicTypeInfo.LONG_TYPE_INFO,
+					BasicTypeInfo.INT_TYPE_INFO
+			);
+	
+	// TUPLE DATA with nested CustomType
+	private static final List<Tuple5<CustomType, Long, String, Long, Integer>> emptyNestedCustomTupleData = 
+			new ArrayList<Tuple5<CustomType, Long, String, Long, Integer>>();
+
+	private final TupleTypeInfo<Tuple5<CustomType, Long, String, Long, Integer>> nestedCustomTupleTypeInfo =
+			new TupleTypeInfo<Tuple5<CustomType, Long, String, Long, Integer>>(
+					TypeExtractor.getForClass(CustomType.class),
+					BasicTypeInfo.LONG_TYPE_INFO,
+					BasicTypeInfo.STRING_TYPE_INFO,
+					BasicTypeInfo.LONG_TYPE_INFO,
+					BasicTypeInfo.INT_TYPE_INFO
+			);
+	
+	private static List<CustomTypeWithTuple> customTypeWithTupleData = new ArrayList<CustomTypeWithTuple>();
 	private static List<CustomType> customTypeData = new ArrayList<CustomType>();
+	
+	private static List<NestedCustomType> customNestedTypeData = new ArrayList<NestedCustomType>();
+	
 	
 	@BeforeClass
 	public static void insertCustomData() {
 		customTypeData.add(new CustomType());
+		customTypeWithTupleData.add(new CustomTypeWithTuple());
+		customNestedTypeData.add(new NestedCustomType());
 	}
 	
 	@Test  
@@ -127,7 +161,6 @@ public class JoinOperatorTest {
 		ds1.join(ds2).where(5).equalTo(0);
 	}
 
-	@Ignore
 	@Test
 	public void testJoinKeyExpressions1() {
 
@@ -137,13 +170,29 @@ public class JoinOperatorTest {
 
 		// should work
 		try {
-//			ds1.join(ds2).where("myInt").equalTo("myInt");
+			ds1.join(ds2).where("myInt").equalTo("myInt");
 		} catch(Exception e) {
 			Assert.fail();
 		}
 	}
+	
+	@Test
+	public void testJoinKeyExpressionsNested() {
 
-	@Ignore
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<NestedCustomType> ds1 = env.fromCollection(customNestedTypeData);
+		DataSet<NestedCustomType> ds2 = env.fromCollection(customNestedTypeData);
+
+		// should work
+		try {
+			ds1.join(ds2).where("myInt").equalTo("myInt");
+		} catch(Exception e) {
+			Assert.fail();
+		}
+	}
+	
+	
+
 	@Test(expected = InvalidProgramException.class)
 	public void testJoinKeyExpressions2() {
 
@@ -152,10 +201,9 @@ public class JoinOperatorTest {
 		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
 		// should not work, incompatible join key types
-//		ds1.join(ds2).where("myInt").equalTo("myString");
+		ds1.join(ds2).where("myInt").equalTo("myString");
 	}
 
-	@Ignore
 	@Test(expected = InvalidProgramException.class)
 	public void testJoinKeyExpressions3() {
 
@@ -164,10 +212,9 @@ public class JoinOperatorTest {
 		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
 		// should not work, incompatible number of join keys
-//		ds1.join(ds2).where("myInt", "myString").equalTo("myString");
+		ds1.join(ds2).where("myInt", "myString").equalTo("myString");
 	}
 
-	@Ignore
 	@Test(expected = IllegalArgumentException.class)
 	public void testJoinKeyExpressions4() {
 
@@ -176,7 +223,230 @@ public class JoinOperatorTest {
 		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
 		// should not work, join key non-existent
-//		ds1.join(ds2).where("myNonExistent").equalTo("myInt");
+		ds1.join(ds2).where("myNonExistent").equalTo("myInt");
+	}
+	
+	/**
+	 * Test if mixed types of key selectors are properly working.
+	 */
+	@Test
+	public void testJoinKeyMixedKeySelector() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+		try {
+			ds1.join(ds2).where("myInt").equalTo(new KeySelector<CustomType, Integer>() {
+				@Override
+				public Integer getKey(CustomType value) throws Exception {
+					return value.myInt;
+				}
+			});
+		} catch(Exception e) {
+			e.printStackTrace();
+			Assert.fail();
+		}
+	}
+	
+	@Test
+	public void testJoinKeyMixedKeySelectorTurned() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+		try {
+			ds1.join(ds2).where(new KeySelector<CustomType, Integer>() {
+				@Override
+				public Integer getKey(CustomType value) throws Exception {
+					return value.myInt;
+				}
+			}).equalTo("myInt");
+		} catch(Exception e) {
+			e.printStackTrace();
+			Assert.fail();
+		}
+	}
+	
+	@Test
+	public void testJoinKeyMixedTupleIndex() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		try {
+			ds1.join(ds2).where("f0").equalTo(4);
+		} catch(Exception e) {
+			e.printStackTrace();
+			Assert.fail();
+		}
+	}
+	
+	@Test
+	public void testJoinKeyNestedTuples() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Tuple2<Integer, String>, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyNestedTupleData, nestedTupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		try {
+			ds1.join(ds2).where("f0.f0").equalTo(4);
+		} catch(Exception e) {
+			e.printStackTrace();
+			Assert.fail();
+		}
+	}
+	
+	@Test
+	public void testJoinKeyNestedTuplesWithCustom() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<CustomType, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyNestedCustomTupleData, nestedCustomTupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		try {
+			TypeInformation<?> t = ds1.join(ds2).where("f0.myInt").equalTo(4).getType();
+			Assert.assertTrue("not a composite type", t instanceof CompositeType);
+		} catch(Exception e) {
+			e.printStackTrace();
+			Assert.fail();
+		}
+	}
+	
+	@Test
+	public void testJoinKeyWithCustomContainingTuple0() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomTypeWithTuple> ds1 = env.fromCollection(customTypeWithTupleData);
+		DataSet<CustomTypeWithTuple> ds2 = env.fromCollection(customTypeWithTupleData);
+		try {
+			ds1.join(ds2).where("intByString.f0").equalTo("myInt");
+		} catch(Exception e) {
+			e.printStackTrace();
+			Assert.fail();
+		}
+	}
+	
+	@Test
+	public void testJoinKeyWithCustomContainingTuple1() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomTypeWithTuple> ds1 = env.fromCollection(customTypeWithTupleData);
+		DataSet<CustomTypeWithTuple> ds2 = env.fromCollection(customTypeWithTupleData);
+		try {
+			ds1.join(ds2).where("nested.myInt").equalTo("intByString.f0");
+		} catch(Exception e) {
+			e.printStackTrace();
+			Assert.fail();
+		}
+	}
+	
+	@Test
+	public void testJoinKeyWithCustomContainingTuple2() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomTypeWithTuple> ds1 = env.fromCollection(customTypeWithTupleData);
+		DataSet<CustomTypeWithTuple> ds2 = env.fromCollection(customTypeWithTupleData);
+		try {
+			ds1.join(ds2).where("nested.myInt", "myInt", "intByString.f1").equalTo("intByString.f0","myInt", "myString");
+		} catch(Exception e) {
+			e.printStackTrace();
+			Assert.fail();
+		}
+	}
+	
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyNestedTuplesWrongType() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Tuple2<Integer, String>, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyNestedTupleData, nestedTupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		ds1.join(ds2).where("f0.f1").equalTo(4); // f0.f1 is a String
+	}
+	
+	@Test
+	public void testJoinKeyMixedTupleIndexTurned() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		try {
+			ds1.join(ds2).where(0).equalTo("f0");
+		} catch(Exception e) {
+			e.printStackTrace();
+			Assert.fail();
+		}
+	}
+	
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyMixedTupleIndexWrongType() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		ds1.join(ds2).where("f0").equalTo(3); // 3 is of type long, so it should fail
+	}
+	
+	@Test
+	public void testJoinKeyMixedTupleIndex2() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		try {
+			ds1.join(ds2).where("myInt").equalTo(4);
+		} catch(Exception e) {
+			e.printStackTrace();
+			Assert.fail();
+		}
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyMixedWrong() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+		// wrongly mix String and Integer
+		ds1.join(ds2).where("myString").equalTo(new KeySelector<CustomType, Integer>() {
+			@Override
+			public Integer getKey(CustomType value) throws Exception {
+				return value.myInt;
+			}
+		});
+	}
+	
+	@Test
+	public void testJoinKeyExpressions1Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should work
+		try {
+			ds1.join(ds2).where("nested.myInt").equalTo("nested.myInt");
+		} catch(Exception e) {
+			e.printStackTrace();
+			Assert.fail();
+		}
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyExpressions2Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, incompatible join key types
+		ds1.join(ds2).where("nested.myInt").equalTo("nested.myString");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyExpressions3Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, incompatible number of join keys
+		ds1.join(ds2).where("nested.myInt", "nested.myString").equalTo("nested.myString");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testJoinKeyExpressions4Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		// should not work, join key non-existent
+		ds1.join(ds2).where("nested.myNonExistent").equalTo("nested.myInt");
 	}
 
 	
@@ -235,6 +505,7 @@ public class JoinOperatorTest {
 					)
 			.equalTo(3);
 		} catch(Exception e) {
+			e.printStackTrace();
 			Assert.fail();
 		}
 	}
@@ -403,7 +674,6 @@ public class JoinOperatorTest {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
 		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
-
 		// should work
 		try {
 			ds1.join(ds2)
@@ -430,6 +700,7 @@ public class JoinOperatorTest {
 				.types(CustomType.class, CustomType.class);
 		} catch(Exception e) {
 			System.out.println("FAILED: " + e);
+			e.printStackTrace();
 			Assert.fail();
 		}
 	}
@@ -550,13 +821,58 @@ public class JoinOperatorTest {
 	 * ####################################################################
 	 */
 
+	public static class Nested implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		public int myInt;
+
+		public Nested() {};
+
+		public Nested(int i, long l, String s) {
+			myInt = i;
+		}
+
+		@Override
+		public String toString() {
+			return ""+myInt;
+		}
+	}
+	// a simple nested type (only basic types)
+	public static class NestedCustomType implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		public int myInt;
+		public long myLong;
+		public String myString;
+		public Nested nest;
+		
+		public NestedCustomType() {};
+
+		public NestedCustomType(int i, long l, String s) {
+			myInt = i;
+			myLong = l;
+			myString = s;
+		}
+
+		@Override
+		public String toString() {
+			return myInt+","+myLong+","+myString+","+nest;
+		}
+	}
+
 	public static class CustomType implements Serializable {
 		
 		private static final long serialVersionUID = 1L;
 		
 		public int myInt;
 		public long myLong;
+		public NestedCustomType nested;
 		public String myString;
+		public Object nothing;
+	//	public List<String> countries; need Kryo to support this
+	//	public Writable interfaceTest; need kryo
 		
 		public CustomType() {};
 		
@@ -564,6 +880,7 @@ public class JoinOperatorTest {
 			myInt = i;
 			myLong = l;
 			myString = s;
+			nested = new NestedCustomType(i, l, s);
 		}
 		
 		@Override
@@ -571,4 +888,33 @@ public class JoinOperatorTest {
 			return myInt+","+myLong+","+myString;
 		}
 	}
+	
+	
+	public static class CustomTypeWithTuple implements Serializable {
+		
+		private static final long serialVersionUID = 1L;
+		
+		public int myInt;
+		public long myLong;
+		public NestedCustomType nested;
+		public String myString;
+		public Tuple2<Integer, String> intByString;
+		
+		public CustomTypeWithTuple() {};
+		
+		public CustomTypeWithTuple(int i, long l, String s) {
+			myInt = i;
+			myLong = l;
+			myString = s;
+			nested = new NestedCustomType(i, l, s);
+			intByString = new Tuple2<Integer, String>(i, s);
+		}
+		
+		@Override
+		public String toString() {
+			return myInt+","+myLong+","+myString;
+		}
+	}
+
+	
 }

@@ -33,10 +33,12 @@ import org.apache.flink.api.common.operators.util.ListKeyGroupedIterator;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
-import org.apache.flink.api.common.typeinfo.CompositeType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+
+import com.google.common.base.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -154,15 +156,18 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 		}
 
 		if (inputType instanceof CompositeType) {
-			@SuppressWarnings("unchecked")
-			final TypeComparator<IN> sortComparator = ((CompositeType<IN>) inputType).createComparator(sortColumns, sortOrderings);
-
-			Collections.sort(inputData, new Comparator<IN>() {
-				@Override
-				public int compare(IN o1, IN o2) {
-					return sortComparator.compare(o1, o2);
-				}
-			});
+			if(sortColumns.length == 0) { // => all reduce. No comparator
+				Preconditions.checkArgument(sortOrderings.length == 0);
+			} else {
+				final TypeComparator<IN> sortComparator = ((CompositeType<IN>) inputType).createComparator(sortColumns, sortOrderings, 0);
+	
+				Collections.sort(inputData, new Comparator<IN>() {
+					@Override
+					public int compare(IN o1, IN o2) {
+						return sortComparator.compare(o1, o2);
+					}
+				});
+			}
 		}
 
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
@@ -188,7 +193,7 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 		} else {
 			final TypeSerializer<IN> inputSerializer = inputType.createSerializer();
 			boolean[] keyOrderings = new boolean[keyColumns.length];
-			final TypeComparator<IN> comparator = ((CompositeType<IN>) inputType).createComparator(keyColumns, keyOrderings);
+			final TypeComparator<IN> comparator = ((CompositeType<IN>) inputType).createComparator(keyColumns, keyOrderings, 0);
 
 			ListKeyGroupedIterator<IN> keyedIterator = new ListKeyGroupedIterator<IN>(inputData, inputSerializer, comparator, mutableObjectSafeMode);
 

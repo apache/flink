@@ -35,7 +35,12 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CrazyNested;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.FromTuple;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.FromTupleWithCTor;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.PojoContainingTupleAndWritable;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.runner.RunWith;
@@ -48,7 +53,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class GroupReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 15;
+	private static int NUM_PROGRAMS = 19;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -406,7 +411,6 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 				/*
 				 * check correctness of groupReduce with descending group sort
 				 */
-
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 					env.setDegreeOfParallelism(1);
 
@@ -484,6 +488,117 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 							"16,6,Comment#10\n";
 					
 				}
+				case 16: {
+					/*
+					 * Deep nesting test
+					 * + null value in pojo
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					
+					DataSet<CrazyNested> ds = CollectionDataSets.getCrazyNestedDataSet(env);
+					DataSet<Tuple2<String, Integer>> reduceDs = ds.groupBy("nest_Lvl1.nest_Lvl2.nest_Lvl3.nest_Lvl4.f1nal")
+							.reduceGroup(new GroupReduceFunction<CollectionDataSets.CrazyNested, Tuple2<String, Integer>>() {
+								private static final long serialVersionUID = 1L;
+
+								@Override
+								public void reduce(Iterable<CrazyNested> values,
+										Collector<Tuple2<String, Integer>> out)
+										throws Exception {
+									int c = 0; String n = null;
+									for(CrazyNested v : values) {
+										c++; // haha
+										n = v.nest_Lvl1.nest_Lvl2.nest_Lvl3.nest_Lvl4.f1nal;
+									}
+									out.collect(new Tuple2<String, Integer>(n,c));
+								}});
+					
+					reduceDs.writeAsCsv(resultPath);
+					env.execute();
+					
+					// return expected result
+					return "aa,1\nbb,2\ncc,3\n";
+				} 
+				case 17: {
+					/*
+					 * Test Pojo extending from tuple WITH custom fields
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					
+					DataSet<FromTupleWithCTor> ds = CollectionDataSets.getPojoExtendingFromTuple(env);
+					DataSet<Integer> reduceDs = ds.groupBy("special", "f2")
+							.reduceGroup(new GroupReduceFunction<FromTupleWithCTor, Integer>() {
+								private static final long serialVersionUID = 1L;
+								@Override
+								public void reduce(Iterable<FromTupleWithCTor> values,
+										Collector<Integer> out)
+										throws Exception {
+									int c = 0;
+									for(FromTuple v : values) {
+										c++;
+									}
+									out.collect(c);
+								}});
+					
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+					
+					// return expected result
+					return "3\n2\n";
+				} 
+				case 18: {
+					/*
+					 * Test Pojo containing a Writable and Tuples
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					
+					DataSet<PojoContainingTupleAndWritable> ds = CollectionDataSets.getPojoContainingTupleAndWritable(env);
+					DataSet<Integer> reduceDs = ds.groupBy("hadoopFan", "theTuple.*") // full tuple selection
+							.reduceGroup(new GroupReduceFunction<PojoContainingTupleAndWritable, Integer>() {
+								private static final long serialVersionUID = 1L;
+								@Override
+								public void reduce(Iterable<PojoContainingTupleAndWritable> values,
+										Collector<Integer> out)
+										throws Exception {
+									int c = 0;
+									for(PojoContainingTupleAndWritable v : values) {
+										c++;
+									}
+									out.collect(c);
+								}});
+					
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+					
+					// return expected result
+					return "1\n5\n";
+				} 
+				case 19: {
+					/*
+					 * Test Tuple containing pojos and regular fields
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					
+					DataSet<Tuple3<Integer,CrazyNested, POJO>> ds = CollectionDataSets.getTupleContainingPojos(env);
+					DataSet<Integer> reduceDs = ds.groupBy("f0", "f1.*") // nested full tuple selection
+							.reduceGroup(new GroupReduceFunction<Tuple3<Integer,CrazyNested, POJO>, Integer>() {
+								private static final long serialVersionUID = 1L;
+								@Override
+								public void reduce(Iterable<Tuple3<Integer,CrazyNested, POJO>> values,
+										Collector<Integer> out)
+										throws Exception {
+									int c = 0;
+									for(Tuple3<Integer,CrazyNested, POJO> v : values) {
+										c++;
+									}
+									out.collect(c);
+								}});
+					
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+					
+					// return expected result
+					return "3\n1\n";
+				} 
 				default: {
 					throw new IllegalArgumentException("Invalid program id");
 				}

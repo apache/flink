@@ -53,6 +53,11 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	}
 
 	@Override
+	public int getTotalFields() {
+		return 1;
+	}
+	
+	@Override
 	public Class<T> getTypeClass() {
 		return this.type;
 	}

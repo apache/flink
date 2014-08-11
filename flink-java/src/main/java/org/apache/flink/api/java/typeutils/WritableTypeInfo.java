@@ -67,6 +67,11 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	public int getArity() {
 		return 1;
 	}
+	
+	@Override
+	public int getTotalFields() {
+		return 1;
+	}
 
 	@Override
 	public Class<T> getTypeClass() {
@@ -87,6 +92,20 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	public String toString() {
 		return "WritableType<" + typeClass.getName() + ">";
 	}	
+	
+	@Override
+	public int hashCode() {
+		return typeClass.hashCode() ^ 0xd3a2646c;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj.getClass() == WritableTypeInfo.class) {
+			return typeClass == ((WritableTypeInfo<?>) obj).typeClass;
+		} else {
+			return false;
+		}
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	

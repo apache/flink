@@ -32,7 +32,8 @@ abstract class CaseClassTypeInfo[T <: Product](
     val fieldNames: Seq[String])
   extends TupleTypeInfoBase[T](clazz, fieldTypes: _*) {
 
-  def createComparator(logicalKeyFields: Array[Int], orders: Array[Boolean]): TypeComparator[T] = {
+  override def createComparator(logicalKeyFields: Array[Int],
+      orders: Array[Boolean], offset: Int): TypeComparator[T] = {
     // sanity checks
     if (logicalKeyFields == null || orders == null
       || logicalKeyFields.length != orders.length || logicalKeyFields.length > types.length) {
@@ -78,6 +79,21 @@ abstract class CaseClassTypeInfo[T <: Product](
 
   def getFieldIndices(fields: Array[String]): Array[Int] = {
     fields map { x => fieldNames.indexOf(x) }
+  }
+
+  override protected def initializeNewComparator(localKeyCount: Int): Unit = {
+    throw new UnsupportedOperationException("The Scala API is not using the composite " +
+      "type comparator creation")
+  }
+
+  override protected def getNewComparator: TypeComparator[T] = {
+    throw new UnsupportedOperationException("The Scala API is not using the composite " +
+      "type comparator creation")
+  }
+
+  override protected def addCompareField(fieldId: Int, comparator: TypeComparator[_]): Unit = {
+    throw new UnsupportedOperationException("The Scala API is not using the composite " +
+      "type comparator creation")
   }
 
   override def toString = clazz.getSimpleName + "(" + fieldNames.zip(types).map {

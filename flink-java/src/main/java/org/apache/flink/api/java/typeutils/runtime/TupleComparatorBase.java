@@ -15,9 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.java.typeutils.runtime;
 
+import java.io.IOException;
+import java.util.List;
+
+import org.apache.flink.api.common.typeutils.CompositeTypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -26,15 +29,16 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.KeyFieldOutOfBoundsException;
 import org.apache.flink.types.NullKeyFieldException;
 
-import java.io.IOException;
 
+public abstract class TupleComparatorBase<T> extends CompositeTypeComparator<T> implements java.io.Serializable {
 
-public abstract class TupleComparatorBase<T> extends TypeComparator<T> implements java.io.Serializable {
+	private static final long serialVersionUID = 1L;
 
 	/** key positions describe which fields are keys in what order */
 	protected int[] keyPositions;
 
 	/** comparators for the key fields, in the same order as the key fields */
+	@SuppressWarnings("rawtypes")
 	protected TypeComparator[] comparators;
 
 	/** serializer factories to duplicate non thread-safe serializers */
@@ -51,6 +55,7 @@ public abstract class TupleComparatorBase<T> extends TypeComparator<T> implement
 
 
 	/** serializers to deserialize the first n fields for comparison */
+	@SuppressWarnings("rawtypes")
 	protected transient TypeSerializer[] serializers;
 
 	// cache for the deserialized field objects
@@ -115,7 +120,6 @@ public abstract class TupleComparatorBase<T> extends TypeComparator<T> implement
 		this.invertNormKey = inverted;
 	}
 
-	@SuppressWarnings("unchecked")
 	protected TupleComparatorBase(TupleComparatorBase<T> toClone) {
 		privateDuplicate(toClone);
 	}
@@ -146,13 +150,22 @@ public abstract class TupleComparatorBase<T> extends TypeComparator<T> implement
 		return this.keyPositions;
 	}
 	
-	public TypeComparator[] getComparators() {
-		return this.comparators;
-	}
 	
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Override
+	public void getFlatComparator(List<TypeComparator> flatComparators) {
+		for(int i = 0; i < comparators.length; i++) {
+			if(comparators[i] instanceof CompositeTypeComparator) {
+				((CompositeTypeComparator)comparators[i]).getFlatComparator(flatComparators);
+			} else {
+				flatComparators.add(comparators[i]);
+			}
+		}
+	}	
 	// --------------------------------------------------------------------------------------------
 	//  Comparator Methods
 	// --------------------------------------------------------------------------------------------
+
 
 	@Override
 	public int compareToReference(TypeComparator<T> referencedComparator) {
@@ -161,6 +174,7 @@ public abstract class TupleComparatorBase<T> extends TypeComparator<T> implement
 		int i = 0;
 		try {
 			for (; i < this.keyPositions.length; i++) {
+				@SuppressWarnings("unchecked")
 				int cmp = this.comparators[i].compareToReference(other.comparators[i]);
 				if (cmp != 0) {
 					return cmp;
@@ -176,6 +190,7 @@ public abstract class TupleComparatorBase<T> extends TypeComparator<T> implement
 		}
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		if (deserializedFields1 == null) {
@@ -201,7 +216,7 @@ public abstract class TupleComparatorBase<T> extends TypeComparator<T> implement
 		} catch (NullPointerException npex) {
 			throw new NullKeyFieldException(keyPositions[i]);
 		} catch (IndexOutOfBoundsException iobex) {
-			throw new KeyFieldOutOfBoundsException(keyPositions[i]);
+			throw new KeyFieldOutOfBoundsException(keyPositions[i], iobex);
 		}
 	}
 	
@@ -245,7 +260,6 @@ public abstract class TupleComparatorBase<T> extends TypeComparator<T> implement
 	
 	// --------------------------------------------------------------------------------------------
 	
-	@SuppressWarnings("unchecked")
 	protected final void instantiateDeserializationUtils() {
 		if (this.serializers == null) {
 			this.serializers = new TypeSerializer[this.serializerFactories.length];

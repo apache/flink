@@ -391,13 +391,14 @@ public final class RecordComparator extends TypeComparator<Record> {
 	}
 
 	@Override
-	public Object[] extractKeys(Record record) {
+	public int extractKeys(Object record, Object[] target, int index) {
 		throw new UnsupportedOperationException("Record does not support extactKeys and " +
 				"getComparators. This cannot be used with the GenericPairComparator.");
 	}
 
+
 	@Override
-	public TypeComparator<?>[] getComparators() {
+	public TypeComparator<?>[] getFlatComparators() {
 		throw new UnsupportedOperationException("Record does not support extactKeys and " +
 				"getComparators. This cannot be used with the GenericPairComparator.");
 	}

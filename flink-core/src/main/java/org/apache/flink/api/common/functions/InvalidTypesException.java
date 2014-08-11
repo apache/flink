@@ -43,4 +43,8 @@ public class InvalidTypesException extends InvalidProgramException {
 	public InvalidTypesException(String message) {
 		super(message);
 	}
+	
+	public InvalidTypesException(String message, Throwable e) {
+		super(message, e);
+	}
 }

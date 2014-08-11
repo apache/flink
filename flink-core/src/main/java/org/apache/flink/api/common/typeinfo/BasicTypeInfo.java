@@ -92,6 +92,11 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 	}
 
 	@Override
+	public int getTotalFields() {
+		return 1;
+	}
+	
+	@Override
 	public Class<T> getTypeClass() {
 		return this.clazz;
 	}

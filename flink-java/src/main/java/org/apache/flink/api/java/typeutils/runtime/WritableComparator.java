@@ -44,8 +44,7 @@ public class WritableComparator<T extends Writable & Comparable<T>> extends Type
 	
 	private transient Kryo kryo;
 
-	private final Comparable[] extractedKey = new Comparable[1];
-
+	@SuppressWarnings("rawtypes")
 	private final TypeComparator[] comparators = new TypeComparator[] {this};
 
 	public WritableComparator(boolean ascending, Class<T> type) {
@@ -129,12 +128,13 @@ public class WritableComparator<T extends Writable & Comparable<T>> extends Type
 	}
 
 	@Override
-	public Object[] extractKeys(T record) {
-		extractedKey[0] = record;
-		return extractedKey;
+	public int extractKeys(Object record, Object[] target, int index) {
+		target[index] = record;
+		return 1;
 	}
 
-	@Override public TypeComparator[] getComparators() {
+	@SuppressWarnings("rawtypes")
+	@Override public TypeComparator[] getFlatComparators() {
 		return comparators;
 	}
 	

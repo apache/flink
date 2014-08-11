@@ -382,8 +382,6 @@ public class OutputEmitterTest extends TestCase {
 	
 	@SuppressWarnings({"serial", "rawtypes"})
 	private static class TestIntComparator extends TypeComparator<Integer> {
-		private final Comparable[] extractedKey = new Comparable[1];
-
 		private TypeComparator[] comparators = new TypeComparator[]{new IntComparator(true)};
 
 		@Override
@@ -444,13 +442,13 @@ public class OutputEmitterTest extends TestCase {
 		public TypeComparator<Integer> duplicate() { throw new UnsupportedOperationException(); }
 
 		@Override
-		public Object[] extractKeys(Integer record) {
-			extractedKey[0] = record;
-			return extractedKey;
+		public int extractKeys(Object record, Object[] target, int index) {
+			target[index] = record;
+			return 1;
 		}
 
 		@Override
-		public TypeComparator[] getComparators() {
+		public TypeComparator[] getFlatComparators() {
 			return comparators;
 		}
 	}

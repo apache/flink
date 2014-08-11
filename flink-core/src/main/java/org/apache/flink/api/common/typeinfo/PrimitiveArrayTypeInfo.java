@@ -69,6 +69,11 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> {
 	public int getArity() {
 		return 1;
 	}
+	
+	@Override
+	public int getTotalFields() {
+		return 1;
+	}
 
 	@Override
 	public Class<T> getTypeClass() {

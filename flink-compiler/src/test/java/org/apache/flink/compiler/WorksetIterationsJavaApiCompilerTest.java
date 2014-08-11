@@ -78,7 +78,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			// verify joinWithSolutionSet
 			assertEquals(ShipStrategyType.PARTITION_HASH, joinWithSolutionSetNode.getInput1().getShipStrategy());
 			assertEquals(ShipStrategyType.FORWARD, joinWithSolutionSetNode.getInput2().getShipStrategy());
-			assertEquals(new FieldList(0, 1), joinWithSolutionSetNode.getKeysForInput1());
+			assertEquals(new FieldList(1, 0), joinWithSolutionSetNode.getKeysForInput1());
 			
 			
 			// verify reducer
@@ -125,7 +125,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			// verify joinWithSolutionSet
 			assertEquals(ShipStrategyType.PARTITION_HASH, joinWithSolutionSetNode.getInput1().getShipStrategy());
 			assertEquals(ShipStrategyType.FORWARD, joinWithSolutionSetNode.getInput2().getShipStrategy());
-			assertEquals(new FieldList(0, 1), joinWithSolutionSetNode.getKeysForInput1());
+			assertEquals(new FieldList(1, 0), joinWithSolutionSetNode.getKeysForInput1());
 			
 			// verify reducer
 			assertEquals(ShipStrategyType.PARTITION_HASH, worksetReducer.getInput().getShipStrategy());
@@ -170,7 +170,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			// verify joinWithSolutionSet
 			assertEquals(ShipStrategyType.PARTITION_HASH, joinWithSolutionSetNode.getInput1().getShipStrategy());
 			assertEquals(ShipStrategyType.FORWARD, joinWithSolutionSetNode.getInput2().getShipStrategy());
-			assertEquals(new FieldList(0, 1), joinWithSolutionSetNode.getKeysForInput1());
+			assertEquals(new FieldList(1, 0), joinWithSolutionSetNode.getKeysForInput1());
 			
 			// verify reducer
 			assertEquals(ShipStrategyType.FORWARD, worksetReducer.getInput().getShipStrategy());

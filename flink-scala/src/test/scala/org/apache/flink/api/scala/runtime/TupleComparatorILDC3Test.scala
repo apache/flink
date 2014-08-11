@@ -28,7 +28,7 @@ class TupleComparatorILDC3Test extends TupleComparatorTestBase[(Int, Long, Doubl
   protected def createComparator(ascending: Boolean): TypeComparator[(Int, Long, Double)] = {
     val ti = createTypeInformation[(Int, Long, Double)]
     ti.asInstanceOf[TupleTypeInfoBase[(Int, Long, Double)]]
-      .createComparator(Array(2, 0, 1), Array(ascending, ascending, ascending))
+      .createComparator(Array(2, 0, 1), Array(ascending, ascending, ascending), 0)
   }
 
   protected def createSerializer: TypeSerializer[(Int, Long, Double)] = {
