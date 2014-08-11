@@ -30,7 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 public class ClusterUtil {
-	private static final Log log = LogFactory.getLog(ClusterUtil.class);
+	private static final Log LOG = LogFactory.getLog(ClusterUtil.class);
 
 	/**
 	 * Executes the given JobGraph locally, on a NepheleMiniCluster
@@ -51,8 +51,8 @@ public class ClusterUtil {
 		exec.setNumTaskTracker(numberOfTaskTrackers);
 		Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
 		
-		if (log.isInfoEnabled()) {
-			log.info("Running on mini cluster");
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Running on mini cluster");
 		}
 		
 		try {
@@ -62,7 +62,7 @@ public class ClusterUtil {
 
 			exec.stop();
 		} catch (Exception e) {
-			throw new RuntimeException(e.getMessage());
+			throw new RuntimeException(e);
 		}
 	}
 
@@ -71,8 +71,8 @@ public class ClusterUtil {
 	}
 
 	public static void runOnLocalCluster(JobGraph jobGraph, String IP, int port) {
-		if (log.isInfoEnabled()) {
-			log.info("Running on mini cluster");
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Running on mini cluster");
 		}
 		
 		Configuration configuration = jobGraph.getJobConfiguration();
@@ -82,7 +82,7 @@ public class ClusterUtil {
 		try {
 			client.run(jobGraph, true);
 		} catch (ProgramInvocationException e) {
-			throw new RuntimeException(e.getMessage());
+			throw new RuntimeException(e);
 		}
 	}
 

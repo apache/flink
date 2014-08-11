@@ -20,6 +20,7 @@
 package org.apache.flink.streaming.api.streamcomponent;
 
 import java.io.IOException;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.lang.SerializationUtils;
@@ -54,7 +55,8 @@ public abstract class AbstractStreamComponent<OUT> extends AbstractInvokable {
 	protected TypeInformation<OUT> outTypeInfo = null;
 	protected StreamRecordSerializer<OUT> outSerializer = null;
 	protected SerializationDelegate<StreamRecord<OUT>> outSerializationDelegate = null;
-
+	protected OutputHandler outputHandler = createEmptyOutputHandler();
+	
 	protected StreamConfig configuration;
 	protected TypeSerializerWrapper<?, ?, OUT> typeWrapper;
 	protected StreamCollector<OUT> collector;
@@ -79,6 +81,71 @@ public abstract class AbstractStreamComponent<OUT> extends AbstractInvokable {
 		setCollector();
 	}
 
+	protected class OutputHandler {
+		private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
+		
+		public OutputHandler() {
+			this.outputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
+		}
+
+		public List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> getOutputs() {
+			return outputs;
+		}
+		
+		public void setConfigOutputs() {
+			setSerializers();
+			setCollector();
+
+			int numberOfOutputs = configuration.getNumberOfOutputs();
+			bufferTimeout = configuration.getBufferTimeout();
+
+			for (int i = 0; i < numberOfOutputs; i++) {
+				setPartitioner(i, outputs);
+			}
+		}
+		
+		public void flushOutputs() throws IOException, InterruptedException {
+			for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
+				output.flush();
+			}
+		}
+		
+		public void initializeOutputSerializers() {
+			for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputHandler.getOutputs()) {
+				output.initializeSerializers();
+			}
+		}
+		
+		public void invokeUserFunction(String componentTypeName, StreamComponentInvokable<OUT> userInvokable) throws IOException, InterruptedException {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(componentTypeName + " " + name + " invoked with instance id "
+						+ instanceID);
+			}
+
+			initializeOutputSerializers();
+
+			try {
+				userInvokable.open(getTaskConfiguration());
+				userInvokable.invoke();
+				userInvokable.close();
+			} catch (Exception e) {
+				flushOutputs();
+				throw new RuntimeException(e);
+			}
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(componentTypeName + " " + name + " invoke finished with instance id "
+						+ instanceID);
+			}
+
+			flushOutputs();
+		}
+	}
+	
+	private OutputHandler createEmptyOutputHandler() {
+		return new OutputHandler();
+	}
+	
 	protected void initialize() {
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.name = configuration.getComponentName();
@@ -109,19 +176,6 @@ public abstract class AbstractStreamComponent<OUT> extends AbstractInvokable {
 		outSerializer = new StreamRecordSerializer<OUT>(outTypeInfo);
 		outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(outSerializer);
 		outSerializationDelegate.setInstance(outSerializer.createInstance());
-	}
-
-	protected void setConfigOutputs(
-			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs) {
-		setSerializers();
-		setCollector();
-
-		int numberOfOutputs = configuration.getNumberOfOutputs();
-		bufferTimeout = configuration.getBufferTimeout();
-
-		for (int i = 0; i < numberOfOutputs; i++) {
-			setPartitioner(i, outputs);
-		}
 	}
 
 	private void setPartitioner(int outputNumber,

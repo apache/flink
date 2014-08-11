@@ -21,11 +21,14 @@ package org.apache.flink.streaming.api.invokable;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.StringUtils;
 
 public abstract class StreamRecordInvokable<IN, OUT> extends
 		StreamComponentInvokable<OUT> {
@@ -35,6 +38,7 @@ public abstract class StreamRecordInvokable<IN, OUT> extends
 	}
 
 	private static final long serialVersionUID = 1L;
+	private static final Log LOG = LogFactory.getLog(StreamComponentInvokable.class);
 
 	protected MutableObjectIterator<StreamRecord<IN>> recordIterator;
 	StreamRecordSerializer<IN> serializer;
@@ -59,7 +63,7 @@ public abstract class StreamRecordInvokable<IN, OUT> extends
 		try {
 			reuse = recordIterator.next(reuse);
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
 		return reuse;
 	}
@@ -68,6 +72,20 @@ public abstract class StreamRecordInvokable<IN, OUT> extends
 
 	protected abstract void mutableInvoke() throws Exception;
 
+	protected abstract void callUserFunction() throws Exception;
+	
+	protected void callUserFunctionAndLogException() {
+		try {
+			callUserFunction();
+		} catch (Exception e) {
+			if (LOG.isErrorEnabled()) {
+				LOG.error(String.format("Calling user function failed due to: %s",
+						StringUtils.stringifyException(e)));
+			}
+		}
+	}
+	
+	@Override
 	public void invoke() throws Exception {
 		if (this.isMutable) {
 			mutableInvoke();

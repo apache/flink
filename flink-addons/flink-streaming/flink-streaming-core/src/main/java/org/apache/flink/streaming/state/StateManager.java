@@ -47,15 +47,12 @@ public class StateManager implements Runnable, Serializable {
 		ObjectInputStream ois = null;
 		try {
 			ois = new ObjectInputStream(new FileInputStream(filename));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		for (Object state : stateList) {
-			try {
+			for (Object state : stateList) {
 				state = ois.readObject();
-			} catch (Exception e) {
-				e.printStackTrace();
 			}
+			ois.close();
+		} catch (Exception e) {
+			throw new RuntimeException(e);
 		}
 	}
 
@@ -67,7 +64,7 @@ public class StateManager implements Runnable, Serializable {
 		try {
 			oos = new ObjectOutputStream(new FileOutputStream(filename));
 		} catch (Exception e) {
-			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
 		// take snapshot of every registered state.
 		while (true) {
@@ -78,7 +75,7 @@ public class StateManager implements Runnable, Serializable {
 					oos.flush();
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				throw new RuntimeException(e);
 			}
 		}
 	}

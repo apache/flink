@@ -35,6 +35,7 @@ public class SourceInvokable<OUT> extends StreamComponentInvokable<OUT> implemen
 		this.sourceFunction = sourceFunction;
 	}
 
+	@Override
 	public void invoke() throws Exception {
 		sourceFunction.invoke(collector);
 	}

@@ -20,19 +20,13 @@
 package org.apache.flink.streaming.api.streamcomponent;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.MutableUnionRecordReader;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -42,7 +36,6 @@ import org.apache.flink.util.MutableObjectIterator;
 
 public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tuple> extends
 		AbstractStreamComponent<OUT> {
-	private static final Log LOG = LogFactory.getLog(CoStreamTask.class);
 
 	protected StreamRecordSerializer<IN1> inputDeserializer1 = null;
 	protected StreamRecordSerializer<IN2> inputDeserializer2 = null;
@@ -52,13 +45,11 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 	MutableObjectIterator<StreamRecord<IN1>> inputIter1;
 	MutableObjectIterator<StreamRecord<IN2>> inputIter2;
 
-	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
 	private CoInvokable<IN1, IN2, OUT> userInvokable;
 	private static int numTasks;
 
 	public CoStreamTask() {
-
-		outputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
+		outputHandler = new OutputHandler();
 		userInvokable = null;
 		numTasks = newComponent();
 		instanceID = numTasks;
@@ -94,7 +85,7 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 
 	@Override
 	public void setInputsOutputs() {
-		setConfigOutputs(outputs);
+		outputHandler.setConfigOutputs();
 		setConfigInputs();
 
 		inputIter1 = createInputIterator(inputs1, inputDeserializer1);
@@ -148,25 +139,7 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 
 	@Override
 	public void invoke() throws Exception {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("TASK " + name + " invoked with instance id " + instanceID);
-		}
-
-		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
-			output.initializeSerializers();
-		}
-
-		userInvokable.open(getTaskConfiguration());
-		userInvokable.invoke();
-		userInvokable.close();
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("TASK " + name + " invoke finished with instance id " + instanceID);
-		}
-
-		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
-			output.flush();
-		}
+		outputHandler.invokeUserFunction("CO-TASK", userInvokable);
 	}
 
 }

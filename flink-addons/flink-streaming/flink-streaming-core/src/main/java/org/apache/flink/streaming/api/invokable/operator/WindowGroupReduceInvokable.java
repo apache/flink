@@ -40,18 +40,22 @@ public class WindowGroupReduceInvokable<IN> extends WindowReduceInvokable<IN, IN
 		values = new MutableTableState<Object, IN>();
 	}
 
+	private IN reduced;
+	private IN nextValue;
+	private IN currentValue;
+	
 	@Override
-	protected void reduce() throws Exception {
+	protected void reduce() {
 		iterator = state.getStreamRecordIterator();
 		while (iterator.hasNext()) {
 			StreamRecord<IN> nextRecord = iterator.next();
 
-			IN nextValue = nextRecord.getObject();
+			nextValue = nextRecord.getObject();
 			Object key = nextRecord.getField(keyPosition);
 
-			IN currentValue = values.get(key);
+			currentValue = values.get(key);
 			if (currentValue != null) {
-				IN reduced = reducer.reduce(currentValue, nextValue);
+				callUserFunctionAndLogException();
 				values.put(key, reduced);
 				collector.collect(reduced);
 			} else {
@@ -62,6 +66,11 @@ public class WindowGroupReduceInvokable<IN> extends WindowReduceInvokable<IN, IN
 		values.clear();
 	}
 
+	@Override
+	protected void callUserFunction() throws Exception {
+		reduced = reducer.reduce(currentValue, nextValue);
+	}
+	
 	private static final long serialVersionUID = 1L;
 
 }

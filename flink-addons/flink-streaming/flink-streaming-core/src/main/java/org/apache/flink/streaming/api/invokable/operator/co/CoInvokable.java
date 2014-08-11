@@ -65,6 +65,4 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends
 		this.reuse1 = serializer1.createInstance();
 		this.reuse2 = serializer2.createInstance();
 	}
-
-	public abstract void invoke() throws Exception;
 }

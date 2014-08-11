@@ -52,18 +52,27 @@ public class GroupReduceInvokable<IN> extends UserTaskInvokable<IN, IN> {
 		}
 	}
 
+	private IN reduced;
+	private IN nextValue;
+	private IN currentValue;
+	
 	private void reduce() throws Exception {
 		Object key = reuse.getField(keyPosition);
-		IN currentValue = values.get(key);
-		IN nextValue = reuse.getObject();
+		currentValue = values.get(key);
+		nextValue = reuse.getObject();
 		if (currentValue != null) {
-			IN reduced = reducer.reduce(currentValue, nextValue);
+			callUserFunctionAndLogException();
 			values.put(key, reduced);
 			collector.collect(reduced);
 		} else {
 			values.put(key, nextValue);
 			collector.collect(nextValue);
 		}
+	}
+
+	@Override
+	protected void callUserFunction() throws Exception {
+		reduced = reducer.reduce(currentValue, nextValue);
 	}
 
 }

@@ -60,7 +60,7 @@ public abstract class RMQSink<IN> implements SinkFunction<IN> {
 			channel = connection.createChannel();
 
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
 
 		initDone = true;

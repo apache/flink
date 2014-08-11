@@ -34,7 +34,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
-	private static final Log log = LogFactory.getLog(RemoteStreamEnvironment.class);
+	private static final Log LOG = LogFactory.getLog(RemoteStreamEnvironment.class);
 
 	private String host;
 	private int port;
@@ -72,8 +72,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public void execute() {
-		if (log.isInfoEnabled()) {
-			log.info("Running remotely at " + host + ":" + port);
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Running remotely at " + host + ":" + port);
 		}
 
 		JobGraph jobGraph = jobGraphBuilder.getJobGraph();

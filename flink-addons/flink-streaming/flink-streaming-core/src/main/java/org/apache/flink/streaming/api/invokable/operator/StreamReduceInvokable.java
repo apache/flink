@@ -71,11 +71,16 @@ public abstract class StreamReduceInvokable<IN, OUT> extends UserTaskInvokable<I
 		}
 	}
 
-	protected void reduce() throws Exception {
+	protected void reduce() {
 		userIterator = state.getIterator();
+		callUserFunctionAndLogException();
+	}
+	
+	@Override
+	protected void callUserFunction() throws Exception {
 		reducer.reduce(userIterable, collector);
 	}
-
+	
 	private void collectOneUnit() {
 		ArrayList<StreamRecord<IN>> list;
 		list = new ArrayList<StreamRecord<IN>>(listSize);

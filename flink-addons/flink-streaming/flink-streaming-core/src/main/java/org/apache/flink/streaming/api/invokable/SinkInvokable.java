@@ -34,7 +34,7 @@ public class SinkInvokable<IN> extends StreamRecordInvokable<IN, IN> {
 	@Override
 	protected void immutableInvoke() throws Exception {
 		while ((reuse = recordIterator.next(reuse)) != null) {
-			sinkFunction.invoke((IN) reuse.getObject());
+			callUserFunctionAndLogException();
 			resetReuse();
 		}
 	}
@@ -42,8 +42,13 @@ public class SinkInvokable<IN> extends StreamRecordInvokable<IN, IN> {
 	@Override
 	protected void mutableInvoke() throws Exception {
 		while ((reuse = recordIterator.next(reuse)) != null) {
-			sinkFunction.invoke((IN) reuse.getObject());
+			callUserFunctionAndLogException();
 		}
+	}
+
+	@Override
+	protected void callUserFunction() throws Exception {
+		sinkFunction.invoke((IN) reuse.getObject());		
 	}
 
 }
