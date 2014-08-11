@@ -71,4 +71,5 @@ public class BatchReduceInvokable<IN, OUT> extends StreamReduceInvokable<IN, OUT
 		}
 	}
 
+
 }

@@ -119,12 +119,6 @@ public class StreamConfig {
 		}
 	}
 
-	// @SuppressWarnings("unchecked")
-	// public <T extends StreamComponentInvokable> Class<? extends T>
-	// getUserInvokableClass() {
-	// return (Class<? extends T>) config.getClass(USER_FUNCTION, null);
-	// }
-
 	public <T> StreamComponentInvokable<T> getUserInvokableObject() {
 		try {
 			return deserializeObject(config.getBytes(SERIALIZEDUDF, null));
@@ -155,10 +149,6 @@ public class StreamConfig {
 			throw new RuntimeException("Cannot deserialize invokable object", e);
 		}
 	}
-
-	// public void setFunctionName(String functionName) {
-	// config.setString(FUNCTION_NAME, functionName);
-	// }
 
 	public String getFunctionName() {
 		return config.getString(FUNCTION_NAME, "");

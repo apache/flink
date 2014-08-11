@@ -19,28 +19,16 @@
 
 package org.apache.flink.streaming.api.streamcomponent;
 
-import java.util.LinkedList;
-import java.util.List;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.invokable.SourceInvokable;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class StreamSource<OUT extends Tuple> extends SingleInputAbstractStreamComponent<Tuple, OUT> {
 
-	private static final Log LOG = LogFactory.getLog(StreamSource.class);
-
-	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
 	private SourceInvokable<OUT> userInvokable;
 	private static int numSources;
 
 	public StreamSource() {
-
-		outputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
+		outputHandler = new OutputHandler();
 		userInvokable = null;
 		numSources = newComponent();
 		instanceID = numSources;
@@ -49,7 +37,7 @@ public class StreamSource<OUT extends Tuple> extends SingleInputAbstractStreamCo
 	@Override
 	public void setInputsOutputs() {
 		try {
-			setConfigOutputs(outputs);
+			outputHandler.setConfigOutputs();
 		} catch (StreamComponentException e) {
 			throw new StreamComponentException("Cannot register outputs for "
 					+ getClass().getSimpleName(), e);
@@ -59,31 +47,12 @@ public class StreamSource<OUT extends Tuple> extends SingleInputAbstractStreamCo
 	@Override
 	protected void setInvokable() {
 		userInvokable = getInvokable();
-		// setCollector();
 		userInvokable.setCollector(collector);
 	}
 
 	@Override
 	public void invoke() throws Exception {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("SOURCE " + name + " invoked with instance id " + instanceID);
-		}
-
-		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
-			output.initializeSerializers();
-		}
-
-		userInvokable.open(getTaskConfiguration());
-		userInvokable.invoke();
-		userInvokable.close();
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("SOURCE " + name + " invoke finished with instance id " + instanceID);
-		}
-
-		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
-			output.flush();
-		}
+		outputHandler.invokeUserFunction("SOURCE", userInvokable);
 	}
 
 }

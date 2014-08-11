@@ -35,7 +35,7 @@ public class MapInvokable<IN, OUT> extends UserTaskInvokable<IN, OUT> {
 	@Override
 	protected void immutableInvoke() throws Exception {
 		while ((reuse = recordIterator.next(reuse)) != null) {
-			collector.collect(mapper.map(reuse.getObject()));
+			callUserFunctionAndLogException();
 			resetReuse();
 		}
 	}
@@ -43,7 +43,12 @@ public class MapInvokable<IN, OUT> extends UserTaskInvokable<IN, OUT> {
 	@Override
 	protected void mutableInvoke() throws Exception {
 		while ((reuse = recordIterator.next(reuse)) != null) {
-			collector.collect(mapper.map(reuse.getObject()));
+			callUserFunctionAndLogException();
 		}
+	}
+
+	@Override
+	protected void callUserFunction() throws Exception {
+		collector.collect(mapper.map(reuse.getObject()));
 	}
 }

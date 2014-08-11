@@ -12,7 +12,8 @@ import org.apache.flink.runtime.io.network.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
-public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWriter<T> {
+public class StreamRecordWriter<T extends IOReadableWritable> extends
+		RecordWriter<T> {
 
 	private final BufferProvider bufferPool;
 
@@ -31,12 +32,13 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 		this(invokable, new RoundRobinChannelSelector<T>(), 1000);
 	}
 
-	public StreamRecordWriter(AbstractInvokable invokable, ChannelSelector<T> channelSelector) {
+	public StreamRecordWriter(AbstractInvokable invokable,
+			ChannelSelector<T> channelSelector) {
 		this(invokable, channelSelector, 1000);
 	}
 
-	public StreamRecordWriter(AbstractInvokable invokable, ChannelSelector<T> channelSelector,
-			long timeout) {
+	public StreamRecordWriter(AbstractInvokable invokable,
+			ChannelSelector<T> channelSelector, long timeout) {
 		// initialize the gate
 		super(invokable);
 
@@ -60,20 +62,24 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 
 	@Override
 	public void emit(final T record) throws IOException, InterruptedException {
-		for (int targetChannel : this.channelSelector.selectChannels(record, this.numChannels)) {
+		for (int targetChannel : this.channelSelector.selectChannels(record,
+				this.numChannels)) {
 			// serialize with corresponding serializer and send full buffer
 
 			RecordSerializer<T> serializer = this.serializers[targetChannel];
 
 			synchronized (serializer) {
-				RecordSerializer.SerializationResult result = serializer.addRecord(record);
+				RecordSerializer.SerializationResult result = serializer
+						.addRecord(record);
 				while (result.isFullBuffer()) {
 					Buffer buffer = serializer.getCurrentBuffer();
 					if (buffer != null) {
 						sendBuffer(buffer, targetChannel);
 					}
 
-					buffer = this.bufferPool.requestBufferBlocking(this.bufferPool.getBufferSize());
+					buffer = this.bufferPool
+							.requestBufferBlocking(this.bufferPool
+									.getBufferSize());
 					result = serializer.setNextBuffer(buffer);
 				}
 			}
@@ -105,9 +111,8 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 					Thread.sleep(timeout);
 					flush();
 				} catch (Exception e) {
-					e.printStackTrace();
+					throw new RuntimeException(e);
 				}
-
 			}
 		}
 	}

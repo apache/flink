@@ -19,28 +19,17 @@
 
 package org.apache.flink.streaming.api.streamcomponent;
 
-import java.util.LinkedList;
-import java.util.List;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
 		SingleInputAbstractStreamComponent<IN, OUT> {
 
-	private static final Log LOG = LogFactory.getLog(StreamTask.class);
-
-	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
 	private StreamRecordInvokable<IN, OUT> userInvokable;
 	private static int numTasks;
 
 	public StreamTask() {
-		outputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
+		outputHandler = new OutputHandler();
 		userInvokable = null;
 		numTasks = newComponent();
 		instanceID = numTasks;
@@ -49,7 +38,7 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
 	@Override
 	public void setInputsOutputs() {
 		setConfigInputs();
-		setConfigOutputs(outputs);
+		outputHandler.setConfigOutputs();
 
 		inputIter = createInputIterator(inputs, inputSerializer);
 	}
@@ -57,29 +46,12 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
 	@Override
 	protected void setInvokable() {
 		userInvokable = getInvokable();
-		userInvokable.initialize(collector, inputIter, inputSerializer, isMutable);
+		userInvokable.initialize(collector, inputIter, inputSerializer,
+				isMutable);
 	}
 
 	@Override
 	public void invoke() throws Exception {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("TASK " + name + " invoked with instance id " + instanceID);
-		}
-
-		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
-			output.initializeSerializers();
-		}
-
-		userInvokable.open(getTaskConfiguration());
-		userInvokable.invoke();
-		userInvokable.close();
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("TASK " + name + " invoke finished with instance id " + instanceID);
-		}
-
-		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
-			output.flush();
-		}
+		outputHandler.invokeUserFunction("TASK", userInvokable);
 	}
 }

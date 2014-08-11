@@ -40,7 +40,7 @@ import org.apache.flink.util.StringUtils;
 public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 
 	OutputSelector<OUT> outputSelector;
-	private static final Log log = LogFactory.getLog(DirectedStreamCollector.class);
+	private static final Log LOG = LogFactory.getLog(DirectedStreamCollector.class);
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> emitted;
 
 	/**
@@ -97,8 +97,8 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 					}
 				}
 			} catch (Exception e) {
-				if (log.isErrorEnabled()) {
-					log.error(String.format("Emit to %s failed due to: %s", outputName,
+				if (LOG.isErrorEnabled()) {
+					LOG.error(String.format("Emit to %s failed due to: %s", outputName,
 							StringUtils.stringifyException(e)));
 				}
 			}

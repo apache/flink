@@ -65,5 +65,6 @@ public abstract class StreamComponentInvokable<OUT> extends AbstractRichFunction
 			((RichFunction) userFunction).close();
 		}
 	}
-
+	
+	public abstract void invoke() throws Exception;
 }

@@ -39,7 +39,7 @@ public class TestDataUtil {
 
 	// TODO: Exception handling
 	// TODO: check checksum after download
-	private static final Log log = LogFactory.getLog(TestDataUtil.class);
+	private static final Log LOG = LogFactory.getLog(TestDataUtil.class);
 	public static final String testDataDir = "src/test/resources/testdata/";
 	public static final String testRepoUrl = "http://info.ilab.sztaki.hu/~mbalassi/flink-streaming/testdata/";
 	public static final String testChekSumDir = "src/test/resources/testdata_checksum/";
@@ -67,8 +67,8 @@ public class TestDataUtil {
 		}
 
 		if (file.exists()) {
-			if (log.isInfoEnabled()) {
-				log.info(fileName + " already exists.");
+			if (LOG.isInfoEnabled()) {
+				LOG.info(fileName + " already exists.");
 			}
 
 			try {
@@ -78,16 +78,16 @@ public class TestDataUtil {
 						+ file.getAbsolutePath(), e);
 			}
 			if (!checkSumActaul.equals(checkSumDesired)) {
-				if (log.isInfoEnabled()) {
-					log.info("Checksum is incorrect.");
-					log.info("Downloading file.");
+				if (LOG.isInfoEnabled()) {
+					LOG.info("Checksum is incorrect.");
+					LOG.info("Downloading file.");
 				}
 				download(fileName);
 			}
 		} else {
-			if (log.isInfoEnabled()) {
-				log.info("File does not exist.");
-				log.info("Downloading file.");
+			if (LOG.isInfoEnabled()) {
+				LOG.info("File does not exist.");
+				LOG.info("Downloading file.");
 			}
 			download(fileName);
 		}
@@ -95,7 +95,7 @@ public class TestDataUtil {
 	}
 
 	public static void download(String fileName) {
-		log.info("downloading " + fileName);
+		LOG.info("downloading " + fileName);
 
 		try {
 			URL website = new URL(testRepoUrl + fileName);

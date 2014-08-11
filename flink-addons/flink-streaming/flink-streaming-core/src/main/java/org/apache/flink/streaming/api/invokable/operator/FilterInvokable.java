@@ -33,10 +33,13 @@ public class FilterInvokable<IN> extends UserTaskInvokable<IN, IN> {
 		this.filterFunction = filterFunction;
 	}
 
+	private boolean canCollect;
+	
 	@Override
 	protected void immutableInvoke() throws Exception {
 		while ((reuse = recordIterator.next(reuse)) != null) {
-			if (filterFunction.filter(reuse.getObject())) {
+			callUserFunctionAndLogException();
+			if (canCollect) {
 				collector.collect(reuse.getObject());
 			}
 			resetReuse();
@@ -46,10 +49,15 @@ public class FilterInvokable<IN> extends UserTaskInvokable<IN, IN> {
 	@Override
 	protected void mutableInvoke() throws Exception {
 		while ((reuse = recordIterator.next(reuse)) != null) {
-			if (filterFunction.filter(reuse.getObject())) {
+			callUserFunctionAndLogException();
+			if (canCollect) {
 				collector.collect(reuse.getObject());
 			}
 		}
 	}
 
+	@Override
+	protected void callUserFunction() throws Exception {
+		canCollect = filterFunction.filter(reuse.getObject());
+	}
 }

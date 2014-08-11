@@ -27,6 +27,8 @@ import org.apache.flink.streaming.state.MutableTableState;
 
 public class BatchGroupReduceInvokable<IN> extends BatchReduceInvokable<IN, IN> {
 
+	private static final long serialVersionUID = 1L;
+
 	int keyPosition;
 	protected ReduceFunction<IN> reducer;
 	private Iterator<StreamRecord<IN>> iterator;
@@ -40,18 +42,22 @@ public class BatchGroupReduceInvokable<IN> extends BatchReduceInvokable<IN, IN> 
 		values = new MutableTableState<Object, IN>();
 	}
 
+	private IN reduced;
+	private IN nextValue;
+	private IN currentValue;
+
 	@Override
-	protected void reduce() throws Exception {
+	protected void reduce() {
 		iterator = state.getStreamRecordIterator();
 		while (iterator.hasNext()) {
 			StreamRecord<IN> nextRecord = iterator.next();
 
-			IN nextValue = nextRecord.getObject();
+			nextValue = nextRecord.getObject();
 			Object key = nextRecord.getField(keyPosition);
 
-			IN currentValue = values.get(key);
+			currentValue = values.get(key);
 			if (currentValue != null) {
-				IN reduced = reducer.reduce(currentValue, nextValue);
+				callUserFunctionAndLogException();
 				values.put(key, reduced);
 				collector.collect(reduced);
 			} else {
@@ -59,12 +65,12 @@ public class BatchGroupReduceInvokable<IN> extends BatchReduceInvokable<IN, IN> 
 				collector.collect(nextValue);
 			}
 		}
-		System.out.println(values);
 		values.clear();
-		System.out.println(values);
-
 	}
 
-	private static final long serialVersionUID = 1L;
+	@Override
+	protected void callUserFunction() throws Exception {
+		reduced = reducer.reduce(currentValue, nextValue);
+	}
 
 }
