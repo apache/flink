@@ -24,47 +24,11 @@ import java.sql.SQLException;
 
 import org.junit.Test;
 
-public class DatabaseTest {
-	
-	@Test
-	public void LeveldbTest(){
-		LeveldbState state=new LeveldbState("test");
-		state.setTuple("hello", "world");
-		System.out.println(state.getTuple("hello"));
-		state.setTuple("big", "data");
-		state.setTuple("flink", "streaming");
-		LeveldbStateIterator iterator=state.getIterator();
-		while(iterator.hasNext()){
-			String key=iterator.getNextKey();
-			String value=iterator.getNextValue();
-			System.out.println("key="+key+", value="+value);
-			iterator.next();
-		}
-		state.close();
-	}
-	
-	//please remind starting Redis service before testing.
-	@Test
-	public void RedisTest(){
-		RedisState state=new RedisState();
-		state.setTuple("hello", "world");
-		System.out.println(state.getTuple("hello"));
-		state.setTuple("big", "data");
-		state.setTuple("flink", "streaming");
-		RedisStateIterator iterator=state.getIterator();
-		while(iterator.hasNext()){
-			String key=iterator.getNextKey();
-			String value=iterator.getNextValue();
-			System.out.println("key="+key+", value="+value);
-			iterator.next();
-		}
-		state.close();
-	}
-	
+public class MysqlTest {
 	//please remind starting mysql service before testing.
 	@Test
-	public void MysqlTest(){
-		MysqlState state=new MysqlState("testdb", "root", "yingjun");
+	public void databaseTest(){
+		MysqlState state=new MysqlState("testdb", "root", "password");
 		String sql = "create table flinkdb(mykey varchar(20), myvalue varchar(20))";
 		state.executeUpdate(sql);
 		sql = "insert into flinkdb values('hello', 'world')";
@@ -84,18 +48,6 @@ public class DatabaseTest {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		state.close();
-	}
-	
-	@Test
-	public void MemcachedState(){
-		MemcachedState state=new MemcachedState();
-		state.setTuple("hello", "world");
-		state.setTuple("big", "data");
-		state.setTuple("flink", "streaming");
-		System.out.println(state.getTuple("hello"));
-		System.out.println(state.getTuple("big"));
-		System.out.println(state.getTuple("flink"));
 		state.close();
 	}
 }
