@@ -123,7 +123,7 @@ public class GroupingTest {
 
 		// should work
 		try {
-//			ds.groupBy("myInt");
+			ds.groupBy("myInt");
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -136,7 +136,7 @@ public class GroupingTest {
 
 		DataSet<Long> longDs = env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
 		// should not work: groups on basic type
-//		longDs.groupBy("myInt");
+		longDs.groupBy("myInt");
 	}
 
 	@Test(expected = InvalidProgramException.class)
@@ -159,7 +159,7 @@ public class GroupingTest {
 		DataSet<CustomType> ds = env.fromCollection(customTypeData);
 
 		// should not work, key out of tuple bounds
-//		ds.groupBy("myNonExistent");
+		ds.groupBy("myNonExistent");
 	}
 
 	

@@ -738,9 +738,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see Tuple
 		 * @see DataSet
 		 */
-//		public JoinOperatorSetsPredicate where(String... fields) {
-//			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(fields, input1.getType()));
-//		}
+		public JoinOperatorSetsPredicate where(String... fields) {
+			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(fields, input1.getType()));
+		}
 		
 		/**
 		 * Continues a Join transformation and defines a {@link KeySelector} function for the first join {@link DataSet}.</br>
@@ -812,9 +812,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			 * @param fields The fields of the second join DataSet that should be used as keys.
 			 * @return A DefaultJoin that represents the joined DataSet.
 			 */
-//			public DefaultJoin<I1, I2> equalTo(String... fields) {
-//				return createJoinOperator(new Keys.ExpressionKeys<I2>(fields, input2.getType()));
-//			}
+			public DefaultJoin<I1, I2> equalTo(String... fields) {
+				return createJoinOperator(new Keys.ExpressionKeys<I2>(fields, input2.getType()));
+			}
 
 			/**
 			 * Continues a Join transformation and defines a {@link KeySelector} function for the second join {@link DataSet}.</br>

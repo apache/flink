@@ -137,7 +137,7 @@ public class JoinOperatorTest {
 
 		// should work
 		try {
-//			ds1.join(ds2).where("myInt").equalTo("myInt");
+			ds1.join(ds2).where("myInt").equalTo("myInt");
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -151,7 +151,7 @@ public class JoinOperatorTest {
 		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
 		// should not work, incompatible join key types
-//		ds1.join(ds2).where("myInt").equalTo("myString");
+		ds1.join(ds2).where("myInt").equalTo("myString");
 	}
 
 	@Test(expected = InvalidProgramException.class)
@@ -162,7 +162,7 @@ public class JoinOperatorTest {
 		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
 		// should not work, incompatible number of join keys
-//		ds1.join(ds2).where("myInt", "myString").equalTo("myString");
+		ds1.join(ds2).where("myInt", "myString").equalTo("myString");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -173,7 +173,7 @@ public class JoinOperatorTest {
 		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
 		// should not work, join key non-existent
-//		ds1.join(ds2).where("myNonExistent").equalTo("myInt");
+		ds1.join(ds2).where("myNonExistent").equalTo("myInt");
 	}
 
 	
