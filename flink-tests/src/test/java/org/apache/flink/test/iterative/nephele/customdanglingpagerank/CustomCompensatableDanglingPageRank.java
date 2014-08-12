@@ -101,7 +101,7 @@ public class CustomCompensatableDanglingPageRank {
 		String pageWithRankInputPath = ""; //"file://" + PlayConstants.PLAY_DIR + "test-inputs/danglingpagerank/pageWithRank";
 		String adjacencyListInputPath = ""; //"file://" + PlayConstants.PLAY_DIR +
 //			"test-inputs/danglingpagerank/adjacencylists";
-		String outputPath =  Path.constructTestURI("flink_iterations");
+		String outputPath =  Path.constructTestURI(CustomCompensatableDanglingPageRank.class, "flink_iterations");
 //		String confPath = PlayConstants.PLAY_DIR + "local-conf";
 		int minorConsumer = 2;
 		int matchMemory = 5;

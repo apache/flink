@@ -39,10 +39,8 @@ public class PackagedProgramEndToEndITCase {
 	
 	@Test
 	public void testEverything() {
-		final int PORT = 6498;
-		
 		NepheleMiniCluster cluster = new NepheleMiniCluster();
-		
+
 		File points = null;
 		File clusters = null;
 		File outFile = null;
@@ -68,10 +66,9 @@ public class PackagedProgramEndToEndITCase {
 			// run KMeans
 			cluster.setNumTaskTracker(2);
 			cluster.setTaskManagerNumSlots(2);
-			cluster.setJobManagerRpcPort(PORT);
 			cluster.start();
-			
-			RemoteExecutor ex = new RemoteExecutor("localhost", PORT);
+
+			RemoteExecutor ex = new RemoteExecutor("localhost", cluster.getJobManagerRpcPort());
 
 			ex.executeJar(jarPath,
 					"org.apache.flink.test.util.testjar.KMeansForTest",

@@ -56,7 +56,7 @@ public class DataSinkTaskTest extends TaskTestBase
 
 	private static final int NETWORK_BUFFER_SIZE = 1024;
 	
-	private final String tempTestPath = Path.constructTestPath("dst_test");
+	private final String tempTestPath = Path.constructTestPath(DataSinkTaskTest.class, "dst_test");
 	
 	@After
 	public void cleanUp() {

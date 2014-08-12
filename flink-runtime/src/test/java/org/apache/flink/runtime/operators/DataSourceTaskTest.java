@@ -51,7 +51,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 
 	private List<Record> outList;
 	
-	private String tempTestPath = Path.constructTestPath("dst_test");
+	private String tempTestPath = Path.constructTestPath(DataSourceTaskTest.class, "dst_test");
 	
 	@After
 	public void cleanUp() {

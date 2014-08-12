@@ -497,16 +497,18 @@ public class Path implements IOReadableWritable, Serializable {
 
 	}
 	
-	public static String constructTestPath(String folder) {
+	public static String constructTestPath(Class<?> forClass, String folder) {
+		// we create test path that depends on class to prevent name clashes when two tests
+		// create temp files with the same name
 		String path = System.getProperty("java.io.tmpdir");
 		if (!(path.endsWith("/") || path.endsWith("\\")) ) {
 			path += System.getProperty("file.separator");
 		}
-		path += folder;
+		path += (forClass.getName() + "-" + folder);
 		return path;
 	}
 	
-	public static String constructTestURI(String folder) {
-		return new File(constructTestPath(folder)).toURI().toString();
+	public static String constructTestURI(Class<?> forClass, String folder) {
+		return new File(constructTestPath(forClass, folder)).toURI().toString();
 	}
 }

@@ -116,8 +116,6 @@ under the License.
 					<excludes>
 						<exclude>**/*TestBase*.class</exclude>
 					</excludes>
-					<forkMode>once</forkMode>
-					<argLine>-Xmx1024m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -126,9 +124,6 @@ under the License.
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
-					<forkMode>always</forkMode>
-					<threadCount>1</threadCount>
-					<perCoreThreadCount>false</perCoreThreadCount>
 				</configuration>
 			</plugin>
 			

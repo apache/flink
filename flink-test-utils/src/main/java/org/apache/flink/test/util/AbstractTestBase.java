@@ -146,7 +146,7 @@ public abstract class AbstractTestBase {
 	
 	public File createAndRegisterTempFile(String fileName) throws IOException {
 		File baseDir = new File(System.getProperty("java.io.tmpdir"));
-		File f = new File(baseDir, fileName);
+		File f = new File(baseDir, this.getClass().getName() + "-" + fileName);
 		
 		if (f.exists()) {
 			deleteRecursively(f);
