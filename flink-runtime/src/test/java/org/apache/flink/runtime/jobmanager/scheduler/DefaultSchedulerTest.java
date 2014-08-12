@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import static org.junit.Assert.assertEquals;
@@ -24,12 +23,14 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.StringRecord;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -50,11 +51,11 @@ import org.apache.flink.util.StringUtils;
 import org.junit.Test;
 
 /**
- * This class checks the functionality of the {@link org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler} class
+ * This class checks the functionality of the {@link org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler}
+ * class
  */
 @SuppressWarnings("serial")
 public class DefaultSchedulerTest {
-
 
 	public static final class InputTask extends AbstractInvokable {
 
@@ -64,7 +65,8 @@ public class DefaultSchedulerTest {
 		}
 
 		@Override
-		public void invoke() throws Exception {}
+		public void invoke() throws Exception {
+		}
 
 	}
 
@@ -76,7 +78,8 @@ public class DefaultSchedulerTest {
 		}
 
 		@Override
-		public void invoke() throws Exception {}
+		public void invoke() throws Exception {
+		}
 
 	}
 
@@ -96,16 +99,20 @@ public class DefaultSchedulerTest {
 	public static final class DummyOutputFormat implements OutputFormat<IntValue> {
 
 		@Override
-		public void configure(Configuration parameters) {}
+		public void configure(Configuration parameters) {
+		}
 
 		@Override
-		public void open(int taskNumber, int numTasks) {}
+		public void open(int taskNumber, int numTasks) {
+		}
 
 		@Override
-		public void writeRecord(IntValue record) {}
+		public void writeRecord(IntValue record) {
+		}
 
 		@Override
-		public void close() {}
+		public void close() {
+		}
 	}
 
 	/**
@@ -136,7 +143,8 @@ public class DefaultSchedulerTest {
 		}
 
 		try {
-			LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
+			List<BlobKey> requiredJarFiles = Collections.emptyList();
+			LibraryCacheManager.register(jobGraph.getJobID(), requiredJarFiles);
 			return new ExecutionGraph(jobGraph, 1);
 
 		} catch (GraphConversionException e) {

@@ -7,6 +7,7 @@ import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -83,7 +84,8 @@ public class BlobClientTest {
 			BlobClient client = null;
 			try {
 
-				client = new BlobClient(BLOB_SERVER.getServerPort());
+				final InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getServerPort());
+				client = new BlobClient(serverAddress);
 
 				// Store the data
 				final BlobKey receivedKey = client.put(testBuffer);
@@ -127,7 +129,8 @@ public class BlobClientTest {
 			BlobClient client = null;
 			try {
 
-				client = new BlobClient(BLOB_SERVER.getServerPort());
+				final InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getServerPort());
+				client = new BlobClient(serverAddress);
 
 				// Store the data
 				client.put(jobID, key, testBuffer);
