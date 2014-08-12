@@ -22,6 +22,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,11 +35,14 @@ import java.util.Stack;
 import java.util.Vector;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.util.ClassUtils;
@@ -794,5 +798,43 @@ public class JobGraph implements IOReadableWritable {
 	public Set<BlobKey> getUserJarBlobKeys() {
 
 		return Collections.unmodifiableSet(this.userJarBlobKeys);
+	}
+
+	/**
+	 * Uploads the previously added user jar file to the job manager through the job manager's BLOB server.
+	 * 
+	 * @param serverAddress
+	 *        the network address of the BLOB server
+	 * @throws IOException
+	 *         thrown if an I/O error occurs during the upload
+	 */
+	public void uploadRequiredJarFiles(final InetSocketAddress serverAddress) throws IOException {
+
+		BlobClient bc = null;
+		try {
+
+			bc = new BlobClient(serverAddress);
+
+			for (final Iterator<Path> it = this.userJars.iterator(); it.hasNext();) {
+
+				final Path jar = it.next();
+				final FileSystem fs = jar.getFileSystem();
+				FSDataInputStream is = null;
+				try {
+					is = fs.open(jar);
+					final BlobKey key = bc.put(is);
+					this.userJarBlobKeys.add(key);
+				} finally {
+					if (is != null) {
+						is.close();
+					}
+				}
+			}
+
+		} finally {
+			if (bc != null) {
+				bc.close();
+			}
+		}
 	}
 }

@@ -30,17 +30,11 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorEvent;
-import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.JobEvent;
 import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.protocols.AccumulatorProtocol;
@@ -227,40 +221,17 @@ public class JobClient {
 
 		synchronized (this.jobSubmitClient) {
 
-			// TODO: Get port of BLOB service
-			final int blobServicePort = 1024;
+			// Get port of BLOB server
+			final Integer port = this.jobSubmitClient.getBlobServerPort();
+			if (port.intValue() == -1) {
+				throw new IOException("Unable to upload user jars: BLOB server not running");
+			}
+
 			// We submit the required files with the BLOB manager before the submission of the actual job graph
 			final InetSocketAddress blobManagerAddress = new InetSocketAddress(this.jobManagerAddress.getAddress(),
-				blobServicePort);
+				port);
 
-			final Path[] jars = this.jobGraph.getJars();
-			final JobID jobID = this.jobGraph.getJobID();
-
-			BlobClient bc = null;
-			try {
-
-				bc = new BlobClient(blobManagerAddress);
-
-				for (final Path jar : jars) {
-
-					final FileSystem fs = jar.getFileSystem();
-					FSDataInputStream is = null;
-					try {
-						is = fs.open(jar);
-						final BlobKey key = bc.put(is);
-						this.jobGraph.addJarBlobKey(key);
-						System.out.println("Added key " + key);
-					} finally {
-						if (is != null) {
-							is.close();
-						}
-					}
-				}
-			} finally {
-				if (bc != null) {
-					bc.close();
-				}
-			}
+			this.jobGraph.uploadRequiredJarFiles(blobManagerAddress);
 
 			return this.jobSubmitClient.submitJob(this.jobGraph);
 		}
