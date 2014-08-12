@@ -32,6 +32,6 @@ under the License.
   </parent>
 
   <artifactId>flink-quickstart-java</artifactId>
-  <packaging>jar</packaging>
+  <packaging>maven-archetype</packaging>
 
 </project>

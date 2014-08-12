@@ -16,10 +16,16 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<archetype xmlns="http://maven.apache.org/plugins/maven-archetype-plugin/archetype/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/plugins/maven-archetype-plugin/archetype/1.0.0 http://maven.apache.org/xsd/archetype-1.0.0.xsd">
-  <id>flink-quickstart-scala</id>
-  <sources>
-    <source>src/main/scala/Job.scala</source>
-  </sources>
-</archetype>
+
+<archetype-descriptor xmlns="http://maven.apache.org/plugins/maven-archetype-plugin/archetype-descriptor/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/plugins/maven-archetype-plugin/archetype-descriptor/1.0.0 http://maven.apache.org/xsd/archetype-descriptor-1.0.0.xsd"
+  name="flink-quickstart-java">
+  <fileSets>
+    <fileSet filtered="true" packaged="true" encoding="UTF-8">
+     	<directory>src/main/java</directory>
+	    <includes>
+      		<include>**/*.java</include>
+    	</includes>
+    </fileSet>
+  </fileSets>
+</archetype-descriptor>
