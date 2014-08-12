@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.deployment;
 
 import static org.junit.Assert.assertEquals;
@@ -24,8 +23,11 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -40,7 +42,6 @@ import org.junit.Test;
 
 /**
  * This class contains unit tests for the {@link TaskDeploymentDescriptor} class.
- * 
  */
 public class TaskDeploymentDescriptorTest {
 
@@ -57,15 +58,16 @@ public class TaskDeploymentDescriptorTest {
 		final int currentNumberOfSubtasks = 1;
 		final Configuration jobConfiguration = new Configuration();
 		final Configuration taskConfiguration = new Configuration();
-		final Class<? extends AbstractInvokable> invokableClass =  RegularPactTask.class;
+		final Class<? extends AbstractInvokable> invokableClass = RegularPactTask.class;
 		final SerializableArrayList<GateDeploymentDescriptor> outputGates = new SerializableArrayList<GateDeploymentDescriptor>(
 			0);
 		final SerializableArrayList<GateDeploymentDescriptor> inputGates = new SerializableArrayList<GateDeploymentDescriptor>(
 			0);
+		final List<BlobKey> requiredJarFiles = new ArrayList<BlobKey>(0);
 
 		final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 			indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-			invokableClass, outputGates, inputGates);
+			invokableClass, outputGates, inputGates, requiredJarFiles);
 
 		assertEquals(jobID, tdd.getJobID());
 		assertEquals(vertexID, tdd.getVertexID());
@@ -97,6 +99,7 @@ public class TaskDeploymentDescriptorTest {
 			0);
 		final SerializableArrayList<GateDeploymentDescriptor> inputGates = new SerializableArrayList<GateDeploymentDescriptor>(
 			0);
+		final List<BlobKey> requiredJarFiles = new ArrayList<BlobKey>(0);
 
 		boolean firstExceptionCaught = false;
 		boolean secondExceptionCaught = false;
@@ -108,11 +111,12 @@ public class TaskDeploymentDescriptorTest {
 		boolean eighthExceptionCaught = false;
 		boolean ninethExeceptionCaught = false;
 		boolean tenthExceptionCaught = false;
+		boolean eleventhExceptionCaught = false;
 
 		try {
 			new TaskDeploymentDescriptor(null, vertexID, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				invokableClass, outputGates, inputGates);
+				invokableClass, outputGates, inputGates, requiredJarFiles);
 		} catch (IllegalArgumentException e) {
 			firstExceptionCaught = true;
 		}
@@ -120,7 +124,7 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, null, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				invokableClass, outputGates, inputGates);
+				invokableClass, outputGates, inputGates, requiredJarFiles);
 		} catch (IllegalArgumentException e) {
 			secondExceptionCaught = true;
 		}
@@ -128,7 +132,7 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, null,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				invokableClass, outputGates, inputGates);
+				invokableClass, outputGates, inputGates, requiredJarFiles);
 		} catch (IllegalArgumentException e) {
 			thirdExceptionCaught = true;
 		}
@@ -136,7 +140,7 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				-1, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				invokableClass, outputGates, inputGates);
+				invokableClass, outputGates, inputGates, requiredJarFiles);
 		} catch (IllegalArgumentException e) {
 			forthExceptionCaught = true;
 		}
@@ -144,7 +148,7 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				indexInSubtaskGroup, -1, jobConfiguration, taskConfiguration,
-				invokableClass, outputGates, inputGates);
+				invokableClass, outputGates, inputGates, requiredJarFiles);
 		} catch (IllegalArgumentException e) {
 			fifthExceptionCaught = true;
 		}
@@ -152,7 +156,7 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, null, taskConfiguration,
-				invokableClass, outputGates, inputGates);
+				invokableClass, outputGates, inputGates, requiredJarFiles);
 		} catch (IllegalArgumentException e) {
 			sixthExceptionCaught = true;
 		}
@@ -160,7 +164,7 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, null,
-				invokableClass, outputGates, inputGates);
+				invokableClass, outputGates, inputGates, requiredJarFiles);
 		} catch (IllegalArgumentException e) {
 			seventhExceptionCaught = true;
 		}
@@ -168,27 +172,35 @@ public class TaskDeploymentDescriptorTest {
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				null, outputGates, inputGates);
+				null, outputGates, inputGates, requiredJarFiles);
 		} catch (IllegalArgumentException e) {
 			eighthExceptionCaught = true;
-			
+
 		}
 
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				invokableClass, null, inputGates);
+				invokableClass, null, inputGates, requiredJarFiles);
 		} catch (IllegalArgumentException e) {
 			ninethExeceptionCaught = true;
-			
+
 		}
 
 		try {
 			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				invokableClass, outputGates, null);
+				invokableClass, outputGates, null, requiredJarFiles);
 		} catch (IllegalArgumentException e) {
 			tenthExceptionCaught = true;
+		}
+
+		try {
+			new TaskDeploymentDescriptor(jobID, vertexID, taskName,
+				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
+				invokableClass, outputGates, inputGates, null);
+		} catch (IllegalArgumentException e) {
+			eleventhExceptionCaught = true;
 		}
 
 		if (!firstExceptionCaught) {
@@ -231,6 +243,10 @@ public class TaskDeploymentDescriptorTest {
 			fail("Tenth argument was illegal but not detected");
 		}
 
+		if (!eleventhExceptionCaught) {
+			fail("Eleventh argument was illegal but not detected");
+		}
+
 	}
 
 	/**
@@ -251,15 +267,16 @@ public class TaskDeploymentDescriptorTest {
 			0);
 		final SerializableArrayList<GateDeploymentDescriptor> inputGates = new SerializableArrayList<GateDeploymentDescriptor>(
 			0);
+		final List<BlobKey> requiredJarFiles = new ArrayList<BlobKey>(0);
 
 		final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, vertexID, taskName,
 			indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-			invokableClass, outputGates, inputGates);
+			invokableClass, outputGates, inputGates, requiredJarFiles);
 
 		TaskDeploymentDescriptor copy = null;
 
 		try {
-			LibraryCacheManager.register(jobID, new String[] {});
+			LibraryCacheManager.register(jobID, requiredJarFiles);
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
 		}
@@ -285,7 +302,7 @@ public class TaskDeploymentDescriptorTest {
 		assertEquals(orig.getNumberOfInputGateDescriptors(), copy.getNumberOfInputGateDescriptors());
 
 		try {
-			LibraryCacheManager.register(jobID, new String[] {});
+			LibraryCacheManager.register(jobID, requiredJarFiles);
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
 		}
