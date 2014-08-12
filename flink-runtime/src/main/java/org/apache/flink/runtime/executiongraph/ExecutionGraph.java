@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.executiongraph;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -40,6 +40,7 @@ import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.execution.ExecutionListener;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -67,7 +68,6 @@ import org.apache.flink.util.StringUtils;
  * when and where (on which instance) to run particular tasks.
  * <p>
  * This class is thread-safe.
- * 
  */
 public class ExecutionGraph implements ExecutionListener {
 
@@ -140,24 +140,9 @@ public class ExecutionGraph implements ExecutionListener {
 	private final CopyOnWriteArrayList<ExecutionStageListener> executionStageListeners = new CopyOnWriteArrayList<ExecutionStageListener>();
 
 	/**
-	 * Private constructor used for duplicating execution vertices.
-	 * 
-	 * @param jobID
-	 *        the ID of the duplicated execution graph
-	 * @param jobName
-	 *        the name of the original job graph
-	 * @param jobConfiguration
-	 *        the configuration originally attached to the job graph
+	 * List of the BLOB keys referring to the JAR files required to run this job.
 	 */
-	private ExecutionGraph(final JobID jobID, final String jobName, final Configuration jobConfiguration) {
-		if (jobID == null) {
-			throw new IllegalArgumentException("Argument jobID must not be null");
-		}
-
-		this.jobID = jobID;
-		this.jobName = jobName;
-		this.jobConfiguration = jobConfiguration;
-	}
+	private final List<BlobKey> requiredJarFiles;
 
 	/**
 	 * Creates a new execution graph from a job graph.
@@ -169,8 +154,16 @@ public class ExecutionGraph implements ExecutionListener {
 	 * @throws GraphConversionException
 	 *         thrown if the job graph is not valid and no execution graph can be constructed from it
 	 */
-	public ExecutionGraph(JobGraph job, int defaultParallelism) throws GraphConversionException {
-		this(job.getJobID(), job.getName(), job.getJobConfiguration());
+	public ExecutionGraph(final JobGraph job, final int defaultParallelism) throws GraphConversionException {
+
+		this.jobID = job.getJobID();
+		this.jobName = job.getName();
+		this.jobConfiguration = job.getJobConfiguration();
+
+		final ArrayList<BlobKey> requiredJarFiles = new ArrayList<BlobKey>(job.getUserJarBlobKeys());
+		// Make sure the BLOB keys occur in a defined-order (important for signature calculation)
+		Collections.sort(requiredJarFiles);
+		this.requiredJarFiles = Collections.unmodifiableList(requiredJarFiles);
 
 		// Start constructing the new execution graph from given job graph
 		try {
@@ -274,7 +267,7 @@ public class ExecutionGraph implements ExecutionListener {
 		// Convert job vertices to execution vertices and initialize them
 		final AbstractJobVertex[] all = jobGraph.getAllJobVertices();
 		for (int i = 0; i < all.length; i++) {
-			if(all[i].getNumberOfSubtasks() == -1){
+			if (all[i].getNumberOfSubtasks() == -1) {
 				all[i].setNumberOfSubtasks(defaultParallelism);
 			}
 
@@ -423,7 +416,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 				// Connect the corresponding group vertices and copy the user settings from the job edge
 				final ExecutionGroupEdge groupEdge = sgv.wireTo(tgv, edge.getIndexOfInputGate(), i, channelType,
-					userDefinedChannelType,distributionPattern);
+					userDefinedChannelType, distributionPattern);
 
 				final ExecutionGate outputGate = new ExecutionGate(new GateID(), sev, groupEdge, false);
 				sev.insertOutputGate(i, outputGate);
@@ -456,7 +449,7 @@ public class ExecutionGraph implements ExecutionListener {
 
 		// Calculate the cryptographic signature of this vertex
 		final ExecutionSignature signature = ExecutionSignature.createSignature(jobVertex.getInvokableClass(),
-			jobVertex.getJobGraph().getJobID());
+			this.requiredJarFiles);
 
 		// Create a group vertex for the job vertex
 
@@ -474,34 +467,32 @@ public class ExecutionGraph implements ExecutionListener {
 		if (jobVertex instanceof AbstractJobInputVertex) {
 
 			final AbstractJobInputVertex jobInputVertex = (AbstractJobInputVertex) jobVertex;
-			
+
 			if (jobVertex instanceof JobInputVertex) {
 				try {
 					// get a handle to the user code class loader
 					ClassLoader cl = LibraryCacheManager.getClassLoader(jobVertex.getJobGraph().getJobID());
-					
+
 					((JobInputVertex) jobVertex).initializeInputFormatFromTaskConfig(cl);
-				}
-				catch (Throwable t) {
+				} catch (Throwable t) {
 					throw new GraphConversionException("Could not deserialize input format.", t);
 				}
 			}
-			
+
 			final Class<? extends InputSplit> inputSplitType = jobInputVertex.getInputSplitType();
-			
+
 			InputSplit[] inputSplits;
 
 			try {
 				inputSplits = jobInputVertex.getInputSplits(jobVertex.getNumberOfSubtasks());
-			}
-			catch (Throwable t) {
+			} catch (Throwable t) {
 				throw new GraphConversionException("Cannot compute input splits for " + groupVertex.getName(), t);
 			}
 
 			if (inputSplits == null) {
 				inputSplits = new InputSplit[0];
 			}
-			
+
 			LOG.info("Job input vertex " + jobVertex.getName() + " generated " + inputSplits.length + " input splits");
 
 			// assign input splits and type
@@ -509,24 +500,22 @@ public class ExecutionGraph implements ExecutionListener {
 			groupVertex.setInputSplitType(inputSplitType);
 		}
 
-		if (jobVertex instanceof JobOutputVertex){
+		if (jobVertex instanceof JobOutputVertex) {
 			final JobOutputVertex jobOutputVertex = (JobOutputVertex) jobVertex;
-			
+
 			try {
 				// get a handle to the user code class loader
 				ClassLoader cl = LibraryCacheManager.getClassLoader(jobVertex.getJobGraph().getJobID());
 				jobOutputVertex.initializeOutputFormatFromTaskConfig(cl);
-			}
-			catch (Throwable t) {
+			} catch (Throwable t) {
 				throw new GraphConversionException("Could not deserialize output format.", t);
 			}
 
 			OutputFormat<?> outputFormat = jobOutputVertex.getOutputFormat();
-			if (outputFormat != null && outputFormat instanceof InitializeOnMaster){
+			if (outputFormat != null && outputFormat instanceof InitializeOnMaster) {
 				try {
 					((InitializeOnMaster) outputFormat).initializeGlobal(jobVertex.getNumberOfSubtasks());
-				}
-				catch (Throwable t) {
+				} catch (Throwable t) {
 					throw new GraphConversionException(t);
 				}
 			}
@@ -1051,7 +1040,7 @@ public class ExecutionGraph implements ExecutionListener {
 				if (eg.jobHasFailedOrCanceledStatus()) {
 					return InternalJobStatus.CANCELED;
 				}
-			}else if(latestStateChange == ExecutionState.FAILED){
+			} else if (latestStateChange == ExecutionState.FAILED) {
 				return InternalJobStatus.FAILING;
 			}
 			break;
@@ -1062,7 +1051,7 @@ public class ExecutionGraph implements ExecutionListener {
 				if (eg.jobHasFailedOrCanceledStatus()) {
 					return InternalJobStatus.CANCELED;
 				}
-			}else if(latestStateChange == ExecutionState.FAILED){
+			} else if (latestStateChange == ExecutionState.FAILED) {
 				return InternalJobStatus.FAILING;
 			}
 			break;
@@ -1120,7 +1109,6 @@ public class ExecutionGraph implements ExecutionListener {
 
 		return this.jobStatus.get();
 	}
-
 
 	@Override
 	public void executionStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
@@ -1266,10 +1254,12 @@ public class ExecutionGraph implements ExecutionListener {
 	}
 
 	@Override
-	public void userThreadStarted(JobID jobID, ExecutionVertexID vertexID, Thread userThread) {}
+	public void userThreadStarted(JobID jobID, ExecutionVertexID vertexID, Thread userThread) {
+	}
 
 	@Override
-	public void userThreadFinished(JobID jobID, ExecutionVertexID vertexID, Thread userThread) {}
+	public void userThreadFinished(JobID jobID, ExecutionVertexID vertexID, Thread userThread) {
+	}
 
 	/**
 	 * Reconstructs the execution pipelines for the entire execution graph.
@@ -1291,7 +1281,6 @@ public class ExecutionGraph implements ExecutionListener {
 		return this.stages.iterator();
 	}
 
-
 	@Override
 	public int getPriority() {
 		return 1;
@@ -1306,7 +1295,17 @@ public class ExecutionGraph implements ExecutionListener {
 	public void executeCommand(final Runnable command) {
 		this.executorService.execute(command);
 	}
-	
+
+	/**
+	 * Returns a list of the BLOB keys referring to the JAR files required to run this job.
+	 * 
+	 * @return a list of the BLOB keys referring to the JAR files required to run this job.
+	 */
+	public List<BlobKey> getRequiredJarFiles() {
+
+		return this.requiredJarFiles;
+	}
+
 	private void calculateConnectionIDs() {
 		final Set<ExecutionGroupVertex> alreadyVisited = new HashSet<ExecutionGroupVertex>();
 		final ExecutionStage lastStage = getStage(getNumberOfStages() - 1);
@@ -1318,26 +1317,27 @@ public class ExecutionGraph implements ExecutionListener {
 			int currentConnectionID = 0;
 
 			if (groupVertex.isOutputVertex()) {
-			currentConnectionID = groupVertex.calculateConnectionID(currentConnectionID, alreadyVisited);
+				currentConnectionID = groupVertex.calculateConnectionID(currentConnectionID, alreadyVisited);
 			}
 		}
 	}
-	
+
 	/**
 	 * Retrieves the number of required slots to run this execution graph
+	 * 
 	 * @return
 	 */
-	public int getRequiredSlots(){
+	public int getRequiredSlots() {
 		int maxRequiredSlots = 0;
 
 		final Iterator<ExecutionStage> stageIterator = this.stages.iterator();
 
-		while(stageIterator.hasNext()){
+		while (stageIterator.hasNext()) {
 			final ExecutionStage stage = stageIterator.next();
 
 			int requiredSlots = stage.getRequiredSlots();
 
-			if(requiredSlots > maxRequiredSlots){
+			if (requiredSlots > maxRequiredSlots) {
 				maxRequiredSlots = requiredSlots;
 			}
 		}
