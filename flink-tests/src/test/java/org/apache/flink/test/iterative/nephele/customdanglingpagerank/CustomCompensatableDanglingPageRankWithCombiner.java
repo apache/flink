@@ -102,7 +102,7 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		String pageWithRankInputPath = ""; //"file://" + PlayConstants.PLAY_DIR + "test-inputs/danglingpagerank/pageWithRank";
 		String adjacencyListInputPath = ""; //"file://" + PlayConstants.PLAY_DIR +
 //			"test-inputs/danglingpagerank/adjacencylists";
-		String outputPath =  Path.constructTestURI("flink_iterations");
+		String outputPath =  Path.constructTestURI(CustomCompensatableDanglingPageRankWithCombiner.class, "flink_iterations");
 		int minorConsumer = 2;
 		int matchMemory = 5;
 		int coGroupSortMemory = 5;

@@ -71,6 +71,11 @@ under the License.
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<hadoop-one.version>1.2.1</hadoop-one.version>
 		<hadoop-two.version>2.2.0</hadoop-two.version>
+		<!-- Need to use a user property here because the surefire/failsafe
+			 forkCount is not exposed as a property. With this we can set
+			 it on the "mvn" commandline in travis. -->
+		<flink.forkCount>1.5C</flink.forkCount>
+		<flink.reuseForks>true</flink.reuseForks>
 	</properties>
 
 	<dependencies>
@@ -311,9 +316,9 @@ under the License.
 					<activeByDefault>false</activeByDefault>
 					<jdk>1.8</jdk>
 				</activation>
-                <modules>
-                    <module>flink-java8-tests</module>
-                </modules>
+				<modules>
+					<module>flink-java8-tests</module>
+				</modules>
 				<build>
 					<plugins>
 						<plugin>
@@ -395,10 +400,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-report-plugin</artifactId>
-				<version>2.7</version>
-				<configuration>
-					<argLine>-Xmx1024m</argLine>
-				</configuration>
+				<version>2.17</version>
 			</plugin>
 
 			<!-- test coverage reports -->
@@ -544,15 +546,27 @@ under the License.
 					</execution>
 				</executions>
 				<configuration>
-					<argLine>-Xmx1024m</argLine>
+					<forkCount>${flink.forkCount}</forkCount>
+					<reuseForks>${flink.reuseForks}</reuseForks>
+					<systemPropertyVariables>
+						<!-- we need the "0" in front here because for some reason
+						  the property is null when we have just the variable-->
+						<forkNumber>0${surefire.forkNumber}</forkNumber>
+					</systemPropertyVariables>
+					<argLine>-Xmx800m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.16</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
-					<argLine>-Xmx1024m</argLine>
+					<forkCount>${flink.forkCount}</forkCount>
+					<reuseForks>${flink.reuseForks}</reuseForks>
+					<systemPropertyVariables>
+						<forkNumber>0${surefire.forkNumber}</forkNumber>
+					</systemPropertyVariables>
+					<argLine>-Xmx800m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>

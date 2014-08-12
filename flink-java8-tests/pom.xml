@@ -41,11 +41,11 @@ under the License.
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-test-utils</artifactId>
-            <version>${project.version}</version>
-        </dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
@@ -60,17 +60,17 @@ under the License.
 
 	<build>
 		<plugins>
-            <plugin>
-                <!-- just define the Java version to be used for compiling and plugins -->
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.1</version><!--$NO-MVN-MAN-VER$-->
-                <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                    <!-- High optimization, no debugging <compilerArgument>-g:none -O</compilerArgument> -->
-                </configuration>
-            </plugin>
+			<plugin>
+				<!-- just define the Java version to be used for compiling and plugins -->
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.1</version><!--$NO-MVN-MAN-VER$-->
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+					<!-- High optimization, no debugging <compilerArgument>-g:none -O</compilerArgument> -->
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
@@ -89,8 +89,6 @@ under the License.
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
-					<forkMode>once</forkMode>
-					<argLine>-Xmx1024m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -99,9 +97,6 @@ under the License.
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
-					<forkMode>always</forkMode>
-					<threadCount>1</threadCount>
-					<perCoreThreadCount>false</perCoreThreadCount>
 				</configuration>
 			</plugin>
 		</plugins>

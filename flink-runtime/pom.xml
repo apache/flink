@@ -104,8 +104,6 @@ under the License.
 						<exclude>**/TestData.java</exclude>
 						<exclude>**/TestInstanceListener.java</exclude>
 					</excludes>
-					<forkMode>once</forkMode>
-					<argLine>-Xms512m -Xmx1024m</argLine>
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
@@ -118,8 +116,6 @@ under the License.
 					<excludes>
 						<exclude>**/TestData.java</exclude>
 					</excludes>
-					<forkMode>once</forkMode>
-					<argLine>-Xms512m -Xmx1024m</argLine>
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
