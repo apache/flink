@@ -198,7 +198,11 @@ under the License.
 						</configuration>
 					</execution>
 					
+					<!-- These queries are currently not self-contained -->
+
 					<!-- TPC-H Query 10 -->
+
+					<!--
 					<execution>
 						<id>TPCHQuery10</id>
 						<phase>package</phase>
@@ -218,9 +222,10 @@ under the License.
 								<include>**/java/relational/TPCHQuery10$*.class</include>
 							</includes>
 						</configuration>
-					</execution>
+					</execution> -->
 				
 					<!-- TPC-H Query 3 -->
+					<!--
 					<execution>
 						<id>TPCHQuery3</id>
 						<phase>package</phase>
@@ -240,7 +245,7 @@ under the License.
 								<include>**/java/relational/TPCHQuery3$*.class</include>
 							</includes>
 						</configuration>
-					</execution>
+					</execution> -->
 		
 					<!-- WebLogAnalysis -->
 					<execution>
@@ -291,32 +296,6 @@ under the License.
 						</configuration>
 					</execution>
 
-					<!-- WordCountPOJO
-
-					Note: disabled for now, because of problems with POJO types
-
-					<execution>
-						<id>WordCountPOJO</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>WordCountPOJO</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.example.java.wordcount.WordCountPOJO</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>**/java/wordcount/WordCountPOJO.class</include>
-								<include>**/java/wordcount/WordCountPOJO$*.class</include>
-								<include>**/java/wordcount/util/WordCountData.class</include>
-							</includes>
-						</configuration>
-					</execution> -->
 				</executions>
 			</plugin>
 		</plugins>

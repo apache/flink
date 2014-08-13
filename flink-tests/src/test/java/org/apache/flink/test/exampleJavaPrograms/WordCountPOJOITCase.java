@@ -15,34 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.flink.test.exampleJavaPrograms;
-
-import org.apache.flink.example.java.wordcount.WordCountPOJO;
-import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.JavaProgramTestBase;
-import org.junit.Ignore;
-
-@Ignore
-public class WordCountPOJOITCase extends JavaProgramTestBase {
-
-	protected String textPath;
-	protected String resultPath;
-
-	
-	@Override
-	protected void preSubmit() throws Exception {
-		textPath = createTempFile("text.txt", WordCountData.TEXT);
-		resultPath = getTempDirPath("result");
-	}
-
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
-	}
-	
-	@Override
-	protected void testProgram() throws Exception {
-		WordCountPOJO.main(new String[]{textPath, resultPath});
-	}
-}
+//
+//package org.apache.flink.test.exampleJavaPrograms;
+//
+////import org.apache.flink.example.java.wordcount.WordCountPOJO;
+//import org.apache.flink.test.testdata.WordCountData;
+//import org.apache.flink.test.util.JavaProgramTestBase;
+//import org.junit.Ignore;
+//
+//@Ignore
+//public class WordCountPOJOITCase extends JavaProgramTestBase {
+//
+//	protected String textPath;
+//	protected String resultPath;
+//
+//	
+//	@Override
+//	protected void preSubmit() throws Exception {
+//		textPath = createTempFile("text.txt", WordCountData.TEXT);
+//		resultPath = getTempDirPath("result");
+//	}
+//
+//	@Override
+//	protected void postSubmit() throws Exception {
+//		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
+//	}
+//	
+//	@Override
+//	protected void testProgram() throws Exception {
+//		WordCountPOJO.main(new String[]{textPath, resultPath});
+//	}
+//}
