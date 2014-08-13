@@ -679,7 +679,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	/**
 	 * Intermediate step of a Join transformation. <br/>
 	 * To continue the Join transformation, select the join key of the first input {@link DataSet} by calling 
-	 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets#where(int, int...)} or
+	 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets#where(int...)} or
 	 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets#where(KeySelector)}.
 	 *
 	 * @param <I1> The type of the first input DataSet of the Join transformation.
@@ -711,21 +711,17 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * Defines the {@link Tuple} fields of the first join {@link DataSet} that should be used as join keys.<br/>
 		 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br/>
 		 *
-		 * @param field0 The first index of the Tuple fields of the first join DataSets that should be used as key
 		 * @param fields The indexes of the other Tuple fields of the first join DataSets that should be used as keys.
 		 * @return An incomplete Join transformation. 
-		 *           Call {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int, int...)} or
+		 *           Call {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int...)} or
 		 *           {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(KeySelector)}
 		 *           to continue the Join. 
 		 * 
 		 * @see Tuple
 		 * @see DataSet
 		 */
-		public JoinOperatorSetsPredicate where(int field0, int... fields) {
-			int[] actualFields = new int[fields.length + 1];
-			actualFields[0] = field0;
-			System.arraycopy(fields, 0, actualFields, 1, fields.length);
-			return new JoinOperatorSetsPredicate(new Keys.FieldPositionKeys<I1>(actualFields, input1.getType()));
+		public JoinOperatorSetsPredicate where(int... fields) {
+			return new JoinOperatorSetsPredicate(new Keys.FieldPositionKeys<I1>(fields, input1.getType()));
 		}
 
 		/**
@@ -733,21 +729,17 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * Defines the fields of the first join {@link DataSet} that should be used as grouping keys. Fields
 		 * are the names of member fields of the underlying type of the data set.
 		 *
-		 * @param field0 The first field of the Tuple fields of the first join DataSets that should be used as key
 		 * @param fields The  fields of the first join DataSets that should be used as keys.
 		 * @return An incomplete Join transformation.
-		 *           Call {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int, int...)} or
+		 *           Call {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int...)} or
 		 *           {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(KeySelector)}
 		 *           to continue the Join.
 		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
-//		public JoinOperatorSetsPredicate where(String field0, String... fields) {
-//			String[] actualFields = new String[fields.length + 1];
-//			actualFields[0] = field0;
-//			System.arraycopy(fields, 0, actualFields, 1, fields.length);
-//			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(actualFields, input1.getType()));
+//		public JoinOperatorSetsPredicate where(String... fields) {
+//			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(fields, input1.getType()));
 //		}
 		
 		/**
@@ -757,7 +749,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * 
 		 * @param keySelector The KeySelector function which extracts the key values from the DataSet on which it is joined.
 		 * @return An incomplete Join transformation. 
-		 *           Call {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int, int...)} or
+		 *           Call {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int...)} or
 		 *           {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(KeySelector)}
 		 *           to continue the Join. 
 		 * 
@@ -773,7 +765,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		/**
 		 * Intermediate step of a Join transformation. <br/>
 		 * To continue the Join transformation, select the join key of the second input {@link DataSet} by calling 
-		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int, int...)} or 
+		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int...)} or
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(KeySelector)}.
 		 *
 		 */
@@ -802,15 +794,11 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			 * the element of the first input being the first field of the tuple and the element of the 
 			 * second input being the second field of the tuple. 
 			 *
-			 * @param field0 The first field of the Tuple fields of the second join DataSets that should be used as key
 			 * @param fields The indexes of the Tuple fields of the second join DataSet that should be used as keys.
 			 * @return A DefaultJoin that represents the joined DataSet.
 			 */
-			public DefaultJoin<I1, I2> equalTo(int field0, int... fields) {
-				int[] actualFields = new int[fields.length + 1];
-				actualFields[0] = field0;
-				System.arraycopy(fields, 0, actualFields, 1, fields.length);
-				return createJoinOperator(new Keys.FieldPositionKeys<I2>(actualFields, input2.getType()));
+			public DefaultJoin<I1, I2> equalTo(int... fields) {
+				return createJoinOperator(new Keys.FieldPositionKeys<I2>(fields, input2.getType()));
 			}
 
 			/**
@@ -821,15 +809,11 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			 * the element of the first input being the first field of the tuple and the element of the
 			 * second input being the second field of the tuple.
 			 *
-			 * @param field0 The first field of the second join DataSets that should be used as key
 			 * @param fields The fields of the second join DataSet that should be used as keys.
 			 * @return A DefaultJoin that represents the joined DataSet.
 			 */
-//			public DefaultJoin<I1, I2> equalTo(String field0, String... fields) {
-//				String[] actualFields = new String[fields.length + 1];
-//				actualFields[0] = field0;
-//				System.arraycopy(fields, 0, actualFields, 1, fields.length);
-//				return createJoinOperator(new Keys.ExpressionKeys<I2>(actualFields, input2.getType()));
+//			public DefaultJoin<I1, I2> equalTo(String... fields) {
+//				return createJoinOperator(new Keys.ExpressionKeys<I2>(fields, input2.getType()));
 //			}
 
 			/**
