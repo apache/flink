@@ -77,6 +77,12 @@ under the License.
 			<artifactId>netty-all</artifactId>
 			<version>4.0.21.Final</version>
 		</dependency>
+		
+		<dependency>
+			<groupId>org.codehaus.jettison</groupId>
+			<artifactId>jettison</artifactId>
+			<version>1.1</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -84,6 +90,7 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+		
 	</dependencies>
 
 	<build>
