@@ -38,7 +38,7 @@ public final class RuntimeStatefulSerializerFactory<T> implements TypeSerializer
 	
 	private TypeSerializer<T> serializer;		// only for equality comparisons
 	
-	private ClassLoader loader;
+	private transient ClassLoader loader;
 
 	private Class<T> clazz;
 
