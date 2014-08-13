@@ -133,7 +133,7 @@ The Flink webclient allows to submit Flink programs using a graphical user inter
 Use the [Python Script](quickstart/plotPoints.py) again to visualize the result
 
 ```bash
-python2.7 plotPoints.py result result result-pdf
+python plotPoints.py result result result-pdf
 ```
 
 The following three pictures show the results for the sample input above. Play around with the parameters (number of iterations, number of clusters) to see how they affect the result.
