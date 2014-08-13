@@ -72,7 +72,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 
 	if [[ $TRAVIS_JOB_NUMBER == *1 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
 		# Deploy regular hadoop v1 to maven
-		mvn -DskipTests -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
+		mvn -Pdocs-and-source -DskipTests -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
 	fi
 
 	if [[ $TRAVIS_JOB_NUMBER == *4 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
@@ -82,8 +82,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 		# all these tweaks assume a yarn build.
 		# performance tweaks here: no "clean deploy" so that actually nothing is being rebuild (could cause wrong poms inside the jars?)
 		# skip tests (they were running already)
-		# skip javadocs generation (already generated)
-		mvn -B -f pom.hadoop2.xml -DskipTests -Drat.ignoreErrors=true -Dmaven.javadoc.skip=true deploy --settings deploysettings.xml; 
+		mvn -B -f pom.hadoop2.xml -DskipTests -Pdocs-and-source -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
 	fi
 
 	if [[ $TRAVIS_JOB_NUMBER == *5 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 

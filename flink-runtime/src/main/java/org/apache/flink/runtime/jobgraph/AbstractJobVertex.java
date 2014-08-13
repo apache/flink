@@ -22,7 +22,7 @@ package org.apache.flink.runtime.jobgraph;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import org.apache.commons.lang.Validate;
+import org.apache.commons.lang3.Validate;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.StringRecord;
