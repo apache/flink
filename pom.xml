@@ -234,6 +234,43 @@ under the License.
 		</profile>
 
 		<profile>
+			<!-- used for SNAPSHOT and regular releases -->
+			<id>docs-and-source</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-source-plugin</artifactId>
+						<version>2.2.1</version><!--$NO-MVN-MAN-VER$-->
+						<executions>
+							<execution>
+								<id>attach-sources</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
+						<configuration>
+							<quiet>true</quiet>
+						</configuration>
+						<executions>
+							<execution>
+								<id>attach-javadocs</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
 			<id>release</id>
 				<build>
 				<plugins>
@@ -496,24 +533,8 @@ under the License.
 				</configuration>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
-				<configuration>
-					<quiet>true</quiet>
-				</configuration>
-				<executions>
-					<execution>
-						<id>attach-javadocs</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
 				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>2.7</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
 						<goals>
@@ -566,19 +587,6 @@ under the License.
 								</requireMavenVersion>
 							</rules>
 						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
-				<version>2.2.1</version><!--$NO-MVN-MAN-VER$-->
-				<executions>
-					<execution>
-						<id>attach-sources</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
 					</execution>
 				</executions>
 			</plugin>

@@ -26,7 +26,7 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.List;
 
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -174,8 +174,8 @@ public class Client {
 			
 			throw new ProgramInvocationException(
 					"The program plan could not be fetched. The program silently swallowed the control flow exceptions.\n"
-					+ "System.err: "+StringEscapeUtils.escapeHtml(baes.toString())+" \n"
-					+ "System.out: "+StringEscapeUtils.escapeHtml(baos.toString())+" \n" );
+					+ "System.err: "+StringEscapeUtils.escapeHtml4(baes.toString())+" \n"
+					+ "System.out: "+StringEscapeUtils.escapeHtml4(baos.toString())+" \n" );
 		}
 		else {
 			throw new RuntimeException();
