@@ -52,6 +52,6 @@ DEL "%outname%.6"  2> nul
 echo Starting Flink job manager. Webinterface by default on http://localhost:8081/.
 echo Don't close this batch window. Stop job manager by pressing Ctrl+C.
 
-java %JVM_ARGS% %log_setting% -cp %NEPHELE_JM_CLASSPATH% org.apache.flink.nephele.jobmanager.JobManager -executionMode local -configDir %NEPHELE_CONF_DIR%  > "%out%"  2>&1
+java %JVM_ARGS% %log_setting% -cp %NEPHELE_JM_CLASSPATH% org.apache.flink.runtime.jobmanager.JobManager -executionMode local -configDir %NEPHELE_CONF_DIR%  > "%out%"  2>&1
 
 endlocal
