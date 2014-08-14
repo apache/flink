@@ -19,6 +19,8 @@
 
 package org.apache.flink.test.util;
 
+import java.util.Comparator;
+
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
@@ -33,6 +35,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.junit.Assert;
 import org.junit.Test;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple;
 
 
 public abstract class JavaProgramTestBase extends AbstractTestBase {
@@ -177,6 +180,38 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 		
 		private void setAsContext() {
 			initializeContextEnvironment(this);
+		}
+	}
+	
+	public static class TupleComparator<T extends Tuple> implements Comparator<T> {
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public int compare(T o1, T o2) {
+			int a1 = o1.getArity();
+			int a2 = o2.getArity();
+			
+			if (a1 < a2) {
+				return -1;
+			} else if (a2 < a1) {
+				return 1;
+			} else {
+				for (int i = 0; i < a1; i++) {
+					Object obj1 = o1.getField(i);
+					Object obj2 = o2.getField(i);
+					
+					if (!(obj1 instanceof Comparable && obj2 instanceof Comparable)) {
+						Assert.fail("Cannot compare tuple fields");
+					}
+					
+					int cmp = ((Comparable<Object>) obj1).compareTo((Comparable<Object>) obj2);
+					if (cmp != 0) {
+						return cmp;
+					}
+				}
+				
+				return 0;
+			}
 		}
 	}
 }

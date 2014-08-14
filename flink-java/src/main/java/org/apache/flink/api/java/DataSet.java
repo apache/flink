@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.io.FileOutputFormat;
@@ -37,7 +38,6 @@ import org.apache.flink.api.java.operators.AggregateOperator;
 import org.apache.flink.api.java.operators.CoGroupOperator;
 import org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
 import org.apache.flink.api.java.operators.CrossOperator;
-import org.apache.flink.api.java.operators.CrossOperator.DefaultCross;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
 import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DistinctOperator;
@@ -47,6 +47,7 @@ import org.apache.flink.api.java.operators.JoinOperator.JoinHint;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.operators.MapOperator;
+import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.ProjectOperator.Projection;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.ReduceOperator;
@@ -144,7 +145,7 @@ public abstract class DataSet<T> {
 
 
     /**
-     * Applies a Map operation to the entire partition of the data.
+     * Applies a Map-style operation to the entire partition of the data.
 	 * The function is called once per parallel partition of the data,
 	 * and the entire partition is available through the given Iterator.
 	 * The number of elements that each instance of the MapPartition function
@@ -583,19 +584,19 @@ public abstract class DataSet<T> {
 	 *   both DataSets, i.e., it builds a Cartesian product.
 	 * 
 	 * <p>
-	 * The resulting {@link DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
+	 * The resulting {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
 	 * the element of the first input being the first field of the tuple and the element of the 
 	 * second input being the second field of the tuple.
 	 * 
 	 * <p>
-	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(CrossFunction)} to define a {@link CrossFunction} which is called for
+	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a {@link CrossFunction} which is called for
 	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
 	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
 	 * 
-	 * @see DefaultCross
-	 * @see CrossFunction
+	 * @see org.apache.flink.api.java.operators.CrossOperator.DefaultCross
+	 * @see org.apache.flink.api.common.functions.CrossFunction
 	 * @see DataSet
 	 * @see Tuple2
 	 */
@@ -612,19 +613,19 @@ public abstract class DataSet<T> {
 	 *   smaller than the first one.
 	 *   
 	 * <p>
-	 * The resulting {@link DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
+	 * The resulting {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
 	 * the element of the first input being the first field of the tuple and the element of the 
 	 * second input being the second field of the tuple.
 	 *   
 	 * <p>
-	 * Call {@link DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
+	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
 	 * {@link org.apache.flink.api.common.functions.CrossFunction} which is called for
 	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
 	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
 	 * 
-	 * @see DefaultCross
+	 * @see org.apache.flink.api.java.operators.CrossOperator.DefaultCross
 	 * @see org.apache.flink.api.common.functions.CrossFunction
 	 * @see DataSet
 	 * @see Tuple2
@@ -642,19 +643,19 @@ public abstract class DataSet<T> {
 	 *   larger than the first one.
 	 *   
 	 * <p>
-	 * The resulting {@link DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
+	 * The resulting {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
 	 * the element of the first input being the first field of the tuple and the element of the 
 	 * second input being the second field of the tuple.
 	 *   
 	 * <p>
-	 * Call {@link DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
+	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
 	 * {@link org.apache.flink.api.common.functions.CrossFunction} which is called for
 	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
 	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
 	 * 
-	 * @see DefaultCross
+	 * @see org.apache.flink.api.java.operators.CrossOperator.DefaultCross
 	 * @see org.apache.flink.api.common.functions.CrossFunction
 	 * @see DataSet
 	 * @see Tuple2

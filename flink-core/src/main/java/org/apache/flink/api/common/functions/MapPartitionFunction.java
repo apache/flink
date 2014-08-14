@@ -23,32 +23,31 @@ import org.apache.flink.util.Collector;
 import java.io.Serializable;
 
 /**
- * Base interface for flatMap functions. FlatMap functions take elements and transform them,
- * into zero, one, or more elements. Typical applications can be splitting elements, or unnesting lists
- * and arrays. Operations that produce multiple strictly one result element per input element can also
- * use the {@link MapFunction}.
+ * Interface for "mapPartition" functions. A "mapPartition" function is called a single time per
+ * data partition receives an Iterable with data elements of that partition. It may return an 
+ * arbitrary number of data elements.
  * <p>
- * The basic syntax for using a FlatMapFunction is as follows:
+ * This function is intended to provide enhanced flexibility in the processing of elements in a partition.
+ * For most of the simple use cases, consider using the {@link MapFunction} or {@link FlatMapFunction}.
+ * <p>
+ * The basic syntax for a MapPartitionFunction is as follows:
  * <pre><blockquote>
  * DataSet<X> input = ...;
  * 
- * DataSet<Y> result = input.flatMap(new MyFlatMapFunction());
+ * DataSet<Y> result = input.mapPartition(new MyMapPartitionFunction());
  * </blockquote></pre>
  * 
  * @param <T> Type of the input elements.
  * @param <O> Type of the returned elements.
  */
-public interface FlatMapFunction<T, O> extends Function, Serializable {
-
+public interface MapPartitionFunction<T, O> extends Function, Serializable {
+	
 	/**
-	 * The core method of the FlatMapFunction. Takes an element from the input data set and transforms
-	 * it into zero, one, or more elements.
+	 * A user-implemented function that modifies or transforms an incoming object.
 	 *
-	 * @param value The input value.
-	 * @param out The collector for returning result values.
-	 *
-	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
-	 *                   to fail and may trigger recovery.
+	 * @param records All records for the mapper
+	 * @param out The collector to hand results to.
+	 * @throws Exception
 	 */
-	void flatMap(T value, Collector<O> out) throws Exception;
+	void mapPartition(Iterable<T> records, Collector<O> out) throws Exception;
 }
