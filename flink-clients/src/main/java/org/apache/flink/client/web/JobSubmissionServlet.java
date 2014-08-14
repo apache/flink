@@ -84,13 +84,13 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	private final Map<Long, JobGraph> submittedJobs;	// map from UIDs to the running jobs
 
-	private final Random rand;							// random number generator for UIDs
-
-	private final Client client;						// the client used to compile and submit jobs
+	private final Random rand;							// random number generator for UID
+	
+	private final Configuration nepheleConfig;
 
 
 	public JobSubmissionServlet(Configuration nepheleConfig, File jobDir, File planDir) {
-		this.client = new Client(nepheleConfig);
+		this.nepheleConfig = nepheleConfig;
 		this.jobStoreDirectory = jobDir;
 		this.planDumpDirectory = planDir;
 
@@ -155,6 +155,7 @@ public class JobSubmissionServlet extends HttpServlet {
 			String[] options = params.isEmpty() ? new String[0] : (String[]) params.toArray(new String[params.size()]);
 			PackagedProgram program;
 			OptimizedPlan optPlan;
+			Client client;
 			
 			try {
 				if (assemblerClass == null) {
@@ -162,6 +163,8 @@ public class JobSubmissionServlet extends HttpServlet {
 				} else {
 					program = new PackagedProgram(jarFile, assemblerClass, options);
 				}
+				
+				client = new Client(nepheleConfig, program.getUserCodeClassLoader());
 				
 				optPlan = client.getOptimizedPlan(program, -1);
 				
@@ -226,7 +229,7 @@ public class JobSubmissionServlet extends HttpServlet {
 				// submit the job only, if it should not be suspended
 				if (!suspend) {
 					try {
-						this.client.run(program, optPlan, false);
+						client.run(program, optPlan, false);
 					} catch (Throwable t) {
 						LOG.error("Error submitting job to the job-manager.", t);
 						showErrorPage(resp, t.getMessage());
@@ -236,7 +239,7 @@ public class JobSubmissionServlet extends HttpServlet {
 					}
 				} else {
 					try {
-						this.submittedJobs.put(uid, this.client.getJobGraph(program, optPlan));
+						this.submittedJobs.put(uid, client.getJobGraph(program, optPlan));
 					}
 					catch (ProgramInvocationException piex) {
 						LOG.error("Error creating JobGraph from optimized plan.", piex);
@@ -295,6 +298,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// submit the job
 			try {
+				Client client = new Client(nepheleConfig, getClass().getClassLoader());
 				client.run(job, false);
 			} catch (Exception ex) {
 				LOG.error("Error submitting job to the job-manager.", ex);

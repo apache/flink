@@ -38,9 +38,9 @@ import org.apache.flink.configuration.Configuration;
 
 public class RemoteExecutor extends PlanExecutor {
 
-	private Client client;
-
-	private List<String> jarFiles;
+	private final List<String> jarFiles;
+	
+	private final InetSocketAddress address;
 	
 	
 	public RemoteExecutor(String hostname, int port) {
@@ -60,8 +60,8 @@ public class RemoteExecutor extends PlanExecutor {
 	}
 
 	public RemoteExecutor(InetSocketAddress inet, List<String> jarFiles) {
-		this.client = new Client(inet, new Configuration());
 		this.jarFiles = jarFiles;
+		this.address = inet;
 	}
 
 	
@@ -84,22 +84,30 @@ public class RemoteExecutor extends PlanExecutor {
 	@Override
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
 		JobWithJars p = new JobWithJars(plan, this.jarFiles);
-		return this.client.run(p, -1, true);
+		
+		Client c = new Client(this.address, new Configuration(), p.getUserCodeClassLoader());
+		return c.run(p, -1, true);
 	}
 	
 	public JobExecutionResult executePlanWithJars(JobWithJars p) throws Exception {
-		return this.client.run(p, -1, true);
+		Client c = new Client(this.address, new Configuration(), p.getUserCodeClassLoader());
+		return c.run(p, -1, true);
 	}
 
 	public JobExecutionResult executeJar(String jarPath, String assemblerClass, String[] args) throws Exception {
 		File jarFile = new File(jarPath);
 		PackagedProgram program = new PackagedProgram(jarFile, assemblerClass, args);
-		return this.client.run(program.getPlanWithJars(), -1, true);
+		
+		Client c = new Client(this.address, new Configuration(), program.getUserCodeClassLoader());
+		return c.run(program.getPlanWithJars(), -1, true);
 	}
 
 	@Override
 	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
-		OptimizedPlan op = client.getOptimizedPlan(new JobWithJars(plan, this.jarFiles), -1);
+		JobWithJars p = new JobWithJars(plan, this.jarFiles);
+		Client c = new Client(this.address, new Configuration(), p.getUserCodeClassLoader());
+		
+		OptimizedPlan op = c.getOptimizedPlan(p, -1);
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		return jsonGen.getOptimizerPlanAsJSON(op);
 	}

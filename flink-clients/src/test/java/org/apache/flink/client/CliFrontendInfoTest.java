@@ -128,7 +128,7 @@ public class CliFrontendInfoTest {
 		}
 
 		@Override
-		protected Client getClient(CommandLine line) throws IOException {
+		protected Client getClient(CommandLine line, ClassLoader loader) throws IOException {
 			try {
 				return new TestClient(expectedDop);
 			}
@@ -143,7 +143,7 @@ public class CliFrontendInfoTest {
 		private final int expectedDop;
 		
 		private TestClient(int expectedDop) throws Exception {
-			super(new InetSocketAddress(InetAddress.getLocalHost(), 6176), new Configuration());
+			super(new InetSocketAddress(InetAddress.getLocalHost(), 6176), new Configuration(), CliFrontendInfoTest.class.getClassLoader());
 			
 			this.expectedDop = expectedDop;
 		}

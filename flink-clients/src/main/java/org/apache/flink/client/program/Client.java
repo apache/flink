@@ -64,6 +64,8 @@ public class Client {
 	private final Configuration configuration;	// the configuration describing the job manager address
 	
 	private final PactCompiler compiler;		// the compiler to compile the jobs
+	
+	private final ClassLoader userCodeClassLoader;
 
 	private boolean printStatusDuringExecution;
 	
@@ -77,12 +79,13 @@ public class Client {
 	 * 
 	 * @param jobManagerAddress Address and port of the job-manager.
 	 */
-	public Client(InetSocketAddress jobManagerAddress, Configuration config) {
+	public Client(InetSocketAddress jobManagerAddress, Configuration config, ClassLoader userCodeClassLoader) {
 		Preconditions.checkNotNull(config, "Configuration is null");
 		this.configuration = config;
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
 		
+		this.userCodeClassLoader = userCodeClassLoader;
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
 	}
 
@@ -92,7 +95,7 @@ public class Client {
 	 * 
 	 * @param config The config used to obtain the job-manager's address.
 	 */
-	public Client(Configuration config) {
+	public Client(Configuration config, ClassLoader userCodeClassLoader) {
 		Preconditions.checkNotNull(config, "Configuration is null");
 		this.configuration = config;
 		
@@ -107,6 +110,7 @@ public class Client {
 			throw new CompilerException("Cannot find port to job manager's RPC service in the global configuration.");
 		}
 
+		this.userCodeClassLoader = userCodeClassLoader;
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
 	}
 	
@@ -290,7 +294,7 @@ public class Client {
 	public JobExecutionResult run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
 		JobClient client;
 		try {
-			client = new JobClient(jobGraph, configuration);
+			client = new JobClient(jobGraph, configuration, this.userCodeClassLoader);
 		}
 		catch (IOException e) {
 			throw new ProgramInvocationException("Could not open job manager: " + e.getMessage());

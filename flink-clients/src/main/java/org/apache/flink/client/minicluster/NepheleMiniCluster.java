@@ -174,7 +174,7 @@ public class NepheleMiniCluster {
 		Configuration configuration = jobGraph.getJobConfiguration();
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRpcPort);
-		return new JobClient(jobGraph, configuration);
+		return new JobClient(jobGraph, configuration, getClass().getClassLoader());
 	}
 
 	public void start() throws Exception {

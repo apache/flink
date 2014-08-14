@@ -292,7 +292,7 @@ public class CliFrontend {
 				return 1;
 			}
 			
-			Client client = getClient(line);
+			Client client = getClient(line, program.getUserCodeClassLoader());
 			if (client == null) {
 				printHelpForRun();
 				return 1;
@@ -440,7 +440,7 @@ public class CliFrontend {
 			
 			// check for json plan request
 			if (plan) {
-				Client client = getClient(line);
+				Client client = getClient(line, program.getUserCodeClassLoader());
 				String jsonPlan = client.getOptimizedPlanAsJson(program, parallelism);
 				
 				if (jsonPlan != null) {
@@ -814,8 +814,8 @@ public class CliFrontend {
 		return GlobalConfiguration.getConfiguration();
 	}
 	
-	protected Client getClient(CommandLine line) throws IOException {
-		return new Client(getJobManagerAddress(line), getGlobalConfiguration());
+	protected Client getClient(CommandLine line, ClassLoader classLoader) throws IOException {
+		return new Client(getJobManagerAddress(line), getGlobalConfiguration(), classLoader);
 	}
 
 	/**
