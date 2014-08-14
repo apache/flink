@@ -19,10 +19,13 @@
 
 package org.apache.flink.api.java.record.operators;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.java.typeutils.RecordTypeInfo;
 import org.apache.flink.types.Record;
+
+import java.util.Arrays;
 
 /**
  * A DeltaIteration is similar to a {@link BulkIteration}, 
@@ -77,6 +80,13 @@ public class DeltaIteration extends DeltaIterationBase<Record, Record> {
 	public static class SolutionSetPlaceHolder extends DeltaIterationBase.SolutionSetPlaceHolder<Record> {
 		public SolutionSetPlaceHolder(DeltaIterationBase<Record, ?> container) {
 			super(container, new OperatorInformation<Record>(new RecordTypeInfo()));
+		}
+
+		public void checkJoinKeyFields(int[] keyFields) {
+			int[] ssKeys = containingIteration.getSolutionSetKeyFields();
+			if (!Arrays.equals(ssKeys, keyFields)) {
+				throw new InvalidProgramException("The solution can only be joined/co-grouped with the same keys as the elements are identified with (here: " + Arrays.toString(ssKeys) + ").");
+			}
 		}
 	}
 }
