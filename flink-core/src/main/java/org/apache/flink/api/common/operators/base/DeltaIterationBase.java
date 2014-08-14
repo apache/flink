@@ -282,7 +282,7 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 	 */
 	public static class SolutionSetPlaceHolder<ST> extends Operator<ST> {
 
-		private final DeltaIterationBase<ST, ?> containingIteration;
+		protected final DeltaIterationBase<ST, ?> containingIteration;
 
 		public SolutionSetPlaceHolder(DeltaIterationBase<ST, ?> container, OperatorInformation<ST> operatorInfo) {
 			super(operatorInfo, "Solution Set Place Holder");
