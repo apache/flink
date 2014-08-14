@@ -16,6 +16,7 @@
 :: limitations under the License.
 ::###############################################################################
 
+@echo off
 setlocal
 
 SET bin=%~dp0
