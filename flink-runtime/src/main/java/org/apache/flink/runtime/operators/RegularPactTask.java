@@ -602,7 +602,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		synchronized (env.getAccumulatorProtocolProxy()) {
 			try {
 				env.getAccumulatorProtocolProxy().reportAccumulatorResult(
-						new AccumulatorEvent(env.getJobID(), accumulators, true));
+						new AccumulatorEvent(env.getJobID(), accumulators));
 			} catch (IOException e) {
 				throw new RuntimeException("Communication with JobManager is broken. Could not send accumulators.", e);
 			}

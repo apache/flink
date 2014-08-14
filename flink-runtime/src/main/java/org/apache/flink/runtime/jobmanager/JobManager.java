@@ -1189,12 +1189,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	@Override
 	public void reportAccumulatorResult(AccumulatorEvent accumulatorEvent) throws IOException {
-		this.accumulatorManager.processIncomingAccumulators(accumulatorEvent.getJobID(),
-				accumulatorEvent.getAccumulators());
+		this.accumulatorManager.processIncomingAccumulators(accumulatorEvent.getJobID(), accumulatorEvent.getAccumulators(LibraryCacheManager.getClassLoader(accumulatorEvent.getJobID())));
 	}
 
 	@Override
 	public AccumulatorEvent getAccumulatorResults(JobID jobID) throws IOException {
-		return new AccumulatorEvent(jobID, this.accumulatorManager.getJobAccumulators(jobID), false);
+		return new AccumulatorEvent(jobID, this.accumulatorManager.getJobAccumulators(jobID));
 	}
 }

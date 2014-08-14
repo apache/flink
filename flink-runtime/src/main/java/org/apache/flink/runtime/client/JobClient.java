@@ -79,6 +79,8 @@ public class JobClient {
 	 * The shutdown hook which is executed if the user interrupts the job the job execution.
 	 */
 	private final JobCleanUp jobCleanUp;
+	
+	private final ClassLoader userCodeClassLoader;
 
 	/**
 	 * The sequence number of the last processed event received from the job manager.
@@ -126,9 +128,8 @@ public class JobClient {
 	 * @throws IOException
 	 *         thrown on error while initializing the RPC connection to the job manager
 	 */
-	public JobClient(final JobGraph jobGraph) throws IOException {
-
-		this(jobGraph, new Configuration());
+	public JobClient(JobGraph jobGraph, ClassLoader userCodeClassLoader) throws IOException {
+		this(jobGraph, new Configuration(), userCodeClassLoader);
 	}
 
 	/**
@@ -142,7 +143,7 @@ public class JobClient {
 	 * @throws IOException
 	 *         thrown on error while initializing the RPC connection to the job manager
 	 */
-	public JobClient(final JobGraph jobGraph, final Configuration configuration) throws IOException {
+	public JobClient(JobGraph jobGraph, Configuration configuration, ClassLoader userCodeClassLoader) throws IOException {
 
 		final String address = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		final int port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
@@ -154,6 +155,7 @@ public class JobClient {
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);
+		this.userCodeClassLoader = userCodeClassLoader;
 	}
 
 	/**
@@ -169,14 +171,14 @@ public class JobClient {
 	 * @throws IOException
 	 *         thrown on error while initializing the RPC connection to the job manager
 	 */
-	public JobClient(final JobGraph jobGraph, final Configuration configuration,
-			final InetSocketAddress jobManagerAddress)
-			throws IOException {
-
+	public JobClient(JobGraph jobGraph, Configuration configuration, InetSocketAddress jobManagerAddress, ClassLoader userCodeClassLoader)
+			throws IOException
+	{
 		this.jobSubmitClient = RPC.getProxy(JobManagementProtocol.class, jobManagerAddress,	NetUtils.getSocketFactory());
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);
+		this.userCodeClassLoader = userCodeClassLoader;
 	}
 
 	/**
@@ -343,7 +345,7 @@ public class JobClient {
 						// Request accumulators
 						Map<String, Object> accumulators = null;
 						try {
-							accumulators = AccumulatorHelper.toResultMap(getAccumulators().getAccumulators());
+							accumulators = AccumulatorHelper.toResultMap(getAccumulators().getAccumulators(this.userCodeClassLoader));
 						} catch (IOException ioe) {
 							Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 							throw ioe;	// Rethrow error

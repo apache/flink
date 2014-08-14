@@ -218,7 +218,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path(new File(ServerTestUtils.getTempDir() + File.separator + forwardClassName + ".jar").toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration, getClass().getClassLoader());
 			jobClient.submitJobAndWait();
 
 			// Finally, compare output file to initial number sequence
@@ -317,7 +317,7 @@ public class JobManagerITCase {
 				.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration, getClass().getClassLoader());
 			
 			// deactivate logging of expected test exceptions
 			Logger taskLogger = Logger.getLogger(Task.class);
@@ -411,7 +411,7 @@ public class JobManagerITCase {
 				+ ".jar").toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration, getClass().getClassLoader());
 			
 			// deactivate logging of expected test exceptions
 			Logger jcLogger = Logger.getLogger(JobClient.class);
@@ -518,7 +518,7 @@ public class JobManagerITCase {
 					+ ".jar").toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration, getClass().getClassLoader());
 
 			// deactivate logging of expected test exceptions
 			// deactivate logging of expected test exceptions
@@ -637,7 +637,7 @@ public class JobManagerITCase {
 				.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration, getClass().getClassLoader());
 			
 			try {
 				jobClient.submitJobAndWait();
@@ -725,7 +725,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration, getClass().getClassLoader());
 			jobClient.submitJobAndWait();
 
 		} catch (Exception e) {
@@ -794,7 +794,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration, getClass().getClassLoader());
 			jobClient.submitJobAndWait();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -887,7 +887,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration, getClass().getClassLoader());
 
 			try {
 				jobClient.submitJobAndWait();
@@ -1034,7 +1034,7 @@ public class JobManagerITCase {
 			jg.addJar(new Path(jarFile.toURI()));
 
 			// Create job client and launch job
-			jobClient = new JobClient(jg, configuration);
+			jobClient = new JobClient(jg, configuration, getClass().getClassLoader());
 			
 			// disable logging for the taskmanager and the client, as they will have many
 			// expected test errors they will log.

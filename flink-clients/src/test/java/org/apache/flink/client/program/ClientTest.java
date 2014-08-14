@@ -94,7 +94,7 @@ public class ClientTest {
 		whenNew(NepheleJobGraphGenerator.class).withNoArguments().thenReturn(generatorMock);
 		when(generatorMock.compileJobGraph(optimizedPlanMock)).thenReturn(jobGraphMock);
 
-		whenNew(JobClient.class).withArguments(any(JobGraph.class), any(Configuration.class)).thenReturn(this.jobClientMock);
+		whenNew(JobClient.class).withArguments(any(JobGraph.class), any(Configuration.class), any(ClassLoader.class)).thenReturn(this.jobClientMock);
 
 		when(this.jobClientMock.submitJob()).thenReturn(jobSubmissionResultMock);
 	}
@@ -103,7 +103,7 @@ public class ClientTest {
 	public void shouldSubmitToJobClient() throws ProgramInvocationException, IOException {
 		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.SUCCESS);
 
-		Client out = new Client(configMock);
+		Client out = new Client(configMock, getClass().getClassLoader());
 		out.run(program.getPlanWithJars(), -1, false);
 		program.deleteExtractedLibraries();
 
@@ -116,7 +116,7 @@ public class ClientTest {
 	public void shouldThrowException() throws Exception {
 		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.ERROR);
 
-		Client out = new Client(configMock);
+		Client out = new Client(configMock, getClass().getClassLoader());
 		out.run(program.getPlanWithJars(), -1, false);
 		program.deleteExtractedLibraries();
 
@@ -137,6 +137,6 @@ public class ClientTest {
 			}
 		}).when(packagedProgramMock).invokeInteractiveModeForExecution();
 
-		new Client(configMock).run(packagedProgramMock, 1, true);
+		new Client(configMock, getClass().getClassLoader()).run(packagedProgramMock, 1, true);
 	}
 }
