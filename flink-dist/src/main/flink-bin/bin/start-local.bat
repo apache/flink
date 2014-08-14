@@ -48,6 +48,11 @@ RENAME "%outname%" "%outname%.0"  2> nul
 DEL "%logname%.6"  2> nul
 DEL "%outname%.6"  2> nul
 
+for %%X in (java.exe) do (set FOUND=%%~$PATH:X)
+if not defined FOUND (
+    echo java.exe was not found in PATH variable
+    goto :eof
+)
 
 echo Starting Flink job manager. Webinterface by default on http://localhost:8081/.
 echo Don't close this batch window. Stop job manager by pressing Ctrl+C.
