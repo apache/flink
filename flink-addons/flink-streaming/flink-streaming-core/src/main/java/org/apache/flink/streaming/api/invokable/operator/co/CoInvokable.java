@@ -26,8 +26,7 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-public abstract class CoInvokable<IN1, IN2, OUT> extends
-		StreamComponentInvokable<OUT> {
+public abstract class CoInvokable<IN1, IN2, OUT> extends StreamComponentInvokable<OUT> {
 
 	public CoInvokable(Function userFunction) {
 		super(userFunction);
@@ -65,4 +64,30 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends
 		this.reuse1 = serializer1.createInstance();
 		this.reuse2 = serializer2.createInstance();
 	}
+
+	public void invoke() throws Exception {
+		boolean noMoreRecordOnInput1 = false;
+		boolean noMoreRecordOnInput2 = false;
+
+		do {
+			noMoreRecordOnInput1 = ((reuse1 = recordIterator1.next(reuse1)) == null);
+			if (!noMoreRecordOnInput1) {
+				handleStream1();
+			}
+
+			noMoreRecordOnInput2 = ((reuse2 = recordIterator2.next(reuse2)) == null);
+			if (!noMoreRecordOnInput2) {
+				handleStream2();
+			}
+
+			if (!this.isMutable) {
+				resetReuse();
+			}
+		} while (!noMoreRecordOnInput1 || !noMoreRecordOnInput2);
+	}
+
+	public abstract void handleStream1() throws Exception;
+
+	public abstract void handleStream2() throws Exception;
+
 }
