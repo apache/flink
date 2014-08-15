@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-addons</artifactId>
-		<version>0.6-incubating-SNAPSHOT</version>
+		<version>0.6-incubating</version>
 		<relativePath>..</relativePath>
 	</parent>
 	
