@@ -21,39 +21,39 @@ package org.apache.flink.streaming.api.invokable.operator.co;
 
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.function.co.CoMapFunction;
+import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
 
-public class CoMapInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
+public class CoFlatMapInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private CoMapFunction<IN1, IN2, OUT> mapper;
+	private CoFlatMapFunction<IN1, IN2, OUT> flatMapper;
 
-	public CoMapInvokable(CoMapFunction<IN1, IN2, OUT> mapper) {
-		super(mapper);
-		this.mapper = mapper;
+	public CoFlatMapInvokable(CoFlatMapFunction<IN1, IN2, OUT> flatMapper) {
+		super(flatMapper);
+		this.flatMapper = flatMapper;
 	}
-	
+
 	@Override
 	public void handleStream1() throws Exception {
-		collector.collect(mapper.map1(reuse1.getObject()));
+		flatMapper.flatMap1(reuse1.getObject(), collector);
 	}
-	
+
 	@Override
 	public void handleStream2() throws Exception {
-		collector.collect(mapper.map2(reuse2.getObject()));
+		flatMapper.flatMap2(reuse2.getObject(), collector);
 	}
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
-		if (mapper instanceof RichFunction) {
-			((RichFunction) mapper).open(parameters);
+		if (flatMapper instanceof RichFunction) {
+			((RichFunction) flatMapper).open(parameters);
 		}
 	}
 
 	@Override
 	public void close() throws Exception {
-		if (mapper instanceof RichFunction) {
-			((RichFunction) mapper).close();
+		if (flatMapper instanceof RichFunction) {
+			((RichFunction) flatMapper).close();
 		}
 	}
 

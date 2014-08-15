@@ -27,7 +27,9 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.MutableUnionRecordReader;
+import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
+import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
@@ -61,9 +63,13 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 
 		Object function = configuration.getFunction();
 		try {
+			setSerializer();
 			if (operatorName.equals("coMap")) {
-				setSerializer();
 				setDeserializers(function, CoMapFunction.class);
+			} else if (operatorName.equals("coFlatMap")) {
+				setDeserializers(function, CoFlatMapFunction.class);
+			} else if (operatorName.equals("coReduce")) {
+			setDeserializers(function, CoReduceFunction.class);
 			} else {
 				throw new Exception("Wrong operator name!");
 			}
