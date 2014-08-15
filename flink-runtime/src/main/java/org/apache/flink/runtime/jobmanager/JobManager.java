@@ -44,6 +44,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -1195,5 +1196,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	@Override
 	public AccumulatorEvent getAccumulatorResults(JobID jobID) throws IOException {
 		return new AccumulatorEvent(jobID, this.accumulatorManager.getJobAccumulators(jobID));
+	}
+	
+	public Map<String, Accumulator<?, ?>> getAccumulators(JobID jobID) {
+		return this.accumulatorManager.getJobAccumulators(jobID);
 	}
 }

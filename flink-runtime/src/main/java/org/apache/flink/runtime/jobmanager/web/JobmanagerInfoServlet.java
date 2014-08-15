@@ -36,13 +36,11 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.runtime.accumulators.AccumulatorEvent;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.ExecutionStateChangeEvent;
 import org.apache.flink.runtime.event.job.JobEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -291,8 +289,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			wrt.write("],");
 			
 			// write accumulators
-			AccumulatorEvent accumulators = jobmanager.getAccumulatorResults(jobEvent.getJobID());
-			Map<String, Object> accMap = AccumulatorHelper.toResultMap(accumulators.getAccumulators(LibraryCacheManager.getClassLoader(jobEvent.getJobID())));
+			Map<String, Object> accMap = AccumulatorHelper.toResultMap(jobmanager.getAccumulators(jobEvent.getJobID()));
 			
 			wrt.write("\n\"accumulators\": [");
 			int i = 0;
