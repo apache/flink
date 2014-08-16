@@ -1143,6 +1143,46 @@ You have the choice to implement either {% gh_link /flink-core/src/main/java/org
 [Back to top](#top)
 
 
+<section id="Generic Operator Methods">
+Generic Operator Methods
+---------
+
+This section describes all methods that are available for all operators.
+
+### Parallelism
+
+`Parallelism` specifies the amount of parallel instances that each operator executes. All operators could be setted to the same amount of parallel instances, or they can be configurated individually. 
+
+<p>
+Parallelism is used as follows. All operators are executed by three parallel instances :
+</p>
+
+```java
+int degreeOfParallelism = 3;
+ExecutionEnvironment.setDefaultLocalParallelism(degreeOfParallelism);
+final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+```
+<p>
+You are able to set parallelism for each operator, in [WordCount](#example) the parallelism for each operator can be configurated as follows :
+</p>
+
+```java
+DataSet<Tuple2<String, Integer>> counts = 
+// split up the lines in pairs (2-tuples) containing: (word,1)
+text.flatMap(new Tokenizer())
+// group by the tuple field "0" and sum up tuple field "1" 
+//set this operator's parralleism to "5"
+.groupBy(0).sum(1).setParallelism(5);
+
+
+// set this operator's parrallelism to 2
+counts.print().setParallelism(2); 
+
+```
+
+[Back to top](#top)
+
 <section id="execution_plan">
 Execution Plans
 ---------------
