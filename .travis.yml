@@ -6,6 +6,9 @@ jdk:
   - oraclejdk7
   - openjdk6
 
+git:
+  depth: 10
+
 notifications:
   webhooks:
     urls:
@@ -29,8 +32,8 @@ env:
         - PROFILE="-Dhadoop.profile=2"
 
 before_script:
-   - "gem install --version 0.8.9 faraday"
-   - "gem install travis-artifacts & "
+   - "gem install --no-document --version 0.8.9 faraday "
+   - "gem install --no-document travis-artifacts & "
 
 
 install: true
