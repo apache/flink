@@ -227,7 +227,7 @@ public class TaskManager implements TaskOperationProtocol {
 				taskManagerAddress = getTaskManagerAddress(jobManagerAddress);
 			}
 			catch (Exception e) {
-				throw new RuntimeException("The TaskManager failed to determine its own network address.", e);
+				throw new RuntimeException("The TaskManager failed to connect to the JobManager.", e);
 			}
 			
 			this.localInstanceConnectionInfo = new InstanceConnectionInfo(taskManagerAddress, ipcPort, dataPort);
@@ -649,7 +649,7 @@ public class TaskManager implements TaskOperationProtocol {
 				strategy = AddressDetectionState.SLOW_CONNECT;
 				break;
 			case SLOW_CONNECT:
-				throw new RuntimeException("The TaskManager failed to detect its own IP address");
+				throw new RuntimeException("The TaskManager is unable to connect to the JobManager (Address: '"+jobManagerAddress+"').");
 			}
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Defaulting to detection strategy " + strategy);
@@ -680,7 +680,7 @@ public class TaskManager implements TaskOperationProtocol {
 			socket.bind(bindP);
 			socket.connect(toSocket, timeout);
 		} catch (Exception ex) {
-			LOG.info("Failed to determine own IP address from '" + fromAddress + "': " + ex.getMessage());
+			LOG.info("Failed to connect to JobManager from address '" + fromAddress + "': " + ex.getMessage());
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Failed with exception", ex);
 			}
