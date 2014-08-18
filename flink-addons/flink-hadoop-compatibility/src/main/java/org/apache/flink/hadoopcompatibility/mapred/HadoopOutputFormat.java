@@ -65,11 +65,13 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 	public JobConf getJobConf() {
 		return jobConf;
 	}
-	
+
+	@SuppressWarnings("unused")
 	public org.apache.hadoop.mapred.OutputFormat<K,V> getHadoopOutputFormat() {
 		return mapredOutputFormat;
 	}
-	
+
+	@SuppressWarnings("unused")
 	public void setHadoopOutputFormat(org.apache.hadoop.mapred.OutputFormat<K,V> mapredOutputFormat) {
 		this.mapredOutputFormat = mapredOutputFormat;
 	}

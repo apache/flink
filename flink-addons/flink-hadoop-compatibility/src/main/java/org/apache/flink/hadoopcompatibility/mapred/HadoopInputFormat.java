@@ -65,7 +65,8 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 	private transient RecordReader<K, V> recordReader;
 	private transient boolean fetched = false;
 	private transient boolean hasNext;
-	
+
+	@SuppressWarnings("unused")
 	public HadoopInputFormat() {
 		super();
 	}
@@ -82,11 +83,13 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 	public void setJobConf(JobConf job) {
 		this.jobConf = job;
 	}
-	
+
+	@SuppressWarnings("unused")
 	public org.apache.hadoop.mapred.InputFormat<K,V> getHadoopInputFormat() {
 		return mapredInputFormat;
 	}
-	
+
+	@SuppressWarnings("unused")
 	public void setHadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K,V> mapredInputFormat) {
 		this.mapredInputFormat = mapredInputFormat;
 	}

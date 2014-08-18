@@ -31,6 +31,7 @@ import java.util.Map;
  * Merge HadoopConfiguration into JobConf. This is necessary for the HDFS configuration.
  */
 public class HadoopConfiguration {
+	@SuppressWarnings("unchecked")
 	public static void mergeHadoopConf(JobConf jobConf) {
 		org.apache.hadoop.conf.Configuration hadoopConf = DistributedFileSystem.getHadoopConfiguration();
 		for (Map.Entry<String, String> e : hadoopConf) {

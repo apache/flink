@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.WritableTypeInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.hadoopcompatibility.mapred.utils.HadoopConfiguration;
 import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopDummyReporter;
 import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopOutputCollector;
@@ -33,7 +34,6 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Mapper;
-import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reporter;
 
 import java.io.IOException;
@@ -64,6 +64,13 @@ public final class HadoopMapFunction<KEYIN extends WritableComparable, VALUEIN e
 		this.jobConf = jobConf;
 		this.keyoutClass = (Class<KEYOUT>) jobConf.getMapOutputKeyClass();
 		this.valueoutClass = (Class<VALUEOUT>) jobConf.getMapOutputValueClass();
+	}
+
+	@Override
+	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
+		this.reporter = new HadoopDummyReporter();
+		outputCollector = new HadoopOutputCollector<KEYOUT, VALUEOUT>(this.keyoutClass, this.valueoutClass);
 	}
 
 	/**
@@ -105,14 +112,5 @@ public final class HadoopMapFunction<KEYIN extends WritableComparable, VALUEIN e
 
 		mapper = InstantiationUtil.instantiate(jobConf.getMapperClass());
 		mapper.configure(jobConf);
-
-		final Class<? extends OutputCollector> collectorClass = jobConf.getClass("flink.map.collector",
-				HadoopOutputCollector.class,
-				OutputCollector.class);
-		outputCollector = (HadoopOutputCollector) InstantiationUtil.instantiate(collectorClass);
-		outputCollector.setExpectedKeyValueClasses(keyoutClass, valueoutClass);
-
-		reporter = InstantiationUtil.instantiate(jobConf.getClass("flink.reporter",
-				HadoopDummyReporter.class, Reporter.class));
 	}
 }

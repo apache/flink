@@ -71,6 +71,7 @@ public final class FlinkHadoopJobClient extends JobClient {
 	private ExecutionEnvironment environment;
 	private Configuration hadoopConf;
 
+	@SuppressWarnings("unused")
 	public FlinkHadoopJobClient() throws IOException {
 		this(new Configuration());
 	}
@@ -366,17 +367,15 @@ public final class FlinkHadoopJobClient extends JobClient {
 		}
 
 		//Hadoop 2.2 methods.
+		@SuppressWarnings("unused")
 		public boolean isRetired() throws IOException { throw new UnsupportedOperationException(); }
 
+		@SuppressWarnings("unused")
 		public String getHistoryUrl() throws IOException {throw new UnsupportedOperationException(); }
 
+		@SuppressWarnings("unused")
 		public Configuration getConfiguration() { return getConf(); }
 	}
-
-	public void setEnvironment(ExecutionEnvironment environment) {
-		this.environment = environment;
-	}
-
 
 	@Override
 	public synchronized void close() throws IOException { throw new UnsupportedOperationException(); }
@@ -394,13 +393,7 @@ public final class FlinkHadoopJobClient extends JobClient {
 	public RunningJob getJob(JobID jobid) throws IOException { throw new UnsupportedOperationException(); }
 
 	@Override
-	public RunningJob getJob(String jobid) throws IOException { throw new UnsupportedOperationException(); }
-
-	@Override
 	public TaskReport[] getMapTaskReports(JobID jobId) throws IOException { throw new UnsupportedOperationException(); }
-
-	@Override
-	public TaskReport[] getMapTaskReports(String jobId) throws IOException { throw new UnsupportedOperationException(); }
 
 	@Override
 	public TaskReport[] getReduceTaskReports(JobID jobId) throws IOException { throw new UnsupportedOperationException(); }
@@ -410,9 +403,6 @@ public final class FlinkHadoopJobClient extends JobClient {
 
 	@Override
 	public TaskReport[] getSetupTaskReports(JobID jobId) throws IOException { throw new UnsupportedOperationException(); }
-
-	@Override
-	public TaskReport[] getReduceTaskReports(String jobId) throws IOException { throw new UnsupportedOperationException(); }
 
 	@Override
 	public void displayTasks(JobID jobId, String type, String state) throws IOException { throw new UnsupportedOperationException(); }
@@ -435,12 +425,6 @@ public final class FlinkHadoopJobClient extends JobClient {
 	public boolean monitorAndPrintJob(JobConf conf, RunningJob job) throws IOException, InterruptedException {
 		throw new UnsupportedOperationException();
 	}
-
-	@Override
-	public void setTaskOutputFilter(JobClient.TaskStatusFilter newValue) { throw new UnsupportedOperationException(); }
-
-	@Override
-	public JobClient.TaskStatusFilter getTaskOutputFilter() { throw new UnsupportedOperationException(); }
 
 	@Override
 	public int run(java.lang.String[] argv) throws Exception { throw new UnsupportedOperationException(); }

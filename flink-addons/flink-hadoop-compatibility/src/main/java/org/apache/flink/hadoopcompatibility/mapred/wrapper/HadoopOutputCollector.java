@@ -37,8 +37,10 @@ public final class HadoopOutputCollector<KEYOUT extends WritableComparable, VALU
 	private Class<KEYOUT> keyoutClass;
 	private Class<VALUEOUT> valueoutClass;
 
-	public HadoopOutputCollector() {super();}  //Useful when instantiating by reflection.
-
+	public HadoopOutputCollector(Class<KEYOUT> keyoutClass, Class<VALUEOUT> valueoutClass) {
+		this.keyoutClass = keyoutClass;
+		this.valueoutClass = valueoutClass;
+	}
 	/**
 	 * Set the Flink Collector to wrap. A Flink Collector should be set before calling collect().
 	 * @param collector the flink Collector to wrap
@@ -65,17 +67,6 @@ public final class HadoopOutputCollector<KEYOUT extends WritableComparable, VALU
 			throw new RuntimeException("There is no Flink Collector set to be wrapped by this" +
 					" HadoopOutputCollector object. The set method must be called in advance.");
 		}
-	}
-
-	/**
-	 * Method to set the expected key and value output classes. Must be used if instantiating by reflection
-	 * (e.g. custom serialization).
-	 * @param keyClass the class of key that is expected for this output collector
-	 * @param valueClass the class of value that is expected for this output collector
-	 */
-	public void setExpectedKeyValueClasses(final Class<KEYOUT> keyClass, final Class<VALUEOUT> valueClass) {
-		this.keyoutClass = keyClass;
-		this.valueoutClass = valueClass;
 	}
 
 	/**
