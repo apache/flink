@@ -17,32 +17,27 @@
  *
  */
 
-package org.apache.flink.streaming.state.database;
+package org.apache.flink.streaming.connectors.db;
 
-import static org.fusesource.leveldbjni.JniDBFactory.asString;
+import org.junit.Ignore;
+import org.junit.Test;
 
-import org.iq80.leveldb.DBIterator;
-
-public class LeveldbStateIterator {
-	private DBIterator iterator;
-	public LeveldbStateIterator(DBIterator iter){
-		this.iterator=iter;
-		this.iterator.seekToFirst();
-	}
-	
-	public boolean hasNext(){
-		return iterator.hasNext();
-	}
-	
-	public String getNextKey(){
-		return asString(iterator.peekNext().getKey());
-	}
-	
-	public String getNextValue(){
-		return asString(iterator.peekNext().getValue());
-	}
-	
-	public void next(){
-		iterator.next();
+public class RedisTest {
+	@Ignore("Needs running Redis service, not yet ready")
+	@Test
+	public void databaseTest() {
+		RedisState state = new RedisState();
+		state.put("hello", "world");
+		System.out.println(state.get("hello"));
+		state.put("big", "data");
+		state.put("flink", "streaming");
+		RedisStateIterator iterator = state.getIterator();
+		while (iterator.hasNext()) {
+			String key = iterator.getNextKey();
+			String value = iterator.getNextValue();
+			System.out.println("key=" + key + ", value=" + value);
+			iterator.next();
+		}
+		state.close();
 	}
 }

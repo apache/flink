@@ -17,37 +17,33 @@
  *
  */
 
-package org.apache.flink.streaming.state.database;
+package org.apache.flink.streaming.connectors.db;
 
-import redis.clients.jedis.Jedis;
+import static org.fusesource.leveldbjni.JniDBFactory.asString;
 
-//this is the redis-supported state. To use this state, the users are required to boot their redis server first.
-public class RedisState {
-	
-	private Jedis jedis;
-	
-	public RedisState(){
-		jedis = new Jedis("localhost");
-	}
-	
-	public void close(){
-		jedis.close();
-	}
-	
-	public void setTuple(String key, String value){
-		jedis.set(key, value);
-	}
-	
-	public String getTuple(String key){
-		return jedis.get(key);
-	}
-	
-	public void deleteTuple(String key){
-		jedis.del(key);
-	}
-	
-	public RedisStateIterator getIterator(){
-		return new RedisStateIterator(jedis);
+import org.iq80.leveldb.DBIterator;
+
+public class LeveldbStateIterator implements DBStateIterator {
+	private DBIterator iterator;
+
+	public LeveldbStateIterator(DBIterator iter) {
+		this.iterator = iter;
+		this.iterator.seekToFirst();
 	}
 
+	public boolean hasNext() {
+		return iterator.hasNext();
+	}
+
+	public String getNextKey() {
+		return asString(iterator.peekNext().getKey());
+	}
+
+	public String getNextValue() {
+		return asString(iterator.peekNext().getValue());
+	}
+
+	public void next() {
+		iterator.next();
+	}
 }

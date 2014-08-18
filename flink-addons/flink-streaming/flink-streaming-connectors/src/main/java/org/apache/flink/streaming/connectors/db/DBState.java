@@ -17,21 +17,15 @@
  *
  */
 
-package org.apache.flink.streaming.state.database;
+package org.apache.flink.streaming.connectors.db;
 
-import org.junit.Test;
-
-public class MemcachedTest {
+public interface DBState {
 	
-	@Test
-	public void databaseState(){
-		MemcachedState state=new MemcachedState();
-		state.setTuple("hello", "world");
-		state.setTuple("big", "data");
-		state.setTuple("flink", "streaming");
-		System.out.println(state.getTuple("hello"));
-		System.out.println(state.getTuple("big"));
-		System.out.println(state.getTuple("flink"));
-		state.close();
-	}
+	//TODO: consider more general parameters
+	public void put(String key, String value);
+	
+	public String get(String key);
+	
+	public void remove(String key);
+
 }

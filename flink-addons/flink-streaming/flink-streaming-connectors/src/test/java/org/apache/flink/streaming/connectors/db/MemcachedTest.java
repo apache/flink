@@ -17,26 +17,22 @@
  *
  */
 
-package org.apache.flink.streaming.state.database;
+package org.apache.flink.streaming.connectors.db;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
-public class RedisTest {
-	//please remind starting Redis service before testing.
+public class MemcachedTest {
+	@Ignore("Needs running Memcached service, not yet ready")
 	@Test
-	public void databaseTest(){
-		RedisState state=new RedisState();
-		state.setTuple("hello", "world");
-		System.out.println(state.getTuple("hello"));
-		state.setTuple("big", "data");
-		state.setTuple("flink", "streaming");
-		RedisStateIterator iterator=state.getIterator();
-		while(iterator.hasNext()){
-			String key=iterator.getNextKey();
-			String value=iterator.getNextValue();
-			System.out.println("key="+key+", value="+value);
-			iterator.next();
-		}
+	public void databaseState() {
+		MemcachedState state = new MemcachedState();
+		state.put("hello", "world");
+		state.put("big", "data");
+		state.put("flink", "streaming");
+		System.out.println(state.get("hello"));
+		System.out.println(state.get("big"));
+		System.out.println(state.get("flink"));
 		state.close();
 	}
 }

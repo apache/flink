@@ -17,46 +17,49 @@
  *
  */
 
-package org.apache.flink.streaming.state.database;
+package org.apache.flink.streaming.connectors.db;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
 import net.spy.memcached.MemcachedClient;
 
-public class MemcachedState {
-	
+//Needs running Memcached service
+public class MemcachedState implements DBState {
+
 	private MemcachedClient memcached;
-	
-	public MemcachedState(){
+
+	public MemcachedState() {
 		try {
-			memcached=new MemcachedClient(new InetSocketAddress("localhost", 11211));
+			memcached = new MemcachedClient(new InetSocketAddress("localhost",
+					11211));
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
 	}
-	
-	public MemcachedState(String hostname, int portNum){
+
+	public MemcachedState(String hostname, int portNum) {
 		try {
-			memcached=new MemcachedClient(new InetSocketAddress(hostname, portNum));
+			memcached = new MemcachedClient(new InetSocketAddress(hostname,
+					portNum));
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
 	}
-	
-	public void close(){
+
+	public void close() {
 		memcached.shutdown();
 	}
-	
-	public void setTuple(String key, Object value){
+
+	public void put(String key, String value) {
 		memcached.set(key, 0, value);
 	}
-	
-	public Object getTuple(String key){
-		return memcached.get(key);
+
+	public String get(String key) {
+		return (String) memcached.get(key);
 	}
-	
-	public void deleteTuple(String key){
+
+	public void remove(String key) {
 		memcached.delete(key);
 	}
 }
