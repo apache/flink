@@ -89,6 +89,14 @@ projects: See https://issues.apache.org/jira/browse/HBASE-3374)
 
 
 -----------------------------------------------------------------------
+                           Apache Flume
+-----------------------------------------------------------------------
+
+Portions of this software were developed at
+Cloudera, Inc. (http://www.cloudera.com/).
+
+
+-----------------------------------------------------------------------
                    Amazon Web Services SDK for Java
 -----------------------------------------------------------------------
 

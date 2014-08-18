@@ -49,7 +49,7 @@ public class ClusterUtil {
 		NepheleMiniCluster exec = new NepheleMiniCluster();
 		exec.setMemorySize(memorySize);
 		exec.setNumTaskTracker(numberOfTaskTrackers);
-		Client client = new Client(new InetSocketAddress("localhost", 6498), configuration);
+		Client client = new Client(new InetSocketAddress("localhost", 6498), configuration, ClusterUtil.class.getClassLoader());
 		
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running on mini cluster");
@@ -77,7 +77,7 @@ public class ClusterUtil {
 		
 		Configuration configuration = jobGraph.getJobConfiguration();
 
-		Client client = new Client(new InetSocketAddress(IP, port), configuration);
+		Client client = new Client(new InetSocketAddress(IP, port), configuration, ClusterUtil.class.getClassLoader());
 
 		try {
 			client.run(jobGraph, true);

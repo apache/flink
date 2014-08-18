@@ -227,6 +227,8 @@ under the Apache License (v 2.0):
  - Apache Avro (http://avro.apache.org)
  - Apache Hadoop (http://hadoop.apache.org)
  - Apache Derby (http://db.apache.org/derby/)
+ - Apache Kafka (http://kafka.apache.org)
+ - Apache Flume (http://flume.apache.org)
  - Google Guava (https://code.google.com/p/guava-libraries/)
  - Netty (http://netty.io)
  - Powermock (http://www.powermock.org)
@@ -236,6 +238,8 @@ under the Apache License (v 2.0):
  - ScalaTest (http://www.scalatest.org)
  - StartBootstrap (http://startbootstrap.com)
  - CHAP Links Library Timeline (http://almende.github.io/chap-links-library/)
+ - Twitter Hosebird Client (hbc) (https://github.com/twitter/hbc)
+
 
 -----------------------------------------------------------------------
  Eclipse Public License  - v 1.0
@@ -337,6 +341,21 @@ POSSIBILITY OF SUCH DAMAGE.
 
 
 -----------------------------------------------------------------------
+ Mozilla Public License  - v 1.1
+-----------------------------------------------------------------------
+
+The Apache Flink project depends on and/or bundles the following components
+under the Mozilla Public License (v 1.1)
+
+ - RabbitMQ (http://www.rabbitmq.com) 
+      The Initial Developer of the Original Code is GoPivotal,Ltd.
+      Copyright (c) 2007-2013 GoPivotal, Inc.  All Rights Reserved.
+ 
+You may obtain a copy of the Mozilla Public License (v 1.1) at
+http://www.mozilla.org/MPL/
+
+
+-----------------------------------------------------------------------
  The Open Font License
 -----------------------------------------------------------------------
 
@@ -344,7 +363,7 @@ The Apache Flink project packages the following fonts under the
 Open Font License (OFT) - http://scripts.sil.org/OFL/
 
  - Font Awesome (http://fortawesome.github.io/Font-Awesome/) - Created by Dave Gandy
-   -> fonts in "resources/web-docs-infoserver/font-awesome/fonts"
+   -> fonts in "flink-runtime/resources/web-docs-infoserver/font-awesome/fonts"
 
 
 -----------------------------------------------------------------------

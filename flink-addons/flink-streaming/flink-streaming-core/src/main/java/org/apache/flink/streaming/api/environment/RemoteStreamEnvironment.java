@@ -89,7 +89,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		}
 
 		Configuration configuration = jobGraph.getJobConfiguration();
-		Client client = new Client(new InetSocketAddress(host, port), configuration);
+		Client client = new Client(new InetSocketAddress(host, port), configuration, getClass().getClassLoader());
 
 		try {
 			client.run(jobGraph, true);

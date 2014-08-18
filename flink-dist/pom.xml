@@ -140,12 +140,12 @@ under the License.
 									<goal>single</goal>
 								</goals>
 								<configuration>
-					                <archiverConfig>
-					                	<!-- https://jira.codehaus.org/browse/MASSEMBLY-449 -->
-					                    <fileMode>420</fileMode> <!-- 420(dec) = 644(oct) -->
-								    	<directoryMode>493</directoryMode> <!-- 493(dec) = 755(oct) -->
+									<archiverConfig>
+										<!-- https://jira.codehaus.org/browse/MASSEMBLY-449 -->
+										<fileMode>420</fileMode> <!-- 420(dec) = 644(oct) -->
+										<directoryMode>493</directoryMode> <!-- 493(dec) = 755(oct) -->
 										<defaultDirectoryMode>493</defaultDirectoryMode>
-					                </archiverConfig>
+									</archiverConfig>
 									<archive>
 										<manifest>
 											<mainClass>org.apache.flink.yarn.Client</mainClass>
