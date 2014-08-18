@@ -17,43 +17,27 @@
  *
  */
 
-package org.apache.flink.streaming.state.database;
+package org.apache.flink.streaming.connectors.db;
 
-import java.util.Iterator;
+import org.junit.Ignore;
+import org.junit.Test;
 
-import redis.clients.jedis.Jedis;
-
-public class RedisStateIterator {
-	
-	private Iterator<String> iterator;
-	private int position;
-	private int size;
-	private String currentKey;
-	private Jedis jedis;
-	public RedisStateIterator(Jedis jedis){
-		this.jedis = jedis;
-		iterator = jedis.keys("*").iterator();
-		size = jedis.keys("*").size();
-		currentKey = iterator.next();
-		position = 0;
-	}
-	
-	public boolean hasNext(){
-		return position != size;
-	}
-	
-	public String getNextKey(){
-		return currentKey;
-	}
-	
-	public String getNextValue(){
-		return jedis.get(currentKey);
-	}
-	
-	public void next(){
-		position += 1;
-		if (position != size){
-			currentKey = iterator.next();
+public class LeveldbTest {
+	@Ignore("Not yet ready")
+	@Test
+	public void databaseTest() {
+		LeveldbState state = new LeveldbState("test");
+		state.put("hello", "world");
+		System.out.println(state.get("hello"));
+		state.put("big", "data");
+		state.put("flink", "streaming");
+		LeveldbStateIterator iterator = state.getIterator();
+		while (iterator.hasNext()) {
+			String key = iterator.getNextKey();
+			String value = iterator.getNextValue();
+			System.out.println("key=" + key + ", value=" + value);
+			iterator.next();
 		}
+		state.close();
 	}
 }

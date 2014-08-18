@@ -17,25 +17,37 @@
  *
  */
 
-package org.apache.flink.streaming.state.database;
+package org.apache.flink.streaming.connectors.db;
 
-import org.junit.Test;
+import redis.clients.jedis.Jedis;
 
-public class LeveldbTest {
-	@Test
-	public void databaseTest(){
-		LeveldbState state=new LeveldbState("test");
-		state.setTuple("hello", "world");
-		System.out.println(state.getTuple("hello"));
-		state.setTuple("big", "data");
-		state.setTuple("flink", "streaming");
-		LeveldbStateIterator iterator=state.getIterator();
-		while(iterator.hasNext()){
-			String key=iterator.getNextKey();
-			String value=iterator.getNextValue();
-			System.out.println("key="+key+", value="+value);
-			iterator.next();
-		}
-		state.close();
+//Needs running Redis service
+public class RedisState implements DBState {
+	
+	private Jedis jedis;
+	
+	public RedisState(){
+		jedis = new Jedis("localhost");
 	}
+	
+	public void close(){
+		jedis.close();
+	}
+	
+	public void put(String key, String value){
+		jedis.set(key, value);
+	}
+	
+	public String get(String key){
+		return jedis.get(key);
+	}
+	
+	public void remove(String key){
+		jedis.del(key);
+	}
+	
+	public RedisStateIterator getIterator(){
+		return new RedisStateIterator(jedis);
+	}
+
 }

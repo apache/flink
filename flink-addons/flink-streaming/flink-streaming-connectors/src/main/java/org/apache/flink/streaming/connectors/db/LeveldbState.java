@@ -17,7 +17,7 @@
  *
  */
 
-package org.apache.flink.streaming.state.database;
+package org.apache.flink.streaming.connectors.db;
 
 import static org.fusesource.leveldbjni.JniDBFactory.asString;
 import static org.fusesource.leveldbjni.JniDBFactory.bytes;
@@ -29,40 +29,41 @@ import java.io.IOException;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.Options;
 
-public class LeveldbState {
-	
+public class LeveldbState implements DBState{
+
 	private DB database;
-	public LeveldbState(String dbName){
+
+	public LeveldbState(String dbName) {
 		Options options = new Options();
 		options.createIfMissing(true);
 		try {
 			database = factory.open(new File(dbName), options);
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
 	}
-	
-	public void close(){
+
+	public void close() {
 		try {
 			database.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
 	}
-	
-	public void setTuple(String key, String value){
+
+	public void put(String key, String value) {
 		database.put(bytes(key), bytes(value));
 	}
-	
-	public String getTuple(String key){
+
+	public String get(String key) {
 		return asString(database.get(bytes(key)));
 	}
-	
-	public void deleteTuple(String key){
+
+	public void remove(String key) {
 		database.delete(bytes(key));
 	}
-	
-	public LeveldbStateIterator getIterator(){
+
+	public LeveldbStateIterator getIterator() {
 		return new LeveldbStateIterator(database.iterator());
 	}
 
