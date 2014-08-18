@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api;
 
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.LogUtils;
@@ -26,12 +28,30 @@ public class PrintTest{
 
 	private static final long MEMORYSIZE = 32;
 
+	private static final class IdentityMap implements MapFunction<Long, Long> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Long map(Long value) throws Exception {
+			return value;
+		}
+	}
+
+	private static final class FilterAll implements FilterFunction<Long> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean filter(Long value) throws Exception {
+			return true;
+		}
+	}
+	
 	@Test
 	public void test() throws Exception {
 		LogUtils.initializeDefaultTestConsoleLogger();
 
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-		env.generateSequence(1, 10).print();
+		env.generateSequence(1, 10).map(new IdentityMap()).filter(new FilterAll()).print();
 		env.executeTest(MEMORYSIZE);
 	}
 }

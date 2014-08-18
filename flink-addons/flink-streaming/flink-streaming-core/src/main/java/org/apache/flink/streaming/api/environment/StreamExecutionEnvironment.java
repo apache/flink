@@ -25,7 +25,6 @@ import java.util.Collection;
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -200,7 +199,7 @@ public abstract class StreamExecutionEnvironment {
 		try {
 			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(function),
-					new ObjectTypeWrapper<OUT, Tuple, OUT>(data[0], null, data[0]), "source",
+					new ObjectTypeWrapper<OUT>(data[0]), "source",
 					SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize elements");
@@ -231,9 +230,8 @@ public abstract class StreamExecutionEnvironment {
 			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 
 			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(
-					new FromElementsFunction<OUT>(data)), new ObjectTypeWrapper<OUT, Tuple, OUT>(
-					data.iterator().next(), null, data.iterator().next()), "source",
-					SerializationUtils.serialize(function), 1);
+					new FromElementsFunction<OUT>(data)), new ObjectTypeWrapper<OUT>(data
+					.iterator().next()), "source", SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize collection");
 		}
@@ -270,8 +268,8 @@ public abstract class StreamExecutionEnvironment {
 
 		try {
 			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(function),
-					new FunctionTypeWrapper<OUT, Tuple, OUT>(function, SourceFunction.class, 0, -1,
-							0), "source", SerializationUtils.serialize(function), parallelism);
+					new FunctionTypeWrapper<OUT>(function, SourceFunction.class, 0), "source",
+					SerializationUtils.serialize(function), parallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SourceFunction");
 		}

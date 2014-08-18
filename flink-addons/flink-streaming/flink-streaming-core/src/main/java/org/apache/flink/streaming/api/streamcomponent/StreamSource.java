@@ -22,37 +22,33 @@ package org.apache.flink.streaming.api.streamcomponent;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.invokable.SourceInvokable;
 
-public class StreamSource<OUT extends Tuple> extends SingleInputAbstractStreamComponent<Tuple, OUT> {
+public class StreamSource<OUT extends Tuple> extends AbstractStreamComponent {
 
-	private SourceInvokable<OUT> userInvokable;
+	protected OutputHandler<OUT> outputHandler;
+
+	private SourceInvokable<OUT> sourceInvokable;
+	
 	private static int numSources;
 
 	public StreamSource() {
-		outputHandler = new OutputHandler();
-		userInvokable = null;
+		sourceInvokable = null;
 		numSources = newComponent();
 		instanceID = numSources;
 	}
 
 	@Override
 	public void setInputsOutputs() {
-		try {
-			outputHandler.setConfigOutputs();
-		} catch (StreamComponentException e) {
-			throw new StreamComponentException("Cannot register outputs for "
-					+ getClass().getSimpleName(), e);
-		}
+		outputHandler = new OutputHandler<OUT>(this);
 	}
 
 	@Override
 	protected void setInvokable() {
-		userInvokable = getInvokable();
-		userInvokable.setCollector(collector);
+		sourceInvokable = configuration.getUserInvokable();
+		sourceInvokable.setCollector(outputHandler.getCollector());
 	}
 
 	@Override
 	public void invoke() throws Exception {
-		outputHandler.invokeUserFunction("SOURCE", userInvokable);
+		outputHandler.invokeUserFunction("SOURCE", sourceInvokable);
 	}
-
 }

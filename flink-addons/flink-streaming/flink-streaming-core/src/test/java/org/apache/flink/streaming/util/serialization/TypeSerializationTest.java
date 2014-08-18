@@ -21,22 +21,18 @@ package org.apache.flink.streaming.util.serialization;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.java.functions.RichMapFunction;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.junit.Test;
 
 public class TypeSerializationTest {
 
-	private static class MyMap extends RichMapFunction<Tuple1<Integer>, Tuple1<String>> {
+	private static class MyMap extends RichMapFunction<Integer, String> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Tuple1<String> map(Tuple1<Integer> value) throws Exception {
+		public String map(Integer value) throws Exception {
 			return null;
 		}
 	}
@@ -44,60 +40,35 @@ public class TypeSerializationTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void functionTypeSerializationTest() {
-		TypeSerializerWrapper<Tuple1<Integer>, Tuple, Tuple1<Integer>> ser = new FunctionTypeWrapper<Tuple1<Integer>, Tuple, Tuple1<Integer>>(
-				new MyMap(), RichMapFunction.class, 0, -1, 1);
+		TypeSerializerWrapper<Integer> ser = new FunctionTypeWrapper<Integer>(new MyMap(),
+				RichMapFunction.class, 0);
 
 		byte[] serializedType = SerializationUtils.serialize(ser);
 
-		TypeSerializerWrapper<Tuple1<Integer>, Tuple, Tuple1<Integer>> ser2 = (TypeSerializerWrapper<Tuple1<Integer>, Tuple, Tuple1<Integer>>) SerializationUtils
+		TypeSerializerWrapper<Integer> ser2 = (TypeSerializerWrapper<Integer>) SerializationUtils
 				.deserialize(serializedType);
 
-		assertNotNull(ser.getInputTypeInfo1());
-		assertNotNull(ser2.getInputTypeInfo1());
+		assertNotNull(ser.getTypeInfo());
+		assertNotNull(ser2.getTypeInfo());
 
-		assertNotNull(ser.getOutputTypeInfo());
-		assertNotNull(ser2.getOutputTypeInfo());
-
-		assertEquals(ser.getInputTypeInfo1(), ser2.getInputTypeInfo1());
-		try {
-			ser.getInputTypeInfo2();
-			fail();
-		} catch (RuntimeException e) {
-			assertTrue(true);
-		}
-		assertEquals(ser.getOutputTypeInfo(), ser2.getOutputTypeInfo());
+		assertEquals(ser.getTypeInfo(), ser2.getTypeInfo());
 	}
 
 	@SuppressWarnings("unchecked")
 	@Test
 	public void objectTypeSerializationTest() {
-		Integer instance1 = new Integer(22);
-		Integer instance2 = null;
-		Integer instance3 = new Integer(34);
-
-		TypeSerializerWrapper<Integer, Integer, Integer> ser = new ObjectTypeWrapper<Integer, Integer, Integer>(
-				instance1, instance2, instance3);
-
-		// System.out.println(ser.getInputTupleTypeInfo1());
-
+		Integer instance = new Integer(22);
+		
+		TypeSerializerWrapper<Integer> ser = new ObjectTypeWrapper<Integer>(instance);
+		
 		byte[] serializedType = SerializationUtils.serialize(ser);
 
-		TypeSerializerWrapper<Tuple1<Integer>, Tuple, Tuple1<Integer>> ser2 = (TypeSerializerWrapper<Tuple1<Integer>, Tuple, Tuple1<Integer>>) SerializationUtils
+		TypeSerializerWrapper<Integer> ser2 = (TypeSerializerWrapper<Integer>) SerializationUtils
 				.deserialize(serializedType);
 
-		assertNotNull(ser.getInputTypeInfo1());
-		assertNotNull(ser2.getInputTypeInfo1());
+		assertNotNull(ser.getTypeInfo());
+		assertNotNull(ser2.getTypeInfo());
 
-		assertNotNull(ser.getOutputTypeInfo());
-		assertNotNull(ser2.getOutputTypeInfo());
-
-		assertEquals(ser.getInputTypeInfo1(), ser2.getInputTypeInfo1());
-		try {
-			ser.getInputTypeInfo2();
-			fail();
-		} catch (RuntimeException e) {
-			assertTrue(true);
-		}
-		assertEquals(ser.getOutputTypeInfo(), ser2.getOutputTypeInfo());
+		assertEquals(ser.getTypeInfo(), ser2.getTypeInfo());
 	}
 }

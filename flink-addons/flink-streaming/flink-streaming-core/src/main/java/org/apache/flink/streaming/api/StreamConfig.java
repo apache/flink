@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.streamcomponent.StreamComponentException;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
+import org.apache.flink.types.TypeInformation;
 
 public class StreamConfig {
 	private static final String INPUT_TYPE = "inputType_";
@@ -74,20 +75,59 @@ public class StreamConfig {
 
 	// CONFIGS
 
-	public void setTypeWrapper(TypeSerializerWrapper<?, ?, ?> typeWrapper) {
-		config.setBytes("typeWrapper", SerializationUtils.serialize(typeWrapper));
+	private static final String TYPE_WRAPPER_IN_1 = "typeWrapper_in_1";
+	private static final String TYPE_WRAPPER_IN_2 = "typeWrapper_in_2";
+	private static final String TYPE_WRAPPER_OUT_1 = "typeWrapper_out_1";
+	private static final String TYPE_WRAPPER_OUT_2 = "typeWrapper_out_2";
+
+	public void setTypeWrapperIn1(TypeSerializerWrapper<?> typeWrapper) {
+		setTypeWrapper(TYPE_WRAPPER_IN_1, typeWrapper);
+	}
+
+	public void setTypeWrapperIn2(TypeSerializerWrapper<?> typeWrapper) {
+		setTypeWrapper(TYPE_WRAPPER_IN_2, typeWrapper);
+	}
+
+	public void setTypeWrapperOut1(TypeSerializerWrapper<?> typeWrapper) {
+		setTypeWrapper(TYPE_WRAPPER_OUT_1, typeWrapper);
+	}
+
+	public void setTypeWrapperOut2(TypeSerializerWrapper<?> typeWrapper) {
+		setTypeWrapper(TYPE_WRAPPER_OUT_2, typeWrapper);
+	}
+
+	public <T> TypeInformation<T> getTypeInfoIn1() {
+		return getTypeInfo(TYPE_WRAPPER_IN_1);
+	}
+
+	public <T> TypeInformation<T> getTypeInfoIn2() {
+		return getTypeInfo(TYPE_WRAPPER_IN_2);
+	}
+
+	public <T> TypeInformation<T> getTypeInfoOut1() {
+		return getTypeInfo(TYPE_WRAPPER_OUT_1);
+	}
+
+	public <T> TypeInformation<T> getTypeInfoOut2() {
+		return getTypeInfo(TYPE_WRAPPER_OUT_2);
+	}
+
+	private void setTypeWrapper(String key, TypeSerializerWrapper<?> typeWrapper) {
+		config.setBytes(key, SerializationUtils.serialize(typeWrapper));
 	}
 
 	@SuppressWarnings("unchecked")
-	public <IN1, IN2, OUT> TypeSerializerWrapper<IN1, IN2, OUT> getTypeWrapper() {
-		byte[] serializedWrapper = config.getBytes("typeWrapper", null);
+	private <T> TypeInformation<T> getTypeInfo(String key) {
+		byte[] serializedWrapper = config.getBytes(key, null);
 
 		if (serializedWrapper == null) {
 			throw new RuntimeException("TypeSerializationWrapper must be set");
 		}
 
-		return (TypeSerializerWrapper<IN1, IN2, OUT>) SerializationUtils
+		TypeSerializerWrapper<T> typeWrapper = (TypeSerializerWrapper<T>) SerializationUtils
 				.deserialize(serializedWrapper);
+
+		return typeWrapper.getTypeInfo();
 	}
 
 	public void setMutability(boolean isMutable) {
@@ -111,7 +151,8 @@ public class StreamConfig {
 			config.setClass(USER_FUNCTION, invokableObject.getClass());
 
 			try {
-				config.setBytes(SERIALIZEDUDF, SerializationUtils.serialize(invokableObject));
+				config.setBytes(SERIALIZEDUDF,
+						SerializationUtils.serialize(invokableObject));
 			} catch (SerializationException e) {
 				throw new RuntimeException("Cannot serialize invokable object "
 						+ invokableObject.getClass(), e);
@@ -119,14 +160,15 @@ public class StreamConfig {
 		}
 	}
 
-	public <T> StreamComponentInvokable<T> getUserInvokableObject() {
+	public <T> T getUserInvokable() {
 		try {
 			return deserializeObject(config.getBytes(SERIALIZEDUDF, null));
 		} catch (Exception e) {
-			throw new StreamComponentException("Cannot instantiate user function");
+			throw new StreamComponentException(
+					"Cannot instantiate user function", e);
 		}
 	}
-
+	
 	public void setComponentName(String componentName) {
 		config.setString(COMPONENT_NAME, componentName);
 	}
@@ -144,7 +186,8 @@ public class StreamConfig {
 
 	public Object getFunction() {
 		try {
-			return SerializationUtils.deserialize(config.getBytes(FUNCTION, null));
+			return SerializationUtils.deserialize(config.getBytes(FUNCTION,
+					null));
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot deserialize invokable object", e);
 		}
@@ -173,8 +216,8 @@ public class StreamConfig {
 		try {
 			return deserializeObject(config.getBytes(OUTPUT_SELECTOR, null));
 		} catch (Exception e) {
-			throw new StreamComponentException("Cannot deserialize and instantiate OutputSelector",
-					e);
+			throw new StreamComponentException(
+					"Cannot deserialize and instantiate OutputSelector", e);
 		}
 	}
 
@@ -194,23 +237,27 @@ public class StreamConfig {
 		return config.getLong(ITERATON_WAIT, 0);
 	}
 
-	public void setNumberOfOutputChannels(int outputIndex, Integer numberOfOutputChannels) {
-		config.setInteger(NUMBER_OF_OUTPUT_CHANNELS + outputIndex, numberOfOutputChannels);
+	public void setNumberOfOutputChannels(int outputIndex,
+			Integer numberOfOutputChannels) {
+		config.setInteger(NUMBER_OF_OUTPUT_CHANNELS + outputIndex,
+				numberOfOutputChannels);
 	}
 
 	public int getNumberOfOutputChannels(int outputIndex) {
 		return config.getInteger(NUMBER_OF_OUTPUT_CHANNELS + outputIndex, 0);
 	}
 
-	public <T> void setPartitioner(int outputIndex, StreamPartitioner<T> partitionerObject) {
+	public <T> void setPartitioner(int outputIndex,
+			StreamPartitioner<T> partitionerObject) {
 
 		config.setBytes(PARTITIONER_OBJECT + outputIndex,
 				SerializationUtils.serialize(partitionerObject));
 	}
 
-	public <T> StreamPartitioner<T> getPartitioner(int outputIndex) throws ClassNotFoundException,
-			IOException {
-		return deserializeObject(config.getBytes(PARTITIONER_OBJECT + outputIndex,
+	public <T> StreamPartitioner<T> getPartitioner(int outputIndex)
+			throws ClassNotFoundException, IOException {
+		return deserializeObject(config.getBytes(PARTITIONER_OBJECT
+				+ outputIndex,
 				SerializationUtils.serialize(new ShufflePartitioner<T>())));
 	}
 
@@ -223,8 +270,8 @@ public class StreamConfig {
 
 	@SuppressWarnings("unchecked")
 	public List<String> getOutputName(int outputIndex) {
-		return (List<String>) SerializationUtils.deserialize(config.getBytes(OUTPUT_NAME
-				+ outputIndex, null));
+		return (List<String>) SerializationUtils.deserialize(config.getBytes(
+				OUTPUT_NAME + outputIndex, null));
 	}
 
 	public void setNumberOfInputs(int numberOfInputs) {
@@ -251,18 +298,20 @@ public class StreamConfig {
 		return config.getInteger(INPUT_TYPE + inputNumber, 0);
 	}
 
-	public void setFunctionClass(Class<? extends AbstractRichFunction> functionClass) {
+	public void setFunctionClass(
+			Class<? extends AbstractRichFunction> functionClass) {
 		config.setClass("functionClass", functionClass);
 	}
 
 	@SuppressWarnings("unchecked")
 	public Class<? extends AbstractRichFunction> getFunctionClass() {
-		return (Class<? extends AbstractRichFunction>) config.getClass("functionClass", null);
+		return (Class<? extends AbstractRichFunction>) config.getClass(
+				"functionClass", null);
 	}
 
 	@SuppressWarnings("unchecked")
-	protected static <T> T deserializeObject(byte[] serializedObject) throws IOException,
-			ClassNotFoundException {
+	protected static <T> T deserializeObject(byte[] serializedObject)
+			throws IOException, ClassNotFoundException {
 		return (T) SerializationUtils.deserialize(serializedObject);
 	}
 

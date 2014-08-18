@@ -34,7 +34,6 @@ import org.apache.flink.api.java.functions.RichFilterFunction;
 import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.RichMapFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
@@ -93,7 +92,8 @@ public abstract class DataStream<OUT> {
 	 * @param operatorType
 	 *            The type of the operator in the component
 	 */
-	public DataStream(StreamExecutionEnvironment environment, String operatorType) {
+	public DataStream(StreamExecutionEnvironment environment,
+			String operatorType) {
 		if (environment == null) {
 			throw new NullPointerException("context is null");
 		}
@@ -119,7 +119,8 @@ public abstract class DataStream<OUT> {
 		this.environment = dataStream.environment;
 		this.id = dataStream.id;
 		this.degreeOfParallelism = dataStream.degreeOfParallelism;
-		this.userDefinedNames = new ArrayList<String>(dataStream.userDefinedNames);
+		this.userDefinedNames = new ArrayList<String>(
+				dataStream.userDefinedNames);
 		this.partitioner = dataStream.partitioner;
 		this.jobGraphBuilder = dataStream.jobGraphBuilder;
 
@@ -178,7 +179,8 @@ public abstract class DataStream<OUT> {
 	 * @return The {@link ConnectedDataStream}.
 	 */
 	public <R> ConnectedDataStream<OUT, R> connect(DataStream<R> dataStream) {
-		return new ConnectedDataStream<OUT, R>(environment, jobGraphBuilder, this, dataStream);
+		return new ConnectedDataStream<OUT, R>(environment, jobGraphBuilder,
+				this, dataStream);
 	}
 
 	/**
@@ -191,7 +193,8 @@ public abstract class DataStream<OUT> {
 	 */
 	public DataStream<OUT> partitionBy(int keyPosition) {
 		if (keyPosition < 0) {
-			throw new IllegalArgumentException("The position of the field must be non-negative");
+			throw new IllegalArgumentException(
+					"The position of the field must be non-negative");
 		}
 
 		return setConnectionType(new FieldsPartitioner<OUT>(keyPosition));
@@ -253,8 +256,13 @@ public abstract class DataStream<OUT> {
 	 * @return The transformed {@link DataStream}.
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> map(MapFunction<OUT, R> mapper) {
-		return addFunction("map", mapper, new FunctionTypeWrapper<OUT, Tuple, R>(mapper,
-				MapFunction.class, 0, -1, 1), new MapInvokable<OUT, R>(mapper));
+		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(
+				mapper, MapFunction.class, 0);
+		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(
+				mapper, MapFunction.class, 1);
+
+		return addFunction("map", mapper, inTypeWrapper, outTypeWrapper,
+				new MapInvokable<OUT, R>(mapper));
 	}
 
 	/**
@@ -273,14 +281,20 @@ public abstract class DataStream<OUT> {
 	 *            output type
 	 * @return The transformed {@link DataStream}.
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> flatMap(FlatMapFunction<OUT, R> flatMapper) {
-		return addFunction("flatMap", flatMapper, new FunctionTypeWrapper<OUT, Tuple, R>(
-				flatMapper, FlatMapFunction.class, 0, -1, 1), new FlatMapInvokable<OUT, R>(
-				flatMapper));
+	public <R> SingleOutputStreamOperator<R, ?> flatMap(
+			FlatMapFunction<OUT, R> flatMapper) {
+		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(
+				flatMapper, FlatMapFunction.class, 0);
+		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(
+				flatMapper, FlatMapFunction.class, 1);
+
+		return addFunction("flatMap", flatMapper, inTypeWrapper,
+				outTypeWrapper, new FlatMapInvokable<OUT, R>(flatMapper));
 	}
 
 	public GroupedDataStream<OUT> groupBy(int keyPosition) {
-		return new GroupedDataStream<OUT>(this.partitionBy(keyPosition), keyPosition);
+		return new GroupedDataStream<OUT>(this.partitionBy(keyPosition),
+				keyPosition);
 	}
 
 	/**
@@ -300,8 +314,8 @@ public abstract class DataStream<OUT> {
 	 *            output type
 	 * @return The transformed {@link DataStream}.
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> batchReduce(GroupReduceFunction<OUT, R> reducer,
-			long batchSize) {
+	public <R> SingleOutputStreamOperator<R, ?> batchReduce(
+			GroupReduceFunction<OUT, R> reducer, long batchSize) {
 		return batchReduce(reducer, batchSize, batchSize);
 	}
 
@@ -325,11 +339,16 @@ public abstract class DataStream<OUT> {
 	 *            output type
 	 * @return The transformed {@link DataStream}.
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> batchReduce(GroupReduceFunction<OUT, R> reducer,
-			long batchSize, long slideSize) {
-		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT, Tuple, R>(reducer,
-				GroupReduceFunction.class, 0, -1, 1), new BatchReduceInvokable<OUT, R>(reducer,
-				batchSize, slideSize));
+	public <R> SingleOutputStreamOperator<R, ?> batchReduce(
+			GroupReduceFunction<OUT, R> reducer, long batchSize, long slideSize) {
+		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(
+				reducer, GroupReduceFunction.class, 0);
+		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(
+				reducer, GroupReduceFunction.class, 1);
+
+		return addFunction("batchReduce", reducer, inTypeWrapper,
+				outTypeWrapper, new BatchReduceInvokable<OUT, R>(reducer,
+						batchSize, slideSize));
 	}
 
 	/**
@@ -351,8 +370,8 @@ public abstract class DataStream<OUT> {
 	 *            output type
 	 * @return The transformed DataStream.
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
-			long windowSize) {
+	public <R> SingleOutputStreamOperator<R, ?> windowReduce(
+			GroupReduceFunction<OUT, R> reducer, long windowSize) {
 		return windowReduce(reducer, windowSize, windowSize);
 	}
 
@@ -377,11 +396,17 @@ public abstract class DataStream<OUT> {
 	 *            output type
 	 * @return The transformed DataStream.
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
-			long windowSize, long slideInterval) {
-		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT, Tuple, R>(reducer,
-				GroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<OUT, R>(reducer,
-				windowSize, slideInterval));
+	public <R> SingleOutputStreamOperator<R, ?> windowReduce(
+			GroupReduceFunction<OUT, R> reducer, long windowSize,
+			long slideInterval) {
+		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(
+				reducer, GroupReduceFunction.class, 0);
+		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(
+				reducer, GroupReduceFunction.class, 1);
+
+		return addFunction("batchReduce", reducer, inTypeWrapper,
+				outTypeWrapper, new WindowReduceInvokable<OUT, R>(reducer,
+						windowSize, slideInterval));
 	}
 
 	/**
@@ -398,8 +423,11 @@ public abstract class DataStream<OUT> {
 	 * @return The filtered DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
-		return addFunction("filter", filter, new FunctionTypeWrapper<OUT, Tuple, OUT>(filter,
-				FilterFunction.class, 0, -1, 0), new FilterInvokable<OUT>(filter));
+		FunctionTypeWrapper<OUT> typeWrapper = new FunctionTypeWrapper<OUT>(
+				filter, FilterFunction.class, 0);
+
+		return addFunction("filter", filter, typeWrapper, typeWrapper,
+				new FilterInvokable<OUT>(filter));
 	}
 
 	/**
@@ -412,7 +440,8 @@ public abstract class DataStream<OUT> {
 	public DataStreamSink<OUT> print() {
 		DataStream<OUT> inputStream = this.copy();
 		PrintSinkFunction<OUT> printFunction = new PrintSinkFunction<OUT>();
-		DataStreamSink<OUT> returnStream = addSink(inputStream, printFunction, null);
+		DataStreamSink<OUT> returnStream = addSink(inputStream, printFunction,
+				null);
 
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 
@@ -447,7 +476,8 @@ public abstract class DataStream<OUT> {
 	 * @return The closed DataStream
 	 */
 	public DataStreamSink<OUT> writeAsText(String path, long millis) {
-		return writeAsText(this, path, new WriteFormatAsText<OUT>(), millis, null);
+		return writeAsText(this, path, new WriteFormatAsText<OUT>(), millis,
+				null);
 	}
 
 	/**
@@ -465,7 +495,8 @@ public abstract class DataStream<OUT> {
 	 * @return The closed DataStream
 	 */
 	public DataStreamSink<OUT> writeAsText(String path, int batchSize) {
-		return writeAsText(this, path, new WriteFormatAsText<OUT>(), batchSize, null);
+		return writeAsText(this, path, new WriteFormatAsText<OUT>(), batchSize,
+				null);
 	}
 
 	/**
@@ -486,8 +517,10 @@ public abstract class DataStream<OUT> {
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStreamSink<OUT> writeAsText(String path, long millis, OUT endTuple) {
-		return writeAsText(this, path, new WriteFormatAsText<OUT>(), millis, endTuple);
+	public DataStreamSink<OUT> writeAsText(String path, long millis,
+			OUT endTuple) {
+		return writeAsText(this, path, new WriteFormatAsText<OUT>(), millis,
+				endTuple);
 	}
 
 	/**
@@ -509,8 +542,10 @@ public abstract class DataStream<OUT> {
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStreamSink<OUT> writeAsText(String path, int batchSize, OUT endTuple) {
-		return writeAsText(this, path, new WriteFormatAsText<OUT>(), batchSize, endTuple);
+	public DataStreamSink<OUT> writeAsText(String path, int batchSize,
+			OUT endTuple) {
+		return writeAsText(this, path, new WriteFormatAsText<OUT>(), batchSize,
+				endTuple);
 	}
 
 	/**
@@ -531,10 +566,12 @@ public abstract class DataStream<OUT> {
 	 * 
 	 * @return the data stream constructed
 	 */
-	private DataStreamSink<OUT> writeAsText(DataStream<OUT> inputStream, String path,
-			WriteFormatAsText<OUT> format, long millis, OUT endTuple) {
-		DataStreamSink<OUT> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<OUT>(
-				path, format, millis, endTuple), null);
+	private DataStreamSink<OUT> writeAsText(DataStream<OUT> inputStream,
+			String path, WriteFormatAsText<OUT> format, long millis,
+			OUT endTuple) {
+		DataStreamSink<OUT> returnStream = addSink(inputStream,
+				new WriteSinkFunctionByMillis<OUT>(path, format, millis,
+						endTuple), null);
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
@@ -559,10 +596,12 @@ public abstract class DataStream<OUT> {
 	 * 
 	 * @return the data stream constructed
 	 */
-	private DataStreamSink<OUT> writeAsText(DataStream<OUT> inputStream, String path,
-			WriteFormatAsText<OUT> format, int batchSize, OUT endTuple) {
+	private DataStreamSink<OUT> writeAsText(DataStream<OUT> inputStream,
+			String path, WriteFormatAsText<OUT> format, int batchSize,
+			OUT endTuple) {
 		DataStreamSink<OUT> returnStream = addSink(inputStream,
-				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize, endTuple), null);
+				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize,
+						endTuple), null);
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
@@ -614,7 +653,8 @@ public abstract class DataStream<OUT> {
 	 * @return The closed DataStream
 	 */
 	public DataStreamSink<OUT> writeAsCsv(String path, int batchSize) {
-		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), batchSize, null);
+		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), batchSize,
+				null);
 	}
 
 	/**
@@ -636,7 +676,8 @@ public abstract class DataStream<OUT> {
 	 * @return The closed DataStream
 	 */
 	public DataStreamSink<OUT> writeAsCsv(String path, long millis, OUT endTuple) {
-		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), millis, endTuple);
+		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), millis,
+				endTuple);
 	}
 
 	/**
@@ -658,11 +699,13 @@ public abstract class DataStream<OUT> {
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStreamSink<OUT> writeAsCsv(String path, int batchSize, OUT endTuple) {
+	public DataStreamSink<OUT> writeAsCsv(String path, int batchSize,
+			OUT endTuple) {
 		if (this instanceof SingleOutputStreamOperator) {
 			((SingleOutputStreamOperator<?, ?>) this).setMutability(false);
 		}
-		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), batchSize, endTuple);
+		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), batchSize,
+				endTuple);
 	}
 
 	/**
@@ -683,10 +726,11 @@ public abstract class DataStream<OUT> {
 	 * 
 	 * @return the data stream constructed
 	 */
-	private DataStreamSink<OUT> writeAsCsv(DataStream<OUT> inputStream, String path,
-			WriteFormatAsCsv<OUT> format, long millis, OUT endTuple) {
-		DataStreamSink<OUT> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<OUT>(
-				path, format, millis, endTuple));
+	private DataStreamSink<OUT> writeAsCsv(DataStream<OUT> inputStream,
+			String path, WriteFormatAsCsv<OUT> format, long millis, OUT endTuple) {
+		DataStreamSink<OUT> returnStream = addSink(inputStream,
+				new WriteSinkFunctionByMillis<OUT>(path, format, millis,
+						endTuple));
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
@@ -711,10 +755,12 @@ public abstract class DataStream<OUT> {
 	 * 
 	 * @return the data stream constructed
 	 */
-	private DataStreamSink<OUT> writeAsCsv(DataStream<OUT> inputStream, String path,
-			WriteFormatAsCsv<OUT> format, int batchSize, OUT endTuple) {
+	private DataStreamSink<OUT> writeAsCsv(DataStream<OUT> inputStream,
+			String path, WriteFormatAsCsv<OUT> format, int batchSize,
+			OUT endTuple) {
 		DataStreamSink<OUT> returnStream = addSink(inputStream,
-				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize, endTuple), null);
+				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize,
+						endTuple), null);
 		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
@@ -746,12 +792,14 @@ public abstract class DataStream<OUT> {
 		return new IterativeDataStream<OUT>(this);
 	}
 
-	protected <R> DataStream<OUT> addIterationSource(String iterationID, long waitTime) {
+	protected <R> DataStream<OUT> addIterationSource(String iterationID,
+			long waitTime) {
 
-		DataStream<R> returnStream = new DataStreamSource<R>(environment, "iterationSource");
+		DataStream<R> returnStream = new DataStreamSource<R>(environment,
+				"iterationSource");
 
-		jobGraphBuilder.addIterationSource(returnStream.getId(), this.getId(), iterationID,
-				degreeOfParallelism, waitTime);
+		jobGraphBuilder.addIterationSource(returnStream.getId(), this.getId(),
+				iterationID, degreeOfParallelism, waitTime);
 
 		return this.copy();
 	}
@@ -770,18 +818,21 @@ public abstract class DataStream<OUT> {
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
-	protected <R> SingleOutputStreamOperator<R, ?> addFunction(String functionName,
-			final Function function, TypeSerializerWrapper<OUT, Tuple, R> typeWrapper,
+	protected <R> SingleOutputStreamOperator<R, ?> addFunction(
+			String functionName, final Function function,
+			TypeSerializerWrapper<OUT> inTypeWrapper,
+			TypeSerializerWrapper<R> outTypeWrapper,
 			UserTaskInvokable<OUT, R> functionInvokable) {
 
 		DataStream<OUT> inputStream = this.copy();
 		@SuppressWarnings({ "unchecked", "rawtypes" })
-		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
-				functionName);
+		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(
+				environment, functionName);
 
 		try {
-			jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, typeWrapper,
-					functionName, SerializationUtils.serialize((Serializable) function),
+			jobGraphBuilder.addTask(returnStream.getId(), functionInvokable,
+					inTypeWrapper, outTypeWrapper, functionName,
+					SerializationUtils.serialize((Serializable) function),
 					degreeOfParallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize user defined function");
@@ -791,7 +842,8 @@ public abstract class DataStream<OUT> {
 
 		if (inputStream instanceof IterativeDataStream) {
 			IterativeDataStream<OUT> iterativeStream = (IterativeDataStream<OUT>) inputStream;
-			returnStream.addIterationSource(iterativeStream.iterationID.toString(),
+			returnStream.addIterationSource(
+					iterativeStream.iterationID.toString(),
 					iterativeStream.waitTime);
 		}
 
@@ -805,7 +857,8 @@ public abstract class DataStream<OUT> {
 	 *            Partitioner to set.
 	 * @return The modified DataStream.
 	 */
-	protected DataStream<OUT> setConnectionType(StreamPartitioner<OUT> partitioner) {
+	protected DataStream<OUT> setConnectionType(
+			StreamPartitioner<OUT> partitioner) {
 		DataStream<OUT> returnStream = this.copy();
 
 		returnStream.partitioner = partitioner;
@@ -826,15 +879,18 @@ public abstract class DataStream<OUT> {
 	 * @param typeNumber
 	 *            Number of the type (used at co-functions)
 	 */
-	protected <X> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
+	protected <X> void connectGraph(DataStream<X> inputStream, String outputID,
+			int typeNumber) {
 		if (inputStream instanceof MergedDataStream) {
 			for (DataStream<X> stream : ((MergedDataStream<X>) inputStream).mergedStreams) {
-				jobGraphBuilder.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
+				jobGraphBuilder.setEdge(stream.getId(), outputID,
+						stream.partitioner, typeNumber,
 						inputStream.userDefinedNames);
 			}
 		} else {
-			jobGraphBuilder.setEdge(inputStream.getId(), outputID, inputStream.partitioner,
-					typeNumber, inputStream.userDefinedNames);
+			jobGraphBuilder.setEdge(inputStream.getId(), outputID,
+					inputStream.partitioner, typeNumber,
+					inputStream.userDefinedNames);
 		}
 
 	}
@@ -852,18 +908,23 @@ public abstract class DataStream<OUT> {
 		return addSink(this.copy(), sinkFunction);
 	}
 
-	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream, SinkFunction<OUT> sinkFunction) {
-		return addSink(inputStream, sinkFunction, new FunctionTypeWrapper<OUT, Tuple, OUT>(
-				sinkFunction, SinkFunction.class, 0, -1, 0));
+	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream,
+			SinkFunction<OUT> sinkFunction) {
+		return addSink(inputStream, sinkFunction,
+				new FunctionTypeWrapper<OUT>(sinkFunction,
+						SinkFunction.class, 0));
 	}
 
 	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream,
-			SinkFunction<OUT> sinkFunction, TypeSerializerWrapper<OUT, Tuple, OUT> typeWrapper) {
-		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink");
+			SinkFunction<OUT> sinkFunction,
+			TypeSerializerWrapper<OUT> typeWrapper) {
+		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment,
+				"sink");
 
 		try {
-			jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<OUT>(sinkFunction),
-					typeWrapper, "sink", SerializationUtils.serialize(sinkFunction),
+			jobGraphBuilder.addSink(returnStream.getId(),
+					new SinkInvokable<OUT>(sinkFunction), typeWrapper, "sink",
+					SerializationUtils.serialize(sinkFunction),
 					degreeOfParallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SinkFunction");

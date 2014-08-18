@@ -30,10 +30,11 @@ import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-public class StreamIterationSource<OUT extends Tuple> extends
-		SingleInputAbstractStreamComponent<Tuple, OUT> {
+public class StreamIterationSource<OUT extends Tuple> extends AbstractStreamComponent {
 
 	private static final Log LOG = LogFactory.getLog(StreamIterationSource.class);
+
+	private OutputHandler<OUT> outputHandler;
 
 	private static int numSources;
 	private String iterationId;
@@ -44,8 +45,6 @@ public class StreamIterationSource<OUT extends Tuple> extends
 
 	@SuppressWarnings("rawtypes")
 	public StreamIterationSource() {
-
-		outputHandler = new OutputHandler();
 		numSources = newComponent();
 		instanceID = numSources;
 		dataChannel = new ArrayBlockingQueue<StreamRecord>(1);
@@ -53,11 +52,7 @@ public class StreamIterationSource<OUT extends Tuple> extends
 
 	@Override
 	public void setInputsOutputs() {
-		try {
-			outputHandler.setConfigOutputs();
-		} catch (StreamComponentException e) {
-			throw new StreamComponentException("Cannot register outputs", e);
-		}
+		outputHandler = new OutputHandler<OUT>(this);
 
 		iterationId = configuration.getIterationId();
 		iterationWaitTime = configuration.getIterationWaitTime();
@@ -68,18 +63,17 @@ public class StreamIterationSource<OUT extends Tuple> extends
 		} catch (Exception e) {
 
 		}
-
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public void invoke() throws Exception {
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("SOURCE " + name + " invoked with instance id " + instanceID);
+			LOG.debug("SOURCE " + getName() + " invoked with instance id " + getInstanceID());
 		}
 
 		outputHandler.initializeOutputSerializers();
-		
+
 		StreamRecord<OUT> nextRecord;
 
 		while (true) {
@@ -91,9 +85,10 @@ public class StreamIterationSource<OUT extends Tuple> extends
 			if (nextRecord == null) {
 				break;
 			}
-			for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputHandler.getOutputs()) {
-				outSerializationDelegate.setInstance(nextRecord);
-				output.emit(outSerializationDelegate);
+			for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputHandler
+					.getOutputs()) {
+				outputHandler.outSerializationDelegate.setInstance(nextRecord);
+				output.emit(outputHandler.outSerializationDelegate);
 			}
 		}
 

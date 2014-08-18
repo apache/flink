@@ -58,7 +58,8 @@ public class ConnectedDataStream<IN1, IN2> {
 	DataStream<IN2> input2;
 
 	protected ConnectedDataStream(StreamExecutionEnvironment environment,
-			JobGraphBuilder jobGraphBuilder, DataStream<IN1> input1, DataStream<IN2> input2) {
+			JobGraphBuilder jobGraphBuilder, DataStream<IN1> input1,
+			DataStream<IN2> input2) {
 		this.jobGraphBuilder = jobGraphBuilder;
 		this.environment = environment;
 		this.input1 = input1.copy();
@@ -96,14 +97,18 @@ public class ConnectedDataStream<IN1, IN2> {
 	 *            second input stream.
 	 * @return The DataStream with field partitioning set.
 	 */
-	public ConnectedDataStream<IN1, IN2> partitionBy(int keyPosition1, int keyPosition2) {
+	public ConnectedDataStream<IN1, IN2> partitionBy(int keyPosition1,
+			int keyPosition2) {
 		if (keyPosition1 < 0 || keyPosition2 < 0) {
-			throw new IllegalArgumentException("The position of the field must be non-negative");
+			throw new IllegalArgumentException(
+					"The position of the field must be non-negative");
 		}
 
-		return new ConnectedDataStream<IN1, IN2>(this.environment, this.jobGraphBuilder, getFirst()
-				.setConnectionType(new FieldsPartitioner<IN1>(keyPosition1)), getSecond()
-				.setConnectionType(new FieldsPartitioner<IN2>(keyPosition2)));
+		return new ConnectedDataStream<IN1, IN2>(this.environment,
+				this.jobGraphBuilder, getFirst().setConnectionType(
+						new FieldsPartitioner<IN1>(keyPosition1)), getSecond()
+						.setConnectionType(
+								new FieldsPartitioner<IN2>(keyPosition2)));
 	}
 
 	/**
@@ -119,7 +124,8 @@ public class ConnectedDataStream<IN1, IN2> {
 	 *            second input stream.
 	 * @return
 	 */
-	public ConnectedDataStream<IN1, IN2> groupBy(int keyPosition1, int keyPosition2) {
+	public ConnectedDataStream<IN1, IN2> groupBy(int keyPosition1,
+			int keyPosition2) {
 		return this.partitionBy(keyPosition1, keyPosition2);
 	}
 
@@ -136,9 +142,18 @@ public class ConnectedDataStream<IN1, IN2> {
 	 *            DataStreams
 	 * @return The transformed DataStream
 	 */
-	public <OUT> SingleOutputStreamOperator<OUT, ?> map(CoMapFunction<IN1, IN2, OUT> coMapper) {
-		return addCoFunction("coMap", coMapper, new FunctionTypeWrapper<IN1, IN2, OUT>(coMapper,
-				CoMapFunction.class, 0, 1, 2), new CoMapInvokable<IN1, IN2, OUT>(coMapper));
+	public <OUT> SingleOutputStreamOperator<OUT, ?> map(
+			CoMapFunction<IN1, IN2, OUT> coMapper) {
+		FunctionTypeWrapper<IN1> in1TypeWrapper = new FunctionTypeWrapper<IN1>(
+				coMapper, CoMapFunction.class, 0);
+		FunctionTypeWrapper<IN2> in2TypeWrapper = new FunctionTypeWrapper<IN2>(
+				coMapper, CoMapFunction.class, 1);
+		FunctionTypeWrapper<OUT> outTypeWrapper = new FunctionTypeWrapper<OUT>(
+				coMapper, CoMapFunction.class, 2);
+
+		return addCoFunction("coMap", coMapper,
+				in1TypeWrapper, in2TypeWrapper, outTypeWrapper,
+				new CoMapInvokable<IN1, IN2, OUT>(coMapper));
 	}
 
 	/**
@@ -157,8 +172,15 @@ public class ConnectedDataStream<IN1, IN2> {
 	 */
 	public <OUT> SingleOutputStreamOperator<OUT, ?> flatMap(
 			CoFlatMapFunction<IN1, IN2, OUT> coFlatMapper) {
-		return addCoFunction("coFlatMap", coFlatMapper, new FunctionTypeWrapper<IN1, IN2, OUT>(
-				coFlatMapper, CoFlatMapFunction.class, 0, 1, 2),
+		FunctionTypeWrapper<IN1> in1TypeWrapper = new FunctionTypeWrapper<IN1>(
+				coFlatMapper, CoFlatMapFunction.class, 0);
+		FunctionTypeWrapper<IN2> in2TypeWrapper = new FunctionTypeWrapper<IN2>(
+				coFlatMapper, CoFlatMapFunction.class, 1);
+		FunctionTypeWrapper<OUT> outTypeWrapper = new FunctionTypeWrapper<OUT>(
+				coFlatMapper, CoFlatMapFunction.class, 2);
+		
+		return addCoFunction("coFlatMap", coFlatMapper,
+				in1TypeWrapper, in2TypeWrapper, outTypeWrapper,
 				new CoFlatMapInvokable<IN1, IN2, OUT>(coFlatMapper));
 	}
 
@@ -183,14 +205,27 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return The transformed DataStream.
 	 */
 	public <OUT> SingleOutputStreamOperator<OUT, ?> reduce(
-			CoReduceFunction<IN1, IN2, OUT> coReducer, int keyPosition1, int keyPosition2) {
-		return addCoFunction("coReduce", coReducer, new FunctionTypeWrapper<IN1, IN2, OUT>(
-				coReducer, CoReduceFunction.class, 0, 1, 2),
-				new CoGroupReduceInvokable<IN1, IN2, OUT>(coReducer, keyPosition1, keyPosition2));
+			CoReduceFunction<IN1, IN2, OUT> coReducer, int keyPosition1,
+			int keyPosition2) {
+		
+		FunctionTypeWrapper<IN1> in1TypeWrapper = new FunctionTypeWrapper<IN1>(
+				coReducer, CoReduceFunction.class, 0);
+		FunctionTypeWrapper<IN2> in2TypeWrapper = new FunctionTypeWrapper<IN2>(
+				coReducer, CoReduceFunction.class, 1);
+		FunctionTypeWrapper<OUT> outTypeWrapper = new FunctionTypeWrapper<OUT>(
+				coReducer, CoReduceFunction.class, 2);
+		
+		return addCoFunction("coReduce", coReducer,
+				in1TypeWrapper, in2TypeWrapper, outTypeWrapper,
+				new CoGroupReduceInvokable<IN1, IN2, OUT>(coReducer,
+						keyPosition1, keyPosition2));
 	}
 
-	protected <OUT> SingleOutputStreamOperator<OUT, ?> addCoFunction(String functionName,
-			final Function function, TypeSerializerWrapper<IN1, IN2, OUT> typeWrapper,
+	protected <OUT> SingleOutputStreamOperator<OUT, ?> addCoFunction(
+			String functionName, final Function function,
+			TypeSerializerWrapper<IN1> in1TypeWrapper,
+			TypeSerializerWrapper<IN2> in2TypeWrapper,
+			TypeSerializerWrapper<OUT> outTypeWrapper,
 			CoInvokable<IN1, IN2, OUT> functionInvokable) {
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -198,8 +233,9 @@ public class ConnectedDataStream<IN1, IN2> {
 				environment, functionName);
 
 		try {
-			input1.jobGraphBuilder.addCoTask(returnStream.getId(), functionInvokable, typeWrapper,
-					functionName, SerializationUtils.serialize((Serializable) function),
+			input1.jobGraphBuilder.addCoTask(returnStream.getId(),
+					functionInvokable, in1TypeWrapper, in2TypeWrapper, outTypeWrapper, functionName,
+					SerializationUtils.serialize((Serializable) function),
 					environment.getDegreeOfParallelism());
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize user defined function");

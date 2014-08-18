@@ -21,11 +21,11 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.RichReduceFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.invokable.operator.BatchGroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.GroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.WindowGroupReduceInvokable;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
+import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
 
 /**
  * A GroupedDataStream represents a data stream which has been partitioned by
@@ -59,9 +59,9 @@ public class GroupedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
-		return dataStream.addFunction("groupReduce", reducer,
-				new FunctionTypeWrapper<OUT, Tuple, OUT>(reducer, ReduceFunction.class, 0, -1, 0),
-				new GroupReduceInvokable<OUT>(reducer, keyPosition)).partitionBy(keyPosition);
+		return dataStream.addFunction("groupReduce", reducer, getTypeWrapper(reducer),
+				getTypeWrapper(reducer), new GroupReduceInvokable<OUT>(reducer, keyPosition))
+				.partitionBy(keyPosition);
 	}
 
 	/**
@@ -106,10 +106,10 @@ public class GroupedDataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> batchReduce(ReduceFunction<OUT> reducer,
 			long batchSize, long slideSize) {
-		return dataStream.addFunction("batchReduce", reducer,
-				new FunctionTypeWrapper<OUT, Tuple, OUT>(reducer, ReduceFunction.class, 0, -1,
-						0), new BatchGroupReduceInvokable<OUT>(reducer, batchSize, slideSize,
-						keyPosition));
+
+		return dataStream.addFunction("batchReduce", reducer, getTypeWrapper(reducer),
+				getTypeWrapper(reducer), new BatchGroupReduceInvokable<OUT>(reducer, batchSize,
+						slideSize, keyPosition));
 	}
 
 	/**
@@ -153,10 +153,12 @@ public class GroupedDataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> windowReduce(ReduceFunction<OUT> reducer,
 			long windowSize, long slideInterval, long timeUnitInMillis) {
-		return dataStream.addFunction("batchReduce", reducer,
-				new FunctionTypeWrapper<OUT, Tuple, OUT>(reducer, ReduceFunction.class, 0, -1,
-						0), new WindowGroupReduceInvokable<OUT>(reducer, windowSize, slideInterval,
-						keyPosition));
+		return dataStream.addFunction("batchReduce", reducer, getTypeWrapper(reducer),
+				getTypeWrapper(reducer), new WindowGroupReduceInvokable<OUT>(reducer, windowSize,
+						slideInterval, keyPosition));
 	}
 
+	private TypeSerializerWrapper<OUT> getTypeWrapper(ReduceFunction<OUT> reducer) {
+		return new FunctionTypeWrapper<OUT>(reducer, ReduceFunction.class, 0);
+	}
 }
