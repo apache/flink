@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,15 +13,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.api;
 
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.LogUtils;
-import org.apache.log4j.Level;
+import org.apache.flink.util.LogUtils;
 import org.junit.Test;
 
 public class PrintTest{
@@ -31,12 +28,10 @@ public class PrintTest{
 
 	@Test
 	public void test() throws Exception {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
+		LogUtils.initializeDefaultTestConsoleLogger();
 
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 		env.generateSequence(1, 10).print();
 		env.executeTest(MEMORYSIZE);
-
 	}
-
 }

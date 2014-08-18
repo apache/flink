@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,7 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.api.invokable.operator;
@@ -28,8 +26,8 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.util.LogUtils;
-import org.apache.log4j.Level;
+import org.apache.flink.util.LogUtils;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -65,7 +63,9 @@ public class CoMapTest implements Serializable {
 
 	@Test
 	public void multipleInputTest() {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
+		
+		LogUtils.initializeDefaultTestConsoleLogger();
+		
 		expected.add("a");
 		expected.add("b");
 		expected.add("c");

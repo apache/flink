@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,7 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.api.streamcomponent;
@@ -27,23 +25,22 @@ import java.util.Map;
 import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
-import org.junit.BeforeClass;
+import org.apache.flink.util.LogUtils;
 import org.junit.Test;
 
 public class StreamComponentTest {
 
 	@SuppressWarnings("unused")
-  private static final int PARALLELISM = 1;
+	private static final int PARALLELISM = 1;
 	private static final int SOURCE_PARALELISM = 1;
 	private static final long MEMORYSIZE = 32;
 
-	public static Map<Integer, Integer> data = new HashMap<Integer, Integer>();
+	private static Map<Integer, Integer> data = new HashMap<Integer, Integer>();
 
 	public static class MySource implements SourceFunction<Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
@@ -93,20 +90,19 @@ public class StreamComponentTest {
 		}
 	}
 
-	@SuppressWarnings("unused")
-  @BeforeClass
-	public static void runStream() {
+	@Test
+	public void runStream() {
+		
+		LogUtils.initializeDefaultTestConsoleLogger();
+		
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(SOURCE_PARALELISM);
 
-		DataStream<Tuple2<Integer, Integer>> oneTask = env
+		env
 				.addSource(new MySource(), SOURCE_PARALELISM).map(new MyTask())
 				.addSink(new MySink());
 
 		env.executeTest(MEMORYSIZE);
-	}
-
-	@Test
-	public void test() {
+		
 		assertEquals(10, data.keySet().size());
 
 		for (Integer k : data.keySet()) {

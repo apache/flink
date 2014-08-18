@@ -194,7 +194,6 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the returned stream
 	 * @return The DataStream representing the elements.
 	 */
-	@SuppressWarnings("unchecked")
 	public <OUT extends Serializable> DataStreamSource<OUT> fromElements(OUT... data) {
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements");
 

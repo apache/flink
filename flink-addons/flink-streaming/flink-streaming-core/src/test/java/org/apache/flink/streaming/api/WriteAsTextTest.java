@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,7 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.api;
@@ -33,12 +31,15 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.streaming.util.LogUtils;
+import org.apache.flink.util.LogUtils;
 import org.apache.flink.util.Collector;
-import org.apache.log4j.Level;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class WriteAsTextTest {
+	
+	private static final String PREFIX = System.getProperty("java.io.tmpdir") + "/" + WriteAsTextTest.class.getSimpleName() + "_";
+	
 	private static final long MEMORYSIZE = 32;
 
 	private static List<String> result1 = new ArrayList<String>();
@@ -112,64 +113,69 @@ public class WriteAsTextTest {
 			expected5.add("(" + i + ")");
 		}
 	}
+	
+	@BeforeClass
+	public static void createFileCleanup() {
+		Runnable r = new Runnable() {
+			
+			@Override
+			public void run() {
+				try { new File(PREFIX + "test1.txt").delete(); } catch (Throwable t) {}
+				try { new File(PREFIX + "test2.txt").delete(); } catch (Throwable t) {}
+				try { new File(PREFIX + "test3.txt").delete(); } catch (Throwable t) {}
+				try { new File(PREFIX + "test4.txt").delete(); } catch (Throwable t) {}
+				try { new File(PREFIX + "test5.txt").delete(); } catch (Throwable t) {}
+			}
+		};
+		
+		Runtime.getRuntime().addShutdownHook(new Thread(r));
+	}
 
 	@Test
 	public void test() throws Exception {
 		
+		LogUtils.initializeDefaultTestConsoleLogger();
+		
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
 		
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> dataStream1 = env.addSource(new MySource1(), 1).writeAsText(
-				"test1.txt");
+		DataStream<Tuple1<Integer>> dataStream1 = env.addSource(new MySource1(), 1).writeAsText(PREFIX + "test1.txt");
 
 		fillExpected1();
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> dataStream2 = env.addSource(new MySource1(), 1).writeAsText(
-				"test2.txt", 5);
+		DataStream<Tuple1<Integer>> dataStream2 = env.addSource(new MySource1(), 1).writeAsText(PREFIX + "test2.txt", 5);
 
 		fillExpected2();
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> dataStream3 = env.addSource(new MySource1(), 1).writeAsText(
-				"test3.txt", 10);
+		DataStream<Tuple1<Integer>> dataStream3 = env.addSource(new MySource1(), 1).writeAsText(PREFIX + "test3.txt", 10);
 
 		fillExpected3();
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> dataStream4 = env.addSource(new MySource1(), 1).writeAsText(
-				"test4.txt", 10, new Tuple1<Integer>(26));
+		DataStream<Tuple1<Integer>> dataStream4 = env.addSource(new MySource1(), 1).writeAsText(PREFIX + "test4.txt", 10, new Tuple1<Integer>(26));
 
 		fillExpected4();
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<Integer>> dataStream5 = env.addSource(new MySource1(), 1).writeAsText(
-				"test5.txt", 10, new Tuple1<Integer>(14));
+		DataStream<Tuple1<Integer>> dataStream5 = env.addSource(new MySource1(), 1).writeAsText(PREFIX + "test5.txt", 10, new Tuple1<Integer>(14));
 
 		fillExpected5();
 
 		env.executeTest(MEMORYSIZE);
 
-		readFile("test1.txt", result1);
-		readFile("test2.txt", result2);
-		readFile("test3.txt", result3);
-		readFile("test4.txt", result4);
-		readFile("test5.txt", result5);
+		readFile(PREFIX + "test1.txt", result1);
+		readFile(PREFIX + "test2.txt", result2);
+		readFile(PREFIX + "test3.txt", result3);
+		readFile(PREFIX + "test4.txt", result4);
+		readFile(PREFIX + "test5.txt", result5);
 
 		assertEquals(expected1,result1);
 		assertEquals(expected2,result2);
 		assertEquals(expected3,result3);
 		assertEquals(expected4,result4);
 		assertEquals(expected5,result5);
-
-		new File("test1.txt").delete();
-		new File("test2.txt").delete();
-		new File("test3.txt").delete();
-		new File("test4.txt").delete();
-		new File("test5.txt").delete();
-
 	}
 
 }

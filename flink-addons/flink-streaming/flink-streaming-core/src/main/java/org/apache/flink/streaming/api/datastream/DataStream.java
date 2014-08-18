@@ -159,7 +159,6 @@ public abstract class DataStream<OUT> {
 	 *            The DataStreams to merge output with.
 	 * @return The {@link MergedDataStream}.
 	 */
-	@SuppressWarnings("unchecked")
 	public MergedDataStream<OUT> merge(DataStream<OUT>... streams) {
 		MergedDataStream<OUT> returnStream = new MergedDataStream<OUT>(this);
 
