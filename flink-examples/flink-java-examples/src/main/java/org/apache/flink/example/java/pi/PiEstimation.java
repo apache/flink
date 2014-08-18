@@ -48,21 +48,30 @@ import org.apache.flink.api.java.functions.ReduceFunction;
 public class PiEstimation {
 	
 	public static void main(String[] args) throws Exception {
-		
-		int blocks = (args.length == 1) ? Integer.parseInt(args[0]) : 2;
-		int n = 100000 * blocks;
-		List<Integer> l = new ArrayList<Integer>(n);
-		for (int i = 0; i < n; i++) {
-			l.add(1);
-		}
 
 		//Sets up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Integer> dataSet = env.fromCollection(l);
+		
+		//Sets the degree of parallelism
+		int degOfParal = (env.getDegreeOfParallelism() > 0) ? env.getDegreeOfParallelism() : 2;
+		
+		int n = 100000 * degOfParal;
+		
+		DataSet<Integer> dataSet = env.generateSequence(0l, n)
+				.map(new MapFunction<Long, Integer>() {
+					private static final long serialVersionUID = 1L;
+					
+					//Converts from Long to Integer, explicitly choosing "1" as the returned value. 
+					//(Will later be used by the mapper for summation purposes.)
+					@Override
+					public Integer map(Long value) throws Exception {
+						return 1;
+					}
+				});
 
 		DataSet<Double> count = dataSet
 				.filter(new PiFilter())
-				.setParallelism(blocks)
+				.setParallelism(degOfParal)
 				.reduce(new PiReducer())
 				.map(new PiMapper(n));
 
@@ -71,7 +80,6 @@ public class PiEstimation {
 
 		env.execute();
 	}
-
 
 	//*************************************************************************
 	//     USER FUNCTIONS
@@ -82,7 +90,7 @@ public class PiEstimation {
 	/** 
 	 * PiFilter randomly emits points that fall within a square of edge 2*x = 2*y = 2.
 	 * It calculates the distance to the center of a virtually centered circle of radius x = y = 1
-	 * If the distance is less than 1, then and only then does it return a value (in this case 1, a list's value)
+	 * If the distance is less than 1, then and only then does it return a value (in this case 1) - later used by PiMapper.
 	 */
 	public static class PiFilter extends FilterFunction<Integer> {
 		private static final long serialVersionUID = 1L;
@@ -125,6 +133,5 @@ public class PiEstimation {
 			return intSum*4.0 / this.n;
 		}
 	}
-	
 	
 }
