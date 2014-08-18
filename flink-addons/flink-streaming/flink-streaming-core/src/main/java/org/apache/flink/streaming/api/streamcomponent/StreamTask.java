@@ -22,14 +22,16 @@ package org.apache.flink.streaming.api.streamcomponent;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
 
-public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
-		SingleInputAbstractStreamComponent<IN, OUT> {
+public class StreamTask<IN extends Tuple, OUT extends Tuple> extends AbstractStreamComponent {
+
+	private InputHandler<IN> inputHandler;
+	private OutputHandler<OUT> outputHandler;
 
 	private StreamRecordInvokable<IN, OUT> userInvokable;
+	
 	private static int numTasks;
 
 	public StreamTask() {
-		outputHandler = new OutputHandler();
 		userInvokable = null;
 		numTasks = newComponent();
 		instanceID = numTasks;
@@ -37,17 +39,15 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
 
 	@Override
 	public void setInputsOutputs() {
-		setConfigInputs();
-		outputHandler.setConfigOutputs();
-
-		inputIter = createInputIterator(inputs, inputSerializer);
+		inputHandler = new InputHandler<IN>(this);
+		outputHandler = new OutputHandler<OUT>(this);
 	}
 
 	@Override
 	protected void setInvokable() {
-		userInvokable = getInvokable();
-		userInvokable.initialize(collector, inputIter, inputSerializer,
-				isMutable);
+		userInvokable = configuration.getUserInvokable();
+		userInvokable.initialize(outputHandler.getCollector(), inputHandler.getInputIter(),
+				inputHandler.getInputSerializer(), isMutable);
 	}
 
 	@Override

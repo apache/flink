@@ -23,10 +23,12 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
 
-public class StreamSink<IN> extends SingleInputAbstractStreamComponent<IN, IN> {
+public class StreamSink<IN> extends AbstractStreamComponent {
 
 	private static final Log LOG = LogFactory.getLog(StreamSink.class);
 
+	private InputHandler<IN> inputHandler;
+	
 	private StreamRecordInvokable<IN, IN> userInvokable;
 
 	public StreamSink() {
@@ -35,35 +37,26 @@ public class StreamSink<IN> extends SingleInputAbstractStreamComponent<IN, IN> {
 
 	@Override
 	public void setInputsOutputs() {
-		try {
-			setConfigInputs();
-			setSinkSerializer();
-
-			inputIter = createInputIterator(inputs, inputSerializer);
-		} catch (Exception e) {
-			throw new StreamComponentException("Cannot register inputs for "
-					+ getClass().getSimpleName(), e);
-		}
+		inputHandler = new InputHandler<IN>(this);
 	}
 
 	@Override
 	protected void setInvokable() {
-		userInvokable = getInvokable();
-		userInvokable.initialize(collector, inputIter, inputSerializer, isMutable);
+		userInvokable = configuration.getUserInvokable();
+		userInvokable.initialize(null, inputHandler.getInputIter(), inputHandler.getInputSerializer(),
+				isMutable);
 	}
 
 	@Override
 	public void invoke() throws Exception {
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("SINK " + name + " invoked");
+			LOG.debug("SINK " + getName() + " invoked");
 		}
 
-		userInvokable.open(getTaskConfiguration());
-		userInvokable.invoke();
-		userInvokable.close();
+		invokeUserFunction(userInvokable);
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("SINK " + name + " invoke finished");
+			LOG.debug("SINK " + getName() + " invoke finished");
 		}
 	}
 

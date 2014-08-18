@@ -23,18 +23,14 @@ import java.io.IOException;
 
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
-public class ObjectTypeWrapper<IN1, IN2, OUT> extends
-		TypeSerializerWrapper<IN1, IN2, OUT> {
+public class ObjectTypeWrapper<T> extends
+		TypeSerializerWrapper<T> {
 	private static final long serialVersionUID = 1L;
 
-	private IN1 inInstance1;
-	private IN2 inInstance2;
-	private OUT outInstance;
+	private T instance;
 
-	public ObjectTypeWrapper(IN1 inInstance1, IN2 inInstance2, OUT outInstance) {
-		this.inInstance1 = inInstance1;
-		this.inInstance2 = inInstance2;
-		this.outInstance = outInstance;
+	public ObjectTypeWrapper(T instance) {
+		this.instance = instance;
 		setTypeInfo();
 	}
 
@@ -46,14 +42,8 @@ public class ObjectTypeWrapper<IN1, IN2, OUT> extends
 
 	@Override
 	protected void setTypeInfo() {
-		if (inInstance1 != null) {
-			inTypeInfo1 = TypeExtractor.getForObject(inInstance1);
-		}
-		if (inInstance2 != null) {
-			inTypeInfo2 = TypeExtractor.getForObject(inInstance2);
-		}
-		if (outInstance != null) {
-			outTypeInfo = TypeExtractor.getForObject(outInstance);
+		if (instance != null) {
+			typeInfo = TypeExtractor.getForObject(instance);
 		}
 	}
 }

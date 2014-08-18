@@ -21,15 +21,11 @@ package org.apache.flink.streaming.api.streamcomponent;
 
 import java.util.ArrayList;
 
-import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.MutableUnionRecordReader;
-import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
-import org.apache.flink.streaming.api.function.co.CoMapFunction;
-import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
@@ -37,8 +33,10 @@ import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.MutableObjectIterator;
 
 public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tuple> extends
-		AbstractStreamComponent<OUT> {
+		AbstractStreamComponent {
 
+	private OutputHandler<OUT> outputHandler;
+	
 	protected StreamRecordSerializer<IN1> inputDeserializer1 = null;
 	protected StreamRecordSerializer<IN2> inputDeserializer2 = null;
 
@@ -51,61 +49,40 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 	private static int numTasks;
 
 	public CoStreamTask() {
-		outputHandler = new OutputHandler();
 		userInvokable = null;
 		numTasks = newComponent();
 		instanceID = numTasks;
 	}
 
-	@Override
-	protected void setSerializers() {
-		String operatorName = configuration.getFunctionName();
-
-		Object function = configuration.getFunction();
-		try {
-			setSerializer();
-			if (operatorName.equals("coMap")) {
-				setDeserializers(function, CoMapFunction.class);
-			} else if (operatorName.equals("coFlatMap")) {
-				setDeserializers(function, CoFlatMapFunction.class);
-			} else if (operatorName.equals("coReduce")) {
-			setDeserializers(function, CoReduceFunction.class);
-			} else {
-				throw new Exception("Wrong operator name!");
-			}
-		} catch (Exception e) {
-			throw new StreamComponentException(e);
-		}
-	}
-
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private void setDeserializers(Object function, Class<? extends Function> clazz) {
-		TypeInformation<IN1> inputTypeInfo1 = (TypeInformation<IN1>) typeWrapper
-				.getInputTypeInfo1();
+	private void setDeserializers() {
+		TypeInformation<IN1> inputTypeInfo1 = configuration.getTypeInfoIn1();
 		inputDeserializer1 = new StreamRecordSerializer<IN1>(inputTypeInfo1);
 
-		TypeInformation<IN2> inputTypeInfo2 = (TypeInformation<IN2>) typeWrapper
-				.getInputTypeInfo2();
+		TypeInformation<IN2> inputTypeInfo2 = configuration.getTypeInfoIn2();
 		inputDeserializer2 = new StreamRecordSerializer(inputTypeInfo2);
 	}
 
 	@Override
 	public void setInputsOutputs() {
-		outputHandler.setConfigOutputs();
+		outputHandler = new OutputHandler<OUT>(this);
+		
 		setConfigInputs();
 
-		inputIter1 = createInputIterator(inputs1, inputDeserializer1);
-		inputIter2 = createInputIterator(inputs2, inputDeserializer2);
+		inputIter1 = InputHandler.staticCreateInputIterator(inputs1, inputDeserializer1);
+		inputIter2 = InputHandler.staticCreateInputIterator(inputs2, inputDeserializer2);
 	}
 
 	@Override
 	protected void setInvokable() {
-		userInvokable = getInvokable();
-		userInvokable.initialize(collector, inputIter1, inputDeserializer1, inputIter2,
-				inputDeserializer2, isMutable);
+		userInvokable = configuration.getUserInvokable();
+		userInvokable.initialize(outputHandler.getCollector(), inputIter1, inputDeserializer1,
+				inputIter2, inputDeserializer2, isMutable);
 	}
 
 	protected void setConfigInputs() throws StreamComponentException {
+		setDeserializers();
+
 		int numberOfInputs = configuration.getNumberOfInputs();
 
 		ArrayList<MutableRecordReader<IOReadableWritable>> inputList1 = new ArrayList<MutableRecordReader<IOReadableWritable>>();
