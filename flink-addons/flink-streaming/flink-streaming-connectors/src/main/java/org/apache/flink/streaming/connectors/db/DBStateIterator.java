@@ -17,14 +17,15 @@
 
 package org.apache.flink.streaming.connectors.db;
 
-public interface DBStateIterator {
+import java.io.Serializable;
 
-	public boolean hasNext();
+public abstract class DBStateIterator<K extends Serializable, V extends Serializable> {
 
-	public String getNextKey();
+	public abstract boolean hasNext();
 
-	public String getNextValue();
+	public abstract K getNextKey();
 
-	public void next();
+	public abstract V getNextValue();
 
+	public abstract void next();
 }

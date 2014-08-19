@@ -17,43 +17,19 @@
 
 package org.apache.flink.streaming.connectors.db;
 
-import java.util.Iterator;
+import java.io.Serializable;
 
-import redis.clients.jedis.Jedis;
+import org.apache.commons.lang3.SerializationUtils;
 
-//Needs running Redis service
-public class RedisStateIterator implements DBStateIterator {
-
-	private Iterator<String> iterator;
-	private int position;
-	private int size;
-	private String currentKey;
-	private Jedis jedis;
-
-	public RedisStateIterator(Jedis jedis) {
-		this.jedis = jedis;
-		iterator = jedis.keys("*").iterator();
-		size = jedis.keys("*").size();
-		currentKey = iterator.next();
-		position = 0;
+public class DefaultDBSerializer<T extends Serializable>  implements DBSerializer<T> {
+	
+	@Override
+	public byte[] write(T object) {
+		return SerializationUtils.serialize(object);
 	}
 
-	public boolean hasNext() {
-		return position != size;
-	}
-
-	public String getNextKey() {
-		return currentKey;
-	}
-
-	public String getNextValue() {
-		return jedis.get(currentKey);
-	}
-
-	public void next() {
-		position += 1;
-		if (position != size) {
-			currentKey = iterator.next();
-		}
+	@Override
+	public T read(byte[] serializedObject) {
+		return SerializationUtils.deserialize(serializedObject);
 	}
 }

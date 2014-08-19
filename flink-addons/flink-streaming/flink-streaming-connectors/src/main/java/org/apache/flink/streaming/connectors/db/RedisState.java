@@ -17,35 +17,93 @@
 
 package org.apache.flink.streaming.connectors.db;
 
+import java.io.Serializable;
+import java.util.Iterator;
+import java.util.Set;
+
 import redis.clients.jedis.Jedis;
 
-//Needs running Redis service
-public class RedisState implements DBState {
-	
+/**
+ * Interface to a Redis key-value cache. It needs a running instance of Redis.
+ * 
+ * See {@linktourl http://redis.io/}
+ * 
+ * @param <K>
+ *            Type of key
+ * @param <V>
+ *            Type of value
+ */
+public class RedisState<K extends Serializable, V extends Serializable> extends
+		CustomSerializationDBState<K, V> implements DBStateWithIterator<K, V> {
+
 	private Jedis jedis;
-	
-	public RedisState(){
+
+	public RedisState(DBSerializer<K> keySerializer, DBSerializer<V> valueSerializer) {
+		super(keySerializer, valueSerializer);
 		jedis = new Jedis("localhost");
 	}
-	
-	public void close(){
-		jedis.close();
-	}
-	
-	public void put(String key, String value){
-		jedis.set(key, value);
-	}
-	
-	public String get(String key){
-		return jedis.get(key);
-	}
-	
-	public void remove(String key){
-		jedis.del(key);
-	}
-	
-	public RedisStateIterator getIterator(){
-		return new RedisStateIterator(jedis);
+
+	public RedisState() {
+		this(new DefaultDBSerializer<K>(), new DefaultDBSerializer<V>());
 	}
 
+	@Override
+	public void close() {
+		jedis.close();
+	}
+
+	@Override
+	public void put(K key, V value) {
+		jedis.set(keySerializer.write(key), valueSerializer.write(value));
+	}
+
+	@Override
+	public V get(K key) {
+		return valueSerializer.read(jedis.get(keySerializer.write(key)));
+	}
+
+	@Override
+	public void remove(K key) {
+		jedis.del(keySerializer.write(key));
+	}
+
+	@Override
+	public DBStateIterator<K, V> getIterator() {
+		return new RedisStateIterator();
+	}
+
+	private class RedisStateIterator extends DBStateIterator<K, V> {
+
+		private Set<byte[]> set;
+		private Iterator<byte[]> iterator;
+		private byte[] currentKey;
+
+		public RedisStateIterator() {
+			set = jedis.keys(new byte[0]);
+			jedis.keys("*".getBytes()).iterator();
+			iterator = set.iterator();
+			currentKey = iterator.next();
+		}
+
+		@Override
+		public boolean hasNext() {
+			return iterator.hasNext();
+		}
+
+		@Override
+		public K getNextKey() {
+			return keySerializer.read(currentKey);
+		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		public V getNextValue() {
+			return (V) jedis.get(currentKey);
+		}
+
+		@Override
+		public void next() {
+			currentKey = iterator.next();
+		}
+	}
 }

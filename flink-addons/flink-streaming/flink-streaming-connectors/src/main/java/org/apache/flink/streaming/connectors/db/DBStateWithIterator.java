@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,25 +13,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.connectors.db;
 
-import org.junit.Ignore;
-import org.junit.Test;
+import java.io.Serializable;
 
-public class MemcachedTest {
-	@Ignore("Needs running Memcached service, not yet ready")
-	@Test
-	public void databaseState() {
-		MemcachedState state = new MemcachedState();
-		state.put("hello", "world");
-		state.put("big", "data");
-		state.put("flink", "streaming");
-		System.out.println(state.get("hello"));
-		System.out.println(state.get("big"));
-		System.out.println(state.get("flink"));
-		state.close();
-	}
+public interface DBStateWithIterator<K extends Serializable, V extends Serializable> extends DBState<K, V> {
+	
+	public DBStateIterator<K, V> getIterator();
 }

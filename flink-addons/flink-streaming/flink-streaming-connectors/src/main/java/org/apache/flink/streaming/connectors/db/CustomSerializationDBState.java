@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,30 +13,19 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.connectors.db;
 
-import org.junit.Ignore;
-import org.junit.Test;
+import java.io.Serializable;
 
-public class RedisTest {
-	@Ignore("Needs running Redis service, not yet ready")
-	@Test
-	public void databaseTest() {
-		RedisState state = new RedisState();
-		state.put("hello", "world");
-		System.out.println(state.get("hello"));
-		state.put("big", "data");
-		state.put("flink", "streaming");
-		RedisStateIterator iterator = state.getIterator();
-		while (iterator.hasNext()) {
-			String key = iterator.getNextKey();
-			String value = iterator.getNextValue();
-			System.out.println("key=" + key + ", value=" + value);
-			iterator.next();
-		}
-		state.close();
+public abstract class CustomSerializationDBState<K extends Serializable, V extends Serializable> {
+
+	protected DBSerializer<K> keySerializer;
+	protected DBSerializer<V> valueSerializer;
+
+	public CustomSerializationDBState(DBSerializer<K> keySerializer, DBSerializer<V> valueSerializer) {
+		this.keySerializer = keySerializer;
+		this.valueSerializer = valueSerializer;
 	}
 }

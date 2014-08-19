@@ -17,13 +17,13 @@
 
 package org.apache.flink.streaming.connectors.db;
 
-public interface DBState {
+public interface DBState<K, V> {
 	
-	//TODO: consider more general parameters
-	public void put(String key, String value);
+	public void put(K key, V value);
 	
-	public String get(String key);
+	public V get(K key);
 	
-	public void remove(String key);
+	public void remove(K key);
 
+	public void close();
 }
