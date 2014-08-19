@@ -327,6 +327,9 @@ public class PlanJSONDumpGenerator {
 						case PARTITION_RANDOM:
 							shipStrategy = "Redistribute";
 							break;
+						case PARTITION_FORCED_REBALANCE:
+							shipStrategy = "Rebalance";
+							break;
 						default:
 							throw new CompilerException("Unknown ship strategy '" + conn.getShipStrategy().name()
 								+ "' in JSON generator.");

@@ -67,6 +67,7 @@ public class OperatorTranslation {
 	
 	
 	private <T> Operator<T> translate(DataSet<T> dataSet) {
+		
 		// check if we have already translated that data set (operation or source)
 		Operator<?> previous = (Operator<?>) this.translated.get(dataSet);
 		if (previous != null) {

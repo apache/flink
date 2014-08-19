@@ -18,6 +18,7 @@
 
 package org.apache.flink.compiler.util;
 
+import org.apache.flink.api.common.functions.util.NoOpFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputOperator;
 import org.apache.flink.api.common.operators.RecordOperator;

@@ -113,6 +113,9 @@ public abstract class CostEstimator {
 			case BROADCAST:
 				addBroadcastCost(channel, channel.getReplicationFactor(), costs);
 				break;
+			case PARTITION_FORCED_REBALANCE:
+				addRandomPartitioningCost(channel, costs);
+				break;
 			default:
 				throw new CompilerException("Unknown shipping strategy for input: " + channel.getShipStrategy());
 			}

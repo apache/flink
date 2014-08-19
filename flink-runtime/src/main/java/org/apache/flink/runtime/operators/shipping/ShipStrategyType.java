@@ -51,6 +51,11 @@ public enum ShipStrategyType {
 	PARTITION_RANGE(true, true),
 	
 	/**
+	 * Partitioning the data evenly
+	 */
+	PARTITION_FORCED_REBALANCE(true, false),
+	
+	/**
 	 * Replicating the data set to all instances.
 	 */
 	BROADCAST(true, false);

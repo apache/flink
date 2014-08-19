@@ -30,6 +30,7 @@ import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FormattingMapper;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -56,6 +57,7 @@ import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
+import org.apache.flink.api.java.operators.PartitionedDataSet;
 import org.apache.flink.api.java.operators.ProjectOperator.Projection;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.ReduceOperator;
@@ -845,6 +847,49 @@ public abstract class DataSet<T> {
 		return new UnionOperator<T>(this, other);
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	//  Partitioning
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Hash-partitions a DataSet on the specified key fields.
+	 * <p>
+	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
+	 * 
+	 * @param fields The field indexes on which the DataSet is hash-partitioned.
+	 * @return The partitioned DataSet.
+	 */
+	public PartitionedDataSet<T> partitionByHash(int... fields) {
+		return new PartitionedDataSet<T>(this, PartitionMethod.HASH, new Keys.FieldPositionKeys<T>(fields, getType(), false));
+	}
+	
+	/**
+	 * Partitions a DataSet using the specified KeySelector.
+	 * <p>
+	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
+	 * 
+	 * @param keyExtractor The KeyExtractor with which the DataSet is hash-partitioned.
+	 * @return The partitioned DataSet.
+	 * 
+	 * @see KeySelector
+	 */
+	public <K extends Comparable<K>> PartitionedDataSet<T> partitionByHash(KeySelector<T, K> keyExtractor) {
+		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
+		return new PartitionedDataSet<T>(this, PartitionMethod.HASH, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, this.getType(), keyType));
+	}
+	
+	/**
+	 * Enforces a rebalancing of the DataSet, i.e., the DataSet is evenly distributed over all parallel instances of the 
+	 * following task. This can help to improve performance in case of heavy data skew and compute intensive operations.
+	 * <p>
+	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
+	 * 
+	 * @return The rebalanced DataSet.
+	 */
+	public PartitionedDataSet<T> rebalance() {
+		return new PartitionedDataSet<T>(this, PartitionMethod.REBALANCE);
+	}
+		
 	// --------------------------------------------------------------------------------------------
 	//  Top-K
 	// --------------------------------------------------------------------------------------------

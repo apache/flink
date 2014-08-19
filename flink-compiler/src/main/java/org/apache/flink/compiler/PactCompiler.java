@@ -46,6 +46,7 @@ import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.base.MapPartitionOperatorBase;
+import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase.SolutionSetPlaceHolder;
@@ -69,6 +70,7 @@ import org.apache.flink.compiler.dag.MapPartitionNode;
 import org.apache.flink.compiler.dag.MatchNode;
 import org.apache.flink.compiler.dag.OptimizerNode;
 import org.apache.flink.compiler.dag.PactConnection;
+import org.apache.flink.compiler.dag.PartitionNode;
 import org.apache.flink.compiler.dag.ReduceNode;
 import org.apache.flink.compiler.dag.SinkJoiner;
 import org.apache.flink.compiler.dag.SolutionSetNode;
@@ -707,6 +709,9 @@ public class PactCompiler {
 			}
 			else if (c instanceof Union){
 				n = new BinaryUnionNode((Union<?>) c);
+			}
+			else if (c instanceof PartitionOperatorBase) {
+				n = new PartitionNode((PartitionOperatorBase<?>) c);
 			}
 			else if (c instanceof PartialSolutionPlaceHolder) {
 				if (this.parent == null) {

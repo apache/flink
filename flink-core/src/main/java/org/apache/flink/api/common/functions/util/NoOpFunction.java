@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.compiler.util;
+package org.apache.flink.api.common.functions.util;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 

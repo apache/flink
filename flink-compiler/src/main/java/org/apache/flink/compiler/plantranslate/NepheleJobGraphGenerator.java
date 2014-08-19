@@ -1023,6 +1023,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			case BROADCAST:
 			case PARTITION_HASH:
 			case PARTITION_RANGE:
+			case PARTITION_FORCED_REBALANCE:
 				distributionPattern = DistributionPattern.BIPARTITE;
 				break;
 			default:

@@ -378,6 +378,9 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 				case PARTITION_RANDOM:
 					this.globalProps.reset();
 					break;
+				case PARTITION_FORCED_REBALANCE:
+					this.globalProps.setForcedRebalanced();
+					break;
 				case NONE:
 					throw new CompilerException("Cannot produce GlobalProperties before ship strategy is set.");
 			}
@@ -410,6 +413,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 			case PARTITION_HASH:
 			case PARTITION_RANGE:
 			case PARTITION_RANDOM:
+			case PARTITION_FORCED_REBALANCE:
 				this.localProps = new LocalProperties();
 				break;
 			case FORWARD:
@@ -417,6 +421,8 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 				break;
 			case NONE:
 				throw new CompilerException("ShipStrategy has not yet been set.");
+			default:
+				throw new CompilerException("Unknown ShipStrategy.");
 		}
 	}
 	

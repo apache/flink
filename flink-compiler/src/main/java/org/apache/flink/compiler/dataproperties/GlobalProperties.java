@@ -97,6 +97,12 @@ public class GlobalProperties implements Cloneable {
 		this.ordering = null;
 	}
 	
+	public void setForcedRebalanced() {
+		this.partitioning = PartitioningProperty.FORCED_REBALANCED;
+		this.partitioningFields = null;
+		this.ordering = null;
+	}
+	
 	public void addUniqueFieldCombination(FieldSet fields) {
 		if (this.uniqueFieldCombinations == null) {
 			this.uniqueFieldCombinations = new HashSet<FieldSet>();

@@ -38,6 +38,7 @@ public class MapPartitionOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 	
 	protected final MapPartitionFunction<IN, OUT> function;
 	
+	protected PartitionedDataSet<IN> partitionedDataSet;
 	
 	public MapPartitionOperator(DataSet<IN> input, TypeInformation<OUT> resultType, MapPartitionFunction<IN, OUT> function) {
 		super(input, resultType);
@@ -45,9 +46,19 @@ public class MapPartitionOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 		this.function = function;
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
+	
+	public MapPartitionOperator(PartitionedDataSet<IN> input, TypeInformation<OUT> resultType, MapPartitionFunction<IN, OUT> function) {
+		this(input.getDataSet(), resultType, function);
+		this.partitionedDataSet = input;
+	}
 
 	@Override
 	protected MapPartitionOperatorBase<IN, OUT, MapPartitionFunction<IN, OUT>> translateToDataFlow(Operator<IN> input) {
+		
+		// inject partition operator if necessary
+		if(this.partitionedDataSet != null) {
+			input = this.partitionedDataSet.translateToDataFlow(input, this.getParallelism());
+		}
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator

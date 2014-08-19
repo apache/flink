@@ -106,6 +106,12 @@ public final class RequestedGlobalProperties implements Cloneable {
 		this.ordering = null;
 	}
 	
+	public void setForceRebalancing() {
+		this.partitioning = PartitioningProperty.FORCED_REBALANCED;
+		this.partitioningFields = null;
+		this.ordering = null;
+	}
+	
 	/**
 	 * Gets the partitioning property.
 	 * 
@@ -211,6 +217,8 @@ public final class RequestedGlobalProperties implements Cloneable {
 		} else if (this.partitioning == PartitioningProperty.RANGE_PARTITIONED) {
 			return props.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED &&
 					props.matchesOrderedPartitioning(this.ordering);
+		} else if (this.partitioning == PartitioningProperty.FORCED_REBALANCED) {
+			return props.getPartitioning() == PartitioningProperty.FORCED_REBALANCED;
 		} else {
 			throw new CompilerException("Bug in properties matching logic.");
 		}
@@ -252,6 +260,9 @@ public final class RequestedGlobalProperties implements Cloneable {
 				if(this.dataDistribution != null) {
 					channel.setDataDistribution(this.dataDistribution);
 				}
+				break;
+			case FORCED_REBALANCED:
+				channel.setShipStrategy(ShipStrategyType.PARTITION_FORCED_REBALANCE);
 				break;
 			default:
 				throw new CompilerException();
