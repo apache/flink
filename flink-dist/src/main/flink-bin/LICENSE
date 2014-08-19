@@ -268,6 +268,7 @@ under the The MIT License
  - Flot 0.8.1 (http://www.flotcharts.org) - Copyright (c) 2007-2013 IOLA and Ole Laursen
  - Bootstrap (http://getbootstrap.com) - Copyright (c) 2011-2014 Twitter, Inc
  - Font Awesome - Code (http://fortawesome.github.io/Font-Awesome/) - Copyright (c) 2014 Dave Gandy
+ - D3 dagre renderer (https://github.com/cpettitt/dagre-d3) - Copyright (c) 2012-2013 Chris Pettitt
 
 
 All rights reserved.
@@ -309,6 +310,10 @@ under BSD-style licenses
  - Scala Compiler (BSD-like) - (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
  - Scala Compiler Reflect (BSD-like) - (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
  - ASM (BSD-like) - (http://asm.ow2.org/) - Copyright (c) 2000-2011 INRIA, France Telecom
+
+(3-clause BSD license)
+ - D3 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
+
 
 (Below is the 3-clause BSD license)
 
