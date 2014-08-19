@@ -46,7 +46,6 @@ public class ClusterUtil {
 		NepheleMiniCluster exec = new NepheleMiniCluster();
 		exec.setMemorySize(memorySize);
 		exec.setNumTaskTracker(numberOfTaskTrackers);
-		
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running on mini cluster");
 		}
@@ -69,23 +68,5 @@ public class ClusterUtil {
 	public static void runOnMiniCluster(JobGraph jobGraph, int numberOfTaskTrackers) {
 		runOnMiniCluster(jobGraph, numberOfTaskTrackers, -1);
 	}
-
-	// this one will not work easily any more, because we recently introduces concurrent test, which
-	// implies that the master RPC port becomes dynamic
-//	public static void runOnLocalCluster(JobGraph jobGraph, String IP, int port) {
-//		if (LOG.isInfoEnabled()) {
-//			LOG.info("Running on mini cluster");
-//		}
-//		
-//		Configuration configuration = jobGraph.getJobConfiguration();
-//
-//		Client client = new Client(new InetSocketAddress(IP, port), configuration, ClusterUtil.class.getClassLoader());
-//
-//		try {
-//			client.run(jobGraph, true);
-//		} catch (ProgramInvocationException e) {
-//			throw new RuntimeException(e);
-//		}
-//	}
 
 }
