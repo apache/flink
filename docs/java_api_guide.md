@@ -1153,18 +1153,16 @@ This section describes all methods that are available for all operators.
 
 `Parallelism` specifies the amount of parallel instances that each operator executes. All operators could be setted to the same amount of parallel instances, or they can be configurated individually. 
 
-<p>
 Parallelism is used as follows. By this all operators are executed by three parallel instances in [WordCount](#example) :
-</p>
 
 ```java
 int degreeOfParallelism = 3;
 ExecutionEnvironment.setDefaultLocalParallelism(degreeOfParallelism);
 final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 ```
-<p>
-You are able to set parallelism for each operator, in [WordCount](#top) the parallelism for each operator can be configurated as follows :
-</p>
+
+You are able to set parallelism for each operator, in [WordCount](#example) the parallelism for each operator can be configurated as follows :
+
 
 ```java
 DataSet<Tuple2<String, Integer>> counts = 
