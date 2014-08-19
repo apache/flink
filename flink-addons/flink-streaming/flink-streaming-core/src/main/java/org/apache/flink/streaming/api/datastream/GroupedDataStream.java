@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,7 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.api.datastream;
@@ -41,7 +39,7 @@ public class GroupedDataStream<OUT> {
 	int keyPosition;
 
 	protected GroupedDataStream(DataStream<OUT> dataStream, int keyPosition) {
-		this.dataStream = dataStream.copy();
+		this.dataStream = dataStream.partitionBy(keyPosition);
 		this.keyPosition = keyPosition;
 	}
 
@@ -60,8 +58,7 @@ public class GroupedDataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
 		return dataStream.addFunction("groupReduce", reducer, getTypeWrapper(reducer),
-				getTypeWrapper(reducer), new GroupReduceInvokable<OUT>(reducer, keyPosition))
-				.partitionBy(keyPosition);
+				getTypeWrapper(reducer), new GroupReduceInvokable<OUT>(reducer, keyPosition));
 	}
 
 	/**
