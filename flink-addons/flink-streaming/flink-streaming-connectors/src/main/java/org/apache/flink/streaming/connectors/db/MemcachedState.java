@@ -22,15 +22,23 @@ import java.net.InetSocketAddress;
 
 import net.spy.memcached.MemcachedClient;
 
-//Needs running Memcached service
-public class MemcachedState implements DBState {
+/**
+ * Interface to a Memcached key-value cache. It needs a running instance of Memcached.
+ * 
+ * See {@linktourl http://memcached.org/}
+ * 
+ * @param <K>
+ *            Type of key
+ * @param <V>
+ *            Type of value
+ */
+public class MemcachedState<V> implements DBState<String, V> {
 
 	private MemcachedClient memcached;
 
 	public MemcachedState() {
 		try {
-			memcached = new MemcachedClient(new InetSocketAddress("localhost",
-					11211));
+			memcached = new MemcachedClient(new InetSocketAddress("localhost", 11211));
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
@@ -38,26 +46,30 @@ public class MemcachedState implements DBState {
 
 	public MemcachedState(String hostname, int portNum) {
 		try {
-			memcached = new MemcachedClient(new InetSocketAddress(hostname,
-					portNum));
+			memcached = new MemcachedClient(new InetSocketAddress(hostname, portNum));
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 	}
 
+	@Override
 	public void close() {
 		memcached.shutdown();
 	}
 
-	public void put(String key, String value) {
+	@Override
+	public void put(String key, V value) {
 		memcached.set(key, 0, value);
 	}
 
-	public String get(String key) {
-		return (String) memcached.get(key);
+	@Override
+	@SuppressWarnings("unchecked")
+	public V get(String key) {
+		return (V) memcached.get(key);
 	}
 
+	@Override
 	public void remove(String key) {
-		memcached.delete(key);
+		memcached.delete(key.toString());
 	}
 }

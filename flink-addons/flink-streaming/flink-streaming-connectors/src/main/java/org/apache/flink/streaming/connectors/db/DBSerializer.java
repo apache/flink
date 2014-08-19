@@ -1,4 +1,5 @@
 /**
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -13,35 +14,23 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package org.apache.flink.streaming.connectors.db;
 
-import static org.fusesource.leveldbjni.JniDBFactory.asString;
+import java.io.Serializable;
 
-import org.iq80.leveldb.DBIterator;
+/**
+ * Interface for custom serialization of keys and values used in external
+ * databases.
+ *
+ * @param <T>
+ *            Type of the key or value to serialize
+ */
+public interface DBSerializer<T extends Serializable> {
+	
+	byte[] write(T object);
 
-public class LeveldbStateIterator implements DBStateIterator {
-	private DBIterator iterator;
-
-	public LeveldbStateIterator(DBIterator iter) {
-		this.iterator = iter;
-		this.iterator.seekToFirst();
-	}
-
-	public boolean hasNext() {
-		return iterator.hasNext();
-	}
-
-	public String getNextKey() {
-		return asString(iterator.peekNext().getKey());
-	}
-
-	public String getNextValue() {
-		return asString(iterator.peekNext().getValue());
-	}
-
-	public void next() {
-		iterator.next();
-	}
+	T read(byte[] serializedObject);
 }
