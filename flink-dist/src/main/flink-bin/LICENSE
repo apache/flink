@@ -239,20 +239,7 @@ under the Apache License (v 2.0):
  - StartBootstrap (http://startbootstrap.com)
  - CHAP Links Library Timeline (http://almende.github.io/chap-links-library/)
  - Twitter Hosebird Client (hbc) (https://github.com/twitter/hbc)
-
-
------------------------------------------------------------------------
- Eclipse Public License  - v 1.0
------------------------------------------------------------------------
-
-The Apache Flink project depends on and/or bundles the following components
-under the Eclipse Public License (v 1.0)
-
- - JUnit (http://junit.org/)
  
-You may obtain a copy of the Eclipse Public License (v 1.0) at
-https://www.eclipse.org/legal/epl-v10.html
-
 
 -----------------------------------------------------------------------
  The MIT License
@@ -261,7 +248,6 @@ https://www.eclipse.org/legal/epl-v10.html
 The Apache Flink project depends on and/or bundles the following components
 under the The MIT License
 
- - Mockito (http://www.mockito.org) - Copyright (c) 2007 Mockito contributors
  - SLF4J (http://www.slf4j.org) - Copyright (c) 2004-2013 QOS.ch
  - jQuery 1.4.2 (http://jquery.com) - Copyright 2014 jQuery Foundation and other contributors
  - jCanvas 13.11.21 (http://calebevans.me/projects/jcanvas/) - Copyright 2014 Caleb Evans
@@ -298,21 +284,16 @@ THE SOFTWARE.
 
 The Apache Flink project depends on and/or bundles the following components
 under BSD-style licenses
-
-(BSD-style License)
- - Hamcrest (https://code.google.com/p/hamcrest/) - Copyright (c) 2000-2006, www.hamcrest.org
  
-(New BSD License)
+[3-clause BSD license]
  - Kryo (https://github.com/EsotericSoftware/kryo) - Copyright (c) 2008, Nathan Sweet
+ - D3 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
  
-(BSD-like License)
+[BSD-like License]
  - Scala Library (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
  - Scala Compiler (BSD-like) - (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
  - Scala Compiler Reflect (BSD-like) - (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
  - ASM (BSD-like) - (http://asm.ow2.org/) - Copyright (c) 2000-2011 INRIA, France Telecom
-
-(3-clause BSD license)
- - D3 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
 
 
 (Below is the 3-clause BSD license)

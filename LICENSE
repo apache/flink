@@ -205,53 +205,10 @@
 
 Apache Flink subcomponents:
 
-The Apache Flink project contains subcomponents with separate copyright
-notices and license terms. Your use of the source code for the these
-subcomponents is subject to the terms and conditions of their respective
-licenses.
-
-
------------------------------------------------------------------------
- Apache License (Version 2.0)
------------------------------------------------------------------------
-
-The Apache Flink project depends on and/or bundles the following components
-under the Apache License (v 2.0):
-
- - Apache Commons Logging (http://commons.apache.org/proper/commons-logging/)
- - Apache Commons Codec (http://commons.apache.org/proper/commons-codec/)
- - Apache Commons CLI (http://commons.apache.org/cli/)
- - Apache Commons FileUpload (http://commons.apache.org/fileupload/)
- - Apache Commons IO (http://commons.apache.org/io/)
- - Apache Log4J (http://logging.apache.org/log4j/1.2/)
- - Apache Avro (http://avro.apache.org)
- - Apache Hadoop (http://hadoop.apache.org)
- - Apache Derby (http://db.apache.org/derby/)
- - Apache Kafka (http://kafka.apache.org)
- - Apache Flume (http://flume.apache.org)
- - Google Guava (https://code.google.com/p/guava-libraries/)
- - Netty (http://netty.io)
- - Powermock (http://www.powermock.org)
- - Javassist (http://www.javassist.org)
- - Jetty Web Container (http://www.eclipse.org/jetty/)
- - Amazon Web Services SDK for Java (http://aws.amazon.com/sdkforjava/)
- - ScalaTest (http://www.scalatest.org)
- - StartBootstrap (http://startbootstrap.com)
- - CHAP Links Library Timeline (http://almende.github.io/chap-links-library/)
- - Twitter Hosebird Client (hbc) (https://github.com/twitter/hbc)
-
-
------------------------------------------------------------------------
- Eclipse Public License  - v 1.0
------------------------------------------------------------------------
-
-The Apache Flink project depends on and/or bundles the following components
-under the Eclipse Public License (v 1.0)
-
- - JUnit (http://junit.org/)
- 
-You may obtain a copy of the Eclipse Public License (v 1.0) at
-https://www.eclipse.org/legal/epl-v10.html
+The Apache Flink project contains subcomponents in the source code
+release with separate copyright notices and license terms. Your use of
+the source code for the these subcomponents is subject to the terms and
+conditions of their respective licenses.
 
 
 -----------------------------------------------------------------------
@@ -259,10 +216,8 @@ https://www.eclipse.org/legal/epl-v10.html
 -----------------------------------------------------------------------
 
 The Apache Flink project depends on and/or bundles the following components
-under the The MIT License
+under the MIT License
 
- - Mockito (http://www.mockito.org) - Copyright (c) 2007 Mockito contributors
- - SLF4J (http://www.slf4j.org) - Copyright (c) 2004-2013 QOS.ch
  - jQuery 1.4.2 (http://jquery.com) - Copyright 2014 jQuery Foundation and other contributors
  - jCanvas 13.11.21 (http://calebevans.me/projects/jcanvas/) - Copyright 2014 Caleb Evans
  - Flot 0.8.1 (http://www.flotcharts.org) - Copyright (c) 2007-2013 IOLA and Ole Laursen
@@ -296,26 +251,8 @@ THE SOFTWARE.
  BSD-style Licenses
 -----------------------------------------------------------------------
 
-The Apache Flink project depends on and/or bundles the following components
-under BSD-style licenses
-
-(BSD-style License)
- - Hamcrest (https://code.google.com/p/hamcrest/) - Copyright (c) 2000-2006, www.hamcrest.org
- 
-(New BSD License)
- - Kryo (https://github.com/EsotericSoftware/kryo) - Copyright (c) 2008, Nathan Sweet
- 
-(BSD-like License)
- - Scala Library (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
- - Scala Compiler (BSD-like) - (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
- - Scala Compiler Reflect (BSD-like) - (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
- - ASM (BSD-like) - (http://asm.ow2.org/) - Copyright (c) 2000-2011 INRIA, France Telecom
-
 (3-clause BSD license)
  - D3 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
-
-
-(Below is the 3-clause BSD license)
 
 All rights reserved.
 
@@ -346,116 +283,12 @@ POSSIBILITY OF SUCH DAMAGE.
 
 
 -----------------------------------------------------------------------
- Mozilla Public License  - v 1.1
------------------------------------------------------------------------
-
-The Apache Flink project depends on and/or bundles the following components
-under the Mozilla Public License (v 1.1)
-
- - RabbitMQ (http://www.rabbitmq.com) 
-      The Initial Developer of the Original Code is GoPivotal,Ltd.
-      Copyright (c) 2007-2013 GoPivotal, Inc.  All Rights Reserved.
- 
-You may obtain a copy of the Mozilla Public License (v 1.1) at
-http://www.mozilla.org/MPL/
-
-
------------------------------------------------------------------------
  The Open Font License
 -----------------------------------------------------------------------
 
-The Apache Flink project packages the following fonts under the
+The Apache Flink project bundles the following fonts under the
 Open Font License (OFT) - http://scripts.sil.org/OFL/
 
  - Font Awesome (http://fortawesome.github.io/Font-Awesome/) - Created by Dave Gandy
    -> fonts in "flink-runtime/resources/web-docs-infoserver/font-awesome/fonts"
 
-
------------------------------------------------------------------------
-For Apache Hadoop Subcomponents
------------------------------------------------------------------------
-
-The Apache Hadoop project contains subcomponents with separate copyright
-notices and license terms. Your use of the source code for the these
-subcomponents is subject to the terms and conditions of the following
-licenses. 
-
-For the org.apache.hadoop.util.bloom.* classes:
-
-/**
- *
- * Copyright (c) 2005, European Commission project OneLab under contract
- * 034819 (http://www.one-lab.org)
- * All rights reserved.
- * Redistribution and use in source and binary forms, with or 
- * without modification, are permitted provided that the following 
- * conditions are met:
- *  - Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in 
- *    the documentation and/or other materials provided with the distribution.
- *  - Neither the name of the University Catholique de Louvain - UCL
- *    nor the names of its contributors may be used to endorse or 
- *    promote products derived from this software without specific prior 
- *    written permission.
- *    
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS 
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE 
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, 
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, 
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; 
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN 
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
-For portions of the native implementation of slicing-by-8 CRC calculation
-in src/main/native/src/org/apache/hadoop/util:
-
-/**
- *   Copyright 2008,2009,2010 Massachusetts Institute of Technology.
- *   All rights reserved. Use of this source code is governed by a
- *   BSD-style license that can be found in the LICENSE file.
- */
-
-For src/main/native/src/org/apache/hadoop/io/compress/lz4/{lz4.h,lz4.c,
-lz4_encoder.h,lz4hc.h,lz4hc.c,lz4hc_encoder.h},
-
-/*
-   LZ4 - Fast LZ compression algorithm
-   Header File
-   Copyright (C) 2011-2013, Yann Collet.
-   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are
-   met:
-
-       * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-       * Redistributions in binary form must reproduce the above
-   copyright notice, this list of conditions and the following disclaimer
-   in the documentation and/or other materials provided with the
-   distribution.
-
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-   You can contact the author at :
-   - LZ4 homepage : http://fastcompression.blogspot.com/p/lz4.html
-   - LZ4 source repository : http://code.google.com/p/lz4/
-*/
