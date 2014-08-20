@@ -396,8 +396,10 @@ DataSet<Tuple2<String, Integer>> out = in.project(2,0).types(String.class, Integ
     </tr>
   </tbody>
 </table>
-[Back to top](#top)
 
+You can configure each transformation for its [parallelism](#parallelism) by setParallelism(), and each transformation's name by name(). You can do the same for operators of data sources and data sinks. 
+
+[Back to Top](#top)
 
 <section id="keys">
 Defining Keys
@@ -1143,17 +1145,15 @@ You have the choice to implement either {% gh_link /flink-core/src/main/java/org
 [Back to top](#top)
 
 
-<section id="Generic Operator Methods">
-Generic Operator Methods
+<section id="Parallel Execution">
+Parallel Execution
 ---------
 
-This section describes all methods that are available for all operators.
+This section describes the detail of `parallellism` in Flink. Parallelism specifies the amount of parallel instances execute the program. All operators executed could be setted to the same amount of parallel instances, or they can be configurated individually. There are three levels of parallelism in Flink which are Operator, Execution Environment and System-level.
 
-### Parallelism
+###Execution Environment's level 
 
-`Parallelism` specifies the amount of parallel instances that each operator executes. All operators could be setted to the same amount of parallel instances, or they can be configurated individually. 
-
-Parallelism is used as follows. By this all operators are executed by three parallel instances in [WordCount](#example) :
+Parallelism at Execution Environment level is used as follows. By this all operators are executed by three parallel instances in [WordCount](#example) :
 
 ```java
 int degreeOfParallelism = 3;
@@ -1161,6 +1161,7 @@ ExecutionEnvironment.setDefaultLocalParallelism(degreeOfParallelism);
 final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 ```
 
+###Operator's level
 You are able to set parallelism for each operator, in [WordCount](#example) the parallelism for each operator can be configurated as follows :
 
 
@@ -1175,6 +1176,8 @@ text.flatMap(new Tokenizer())
 // set this operator's parrallelism to 2
 counts.print().setParallelism(2); 
 ```
+
+For setting parallelism at system level, see [system level](http://flink.incubator.apache.org/docs/0.6-SNAPSHOT/config.html#common-options)
 
 [Back to top](#top)
 
