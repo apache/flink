@@ -7,7 +7,7 @@ DataSet Transformations
 -----------------------
 
 This document gives a deep-dive into the available transformations on DataSets. For a general introduction to the
-Flink Java API, please refer to the [API guide]({{site.baseurl}}/java_api_guide.html)
+Flink Java API, please refer to the [API guide](java_api_guide.html)
 
 
 ### Map
