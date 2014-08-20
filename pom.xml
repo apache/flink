@@ -500,6 +500,7 @@ under the License.
 						<exclude>CHANGELOG</exclude>
 						<exclude>**/*.creole</exclude>
 						<exclude>CONTRIBUTORS</exclude>
+						<exclude>DEPENDENCIES</exclude>
 						<!-- Build fiels -->
 						<exclude>tools/maven/checkstyle.xml</exclude>
 						<exclude>tools/maven/suppressions.xml</exclude>
