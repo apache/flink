@@ -246,13 +246,33 @@ data.map(new MapFunction<String, Integer>() {
     <tr>
       <td><strong>FlatMap</strong></td>
       <td>
-        <p>Takes one element and produces zero, one, or more elements.</p>
+        <p>Takes one element and produces zero, one, or more elements. </p>
 {% highlight java %}
 data.flatMap(new FlatMapFunction<String, String>() {
   public void flatMap(String value, Collector<String> out) {
     for (String s : value.split(" ")) {
       out.collect(s);
     }
+  }
+});
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>MapPartition</strong></td>
+      <td>
+        <p>Transforms a parallel partition in a single function call. The function get the partition as an `Iterable` stream and
+           can produce an arbitrary number of result values. The number of elements in each partition depends on the degree-of-parallelism
+           and previous operations.</p>
+{% highlight java %}
+data.mapPartition(new MapPartitionFunction<String, Long>() {
+  public void mapPartition(Iterable<String> values, Collector<Long> out) {
+    long c = 0;
+    for (String s : values) {
+      c++;
+    }
+    out.collect(c);
   }
 });
 {% endhighlight %}
@@ -403,7 +423,7 @@ DataSet<Tuple2<String, Integer>> out = in.project(2,0).types(String.class, Integ
 Defining Keys
 -------------
 
-One transformation (join, coGroup) require that a key is defined on
+Some transformations (join, coGroup) require that a key is defined on
 its argument DataSets, and other transformations (Reduce, GroupReduce,
 Aggregate) allow that the DataSet is grouped on a key before they are
 applied.

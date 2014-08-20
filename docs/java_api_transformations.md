@@ -53,7 +53,31 @@ public class Tokenizer implements FlatMapFunction<String, String> {
 // [...]
 DataSet<String> textLines = // [...]
 DataSet<String> words = textLines.flatMap(new Tokenizer());
+```
 
+### MapPartition
+
+The MapPartition function transforms a parallel partition in a single function call. The function get the partition as an `Iterable` stream and
+can produce an arbitrary number of result values. The number of elements in each partition depends on the degree-of-parallelism
+and previous operations.
+
+The following code transforms a `DataSet` of text lines into a `DataSet` of counts per partition:
+
+```java
+public class PartitionCounter implements MapPartitionFunction<String, Long> {
+
+  public void mapPartition(Iterable<String> values, Collector<Long> out) {
+    long c = 0;
+    for (String s : values) {
+      c++;
+    }
+    out.collect(c);
+  }
+}
+
+// [...]
+DataSet<String> textLines = // [...]
+DataSet<Long> counts = textLines.mapPartition(new PartitionCounter());
 ```
 
 ### Filter
