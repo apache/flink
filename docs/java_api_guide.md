@@ -1145,13 +1145,13 @@ You have the choice to implement either {% gh_link /flink-core/src/main/java/org
 [Back to top](#top)
 
 
-<section id="Parallel Execution">
+<section id="Parallelism">
 Parallel Execution
 ---------
 
-This section describes the detail of `parallellism` in Flink. Parallelism specifies the amount of parallel instances execute the program. All operators executed could be setted to the same amount of parallel instances, or they can be configurated individually. There are three levels of parallelism in Flink which are Operator, Execution Environment and System-level.
+This section describes the detail of `parallelism` in Flink. Parallelism specifies the amount of parallel instances execute the program. All operators executed could be setted to the same amount of parallel instances, or they can be configurated individually. There are three levels of parallelism in Flink which are Operator, Execution Environment and System-level.
 
-###Execution Environment's level 
+###Execution Environment's Level 
 
 Parallelism at Execution Environment level is used as follows. By this all operators are executed by three parallel instances in [WordCount](#example) :
 
@@ -1161,7 +1161,7 @@ ExecutionEnvironment.setDefaultLocalParallelism(degreeOfParallelism);
 final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 ```
 
-###Operator's level
+###Operator's Level
 You are able to set parallelism for each operator, in [WordCount](#example) the parallelism for each operator can be configurated as follows :
 
 
