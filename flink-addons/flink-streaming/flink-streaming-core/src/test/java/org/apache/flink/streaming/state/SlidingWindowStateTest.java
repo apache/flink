@@ -33,6 +33,7 @@ public class SlidingWindowStateTest {
 	private final static int SLIDE_SIZE = 2;
 	private static final int UNIT = 1;
 
+	@SuppressWarnings("unchecked")
 	@Test
 	public void test() {
 		SlidingWindowState<Integer> state = new SlidingWindowState<Integer>(SLIDING_BATCH_SIZE,

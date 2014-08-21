@@ -27,7 +27,6 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 
 	Iterable<T> iterable;
 
-	@SuppressWarnings("unchecked")
 	public FromElementsFunction(T... elements) {
 		this.iterable = Arrays.asList(elements);
 	}

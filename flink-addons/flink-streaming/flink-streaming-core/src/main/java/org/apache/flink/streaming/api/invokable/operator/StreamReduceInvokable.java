@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -50,7 +51,7 @@ public abstract class StreamReduceInvokable<IN, OUT> extends UserTaskInvokable<I
 
 	@Override
 	protected void immutableInvoke() throws Exception {
-		if ((reuse = loadNextRecord()) == null) {
+		if ((reuse = recordIterator.next(reuse)) == null) {
 			throw new RuntimeException("DataStream must not be empty");
 		}
 
@@ -79,14 +80,14 @@ public abstract class StreamReduceInvokable<IN, OUT> extends UserTaskInvokable<I
 		reducer.reduce(userIterable, collector);
 	}
 	
-	private void collectOneUnit() {
+	private void collectOneUnit() throws IOException {
 		ArrayList<StreamRecord<IN>> list;
 		list = new ArrayList<StreamRecord<IN>>(listSize);
 
 		do {
 			list.add(reuse);
 			resetReuse();
-		} while ((reuse = loadNextRecord()) != null && batchNotFull());
+		} while ((reuse = recordIterator.next(reuse)) != null && batchNotFull());
 		state.pushBack(list);
 	}
 

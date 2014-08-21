@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.api.invokable;
 
-import java.io.IOException;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.Function;
@@ -28,8 +26,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.StringUtils;
 
-public abstract class StreamRecordInvokable<IN, OUT> extends
-		StreamComponentInvokable<OUT> {
+public abstract class StreamRecordInvokable<IN, OUT> extends StreamComponentInvokable<OUT> {
 
 	public StreamRecordInvokable(Function userFunction) {
 		super(userFunction);
@@ -57,21 +54,12 @@ public abstract class StreamRecordInvokable<IN, OUT> extends
 		this.reuse = serializer.createInstance();
 	}
 
-	protected StreamRecord<IN> loadNextRecord() {
-		try {
-			reuse = recordIterator.next(reuse);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-		return reuse;
-	}
-
 	protected abstract void immutableInvoke() throws Exception;
 
 	protected abstract void mutableInvoke() throws Exception;
 
 	protected abstract void callUserFunction() throws Exception;
-	
+
 	protected void callUserFunctionAndLogException() {
 		try {
 			callUserFunction();
@@ -82,7 +70,7 @@ public abstract class StreamRecordInvokable<IN, OUT> extends
 			}
 		}
 	}
-	
+
 	@Override
 	public void invoke() throws Exception {
 		if (this.isMutable) {

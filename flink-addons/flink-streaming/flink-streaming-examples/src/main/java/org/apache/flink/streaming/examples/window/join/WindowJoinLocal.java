@@ -37,7 +37,7 @@ public class WindowJoinLocal {
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(PARALLELISM);
+				.createLocalEnvironment(PARALLELISM).setBufferTimeout(100);
 
 		DataStream<Tuple4<String, String, Integer, Long>> dataStream1 = env.addSource(
 				new WindowJoinSourceOne(), SOURCE_PARALLELISM);

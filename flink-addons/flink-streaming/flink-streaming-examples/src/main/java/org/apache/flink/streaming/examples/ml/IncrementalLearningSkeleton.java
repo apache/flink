@@ -17,104 +17,97 @@
 
 package org.apache.flink.streaming.examples.ml;
 
-import org.apache.flink.api.java.functions.RichMapFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
 public class IncrementalLearningSkeleton {
 
 	// Source for feeding new data for prediction
-	public static class NewDataSource implements SourceFunction<Tuple1<Integer>> {
+	public static class NewDataSource implements SourceFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
+		public void invoke(Collector<Integer> collector) throws Exception {
 			while (true) {
 				collector.collect(getNewData());
 			}
 		}
 
 		// Method for pulling new data for prediction
-		private Tuple1<Integer> getNewData() throws InterruptedException {
-			return new Tuple1<Integer>(1);
+		private Integer getNewData() throws InterruptedException {
+			return 1;
 		}
 	}
 
 	// Source for feeding new training data for partial model building
-	public static class TrainingDataSource implements SourceFunction<Tuple1<Integer>> {
+	public static class TrainingDataSource implements SourceFunction<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
+		public void invoke(Collector<Integer> collector) throws Exception {
 
 			while (true) {
-				// Group the predefined number of records in a streamrecord then
-				// emit for model building
 				collector.collect(getTrainingData());
-				;
 			}
 
 		}
 
 		// Method for pulling new training data
-		private Tuple1<Integer> getTrainingData() throws InterruptedException {
-			return new Tuple1<Integer>(1);
+		private Integer getTrainingData() throws InterruptedException {
+			return 1;
 
 		}
 	}
 
 	// Task for building up-to-date partial models on new training data
-	public static class PartialModelBuilder extends RichMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+	public static class PartialModelBuilder implements GroupReduceFunction<Integer, Double[]> {
 		private static final long serialVersionUID = 1L;
 
-		@Override
-		public Tuple1<Integer> map(Tuple1<Integer> inTuple) throws Exception {
-			return buildPartialModel(inTuple);
-		}
-
 		// Method for building partial model on the grouped training data
-		protected Tuple1<Integer> buildPartialModel(Tuple1<Integer> inTuple) {
-			return new Tuple1<Integer>(1);
+		protected Double[] buildPartialModel(Iterable<Integer> values) {
+			return new Double[] { 1. };
 		}
 
+		@Override
+		public void reduce(Iterable<Integer> values, Collector<Double[]> out) throws Exception {
+			out.collect(buildPartialModel(values));
+		}
 	}
 
 	// Task for performing prediction using the model produced in
 	// batch-processing and the up-to-date partial model
-	public static class Predictor extends RichMapFunction<Tuple1<Integer>, Tuple1<Integer>> {
+	public static class Predictor implements CoMapFunction<Integer, Double[], Integer> {
 		private static final long serialVersionUID = 1L;
 
-		Tuple1<Integer> batchModel = null;
-		Tuple1<Integer> partialModel = null;
+		Double[] batchModel = null;
+		Double[] partialModel = null;
 
 		@Override
-		public Tuple1<Integer> map(Tuple1<Integer> inTuple) throws Exception {
-			if (isModel(inTuple)) {
-				partialModel = inTuple;
-				batchModel = getBatchModel();
-				return null; // TODO: fix
-			} else {
-				return predict(inTuple);
-			}
+		public Integer map1(Integer value) {
+			// Return prediction
+			return predict(value);
+		}
 
+		@Override
+		public Integer map2(Double[] value) {
+			// Update model
+			partialModel = value;
+			batchModel = getBatchModel();
+			return 0;
 		}
 
 		// Pulls model built with batch-job on the old training data
-		protected Tuple1<Integer> getBatchModel() {
-			return new Tuple1<Integer>(1);
-		}
-
-		// Checks whether the record is a model or a new data
-		protected boolean isModel(Tuple1<Integer> inTuple) {
-			return true;
+		protected Double[] getBatchModel() {
+			return new Double[] { 0. };
 		}
 
 		// Performs prediction using the two models
-		protected Tuple1<Integer> predict(Tuple1<Integer> inTuple) {
-			return new Tuple1<Integer>(0);
+		protected Integer predict(Integer inTuple) {
+			return 0;
 		}
 
 	}
@@ -125,16 +118,15 @@ public class IncrementalLearningSkeleton {
 	public static void main(String[] args) {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(PARALLELISM);
+				.createLocalEnvironment(PARALLELISM).setBufferTimeout(1000);
 
-		DataStream<Tuple1<Integer>> model = env
-				.addSource(new TrainingDataSource(), SOURCE_PARALLELISM)
-				.map(new PartialModelBuilder()).broadcast();
+		// Build new model on every second of new data
+		DataStream<Double[]> model = env.addSource(new TrainingDataSource(), SOURCE_PARALLELISM)
+				.windowReduce(new PartialModelBuilder(), 1000);
 
-		@SuppressWarnings("unchecked")
-		DataStream<Tuple1<Integer>> prediction = env
-				.addSource(new NewDataSource(), SOURCE_PARALLELISM).merge(model)
-				.map(new Predictor());
+		// Use partial model for prediction
+		DataStream<Integer> prediction = env.addSource(new NewDataSource(), SOURCE_PARALLELISM)
+				.connect(model).map(new Predictor());
 
 		prediction.print();
 

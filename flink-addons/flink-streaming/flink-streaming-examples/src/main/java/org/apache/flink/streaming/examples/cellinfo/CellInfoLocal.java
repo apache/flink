@@ -115,7 +115,7 @@ public class CellInfoLocal {
 	@SuppressWarnings("unchecked")
 	public static void main(String[] args) {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(PARALLELISM);
+				.createLocalEnvironment(PARALLELISM).setBufferTimeout(100);
 
 		DataStream<Tuple4<Boolean, Integer, Long, Integer>> querySource = env.addSource(
 				new QuerySource(), SOURCE_PARALLELISM);
