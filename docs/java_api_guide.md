@@ -1148,7 +1148,7 @@ You have the choice to implement either {% gh_link /flink-core/src/main/java/org
 Parallel Execution
 ---------
 
-This section describes the detail of `parallelism` in Flink. Parallelism specifies the amount of parallel instances execute the program. All operators executed could be setted to the same amount of parallel instances, or they can be configurated individually. There are three levels of parallelism in Flink which are Operator, Execution Environment and System-level.
+This section describes the detail of `parallelism` in Flink. Parallelism specifies the amount of parallel instances execute the program. All operators executed could be setted to the same amount of parallel instances, or they can be configurated individually. There are three levels of parallelism in Flink which are Operator, Execution Environment and System level.
 
 ###Execution Environment's Level 
 
