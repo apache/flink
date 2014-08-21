@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
+import static org.junit.Assert.fail;
+
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
@@ -64,6 +66,7 @@ public class CoFlatMapTest implements Serializable {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Test
 	public void multipleInputTest() {
 		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
@@ -87,8 +90,14 @@ public class CoFlatMapTest implements Serializable {
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		DataStream<Integer> ds1 = env.fromElements(1, 3, 5);
-		@SuppressWarnings("unchecked")
 		DataStream<Integer> ds2 = env.fromElements(2, 4).merge(ds1);
+
+		try {
+			ds1.forward().merge(ds2);
+			fail();
+		} catch (RuntimeException e) {
+			// good
+		}
 
 		@SuppressWarnings({ "unused" })
 		DataStream<String> ds4 = env.fromElements("abc", "def", "ghe").connect(ds2)

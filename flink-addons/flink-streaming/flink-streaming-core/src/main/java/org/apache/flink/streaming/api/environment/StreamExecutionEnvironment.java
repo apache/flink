@@ -101,11 +101,12 @@ public abstract class StreamExecutionEnvironment {
 	 * @param degreeOfParallelism
 	 *            The degree of parallelism
 	 */
-	protected void setDegreeOfParallelism(int degreeOfParallelism) {
+	protected StreamExecutionEnvironment setDegreeOfParallelism(int degreeOfParallelism) {
 		if (degreeOfParallelism < 1) {
 			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
 		}
 		this.degreeOfParallelism = degreeOfParallelism;
+		return this;
 	}
 
 	/**
@@ -115,8 +116,9 @@ public abstract class StreamExecutionEnvironment {
 	 * @param timeoutMillis
 	 *            The maximum time between two output flushes.
 	 */
-	public void setBufferTimeout(long timeoutMillis) {
+	public StreamExecutionEnvironment setBufferTimeout(long timeoutMillis) {
 		this.buffertimeout = timeoutMillis;
+		return this;
 	}
 
 	public long getBufferTimeout() {

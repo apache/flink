@@ -54,18 +54,30 @@ public class MergedDataStream<OUT> extends DataStream<OUT> {
 
 	}
 
-	// @Override
-	// public IterativeDataStream<OUT> iterate() {
-	// throw new RuntimeException("Cannot iterate connected DataStreams");
-	// }
-
 	protected void addConnection(DataStream<OUT> stream) {
-		mergedStreams.add(stream.copy());
+		if (stream instanceof MergedDataStream) {
+			MergedDataStream<OUT> mStream = (MergedDataStream<OUT>) stream;
+			for (DataStream<OUT> ds : mStream.mergedStreams) {
+				validateMerge(ds.id);
+				this.mergedStreams.add(ds.copy());
+			}
+		} else {
+			validateMerge(stream.id);
+			this.mergedStreams.add(stream.copy());
+		}
+	}
+
+	private void validateMerge(String id) {
+		for (DataStream<OUT> ds : this.mergedStreams) {
+			if (ds.id.equals(id)) {
+				throw new RuntimeException("A DataStream cannot be merged with itself");
+			}
+		}
 	}
 
 	@Override
 	protected DataStream<OUT> setConnectionType(StreamPartitioner<OUT> partitioner) {
-		MergedDataStream<OUT> returnStream = (MergedDataStream<OUT>) this.copy();
+		MergedDataStream<OUT> returnStream = this.copy();
 
 		for (DataStream<OUT> stream : returnStream.mergedStreams) {
 			stream.partitioner = partitioner;
