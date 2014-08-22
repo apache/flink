@@ -21,13 +21,12 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.streaming.api.function.co.RichCoFlatMapFunction;
 import org.apache.flink.util.Collector;
 
 public class WindowJoinTask extends
-		RichFlatMapFunction<Tuple4<String, String, Integer, Long>, Tuple3<String, Integer, Integer>> {
+		RichCoFlatMapFunction<Tuple3<String, Integer, Long>, Tuple3<String, Integer, Long>, Tuple3<String, Integer, Integer>> {
 
 	class SalaryProgress {
 		public SalaryProgress(Integer salary, Long progress) {
@@ -53,60 +52,75 @@ public class WindowJoinTask extends
 	private int windowSize = 100;
 	private HashMap<String, LinkedList<GradeProgress>> gradeHashmap;
 	private HashMap<String, LinkedList<SalaryProgress>> salaryHashmap;
-
+	private String name;
+	private Long progress;
+	
 	public WindowJoinTask() {
 		gradeHashmap = new HashMap<String, LinkedList<GradeProgress>>();
 		salaryHashmap = new HashMap<String, LinkedList<SalaryProgress>>();
+		name = new String();
+		progress = 0L;
 	}
 
+	Tuple3<String, Integer, Integer> outputTuple = new Tuple3<String, Integer, Integer>();
+	
+	// Joins the input value (grade) with the already known values (salaries) on
+	// a given interval.
+	// Also stores the new element.
 	@Override
-	public void flatMap(Tuple4<String, String, Integer, Long> value,
+	public void flatMap1(Tuple3<String, Integer, Long> value,
 			Collector<Tuple3<String, Integer, Integer>> out) throws Exception {
-		String streamId = value.f0;
-		String name = value.f1;
-		Long progress = value.f3;
+		name = value.f0;
+		progress = value.f2;
+
+		outputTuple.f0 = name;
+		outputTuple.f1 = value.f1;
 		
-		// Joins the input value with the already known values on a given interval. If it is a grade
-		// then with the salaries, if it is a salary then with the grades. Also
-		// stores the new element.
-		if (streamId.equals("grade")) {
-			if (salaryHashmap.containsKey(name)) {
-				Iterator<SalaryProgress> iterator = salaryHashmap.get(name).iterator();
-				while (iterator.hasNext()) {
-					SalaryProgress entry = iterator.next();
-					if (progress - entry.progress > windowSize) {
-						iterator.remove();
-					} else {
-						Tuple3<String, Integer, Integer> outputTuple = new Tuple3<String, Integer, Integer>(
-								name, value.f2, entry.salary);
-						out.collect(outputTuple);
-					}
+		if (salaryHashmap.containsKey(name)) {
+			Iterator<SalaryProgress> iterator = salaryHashmap.get(name).iterator();
+			while (iterator.hasNext()) {
+				SalaryProgress entry = iterator.next();
+				if (progress - entry.progress > windowSize) {
+					iterator.remove(); 
+				} else {
+					outputTuple.f2 = entry.salary;
+					out.collect(outputTuple);
 				}
-				if (!gradeHashmap.containsKey(name)) {
-					gradeHashmap.put(name, new LinkedList<GradeProgress>());
-				}
-				gradeHashmap.get(name).add(new GradeProgress(value.f2, progress));
-			} else {
-				if (gradeHashmap.containsKey(name)) {
-					Iterator<GradeProgress> iterator = gradeHashmap.get(name).iterator();
-					while (iterator.hasNext()) {
-						GradeProgress entry = iterator.next();
-						if (progress - entry.progress > windowSize) {
-							iterator.remove();
-						} else {
-							Tuple3<String, Integer, Integer> outputTuple = new Tuple3<String, Integer, Integer>(
-									name, entry.grade, value.f2);
-							out.collect(outputTuple);
-
-						}
-					}
-				}
-				if (!salaryHashmap.containsKey(name)) {
-					salaryHashmap.put(name, new LinkedList<SalaryProgress>());
-				}
-				salaryHashmap.get(name).add(new SalaryProgress(value.f2, progress));
 			}
-
 		}
+		if (!gradeHashmap.containsKey(name)) {
+			gradeHashmap.put(name, new LinkedList<GradeProgress>());
+		}
+		gradeHashmap.get(name).add(new GradeProgress(value.f1, progress));
+	}
+
+	// Joins the input value (salary) with the already known values (grades) on
+	// a given interval.
+	// Also stores the new element.
+	@Override
+	public void flatMap2(Tuple3<String, Integer, Long> value,
+			Collector<Tuple3<String, Integer, Integer>> out) throws Exception {
+		name = value.f0;
+		progress = value.f2;
+
+		outputTuple.f0 = name;
+		outputTuple.f2 = value.f1;
+		
+		if (gradeHashmap.containsKey(name)) {
+			Iterator<GradeProgress> iterator = gradeHashmap.get(name).iterator();
+			while (iterator.hasNext()) {
+				GradeProgress entry = iterator.next();
+				if (progress - entry.progress > windowSize) {
+					iterator.remove();
+				} else {
+					outputTuple.f1 = entry.grade;
+					out.collect(outputTuple);
+				}
+			}
+		}
+		if (!salaryHashmap.containsKey(name)) {
+			salaryHashmap.put(name, new LinkedList<SalaryProgress>());
+		}
+		salaryHashmap.get(name).add(new SalaryProgress(value.f1, progress));
 	}
 }

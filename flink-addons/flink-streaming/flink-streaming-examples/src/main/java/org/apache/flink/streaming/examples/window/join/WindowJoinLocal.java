@@ -18,11 +18,8 @@
 package org.apache.flink.streaming.examples.window.join;
 
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.LogUtils;
-import org.apache.log4j.Level;
 
 public class WindowJoinLocal {
 
@@ -32,23 +29,22 @@ public class WindowJoinLocal {
 	// This example will join two streams with a sliding window. One which emits
 	// people's grades and one which emits people's salaries.
 
-	//TODO update and reconsider
 	public static void main(String[] args) {
 
-		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(
+				PARALLELISM).setBufferTimeout(100);
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(PARALLELISM).setBufferTimeout(100);
+		DataStream<Tuple3<String, Integer, Long>> grades = env.addSource(new GradeSource(),
+				SOURCE_PARALLELISM);
 
-		DataStream<Tuple4<String, String, Integer, Long>> dataStream1 = env.addSource(
-				new WindowJoinSourceOne(), SOURCE_PARALLELISM);
+		DataStream<Tuple3<String, Integer, Long>> salaries = env.addSource(new SalarySource(),
+				SOURCE_PARALLELISM);
 
-		@SuppressWarnings("unchecked")
-		DataStream<Tuple3<String, Integer, Integer>> dataStream2 = env
-				.addSource(new WindowJoinSourceTwo(), SOURCE_PARALLELISM).merge(dataStream1)
-				.partitionBy(1).flatMap(new WindowJoinTask());
+		DataStream<Tuple3<String, Integer, Integer>> joinedStream = grades.connect(salaries)
+				.flatMap(new WindowJoinTask());
 
-		dataStream2.print();
+		System.out.println("(NAME, GRADE, SALARY)");
+		joinedStream.print();
 
 		env.execute();
 
