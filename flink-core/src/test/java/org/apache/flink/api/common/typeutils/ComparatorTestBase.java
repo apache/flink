@@ -26,8 +26,6 @@ import java.io.IOException;
 
 import static org.junit.Assert.*;
 
-import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -108,7 +106,7 @@ public abstract class ComparatorTestBase<T> {
 				writeSortedData(d, out1);
 				in1 = out1.getInputView();
 
-				assertTrue(comparator.compare(in1, in2) == 0);
+				assertTrue(comparator.compareSerialized(in1, in2) == 0);
 			}
 		} catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -173,16 +171,16 @@ public abstract class ComparatorTestBase<T> {
 					in2 = out2.getInputView();
 
 					if (greater && ascending) {
-						assertTrue(comparator.compare(in1, in2) < 0);
+						assertTrue(comparator.compareSerialized(in1, in2) < 0);
 					}
 					if (greater && !ascending) {
-						assertTrue(comparator.compare(in1, in2) > 0);
+						assertTrue(comparator.compareSerialized(in1, in2) > 0);
 					}
 					if (!greater && ascending) {
-						assertTrue(comparator.compare(in2, in1) > 0);
+						assertTrue(comparator.compareSerialized(in2, in1) > 0);
 					}
 					if (!greater && !ascending) {
-						assertTrue(comparator.compare(in2, in1) < 0);
+						assertTrue(comparator.compareSerialized(in2, in1) < 0);
 					}
 				}
 			}

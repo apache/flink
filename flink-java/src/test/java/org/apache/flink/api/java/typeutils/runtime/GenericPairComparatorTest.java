@@ -19,16 +19,18 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleComparator;
+import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.IntComparator;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.api.java.typeutils.runtime.TuplePairComparator;
 
 import org.apache.flink.api.java.typeutils.runtime.tuple.base.TuplePairComparatorTestBase;
 
-public class TuplePairComparatorTest extends TuplePairComparatorTestBase<Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>> {
+public class GenericPairComparatorTest extends TuplePairComparatorTestBase<Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>> {
 
 	@SuppressWarnings("unchecked")
 	private Tuple3<Integer, String, Double>[] dataISD = new Tuple3[]{
@@ -56,19 +58,28 @@ public class TuplePairComparatorTest extends TuplePairComparatorTestBase<Tuple3<
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected TuplePairComparator<Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>> createComparator(boolean ascending) {
-		return new TuplePairComparator<Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>>(
-				new int[]{0, 2},
-				new int[]{0, 3},
-				new TypeComparator[]{
-					new IntComparator(ascending),
-					new DoubleComparator(ascending)
-				},
-				new TypeComparator[]{
-					new IntComparator(ascending),
-					new DoubleComparator(ascending)
-				}
-		);
+	protected GenericPairComparator<Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>> createComparator(boolean ascending) {
+		int[] fields1 = new int[]{0, 2};
+		int[] fields2 = new int[]{0, 3};
+		TypeComparator[] comps1 = new TypeComparator[]{
+				new IntComparator(ascending),
+				new DoubleComparator(ascending)
+		};
+		TypeComparator[] comps2 = new TypeComparator[]{
+				new IntComparator(ascending),
+				new DoubleComparator(ascending)
+		};
+		TypeSerializer[] sers1 = new TypeSerializer[]{
+				IntSerializer.INSTANCE,
+				DoubleSerializer.INSTANCE
+		};
+		TypeSerializer[] sers2= new TypeSerializer[]{
+				IntSerializer.INSTANCE,
+				DoubleSerializer.INSTANCE
+		};
+		TypeComparator<Tuple3<Integer, String, Double>> comp1 = new TupleComparator<Tuple3<Integer, String, Double>>(fields1, comps1, sers1);
+		TypeComparator<Tuple4<Integer, Float, Long, Double>> comp2 = new TupleComparator<Tuple4<Integer, Float, Long, Double>>(fields2, comps2, sers2);
+		return new GenericPairComparator<Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>>(comp1, comp2);
 	}
 
 	@Override

@@ -35,7 +35,7 @@ public final class ShortComparator extends BasicTypeComparator<Short> {
 	}
 
 	@Override
-	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
+	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		short s1 = firstSource.readShort();
 		short s2 = secondSource.readShort();
 		int comp = (s1 < s2 ? -1 : (s1 == s2 ? 0 : 1)); 

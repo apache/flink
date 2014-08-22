@@ -42,7 +42,7 @@ public final class StringComparator extends BasicTypeComparator<String> {
 	}
 
 	@Override
-	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
+	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		String s1 = StringValue.readString(firstSource);
 		String s2 = StringValue.readString(secondSource);
 		int comp = s1.compareTo(s2); 
